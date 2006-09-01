@@ -1,8 +1,8 @@
 /* 
- * Copyright (c) 2006 David Bird <wlan@mac.com>
  *
  * TUN interface functions.
  * Copyright (C) 2002, 2003, 2004 Mondru AB.
+ * Copyright (c) 2006 Coova Ltd
  * 
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -591,7 +591,7 @@ int tun_delroute(struct tun_t *this,
 }
 
 
-int tun_new(struct tun_t **tun)
+int tun_new(struct tun_t **tun, int txqlen)
 {
 
 #if defined(__linux__)
@@ -633,11 +633,34 @@ int tun_new(struct tun_t **tun)
      used to obtain the network interface name */
   memset(&ifr, 0, sizeof(ifr));
   ifr.ifr_flags = IFF_TUN | IFF_NO_PI; /* Tun device, no packet info */
+#if defined(IFF_ONE_QUEUE) && defined(SIOCSIFTXQLEN)
+  ifr.ifr_flags |= IFF_ONE_QUEUE;
+#endif
   if (ioctl((*tun)->fd, TUNSETIFF, (void *) &ifr) < 0) {
     sys_err(LOG_ERR, __FILE__, __LINE__, errno, "ioctl() failed");
     close((*tun)->fd);
     return -1;
   } 
+  
+#if defined(IFF_ONE_QUEUE) && defined(SIOCSIFTXQLEN)
+  {
+    struct ifreq nifr;
+    int nfd;
+    memset(&nifr, 0, sizeof(nifr));
+    if ((nfd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) {
+      strncpy(nifr.ifr_name, ifr.ifr_name, IFNAMSIZ);
+      nifr.ifr_qlen = txqlen;
+      if (ioctl(nfd, SIOCSIFTXQLEN, (void *) &nifr) >= 0) {
+	printf("TX queue length set to %d", txqlen);
+      } else {
+	printf("Cannot set tx queue length on %s", ifr.ifr_name);
+      }
+      close (nfd);
+    } else {
+      printf("Cannot open socket on %s", ifr.ifr_name);
+    }
+  }
+#endif
   
   strncpy((*tun)->devname, ifr.ifr_name, IFNAMSIZ);
   (*tun)->devname[IFNAMSIZ] = 0;
@@ -833,22 +856,63 @@ int tun_encaps(struct tun_t *tun, void *pack, unsigned len)
 }
 
 int tun_runscript(struct tun_t *tun, char* script) {
-  
-  char buf[TUN_SCRIPTSIZE];
+  char saddr[TUN_ADDRSIZE];
   char snet[TUN_ADDRSIZE];
   char smask[TUN_ADDRSIZE];
+  int status;
+  struct in_addr net;
 
-  strncpy(snet, inet_ntoa(tun->addr), sizeof(snet));
+  net.s_addr = tun->addr.s_addr & tun->netmask.s_addr;
+
+  strncpy(saddr, inet_ntoa(tun->addr), sizeof(saddr));
+  saddr[sizeof(saddr)-1] = 0;
+  strncpy(snet, inet_ntoa(net), sizeof(snet));
   snet[sizeof(snet)-1] = 0;
   strncpy(smask, inet_ntoa(tun->netmask), sizeof(smask));
   smask[sizeof(smask)-1] = 0;
   
-  /* /dev/tun0 192.168.0.10 255.255.255.0 */
-
-  snprintf(buf, sizeof(buf), "%s %s %s %s",
-	   script, tun->devname, snet, smask);
-
-  buf[sizeof(buf)-1] = 0;
-  system(buf);
-  return 0;
+  if ((status = fork()) < 0) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+	    "fork() returned -1!");
+    return 0;
+  }
+  
+  if (status > 0) { /* Parent */
+    return 0;
+  }
+  
+  if (clearenv() != 0) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+	    "clearenv() did not return 0!");
+    exit(0);
+  }
+  
+  if (setenv("DEV", tun->devname, 1) != 0) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+	    "setenv() did not return 0!");
+    exit(0);
+  }
+  if (setenv("ADDR", saddr, 1 ) != 0) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+	    "setenv() did not return 0!");
+    exit(0);
+  }
+  if (setenv("NET", snet, 1 ) != 0) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+	    "setenv() did not return 0!");
+    exit(0);
+  }
+  if (setenv("MASK", smask, 1) != 0) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+	    "setenv() did not return 0!");
+    exit(0);
+  }
+  
+  if (execl(script, script, tun->devname, saddr, smask, (char *) 0) != 0) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+	    "execl() did not return 0!");
+    exit(0);
+  }
+  
+  exit(0);
 }

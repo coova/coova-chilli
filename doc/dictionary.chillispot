@@ -18,3 +18,4 @@ ATTRIBUTE       ChilliSpot-Max-Total-Octets        3       integer ChilliSpot
 ATTRIBUTE       ChilliSpot-Bandwidth-Max-Up        4       integer ChilliSpot
 ATTRIBUTE       ChilliSpot-Bandwidth-Max-Down      5       integer ChilliSpot
 ATTRIBUTE       ChilliSpot-Config                  6       string  ChilliSpot
+ATTRIBUTE       ChilliSpot-Lang                    7       string  ChilliSpot

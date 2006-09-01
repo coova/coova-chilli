@@ -1,9 +1,9 @@
 /* 
- * Copyright (c) 2006 David Bird <wlan@mac.com>
  *
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
+ * Copyright (c) 2006 Coova Ltd
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -154,6 +154,108 @@ int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
 #endif
 
 
+/* Run external script */
+
+int set_env(char *name, char *value, int len, struct in_addr *addr,
+	    uint8_t *mac, long int *integer) {
+  char s[1024];
+  if (addr!=NULL) {
+    strncpy(s, inet_ntoa(*addr), sizeof(s)); s[sizeof(s)-1] = 0;
+    value = s;
+  }
+  else if (mac != NULL) {
+    (void) snprintf(s, sizeof(s)-1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+		    mac[0], mac[1],
+		    mac[2], mac[3],
+		    mac[4], mac[5]);
+    value = s;
+  }
+  else if (integer != NULL) {
+    (void) snprintf(s, sizeof(s)-1, "%d", *integer);
+    value = s;
+  }
+  else if (len != 0) {
+    if (len >= sizeof(s)) {
+      return 0;
+    }
+    memcpy(s, value, len);
+    s[len] = 0;
+    value = s;
+  }
+  if (name != NULL && value!= NULL) {
+    if (setenv(name, value, 1) != 0) {
+      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+	      "setenv(%s, %s, 1) did not return 0!", name, value);
+      exit(0);
+    }
+  }
+}
+
+int runscript(struct app_conn_t *appconn, char* script) {  
+  long int l;
+  int status;
+
+  if ((status = fork()) < 0) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+	    "fork() returned -1!");
+    return 0;
+  }
+
+  if (status > 0) { /* Parent */
+    return 0; 
+  }
+
+  if (clearenv() != 0) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+	    "clearenv() did not return 0!");
+    exit(0);
+  }
+
+  set_env("DEV", tun->devname, 0, NULL, NULL, NULL);
+  set_env("NET", NULL, 0, &appconn->net, NULL, NULL);
+  set_env("MASK", NULL, 0, &appconn->mask, NULL, NULL);
+  set_env("ADDR", NULL, 0, &appconn->ourip,NULL, NULL);
+  set_env("USER_NAME", appconn->proxyuser, 0, NULL, NULL, NULL);
+  set_env("NAS_IP_ADDRESS", NULL, 0, &options.radiuslisten, NULL, NULL);
+  set_env("SERVICE_TYPE", "1", 0, NULL, NULL, NULL);
+  set_env("FRAMED_IP_ADDRESS", NULL, 0, &appconn->hisip, NULL, NULL);
+  set_env("FILTER_ID", appconn->filteridbuf, 0, NULL, NULL, NULL);
+  set_env("STATE", (char*) appconn->statebuf, appconn->statelen, NULL, NULL, NULL);
+  set_env("CLASS", (char*) appconn->classbuf, appconn->classlen, NULL, NULL, NULL);
+  set_env("SESSION_TIMEOUT", NULL, 0, NULL, NULL, &appconn->sessiontimeout);
+  set_env("IDLE_TIMEOUT", NULL, 0, NULL, NULL, &appconn->idletimeout);
+  set_env("CALLING_STATION_ID", NULL, 0, NULL, appconn->hismac, NULL);
+  set_env("CALLED_STATION_ID", NULL, 0, NULL, appconn->ourmac, NULL);
+  set_env("NAS_ID", options.radiusnasid, 0, NULL, NULL, NULL);
+  set_env("NAS_PORT_TYPE", "19", 0, NULL, NULL, NULL);
+  set_env("ACCT_SESSION_ID", appconn->sessionid, 0, NULL, NULL, NULL);
+  l = appconn->interim_interval;
+  set_env("ACCT_INTERIM_INTERVAL", NULL, 0, NULL, NULL, &l);
+  set_env("WISPR_LOCATION_ID", options.radiuslocationid, 0, NULL, NULL, NULL);
+  set_env("WISPR_LOCATION_NAME", options.radiuslocationname, 0, NULL, NULL, NULL);
+  l = appconn->bandwidthmaxup;
+  set_env("WISPR_BANDWIDTH_MAX_UP", NULL, 0, NULL, NULL, &l);
+  l = appconn->bandwidthmaxdown;
+  set_env("WISPR_BANDWIDTH_MAX_DOWN", NULL, 0, NULL, NULL, &l);
+  /*set_env("WISPR-SESSION_TERMINATE_TIME", appconn->sessionterminatetime, 0,
+    NULL, NULL, NULL);*/
+  l = appconn->maxinputoctets;
+  set_env("CHILLISPOT_MAX_INPUT_OCTETS", NULL, 0, NULL, NULL, &l);
+  l = appconn->maxoutputoctets;
+  set_env("CHILLISPOT_MAX_OUTPUT_OCTETS", NULL, 0, NULL, NULL, &l);
+  l = appconn->maxtotaloctets;
+  set_env("CHILLISPOT_MAX_TOTAL_OCTETS", NULL, 0, NULL, NULL, &l);
+
+  if (execl(script, script, (char *) 0) != 0) {
+      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+	      "execl() did not return 0!");
+      exit(0);
+  }
+
+  exit(0);
+}
+
+
 
 /* 
  * A few functions to manage connections 
@@ -296,6 +398,7 @@ int static getconn_username(struct app_conn_t **conn, char *username,
 
 int static dnprot_terminate(struct app_conn_t *appconn) {
   appconn->authenticated = 0;
+  printstatus(appconn);
   switch (appconn->dnprot) {
   case DNPROT_WPA:
   case DNPROT_EAPOL:
@@ -801,8 +904,15 @@ int static acct_req(struct app_conn_t *conn, int status_type)
   if (status_type == RADIUS_STATUS_TYPE_STOP) {
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_TERMINATE_CAUSE, 
 		   0, 0, conn->terminate_cause, NULL, 0);
-  }
 
+    /* TODO: This probably belongs somewhere else */
+    if (options.condown) {
+      if (options.debug)
+	printf("Calling connection down script: %s\n",options.condown);
+      (void) runscript(conn, options.condown);
+    }
+  }
+  
 
   (void) radius_req(radius, &radius_pack, conn);
   
@@ -1014,11 +1124,20 @@ int static dnprot_accept(struct app_conn_t *appconn) {
   }
 
   if (!appconn->require_uam_auth) {
-  /* This is the one and only place state is switched to authenticated */
-  appconn->authenticated = 1;
-  (void) acct_req(appconn, RADIUS_STATUS_TYPE_START);
+    /* This is the one and only place state is switched to authenticated */
+    appconn->authenticated = 1;
+    
+    /* Run connection up script */
+    if (options.conup) {
+      if (options.debug) printf("Calling connection up script: %s\n", options.conup);
+      (void) runscript(appconn, options.conup);
+    }
+    
+    printstatus(appconn);
+    
+    (void) acct_req(appconn, RADIUS_STATUS_TYPE_START);
   }
-
+  
   return 0;
 }
 
@@ -1055,7 +1174,10 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
 
   appconn = (struct app_conn_t*) ipm->peer;
 
-  if (appconn->authenticated == 1) {
+  /* If the ip source is uamlisten or port is uamport we won't call leaky_bucket*/
+  if (iph->src != tun->uamlisten.s_addr || iph->psrc != htons(options.uamport))
+  {
+    if (appconn->authenticated == 1) {
 
 #ifndef LEAKY_BUCKET
     gettimeofday(&appconn->last_time, NULL);
@@ -1066,13 +1188,19 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
     if (leaky_bucket(appconn, 0, len)) return 0;
 #endif
 #endif
-    appconn->input_packets++;
-    appconn->input_octets += len;
+    if (options.swapoctets) {
+      appconn->output_packets++;
+      appconn->output_octets += len;
+    } else {
+      appconn->input_packets++;
+      appconn->input_octets += len;
+    }
 #ifdef LEAKY_BUCKET
 #ifdef COUNT_DOWNLINK_DROP
     if (leaky_bucket(appconn, 0, len)) return 0;
 #endif
 #endif
+  }
   }
 
   switch (appconn->dnprot) {
@@ -1133,7 +1261,16 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
   strncpy(conn->userurl, appconn->userurl, REDIR_MAXCHAR);
   conn->userurl[REDIR_MAXCHAR-1] = 0;
   }   
-  
+
+  /* Stuff needed for status */
+  conn->input_octets    = appconn->input_octets;
+  conn->output_octets   = appconn->output_octets;
+  conn->sessiontimeout  = appconn->sessiontimeout;
+  conn->maxinputoctets  = appconn->maxinputoctets;
+  conn->maxoutputoctets = appconn->maxoutputoctets;
+  conn->maxtotaloctets  = appconn->maxtotaloctets;
+  conn->start_time      = appconn->start_time;
+ 
   if (appconn->authenticated == 1)
     return 1;
   else 
@@ -1875,6 +2012,19 @@ int cb_radius_auth_conf(struct radius_t *radius,
     hisip = (struct in_addr*) &appconn->reqip.s_addr;
   }
 
+  /* Filter ID */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_FILTER_ID,
+		      0, 0, 0)) {
+    appconn->filteridlen = attr->l-2;
+    memcpy(appconn->filteridbuf, attr->v.t, attr->l-2);
+    appconn->filteridbuf[attr->l-2] = 0;
+    /*conn->filterid = conn->filteridbuf;*/
+  }
+  else {
+    appconn->filteridlen = 0;
+    appconn->filteridbuf[0] = 0;
+    /*conn->filterid = NULL;*/
+  }
 
   /* Interim interval */
   if (!radius_getattr(pack, &interimattr, RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 
@@ -2417,13 +2567,16 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
 
   if ((appconn->dnprot != DNPROT_DHCP_NONE) &&
       (appconn->dnprot != DNPROT_UAM) &&
-      (appconn->dnprot != DNPROT_MAC))  { 
+      (appconn->dnprot != DNPROT_MAC) &&
+      (appconn->dnprot != DNPROT_WPA) &&
+      (appconn->dnprot != DNPROT_EAPOL))  {
     return 0; /* DNPROT_WPA and DNPROT_EAPOL are unaffected by dhcp release? */
   }
 
   /* User is logged out here. Can also happen by radius disconnect */
   if (appconn->authenticated == 1) { /* Only send accounting if logged in */
     appconn->authenticated = 0;
+    printstatus(appconn);
     appconn->terminate_cause = RADIUS_TERMINATE_CAUSE_LOST_CARRIER;
     (void) acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
     set_sessionid(appconn);
@@ -2463,6 +2616,10 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
     return -1;
   }
 
+  if (iph->src == tun->uamlisten.s_addr)
+    if (iph->psrc == htons(options.uamport))
+      return tun_encaps(tun, pack, len);
+
   if (appconn->authenticated == 1) {
 
 #ifndef LEAKY_BUCKET
@@ -2474,8 +2631,13 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
     if (leaky_bucket(appconn, len, 0)) return 0;
 #endif
 #endif
-    appconn->output_packets++;
-    appconn->output_octets +=len;
+    if (options.swapoctets) {
+      appconn->input_packets++;
+      appconn->input_octets +=len;
+    } else {
+      appconn->output_packets++;
+      appconn->output_octets +=len;
+    }
 #ifdef LEAKY_BUCKET
 #ifdef COUNT_UPLINK_DROP
     if (leaky_bucket(appconn, len, 0)) return 0;
@@ -2652,6 +2814,8 @@ int static uam_msg(struct redir_msg_t *msg) {
     appconn->maxoutputoctets = msg->maxoutputoctets;
     appconn->maxtotaloctets = msg->maxtotaloctets;
     appconn->sessionterminatetime = msg->sessionterminatetime;
+    strncpy(appconn->filteridbuf, msg->filteridbuf, RADIUS_ATTR_VLEN+1);
+    appconn->filteridlen = msg->filteridlen;
 
 #ifdef LEAKY_BUCKET
 #ifdef BUCKET_SIZE
@@ -2696,6 +2860,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 
     if (appconn->authenticated == 1) {
       appconn->authenticated = 0;
+      printstatus(appconn);
       appconn->terminate_cause = RADIUS_TERMINATE_CAUSE_USER_REQUEST;
       (void) acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
       set_sessionid(appconn);
@@ -2720,6 +2885,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 
     if (appconn->authenticated == 1) {
       appconn->authenticated = 0;
+      printstatus(appconn);
       appconn->terminate_cause = RADIUS_TERMINATE_CAUSE_USER_REQUEST;
       (void) acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
       set_sessionid(appconn);
@@ -2785,6 +2951,72 @@ static int cmdsock_accept(int sock) {
   return rval;
 }
 
+/* Function that will create and write a status file in statedir*/
+int printstatus(struct app_conn_t *appconn)
+{
+  struct app_conn_t *apptemp;
+  FILE *file;
+  char filedest[256];
+
+  struct timeval timenow;
+  gettimeofday(&timenow, NULL);
+
+  strcpy(filedest, options.statedir);
+  strcat(filedest, "status");
+
+  /* Ici on va écrire dans un fichier la liste des gens connectés */
+
+  if (!opendir(options.statedir)) return 0;
+  file = fopen(filedest, "w");
+  fprintf(file, "#SessionID = SID\n#Start-Time = ST\n");
+  fprintf(file, "#SessionTimeOut = STO\n#SessionTerminateTime = STT\n");
+  fprintf(file, "#Timestamp: %d\n", timenow.tv_sec);
+  fprintf(file, "#User, IP, MAC, SID, ST, STO, STT\n");
+  if(appconn == NULL)
+  {
+    fclose(file);
+    return 0;
+  }
+  apptemp = appconn;
+  while(apptemp != NULL)
+  {
+    if(apptemp->authenticated==1)
+    {
+      fprintf(file, "%s, %s, %.2X-%.2X-%.2X-%.2X-%.2X-%.2X, %s, %d, %d, %d\n",
+	apptemp->user,
+	inet_ntoa(apptemp->hisip),
+	apptemp->hismac[0], apptemp->hismac[1],
+	apptemp->hismac[2], apptemp->hismac[3],
+	apptemp->hismac[4], apptemp->hismac[5],
+	apptemp->sessionid,
+	(apptemp->start_time).tv_sec,
+	apptemp->sessiontimeout,
+	apptemp->sessionterminatetime);
+    }
+    apptemp = apptemp->prev;
+  }
+  apptemp = appconn->next;
+  while(apptemp != NULL)
+  {
+    if(apptemp->authenticated==1)
+    {
+      fprintf(file, "%s, %s, %.2X-%.2X-%.2X-%.2X-%.2X-%.2X, %s, %d, %d, %d\n",
+	apptemp->user,
+	inet_ntoa(apptemp->hisip),
+	apptemp->hismac[0], apptemp->hismac[1],
+	apptemp->hismac[2], apptemp->hismac[3],
+	apptemp->hismac[4], apptemp->hismac[5],
+	apptemp->sessionid,
+	(apptemp->start_time).tv_sec,
+	apptemp->sessiontimeout,
+	apptemp->sessionterminatetime);
+    }
+    apptemp = apptemp->next;
+  }
+  fclose(file);
+  return 0;
+}
+
 int chilli_main(int argc, char **argv)
 {
   
@@ -2832,6 +3064,8 @@ int chilli_main(int argc, char **argv)
     log_pid(options.pidfile);
   }
 
+  printstatus(NULL);
+
   /* Create an instance of radius */
   if (radius_new(&radius,
 		 &options.radiuslisten, options.coaport, options.coanoipcheck,
@@ -2876,7 +3110,7 @@ int chilli_main(int argc, char **argv)
   }
 
   /* Create a tunnel interface */
-  if (tun_new((struct tun_t**) &tun)) {
+  if (tun_new((struct tun_t**) &tun, options.txqlen)) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0,
 	    "Failed to create tun");
     exit(1);

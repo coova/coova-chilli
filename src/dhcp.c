@@ -1,8 +1,8 @@
 /*
- * Copyright (c) 2006 David Bird <wlan@mac.com>
  *
  * DHCP library functions.
- * Copyright (C) 2003, 2004, 2005 Mondru AB.
+ * Copyright (C) 2003, 2004, 2005, 2006 Mondru AB.
+ * Copyright (c) 2006 Coova Ltd
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -613,7 +613,7 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
 
 #endif
 
-int dhcp_send(int fd, uint16_t protocol, unsigned char *hismac, int ifindex,
+int dhcp_send(struct dhcp_t *this, int fd, uint16_t protocol, unsigned char *hismac, int ifindex,
 	      void *packet, int length)
 {
 #if defined(__linux__)
@@ -1267,6 +1267,11 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
       (udph->dst == htons(DHCP_DNS)))
     return 0; 
 
+  /* Was it an ICMP request for us? */
+  if ((pack->iph.daddr == conn->ourip.s_addr) &&
+      (pack->iph.protocol == DHCP_IP_ICMP))
+    return 0;
+  
   /* Was it a http or https request for authentication server? */
   /* Was it a request for authentication server? */
   for (i = 0; i<this->authiplen; i++) {
@@ -1344,6 +1349,11 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
       (pack->iph.protocol == DHCP_IP_UDP) &&
       (udph->src == htons(DHCP_DNS)))
     return 0; 
+
+  /* Was it an ICMP reply from us? */
+  if ((pack->iph.saddr == conn->ourip.s_addr) &&
+      (pack->iph.protocol == DHCP_IP_ICMP))
+    return 0;
 
   /* Was it a reply from redir server? */
   if ((pack->iph.saddr == this->uamlisten.s_addr) &&
@@ -1496,7 +1506,7 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
       /* Calculate total length */
       length = udp_len + DHCP_IP_HLEN + DHCP_ETH_HLEN;
       
-      return dhcp_send(this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
+      return dhcp_send(this, this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
 		       &answer, length);
 
     }
@@ -1684,7 +1694,7 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn,
   /* Calculate total length */
   length = udp_len + DHCP_IP_HLEN + DHCP_ETH_HLEN;
 
-  return dhcp_send(this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
+  return dhcp_send(this, this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
 		   &packet, length);
 }
 
@@ -1804,7 +1814,7 @@ int dhcp_sendACK(struct dhcp_conn_t *conn,
   /* Calculate total length */
   length = udp_len + DHCP_IP_HLEN + DHCP_ETH_HLEN;
 
-  return dhcp_send(this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
+  return dhcp_send(this, this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
 		   &packet, length);
 }
 
@@ -1871,7 +1881,7 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn,
   /* Calculate total length */
   length = udp_len + DHCP_IP_HLEN + DHCP_ETH_HLEN;
 
-  return dhcp_send(this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
+  return dhcp_send(this, this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
 		   &packet, length);
 
 }
@@ -2052,22 +2062,13 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack,
 
   /* Check to see if it is a packet for us */
   /* TODO: Handle IP packets with options. Currently these are just ignored */
-  if ((pack->iph.daddr == 0) ||
+  if (((pack->iph.daddr == 0) ||
       (pack->iph.daddr == 0xffffffff) ||
-      (pack->iph.daddr == ourip.s_addr)) {
-
-    /* if (pack->iph.ihl != 5)
-      return 0;  Packets for us with IP options are silently dropped */
-
-    /* if (pack->iph.protocol != DHCP_IP_UDP)
-      return 0;   Packets for us which are not UDP are silently dropped */
+       (pack->iph.daddr == ourip.s_addr)) &&
+      ((pack->iph.ihl == 5) && (pack->iph.protocol == DHCP_IP_UDP) &&
+       (((struct dhcp_fullpacket_t*)pack)->udph.dst == htons(DHCP_BOOTPS)))) {
     
-    /* We handle DHCP IPv4 packets without header options */
-    if ((pack->iph.ihl == 5) && (pack->iph.protocol == DHCP_IP_UDP) &&
-	(udph->dst != htons(DHCP_DNS))) {
-      (void)dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
-      return 0; /* TODO */
-    }
+    (void)dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
   }
 
   gettimeofday(&conn->lasttime, NULL);
@@ -2149,7 +2150,6 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, unsigned len)
   
   struct dhcp_ippacket_t packet;
 
-
   /* Ethernet header */
   memcpy(packet.ethh.dst, conn->hismac, DHCP_ETH_ALEN);
   memcpy(packet.ethh.src, this->hwaddr, DHCP_ETH_ALEN);
@@ -2174,8 +2174,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, unsigned len)
     return 0;
   }
 
-  return dhcp_send(this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
-		   &packet, length);
+  return dhcp_send(this, this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex, &packet, length);
 }
 
 
@@ -2232,8 +2231,7 @@ int dhcp_sendARP(struct dhcp_conn_t *conn,
   memcpy(packet.ethh.src, this->hwaddr, DHCP_ETH_ALEN);
   packet.ethh.prot = htons(DHCP_ETH_ARP);
 
-  return dhcp_send(this->arp_fd, DHCP_ETH_ARP, conn->hismac, this->arp_ifindex,
-		   &packet, length);
+  return dhcp_send(this, this->arp_fd, DHCP_ETH_ARP, conn->hismac, this->arp_ifindex, &packet, length);
 }
 
 
@@ -2334,7 +2332,7 @@ int dhcp_senddot1x(struct dhcp_conn_t *conn,
 
   struct dhcp_t *this = conn->parent;
   
-  return dhcp_send(this->fd, DHCP_ETH_EAPOL, conn->hismac, this->ifindex,
+  return dhcp_send(this, this->fd, DHCP_ETH_EAPOL, conn->hismac, this->ifindex,
 		   pack, len);
 }
 
@@ -2361,7 +2359,7 @@ int dhcp_sendEAP(struct dhcp_conn_t *conn, void *pack, int len) {
 
   memcpy(&packet.eap, pack, len);
   
-  return dhcp_send(this->fd, DHCP_ETH_EAPOL, conn->hismac, this->ifindex,
+  return dhcp_send(this, this->fd, DHCP_ETH_EAPOL, conn->hismac, this->ifindex,
 		   &packet, (DHCP_ETH_HLEN + 4 + len));
 }
 

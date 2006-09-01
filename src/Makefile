@@ -14,7 +14,7 @@
 
 
 
-SOURCES = $(chilli_SOURCES)
+SOURCES = $(chilli_SOURCES) $(chilli_query_SOURCES) $(chilli_radconfig_SOURCES) $(test_radius_SOURCES)
 
 srcdir = .
 top_srcdir = ..
@@ -38,7 +38,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = i686-pc-linux-gnu
 host_triplet = i686-pc-linux-gnu
-sbin_PROGRAMS = chilli$(EXEEXT)
+sbin_PROGRAMS = chilli$(EXEEXT) chilli_radconfig$(EXEEXT) \
+	chilli_query$(EXEEXT) test_radius$(EXEEXT)
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -51,12 +52,25 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(sbindir)"
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(sbin_PROGRAMS)
-am_chilli_OBJECTS = chilli.$(OBJEXT) tun.$(OBJEXT) cmdline.$(OBJEXT) \
-	ippool.$(OBJEXT) radius.$(OBJEXT) md5.$(OBJEXT) \
-	redir.$(OBJEXT) dhcp.$(OBJEXT) syserr.$(OBJEXT) \
-	iphash.$(OBJEXT) lookup.$(OBJEXT)
+am_chilli_OBJECTS = main.$(OBJEXT) chilli.$(OBJEXT) options.$(OBJEXT) \
+	tun.$(OBJEXT) cmdline.$(OBJEXT) ippool.$(OBJEXT) \
+	radius.$(OBJEXT) md5.$(OBJEXT) redir.$(OBJEXT) dhcp.$(OBJEXT) \
+	syserr.$(OBJEXT) iphash.$(OBJEXT) lookup.$(OBJEXT)
 chilli_OBJECTS = $(am_chilli_OBJECTS)
 chilli_LDADD = $(LDADD)
+am_chilli_query_OBJECTS = main-query.$(OBJEXT)
+chilli_query_OBJECTS = $(am_chilli_query_OBJECTS)
+chilli_query_LDADD = $(LDADD)
+am_chilli_radconfig_OBJECTS = main-radconfig.$(OBJEXT) \
+	options.$(OBJEXT) cmdline.$(OBJEXT) radius.$(OBJEXT) \
+	md5.$(OBJEXT) syserr.$(OBJEXT)
+chilli_radconfig_OBJECTS = $(am_chilli_radconfig_OBJECTS)
+chilli_radconfig_LDADD = $(LDADD)
+am_test_radius_OBJECTS = test-radius.$(OBJEXT) options.$(OBJEXT) \
+	cmdline.$(OBJEXT) radius.$(OBJEXT) md5.$(OBJEXT) \
+	syserr.$(OBJEXT)
+test_radius_OBJECTS = $(am_test_radius_OBJECTS)
+test_radius_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -68,19 +82,21 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(chilli_SOURCES)
-DIST_SOURCES = $(chilli_SOURCES)
+SOURCES = $(chilli_SOURCES) $(chilli_query_SOURCES) \
+	$(chilli_radconfig_SOURCES) $(test_radius_SOURCES)
+DIST_SOURCES = $(chilli_SOURCES) $(chilli_query_SOURCES) \
+	$(chilli_radconfig_SOURCES) $(test_radius_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
-ACLOCAL = ${SHELL} /home/dbird/cvs/ppap/chillispot/chillispot-1.0.orig/missing --run aclocal-1.9
+ACLOCAL = ${SHELL} /home/dbird/cvs/cap/chillispot/coova-chilli/missing --run aclocal-1.9
 AMDEP_FALSE = #
 AMDEP_TRUE = 
-AMTAR = ${SHELL} /home/dbird/cvs/ppap/chillispot/chillispot-1.0.orig/missing --run tar
+AMTAR = ${SHELL} /home/dbird/cvs/cap/chillispot/coova-chilli/missing --run tar
 AR = ar
-AUTOCONF = ${SHELL} /home/dbird/cvs/ppap/chillispot/chillispot-1.0.orig/missing --run autoconf
-AUTOHEADER = ${SHELL} /home/dbird/cvs/ppap/chillispot/chillispot-1.0.orig/missing --run autoheader
-AUTOMAKE = ${SHELL} /home/dbird/cvs/ppap/chillispot/chillispot-1.0.orig/missing --run automake-1.9
+AUTOCONF = ${SHELL} /home/dbird/cvs/cap/chillispot/coova-chilli/missing --run autoconf
+AUTOHEADER = ${SHELL} /home/dbird/cvs/cap/chillispot/coova-chilli/missing --run autoheader
+AUTOMAKE = ${SHELL} /home/dbird/cvs/cap/chillispot/coova-chilli/missing --run automake-1.9
 AWK = gawk
 CC = gcc
 CCDEPMODE = depmode=gcc3
@@ -112,7 +128,7 @@ LIBS =
 LIBTOOL = $(SHELL) $(top_builddir)/libtool
 LN_S = ln -s
 LTLIBOBJS = 
-MAKEINFO = ${SHELL} /home/dbird/cvs/ppap/chillispot/chillispot-1.0.orig/missing --run makeinfo
+MAKEINFO = ${SHELL} /home/dbird/cvs/cap/chillispot/coova-chilli/missing --run makeinfo
 OBJEXT = o
 PACKAGE = chillispot
 PACKAGE_BUGREPORT = bugs@chillispot.org
@@ -156,14 +172,14 @@ host_os = linux-gnu
 host_vendor = pc
 includedir = ${prefix}/include
 infodir = ${prefix}/info
-install_sh = /home/dbird/cvs/ppap/chillispot/chillispot-1.0.orig/install-sh
+install_sh = /home/dbird/cvs/cap/chillispot/coova-chilli/install-sh
 libdir = ${exec_prefix}/lib
 libexecdir = ${exec_prefix}/libexec
 localstatedir = ${prefix}/var
 mandir = ${prefix}/man
 mkdir_p = mkdir -p --
 oldincludedir = /usr/include
-prefix = /usr
+prefix = /usr/local
 program_transform_name = s,x,x,
 sbindir = ${exec_prefix}/sbin
 sharedstatedir = ${prefix}/com
@@ -172,8 +188,11 @@ target_alias =
 
 # add -pg to enable gprof
 AM_CFLAGS = -D_GNU_SOURCE -fno-builtin -ansi -DSBINDIR='"$(sbindir)"' 
-chilli_SOURCES = chilli.c defs.h tun.c tun.h cmdline.c cmdline.h ippool.c ippool.h radius.h radius.c md5.c md5.h redir.h redir.c dhcp.c dhcp.h syserr.c syserr.h iphash.c iphash.h lookup.c lookup.h
+chilli_SOURCES = main.c chilli.c options.c defs.h tun.c tun.h cmdline.c cmdline.h ippool.c ippool.h radius.h radius.c md5.c md5.h redir.h redir.c dhcp.c dhcp.h syserr.c syserr.h iphash.c iphash.h lookup.c lookup.h system.h cmdsock.h
 chilli_LDFLAGS = -lcrypt
+chilli_radconfig_SOURCES = main-radconfig.c options.c cmdline.c radius.c md5.c syserr.c system.h
+test_radius_SOURCES = test-radius.c options.c cmdline.c radius.c md5.c syserr.c system.h
+chilli_query_SOURCES = main-query.c cmdsock.h
 all: all-am
 
 .SUFFIXES:
@@ -238,6 +257,15 @@ clean-sbinPROGRAMS:
 chilli$(EXEEXT): $(chilli_OBJECTS) $(chilli_DEPENDENCIES) 
 	@rm -f chilli$(EXEEXT)
 	$(LINK) $(chilli_LDFLAGS) $(chilli_OBJECTS) $(chilli_LDADD) $(LIBS)
+chilli_query$(EXEEXT): $(chilli_query_OBJECTS) $(chilli_query_DEPENDENCIES) 
+	@rm -f chilli_query$(EXEEXT)
+	$(LINK) $(chilli_query_LDFLAGS) $(chilli_query_OBJECTS) $(chilli_query_LDADD) $(LIBS)
+chilli_radconfig$(EXEEXT): $(chilli_radconfig_OBJECTS) $(chilli_radconfig_DEPENDENCIES) 
+	@rm -f chilli_radconfig$(EXEEXT)
+	$(LINK) $(chilli_radconfig_LDFLAGS) $(chilli_radconfig_OBJECTS) $(chilli_radconfig_LDADD) $(LIBS)
+test_radius$(EXEEXT): $(test_radius_OBJECTS) $(test_radius_DEPENDENCIES) 
+	@rm -f test_radius$(EXEEXT)
+	$(LINK) $(test_radius_LDFLAGS) $(test_radius_OBJECTS) $(test_radius_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -251,10 +279,15 @@ include ./$(DEPDIR)/dhcp.Po
 include ./$(DEPDIR)/iphash.Po
 include ./$(DEPDIR)/ippool.Po
 include ./$(DEPDIR)/lookup.Po
+include ./$(DEPDIR)/main-query.Po
+include ./$(DEPDIR)/main-radconfig.Po
+include ./$(DEPDIR)/main.Po
 include ./$(DEPDIR)/md5.Po
+include ./$(DEPDIR)/options.Po
 include ./$(DEPDIR)/radius.Po
 include ./$(DEPDIR)/redir.Po
 include ./$(DEPDIR)/syserr.Po
+include ./$(DEPDIR)/test-radius.Po
 include ./$(DEPDIR)/tun.Po
 
 .c.o:

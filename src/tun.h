@@ -1,8 +1,8 @@
 /* 
- * Copyright (c) 2006 David Bird <wlan@mac.com>
  *
  * TUN interface functions.
  * Copyright (C) 2002, 2003, 2004, 2005 Mondru AB.
+ * Copyright (c) 2006 Coova Ltd
  * 
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -33,6 +33,8 @@ struct tun_packet_t {
   unsigned int check:16;
   unsigned int src:32;
   unsigned int dst:32;
+  unsigned int psrc:16;
+  unsigned int pdst:16;
 };
 
 
@@ -45,6 +47,8 @@ struct tun_t {
   struct in_addr addr;
   struct in_addr dstaddr;
   struct in_addr netmask;
+  struct in_addr uamlisten;
+  int uamport;
   int addrs;             /* Number of allocated IP addresses */
   int routes;            /* One if we allocated an automatic route */
   char devname[IFNAMSIZ];/* Name of the tun device */
@@ -52,7 +56,7 @@ struct tun_t {
 };
 
 
-extern int tun_new(struct tun_t **tun);
+extern int tun_new(struct tun_t **tun, int txqlen);
 extern int tun_free(struct tun_t *tun);
 extern int tun_decaps(struct tun_t *this);
 extern int tun_encaps(struct tun_t *tun, void *pack, unsigned len);

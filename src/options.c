@@ -1,9 +1,9 @@
 /* 
- * Copyright (c) 2006 David Bird <wlan@mac.com>
  *
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
+ * Copyright (c) 2006 Coova Ltd
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -190,6 +190,9 @@ int process_options(int argc, char **argv, int minimal) {
   options.dhcpstart = args_info.dhcpstart_arg;
   options.dhcpend = args_info.dhcpend_arg;
   options.eapolenable = args_info.eapolenable_flag;
+  options.swapoctets = args_info.swapoctets_flag;
+  options.usestatusfile = args_info.usestatusfile_flag;
+  options.chillixml = args_info.chillixml_flag;
   options.macauth = args_info.macauth_flag;
   options.uamport = args_info.uamport_arg;
   options.uamsuccess = args_info.uamsuccess_flag;
@@ -201,6 +204,7 @@ int process_options(int argc, char **argv, int minimal) {
   options.coaport = args_info.coaport_arg;
   options.coanoipcheck = args_info.coanoipcheck_flag;
   options.proxyport = args_info.proxyport_arg;
+  options.txqlen = args_info.txqlen_arg;
 
   if (!reconfiguring) { 
     if (!args_info.dhcpif_arg) {
@@ -724,8 +728,17 @@ int process_options(int argc, char **argv, int minimal) {
   if (options.ipdown) free(options.ipdown);
   options.ipdown = gengetopt_strdup(args_info.ipdown_arg);
 
+  if (options.conup) free(options.conup);
+  options.conup = gengetopt_strdup(args_info.conup_arg);
+
+  if (options.condown) free(options.condown);
+  options.condown = gengetopt_strdup(args_info.condown_arg);
+
   if (options.pidfile) free(options.pidfile);
   options.pidfile = gengetopt_strdup(args_info.pidfile_arg);
+
+  if (options.statedir) free(options.statedir);
+  options.statedir = gengetopt_strdup(args_info.statedir_arg);
 
   ret = 0;
 

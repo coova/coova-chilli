@@ -1,8 +1,8 @@
 /* 
- * Copyright (c) 2006 David Bird <wlan@mac.com>
  *
  * HTTP redirection functions.
  * Copyright (C) 2004, 2005 Mondru AB.
+ * Copyright (c) 2006 Coova Ltd
  * 
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -44,6 +44,9 @@
 
 #define REDIR_USERNAMESIZE 256 /* Max length of username */
 #define REDIR_USERURLSIZE 256  /* Max length of URL requested by user */
+#define REDIR_USERAGENTSIZE 256
+#define REDIR_LANGSIZE 256
+#define REDIR_IDENTSIZE 256
 
 #define REDIR_MAXCONN 16
 
@@ -60,6 +63,7 @@
 #define REDIR_CHALLENGE  4
 #define REDIR_ABORT      5
 #define REDIR_ABOUT      6
+#define REDIR_STATUS     7
 #define REDIR_WWW        20
 #define REDIR_MSDOWNLOAD 25
 #define REDIR_ADMIN_CONN 30
@@ -81,6 +85,12 @@ struct redir_conn_t {
   int type; /* REDIR_LOGOUT, LOGIN, PRELOGIN, CHALLENGE, MSDOWNLOAD */
   char username[REDIR_USERNAMESIZE];
   char userurl[REDIR_USERURLSIZE];
+
+  /* Will be used to get useragent, lang and ident parameters on redir.c*/
+  char useragent[REDIR_USERAGENTSIZE];
+  char lang[REDIR_LANGSIZE];
+  char ident[REDIR_IDENTSIZE];
+  
   int chap; /* 0 if using normal password; 1 if using CHAP */
   uint8_t chappassword[REDIR_MAXCHAR];
   uint8_t password[REDIR_MAXCHAR];
@@ -97,7 +107,7 @@ struct redir_conn_t {
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
   char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
-  int response; /* 0: No adius response yet; 1:Reject; 2:Accept; 3:Timeout */
+  int response; /* 0: No radius response yet; 1:Reject; 2:Accept; 3:Timeout */
   long int sessiontimeout;
   long int idletimeout;
   long int interim_interval;  /* Interim accounting */
@@ -116,6 +126,12 @@ struct redir_conn_t {
   int maxoutputoctets;
   int maxtotaloctets;
   time_t sessionterminatetime;
+  char filteridbuf[RADIUS_ATTR_VLEN+1];
+  int filteridlen;
+  char *filterid;
+  uint64_t input_octets;     /* Transferred in callback */
+  uint64_t output_octets;    /* Transferred in callback */
+  struct timeval start_time; /* Transferred in callback */
 };
 
 struct redir_t {
@@ -157,10 +173,12 @@ struct redir_msg_t {
   char username[REDIR_USERNAMESIZE];
   char userurl[REDIR_USERURLSIZE];
   uint8_t uamchal[REDIR_MD5LEN];
-  uint8_t statebuf[RADIUS_ATTR_VLEN];
+  uint8_t statebuf[RADIUS_ATTR_VLEN+1];
   int statelen;
-  uint8_t classbuf[RADIUS_ATTR_VLEN];
+  uint8_t classbuf[RADIUS_ATTR_VLEN+1];
   int classlen;
+  char filteridbuf[RADIUS_ATTR_VLEN+1];
+  int filteridlen;
   int bandwidthmaxup;
   int bandwidthmaxdown;
   int maxinputoctets;

@@ -1,8 +1,8 @@
 /* 
- * Copyright (c) 2006 David Bird <wlan@mac.com>
  *
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2006 PicoPoint B.V.
+ * Copyright (c) 2006 Coova Ltd
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright

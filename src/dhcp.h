@@ -1,8 +1,8 @@
 /* 
- * Copyright (c) 2006 David Bird <wlan@mac.com>
  *
  * DHCP library functions
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
+ * Copyright (c) 2006 Coova Ltd
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -92,8 +92,9 @@ struct dhcp_ethhdr_t
 /* Constants for IP packet */
 #define DHCP_IP_ALEN   4
 #define DHCP_IP_HLEN  20
-#define DHCP_IP_UDP   17 /* UDP Protocol number */
+#define DHCP_IP_ICMP   1 /* ICMP Protocol number */
 #define DHCP_IP_TCP    6 /* TCP Protocol number */
+#define DHCP_IP_UDP   17 /* UDP Protocol number */
 
 struct dhcp_iphdr_t {
   uint8_t  ihl:4;

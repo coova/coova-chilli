@@ -1,9 +1,9 @@
 /* 
- * Copyright (c) 2006 David Bird <wlan@mac.com>
  *
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
+ * Copyright (c) 2006 Coova Ltd
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -34,7 +34,7 @@ struct options_t {
   /* conf */
   int interval;
   char *pidfile;
-  /* statedir */
+  char *statedir;
 
   /* TUN parameters */
   struct in_addr net;            /* Network IP address */
@@ -50,6 +50,9 @@ struct options_t {
   char *domain;                  /* Domain to use for DNS lookups */
   char* ipup;                    /* Script to run after link-up */
   char* ipdown;                  /* Script to run after link-down */
+  char* conup;                   /* Script to run after session/connection-up */
+  char* condown;                 /* Script to run after session/connection-down */
+  int txqlen;
 
   /* Radius parameters */
   struct in_addr radiuslisten;   /* IP address to listen to */
@@ -84,6 +87,10 @@ struct options_t {
 
   /* EAPOL parameters */
   int eapolenable;               /* Use eapol */
+
+  int swapoctets;
+  int usestatusfile;
+  int chillixml;
 
   /* UAM parameters */
   struct in_addr uamserver[UAMSERVER_MAX]; /* IP address of UAM server */

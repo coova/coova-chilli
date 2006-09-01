@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 David Bird <wlan@mac.com>
+ * Copyright (c) 2006 Coova Ltd
  *
  */
 

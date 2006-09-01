@@ -1,0 +1,35 @@
+
+== ChangeLog (Coova Chilli v0.2) ==
+
+* Configurable TX queue length (option "txqlen") on the tun/tap tunnel (Linux only)
+* Added option "swapoctets" to swap the meaning of input/output octets/packets
+* Patches contributed by WeSea (see: http://chillispot.wesea.com/)
+  * Added option "usestatusfile" to turn on the use of the status file
+  * Added option "conup" defining a script for session/connection-up
+  * Added option "condown" defining a script for session/connection-down
+  * Traffic to UAM interface not counted in leaky buckets
+
+== ChangeLog (Coova Chilli v0.1) ==
+
+* Added the ability to use include <filename> in configuration files to include others. Using gengetopt version 2.16 and a patch is applied to the generated source.
+* A chilli_radconfig utility to perform a NAS Administrative-User RADIUS login in order to collect configurations (using the new ChilliSpot-Config VSA).
+* A chilli_query utility to interface directly with the chilli server (via a UNIX socket) and retrieve the status of all DHCP leases and sessions. Also, the utility can be used to instruct chilli to release a DHCP lease (and logout the user).
+* Added the configuration parameters adminuser and adminpasswd which are used by chilli_radconfig in combination with the other RADIUS (server, secret, port) parameters.
+* Fixed the handling of the originally requested URL and the forwarding of said in the UAM initial redirect query string (parameter userurl).
+* Passing query string argument loginurl to uamhomepage noting the URL to follow to login -- also making the redirect return WISPr directions to use the uamserver URL instead.
+* Added the configuration parameter wwwdir which defines a directory which will serve local files for URLs of format: http://<uamlisten>:<uamport>/www/<filename> - only supports .html, .gif, and .jpg extensions.
+* Added the configuration parameters dhcpstart, and dhcpend which define the DHCP ippool range.
+* Added the sending of hisip in the UAM initial redirect query string.
+* Added the configuration parameter cmdsocket which is the path of the UNIX socket to use for chilli_query.
+* Added the configuration parameter ssid which gets added to the UAM initial redirect query string.
+* Added the configuration parameter vlan which gets added to the UAM initial redirect query string.
+* Added the configuration parameter nasip which gets used in the RADIUS NAS-IP-Address attribute (the listen IP is used if not set).
+* Added the configuration parameter nasmac which gets sent to the UAM server in the initial redirect query string as called.
+* Added the configuration parameter uamwispr which turns off and on chilli's internal support for WISPr XML (turned off by default as it is assumed the back-office is driving the XML).
+* Added the configuration parameter uamsuccess which turns off and on whether or not chilli will send the user back to the UAM server (instead of their original URL) once authenticated.
+* Swapped input/output octets/packets in RADIUS to be more in-line with other WiFi gateways.
+* Allocates "app connections" on demand instead of in bulk to reduce memory usage.
+* Rearranged some code to improve the building process and reduce the memory footprint of the additional utilities.
+* (Re)Configuration memory leak fixed.
+
+	

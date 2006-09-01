@@ -1,8 +1,8 @@
 /* 
- * Copyright (c) 2006 David Bird <wlan@mac.com>
  *
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
+ * Copyright (c) 2006 Coova Ltd
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -109,6 +109,8 @@ struct app_conn_t {
   int statelen;
   uint8_t classbuf[RADIUS_ATTR_VLEN+1];
   int classlen;
+  char filteridbuf[RADIUS_ATTR_VLEN+1];
+  int filteridlen;
   int bandwidthmaxup;
   int bandwidthmaxdown;
   int maxinputoctets;
@@ -187,5 +189,7 @@ extern struct app_conn_t *lastusedconn;  /* Last used in linked list */
 
 extern struct radius_t *radius;          /* Radius client instance */
 extern struct dhcp_t *dhcp;              /* DHCP instance */
+
+int printstatus(struct app_conn_t *appconn);
 
 #endif /*_CHILLI_H */
