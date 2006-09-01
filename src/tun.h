@@ -1,4 +1,6 @@
 /* 
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * TUN interface functions.
  * Copyright (C) 2002, 2003, 2004, 2005 Mondru AB.
  * 
@@ -13,7 +15,7 @@
 #define _TUN_H
 
 #define PACKET_MAX      8196 /* Maximum packet size we receive */
-#define TUN_SCRIPTSIZE   256
+#define TUN_SCRIPTSIZE   512
 #define TUN_ADDRSIZE     128
 #define TUN_NLBUFSIZE   1024
 

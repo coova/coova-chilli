@@ -1,4 +1,6 @@
 /* 
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * DHCP library functions
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  *
@@ -390,8 +392,9 @@ struct dhcp_t {
   int (*cb_eap_ind)  (struct dhcp_conn_t *conn, void *pack, unsigned len);
   int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr);
   int (*cb_connect) (struct dhcp_conn_t *conn);
-  int (*cb_disconnect) (struct dhcp_conn_t *conn);}
-;
+  int (*cb_disconnect) (struct dhcp_conn_t *conn);
+  int (*cb_getinfo) (struct dhcp_conn_t *conn, char *b, int blen);
+};
 
 
 /* External API functions */
@@ -482,6 +485,8 @@ extern int dhcp_sendEAPreject(struct dhcp_conn_t *conn, void *pack, int len);
 
 extern int dhcp_eapol_ind(struct dhcp_t *this);
 
+void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr);
 
+void dhcp_list(struct dhcp_t *this, int sock, int withinfo);
 
 #endif	/* !_DHCP_H */

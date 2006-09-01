@@ -1,4 +1,6 @@
 /* 
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * HTTP redirection functions.
  * Copyright (C) 2004, 2005 Mondru AB.
  * 
@@ -38,7 +40,7 @@
 /*#define REDIR_MAXCHAR 1024*/
 #define REDIR_MAXCHAR 64
 
-#define REDIR_MAXBUFFER 4096
+#define REDIR_MAXBUFFER 5125
 
 #define REDIR_USERNAMESIZE 256 /* Max length of username */
 #define REDIR_USERURLSIZE 256  /* Max length of URL requested by user */
@@ -50,7 +52,7 @@
 
 #define REDIR_SESSIONID_LEN 17
 
-#define REDIR_URL_LEN 250
+#define REDIR_URL_LEN    2048
 
 #define REDIR_LOGIN      1
 #define REDIR_PRELOGIN   2
@@ -58,7 +60,9 @@
 #define REDIR_CHALLENGE  4
 #define REDIR_ABORT      5
 #define REDIR_ABOUT      6
+#define REDIR_WWW        20
 #define REDIR_MSDOWNLOAD 25
+#define REDIR_ADMIN_CONN 30
 
 #define REDIR_ALREADY        50 /* Reply to /logon while allready logged on */
 #define REDIR_FAILED_REJECT  51 /* Reply to /logon if authentication reject */
@@ -123,6 +127,9 @@ struct redir_t {
   char *url;
   char *homepage;
   char *secret;
+  char *ssid;
+  char *nasmac;
+  char *nasip;
   struct in_addr radiuslisten;
   struct in_addr radiusserver0;
   struct in_addr radiusserver1;
@@ -134,6 +141,8 @@ struct redir_t {
   char* radiuslocationname;
   int radiusnasporttype;
   int starttime;
+  int uamsuccess; /* Redirect back to uamserver on success */
+  int uamwispr;   /* Having Chilli return WISPr blocks */
   int (*cb_getstate) (struct redir_t *redir, struct in_addr *addr,
 		      struct redir_conn_t *conn);
 };
@@ -166,8 +175,9 @@ extern int redir_new(struct redir_t **redir,
 
 extern int redir_free(struct redir_t *redir);
 
-extern void redir_set(struct redir_t *redir, int debug,
-		      char *url, char *homepage, char* secret,
+extern void redir_set(struct redir_t *redir, int debug, int uamsuccess, int uamwispr,
+		      char *url, char *homepage, char* secret, char *ssid, 
+		      char *nasmac, char *nasip,
 		      struct in_addr *radiuslisten, 
 		      struct in_addr *radiusserver0,
 		      struct in_addr *radiusserver1,
@@ -186,6 +196,5 @@ extern int redir_setchallenge(struct redir_t *redir, struct in_addr *addr,
 extern int redir_set_cb_getstate(struct redir_t *redir,
   int (*cb_getstate) (struct redir_t *redir, struct in_addr *addr,
 		      struct redir_conn_t *conn));
-
 
 #endif	/* !_REDIR_H */

@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * IP address pool functions.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  *
@@ -9,17 +11,16 @@
  * 
  */
 
-#include <sys/types.h>
-#include <netinet/in.h> /* in_addr */
-#include <stdlib.h>     /* calloc */
-#include <stdio.h>      /* sscanf */
-#include <syslog.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
+#include "system.h"
 #include "syserr.h"
+#include "radius.h"
+#include "md5.h"
+#include "dhcp.h"
+#include "redir.h"
 #include "ippool.h"
 #include "lookup.h"
+#include "chilli.h"
+#include "options.h"
 
 
 int ippool_printaddr(struct ippool_t *this) {
@@ -100,64 +101,9 @@ unsigned long int ippool_hash6(struct in6_addr *addr) {
 #endif
 
 
-/* Get IP address and mask */
-int ippool_aton(struct in_addr *addr, struct in_addr *mask,
-		char *pool, int number) {
-
-  /* Parse only first instance of network for now */
-  /* Eventually "number" will indicate the token which we want to parse */
-
-  unsigned int a1, a2, a3, a4;
-  unsigned int m1, m2, m3, m4;
-  int c;
-  unsigned int m;
-  int masklog;
-
-  c = sscanf(pool, "%u.%u.%u.%u/%u.%u.%u.%u",
-	     &a1, &a2, &a3, &a4,
-	     &m1, &m2, &m3, &m4);
-  switch (c) {
-  case 4:
-    mask->s_addr = 0xffffffff;
-    break;
-  case 5:
-    if (m1 > 32) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Invalid mask");
-      return -1; /* Invalid mask */
-    }
-    mask->s_addr = htonl(0xffffffff << (32 - m1));
-    break;
-  case 8:
-    if (m1 >= 256 ||  m2 >= 256 || m3 >= 256 || m4 >= 256) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Invalid mask");
-      return -1; /* Wrong mask format */
-    }
-    m = m1 * 0x1000000 + m2 * 0x10000 + m3 * 0x100 + m4;
-    for (masklog = 0; ((1 << masklog) < ((~m)+1)); masklog++);
-    if (((~m)+1) != (1 << masklog)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Invalid mask");
-      return -1; /* Wrong mask format (not all ones followed by all zeros)*/
-    }
-    mask->s_addr = htonl(m);
-    break;
-  default:
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Invalid mask");
-    return -1; /* Invalid mask */
-  }
-
-  if (a1 >= 256 ||  a2 >= 256 || a3 >= 256 || a4 >= 256) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Wrong IP address format");
-    return -1;
-  }
-  else
-    addr->s_addr = htonl(a1 * 0x1000000 + a2 * 0x10000 + a3 * 0x100 + a4);
-
-  return 0;
-}
-
 /* Create new address pool */
-int ippool_new(struct ippool_t **this, char *dyn,  char *stat, 
-	       int allowdyn, int allowstat, int flags) {
+int ippool_new(struct ippool_t **this, char *dyn, int start, int end, char *stat, 
+	       int allowdyn, int allowstat) {
 
   /* Parse only first instance of pool for now */
 
@@ -175,25 +121,12 @@ int ippool_new(struct ippool_t **this, char *dyn,  char *stat,
     dynsize = 0;
   }
   else {
-    if (ippool_aton(&addr, &mask, dyn, 0)) {
+    if (option_aton(&addr, &mask, dyn, 0)) {
       sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
 	      "Failed to parse dynamic pool");
       return -1;
     }
-
-    /* Set IPPOOL_NONETWORK if IPPOOL_NOGATEWAY is set */
-    if (flags & IPPOOL_NOGATEWAY) {   
-      flags |= IPPOOL_NONETWORK;
-    }
-    
-    m = ntohl(mask.s_addr);
-    dynsize = ((~m)+1);
-    if (flags & IPPOOL_NONETWORK)   /* Exclude network address from pool */
-      dynsize--;
-    if (flags & IPPOOL_NOGATEWAY)   /* Exclude gateway address from pool */
-      dynsize--;
-    if (flags & IPPOOL_NOBROADCAST) /* Exclude broadcast address from pool */
-      dynsize--;
+    dynsize = end - start;
   }
 
   if (!allowstat) {
@@ -202,7 +135,7 @@ int ippool_new(struct ippool_t **this, char *dyn,  char *stat,
     statmask.s_addr = 0;
   }
   else {
-    if (ippool_aton(&stataddr, &statmask, stat, 0)) {
+    if (option_aton(&stataddr, &statmask, stat, 0)) {
       sys_err(LOG_ERR, __FILE__, __LINE__, 0,
 	      "Failed to parse static range");
       return -1;
@@ -253,14 +186,7 @@ int ippool_new(struct ippool_t **this, char *dyn,  char *stat,
   (*this)->firstdyn = NULL;
   (*this)->lastdyn = NULL;
   for (i = 0; i<dynsize; i++) {
-
-    if (flags & IPPOOL_NOGATEWAY)
-      (*this)->member[i].addr.s_addr = htonl(ntohl(addr.s_addr) + i + 2);
-    else if (flags & IPPOOL_NONETWORK)
-      (*this)->member[i].addr.s_addr = htonl(ntohl(addr.s_addr) + i + 1);
-    else
-      (*this)->member[i].addr.s_addr = htonl(ntohl(addr.s_addr) + i);
-    
+    (*this)->member[i].addr.s_addr = htonl(ntohl(addr.s_addr) + i + start);
     (*this)->member[i].inuse = 0;
 
     /* Insert into list of unused */
@@ -280,7 +206,6 @@ int ippool_new(struct ippool_t **this, char *dyn,  char *stat,
   (*this)->firststat = NULL;
   (*this)->laststat = NULL;
   for (i = dynsize; i<listsize; i++) {
-
     (*this)->member[i].addr.s_addr = 0;
     (*this)->member[i].inuse = 0;
 

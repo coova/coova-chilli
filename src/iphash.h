@@ -1,4 +1,6 @@
 /* 
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * IP hash functions.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * 

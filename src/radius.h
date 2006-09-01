@@ -1,4 +1,6 @@
 /* 
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * Radius client functions.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * 
@@ -147,6 +149,7 @@
 
 
 #define RADIUS_SERVICE_TYPE_LOGIN             1
+#define RADIUS_SERVICE_TYPE_ADMIN_USER        6
 
 #define RADIUS_STATUS_TYPE_START              1
 #define RADIUS_STATUS_TYPE_STOP               2
@@ -338,6 +341,10 @@ extern int radius_default_pack(struct radius_t *this,
 
 /* Extract an attribute from a packet */
 extern int 
+radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
+	       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
+	       int instance, int *roffset);
+extern int 
 radius_getattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 	       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
 	       int instance);
@@ -376,5 +383,8 @@ extern int radius_timeout(struct radius_t *this);
 
 /* Figure out when to call radius_calltimeout() */
 extern int radius_timeleft(struct radius_t *this, struct timeval *timeout);
+
+extern void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack);
+
 
 #endif	/* !_RADIUS_H */

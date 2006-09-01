@@ -1,4 +1,6 @@
 /*
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * DHCP library functions.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  *
@@ -30,47 +32,7 @@
  * - Wait until code is bug free.
  */
 
-#include <stdlib.h>
-#include <syslog.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <string.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <stdint.h> /* ISO C99 types */
-#include <arpa/inet.h>
-#include <sys/socket.h>
-
-#if defined(__linux__)
-#include <linux/if.h>
-#include <linux/if_packet.h>
-#include <linux/if_ether.h>
-
-#elif defined (__FreeBSD__)  || defined (__APPLE__)
-#include <net/if.h>
-#include <net/bpf.h>
-#include <net/if_dl.h>
-#include <net/if_types.h>
-#include <ifaddrs.h>
-#endif
-
-#ifdef HAVE_NET_ETHERNET_H
-#include <net/ethernet.h>
-#endif
-
-#ifdef HAVE_ASM_TYPES_H
-#include <asm/types.h>
-#endif
-
-#include <net/if_arp.h>
-#include <netinet/in.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
-
-#include "../config.h"
+#include "system.h"
 #include "syserr.h"
 #include "ippool.h"
 #include "iphash.h"
@@ -82,6 +44,47 @@ const static int paranoid = 0; /* Trust that the program has no bugs */
 #else
 const static int paranoid = 1; /* Check for errors which cannot happen */
 #endif
+
+char *dhcp_state2name(int authstate) {
+  switch(authstate) {
+  case DHCP_AUTH_NONE: return "none";
+  case DHCP_AUTH_DROP: return "drop";
+  case DHCP_AUTH_PASS: return "pass";
+  case DHCP_AUTH_UNAUTH_TOS: return "unauth-tos";
+  case DHCP_AUTH_AUTH_TOS: return "auth-tos";
+  case DHCP_AUTH_DNAT: return "dnat";
+  default: return "unknown";
+  }
+}
+
+void dhcp_list(struct dhcp_t *this, int sock, int withinfo)
+{
+  struct dhcp_conn_t *conn = this->firstusedconn;
+  char line[2048];
+  char info[1024];
+  int ilen = 0;
+
+  while (conn && conn->inuse) {
+    if (withinfo && this->cb_getinfo)
+      ilen = this->cb_getinfo(conn, info, sizeof(info));
+    write(sock, line, 
+	  snprintf(line, sizeof(line)-1, 
+		   "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X %s %s %.*s\n",
+		   conn->hismac[0], conn->hismac[1], conn->hismac[2],
+		   conn->hismac[3], conn->hismac[4], conn->hismac[5],
+		   inet_ntoa(conn->hisip), dhcp_state2name(conn->authstate), 
+		   ilen, info));
+    conn = conn->next;
+  }
+}
+
+void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr)
+{
+  struct dhcp_conn_t *conn;
+  if (!dhcp_hashget(this, &conn, hwaddr)) {
+    dhcp_freeconn(conn);
+  }
+}
 
 
 /**
@@ -1018,9 +1021,7 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 	 struct in_addr *listen, int lease, int allowdyn,
 	 struct in_addr *uamlisten, uint16_t uamport, int useeapol) {
   
-  int i;
   struct in_addr noaddr;
-  unsigned int blen;
   
   if (!(*dhcp = calloc(sizeof(struct dhcp_t), 1))) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0,
@@ -1135,7 +1136,6 @@ dhcp_set(struct dhcp_t *dhcp, int debug,
 	 struct in_addr *uamokaddr,
 	 struct in_addr *uamokmask, int uamoknetlen) {
 
-  
   int i;
 
   dhcp->debug = debug;
@@ -1159,6 +1159,7 @@ dhcp_set(struct dhcp_t *dhcp, int debug,
     dhcp->iphash = NULL;
   }
   else {
+    if (dhcp->iphashm) free(dhcp->iphashm);
     if (!(dhcp->iphashm = calloc(uamokiplen, sizeof(struct ippoolm_t)))) {
       sys_err(LOG_ERR, __FILE__, __LINE__, 0,
 	      "calloc() failed");
@@ -1414,7 +1415,6 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
   int n;
 
   printf("DNS ID: \n");
-
   printf("DNS ID:    %d\n", ntohs(dnsp->id));
   printf("DNS flags: %d\n", ntohs(dnsp->flags));
 
@@ -1498,7 +1498,6 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
       
       return dhcp_send(this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
 		       &answer, length);
-
 
     }
   }
@@ -1910,9 +1909,7 @@ int dhcp_getreq(struct dhcp_t *this,
   /* Release message */
   /* If connection exists: Release it. No Reply to client is sent */
   if (message_type->v[0] == DHCPRELEASE) {
-    if (!dhcp_hashget(this, &conn, pack->ethh.src)) {
-      dhcp_freeconn(conn);
-    }
+    dhcp_release_mac(this, pack->ethh.src);
     return 0;
   }
 
@@ -2012,7 +2009,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack,
   struct in_addr ourip;
   unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
   struct in_addr addr;
-  struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
+  /*struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;*/
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
 
   if (this->debug) printf("DHCP packet received\n");
@@ -2039,6 +2036,10 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack,
       return 0; /* Out of connections */
   }
 
+  /* Return if we do not know peer */
+  if (!conn) 
+    return 0;
+
   /* Request an IP address */
   if ((conn->authstate == DHCP_AUTH_NONE) && 
       (pack->iph.daddr != 0) && (pack->iph.daddr != 0xffffffff)) {
@@ -2048,7 +2049,6 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack,
 	return 0; /* Ignore request if IP address was not allocated */
       }
   }
-
 
   /* Check to see if it is a packet for us */
   /* TODO: Handle IP packets with options. Currently these are just ignored */
@@ -2063,16 +2063,12 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack,
       return 0;   Packets for us which are not UDP are silently dropped */
     
     /* We handle DHCP IPv4 packets without header options */
-    if ((pack->iph.ihl == 5) && (pack->iph.protocol == DHCP_IP_UDP)) {
+    if ((pack->iph.ihl == 5) && (pack->iph.protocol == DHCP_IP_UDP) &&
+	(udph->dst != htons(DHCP_DNS))) {
       (void)dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
       return 0; /* TODO */
     }
   }
-
-
-  /* Return if we do not know peer */
-  if (!conn) 
-    return 0;
 
   gettimeofday(&conn->lasttime, NULL);
 
@@ -2126,9 +2122,9 @@ int dhcp_decaps(struct dhcp_t *this)  /* DHCP Indication */
   struct dhcp_ippacket_t packet;
   int length;
   
-  struct dhcp_conn_t *conn;
-  struct in_addr ourip;
-  unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+  /*struct dhcp_conn_t *conn;*/
+  /*struct in_addr ourip;*/
+  /*unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};*/
 
   if (this->debug) printf("DHCP packet received\n");
 
@@ -2246,7 +2242,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
   
   struct dhcp_conn_t *conn;
   unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  struct in_addr addr;
+  /*struct in_addr addr;*/
 
   /* Check that this is ARP request */
   if (pack->arp.op != htons(DHCP_ARP_REQUEST)) {
@@ -2307,8 +2303,8 @@ int dhcp_arp_ind(struct dhcp_t *this)  /* ARP Indication */
   struct dhcp_arp_fullpacket_t packet;
   int length;
   
-  struct dhcp_conn_t *conn;
-  unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+  /*struct dhcp_conn_t *conn;*/
+  /*unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};*/
 
   if (this->debug) printf("ARP Packet Received!\n");
 
@@ -2485,7 +2481,7 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
  * Set callback function which is called when packet has arrived
  * Used for eap packets
  **/
-extern int dhcp_set_cb_eap_ind(struct dhcp_t *this, 
+int dhcp_set_cb_eap_ind(struct dhcp_t *this, 
   int (*cb_eap_ind) (struct dhcp_conn_t *conn, void *pack, unsigned len))
 {
   this ->cb_eap_ind = cb_eap_ind;
@@ -2497,7 +2493,7 @@ extern int dhcp_set_cb_eap_ind(struct dhcp_t *this,
  * dhcp_set_cb_data_ind()
  * Set callback function which is called when packet has arrived
  **/
-extern int dhcp_set_cb_data_ind(struct dhcp_t *this, 
+int dhcp_set_cb_data_ind(struct dhcp_t *this, 
   int (*cb_data_ind) (struct dhcp_conn_t *conn, void *pack, unsigned len))
 {
   this ->cb_data_ind = cb_data_ind;
@@ -2509,7 +2505,7 @@ extern int dhcp_set_cb_data_ind(struct dhcp_t *this,
  * dhcp_set_cb_data_ind()
  * Set callback function which is called when a dhcp request is received
  **/
-extern int dhcp_set_cb_request(struct dhcp_t *this, 
+int dhcp_set_cb_request(struct dhcp_t *this, 
   int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr))
 {
   this ->cb_request = cb_request;
@@ -2521,7 +2517,7 @@ extern int dhcp_set_cb_request(struct dhcp_t *this,
  * dhcp_set_cb_connect()
  * Set callback function which is called when a connection is created
  **/
-extern int dhcp_set_cb_connect(struct dhcp_t *this, 
+int dhcp_set_cb_connect(struct dhcp_t *this, 
              int (*cb_connect) (struct dhcp_conn_t *conn))
 {
   this ->cb_connect = cb_connect;
@@ -2532,10 +2528,17 @@ extern int dhcp_set_cb_connect(struct dhcp_t *this,
  * dhcp_set_cb_disconnect()
  * Set callback function which is called when a connection is deleted
  **/
-extern int dhcp_set_cb_disconnect(struct dhcp_t *this, 
+int dhcp_set_cb_disconnect(struct dhcp_t *this, 
   int (*cb_disconnect) (struct dhcp_conn_t *conn))
 {
   this ->cb_disconnect = cb_disconnect;
+  return 0;
+}
+
+int dhcp_set_cb_getinfo(struct dhcp_t *this, 
+  int (*cb_getinfo) (struct dhcp_conn_t *conn, char *b, int blen))
+{
+  this ->cb_getinfo = cb_getinfo;
   return 0;
 }
 

@@ -1,4 +1,6 @@
 /* 
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * TUN interface functions.
  * Copyright (C) 2002, 2003, 2004 Mondru AB.
  * 
@@ -17,54 +19,7 @@
  */
 
 
-#include <syslog.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <string.h>
-#include <errno.h>
-#include <fcntl.h>
-
-#include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <sys/ioctl.h>
-#include <sys/socket.h>
-#include <errno.h>
-#include <net/route.h>
-
-#if defined(__linux__)
-#include <linux/if.h>
-#include <linux/if_tun.h>
-#include <linux/netlink.h>
-#include <linux/rtnetlink.h>
-
-#elif defined (__FreeBSD__)
-#include <net/if.h>
-#include <net/if_tun.h>
-
-#elif defined (__APPLE__)
-#include <net/if.h>
-
-#elif defined (__sun__)
-#include <stropts.h>
-#include <sys/sockio.h>
-#include <net/if.h>
-#include <net/if_tun.h>
-/*#include "sun_if_tun.h"*/
-
-#else
-#error  "Unknown platform!"
-#endif
-
-
+#include "system.h"
 #include "tun.h"
 #include "syserr.h"
 
@@ -888,9 +843,11 @@ int tun_runscript(struct tun_t *tun, char* script) {
   strncpy(smask, inet_ntoa(tun->netmask), sizeof(smask));
   smask[sizeof(smask)-1] = 0;
   
-  /* system("ipup /dev/tun0 192.168.0.10 255.255.255.0"); */
+  /* /dev/tun0 192.168.0.10 255.255.255.0 */
+
   snprintf(buf, sizeof(buf), "%s %s %s %s",
 	   script, tun->devname, snet, smask);
+
   buf[sizeof(buf)-1] = 0;
   system(buf);
   return 0;

@@ -1,4 +1,6 @@
 /* 
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * IP address pool functions.
  * Copyright (C) 2003, 2004 Mondru AB.
  * 
@@ -73,8 +75,8 @@ struct ippoolm_t {
 extern unsigned long int ippool_hash4(struct in_addr *addr);
 
 /* Create new address pool */
-extern int ippool_new(struct ippool_t **this, char *dyn,  char *stat, 
-		      int allowdyn, int allowstat, int flags);
+extern int ippool_new(struct ippool_t **this, char *dyn,  int start, int end, char *stat, 
+		      int allowdyn, int allowstat);
 
 /* Delete existing address pool */
 extern int ippool_free(struct ippool_t *this);

@@ -1,4 +1,6 @@
 /* 
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * Radius client functions.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * 

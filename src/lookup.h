@@ -1,4 +1,6 @@
 /* 
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * Hash lookup function.
  * Copyright (C) 2003, 2004 Mondru AB.
  * 

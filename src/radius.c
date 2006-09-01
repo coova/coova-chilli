@@ -1,4 +1,6 @@
 /* 
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * Radius client functions.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * 
@@ -9,20 +11,28 @@
  * 
  */
 
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <unistd.h>
-#include <netinet/in.h> /* in_addr */
-#include <stdlib.h>     /* calloc */
-#include <stdio.h>      /* sscanf */
-#include <string.h>     /* memcpy */
-#include <syslog.h>
-#include <sys/time.h>
-
+#include "system.h"
 #include "syserr.h"
 #include "radius.h"
 #include "md5.h"
+#include "dhcp.h"
+#include "redir.h"
+#include "chilli.h"
+#include "options.h"
+
+
+void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
+  struct in_addr inaddr;
+  struct in_addr *paddr = 0;
+
+  if (options.nasip)
+    if (inet_aton(options.nasip, &inaddr))
+      paddr = &inaddr;
+  if (!paddr)
+    paddr = &options.radiuslisten;
+    
+  radius_addattr(radius, pack, RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, ntohl(paddr->s_addr), NULL, 0); 
+}
 
 int radius_printqueue(struct radius_t *this) {
   int n;
@@ -639,59 +649,60 @@ int
 radius_getattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 	       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
 	       int instance) {
-  struct radius_attr_t *t;
-/*  struct radius_attr_t *v;  TODO: Loop through vendor specific */
   int offset = 0;
+  return radius_getnextattr(pack, attr, type, vendor_id, vendor_type, instance, &offset);
+}
+
+int
+radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
+	       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
+	       int instance, int *roffset) {
+  struct radius_attr_t *t;
+  int len = ntohs(pack->length) - RADIUS_HDRSIZE;
+  int offset = *roffset;
   int count = 0;
 
   if (0) {
-    printf("radius_getattr \n");
-    printf("radius_getattr payload %.2x %.2x %.2x %.2x\n",
-	   pack->payload[0], pack->payload[1], pack->payload[2], 
+    printf("radius_getattr payload(len=%d,off=%d) %.2x %.2x %.2x %.2x\n",
+	   len, offset, pack->payload[0], pack->payload[1], pack->payload[2], 
 	   pack->payload[3]);
   }
 
-
-  if (type == RADIUS_ATTR_VENDOR_SPECIFIC) {
-    do {
+  while (offset < len) {
       t = (struct radius_attr_t*) (((void*) &(pack->payload)) + offset);
+
       if (0) {
 	printf("radius_getattr %d %d %d %.2x %.2x \n", t->t, t->l, 
 	       ntohl(t->v.vv.i), (int) t->v.vv.t, (int) t->v.vv.l);
       }
-      if ((t->t == type) && (ntohl(t->v.vv.i) == vendor_id) && 
-	  (t->v.vv.t == vendor_type)) {
-	if (count == instance) {
-	  *attr = (struct radius_attr_t *) &t->v.vv.t;
-	  if (0) printf("Found\n");
-	  return 0;
-	}
-	else {
-	  count++;
-	}
-      }
-      offset +=  t->l;
-    } while (offset < (ntohs(pack->length)-RADIUS_HDRSIZE)); /* TODO */
-  }
 
-  else {     /* Need to check pack -> length */
-    do {
-      t = (struct radius_attr_t*) (((void*) &(pack->payload)) + offset);
-      if (t->t == type) {
+      offset +=  t->l;
+
+    if (t->t != type) 
+      continue;
+
+    if (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && 
+	(ntohl(t->v.vv.i) != vendor_id || t->v.vv.t != vendor_type))
+      continue;
+
 	if (count == instance) {
+      
+      if (type == RADIUS_ATTR_VENDOR_SPECIFIC)
+	*attr = (struct radius_attr_t *) &t->v.vv.t;
+      else
 	  *attr = t;
+      
+      if (0) printf("Found\n");
+
+      *roffset = offset;
 	  return 0;
 	}
 	else {
 	  count++;
 	}
       }
-      offset +=  t->l;
-    } while (offset < (ntohs(pack->length)-RADIUS_HDRSIZE)); /* TODO */
-  }
 
   return -1; /* Not found */
-
 }
 
 /* 

@@ -1,0 +1,37 @@
+#!/bin/sh
+
+. /etc/chilli/functions
+
+$IPTABLES -F
+$IPTABLES -F -t nat
+$IPTABLES -P INPUT   DROP
+$IPTABLES -P FORWARD ACCEPT
+$IPTABLES -P OUTPUT  ACCEPT
+
+$IPTABLES -A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+$IPTABLES -A INPUT -p tcp -m tcp --dport 22  --syn -j ACCEPT
+$IPTABLES -A INPUT -p tcp -m tcp --dport 80  --syn -j ACCEPT
+$IPTABLES -A INPUT -p tcp -m tcp --dport 443 --syn -j ACCEPT
+$IPTABLES -A INPUT -i $HS_WANIF -j REJECT
+
+$IPTABLES -A INPUT -i $HS_LANIF -p tcp -m tcp --dport 3990 --syn -j ACCEPT
+$IPTABLES -A INPUT -i $HS_TUNIF -p tcp -m tcp --dport 3990 --syn -j ACCEPT
+$IPTABLES -A INPUT -i $HS_LANIF -j DROP
+
+$IPTABLES -A INPUT -i lo -j ACCEPT
+
+$IPTABLES -A FORWARD -i $HS_LANIF -j DROP
+$IPTABLES -A FORWARD -o $HS_LANIF -j DROP
+
+$IPTABLES -t nat -A POSTROUTING -o $HS_WANIF -j MASQUERADE
+
+NS=$(grep nameserver /etc/resolv.conf | awk '(/nameserver/){print $2}')
+[ -n "$NS" ] && {
+    for ns in $NS; do
+	if [ "$ns" != "127.0.0.1" ] && [ "$ns" != "0.0.0.0" ]; then
+	    $IPTABLES -t nat -A PREROUTING -s $HS_NETWORK/$HS_NETMASK -p udp --dport 53 -j DNAT --to $ns
+	    break
+	fi
+    done
+}
+

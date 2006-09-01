@@ -1,0 +1,96 @@
+#!/bin/sh
+#
+# chilli      Chillispot init
+#
+# chkconfig: 2345 65 35
+# description: ChilliSpot
+
+. /etc/rc.d/init.d/functions
+. /etc/sysconfig/network
+
+[ ${NETWORKING} = "no" ] && exit 0
+
+[ -f /usr/sbin/chilli ] || exit 0
+[ -f /etc/chilli.conf ] || exit 0
+
+. /etc/chilli/functions
+
+check_required
+
+RETVAL=0
+prog="chilli"
+
+case $1 in
+    start)
+        echo -n $"Starting $prog: "
+        /sbin/modprobe tun >/dev/null 2>&1
+        echo 1 > /proc/sys/net/ipv4/ip_forward
+
+	writeconfig
+        radiusconfig
+	
+        (crontab -l 2>&- | grep -v $0
+            test ${HS_ADMINTERVAL:-0} -gt 0 && echo "*/$HS_ADMINTERVAL * * * * $0 radconfig"
+            echo "*/10 * * * * $0 checkrunning"
+            echo "*/2  * * * * $0 arping"
+        ) | crontab - 2>&-
+	
+	sh /etc/chilli/firewall
+
+	ifconfig $HS_TAPIF 0.0.0.0
+        daemon /usr/sbin/chilli
+        RETVAL=$?
+
+        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/chilli
+        echo
+	;;
+    
+    checkrunning)
+	[ -e $LKFILE -a ! -e $PIDFILE ] && $0 start
+	;;
+
+    radconfig)
+	[ -e $MAIN_CONF ] || writeconfig
+	radiusconfig
+	;;
+
+    reload)
+	killall -HUP chilli
+	;;
+
+    restart)
+	$0 stop
+	$0 start
+	RETVAL=$?
+	;;
+    
+    stop)
+        echo -n $"Shutting down $prog: "
+
+	crontab -l 2>&- | grep -v $0 | crontab -
+
+        killproc chilli
+        RETVAL=$?
+
+        [ $RETVAL = 0 ] && rm -f /var/lock/subsys/chilli /var/run/chilli.pid
+        echo
+	;;
+    
+    condrestart)
+        if [ -f /var/lock/subsys/chilli ] ; then
+	    $0 restart
+            RETVAL=$?
+        fi
+        ;;
+    
+    status)
+        status chilli
+        RETVAL=$?
+        ;;
+
+    *)
+        echo $"Usage: $0 {start|stop|restart|condrestart|status|reload|radconfig}"
+        exit 1
+esac
+
+exit $?

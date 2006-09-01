@@ -1,4 +1,6 @@
 /* 
+ * Copyright (c) 2006 David Bird <wlan@mac.com>
+ *
  * Radius client functions.
  * Copyright (C) 2005 Mondru AB.
  *
@@ -18,5 +20,6 @@
 #define	RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS           3 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP	          4 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN         5 /* integer */
+#define	RADIUS_ATTR_CHILLISPOT_CONFIG                     6 /* string */
 
 #endif	/* !_RADIUS_CHILLISPOT_H */

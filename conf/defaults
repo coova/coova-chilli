@@ -1,0 +1,33 @@
+#
+#	Local Configurations
+# 
+# (these may change):
+HS_WANIF=eth0
+HS_LANIF=eth1
+HS_NETWORK=10.1.0.0
+HS_NETMASK=255.255.0.0
+HS_UAMLISTEN=10.1.0.1
+#
+# (while these will not):
+HS_MODE=interface
+HS_TAPIF=$HS_LANIF
+HS_TUNIF=tun0
+#
+#	Settings for PicoPoint Gatekeeper
+#
+# (these need to be changed for live locations):
+HS_NASID=ppChilliSpotDemo
+HS_UAMSERVER=staging.picopoint.com
+HS_UAMSECRET=picopoint
+#
+# (while these will not):
+HS_TYPE=chillispot
+HS_RADAUTH=1812
+HS_RADACCT=1813
+HS_ADMUSR=chillispot
+HS_ADMPWD=chillispot
+HS_PROVIDER=GateKeeper
+HS_PROVIDER_LINK=http://www.picopoint.com/
+HS_UAMFORMAT=https://\$HS_UAMSERVER/gk/gateway/rd/chillispot/\$HS_NASID
+HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/splash.html
+HS_WWWDIR=/etc/chilli/www
