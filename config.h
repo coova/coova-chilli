@@ -141,7 +141,7 @@
 #define TIME_WITH_SYS_TIME 1
 
 /* Version number of package */
-#define VERSION "1.0"
+#define VERSION "1.0-Coova.2"
 
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */

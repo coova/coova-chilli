@@ -1,8 +1,8 @@
 Summary:   ChilliSpot is a Wireless LAN Access Point Controller
 Name:      @PACKAGE@
 Version:   @VERSION@
-Release:   1
-URL:       http://www.chillispot.org
+Release:   coova.2
+URL:       http://coova.org/wiki/index.php/CoovaChilli
 Source0:   %{name}-%{version}.tar.gz
 License:   GPL
 Group:     System Environment/Daemons
@@ -16,6 +16,9 @@ public HotSpots and it supports Wireless Protected Access (WPA) which
 is the standard of the future. Authentication, Authorization and 
 Accounting (AAA) is handled by your favorite radius server. Read more
 on http://www.chillispot.org
+
+For more information on this Coova release of ChilliSpot, visit
+http://coova.org/
 
 %prep
 %setup -q

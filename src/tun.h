@@ -47,8 +47,6 @@ struct tun_t {
   struct in_addr addr;
   struct in_addr dstaddr;
   struct in_addr netmask;
-  struct in_addr uamlisten;
-  int uamport;
   int addrs;             /* Number of allocated IP addresses */
   int routes;            /* One if we allocated an automatic route */
   char devname[IFNAMSIZ];/* Name of the tun device */

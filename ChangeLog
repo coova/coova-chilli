@@ -3,10 +3,11 @@
 
 * Configurable TX queue length (option "txqlen") on the tun/tap tunnel (Linux only)
 * Added option "swapoctets" to swap the meaning of input/output octets/packets
-* Patches contributed by WeSea (see: http://chillispot.wesea.com/)
-  * Added option "usestatusfile" to turn on the use of the status file
+* Patches from the ChilliSpot CVS "1.1" version
   * Added option "conup" defining a script for session/connection-up
   * Added option "condown" defining a script for session/connection-down
+* Patches contributed by WeSea (see: http://chillispot.wesea.com/)
+  * Added option "usestatusfile" to turn on the use of the status file
   * Traffic to UAM interface not counted in leaky buckets
 
 == ChangeLog (Coova Chilli v0.1) ==

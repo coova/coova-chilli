@@ -29,7 +29,8 @@ static int keep_going = 1;   /* OK as global variable for child process */
 static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
 
 char credits[] =
-"<H1>ChilliSpot " VERSION "</H1><p>Copyright 2002-2005 Mondru AB</p><p> "
+"<H1>ChilliSpot " VERSION "</H1><p>Copyright 2002-2005 Mondru AB</p>"
+"<p>Copyright 2006 <a href=\"http://coova.org/\">Coova Ltd</a></p>"
 "ChilliSpot is an Open Source captive portal or wireless LAN access point "
 "controller developed by the community at "
 "<a href=\"http://www.chillispot.org\">www.chillispot.org</a> and licensed "

@@ -1175,7 +1175,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
   appconn = (struct app_conn_t*) ipm->peer;
 
   /* If the ip source is uamlisten or port is uamport we won't call leaky_bucket*/
-  if (iph->src != tun->uamlisten.s_addr || iph->psrc != htons(options.uamport))
+  if (iph->src != options.uamlisten.s_addr || iph->psrc != htons(options.uamport))
   {
     if (appconn->authenticated == 1) {
 
@@ -2616,7 +2616,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
     return -1;
   }
 
-  if (iph->src == tun->uamlisten.s_addr)
+  if (iph->src == options.uamlisten.s_addr)
     if (iph->psrc == htons(options.uamport))
       return tun_encaps(tun, pack, len);
 
