@@ -69,6 +69,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->pidfile_given = 0 ;
   args_info->statedir_given = 0 ;
   args_info->net_given = 0 ;
+  args_info->dhcpstart_given = 0 ;
+  args_info->dhcpend_given = 0 ;
   args_info->dynip_given = 0 ;
   args_info->statip_given = 0 ;
   args_info->dns1_given = 0 ;
@@ -76,6 +78,9 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->domain_given = 0 ;
   args_info->ipup_given = 0 ;
   args_info->ipdown_given = 0 ;
+  args_info->conup_given = 0 ;
+  args_info->condown_given = 0 ;
+  args_info->txqlen_given = 0 ;
   args_info->radiuslisten_given = 0 ;
   args_info->radiusserver1_given = 0 ;
   args_info->radiusserver2_given = 0 ;
@@ -117,6 +122,9 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->ssid_given = 0 ;
   args_info->vlan_given = 0 ;
   args_info->cmdsocket_given = 0 ;
+  args_info->swapoctets_given = 0 ;
+  args_info->usestatusfile_given = 0 ;
+  args_info->chillixml_given = 0 ;
 }
 
 static
@@ -136,6 +144,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->statedir_orig = NULL;
   args_info->net_arg = gengetopt_strdup ("192.168.182.0/24");
   args_info->net_orig = NULL;
+  args_info->dhcpstart_arg = 10;
+  args_info->dhcpstart_orig = NULL;
+  args_info->dhcpend_arg = 254;
+  args_info->dhcpend_orig = NULL;
   args_info->dynip_arg = NULL;
   args_info->dynip_orig = NULL;
   args_info->statip_arg = NULL;
@@ -150,6 +162,12 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->ipup_orig = NULL;
   args_info->ipdown_arg = NULL;
   args_info->ipdown_orig = NULL;
+  args_info->conup_arg = NULL;
+  args_info->conup_orig = NULL;
+  args_info->condown_arg = NULL;
+  args_info->condown_orig = NULL;
+  args_info->txqlen_arg = 100;
+  args_info->txqlen_orig = NULL;
   args_info->radiuslisten_arg = NULL;
   args_info->radiuslisten_orig = NULL;
   args_info->radiusserver1_arg = NULL;
@@ -226,6 +244,9 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->vlan_orig = NULL;
   args_info->cmdsocket_arg = NULL;
   args_info->cmdsocket_orig = NULL;
+  args_info->swapoctets_flag = 0;
+  args_info->usestatusfile_flag = 0;
+  args_info->chillixml_flag = 0;
   
 }
 
@@ -250,6 +271,8 @@ cmdline_parser_print_help (void)
   printf("%s\n","      --pidfile=STRING          Filename of process id file  \n                                  (default=`/var/run/chilli.pid')");
   printf("%s\n","      --statedir=STRING         Directory of nonvolatile data  \n                                  (default=`/var/lib/chilli/')");
   printf("%s\n","  -n, --net=STRING              Network  (default=`192.168.182.0/24')");
+  printf("%s\n","      --dhcpstart=INT           Network DHCP Starting IP  (default=`10')");
+  printf("%s\n","      --dhcpend=INT             Network DHCP Ending IP  (default=`254')");
   printf("%s\n","      --dynip=STRING            Dynamic IP address pool");
   printf("%s\n","      --statip=STRING           Static IP address pool");
   printf("%s\n","      --dns1=STRING             Primary DNS server IP address");
@@ -257,6 +280,9 @@ cmdline_parser_print_help (void)
   printf("%s\n","      --domain=STRING           Domain to use for DNS lookups  \n                                  (default=`picopoint.com')");
   printf("%s\n","      --ipup=STRING             Script to run after link-up");
   printf("%s\n","      --ipdown=STRING           Script to run after link-down");
+  printf("%s\n","      --conup=STRING            Script to run after user logon");
+  printf("%s\n","      --condown=STRING          Script to run after user logoff");
+  printf("%s\n","      --txqlen=INT              TX Queue length for tun interface (linux only)  \n                                  (default=`100')");
   printf("%s\n","      --radiuslisten=STRING     IP address to send from");
   printf("%s\n","      --radiusserver1=STRING    IP address of radius server 1");
   printf("%s\n","      --radiusserver2=STRING    IP address of radius server 2");
@@ -298,6 +324,9 @@ cmdline_parser_print_help (void)
   printf("%s\n","      --ssid=STRING             SSID of the session");
   printf("%s\n","      --vlan=STRING             VLAN of the session");
   printf("%s\n","      --cmdsocket=STRING        path to the command unix socket");
+  printf("%s\n","      --swapoctets              Swap the meaning of input/output octets/packets \n                                   (default=off)");
+  printf("%s\n","      --usestatusfile           Use the status file to keep track of sessions  \n                                  (default=off)");
+  printf("%s\n","      --chillixml               Use ChilliSpot XML in WISPr blocks  \n                                  (default=off)");
   
 }
 
@@ -362,6 +391,16 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
     {
       free (args_info->net_orig); /* free previous argument */
       args_info->net_orig = 0;
+    }
+  if (args_info->dhcpstart_orig)
+    {
+      free (args_info->dhcpstart_orig); /* free previous argument */
+      args_info->dhcpstart_orig = 0;
+    }
+  if (args_info->dhcpend_orig)
+    {
+      free (args_info->dhcpend_orig); /* free previous argument */
+      args_info->dhcpend_orig = 0;
     }
   if (args_info->dynip_arg)
     {
@@ -432,6 +471,31 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
     {
       free (args_info->ipdown_orig); /* free previous argument */
       args_info->ipdown_orig = 0;
+    }
+  if (args_info->conup_arg)
+    {
+      free (args_info->conup_arg); /* free previous argument */
+      args_info->conup_arg = 0;
+    }
+  if (args_info->conup_orig)
+    {
+      free (args_info->conup_orig); /* free previous argument */
+      args_info->conup_orig = 0;
+    }
+  if (args_info->condown_arg)
+    {
+      free (args_info->condown_arg); /* free previous argument */
+      args_info->condown_arg = 0;
+    }
+  if (args_info->condown_orig)
+    {
+      free (args_info->condown_orig); /* free previous argument */
+      args_info->condown_orig = 0;
+    }
+  if (args_info->txqlen_orig)
+    {
+      free (args_info->txqlen_orig); /* free previous argument */
+      args_info->txqlen_orig = 0;
     }
   if (args_info->radiuslisten_arg)
     {
@@ -844,6 +908,20 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s\n", "net");
     }
   }
+  if (args_info->dhcpstart_given) {
+    if (args_info->dhcpstart_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "dhcpstart", args_info->dhcpstart_orig);
+    } else {
+      fprintf(outfile, "%s\n", "dhcpstart");
+    }
+  }
+  if (args_info->dhcpend_given) {
+    if (args_info->dhcpend_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "dhcpend", args_info->dhcpend_orig);
+    } else {
+      fprintf(outfile, "%s\n", "dhcpend");
+    }
+  }
   if (args_info->dynip_given) {
     if (args_info->dynip_orig) {
       fprintf(outfile, "%s=\"%s\"\n", "dynip", args_info->dynip_orig);
@@ -891,6 +969,27 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s=\"%s\"\n", "ipdown", args_info->ipdown_orig);
     } else {
       fprintf(outfile, "%s\n", "ipdown");
+    }
+  }
+  if (args_info->conup_given) {
+    if (args_info->conup_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "conup", args_info->conup_orig);
+    } else {
+      fprintf(outfile, "%s\n", "conup");
+    }
+  }
+  if (args_info->condown_given) {
+    if (args_info->condown_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "condown", args_info->condown_orig);
+    } else {
+      fprintf(outfile, "%s\n", "condown");
+    }
+  }
+  if (args_info->txqlen_given) {
+    if (args_info->txqlen_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "txqlen", args_info->txqlen_orig);
+    } else {
+      fprintf(outfile, "%s\n", "txqlen");
     }
   }
   if (args_info->radiuslisten_given) {
@@ -1162,6 +1261,15 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s\n", "cmdsocket");
     }
   }
+  if (args_info->swapoctets_given) {
+    fprintf(outfile, "%s\n", "swapoctets");
+  }
+  if (args_info->usestatusfile_given) {
+    fprintf(outfile, "%s\n", "usestatusfile");
+  }
+  if (args_info->chillixml_given) {
+    fprintf(outfile, "%s\n", "chillixml");
+  }
   
   fclose (outfile);
 
@@ -1308,6 +1416,8 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "pidfile",	1, NULL, 0 },
         { "statedir",	1, NULL, 0 },
         { "net",	1, NULL, 'n' },
+        { "dhcpstart",	1, NULL, 0 },
+        { "dhcpend",	1, NULL, 0 },
         { "dynip",	1, NULL, 0 },
         { "statip",	1, NULL, 0 },
         { "dns1",	1, NULL, 0 },
@@ -1315,6 +1425,9 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "domain",	1, NULL, 0 },
         { "ipup",	1, NULL, 0 },
         { "ipdown",	1, NULL, 0 },
+        { "conup",	1, NULL, 0 },
+        { "condown",	1, NULL, 0 },
+        { "txqlen",	1, NULL, 0 },
         { "radiuslisten",	1, NULL, 0 },
         { "radiusserver1",	1, NULL, 0 },
         { "radiusserver2",	1, NULL, 0 },
@@ -1356,6 +1469,9 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "ssid",	1, NULL, 0 },
         { "vlan",	1, NULL, 0 },
         { "cmdsocket",	1, NULL, 0 },
+        { "swapoctets",	0, NULL, 0 },
+        { "usestatusfile",	0, NULL, 0 },
+        { "chillixml",	0, NULL, 0 },
         { NULL,	0, NULL, 0 }
       };
 
@@ -1520,6 +1636,48 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               free (args_info->statedir_orig); /* free previous string */
             args_info->statedir_orig = gengetopt_strdup (optarg);
           }
+          /* Network DHCP Starting IP.  */
+          else if (strcmp (long_options[option_index].name, "dhcpstart") == 0)
+          {
+            if (local_args_info.dhcpstart_given)
+              {
+                fprintf (stderr, "%s: `--dhcpstart' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->dhcpstart_given && ! override)
+              continue;
+            local_args_info.dhcpstart_given = 1;
+            args_info->dhcpstart_given = 1;
+            args_info->dhcpstart_arg = strtol (optarg, &stop_char, 0);
+            if (!(stop_char && *stop_char == '\0')) {
+              fprintf(stderr, "%s: invalid numeric value: %s\n", argv[0], optarg);
+              goto failure;
+            }
+            if (args_info->dhcpstart_orig)
+              free (args_info->dhcpstart_orig); /* free previous string */
+            args_info->dhcpstart_orig = gengetopt_strdup (optarg);
+          }
+          /* Network DHCP Ending IP.  */
+          else if (strcmp (long_options[option_index].name, "dhcpend") == 0)
+          {
+            if (local_args_info.dhcpend_given)
+              {
+                fprintf (stderr, "%s: `--dhcpend' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->dhcpend_given && ! override)
+              continue;
+            local_args_info.dhcpend_given = 1;
+            args_info->dhcpend_given = 1;
+            args_info->dhcpend_arg = strtol (optarg, &stop_char, 0);
+            if (!(stop_char && *stop_char == '\0')) {
+              fprintf(stderr, "%s: invalid numeric value: %s\n", argv[0], optarg);
+              goto failure;
+            }
+            if (args_info->dhcpend_orig)
+              free (args_info->dhcpend_orig); /* free previous string */
+            args_info->dhcpend_orig = gengetopt_strdup (optarg);
+          }
           /* Dynamic IP address pool.  */
           else if (strcmp (long_options[option_index].name, "dynip") == 0)
           {
@@ -1652,6 +1810,65 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             if (args_info->ipdown_orig)
               free (args_info->ipdown_orig); /* free previous string */
             args_info->ipdown_orig = gengetopt_strdup (optarg);
+          }
+          /* Script to run after user logon.  */
+          else if (strcmp (long_options[option_index].name, "conup") == 0)
+          {
+            if (local_args_info.conup_given)
+              {
+                fprintf (stderr, "%s: `--conup' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->conup_given && ! override)
+              continue;
+            local_args_info.conup_given = 1;
+            args_info->conup_given = 1;
+            if (args_info->conup_arg)
+              free (args_info->conup_arg); /* free previous string */
+            args_info->conup_arg = gengetopt_strdup (optarg);
+            if (args_info->conup_orig)
+              free (args_info->conup_orig); /* free previous string */
+            args_info->conup_orig = gengetopt_strdup (optarg);
+          }
+          /* Script to run after user logoff.  */
+          else if (strcmp (long_options[option_index].name, "condown") == 0)
+          {
+            if (local_args_info.condown_given)
+              {
+                fprintf (stderr, "%s: `--condown' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->condown_given && ! override)
+              continue;
+            local_args_info.condown_given = 1;
+            args_info->condown_given = 1;
+            if (args_info->condown_arg)
+              free (args_info->condown_arg); /* free previous string */
+            args_info->condown_arg = gengetopt_strdup (optarg);
+            if (args_info->condown_orig)
+              free (args_info->condown_orig); /* free previous string */
+            args_info->condown_orig = gengetopt_strdup (optarg);
+          }
+          /* TX Queue length for tun interface (linux only).  */
+          else if (strcmp (long_options[option_index].name, "txqlen") == 0)
+          {
+            if (local_args_info.txqlen_given)
+              {
+                fprintf (stderr, "%s: `--txqlen' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->txqlen_given && ! override)
+              continue;
+            local_args_info.txqlen_given = 1;
+            args_info->txqlen_given = 1;
+            args_info->txqlen_arg = strtol (optarg, &stop_char, 0);
+            if (!(stop_char && *stop_char == '\0')) {
+              fprintf(stderr, "%s: invalid numeric value: %s\n", argv[0], optarg);
+              goto failure;
+            }
+            if (args_info->txqlen_orig)
+              free (args_info->txqlen_orig); /* free previous string */
+            args_info->txqlen_orig = gengetopt_strdup (optarg);
           }
           /* IP address to send from.  */
           else if (strcmp (long_options[option_index].name, "radiuslisten") == 0)
@@ -2431,6 +2648,48 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             if (args_info->cmdsocket_orig)
               free (args_info->cmdsocket_orig); /* free previous string */
             args_info->cmdsocket_orig = gengetopt_strdup (optarg);
+          }
+          /* Swap the meaning of input/output octets/packets.  */
+          else if (strcmp (long_options[option_index].name, "swapoctets") == 0)
+          {
+            if (local_args_info.swapoctets_given)
+              {
+                fprintf (stderr, "%s: `--swapoctets' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->swapoctets_given && ! override)
+              continue;
+            local_args_info.swapoctets_given = 1;
+            args_info->swapoctets_given = 1;
+            args_info->swapoctets_flag = !(args_info->swapoctets_flag);
+          }
+          /* Use the status file to keep track of sessions.  */
+          else if (strcmp (long_options[option_index].name, "usestatusfile") == 0)
+          {
+            if (local_args_info.usestatusfile_given)
+              {
+                fprintf (stderr, "%s: `--usestatusfile' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->usestatusfile_given && ! override)
+              continue;
+            local_args_info.usestatusfile_given = 1;
+            args_info->usestatusfile_given = 1;
+            args_info->usestatusfile_flag = !(args_info->usestatusfile_flag);
+          }
+          /* Use ChilliSpot XML in WISPr blocks.  */
+          else if (strcmp (long_options[option_index].name, "chillixml") == 0)
+          {
+            if (local_args_info.chillixml_given)
+              {
+                fprintf (stderr, "%s: `--chillixml' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->chillixml_given && ! override)
+              continue;
+            local_args_info.chillixml_given = 1;
+            args_info->chillixml_given = 1;
+            args_info->chillixml_flag = !(args_info->chillixml_flag);
           }
           
           break;
