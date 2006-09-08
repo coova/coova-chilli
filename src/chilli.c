@@ -2957,10 +2957,11 @@ int printstatus(struct app_conn_t *appconn)
   struct app_conn_t *apptemp;
   FILE *file;
   char filedest[256];
-
   struct timeval timenow;
-  gettimeofday(&timenow, NULL);
 
+  if (!options.usestatusfile) return 0;
+
+  gettimeofday(&timenow, NULL);
   strcpy(filedest, options.statedir);
   strcat(filedest, "status");
 
@@ -3040,11 +3041,10 @@ int chilli_main(int argc, char **argv)
   /* Process options given in configuration file and command line */
   if (process_options(argc, argv, 0))
     exit(1);
-  
+
   /* foreground                                                   */
   /* If flag not given run as a daemon                            */
   if (!options.foreground) {
-    closelog(); 
     /* Close the standard file descriptors. */
     /* Is this really needed ? */
     (void) freopen("/dev/null", "w", stdout);
@@ -3054,11 +3054,14 @@ int chilli_main(int argc, char **argv)
       sys_err(LOG_ERR, __FILE__, __LINE__, errno,
 	      "daemon() failed!");
     }
-    
-    /* Open log again. This time with new pid */
-    openlog(PACKAGE, LOG_PID, LOG_DAEMON);
-  }
+  } 
 
+  if (options.logfacility<0||options.logfacility>LOG_NFACILITIES)
+    options.logfacility=LOG_FAC(LOG_LOCAL6);
+
+  closelog(); 
+  openlog(PACKAGE, LOG_PID, (options.logfacility<<3));
+  
   /* This has to be done after we have our final pid */
   if (options.pidfile) {
     log_pid(options.pidfile);

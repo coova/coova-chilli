@@ -28,6 +28,8 @@ struct gengetopt_args_info
   int debug_flag;	/* Run in debug mode (default=off).  */
   int debugfacility_arg;	/* Which modules to print debug messages for (default='1').  */
   char * debugfacility_orig;	/* Which modules to print debug messages for original value given at command line.  */
+  int logfacility_arg;	/* Which modules to print debug messages for (default='-1').  */
+  char * logfacility_orig;	/* Which modules to print debug messages for original value given at command line.  */
   char * conf_arg;	/* Read configuration file (default='/etc/chilli.conf').  */
   char * conf_orig;	/* Read configuration file original value given at command line.  */
   int interval_arg;	/* Re-read configuration file at this interval (default='3600').  */
@@ -147,6 +149,7 @@ struct gengetopt_args_info
   int fg_given ;	/* Whether fg was given.  */
   int debug_given ;	/* Whether debug was given.  */
   int debugfacility_given ;	/* Whether debugfacility was given.  */
+  int logfacility_given ;	/* Whether logfacility was given.  */
   int conf_given ;	/* Whether conf was given.  */
   int interval_given ;	/* Whether interval was given.  */
   int pidfile_given ;	/* Whether pidfile was given.  */

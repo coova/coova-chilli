@@ -62,6 +62,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->fg_given = 0 ;
   args_info->debug_given = 0 ;
   args_info->debugfacility_given = 0 ;
+  args_info->logfacility_given = 0 ;
   args_info->conf_given = 0 ;
   args_info->interval_given = 0 ;
   args_info->pidfile_given = 0 ;
@@ -132,6 +133,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->debug_flag = 0;
   args_info->debugfacility_arg = 1;
   args_info->debugfacility_orig = NULL;
+  args_info->logfacility_arg = -1;
+  args_info->logfacility_orig = NULL;
   args_info->conf_arg = gengetopt_strdup ("/etc/chilli.conf");
   args_info->conf_orig = NULL;
   args_info->interval_arg = 3600;
@@ -264,6 +267,7 @@ cmdline_parser_print_help (void)
   printf("%s\n","  -f, --fg                      Run in foreground  (default=off)");
   printf("%s\n","  -d, --debug                   Run in debug mode  (default=off)");
   printf("%s\n","      --debugfacility=INT       Which modules to print debug messages for  \n                                  (default=`1')");
+  printf("%s\n","      --logfacility=INT         Which modules to print debug messages for  \n                                  (default=`-1')");
   printf("%s\n","  -c, --conf=STRING             Read configuration file  \n                                  (default=`/etc/chilli.conf')");
   printf("%s\n","      --interval=INT            Re-read configuration file at this interval  \n                                  (default=`3600')");
   printf("%s\n","      --pidfile=STRING          Filename of process id file  \n                                  (default=`/var/run/chilli.pid')");
@@ -344,6 +348,11 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
     {
       free (args_info->debugfacility_orig); /* free previous argument */
       args_info->debugfacility_orig = 0;
+    }
+  if (args_info->logfacility_orig)
+    {
+      free (args_info->logfacility_orig); /* free previous argument */
+      args_info->logfacility_orig = 0;
     }
   if (args_info->conf_arg)
     {
@@ -869,6 +878,13 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s=\"%s\"\n", "debugfacility", args_info->debugfacility_orig);
     } else {
       fprintf(outfile, "%s\n", "debugfacility");
+    }
+  }
+  if (args_info->logfacility_given) {
+    if (args_info->logfacility_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "logfacility", args_info->logfacility_orig);
+    } else {
+      fprintf(outfile, "%s\n", "logfacility");
     }
   }
   if (args_info->conf_given) {
@@ -1409,6 +1425,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "fg",	0, NULL, 'f' },
         { "debug",	0, NULL, 'd' },
         { "debugfacility",	1, NULL, 0 },
+        { "logfacility",	1, NULL, 0 },
         { "conf",	1, NULL, 'c' },
         { "interval",	1, NULL, 0 },
         { "pidfile",	1, NULL, 0 },
@@ -1574,6 +1591,27 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             if (args_info->debugfacility_orig)
               free (args_info->debugfacility_orig); /* free previous string */
             args_info->debugfacility_orig = gengetopt_strdup (optarg);
+          }
+          /* Which modules to print debug messages for.  */
+          else if (strcmp (long_options[option_index].name, "logfacility") == 0)
+          {
+            if (local_args_info.logfacility_given)
+              {
+                fprintf (stderr, "%s: `--logfacility' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->logfacility_given && ! override)
+              continue;
+            local_args_info.logfacility_given = 1;
+            args_info->logfacility_given = 1;
+            args_info->logfacility_arg = strtol (optarg, &stop_char, 0);
+            if (!(stop_char && *stop_char == '\0')) {
+              fprintf(stderr, "%s: invalid numeric value: %s\n", argv[0], optarg);
+              goto failure;
+            }
+            if (args_info->logfacility_orig)
+              free (args_info->logfacility_orig); /* free previous string */
+            args_info->logfacility_orig = gengetopt_strdup (optarg);
           }
           /* Re-read configuration file at this interval.  */
           else if (strcmp (long_options[option_index].name, "interval") == 0)

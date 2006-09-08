@@ -3,6 +3,8 @@
 
 * Configurable TX queue length (option "txqlen") on the tun/tap tunnel (Linux only)
 * Added option "swapoctets" to swap the meaning of input/output octets/packets
+* Added option "logfacility" to change the syslog logging facility (default LOG_LOCAL6)
+* (note should probably change the name of debugfacility as it is really logpriority)
 * Patches from the ChilliSpot CVS "1.1" version
   * Added option "conup" defining a script for session/connection-up
   * Added option "condown" defining a script for session/connection-down

@@ -15,6 +15,7 @@
 option  "fg"          f "Run in foreground"             flag   off
 option  "debug"       d "Run in debug mode"             flag   off
 option  "debugfacility" - "Which modules to print debug messages for" int default="1" no
+option  "logfacility" - "Which modules to print debug messages for" int default="-1" no
 
 option  "conf"        c "Read configuration file"       string default="/etc/chilli.conf" no
 option  "interval"    - "Re-read configuration file at this interval"  int default="3600" no

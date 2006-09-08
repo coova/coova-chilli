@@ -192,6 +192,7 @@ int process_options(int argc, char **argv, int minimal) {
   options.eapolenable = args_info.eapolenable_flag;
   options.swapoctets = args_info.swapoctets_flag;
   options.usestatusfile = args_info.usestatusfile_flag;
+  options.logfacility = args_info.logfacility_arg;
   options.chillixml = args_info.chillixml_flag;
   options.macauth = args_info.macauth_flag;
   options.uamport = args_info.uamport_arg;

@@ -67,6 +67,7 @@ struct options_t {
   int radiusnasporttype;         /* NAS-Port-Type */
   uint16_t coaport;              /* UDP port to listen to */
   int coanoipcheck;              /* Allow disconnect from any IP */
+  int logfacility;
 
   /* Radius proxy parameters */
   struct in_addr proxylisten;    /* IP address to listen to */
