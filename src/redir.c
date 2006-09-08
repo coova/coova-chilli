@@ -907,13 +907,12 @@ static int redir_getparam(struct redir_t *redir, char *src,
 /* Get the User-Agent of an HTTP request */
 static int redir_getuseragent(struct redir_t *redir, char *src, char *dst, int dstsize) {
   char *p1;
-  char *p3;
   char *peol;
   char *ua;
   int ualen;
 
   dst[0] = 0; /* Null terminate in case of error return */
-  if (!(p1 = strstr(p3, "\r\nUser-Agent:")))
+  if (!(p1 = strstr(src, "\r\nUser-Agent:")))
     return -1;
   p1 += 13;
   while (*p1 == ' ') p1++; /* Advance through additional white space */
