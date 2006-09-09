@@ -75,12 +75,10 @@ int tun_sifflags(struct tun_t *this, int flags) {
   strncpy(ifr.ifr_name, this->devname, IFNAMSIZ);
   ifr.ifr_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "socket() failed");
+    sys_err(LOG_ERR, __FILE__, __LINE__, errno, "socket() failed");
   }
   if (ioctl(fd, SIOCSIFFLAGS, &ifr)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "ioctl(SIOCSIFFLAGS) failed");
+    sys_err(LOG_ERR, __FILE__, __LINE__, errno," ioctl(SIOCSIFFLAGS) failed");
     close(fd);
     return -1;
   }
@@ -289,7 +287,7 @@ int tun_addaddr(struct tun_t *this,
   this->addrs++;
   return 0;
 
-#elif defined (__FreeBSD__) || defined (__APPLE__)
+#elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 
   int fd;
   struct ifaliasreq      areq;
@@ -368,7 +366,7 @@ int tun_setaddr(struct tun_t *this,
 #if defined(__linux__)
   ifr.ifr_netmask.sa_family = AF_INET;
 
-#elif defined(__FreeBSD__) || defined (__APPLE__)
+#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   ((struct sockaddr_in *) &ifr.ifr_addr)->sin_len = 
     sizeof (struct sockaddr_in);
   ((struct sockaddr_in *) &ifr.ifr_dstaddr)->sin_len = 
@@ -420,7 +418,7 @@ int tun_setaddr(struct tun_t *this,
     ((struct sockaddr_in *) &ifr.ifr_netmask)->sin_addr.s_addr = 
       netmask->s_addr;
 
-#elif defined(__FreeBSD__) || defined (__APPLE__)
+#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
     ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr = 
       netmask->s_addr;
 
@@ -449,7 +447,7 @@ int tun_setaddr(struct tun_t *this,
 
   tun_sifflags(this, IFF_UP | IFF_RUNNING);
 
-#if defined(__FreeBSD__) || defined (__APPLE__)
+#if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   tun_addroute(this, dstaddr, addr, netmask);
   this->routes = 1;
 #endif
@@ -508,7 +506,7 @@ int tun_route(struct tun_t *this,
   close(fd);
   return 0;
   
-#elif defined(__FreeBSD__) || defined (__APPLE__)
+#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 
 struct {
   struct rt_msghdr rt;
@@ -597,7 +595,7 @@ int tun_new(struct tun_t **tun, int txqlen)
 #if defined(__linux__)
   struct ifreq ifr;
 
-#elif defined(__FreeBSD__) || defined (__APPLE__)
+#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   char devname[IFNAMSIZ+5]; /* "/dev/" + ifname */
   int devnum;
   struct ifaliasreq areq;
@@ -650,14 +648,15 @@ int tun_new(struct tun_t **tun, int txqlen)
     if ((nfd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) {
       strncpy(nifr.ifr_name, ifr.ifr_name, IFNAMSIZ);
       nifr.ifr_qlen = txqlen;
-      if (ioctl(nfd, SIOCSIFTXQLEN, (void *) &nifr) >= 0) {
-	printf("TX queue length set to %d", txqlen);
-      } else {
-	printf("Cannot set tx queue length on %s", ifr.ifr_name);
-      }
+
+      if (ioctl(nfd, SIOCSIFTXQLEN, (void *) &nifr) >= 0) 
+	sys_err(LOG_INFO, __FILE__, __LINE__, errno, "TX queue length set to %d", txqlen);
+      else 
+	sys_err(LOG_ERR, __FILE__, __LINE__, errno, "Cannot set tx queue length on %s", ifr.ifr_name);
+
       close (nfd);
     } else {
-      printf("Cannot open socket on %s", ifr.ifr_name);
+      sys_err(LOG_ERR, __FILE__, __LINE__, errno, "Cannot open socket on %s", ifr.ifr_name);
     }
   }
 #endif
@@ -668,7 +667,7 @@ int tun_new(struct tun_t **tun, int txqlen)
   ioctl((*tun)->fd, TUNSETNOCSUM, 1); /* Disable checksums */
   return 0;
   
-#elif defined(__FreeBSD__) || defined (__APPLE__)
+#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 
   /* Find suitable device */
   for (devnum = 0; devnum < 255; devnum++) { /* TODO 255 */ 
@@ -800,7 +799,7 @@ int tun_set_cb_ind(struct tun_t *this,
 int tun_decaps(struct tun_t *this)
 {
 
-#if defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__)
+#if defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 
   unsigned char buffer[PACKET_MAX];
   int status;
@@ -810,8 +809,13 @@ int tun_decaps(struct tun_t *this)
     return -1;
   }
   
-  if (this->cb_ind)
-    return this->cb_ind(this, buffer, status);
+   if (this->cb_ind)
+#if defined (__OpenBSD__)
+     /* tun interface adds 4 bytes to front of packet under OpenBSD */
+     return this->cb_ind(this, buffer+4, status);
+#else
+     return this->cb_ind(this, buffer, status);
+#endif
 
   return 0;
 
@@ -841,7 +845,17 @@ int tun_decaps(struct tun_t *this)
 int tun_encaps(struct tun_t *tun, void *pack, unsigned len)
 {
 
-#if defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__)
+#if defined (__OpenBSD__)
+
+  unsigned char buffer[PACKET_MAX+4];
+
+  /* Can we user writev here to be more efficient??? */
+  *((long*)(&buffer))=htonl(AF_INET);
+  memcpy(&buffer[4], pack, PACKET_MAX);
+
+  return write(tun->fd, buffer, len+4);
+
+#elif defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__) || defined (__NetBSD__)
 
   return write(tun->fd, pack, len);
 

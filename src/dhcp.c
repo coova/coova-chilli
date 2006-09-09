@@ -34,10 +34,16 @@
 
 #include "system.h"
 #include "syserr.h"
-#include "ippool.h"
-#include "iphash.h"
+#include "radius.h"
+#include "radius_wispr.h"
+#include "radius_chillispot.h"
+#include "redir.h"
+#include "md5.h"
 #include "dhcp.h"
-#include "lookup.h"
+#include "chilli.h"
+#include "options.h"
+#include "ippool.h"
+
 
 #ifdef NAIVE
 const static int paranoid = 0; /* Trust that the program has no bugs */
@@ -257,7 +263,7 @@ int dhcp_setaddr(char const *devname,
 #if defined(__linux__)
   ifr.ifr_netmask.sa_family = AF_INET;
 
-#elif defined(__FreeBSD__) || defined (__APPLE__)
+#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   ((struct sockaddr_in *) &ifr.ifr_addr)->sin_len = 
     sizeof (struct sockaddr_in);
   ((struct sockaddr_in *) &ifr.ifr_dstaddr)->sin_len = 
@@ -306,7 +312,7 @@ int dhcp_setaddr(char const *devname,
     ((struct sockaddr_in *) &ifr.ifr_netmask)->sin_addr.s_addr = 
       netmask->s_addr;
 
-#elif defined(__FreeBSD__) || defined (__APPLE__)
+#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
     ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr = 
       netmask->s_addr;
 
@@ -332,7 +338,7 @@ int dhcp_setaddr(char const *devname,
 
   /* TODO: How does it work on Solaris? */
 
-#if defined(__FreeBSD__) || defined (__APPLE__)
+#if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   (void)dhcp_sifflags(devname, IFF_UP | IFF_RUNNING);  /* TODO */
   /*return tun_addroute(this, addr, addr, netmask);*/
 #else
@@ -450,8 +456,7 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
   return fd;
 }
 
-#elif defined (__FreeBSD__) || defined (__APPLE__)
-
+#elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 
 int dhcp_getmac(const char *ifname, char *macaddr) {
 
@@ -633,7 +638,7 @@ int dhcp_send(struct dhcp_t *this, int fd, uint16_t protocol, unsigned char *his
 	    fd, length);
     return -1;
   }
-#elif defined(__FreeBSD__) || defined (__APPLE__)
+#elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   if (write(fd, packet, length) < 0) {
     sys_err(LOG_ERR, __FILE__, __LINE__, errno, "write() failed");
     return -1;
@@ -1062,7 +1067,7 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
       return -1; /* Error reporting done in dhcp_open_eth */
     }
 
-#if defined(__FreeBSD__) || defined (__APPLE__)
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
   if (ioctl((*dhcp)->fd, BIOCGBLEN, &blen) < 0) {
     sys_err(LOG_ERR, __FILE__, __LINE__, errno,"ioctl() failed!");
   }
@@ -1126,73 +1131,64 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 }
 
 /**
- * dhcp_set()
+ * dhcp_se()
  * Set dhcp parameters which can be altered at runtime.
  **/
 int
-dhcp_set(struct dhcp_t *dhcp, int debug,
-	 struct in_addr *authip, int authiplen, int anydns,
-	 struct in_addr *uamokip, int uamokiplen, 
-	 struct in_addr *uamokaddr,
-	 struct in_addr *uamokmask, int uamoknetlen) {
-
+dhcp_set(struct dhcp_t *dhcp, int debug) {
   int i;
 
   dhcp->debug = debug;
-  dhcp->anydns = anydns;
+  dhcp->anydns = options.uamanydns;
 
   /* Copy list of uamserver IP addresses */
   if ((dhcp)->authip) free((dhcp)->authip);
-  dhcp->authiplen = authiplen;
-  if (!(dhcp->authip = calloc(sizeof(struct in_addr), authiplen))) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "calloc() failed");
+  dhcp->authiplen = options.uamserverlen;
+  if (!(dhcp->authip = calloc(sizeof(struct in_addr), options.uamserverlen))) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "calloc() failed");
     dhcp->authip = 0;
     return -1;
   }
-  memcpy(dhcp->authip, authip, sizeof(struct in_addr) * authiplen);
+  memcpy(dhcp->authip, &options.uamserver, sizeof(struct in_addr) * options.uamserverlen);
 
   /* Make hash table for allowed domains */
   if (dhcp->iphash) iphash_free(dhcp->iphash);
-  if ((!uamokip) || (uamokiplen==0)) {
+  if ((!options.uamokip) || (options.uamokiplen==0)) {
     dhcp->iphashm = NULL;
     dhcp->iphash = NULL;
   }
   else {
     if (dhcp->iphashm) free(dhcp->iphashm);
-    if (!(dhcp->iphashm = calloc(uamokiplen, sizeof(struct ippoolm_t)))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "calloc() failed");
+    if (!(dhcp->iphashm = calloc(options.uamokiplen, sizeof(struct ippoolm_t)))) {
+      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "calloc() failed");
       return -1;
     }
-    for (i=0; i< uamokiplen; i++) {
-      dhcp->iphashm[i].addr = uamokip[i];
+    for (i=0; i< options.uamokiplen; i++) {
+      dhcp->iphashm[i].addr = options.uamokip[i];
     }
-    (void)iphash_new(&dhcp->iphash, dhcp->iphashm, uamokiplen);
+    (void)iphash_new(&dhcp->iphash, dhcp->iphashm, options.uamokiplen);
   }
 
   /* Copy allowed networks */
   if (dhcp->uamokaddr) free(dhcp->uamokaddr);
   if (dhcp->uamokmask) free(dhcp->uamokmask);
-  if ((!uamokaddr) || (!uamokmask) || (uamoknetlen==0)) {
+  if ((!options.uamokaddr) || (!options.uamokmask) || (options.uamoknetlen==0)) {
     dhcp->uamokaddr = NULL;
     dhcp->uamokmask = NULL;
     dhcp->uamoknetlen = 0;
   }
   else {
-    dhcp->uamoknetlen = uamoknetlen;
-    if (!(dhcp->uamokaddr = calloc(uamoknetlen, sizeof(struct in_addr)))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "calloc() failed");
+    dhcp->uamoknetlen = options.uamoknetlen;
+    if (!(dhcp->uamokaddr = calloc(options.uamoknetlen, sizeof(struct in_addr)))) {
+      sys_err(LOG_ERR, __FILE__, __LINE__, 0,"calloc() failed");
       return -1;
     }
-    if (!(dhcp->uamokmask = calloc(uamoknetlen, sizeof(struct in_addr)))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "calloc() failed");
+    if (!(dhcp->uamokmask = calloc(options.uamoknetlen, sizeof(struct in_addr)))) {
+      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "calloc() failed");
       return -1;
     }
-    memcpy(dhcp->uamokaddr, uamokaddr, uamoknetlen * sizeof(struct in_addr));
-    memcpy(dhcp->uamokmask, uamokmask, uamoknetlen * sizeof(struct in_addr));
+    memcpy(dhcp->uamokaddr, options.uamokaddr, options.uamoknetlen * sizeof(struct in_addr));
+    memcpy(dhcp->uamokmask, options.uamokmask, options.uamoknetlen * sizeof(struct in_addr));
   }
   return 0;
 }
@@ -2542,7 +2538,7 @@ int dhcp_set_cb_getinfo(struct dhcp_t *this,
 
 
 
-#if defined(__FreeBSD__) || defined (__APPLE__)
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
 
 int dhcp_receive(struct dhcp_t *this) {
   /*

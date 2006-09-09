@@ -6,6 +6,8 @@
 #ifndef _SYSTEM_H
 #define _SYSTEM_H
 
+#include "../config.h"
+
 #include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,9 +33,6 @@
 #include <sys/wait.h>
 #include <sys/un.h>
 
-#include <netinet/in.h>
-
-#include <net/route.h>
 
 #if defined(__linux__)
 #include <asm/types.h>
@@ -53,12 +52,35 @@
 #include <ifaddrs.h>
 #endif
 
+#ifndef EIDRM
+#define EIDRM   EINVAL
+#endif
+#ifndef ENOMSG
+#define ENOMSG  EAGAIN
+#endif
+
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
+
+#if defined(HAVE_NET_IF_H) && !defined(__linux__)
+#include <net/if.h>
+#endif
+
+#ifdef HAVE_NET_IF_TUN_H
+#include <net/if_tun.h>
+#endif
+
 #ifdef HAVE_NET_ETHERNET_H
 #include <net/ethernet.h>
 #endif
 
 #ifdef HAVE_ASM_TYPES_H
 #include <asm/types.h>
+#endif
+
+#ifdef HAVE_NET_ROUTE_H
+#include <net/route.h>
 #endif
 
 #include <net/if_arp.h>
@@ -68,9 +90,6 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
-
-
-#include "../config.h"
 
 #ifdef MTRACE
 #include <mcheck.h> 

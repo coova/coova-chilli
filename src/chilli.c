@@ -3085,10 +3085,7 @@ int chilli_main(int argc, char **argv)
   if ((radius->proxyfd != -1) && (radius->proxyfd > maxfd))
     maxfd = radius->proxyfd;
   
-  radius_set(radius, (options.debug & DEBUG_RADIUS),
-	     &options.radiusserver1, &options.radiusserver2,
-	     options.radiusauthport, options.radiusacctport,
-	     options.radiussecret);
+  radius_set(radius, (options.debug & DEBUG_RADIUS));
   
   if (options.debug) 
     printf("ChilliSpot version %s started.\n", VERSION);
@@ -3138,16 +3135,7 @@ int chilli_main(int argc, char **argv)
   if (redir->fd > maxfd)
     maxfd = redir->fd;
 
-  redir_set(redir, (options.debug & DEBUG_REDIR), options.uamsuccess, options.uamwispr,
-	    options.uamurl, options.uamhomepage, options.uamsecret, options.ssid, 
-	    options.nasmac, options.nasip,
-	    &options.radiuslisten,
-	    &options.radiusserver1, &options.radiusserver2,
-	    options.radiusauthport, options.radiusacctport,
-	    options.radiussecret, options.radiusnasid,
-	    options.radiuslocationid, options.radiuslocationname,
-	    options.radiusnasporttype);
-
+  redir_set(redir, (options.debug & DEBUG_REDIR));
 
   (void) redir_set_cb_getstate(redir, cb_redir_getstate);
   
@@ -3175,10 +3163,7 @@ int chilli_main(int argc, char **argv)
     (void) dhcp_set_cb_data_ind(dhcp, cb_dhcp_data_ind);
     (void) dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
     (void) dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
-    if (dhcp_set(dhcp, (options.debug & DEBUG_DHCP),
-		 options.uamserver, options.uamserverlen, options.uamanydns,
-		 options.uamokip, options.uamokiplen,
-		 options.uamokaddr, options.uamokmask, options.uamoknetlen)) {
+    if (dhcp_set(dhcp, (options.debug & DEBUG_DHCP))) {
       sys_err(LOG_ERR, __FILE__, __LINE__, 0,
 	      "Failed to set DHCP parameters");
       exit(1);
@@ -3258,31 +3243,16 @@ int chilli_main(int argc, char **argv)
 
       /* Reinit DHCP parameters */
       if (dhcp)
-	(void) dhcp_set(dhcp, (options.debug & DEBUG_DHCP),
-			options.uamserver, options.uamserverlen, options.uamanydns,
-			options.uamokip, options.uamokiplen,
-			options.uamokaddr, options.uamokmask, options.uamoknetlen);
+	(void) dhcp_set(dhcp, (options.debug & DEBUG_DHCP));
       
       /* Reinit RADIUS parameters */
-      (void) radius_set(radius, (options.debug & DEBUG_RADIUS),
-			&options.radiusserver1, &options.radiusserver2,
-			options.radiusauthport, options.radiusacctport,
-			options.radiussecret);
+      (void) radius_set(radius, (options.debug & DEBUG_RADIUS));
       
       /* Reinit Redir parameters */
-      (void) redir_set(redir, (options.debug & DEBUG_REDIR), options.uamsuccess, options.uamwispr,
-		       options.uamurl, options.uamhomepage, options.uamsecret, options.ssid, 
-		       options.nasmac, options.nasip,
-		       &options.radiuslisten,
-		       &options.radiusserver1, &options.radiusserver2,
-		       options.radiusauthport, options.radiusacctport,
-		       options.radiussecret, options.radiusnasid,
-		       options.radiuslocationid, options.radiuslocationname,
-		       options.radiusnasporttype);
+      (void) redir_set(redir, (options.debug & DEBUG_REDIR));
     }
 
     if (lastSecond != (thisSecond = time(NULL)) /*do_timeouts*/) {
-      if (options.debug) printf("Do timeouts!\n");
       (void) radius_timeout(radius);
       if (dhcp) (void) dhcp_timeout(dhcp);
       (void) checkconn();
@@ -3296,7 +3266,7 @@ int chilli_main(int argc, char **argv)
     if (dhcp) FD_SET(dhcp->fd, &fds);
     if ((dhcp) && (dhcp->arp_fd)) FD_SET(dhcp->arp_fd, &fds);
     if ((dhcp) && (dhcp->eapol_fd)) FD_SET(dhcp->eapol_fd, &fds);
-#elif defined (__FreeBSD__)  || defined (__APPLE__)
+#elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
     if (dhcp) FD_SET(dhcp->fd, &fds);
 #endif
     if (radius->fd != -1) FD_SET(radius->fd, &fds);
@@ -3355,7 +3325,7 @@ int chilli_main(int argc, char **argv)
 	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
 		"dhcp_eapol_ind() failed!");
       }
-#elif defined (__FreeBSD__)  || defined (__APPLE__)
+#elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
       if ((dhcp) && FD_ISSET(dhcp->fd, &fds) && 
 	  dhcp_receive(dhcp) < 0) {
 	sys_err(LOG_ERR, __FILE__, __LINE__, 0,

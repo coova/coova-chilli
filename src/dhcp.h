@@ -345,7 +345,7 @@ struct dhcp_t {
   int devflags;         /* Original flags of network interface */
   unsigned char hwaddr[DHCP_ETH_ALEN]; /* Hardware address of interface */
   int ifindex;  /* Hardware address of interface */
-#if defined(__FreeBSD__) || defined (__APPLE__)
+#if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
   char *rbuf;
   int rbuf_max;
   int rbuf_offset;
@@ -410,10 +410,7 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 	 struct in_addr *uamlisten, uint16_t uamport, int useeapol);
 
 extern int
-dhcp_set(struct dhcp_t *dhcp, int debug,
-	 struct in_addr *authip, int authiplen, int anydns,
-	 struct in_addr *uamokip, int uamokiplen, struct in_addr *uamokaddr,
-	 struct in_addr *uamokmask, int uamoknetlen);
+dhcp_set(struct dhcp_t *dhcp, int debug);
 
 extern int
 dhcp_free(struct dhcp_t *dhcp);

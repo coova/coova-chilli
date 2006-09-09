@@ -107,8 +107,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamport_given = 0 ;
   args_info->uamallowed_given = 0 ;
   args_info->uamanydns_given = 0 ;
-  args_info->uamsuccess_given = 0 ;
-  args_info->uamwispr_given = 0 ;
+  args_info->nouamsuccess_given = 0 ;
+  args_info->nouamwispr_given = 0 ;
   args_info->macauth_given = 0 ;
   args_info->macallowed_given = 0 ;
   args_info->macsuffix_given = 0 ;
@@ -220,8 +220,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->uamallowed_arg = NULL;
   args_info->uamallowed_orig = NULL;
   args_info->uamanydns_flag = 0;
-  args_info->uamsuccess_flag = 0;
-  args_info->uamwispr_flag = 0;
+  args_info->nouamsuccess_flag = 0;
+  args_info->nouamwispr_flag = 0;
   args_info->macauth_flag = 0;
   args_info->macallowed_arg = NULL;
   args_info->macallowed_orig = NULL;
@@ -312,8 +312,8 @@ cmdline_parser_print_help (void)
   printf("%s\n","      --uamport=INT             TCP port to bind to for authentication requests \n                                   (default=`3990')");
   printf("%s\n","      --uamallowed=STRING       Domain names exempt from access check ");
   printf("%s\n","      --uamanydns               Allow client to use any DNS server  \n                                  (default=off)");
-  printf("%s\n","      --uamsuccess              Return to the UAM server on success  \n                                  (default=off)");
-  printf("%s\n","      --uamwispr                Support WISPr (Annex D) from ChilliSpot  \n                                  (default=off)");
+  printf("%s\n","      --nouamsuccess            Do not return to the UAM server on success, \n                                  original url instead  (default=off)");
+  printf("%s\n","      --nouamwispr              Do not send WISPr XML from ChilliSpot, assume \n                                  back-end does  (default=off)");
   printf("%s\n","      --macauth                 Authenticate based on MAC address  \n                                  (default=off)");
   printf("%s\n","      --macallowed=STRING       List of allowed MAC addresses");
   printf("%s\n","      --macsuffix=STRING        Suffix to add to the MAC address");
@@ -1186,11 +1186,11 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
   if (args_info->uamanydns_given) {
     fprintf(outfile, "%s\n", "uamanydns");
   }
-  if (args_info->uamsuccess_given) {
-    fprintf(outfile, "%s\n", "uamsuccess");
+  if (args_info->nouamsuccess_given) {
+    fprintf(outfile, "%s\n", "nouamsuccess");
   }
-  if (args_info->uamwispr_given) {
-    fprintf(outfile, "%s\n", "uamwispr");
+  if (args_info->nouamwispr_given) {
+    fprintf(outfile, "%s\n", "nouamwispr");
   }
   if (args_info->macauth_given) {
     fprintf(outfile, "%s\n", "macauth");
@@ -1470,8 +1470,8 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "uamport",	1, NULL, 0 },
         { "uamallowed",	1, NULL, 0 },
         { "uamanydns",	0, NULL, 0 },
-        { "uamsuccess",	0, NULL, 0 },
-        { "uamwispr",	0, NULL, 0 },
+        { "nouamsuccess",	0, NULL, 0 },
+        { "nouamwispr",	0, NULL, 0 },
         { "macauth",	0, NULL, 0 },
         { "macallowed",	1, NULL, 0 },
         { "macsuffix",	1, NULL, 0 },
@@ -2426,33 +2426,33 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             args_info->uamanydns_given = 1;
             args_info->uamanydns_flag = !(args_info->uamanydns_flag);
           }
-          /* Return to the UAM server on success.  */
-          else if (strcmp (long_options[option_index].name, "uamsuccess") == 0)
+          /* Do not return to the UAM server on success, original url instead.  */
+          else if (strcmp (long_options[option_index].name, "nouamsuccess") == 0)
           {
-            if (local_args_info.uamsuccess_given)
+            if (local_args_info.nouamsuccess_given)
               {
-                fprintf (stderr, "%s: `--uamsuccess' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                fprintf (stderr, "%s: `--nouamsuccess' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
                 goto failure;
               }
-            if (args_info->uamsuccess_given && ! override)
+            if (args_info->nouamsuccess_given && ! override)
               continue;
-            local_args_info.uamsuccess_given = 1;
-            args_info->uamsuccess_given = 1;
-            args_info->uamsuccess_flag = !(args_info->uamsuccess_flag);
+            local_args_info.nouamsuccess_given = 1;
+            args_info->nouamsuccess_given = 1;
+            args_info->nouamsuccess_flag = !(args_info->nouamsuccess_flag);
           }
-          /* Support WISPr (Annex D) from ChilliSpot.  */
-          else if (strcmp (long_options[option_index].name, "uamwispr") == 0)
+          /* Do not send WISPr XML from ChilliSpot, assume back-end does.  */
+          else if (strcmp (long_options[option_index].name, "nouamwispr") == 0)
           {
-            if (local_args_info.uamwispr_given)
+            if (local_args_info.nouamwispr_given)
               {
-                fprintf (stderr, "%s: `--uamwispr' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                fprintf (stderr, "%s: `--nouamwispr' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
                 goto failure;
               }
-            if (args_info->uamwispr_given && ! override)
+            if (args_info->nouamwispr_given && ! override)
               continue;
-            local_args_info.uamwispr_given = 1;
-            args_info->uamwispr_given = 1;
-            args_info->uamwispr_flag = !(args_info->uamwispr_flag);
+            local_args_info.nouamwispr_given = 1;
+            args_info->nouamwispr_given = 1;
+            args_info->nouamwispr_flag = !(args_info->nouamwispr_flag);
           }
           /* Authenticate based on MAC address.  */
           else if (strcmp (long_options[option_index].name, "macauth") == 0)

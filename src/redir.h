@@ -157,8 +157,9 @@ struct redir_t {
   char* radiuslocationname;
   int radiusnasporttype;
   int starttime;
-  int uamsuccess; /* Redirect back to uamserver on success */
-  int uamwispr;   /* Having Chilli return WISPr blocks */
+  int chillixml;     /* Send chilli specific XML along with WISPr */
+  int no_uamsuccess; /* Do not redirect back to uamserver on success */
+  int no_uamwispr;   /* Do not have Chilli return WISPr blocks */
   int (*cb_getstate) (struct redir_t *redir, struct in_addr *addr,
 		      struct redir_conn_t *conn);
 };
@@ -193,20 +194,9 @@ extern int redir_new(struct redir_t **redir,
 
 extern int redir_free(struct redir_t *redir);
 
-extern void redir_set(struct redir_t *redir, int debug, int uamsuccess, int uamwispr,
-		      char *url, char *homepage, char* secret, char *ssid, 
-		      char *nasmac, char *nasip,
-		      struct in_addr *radiuslisten, 
-		      struct in_addr *radiusserver0,
-		      struct in_addr *radiusserver1,
-		      uint16_t radiusauthport, uint16_t radiusacctport,
-		      char* radiussecret, char* radiusnasid,
-		      char* radiuslocationid, char* radiuslocationname,
-		      int radiusnasporttype);
-
+extern void redir_set(struct redir_t *redir, int debug);
 
 extern int redir_accept(struct redir_t *redir);
-
 
 extern int redir_setchallenge(struct redir_t *redir, struct in_addr *addr,
 			      unsigned char *challenge);

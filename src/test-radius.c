@@ -69,10 +69,7 @@ int static test_radius() {
     return -1;
   }
 
-  radius_set(radius, (options.debug & DEBUG_RADIUS),
-	     &options.radiusserver1, &options.radiusserver2,
-	     options.radiusauthport, options.radiusacctport,
-	     options.radiussecret);
+  radius_set(radius, (options.debug & DEBUG_RADIUS));
 
   radius_set_cb_auth_conf(radius, chilliauth_cb); 
 

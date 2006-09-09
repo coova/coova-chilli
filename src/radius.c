@@ -1143,42 +1143,39 @@ radius_free(struct radius_t *this)
   return 0;
 }
 
-
-void radius_set(struct radius_t *this, int debug,
-		struct in_addr *server0, struct in_addr *server1,
-		uint16_t authport, uint16_t acctport, char* secret) {
-  
+void radius_set(struct radius_t *this, int debug) {
   this->debug = debug;
 
   /* Remote radius server parameters */
-  this->hisaddr0.s_addr = server0->s_addr;
-  this->hisaddr1.s_addr = server1->s_addr;
+  this->hisaddr0.s_addr = options.radiusserver1.s_addr;
+  this->hisaddr1.s_addr = options.radiusserver2.s_addr;
 
-  if (authport) {
-    this->authport = authport;
+  if (options.radiusauthport) {
+    this->authport = options.radiusauthport;
   }
   else {
     this->authport = RADIUS_AUTHPORT;
   }
   
-  if (acctport) {
-    this->acctport = acctport;
+  if (options.radiusacctport) {
+    this->acctport = options.radiusacctport;
   }
   else {
     this->acctport = RADIUS_ACCTPORT;
   }
 
-  if ((this->secretlen = strlen(secret)) > RADIUS_SECRETSIZE) {
+  if ((this->secretlen = strlen(options.radiussecret)) > RADIUS_SECRETSIZE) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0,
 	    "Radius secret too long. Truncating to %d characters", 
 	    RADIUS_SECRETSIZE);
     this->secretlen = RADIUS_SECRETSIZE;
   }
-  memcpy(this->secret, secret, this->secretlen);
+  memcpy(this->secret, options.radiussecret, this->secretlen);
 
   this->lastreply = 0; /* Start out using server 0 */  
   return;
 }
+
 
 /* 
  * radius_set_cb_ind()

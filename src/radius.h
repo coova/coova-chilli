@@ -288,10 +288,7 @@ extern int radius_new(struct radius_t **this,
 extern int radius_free(struct radius_t *this);
 
 /* Set radius parameters which can later be changed */
-extern void radius_set(struct radius_t *this, int debug,
-		       struct in_addr *server0, struct in_addr *server1,
-		       uint16_t authport, uint16_t acctport, char* secret);
-
+extern void radius_set(struct radius_t *this, int debug);
 
 /* Callback function for received request */
 extern int radius_set_cb_ind(struct radius_t *this,

@@ -196,8 +196,8 @@ int process_options(int argc, char **argv, int minimal) {
   options.chillixml = args_info.chillixml_flag;
   options.macauth = args_info.macauth_flag;
   options.uamport = args_info.uamport_arg;
-  options.uamsuccess = args_info.uamsuccess_flag;
-  options.uamwispr = args_info.uamwispr_flag;
+  options.no_uamsuccess = args_info.nouamsuccess_flag;
+  options.no_uamwispr = args_info.nouamwispr_flag;
   options.uamanydns = args_info.uamanydns_flag;
   options.radiusnasporttype = args_info.radiusnasporttype_arg;
   options.radiusauthport = args_info.radiusauthport_arg;

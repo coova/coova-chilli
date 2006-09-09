@@ -101,8 +101,8 @@ struct options_t {
   char* uamurl;                  /* URL of authentication server */
   char* uamhomepage;             /* URL of redirection homepage */
   int uamhomepageport;		 /* Port of redirection homepage */
-  int uamsuccess;                /* Redirect back to UAM on success */
-  int uamwispr;                  /* Have ChilliSpot return WISPr blocks */
+  int no_uamsuccess;             /* Do not send redirect back to UAM on success */
+  int no_uamwispr;               /* Do not have ChilliSpot return WISPr blocks */
 
   struct in_addr uamlisten;      /* IP address of local authentication */
   int uamport;                   /* TCP port to listen to */

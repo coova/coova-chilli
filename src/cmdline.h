@@ -115,8 +115,8 @@ struct gengetopt_args_info
   char ** uamallowed_arg;	/* Domain names exempt from access check .  */
   char ** uamallowed_orig;	/* Domain names exempt from access check  original value given at command line.  */
   int uamanydns_flag;	/* Allow client to use any DNS server (default=off).  */
-  int uamsuccess_flag;	/* Return to the UAM server on success (default=off).  */
-  int uamwispr_flag;	/* Support WISPr (Annex D) from ChilliSpot (default=off).  */
+  int nouamsuccess_flag;	/* Do not return to the UAM server on success, original url instead (default=off).  */
+  int nouamwispr_flag;	/* Do not send WISPr XML from ChilliSpot, assume back-end does (default=off).  */
   int macauth_flag;	/* Authenticate based on MAC address (default=off).  */
   char ** macallowed_arg;	/* List of allowed MAC addresses.  */
   char ** macallowed_orig;	/* List of allowed MAC addresses original value given at command line.  */
@@ -194,8 +194,8 @@ struct gengetopt_args_info
   int uamport_given ;	/* Whether uamport was given.  */
   unsigned int uamallowed_given ;	/* Whether uamallowed was given.  */
   int uamanydns_given ;	/* Whether uamanydns was given.  */
-  int uamsuccess_given ;	/* Whether uamsuccess was given.  */
-  int uamwispr_given ;	/* Whether uamwispr was given.  */
+  int nouamsuccess_given ;	/* Whether nouamsuccess was given.  */
+  int nouamwispr_given ;	/* Whether nouamwispr was given.  */
   int macauth_given ;	/* Whether macauth was given.  */
   unsigned int macallowed_given ;	/* Whether macallowed was given.  */
   int macsuffix_given ;	/* Whether macsuffix was given.  */
