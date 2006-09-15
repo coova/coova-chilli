@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Coova Ltd
+ * Copyright (c) 2006 Coova Technologies Ltd
  *
  */
 #include "system.h"
@@ -73,6 +73,8 @@ int static test_radius() {
 
   radius_set_cb_auth_conf(radius, chilliauth_cb); 
 
+  {int cnt=0; for (; cnt < RADIUS_QUEUESIZE * 2; cnt++) {
+
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0, "radius_default_pack() failed");
     return -1;
@@ -113,8 +115,6 @@ int static test_radius() {
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
-
-  {int cnt=0; for (; cnt < RADIUS_QUEUESIZE+10; cnt++) {
 
   radius_req(radius, &radius_pack, NULL); 
 

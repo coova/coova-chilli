@@ -3,7 +3,7 @@
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (c) 2006 Coova Ltd
+ * Copyright (c) 2006 Coova Technologies Ltd
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -1200,7 +1200,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
     if (leaky_bucket(appconn, 0, len)) return 0;
 #endif
 #endif
-  }
+    }
   }
 
   switch (appconn->dnprot) {
@@ -2616,8 +2616,8 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
     return -1;
   }
 
-  if (iph->src == options.uamlisten.s_addr)
-    if (iph->psrc == htons(options.uamport))
+  if (iph->dst == options.uamlisten.s_addr)
+    if (iph->pdst == htons(options.uamport))
       return tun_encaps(tun, pack, len);
 
   if (appconn->authenticated == 1) {

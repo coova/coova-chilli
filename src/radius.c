@@ -2,7 +2,7 @@
  *
  * Radius client functions.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (c) 2006 Coova Ltd
+ * Copyright (c) 2006 Coova Technologies Ltd
  * 
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -1359,10 +1359,8 @@ radius_default_pack(struct radius_t *this,
   pack->id = 0; /* Let the send procedure queue the packet and assign id */
   pack->length = htons(RADIUS_HDRSIZE);
   
-  if (fread(pack->authenticator, 1, RADIUS_AUTHLEN, this->urandom_fp)
-      != RADIUS_AUTHLEN) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "fread() failed");
+  if (fread(pack->authenticator, 1, RADIUS_AUTHLEN, this->urandom_fp) != RADIUS_AUTHLEN) {
+    log_err(errno, "fread() failed");
     return -1;
   }
   return 0;

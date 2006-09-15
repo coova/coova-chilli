@@ -2,7 +2,7 @@
  *
  * HTTP redirection functions.
  * Copyright (C) 2004, 2005 Mondru AB.
- * Copyright (c) 2006 Coova Ltd
+ * Copyright (c) 2006 Coova Technologies Ltd
  * 
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright

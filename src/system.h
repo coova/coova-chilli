@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Coova Ltd
+ * Copyright (c) 2006 Coova Technologies Ltd
  *
  */
 
