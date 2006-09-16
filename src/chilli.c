@@ -55,19 +55,19 @@ void static fireman(int signum) {
 
 /* Termination handler for clean shutdown */
 void static termination_handler(int signum) {
-  if (options.debug) printf("SIGTERM received!\n");
+  if (options.debug) log_dbg("SIGTERM received!\n");
   keep_going = 0;
 }
 
 /* Alarm handler for general house keeping 
 void static alarm_handler(int signum) {
-  /*if (options.debug) printf("SIGALRM received!\n");* /
+  /*if (options.debug) log_dbg("SIGALRM received!\n");* /
   do_timeouts = 1;
 }*/
 
 /* Sighup handler for rereading configuration file */
 void static sighup_handler(int signum) {
-  if (options.debug) printf("SIGHUP received!\n");
+  if (options.debug) log_dbg("SIGHUP received!\n");
   do_sighup = 1;
 }
 
@@ -107,7 +107,7 @@ int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
   timediff = (timenow.tv_sec - conn->last_time.tv_sec) * ((uint64_t) 1000000);
   timediff += (timenow.tv_usec - conn->last_time.tv_usec);
 
-  /*  if (options.debug) printf("Leaky bucket timediff: %lld, bucketup: %d, bucketdown: %d %d %d\n", 
+  /*  if (options.debug) log_dbg("Leaky bucket timediff: %lld, bucketup: %d, bucketdown: %d %d %d\n", 
 			    timediff, conn->bucketup, conn->bucketdown, 
 			    octetsup, octetsdown);*/
 
@@ -122,7 +122,7 @@ int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
     }
     
     if ((conn->bucketup + octetsup) > conn->bucketupsize) {
-      /*if (options.debug) printf("Leaky bucket deleting uplink packet\n");*/
+      /*if (options.debug) log_dbg("Leaky bucket deleting uplink packet\n");*/
       result = -1;
     }
     else {
@@ -139,7 +139,7 @@ int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
     }
     
     if ((conn->bucketdown + octetsdown) > conn->bucketdownsize) {
-      /*if (options.debug) printf("Leaky bucket deleting downlink packet\n");*/
+      /*if (options.debug) log_dbg("Leaky bucket deleting downlink packet\n");*/
       result = -1;
     }
     else {
@@ -375,20 +375,19 @@ int static getconn_username(struct app_conn_t **conn, char *username,
 		     int usernamelen)
 {
   struct app_conn_t *appconn;
-  username[usernamelen] = 0; printf("username: %s\n", username);
+  username[usernamelen] = 0; log_dbg("username: %s\n", username);
   
   appconn = firstusedconn;
   while (appconn) {
     if (!appconn->inuse) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Connection with inuse == 0!");
+      log_err(0, "Connection with inuse == 0!");
     }
-    appconn->user[appconn->userlen] = 0; printf("user: %s\n", appconn->user);
+    appconn->user[appconn->userlen] = 0; log_dbg("user: %s\n", appconn->user);
 
     if ((appconn->authenticated) && (appconn->userlen == usernamelen) &&
 	!memcmp(appconn->user, username, usernamelen)) {
       *conn = appconn;
-      printf("Found\n");
+      log_dbg("Found\n");
       return 0;
     }
     appconn = appconn->next;
@@ -403,7 +402,7 @@ int static dnprot_terminate(struct app_conn_t *appconn) {
   case DNPROT_WPA:
   case DNPROT_EAPOL:
     if (!appconn->dnlink) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "No downlink protocol");
+      log_err(0, "No downlink protocol");
       return 0;
     }
     ((struct dhcp_conn_t*) appconn->dnlink)->authstate = DHCP_AUTH_NONE;
@@ -411,7 +410,7 @@ int static dnprot_terminate(struct app_conn_t *appconn) {
   case DNPROT_MAC:
   case DNPROT_UAM:
     if (!appconn->dnlink) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "No downlink protocol");
+      log_err(0, "No downlink protocol");
       return 0;
     }
     ((struct dhcp_conn_t*) appconn->dnlink)->authstate = DHCP_AUTH_DNAT;
@@ -419,7 +418,7 @@ int static dnprot_terminate(struct app_conn_t *appconn) {
   case DNPROT_DHCP_NONE:
     return 0;
   default: 
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Unknown downlink protocol"); 
+    log_err(0, "Unknown downlink protocol"); 
     return 0;
   }
 }
@@ -908,7 +907,7 @@ int static acct_req(struct app_conn_t *conn, int status_type)
     /* TODO: This probably belongs somewhere else */
     if (options.condown) {
       if (options.debug)
-	printf("Calling connection down script: %s\n",options.condown);
+	log_dbg("Calling connection down script: %s\n",options.condown);
       (void) runscript(conn, options.condown);
     }
   }
@@ -1129,7 +1128,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     
     /* Run connection up script */
     if (options.conup) {
-      if (options.debug) printf("Calling connection up script: %s\n", options.conup);
+      if (options.debug) log_dbg("Calling connection up script: %s\n", options.conup);
       (void) runscript(appconn, options.conup);
     }
     
@@ -1157,12 +1156,12 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
   struct app_conn_t *appconn;
 
   if (options.debug) 
-    printf("cb_tun_ind. Packet received: Forwarding to link layer\n");
+    log_dbg("cb_tun_ind. Packet received: Forwarding to link layer\n");
   
   dst.s_addr = iph->dst;
 
   if (ippool_getip(ippool, &ipm, &dst)) {
-    if (options.debug) printf("Received packet with no destination!!!\n");
+    if (options.debug) log_dbg("Received packet with no destination!!!\n");
     return 0;
   }
 
@@ -1174,9 +1173,9 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
 
   appconn = (struct app_conn_t*) ipm->peer;
 
-  /* If the ip source is uamlisten or port is uamport we won't call leaky_bucket*/
-  if (iph->src != options.uamlisten.s_addr || iph->psrc != htons(options.uamport))
-  {
+  /* If the ip src is uamlisten and psrc is uamport we won't call leaky_bucket */
+  if ( ! (iph->src  == options.uamlisten.s_addr && 
+	  iph->psrc == htons(options.uamport))) {
     if (appconn->authenticated == 1) {
 
 #ifndef LEAKY_BUCKET
@@ -1349,13 +1348,12 @@ int accounting_request(struct radius_packet_t *pack,
   /* Calling Station ID (MAC Address) */
   if (!radius_getattr(pack, &hismacattr, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0)) {
     if (options.debug) {
-      printf("Calling Station ID is: ");
-      for (n=0; n<hismacattr->l-2; n++) printf("%c", hismacattr->v.t[n]);
-      printf("\n");
+      log_dbg("Calling Station ID is: ");
+      for (n=0; n<hismacattr->l-2; n++) log_dbg("%c", hismacattr->v.t[n]);
+      log_dbg("\n");
     }
     if ((macstrlen = hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Wrong length of called station ID");
+      log_err(0, "Wrong length of called station ID");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     memcpy(macstr,hismacattr->v.t, macstrlen);
@@ -1472,7 +1470,7 @@ int access_request(struct radius_packet_t *pack,
   int instance = 0;
   int eaplen = 0;
 
-  if (options.debug) printf("Radius access request received!\n");
+  if (options.debug) log_dbg("Radius access request received!\n");
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REJECT)) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0,
@@ -1486,9 +1484,9 @@ int access_request(struct radius_packet_t *pack,
   /* Framed IP address (Conditional) */
   if (!radius_getattr(pack, &hisipattr, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0, 0)) {
     if (options.debug) {
-      printf("Framed IP address is: ");
-      for (n=0; n<hisipattr->l-2; n++) printf("%.2x", hisipattr->v.t[n]); 
-      printf("\n");
+      log_dbg("Framed IP address is: ");
+      for (n=0; n<hisipattr->l-2; n++) log_dbg("%.2x", hisipattr->v.t[n]); 
+      log_dbg("\n");
     }
     if ((hisipattr->l-2) != sizeof(hisip.s_addr)) {
       sys_err(LOG_ERR, __FILE__, __LINE__, 0,
@@ -1501,9 +1499,9 @@ int access_request(struct radius_packet_t *pack,
   /* Calling Station ID: MAC Address (Conditional) */
   if (!radius_getattr(pack, &hismacattr, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0)) {
     if (options.debug) {
-      printf("Calling Station ID is: ");
-      for (n=0; n<hismacattr->l-2; n++) printf("%c", hismacattr->v.t[n]);
-      printf("\n");
+      log_dbg("Calling Station ID is: ");
+      for (n=0; n<hismacattr->l-2; n++) log_dbg("%c", hismacattr->v.t[n]);
+      log_dbg("\n");
     }
     if ((macstrlen = hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
       sys_err(LOG_ERR, __FILE__, __LINE__, 0,
@@ -1544,16 +1542,16 @@ int access_request(struct radius_packet_t *pack,
   } 
   else {
     if (options.debug) {
-      printf("Username is: ");
-      for (n=0; n<uidattr->l-2; n++) printf("%c", uidattr->v.t[n]); 
-      printf("\n");
+      log_dbg("Username is: ");
+      for (n=0; n<uidattr->l-2; n++) log_dbg("%c", uidattr->v.t[n]); 
+      log_dbg("\n");
     }
   }
 
   
   if (hisipattr) { /* Find user based on IP address */
     if (ippool_getip(ippool, &ipm, &hisip)) {
-      if (options.debug) printf("Radius request: Address not found!!!\n");
+      if (options.debug) log_dbg("Radius request: Address not found!!!\n");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     
@@ -1601,9 +1599,9 @@ int access_request(struct radius_packet_t *pack,
   /* Password */
   if (!radius_getattr(pack, &pwdattr, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0)) {
     if (options.debug) {
-      printf("Password is: ");
-      for (n=0; n<pwdattr->l-2; n++) printf("%.2x", pwdattr->v.t[n]); 
-      printf("\n");
+      log_dbg("Password is: ");
+      for (n=0; n<pwdattr->l-2; n++) log_dbg("%.2x", pwdattr->v.t[n]); 
+      log_dbg("\n");
     }
     if (radius_pwdecode(radius, (uint8_t*) pwd, RADIUS_ATTR_VLEN, &pwdlen, 
 			pwdattr->v.t, pwdattr->l-2, pack->authenticator,
@@ -1613,7 +1611,7 @@ int access_request(struct radius_packet_t *pack,
 	      "radius_pwdecode() failed");
       return -1;
     }
-    if (options.debug) printf("Password is: %s\n", pwd);
+    if (options.debug) log_dbg("Password is: %s\n", pwd);
   }
 
   /* Get EAP message */
@@ -1888,11 +1886,10 @@ int cb_radius_auth_conf(struct radius_t *radius,
   struct app_conn_t *appconn = (struct app_conn_t*) cbp;
 
   if (options.debug)
-    printf("Received access request confirmation from radius server\n");
+    log_dbg("Received access request confirmation from radius server\n");
   
   if (!appconn) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "No peer protocol defined");
+    log_err(0,"No peer protocol defined");
     return 0;
   }
 
@@ -1913,14 +1910,14 @@ int cb_radius_auth_conf(struct radius_t *radius,
   /* ACCESS-REJECT */
   if (pack->code == RADIUS_CODE_ACCESS_REJECT) {
     if (options.debug)
-      printf("Received access reject from radius server\n");
+      log_dbg("Received access reject from radius server\n");
     return dnprot_reject(appconn);
   }
 
   /* ACCESS-CHALLENGE */
   if (pack->code == RADIUS_CODE_ACCESS_CHALLENGE) {
     if (options.debug)
-      printf("Received access challenge from radius server\n");
+      log_dbg("Received access challenge from radius server\n");
 
     /* Get EAP message */
     appconn->challen = 0;
@@ -1996,9 +1993,9 @@ int cb_radius_auth_conf(struct radius_t *radius,
   /* Framed IP address (Optional) */
   if (!radius_getattr(pack, &hisipattr, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0, 0)) {
     if (options.debug) {
-      printf("Framed IP address is: ");
-      for (n=0; n<hisipattr->l-2; n++) printf("%.2x", hisipattr->v.t[n]); 
-      printf("\n");
+      log_dbg("Framed IP address is: ");
+      for (n=0; n<hisipattr->l-2; n++) log_dbg("%.2x", hisipattr->v.t[n]); 
+      log_dbg("\n");
     }
     if ((hisipattr->l-2) != sizeof(struct in_addr)) {
       sys_err(LOG_ERR, __FILE__, __LINE__, 0,
@@ -2349,7 +2346,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
   int found = 0;
 
   if (options.debug)
-    printf("Received coa or disconnect request\n");
+    log_dbg("Received coa or disconnect request\n");
   
   if (pack->code != RADIUS_CODE_DISCONNECT_REQUEST) {
     sys_err(LOG_INFO, __FILE__, __LINE__, 0, 
@@ -2408,7 +2405,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
   struct ippoolm_t *ipm;
   struct app_conn_t *appconn = conn->peer;
 
-  if (options.debug) printf("DHCP requested IP address\n");
+  if (options.debug) log_dbg("DHCP requested IP address\n");
 
   if (!appconn) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0,
@@ -2487,7 +2484,7 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
 	  conn->hismac[2], conn->hismac[3],
 	  conn->hismac[4], conn->hismac[5]);
   
-  if (options.debug) printf("New DHCP connection established\n");
+  if (options.debug) log_dbg("New DHCP connection established\n");
 
   /* Allocate new application connection */
   if (newconn(&appconn)) {
@@ -2560,7 +2557,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
 	  conn->hismac[4], conn->hismac[5], 
 	  inet_ntoa(conn->hisip));
 
-  if (options.debug) printf("DHCP connection removed\n");
+  if (options.debug) log_dbg("DHCP connection removed\n");
 
   if (!conn->peer) return 0; /* No appconn allocated. Stop here */
     appconn = (struct app_conn_t*) conn->peer;
@@ -2602,24 +2599,24 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
   struct app_conn_t *appconn = conn->peer;
 
   if (options.debug)
-    printf("cb_dhcp_data_ind. Packet received. DHCP authstate: %d\n", 
-	   conn->authstate);
+    log_dbg("cb_dhcp_data_ind. Packet received. DHCP authstate: %d\n", 
+	    conn->authstate);
 
   if (iph->src != conn->hisip.s_addr) {
-    if (options.debug) printf("Received packet with spoofed source!!!\n");
+    if (options.debug) log_dbg("Received packet with spoofed source!!!\n");
     return 0;
   }
 
   if (!appconn) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "No peer protocol defined");
+    log_err(0, "No peer protocol defined");
     return -1;
   }
 
-  if (iph->dst == options.uamlisten.s_addr)
-    if (iph->pdst == htons(options.uamport))
-      return tun_encaps(tun, pack, len);
-
+  /* If the ip dst is uamlisten and pdst is uamport we won't call leaky_bucket */
+  if (iph->dst  == options.uamlisten.s_addr && 
+      iph->pdst == htons(options.uamport))
+    return tun_encaps(tun, pack, len);
+  
   if (appconn->authenticated == 1) {
 
 #ifndef LEAKY_BUCKET
@@ -2655,7 +2652,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
   struct radius_packet_t radius_pack;
   int offset;
 
-  if (options.debug) printf("EAP Packet received \n");
+  if (options.debug) log_dbg("EAP Packet received \n");
 
   /* If this is the first EAPOL authentication request */
   if ((appconn->dnprot == DNPROT_DHCP_NONE) || 
@@ -2749,8 +2746,8 @@ int static uam_msg(struct redir_msg_t *msg) {
   struct dhcp_conn_t* dhcpconn;
 
   if (ippool_getip(ippool, &ipm, &msg->addr)) {
-    if (options.debug) printf("UAM login with unknown IP address: %s\n",
-			      inet_ntoa(msg->addr));
+    if (options.debug) log_dbg("UAM login with unknown IP address: %s\n",
+			       inet_ntoa(msg->addr));
     return 0;
   }
 
@@ -2778,7 +2775,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 	    msg->username, inet_ntoa(appconn->hisip));
     
     if (options.debug)
-      printf("Received login from UAM\n");
+      log_dbg("Received login from UAM\n");
     
     /* Initialise */
     appconn->statelen = 0;
@@ -2851,7 +2848,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 	    appconn->user, inet_ntoa(appconn->hisip));
 
     if (options.debug)
-      printf("Received logoff from UAM\n");
+      log_dbg("Received logoff from UAM\n");
 
     memcpy(appconn->uamchal, msg->uamchal, REDIR_MD5LEN);
     appconn->uamtime = time(NULL);
@@ -2916,7 +2913,7 @@ static int cmdsock_accept(int sock) {
   int rval = 0;
 
   if (options.debug) 
-    printf("Processing cmdsock request...\n");
+    log_dbg("Processing cmdsock request...\n");
 
   len = sizeof(remote);
   if ((csock = accept(sock, (struct sockaddr *)&remote, &len)) == -1) {
@@ -3088,7 +3085,7 @@ int chilli_main(int argc, char **argv)
   radius_set(radius, (options.debug & DEBUG_RADIUS));
   
   if (options.debug) 
-    printf("ChilliSpot version %s started.\n", VERSION);
+    log_dbg("ChilliSpot version %s started.\n", VERSION);
 
   syslog(LOG_INFO, "ChilliSpot %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
 	 "Copyright 2006 PicoPoint B.V. Licensed under GPL. "
@@ -3228,7 +3225,7 @@ int chilli_main(int argc, char **argv)
   */
 
   if (options.debug) 
-    printf("Waiting for client request...\n");
+    log_dbg("Waiting for client request...\n");
 
 
   /******************************************************************/
@@ -3286,7 +3283,6 @@ int chilli_main(int argc, char **argv)
       }
       break;
     case 0:
-      /*if (options.debug) printf("ChilliSpot is alive and ready to process packets!\n");*/
     default:
       break;
     }
@@ -3355,20 +3351,21 @@ int chilli_main(int argc, char **argv)
     }
   }
 
-  if (options.debug) printf("Terminating ChilliSpot!\n");
+  if (options.debug) log_dbg("Terminating ChilliSpot!\n");
 
-  (void) killconn();
+  killconn();
 
-  if (redir) (void) redir_free(redir);
+  if (redir) redir_free(redir);
 
-  if (radius) (void) radius_free(radius);
+  if (radius) radius_free(radius);
 
-  if (dhcp) (void) dhcp_free(dhcp);
+  if (dhcp) dhcp_free(dhcp);
 
-  if (tun && options.ipdown) (void) tun_runscript(tun, options.ipdown);
-  if (tun) (void) tun_free(tun);
+  if (tun && options.ipdown) tun_runscript(tun, options.ipdown);
 
-  if (ippool) (void) ippool_free(ippool);
+  if (tun) tun_free(tun);
+
+  if (ippool) ippool_free(ippool);
 
   return 0;
   

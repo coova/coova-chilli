@@ -11,17 +11,14 @@
  * 
  */
 
-#include <stdarg.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <stdio.h>
-#include <syslog.h>
-#include <string.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-
+#include "system.h"
 #include "syserr.h"
-
+#include "radius.h"
+#include "md5.h"
+#include "dhcp.h"
+#include "redir.h"
+#include "chilli.h"
+#include "options.h"
 
 void sys_err(int pri, char *fn, int ln, int en, char *fmt, ...) {
   va_list args;
@@ -31,10 +28,14 @@ void sys_err(int pri, char *fn, int ln, int en, char *fmt, ...) {
   vsnprintf(buf, SYSERR_MSGSIZE, fmt, args);
   va_end(args);
   buf[SYSERR_MSGSIZE-1] = 0; /* Make sure it is null terminated */
-  if (en)
-    syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), buf);
-  else
-    syslog(pri, "%s: %d: %s", fn, ln, buf);
+  if (options.foreground && options.debug) {
+    printf("%s: %d: %d (%s) %s", fn, ln, en, strerror(en), buf);
+  } else {
+    if (en)
+      syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), buf);
+    else
+      syslog(pri, "%s: %d: %s", fn, ln, buf);
+  }
 }
 
 void sys_errpack(int pri, char *fn, int ln, int en, struct sockaddr_in *peer,
@@ -65,9 +66,12 @@ void sys_errpack(int pri, char *fn, int ln, int en, struct sockaddr_in *peer,
   }
   buf2[pos] = 0;
   
-  if (en)
-    syslog(pri, "%s: %d: %d (%s) %s. %s", fn, ln, en, strerror(en), buf, buf2);
-  else
-    syslog(pri, "%s: %d: %s. %s", fn, ln, buf, buf2);
-
+  if (options.foreground && options.debug) {
+    printf("%s: %d: %d (%s) %s", fn, ln, en, strerror(en), buf);
+  } else {
+    if (en)
+      syslog(pri, "%s: %d: %d (%s) %s. %s", fn, ln, en, strerror(en), buf, buf2);
+    else
+      syslog(pri, "%s: %d: %s. %s", fn, ln, buf, buf2);
+  }
 }
