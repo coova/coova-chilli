@@ -222,24 +222,24 @@ static int redir_xmlreply(struct redir_t *redir,
 			  struct redir_conn_t *conn, int res, long int timeleft, char* hexchal, 
 			  char* reply, char* redirurl, 
 			  char *dst, int dstsize) {
-  if (redir->no_uamwispr) return 0;
+  if (redir->no_uamwispr && !(redir->chillixml)) return 0;
 
   snprintf(dst, dstsize,
 	   "<!--\r\n"
-	   "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"
-	   "<WISPAccessGatewayParam\r\n"
-	   "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
-	   "  xsi:noNamespaceSchemaLocation=\"http://www.acmewisp.com/WISPAccessGatewayParam.xsd\""
-	   ">\r\n");
-  dst[dstsize-1] = 0;
+	   "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n");
 
+  if (!redir->no_uamwispr) {
+    redir_stradd(dst, dstsize, 
+		 "<WISPAccessGatewayParam\r\n"
+		 "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
+		 "  xsi:noNamespaceSchemaLocation=\"http://www.acmewisp.com/WISPAccessGatewayParam.xsd\""
+		 ">\r\n");
   switch (res) {
   case REDIR_ALREADY:
     redir_stradd(dst, dstsize, "<AuthenticationPollReply>\r\n");
     redir_stradd(dst, dstsize, "<MessageType>140</MessageType>\r\n");
     redir_stradd(dst, dstsize, "<ResponseCode>102</ResponseCode>\r\n");
-    redir_stradd(dst, dstsize, 
-		 "<ReplyMessage>Already logged on</ReplyMessage>\r\n");
+    redir_stradd(dst, dstsize, "<ReplyMessage>Already logged on</ReplyMessage>\r\n");
     redir_stradd(dst, dstsize, "</AuthenticationPollReply>\r\n");
     break;
   case REDIR_FAILED_REJECT:
@@ -312,13 +312,6 @@ static int redir_xmlreply(struct redir_t *redir,
     redir_stradd(dst, dstsize, "<MessageType>100</MessageType>\r\n");
     redir_stradd(dst, dstsize, "<ResponseCode>0</ResponseCode>\r\n");
     redir_stradd(dst, dstsize, "</Redirect>\r\n");
-    if (redir->chillixml) { 
-      /* BEGIN WESEA: MODIFICATION */
-      redir_stradd(dst, dstsize, "<ChilliSpotSession>\r\n");
-      redir_stradd(dst, dstsize, "<Challenge>%s</Challenge>\r\n", hexchal) ;
-      redir_stradd(dst, dstsize, "</ChilliSpotSession>\r\n");
-      /* END WESEA: MODIFICATION */
-    }
     break;
   case REDIR_ABORT_ACK:
     redir_stradd(dst, dstsize, "<AbortLoginReply>\r\n");
@@ -349,44 +342,95 @@ static int redir_xmlreply(struct redir_t *redir,
                   "<ReplyMessage>Already logged on</ReplyMessage>\r\n");
     }
     redir_stradd(dst, dstsize, "</AuthenticationPollReply>\r\n");
-
-    /* BEGIN WESEA: MODIFICATION */
-    if (redir->chillixml && conn->authenticated == 1) {
-      struct timeval timenow;
-      uint32_t sessiontime;
-      gettimeofday(&timenow, NULL);
-      sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
-      sessiontime += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
-
-      redir_stradd(dst, dstsize, "<ChilliSpotSession>\r\n");
-      redir_stradd(dst, dstsize, "<StartTime>%d</StartTime>\r\n" , conn->start_time);
-      redir_stradd(dst, dstsize, "<SessionTime>%d</SessionTime>\r\n", sessiontime);
-      if (timeleft) {
-       redir_stradd(dst, dstsize, "<TimeLeft>%d</TimeLeft>\r\n",
-                    timeleft);
-      }
-      redir_stradd(dst, dstsize, "<Timeout>%d</Timeout>\r\n",
-                  conn->sessiontimeout);
-      redir_stradd(dst, dstsize, "<InputOctets>%d</InputOctets>\r\n",
-                  conn->input_octets);
-      redir_stradd(dst, dstsize, "<OutputOctets>%d</OutputOctets>\r\n",
-                  conn->output_octets);
-      redir_stradd(dst, dstsize, "<MaxInputOctets>%d</MaxInputOctets>\r\n",
-                  conn->maxinputoctets);
-      redir_stradd(dst, dstsize, "<MaxOutputOctets>%d</MaxOutputOctets>\r\n",
-                  conn->maxoutputoctets);
-      redir_stradd(dst, dstsize, "<MaxTotalOctets>%d</MaxTotalOctets>\r\n",
-                  conn->maxtotaloctets);
-      redir_stradd(dst, dstsize, "</ChilliSpotSession>\r\n");
-    }
-    /* END WESEA: MODIFICATION */
     break;
   default:
     log_err(0, "Unknown res in switch");
     return -1;
   }
-  
   redir_stradd(dst, dstsize, "</WISPAccessGatewayParam>\r\n");
+  }
+
+  if (redir->chillixml) {
+    redir_stradd(dst, dstsize, "<ChilliSpotSession>\r\n");
+    switch (res) {
+    case REDIR_NOTYET:
+      redir_stradd(dst, dstsize, "<Challenge>%s</Challenge>\r\n", hexchal) ;
+      break;
+    case REDIR_STATUS:
+      if (conn->authenticated == 1) {
+        struct timeval timenow;
+        uint32_t sessiontime;
+        gettimeofday(&timenow, NULL);
+        sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
+        sessiontime += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
+
+        redir_stradd(dst, dstsize, "<State>1</State>\r\n");
+        redir_stradd(dst, dstsize, "<StartTime>%d</StartTime>\r\n" , conn->start_time);
+        redir_stradd(dst, dstsize, "<SessionTime>%d</SessionTime>\r\n", sessiontime);
+        if (timeleft) {
+         redir_stradd(dst, dstsize, "<TimeLeft>%d</TimeLeft>\r\n",
+                      timeleft);
+        }
+        redir_stradd(dst, dstsize, "<Timeout>%d</Timeout>\r\n",
+                    conn->sessiontimeout);
+        redir_stradd(dst, dstsize, "<InputOctets>%d</InputOctets>\r\n",
+                    conn->input_octets);
+        redir_stradd(dst, dstsize, "<OutputOctets>%d</OutputOctets>\r\n",
+                    conn->output_octets);
+        redir_stradd(dst, dstsize, "<MaxInputOctets>%d</MaxInputOctets>\r\n",
+                    conn->maxinputoctets);
+        redir_stradd(dst, dstsize, "<MaxOutputOctets>%d</MaxOutputOctets>\r\n",
+                    conn->maxoutputoctets);
+        redir_stradd(dst, dstsize, "<MaxTotalOctets>%d</MaxTotalOctets>\r\n",
+                    conn->maxtotaloctets);
+      }
+      else {
+        redir_stradd(dst, dstsize, "<State>0</State>\r\n");
+
+      }
+      break;
+    case REDIR_ALREADY:
+      redir_stradd(dst, dstsize, "<Already>1</Already>\r\n");
+      break;
+    case REDIR_FAILED_REJECT:
+    case REDIR_FAILED_OTHER:
+      if (reply) {
+        redir_stradd(dst, dstsize, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+      }
+      redir_stradd(dst, dstsize, "<State>0</State>\r\n");
+      break;
+    case REDIR_SUCCESS:
+      if(conn->authenticated == 1) {
+        struct timeval timenow;
+        uint32_t sessiontime;   
+        gettimeofday(&timenow, NULL);
+        sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
+        sessiontime += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
+        redir_stradd(dst, dstsize, "<StartTime>%d</StartTime>\r\n" , conn->start_time);
+        redir_stradd(dst, dstsize, "<SessionTime>%d</SessionTime>\r\n", sessiontime);
+        redir_stradd(dst, dstsize, "<Timeout>%d</Timeout>\r\n", conn->sessiontimeout);
+        if (reply) {
+          redir_stradd(dst, dstsize, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        }
+        redir_stradd(dst, dstsize, "<State>1</State>\r\n");
+      }
+    break;
+    case REDIR_LOGOFF:
+      redir_stradd(dst, dstsize, "<State>0</State>\r\n");
+      break;
+    case REDIR_ABORT_ACK:
+      redir_stradd(dst, dstsize, "<Abort_ack>1</Abort_ack>\r\n");
+      break;
+    case REDIR_ABORT_NAK:
+      redir_stradd(dst, dstsize, "<Abort_nak>1</Abort_nak>\r\n");
+      break;
+    default:
+      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Unknown res in switch");
+      return -1;
+    }
+    redir_stradd(dst, dstsize, "</ChilliSpotSession>\r\n");  
+  }
+  
   redir_stradd(dst, dstsize, "-->\r\n");
   return 0;
 }
@@ -606,6 +650,7 @@ static int redir_reply(struct redir_t *redir, int fd,
 
     buffer[0] = 0;
     snprintf(buffer, sizeof(buffer), "\r\n-->\r\n</HTML>\r\n");
+
     if (tcp_write(fd, buffer, strlen(buffer)) < 0) {
       log_err(errno, "tcp_write() failed!");
       return -1;
@@ -617,6 +662,14 @@ static int redir_reply(struct redir_t *redir, int fd,
 	     "<HTML><HEAD><TITLE>ChilliSpot</TITLE></HEAD><BODY>%s</BODY></HTML>\r\n", 
 	     credits);
     if (tcp_write(fd, buffer, strlen(buffer)) < 0) {
+      log_err(errno, "tcp_write() failed!");
+      return -1;
+    }
+  }
+
+  if (strstr(conn->useragent, "Flash")) {
+    buffer[0] = 0;
+    if (tcp_write(fd, buffer, 1) < 0) {
       log_err(errno, "tcp_write() failed!");
       return -1;
     }
@@ -1722,7 +1775,8 @@ int redir_accept(struct redir_t *redir) {
 	if (!strcmp(filename + (namelen - 5), ".html"))      ctype = "text/html";
 	else if (!strcmp(filename + (namelen - 4), ".gif"))  ctype = "image/gif";
 	else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
-	
+	else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
+
 	fd = open(filename, O_RDONLY);
 	
 	if (fd > 0) {

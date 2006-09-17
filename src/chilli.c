@@ -184,7 +184,7 @@ int set_env(char *name, char *value, int len, struct in_addr *addr,
   }
   if (name != NULL && value!= NULL) {
     if (setenv(name, value, 1) != 0) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+      log_err(errno,
 	      "setenv(%s, %s, 1) did not return 0!", name, value);
       exit(0);
     }
@@ -196,7 +196,7 @@ int runscript(struct app_conn_t *appconn, char* script) {
   int status;
 
   if ((status = fork()) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+    log_err(errno,
 	    "fork() returned -1!");
     return 0;
   }
@@ -206,7 +206,7 @@ int runscript(struct app_conn_t *appconn, char* script) {
   }
 
   if (clearenv() != 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+    log_err(errno,
 	    "clearenv() did not return 0!");
     exit(0);
   }
@@ -247,7 +247,7 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("CHILLISPOT_MAX_TOTAL_OCTETS", NULL, 0, NULL, NULL, &l);
 
   if (execl(script, script, (char *) 0) != 0) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
+      log_err(errno,
 	      "execl() did not return 0!");
       exit(0);
   }
@@ -273,12 +273,12 @@ int static newconn(struct app_conn_t **conn)
   int n;
   if (!firstfreeconn) {
     if (connections == APP_NUM_CONN) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "reached max connections!");
+      log_err(0, "reached max connections!");
     return -1;
   }
     n = ++connections;
     if (!(*conn = calloc(1, sizeof(struct app_conn_t)))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Out of memory!");
+      log_err(0, "Out of memory!");
       return -1;
     }
   }
@@ -360,7 +360,7 @@ int static getconn(struct app_conn_t **conn, uint32_t nasip, uint32_t nasport)
   appconn = firstusedconn;
   while (appconn) {
     if (!appconn->inuse) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Connection with inuse == 0!");
+      log_err(0, "Connection with inuse == 0!");
     }
     if ((appconn->nasip == nasip) && (appconn->nasport == nasport)) {
       *conn = appconn;
@@ -456,7 +456,7 @@ int static checkconn()
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->authenticated == 1)) {
       if (!(dhcpconn = (struct dhcp_conn_t*) conn->dnlink)) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0, "No downlink protocol");
+	log_err(0, "No downlink protocol");
 	return -1;
       }
       sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
@@ -538,7 +538,7 @@ int static killconn()
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->authenticated == 1)) {
       if (!(dhcpconn = (struct dhcp_conn_t*) conn->dnlink)) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0, "No downlink protocol");
+	log_err(0, "No downlink protocol");
 	return -1;
       }
       dnprot_terminate(conn);
@@ -567,8 +567,7 @@ int static macauth_radius(struct app_conn_t *appconn) {
   char mac[MACSTRLEN+1];
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_default_pack() failed");
+    log_err(0, "radius_default_pack() failed");
     return -1;
   }
   
@@ -656,8 +655,7 @@ int static radius_access_reject(struct app_conn_t *conn) {
   struct radius_packet_t radius_pack;
   conn->radiuswait = 0;
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REJECT)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_default_pack() failed");
+    log_err(0, "radius_default_pack() failed");
     return -1;
   }
 
@@ -673,8 +671,7 @@ int static radius_access_challenge(struct app_conn_t *conn) {
   int eaplen = 0;
   conn->radiuswait = 0;
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_CHALLENGE)){
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_default_pack() failed");
+    log_err(0, "radius_default_pack() failed");
     return -1;
   }
   radius_pack.id = conn->radiusid;
@@ -687,8 +684,7 @@ int static radius_access_challenge(struct app_conn_t *conn) {
       eaplen = conn->challen - offset;
     if (radius_addattr(radius, &radius_pack, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
 		       conn->chal + offset, eaplen)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "radius_default_pack() failed");
+      log_err(0, "radius_default_pack() failed");
       return -1;
     }
     offset += eaplen;
@@ -719,8 +715,7 @@ int static radius_access_accept(struct app_conn_t *conn) {
 
   conn->radiuswait = 0;
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_ACCEPT)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_default_pack() failed");
+    log_err(0, "radius_default_pack() failed");
     return -1;
   }
   radius_pack.id = conn->radiusid;
@@ -802,8 +797,7 @@ int static acct_req(struct app_conn_t *conn, int status_type)
 
   if (radius_default_pack(radius, &radius_pack, 
 			  RADIUS_CODE_ACCOUNTING_REQUEST)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_default_pack() failed");
+    log_err(0, "radius_default_pack() failed");
     return -1;
   }
 
@@ -934,26 +928,25 @@ int static dnprot_reject(struct app_conn_t *appconn) {
   switch (appconn->dnprot) {
   case DNPROT_EAPOL:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "No downlink protocol");
+      log_err(0, "No downlink protocol");
       return 0;
     }
     (void) dhcp_sendEAPreject(dhcpconn, NULL, 0);
     return 0;
   case DNPROT_UAM:
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Rejecting UAM");
+    log_err(0, "Rejecting UAM");
     return 0;
   case DNPROT_WPA:
     return radius_access_reject(appconn);
   case DNPROT_MAC:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "No downlink protocol");
+      log_err(0, "No downlink protocol");
       return 0;
     }
     
     /* Allocate dynamic IP address */
     if (ippool_newip(ippool, &ipm, &appconn->reqip, 0)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Failed allocate dynamic IP address");
+      log_err(0, "Failed allocate dynamic IP address");
       return 0;
     }
     appconn->hisip.s_addr = ipm->addr.s_addr;
@@ -972,7 +965,7 @@ int static dnprot_reject(struct app_conn_t *appconn) {
     
     return 0;    
   default:
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Unknown downlink protocol");
+    log_err(0, "Unknown downlink protocol");
     return 0;
   }
 }
@@ -983,7 +976,7 @@ int static dnprot_challenge(struct app_conn_t *appconn) {
   switch (appconn->dnprot) {
   case DNPROT_EAPOL:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "No downlink protocol");
+      log_err(0, "No downlink protocol");
       return 0;
     }
     (void) dhcp_sendEAP(dhcpconn, appconn->chal, appconn->challen);
@@ -995,7 +988,7 @@ int static dnprot_challenge(struct app_conn_t *appconn) {
   case DNPROT_MAC:
     break;
   default:
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Unknown downlink protocol");
+    log_err(0, "Unknown downlink protocol");
   }
 
   return 0;
@@ -1005,14 +998,14 @@ int static dnprot_accept(struct app_conn_t *appconn) {
   struct dhcp_conn_t* dhcpconn = NULL;
 
   if (!appconn->hisip.s_addr) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "IP address not allocated");
+    log_err(0, "IP address not allocated");
     return 0;
   }
 
   switch (appconn->dnprot) {
   case DNPROT_EAPOL:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "No downlink protocol");
+      log_err(0, "No downlink protocol");
       return 0;
     }
 
@@ -1040,7 +1033,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 
   case DNPROT_UAM:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "No downlink protocol");
+      log_err(0, "No downlink protocol");
       return 0;
     }
 
@@ -1063,7 +1056,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 
   case DNPROT_WPA:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "No downlink protocol");
+      log_err(0, "No downlink protocol");
       return 0;
     }
 
@@ -1096,7 +1089,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 
   case DNPROT_MAC:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "No downlink protocol");
+      log_err(0, "No downlink protocol");
       return 0;
     }
     
@@ -1118,7 +1111,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 
     break;
   default:
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Unknown downlink protocol");
+    log_err(0, "Unknown downlink protocol");
     return 0;
   }
 
@@ -1166,8 +1159,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
   }
 
   if (!((ipm->peer) || ((struct app_conn_t*) ipm->peer)->dnlink)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "No peer protocol defined");
+    log_err(0, "No peer protocol defined");
     return 0;
   }
 
@@ -1209,7 +1201,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
     (void) dhcp_data_req((struct dhcp_conn_t *) appconn->dnlink, pack, len);
     break;
   default:
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Unknown downlink protocol: %d",
+    log_err(0, "Unknown downlink protocol: %d",
 	    appconn->dnprot);
     break;
   }
@@ -1236,8 +1228,7 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
   }
   
   if (!((ipm->peer) || ((struct app_conn_t*) ipm->peer)->dnlink)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "No peer protocol defined");
+    log_err(0, "No peer protocol defined");
     return -1;
   }
   
@@ -1305,16 +1296,14 @@ int accounting_request(struct radius_packet_t *pack,
 
   if (radius_default_pack(radius, &radius_pack, 
 			  RADIUS_CODE_ACCOUNTING_RESPONSE)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_default_pack() failed");
+    log_err(0, "radius_default_pack() failed");
     return -1;
   }
   radius_pack.id = pack->id;
   
   /* Status type */
   if (radius_getattr(pack, &typeattr, RADIUS_ATTR_ACCT_STATUS_TYPE, 0, 0, 0)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Status type is missing from radius request");
+    log_err(0, "Status type is missing from radius request");
     (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
   }
@@ -1328,8 +1317,7 @@ int accounting_request(struct radius_packet_t *pack,
   /* NAS IP */
   if (!radius_getattr(pack, &nasipattr, RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, 0)) {
     if ((nasipattr->l-2) != sizeof(appconn->nasip)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Wrong length of NAS IP address");
+      log_err(0, "Wrong length of NAS IP address");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     nasip = nasipattr->v.i;
@@ -1338,8 +1326,7 @@ int accounting_request(struct radius_packet_t *pack,
   /* NAS PORT */
   if (!radius_getattr(pack, &nasportattr, RADIUS_ATTR_NAS_PORT, 0, 0, 0)) {
     if ((nasportattr->l-2) != sizeof(appconn->nasport)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Wrong length of NAS port");
+      log_err(0, "Wrong length of NAS port");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     nasport = nasportattr->v.i;
@@ -1366,7 +1353,7 @@ int accounting_request(struct radius_packet_t *pack,
     if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x",
 		&temp[0], &temp[1], &temp[2], 
 		&temp[3], &temp[4], &temp[5]) != 6) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+      log_err(0,
 	      "Failed to convert Calling Station ID to MAC Address");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
@@ -1377,28 +1364,25 @@ int accounting_request(struct radius_packet_t *pack,
 
   if (hismacattr) { /* Look for mac address.*/
     if (dhcp_hashget(dhcp, &dhcpconn, hismac)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Unknown connection");
+      log_err(0, "Unknown connection");
       (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
       return 0;
     }
     if (!(dhcpconn->peer) || (!((struct app_conn_t*) dhcpconn->peer)->uplink)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "No peer protocol defined");
+      log_err(0,"No peer protocol defined");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     appconn = (struct app_conn_t*) dhcpconn->peer;
   }
   else if (nasipattr && nasportattr) { /* Look for NAS IP / Port */
     if (getconn(&appconn, nasip, nasport)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Unknown connection");
+      log_err(0, "Unknown connection");
       (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
       return 0;
     }
   }
   else {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+    log_err(0,
 	    "Calling Station ID or NAS IP/Port is missing from radius request");
     (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
@@ -1412,19 +1396,19 @@ int accounting_request(struct radius_packet_t *pack,
   
   switch (appconn->dnprot) {
   case DNPROT_UAM:
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,"Auth stop received for UAM");
+    log_err(0,"Auth stop received for UAM");
     break;
   case DNPROT_WPA:
     dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
     if (!dhcpconn) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,"No downlink protocol");
+      log_err(0,"No downlink protocol");
       return 0;
     }
     /* Connection is simply deleted */
     dhcp_freeconn(dhcpconn);
     break;
   default:
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,"Unknown downlink protocol");
+    log_err(0,"Unknown downlink protocol");
     (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
   }
@@ -1473,8 +1457,7 @@ int access_request(struct radius_packet_t *pack,
   if (options.debug) log_dbg("Radius access request received!\n");
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REJECT)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_default_pack() failed");
+    log_err(0, "radius_default_pack() failed");
     return -1;
   }
   radius_pack.id = pack->id;
@@ -1489,8 +1472,7 @@ int access_request(struct radius_packet_t *pack,
       log_dbg("\n");
     }
     if ((hisipattr->l-2) != sizeof(hisip.s_addr)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Wrong length of framed IP address");
+      log_err(0, "Wrong length of framed IP address");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     hisip.s_addr = hisipattr->v.i;
@@ -1504,8 +1486,7 @@ int access_request(struct radius_packet_t *pack,
       log_dbg("\n");
     }
     if ((macstrlen = hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Wrong length of called station ID");
+      log_err(0, "Wrong length of called station ID");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     memcpy(macstr,hismacattr->v.t, macstrlen);
@@ -1518,8 +1499,7 @@ int access_request(struct radius_packet_t *pack,
     if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x",
 		&temp[0], &temp[1], &temp[2], 
 		&temp[3], &temp[4], &temp[5]) != 6) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Failed to convert Calling Station ID to MAC Address");
+      log_err(0, "Failed to convert Calling Station ID to MAC Address");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     
@@ -1529,15 +1509,13 @@ int access_request(struct radius_packet_t *pack,
 
   /* Framed IP address or MAC Address must be given in request */
   if ((!hisipattr) && (!hismacattr)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Framed IP address or Calling Station ID is missing from radius request");
+    log_err(0, "Framed IP address or Calling Station ID is missing from radius request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
 
   /* Username (Mandatory) */
   if (radius_getattr(pack, &uidattr, RADIUS_ATTR_USER_NAME, 0, 0, 0)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "User-Name is missing from radius request");
+    log_err(0, "User-Name is missing from radius request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   } 
   else {
@@ -1556,8 +1534,7 @@ int access_request(struct radius_packet_t *pack,
     }
     
     if (!(ipm->peer) || (!((struct app_conn_t*) ipm->peer)->dnlink)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "No peer protocol defined");
+      log_err(0, "No peer protocol defined");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     appconn = (struct app_conn_t*) ipm->peer;
@@ -1566,14 +1543,13 @@ int access_request(struct radius_packet_t *pack,
   else if (hismacattr) { /* Look for mac address. If not found allocate new */
     if (dhcp_hashget(dhcp, &dhcpconn, hismac)) {
       if (dhcp_newconn(dhcp, &dhcpconn, hismac)) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+	log_err(0,
 		"Out of connections");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
     }
     if (!(dhcpconn->peer)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "No peer protocol defined");
+      log_err(0, "No peer protocol defined");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     appconn = (struct app_conn_t*) dhcpconn->peer;
@@ -1581,8 +1557,7 @@ int access_request(struct radius_packet_t *pack,
       appconn->dnprot = DNPROT_WPA;
   }
   else {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Framed IP address or Calling Station ID is missing from radius request");
+    log_err(0, "Framed IP address or Calling Station ID is missing from radius request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
 
@@ -1607,8 +1582,7 @@ int access_request(struct radius_packet_t *pack,
 			pwdattr->v.t, pwdattr->l-2, pack->authenticator,
 			radius->proxysecret,
 			radius->proxysecretlen)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "radius_pwdecode() failed");
+      log_err(0, "radius_pwdecode() failed");
       return -1;
     }
     if (options.debug) log_dbg("Password is: %s\n", pwd);
@@ -1621,8 +1595,7 @@ int access_request(struct radius_packet_t *pack,
     if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
 			instance++)) {
       if ((resplen + eapattr->l-2) > EAP_LEN) {
-	sys_err(LOG_INFO, __FILE__, __LINE__, 0,
-		"EAP message too long");
+	log(LOG_INFO, "EAP message too long");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
       memcpy(resp+resplen, 
@@ -1634,8 +1607,7 @@ int access_request(struct radius_packet_t *pack,
 
   /* Passwd or EAP must be given in request */
   if ((!pwdattr) && (!resplen)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Password or EAP meaasge is missing from radius request");
+    log_err(0, "Password or EAP meaasge is missing from radius request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
 
@@ -1662,8 +1634,7 @@ int access_request(struct radius_packet_t *pack,
   /* NAS IP */
   if (!radius_getattr(pack, &nasipattr, RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, 0)) {
     if ((nasipattr->l-2) != sizeof(appconn->nasip)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Wrong length of NAS IP address");
+      log_err(0, "Wrong length of NAS IP address");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     appconn->proxynasip = nasipattr->v.i;
@@ -1672,8 +1643,7 @@ int access_request(struct radius_packet_t *pack,
   /* NAS PORT */
   if (!radius_getattr(pack, &nasportattr, RADIUS_ATTR_NAS_PORT, 0, 0, 0)) {
     if ((nasportattr->l-2) != sizeof(appconn->nasport)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Wrong length of NAS port");
+      log_err(0, "Wrong length of NAS port");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     appconn->proxynasport = nasportattr->v.i;
@@ -1773,14 +1743,12 @@ int cb_radius_ind(struct radius_t *rp, struct radius_packet_t *pack,
 		  struct sockaddr_in *peer) {
 
   if (rp != radius) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Radius callback from unknown instance");
+    log_err(0, "Radius callback from unknown instance");
     return 0;
   }
   
   if (options.nodhcp) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Radius request received when not using dhcp");
+    log_err(0, "Radius request received when not using dhcp");
     return 0;
   }
 
@@ -1790,8 +1758,7 @@ int cb_radius_ind(struct radius_t *rp, struct radius_packet_t *pack,
   case RADIUS_CODE_ACCESS_REQUEST:
     return access_request(pack, peer);
   default:
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Unsupported radius request received: %d", pack->code);
+    log_err(0, "Unsupported radius request received: %d", pack->code);
     return 0;
   }
 }
@@ -1820,16 +1787,14 @@ int upprot_getip(struct app_conn_t *appconn,
     if ((hisip) && (statip)) {
       if (ippool_newip(ippool, &ipm, hisip, 1)) {
 	if (ippool_newip(ippool, &ipm, NULL, 0)) {
-	  sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		  "Failed to allocate both static and dynamic IP address");
+	  log_err(0, "Failed to allocate both static and dynamic IP address");
 	  return dnprot_reject(appconn);
 	}
       }
     }
     else {
       if (ippool_newip(ippool, &ipm, hisip, 0)) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		"Failed to allocate dynamic IP address");
+	log_err(0, "Failed to allocate dynamic IP address");
 	return dnprot_reject(appconn);
       }
     }
@@ -1902,8 +1867,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
   
 
   if (!pack) { /* Timeout */
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Radius request timed out");
+    log_err(0, "Radius request timed out");
     return dnprot_reject(appconn);
   }
 
@@ -1926,8 +1890,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
       if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
 			  instance++)) {
 	if ((appconn->challen + eapattr->l-2) > EAP_LEN) {
-	  sys_err(LOG_INFO, __FILE__, __LINE__, 0,
-		  "EAP message too long");
+	  log(LOG_INFO, "EAP message too long");
 	  return dnprot_reject(appconn);
 	}
 	memcpy(appconn->chal+appconn->challen, 
@@ -1937,8 +1900,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     } while (eapattr);
     
     if (!appconn->challen) {
-      sys_err(LOG_INFO, __FILE__, __LINE__, 0,
-	      "No EAP message found");
+      log(LOG_INFO, "No EAP message found");
       return dnprot_reject(appconn);
     }
     
@@ -1952,8 +1914,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
   
   /* ACCESS-ACCEPT */
   if (pack->code != RADIUS_CODE_ACCESS_ACCEPT) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Unknown code of radius access request confirmation");
+    log_err(0, "Unknown code of radius access request confirmation");
     return dnprot_reject(appconn);
   }
 
@@ -1998,8 +1959,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
       log_dbg("\n");
     }
     if ((hisipattr->l-2) != sizeof(struct in_addr)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Wrong length of framed IP address");
+      log_err(0, "Wrong length of framed IP address");
       return dnprot_reject(appconn);
     }
     hisip = (struct in_addr*) &(hisipattr->v.i);
@@ -2028,14 +1988,12 @@ int cb_radius_auth_conf(struct radius_t *radius,
 		      0, 0, 0)) {
     appconn->interim_interval = ntohl(interimattr->v.i);
     if (appconn->interim_interval < 60) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Received too small radius Acct-Interim-Interval value: %d. Disabling interim accounting",
+      log_err(0, "Received too small radius Acct-Interim-Interval value: %d. Disabling interim accounting",
 	      appconn->interim_interval);
       appconn->interim_interval = 0;
     } 
     else if (appconn->interim_interval < 600) {
-      sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	      "Received small radius Acct-Interim-Interval value: %d",
+      log(LOG_WARNING, "Received small radius Acct-Interim-Interval value: %d",
 	      appconn->interim_interval);
     }
   }
@@ -2180,13 +2138,11 @@ int cb_radius_auth_conf(struct radius_t *radius,
     }
     else {
       appconn->sessionterminatetime = 0;
-      sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	      "Illegal WISPr-Session-Terminate-Time received: %s", attrs);
+      log(LOG_WARNING, "Illegal WISPr-Session-Terminate-Time received: %s", attrs);
     }
     if ((appconn->sessionterminatetime) && 
 	(timenow.tv_sec > appconn->sessionterminatetime)) {
-      sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	      "WISPr-Session-Terminate-Time in the past received: %s", attrs);
+      log(LOG_WARNING, "WISPr-Session-Terminate-Time in the past received: %s", attrs);
       return dnprot_reject(appconn);
     }
   }
@@ -2201,8 +2157,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
 			instance++)) {
       if ((appconn->challen + eapattr->l-2) > EAP_LEN) {
-	sys_err(LOG_INFO, __FILE__, __LINE__, 0,
-		"EAP message too long");
+	log(LOG_INFO, "EAP message too long");
 	return dnprot_reject(appconn);
       }
       memcpy(appconn->chal+appconn->challen,
@@ -2219,8 +2174,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 			 &appconn->sendlen, (uint8_t*) &sendattr->v.t,
 			 sendattr->l-2, pack_req->authenticator,
 			 radius->secret, radius->secretlen)) {
-      sys_err(LOG_INFO, __FILE__, __LINE__, 0,
-	      "radius_keydecode() failed!");
+      log(LOG_INFO, "radius_keydecode() failed!");
       return dnprot_reject(appconn);
     }
   }
@@ -2233,8 +2187,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 			 &appconn->recvlen, (uint8_t*) &recvattr->v.t,
 			 recvattr->l-2, pack_req->authenticator,
 			 radius->secret, radius->secretlen) ) {
-      sys_err(LOG_INFO, __FILE__, __LINE__, 0,
-	      "radius_keydecode() failed!");
+      log(LOG_INFO, "radius_keydecode() failed!");
       return dnprot_reject(appconn);
     }
   }
@@ -2249,8 +2202,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 			&appconn->lmntlen, (uint8_t*) &lmntattr->v.t,
 			lmntattr->l-2, pack_req->authenticator,
 			radius->secret, radius->secretlen)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "radius_pwdecode() failed");
+      log_err(0, "radius_pwdecode() failed");
       return dnprot_reject(appconn);
     }
   }
@@ -2275,8 +2227,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 		      RADIUS_VENDOR_MS,
 		      RADIUS_ATTR_MS_CHAP2_SUCCESS, 0)) {
     if ((succattr->l-5) != MS2SUCCSIZE) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Wrong length of MS-CHAP2 success: %d", succattr->l-5);
+      log_err(0, "Wrong length of MS-CHAP2 success: %d", succattr->l-5);
       return dnprot_reject(appconn);
     }
     memcpy(appconn->ms2succ, ((void*)&succattr->v.t)+3, MS2SUCCSIZE);
@@ -2288,7 +2239,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     break;
   case EAP_MESSAGE:
     if (!appconn->challen) {
-      sys_err(LOG_INFO, __FILE__, __LINE__, 0, "No EAP message found");
+      log(LOG_INFO, "No EAP message found");
       return dnprot_reject(appconn);
     }
     break;
@@ -2297,31 +2248,28 @@ int cb_radius_auth_conf(struct radius_t *radius,
     break;
   case CHAP_MICROSOFT:
     if (!lmntattr) {
-      sys_err(LOG_INFO, __FILE__, __LINE__, 0,
-	      "No MPPE keys found");
+      log(LOG_INFO, "No MPPE keys found");
       return dnprot_reject(appconn);
     }
     if (!succattr) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "No MS-CHAP2 success found");
+      log_err(0, "No MS-CHAP2 success found");
       return dnprot_reject(appconn);
     }
     break;
   case CHAP_MICROSOFT_V2:
     if (!sendattr) {
-      sys_err(LOG_INFO, __FILE__, __LINE__, 0, "No MPPE sendkey found");
+      log(LOG_INFO, "No MPPE sendkey found");
       return dnprot_reject(appconn);
     }
     
     if (!recvattr) {
-      sys_err(LOG_INFO, __FILE__, __LINE__, 0, "No MPPE recvkey found");
+      log(LOG_INFO, "No MPPE recvkey found");
       return dnprot_reject(appconn);
     }
 
     break;
   default:
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Unknown authtype");
+    log_err(0, "Unknown authtype");
     return dnprot_reject(appconn);
   }
 
@@ -2372,16 +2320,14 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
   if (found) {
     if (radius_default_pack(radius, &radius_pack, 
 			    RADIUS_CODE_DISCONNECT_ACK)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "radius_default_pack() failed");
+      log_err(0, "radius_default_pack() failed");
       return -1;
     }
   }
   else {
     if (radius_default_pack(radius, &radius_pack, 
 			    RADIUS_CODE_DISCONNECT_NAK)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "radius_default_pack() failed");
+      log_err(0, "radius_default_pack() failed");
       return -1;
     }
   }
@@ -2408,8 +2354,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
   if (options.debug) log_dbg("DHCP requested IP address\n");
 
   if (!appconn) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Peer protocol not defined");
+    log_err(0, "Peer protocol not defined");
     return -1;
   }
 
@@ -2436,14 +2381,12 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
   }
   else {
     if (appconn->dnprot != DNPROT_DHCP_NONE) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Requested IP address when allready allocated");
+      log_err(0, "Requested IP address when allready allocated");
     }
     
     /* Allocate dynamic IP address */
     if (ippool_newip(ippool, &ipm, &appconn->reqip, 0)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Failed allocate dynamic IP address");
+      log_err(0, "Failed allocate dynamic IP address");
       return -1;
     }
     appconn->hisip.s_addr = ipm->addr.s_addr;
@@ -2488,8 +2431,7 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
 
   /* Allocate new application connection */
   if (newconn(&appconn)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Failed to allocate connection");
+    log_err(0, "Failed to allocate connection");
     return 0;
   }
 
@@ -2583,8 +2525,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
 
   if (appconn->uplink)
     if (ippool_freeip(ippool, (struct ippoolm_t *) appconn->uplink)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "ippool_freeip() failed!");
+      log_err(0, "ippool_freeip() failed!");
     }
   
   (void) freeconn(appconn);
@@ -2667,22 +2608,19 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
       appconn->authtype = EAP_MESSAGE;
     }
     else if (appconn->dnprot == DNPROT_DHCP_NONE) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Initial EAP response was not a valid identity response!");
+      log_err(0, "Initial EAP response was not a valid identity response!");
       return 0;
     }
   }
 
   /* Return if not EAPOL */
   if (appconn->dnprot != DNPROT_EAPOL) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Received EAP message when not authenticating using EAP!");
+    log_err(0, "Received EAP message when not authenticating using EAP!");
     return 0;
   }
   
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_default_pack() failed");
+    log_err(0, "radius_default_pack() failed");
     return -1;
   }
 
@@ -2752,8 +2690,7 @@ int static uam_msg(struct redir_msg_t *msg) {
   }
 
   if (!((ipm->peer) || ((struct app_conn_t*) ipm->peer)->dnlink)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "No peer protocol defined");
+    log_err(0, "No peer protocol defined");
     return 0;
   }
 
@@ -2953,19 +2890,23 @@ int printstatus(struct app_conn_t *appconn)
 {
   struct app_conn_t *apptemp;
   FILE *file;
-  char filedest[256];
+  char filedest[512];
   struct timeval timenow;
+  struct stat statbuf;
 
   if (!options.usestatusfile) return 0;
+  if (!options.statedir) return 0;
+  if (strlen(options.statedir)>sizeof(filedest)-1) return -1;
+  if (stat(options.statedir, &statbuf)) { log_err(errno, "statedir does not exist"); return -1; }
+  if (!S_ISDIR(statbuf.st_mode)) { log_err(0, "statedir not a directory"); return -1; }
 
   gettimeofday(&timenow, NULL);
   strcpy(filedest, options.statedir);
-  strcat(filedest, "status");
+  strcat(filedest, "/chillispot.state");
 
-  /* Ici on va écrire dans un fichier la liste des gens connectés */
-
-  if (!opendir(options.statedir)) return 0;
   file = fopen(filedest, "w");
+  if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
+  fprintf(file, "#Version:1.1\n");
   fprintf(file, "#SessionID = SID\n#Start-Time = ST\n");
   fprintf(file, "#SessionTimeOut = STO\n#SessionTerminateTime = STT\n");
   fprintf(file, "#Timestamp: %d\n", timenow.tv_sec);
@@ -3048,8 +2989,7 @@ int chilli_main(int argc, char **argv)
     (void) freopen("/dev/null", "w", stderr);
     (void) freopen("/dev/null", "r", stdin);
     if (daemon(1, 1)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	      "daemon() failed!");
+      log_err(errno, "daemon() failed!");
     }
   } 
 
@@ -3072,8 +3012,7 @@ int chilli_main(int argc, char **argv)
 		 &options.proxylisten, options.proxyport,
 		 &options.proxyaddr, &options.proxymask,
 		 options.proxysecret)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Failed to create radius");
+    log_err(0, "Failed to create radius");
     return -1;
   }
   if (radius->fd > maxfd)
@@ -3088,7 +3027,7 @@ int chilli_main(int argc, char **argv)
     log_dbg("ChilliSpot version %s started.\n", VERSION);
 
   syslog(LOG_INFO, "ChilliSpot %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006 PicoPoint B.V. Licensed under GPL. "
+	 "Copyright 2006 Coova Technologies Ltd. Licensed under GPL. "
 	 "See http://www.chillispot.org for credits.", VERSION);
   
   (void) radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
@@ -3101,15 +3040,13 @@ int chilli_main(int argc, char **argv)
   /* Allocate ippool for dynamic IP address allocation */
   if (ippool_new(&ippool, options.dynip, options.dhcpstart, options.dhcpend, options.statip, 
 		 options.allowdyn, options.allowstat)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Failed to allocate IP pool!");
+    log_err(0, "Failed to allocate IP pool!");
     exit(1);
   }
 
   /* Create a tunnel interface */
   if (tun_new((struct tun_t**) &tun, options.txqlen)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Failed to create tun");
+    log_err(0, "Failed to create tun");
     exit(1);
   }
 
@@ -3125,8 +3062,7 @@ int chilli_main(int argc, char **argv)
   /* Create an instance of redir */
   if (redir_new(&redir,
 		&options.uamlisten, options.uamport)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Failed to create redir");
+    log_err(0, "Failed to create redir");
     return -1;
   }
   if (redir->fd > maxfd)
@@ -3143,8 +3079,7 @@ int chilli_main(int argc, char **argv)
 		 options.dhcpusemac, options.dhcpmac, options.dhcpusemac, 
 		 &options.dhcplisten, options.lease, 1, 
 		 &options.uamlisten, options.uamport, options.eapolenable)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Failed to create dhcp");
+      log_err(0, "Failed to create dhcp");
       exit(1);
     }
     if (dhcp->fd > maxfd)
@@ -3161,8 +3096,7 @@ int chilli_main(int argc, char **argv)
     (void) dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
     (void) dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
     if (dhcp_set(dhcp, (options.debug & DEBUG_DHCP))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Failed to set DHCP parameters");
+      log_err(0, "Failed to set DHCP parameters");
       exit(1);
     }
 
@@ -3173,19 +3107,19 @@ int chilli_main(int argc, char **argv)
     int len;
     
     if ((cmdsock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno, "could not allocate UNIX Socket!");
+      log_err(errno, "could not allocate UNIX Socket!");
     } else {
       local.sun_family = AF_UNIX;
       strcpy(local.sun_path, options.cmdsocket);
       unlink(local.sun_path);
       len = strlen(local.sun_path) + sizeof(local.sun_family);
       if (bind(cmdsock, (struct sockaddr *)&local, len) == -1) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, errno, "could bind UNIX Socket!");
+	log_err(errno, "could bind UNIX Socket!");
 	close(cmdsock);
 	cmdsock = -1;
       } else {
 	if (listen(cmdsock, 5) == -1) {
-	  sys_err(LOG_ERR, __FILE__, __LINE__, errno, "could listen to UNIX Socket!");
+	  log_err(errno, "could listen to UNIX Socket!");
 	  close(cmdsock);
 	  cmdsock = -1;
 	}
@@ -3220,7 +3154,7 @@ int chilli_main(int argc, char **argv)
   itval.it_value.tv_usec = 500000; /* TODO 0.5 second * /
 
   if (setitimer(ITIMER_REAL, &itval, NULL)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno, "setitimer() failed!");
+    log_err(errno, "setitimer() failed!");
   }
   */
 
@@ -3278,8 +3212,7 @@ int chilli_main(int argc, char **argv)
     switch (status = select(maxfd + 1, &fds, NULL, NULL, &idleTime /* NULL */)) {
     case -1:
       if (EINTR != errno) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-		"select() returned -1!");
+	log_err(errno, "select() returned -1!");
       }
       break;
     case 0:
@@ -3290,7 +3223,7 @@ int chilli_main(int argc, char **argv)
     if ((msgresult = msgrcv(redir->msgid, (struct msgbuf*) &msg, sizeof(msg), 
 			   0, IPC_NOWAIT)) < 0) {
       if ((errno != EAGAIN) && (errno != ENOMSG))
-	sys_err(LOG_ERR, __FILE__, __LINE__, errno, "msgrcv() failed!");
+	log_err(errno, "msgrcv() failed!");
     }
 
     if (msgresult > 0) (void) uam_msg(&msg);
@@ -3299,54 +3232,47 @@ int chilli_main(int argc, char **argv)
 
       if (tun->fd != -1 && FD_ISSET(tun->fd, &fds) && 
 	  tun_decaps(tun) < 0) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		"tun_decaps failed!");
+	log_err(0, "tun_decaps failed!");
       }
      
 #if defined(__linux__)
       if ((dhcp) && FD_ISSET(dhcp->fd, &fds) && 
 	  dhcp_decaps(dhcp) < 0) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		"dhcp_decaps() failed!");
+	log_err(0, "dhcp_decaps() failed!");
       }
       
       if ((dhcp) && FD_ISSET(dhcp->arp_fd, &fds) && 
 	  dhcp_arp_ind(dhcp) < 0) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		"dhcp_arpind() failed!");
+	log_err(0, "dhcp_arpind() failed!");
       }
 
       if ((dhcp) && (dhcp->eapol_fd) && FD_ISSET(dhcp->eapol_fd, &fds) && 
 	  dhcp_eapol_ind(dhcp) < 0) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		"dhcp_eapol_ind() failed!");
+	log_err(0, "dhcp_eapol_ind() failed!");
       }
 #elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
       if ((dhcp) && FD_ISSET(dhcp->fd, &fds) && 
 	  dhcp_receive(dhcp) < 0) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		"dhcp_decaps() failed!");
+	log_err(0, "dhcp_decaps() failed!");
       }
 #endif
 
       if (radius->fd != -1 && FD_ISSET(radius->fd, &fds) && 
 	  radius_decaps(radius) < 0) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		"radius_ind() failed!");
+	log_err(0, "radius_ind() failed!");
       }
 
       if (radius->proxyfd != -1 && FD_ISSET(radius->proxyfd, &fds) && 
 	  radius_proxy_ind(radius) < 0) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		"radius_proxy_ind() failed!");
+	log_err(0, "radius_proxy_ind() failed!");
       }
 
       if (redir->fd != -1 && FD_ISSET(redir->fd, &fds) && redir_accept(redir) < 0) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0, "redir_accept() failed!");
+	log_err(0, "redir_accept() failed!");
       }
 
       if (cmdsock != -1 && FD_ISSET(cmdsock, &fds) && cmdsock_accept(cmdsock) < 0) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0, "cmdsock_accept() failed!");
+	log_err(0, "cmdsock_accept() failed!");
       }
     }
   }
