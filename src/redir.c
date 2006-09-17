@@ -42,13 +42,13 @@ char credits[] =
 
 
 /* Termination handler for clean shutdown */
-static void redir_termination( int signum) {
+static void redir_termination(int signum) {
   if (optionsdebug) log_dbg("Terminating redir client!\n");
   keep_going = 0;
 }
 
 /* Alarm handler for ensured shutdown */
-static void redir_alarm( int signum) {
+static void redir_alarm(int signum) {
   log_warn(0, "Client process timed out: %d", termstate);
   exit(0);
 }
@@ -106,7 +106,7 @@ static int redir_chartohex(unsigned char *src, char *dst) {
   return 0;
 }
 
-static int redir_xmlencode( char *src, int srclen, char *dst, int dstsize) {
+static int redir_xmlencode(char *src, int srclen, char *dst, int dstsize) {
   char *x;
   int n;
   int i = 0;
@@ -134,7 +134,7 @@ static int redir_xmlencode( char *src, int srclen, char *dst, int dstsize) {
 }
 
 /* Encode src as urlencoded and place null terminated result in dst */
-static int redir_urlencode( char *src, int srclen, char *dst, int dstsize) {
+static int redir_urlencode(char *src, int srclen, char *dst, int dstsize) {
   char x[3];
   int n;
   int i = 0;
@@ -170,7 +170,7 @@ static int redir_urlencode( char *src, int srclen, char *dst, int dstsize) {
 }
 
 /* Decode urlencoded src and place null terminated result in dst */
-static int redir_urldecode(  char *src, int srclen, char *dst, int dstsize) {
+static int redir_urldecode(char *src, int srclen, char *dst, int dstsize) {
   char x[3];
   int n = 0;
   int i = 0;
@@ -425,7 +425,7 @@ static int redir_xmlreply(struct redir_t *redir,
       redir_stradd(dst, dstsize, "<Abort_nak>1</Abort_nak>\r\n");
       break;
     default:
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Unknown res in switch");
+      log_err(0, "Unknown res in switch");
       return -1;
     }
     redir_stradd(dst, dstsize, "</ChilliSpotSession>\r\n");  
@@ -441,11 +441,6 @@ static int redir_buildurl(struct redir_conn_t *conn, char *buffer, int buflen,
 			  char* userurl, char* reply, char* redirurl,
 			  uint8_t *hismac, struct in_addr *hisip) {
   char b[512];
-  int  starttime = conn->start_time.tv_sec;
-  int  sessiontime;
-  int  sessiontimeout = conn->sessiontimeout;
-  int  sessionterminatetime = conn->sessionterminatetime;
-  struct timeval timenow;
 
   snprintf(buffer, buflen, "%s?res=%s&uamip=%s&uamport=%d", 
 	   redir->url, resp, inet_ntoa(redir->addr), redir->port);
@@ -462,20 +457,21 @@ static int redir_buildurl(struct redir_conn_t *conn, char *buffer, int buflen,
     if (redir_stradd(buffer, buflen, "&uid=%s", b) == -1) return -1;
   }
 
-  /* WESEA: Add start time to URL */
-  if (starttime) {
+  {/* maybe make optional */
+    struct timeval timenow;
+    int sessiontime;
+    int starttime = conn->start_time.tv_sec;
+    int sessiontimeout = conn->sessiontimeout;
+    int sessionterminatetime = conn->sessionterminatetime;
     gettimeofday(&timenow, NULL);
     sessiontime = timenow.tv_sec - starttime;
-    redir_stradd(buffer, sizeof(buffer), "&starttime=%ld", starttime);
-    redir_stradd(buffer, sizeof(buffer), "&sessiontime=%ld", sessiontime);
+    redir_stradd(buffer, buflen, "&starttime=%ld", starttime);
+    redir_stradd(buffer, buflen, "&sessiontime=%ld", sessiontime);
+    if (sessiontimeout) 
+      redir_stradd(buffer, buflen, "&sessiontimeout=%ld", sessiontimeout);
+    if (conn->sessionterminatetime)
+      redir_stradd(buffer, buflen, "&stoptime=%ld", conn->sessionterminatetime);
   }
-  if (sessiontimeout) {
-    redir_stradd(buffer, sizeof(buffer), "&sessiontimeout=%ld", sessiontimeout);
-  }
-  if (sessionterminatetime) {
-    redir_stradd(buffer, sizeof(buffer), "&sessionterminatetime=%ld", sessionterminatetime);
-  }
-
  
   if (timeleft) {
     if (redir_stradd(buffer, buflen, "&timeleft=%ld", timeleft) == -1) return -1;
@@ -1798,14 +1794,11 @@ int redir_accept(struct redir_t *redir) {
 	  close(fd);
 	  redir_close(); /* which exits */
 	} 
-	else log_err(0, 
-		     "could not open local content file %s!", filename);
+	else log_err(0, "could not open local content file %s!", filename);
       }
-      else log_err(0, 
-		   "chroot to %s was not successful\n", options.wwwdir); 
+      else log_err(0, "chroot to %s was not successful\n", options.wwwdir); 
     } 
-    else log_err(0, 
-		 "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param\n"); 
+    else log_err(0, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param\n"); 
     
     buflen = snprintf(buffer, bufsize,
 		      "HTTP/1.0 302 Moved Temporarily\r\nLocation: /prelogin\r\n\r\n");
