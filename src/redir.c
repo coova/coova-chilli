@@ -400,20 +400,10 @@ static int redir_xmlreply(struct redir_t *redir,
       redir_stradd(dst, dstsize, "<State>0</State>\r\n");
       break;
     case REDIR_SUCCESS:
-      if(conn->authenticated == 1) {
-        struct timeval timenow;
-        uint32_t sessiontime;   
-        gettimeofday(&timenow, NULL);
-        sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
-        sessiontime += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
-        redir_stradd(dst, dstsize, "<StartTime>%d</StartTime>\r\n" , conn->start_time);
-        redir_stradd(dst, dstsize, "<SessionTime>%d</SessionTime>\r\n", sessiontime);
-        redir_stradd(dst, dstsize, "<Timeout>%d</Timeout>\r\n", conn->sessiontimeout);
-        if (reply) {
-          redir_stradd(dst, dstsize, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-        }
-        redir_stradd(dst, dstsize, "<State>1</State>\r\n");
+      if (reply) {
+	redir_stradd(dst, dstsize, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
       }
+      redir_stradd(dst, dstsize, "<State>1</State>\r\n");
     break;
     case REDIR_LOGOFF:
       redir_stradd(dst, dstsize, "<State>0</State>\r\n");
@@ -458,17 +448,17 @@ static int redir_buildurl(struct redir_conn_t *conn, char *buffer, int buflen,
   }
 
   {/* maybe make optional */
-    struct timeval timenow;
-    int sessiontime;
     int starttime = conn->start_time.tv_sec;
-    int sessiontimeout = conn->sessiontimeout;
-    int sessionterminatetime = conn->sessionterminatetime;
-    gettimeofday(&timenow, NULL);
-    sessiontime = timenow.tv_sec - starttime;
-    redir_stradd(buffer, buflen, "&starttime=%ld", starttime);
-    redir_stradd(buffer, buflen, "&sessiontime=%ld", sessiontime);
-    if (sessiontimeout) 
-      redir_stradd(buffer, buflen, "&sessiontimeout=%ld", sessiontimeout);
+    if (starttime) {
+      int sessiontime;
+      struct timeval timenow;
+      gettimeofday(&timenow, NULL);
+      sessiontime = timenow.tv_sec - starttime;
+      redir_stradd(buffer, buflen, "&starttime=%ld", starttime);
+      redir_stradd(buffer, buflen, "&sessiontime=%ld", sessiontime);
+    }
+    if (conn->sessiontimeout) 
+      redir_stradd(buffer, buflen, "&sessiontimeout=%ld", conn->sessiontimeout);
     if (conn->sessionterminatetime)
       redir_stradd(buffer, buflen, "&stoptime=%ld", conn->sessionterminatetime);
   }
