@@ -3,7 +3,10 @@ sbin_PROGRAMS = chilli chilli_radconfig chilli_query test_radius
 # add -pg to enable gprof
 AM_CFLAGS = -D_GNU_SOURCE -fno-builtin -ansi -DSBINDIR='"$(sbindir)"' 
 
-chilli_SOURCES = main.c chilli.c options.c defs.h tun.c tun.h cmdline.c cmdline.h ippool.c ippool.h radius.h radius.c md5.c md5.h redir.h redir.c dhcp.c dhcp.h syserr.c syserr.h iphash.c iphash.h lookup.c lookup.h system.h cmdsock.h
+chilli_SOURCES = \
+main.c chilli.c options.c tun.c tun.h cmdline.c cmdline.h ippool.c ippool.h radius.h radius.c \
+md5.c md5.h redir.h redir.c dhcp.c dhcp.h syserr.c syserr.h iphash.c iphash.h lookup.c lookup.h \
+system.h cmdsock.h radius_wispr.h radius_chillispot.h chilli.h options.h
 
 chilli_LDFLAGS = -lcrypt
 

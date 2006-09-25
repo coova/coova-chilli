@@ -31,3 +31,4 @@ HS_PROVIDER_LINK=http://www.picopoint.com/
 HS_UAMFORMAT=https://\$HS_UAMSERVER/gk/gateway/rd/chillispot/\$HS_NASID
 HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/splash.html
 HS_WWWDIR=/etc/chilli/www
+

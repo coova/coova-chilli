@@ -1,21 +1,21 @@
 
-== ChangeLog (Coova Chilli v0.2) ==
+== ChangeLog (Coova Chilli v1.0.2 svn/rev 17) ==
 
 * Configurable TX queue length (option ''txqlen'') on the tun/tap tunnel (Linux only)
 * Added option ''swapoctets'' to swap the meaning of input/output octets/packets 
 * Added option ''logfacility'' to change the syslog logging facility (default LOG_LOCAL6) [note: should probably change the name of debugfacility as it is really logpriority]
 * Patches from the ChilliSpot CVS 1.1 version
-  * Added option ''conup'' defining a script for session/connection-up
-  * Added option ''condown'' defining a script for session/connection-down
+** Added option ''conup'' defining a script for session/connection-up
+** Added option ''condown'' defining a script for session/connection-down
 * Patches contributed by WeSea (see: [http://chillispot.wesea.com/ their page])
-  * Added option "usestatusfile" to turn on the use of the status file
-  * Traffic to UAM interface not counted in leaky buckets
-  * Some tweaks to allow a Flash browser-based UAM solution
+** Added option "usestatusfile" to turn on the use of the status file
+** Traffic to UAM interface not counted in leaky buckets
+** Some tweaks to allow a Flash browser-based UAM solution
 * Applied patch for OpenBSD and NetBSD found in ChilliSpot mailing-list
 * Renamed and swapped meaning of config param ''uamwispr'' (mentioned below) to ''nouamwispr'' which defaults to ''off'' for compatibility - turn on this option to ''not'' have chilli send WISPr XML, but rather assume the UAM server is taking care of that.
 * Renamed and swapped meaning of config param ''uamsuccess'' (mentioned below) to ''nouamsuccess'' which defaults to ''off'' for compatibility - turn on this feature to ''not'' return the user to the UAM server on login, but their original url instead.
 
-== ChangeLog (Coova Chilli v0.1) ==
+== ChangeLog (Coova Chilli v1.0.1 svn/rev 2) ==
 
 * Added the ability to use ''include <filename>'' in configuration files to include others. Using gengetopt version 2.16 and a patch is applied to the generated source.
 * A ''chilli_radconfig'' utility to perform a NAS Administrative-User RADIUS login in order to collect configurations (using the new ChilliSpot-Config VSA).
