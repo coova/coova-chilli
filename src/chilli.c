@@ -589,7 +589,7 @@ int static macauth_radius(struct app_conn_t *appconn) {
 			(uint8_t*) appconn->proxyuser, appconn->proxyuserlen);
 
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		 (uint8_t*) options.macpasswd, strlen(options.macpasswd));
+			(uint8_t*) options.macpasswd, strlen(options.macpasswd));
 
   appconn->authtype = PAP_PASSWORD;
 
@@ -1543,8 +1543,7 @@ int access_request(struct radius_packet_t *pack,
   else if (hismacattr) { /* Look for mac address. If not found allocate new */
     if (dhcp_hashget(dhcp, &dhcpconn, hismac)) {
       if (dhcp_newconn(dhcp, &dhcpconn, hismac)) {
-	log_err(0,
-		"Out of connections");
+	log_err(0, "Out of connections");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
     }

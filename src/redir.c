@@ -1623,16 +1623,24 @@ int clear_nonblocking(int fd)
 int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   unsigned char user_password[REDIR_MD5LEN+1];
   unsigned char chap_challenge[REDIR_MD5LEN];
+  unsigned char tmp[REDIR_MD5LEN+1];
   char u[128]; char p[128];
-  size_t len, sz=0;
-  int match=0;
+  size_t sz=1024;
+  int len, match=0;
   char *line=0;
+  MD5_CTX context;
   FILE *f;
 
   if (!options.localusers) return 0;
 
+  log_dbg("checking %s for user %s", options.localusers, conn->username);
+
+  if (!(f = fopen(options.localusers, "r"))) {
+    log_err(errno, "fopen() failed opening %s!", options.localusers);
+    return 0;
+  }
+
   if (redir->secret) {
-    MD5_CTX context;
     MD5Init(&context);
     MD5Update(&context, conn->uamchal, REDIR_MD5LEN);
     MD5Update(&context, redir->secret, strlen(redir->secret));
@@ -1641,31 +1649,60 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   else {
     memcpy(chap_challenge, conn->uamchal, REDIR_MD5LEN);
   }
-  
+
   if (conn->chap == 0) {
     int n;
     for (n=0; n < REDIR_MD5LEN; n++)
       user_password[n] = conn->password[n] ^ chap_challenge[n];
   }
   else if (conn->chap == 1) {
-    memcpy(user_password , conn->password, REDIR_MD5LEN);
+    memcpy(user_password, conn->chappassword, REDIR_MD5LEN);
   }
-
+  
   user_password[REDIR_MD5LEN] = 0;
-
-  if (!(f = fopen(options.localusers,"r"))) {
-    log_err(errno, "fopen() failed opening %s!", options.localusers);
-    return 0;
-  }
 	
-  while ((len = getline(&line, &sz, f)) >= 0) 
-    if (len > 3 && len < sizeof(u) && line[0] != '#')
-      if (sscanf(line,"%s %s", u, p) == 2) 
-	if (!strcmp(conn->username,u) && !strcmp(user_password, p)) 
-	  { match = 1; break; }
+  log_dbg("looking for %s", conn->username);
+
+  line=(char*)malloc(sz);
+  while ((len = getline(&line, &sz, f)) >= 0) {
+    if (len > 3 && len < sizeof(u) && line[0] != '#') {
+      char *pl=line, *pu=u, *pp=p;
+      while (*pl && *pl != ':') *pu++ = *pl++;
+      if (*pl == ':') *pl++;
+      while (*pl && *pl != '\n') *pp++ = *pl++;
+      *pu = 0; *pp = 0;
+
+      if (!strcmp(conn->username, u)) {
+
+	log_dbg("found %s, checking password", u);
+
+	if (conn->chap == 0) {
+	  int n;
+	  for (n=0; n < REDIR_MD5LEN; n++)
+	    tmp[n] = p[n] ^ chap_challenge[n];
+	}
+	else if (conn->chap == 1) {
+	  MD5Init(&context);
+	  MD5Update(&context, "\0", 1);	  
+	  MD5Update(&context, p, strlen(p));
+	  MD5Update(&context, chap_challenge, REDIR_MD5LEN);
+	  MD5Final(tmp, &context);
+	}
+
+	tmp[REDIR_MD5LEN] = 0;
+
+	if (!memcmp(user_password, tmp, REDIR_MD5LEN)) 
+	  match = 1; 
+
+	break;
+      }
+    }
+  }
+  
+  log_dbg("user %s %s", conn->username, match ? "found" : "not found");
 
   fclose(f);
-  if (line) free(line);
+  free(line);
   return match;
 }
 
@@ -1885,10 +1922,9 @@ int redir_accept(struct redir_t *redir) {
       termstate = REDIR_TERM_RADIUS;
       if (optionsdebug) log_dbg("redir_accept: Sending radius request\n");
       redir_radius(redir, &address.sin_addr, &conn);
+      termstate = REDIR_TERM_REPLY;
+      if (optionsdebug) log_dbg("Received radius reply\n");
     }
-
-    termstate = REDIR_TERM_REPLY;
-    if (optionsdebug) log_dbg("Received radius reply\n");
 
     if (conn.response == REDIR_SUCCESS) { /* Radius-Accept */
       char *besturl = conn.redirurl;
