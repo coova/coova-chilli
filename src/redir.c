@@ -1620,6 +1620,55 @@ int clear_nonblocking(int fd)
   return 0;
 }
 
+int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
+  unsigned char user_password[REDIR_MD5LEN+1];
+  unsigned char chap_challenge[REDIR_MD5LEN];
+  char u[128]; char p[128];
+  size_t len, sz=0;
+  int match=0;
+  char *line=0;
+  FILE *f;
+
+  if (!options.localusers) return 0;
+
+  if (redir->secret) {
+    MD5_CTX context;
+    MD5Init(&context);
+    MD5Update(&context, conn->uamchal, REDIR_MD5LEN);
+    MD5Update(&context, redir->secret, strlen(redir->secret));
+    MD5Final(chap_challenge, &context);
+  }
+  else {
+    memcpy(chap_challenge, conn->uamchal, REDIR_MD5LEN);
+  }
+  
+  if (conn->chap == 0) {
+    int n;
+    for (n=0; n < REDIR_MD5LEN; n++)
+      user_password[n] = conn->password[n] ^ chap_challenge[n];
+  }
+  else if (conn->chap == 1) {
+    memcpy(user_password , conn->password, REDIR_MD5LEN);
+  }
+
+  user_password[REDIR_MD5LEN] = 0;
+
+  if (!(f = fopen(options.localusers,"r"))) {
+    log_err(errno, "fopen() failed opening %s!", options.localusers);
+    return 0;
+  }
+	
+  while ((len = getline(&line, &sz, f)) >= 0) 
+    if (len > 3 && len < sizeof(u) && line[0] != '#')
+      if (sscanf(line,"%s %s", u, p) == 2) 
+	if (!strcmp(conn->username,u) && !strcmp(user_password, p)) 
+	  { match = 1; break; }
+
+  fclose(f);
+  if (line) free(line);
+  return match;
+}
+
 
 /* redir_accept() does the following:
  1) forks a child process
@@ -1828,11 +1877,15 @@ int redir_accept(struct redir_t *redir) {
       redir_close();
     }
 
-    termstate = REDIR_TERM_RADIUS;
-    if (optionsdebug) log_dbg("Calling radius\n");
 
-    if (optionsdebug) log_dbg("redir_accept: Sending radius request\n");
-    redir_radius(redir, &address.sin_addr, &conn);
+    if (is_local_user(redir, &conn)) { 
+       conn.response = REDIR_SUCCESS;
+    }
+    else {
+      termstate = REDIR_TERM_RADIUS;
+      if (optionsdebug) log_dbg("redir_accept: Sending radius request\n");
+      redir_radius(redir, &address.sin_addr, &conn);
+    }
 
     termstate = REDIR_TERM_REPLY;
     if (optionsdebug) log_dbg("Received radius reply\n");

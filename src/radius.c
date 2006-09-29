@@ -1111,8 +1111,7 @@ int radius_new(struct radius_t **this,
     addr.sin_port = htons((*this)->proxyport);
     
     if (bind((*this)->proxyfd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	      "bind() failed!");
+      log_err(errno, "bind() failed for proxylisten!");
       return -1;
     }
   }
@@ -1566,21 +1565,18 @@ int radius_proxy_ind(struct radius_t *this) {
   
   if ((status = recvfrom(this->proxyfd, &pack, sizeof(pack), 0, 
 			 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "recvfrom() failed");
+    log_err(errno, "recvfrom() failed");
     return -1;
   }
 
   if (status < RADIUS_HDRSIZE) {
-    sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	    "Received radius packet which is too short: %d < %d!",
+    log_warn(0, "Received radius packet which is too short: %d < %d!",
 	    status, RADIUS_HDRSIZE);
     return -1;
   }
 
   if (ntohs(pack.length) != status) {
-    sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	    "Received radius packet with wrong length field %d != %d!",
+    log_err(0, "Received radius packet with wrong length field %d != %d!",
 	    ntohs(pack.length), status);
     return -1;
   }
@@ -1596,16 +1592,14 @@ int radius_proxy_ind(struct radius_t *this) {
     /* Any of the two servers or from one of the clients */
     if ((addr.sin_addr.s_addr & this->proxymask.s_addr)!= 
 	this->proxyaddr.s_addr) {
-      sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	      "Received radius request from wrong address %.8x!",
-	      addr.sin_addr.s_addr);
+      log_warn(0, "Received radius request from wrong address %.8x!",
+	       addr.sin_addr.s_addr);
       return -1;
     }
     
     return this->cb_ind(this, &pack, &addr);
   }
 
-  sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	  "Received unknown radius packet %d!", pack.code);
+  log_warn(0, "Received unknown radius packet %d!", pack.code);
   return -1;
 }

@@ -142,6 +142,9 @@ struct gengetopt_args_info
   char * cmdsocket_orig;	/* path to the command unix socket original value given at command line.  */
   int swapoctets_flag;	/* Swap the meaning of input/output octets/packets (default=off).  */
   int usestatusfile_flag;	/* Use the status file to keep track of sessions (default=off).  */
+  char * localusers_arg;	/* File keep 'Local' usernames and passwords.  */
+  char * localusers_orig;	/* File keep 'Local' usernames and passwords original value given at command line.  */
+  int wpaguests_flag;	/* Allow WPA 'Guest' access (default=off).  */
   int chillixml_flag;	/* Use ChilliSpot XML in WISPr blocks (default=off).  */
   
   int help_given ;	/* Whether help was given.  */
@@ -210,6 +213,8 @@ struct gengetopt_args_info
   int cmdsocket_given ;	/* Whether cmdsocket was given.  */
   int swapoctets_given ;	/* Whether swapoctets was given.  */
   int usestatusfile_given ;	/* Whether usestatusfile was given.  */
+  int localusers_given ;	/* Whether localusers was given.  */
+  int wpaguests_given ;	/* Whether wpaguests was given.  */
   int chillixml_given ;	/* Whether chillixml was given.  */
 
 } ;

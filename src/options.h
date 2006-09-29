@@ -120,8 +120,11 @@ struct options_t {
   char* macsuffix;               /* Suffix to add to MAC address */
   char* macpasswd;               /* Password to use for MAC authentication */  
 
+  int wpaguests; /* Allow WPS "Guest" access */
+
   /* local content */
   char *wwwdir;
+  char *localusers;
 
   /* Admin RADIUS Authentication & Configuration */
   char *adminuser;

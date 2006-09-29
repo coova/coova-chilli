@@ -1070,7 +1070,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
       dhcpconn->authstate = DHCP_AUTH_NONE;
     }
     else {
-    dhcpconn->authstate = DHCP_AUTH_PASS;
+      dhcpconn->authstate = DHCP_AUTH_PASS;
     }
     
 
@@ -1683,12 +1683,20 @@ int access_request(struct radius_packet_t *pack,
   /* Include EAP (if present) */
   offset = 0;
   while (offset < resplen) {
+
     if ((resplen - offset) > RADIUS_ATTR_VLEN)
       eaplen = RADIUS_ATTR_VLEN;
     else
       eaplen = resplen - offset;
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
+
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
 		   resp + offset, eaplen);
+
+    if (options.wpaguests)
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		     RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
+		     0, "allow-wpa-guests", 16);
+
     offset += eaplen;
   } 
 
@@ -2273,12 +2281,14 @@ int cb_radius_auth_conf(struct radius_t *radius,
     return dnprot_reject(appconn);
   }
 
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 0)) { 
-    size_t len = attr->l-2;
-    const char *uamauth = "require-uam-auth";
-    if (len == strlen(uamauth) && !memcmp(attr->v.t, uamauth, len))
-      appconn->require_uam_auth = 1;
+  if (options.wpaguests) {
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+			RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 0)) { 
+      size_t len = attr->l-2;
+      const char *uamauth = "require-uam-auth";
+      if (len == strlen(uamauth) && !memcmp(attr->v.t, uamauth, len))
+	appconn->require_uam_auth = 1;
+    }
   }
 
   return upprot_getip(appconn, hisip, statip);
@@ -3006,6 +3016,19 @@ int chilli_main(int argc, char **argv)
 
   printstatus(NULL);
 
+  /* Create a tunnel interface */
+  if (tun_new((struct tun_t**) &tun, options.txqlen)) {
+    log_err(0, "Failed to create tun");
+    exit(1);
+  }
+
+  /*tun_setaddr(tun, &options.dhcplisten,  &options.net, &options.mask);*/
+  (void) tun_setaddr(tun, &options.dhcplisten,  &options.dhcplisten, &options.mask);
+  (void) tun_set_cb_ind(tun, cb_tun_ind);
+  if (tun->fd > maxfd) maxfd = tun->fd;
+  if (options.ipup) tun_runscript(tun, options.ipup);
+
+  
   /* Create an instance of radius */
   if (radius_new(&radius,
 		 &options.radiuslisten, options.coaport, options.coanoipcheck,
@@ -3044,33 +3067,15 @@ int chilli_main(int argc, char **argv)
     exit(1);
   }
 
-  /* Create a tunnel interface */
-  if (tun_new((struct tun_t**) &tun, options.txqlen)) {
-    log_err(0, "Failed to create tun");
-    exit(1);
-  }
-
-  /*tun_setaddr(tun, &options.dhcplisten,  &options.net, &options.mask);*/
-  (void) tun_setaddr(tun, &options.dhcplisten,  &options.dhcplisten, 
-		     &options.mask);
-  (void) tun_set_cb_ind(tun, cb_tun_ind);
-  if (tun->fd > maxfd) maxfd = tun->fd;
-
-  if (options.ipup) (void) tun_runscript(tun, options.ipup);
-  
-
   /* Create an instance of redir */
-  if (redir_new(&redir,
-		&options.uamlisten, options.uamport)) {
+  if (redir_new(&redir, &options.uamlisten, options.uamport)) {
     log_err(0, "Failed to create redir");
     return -1;
   }
-  if (redir->fd > maxfd)
-    maxfd = redir->fd;
 
+  if (redir->fd > maxfd) maxfd = redir->fd;
   redir_set(redir, (options.debug & DEBUG_REDIR));
-
-  (void) redir_set_cb_getstate(redir, cb_redir_getstate);
+  redir_set_cb_getstate(redir, cb_redir_getstate);
   
 
   /* Create an instance of dhcp */
@@ -3192,7 +3197,7 @@ int chilli_main(int argc, char **argv)
     }
 
     FD_ZERO(&fds);
-    if (tun->fd != -1) FD_SET(tun->fd, &fds);
+    if (tun && tun->fd != -1) FD_SET(tun->fd, &fds);
 #if defined(__linux__)
     if (dhcp) FD_SET(dhcp->fd, &fds);
     if ((dhcp) && (dhcp->arp_fd)) FD_SET(dhcp->arp_fd, &fds);
@@ -3230,7 +3235,7 @@ int chilli_main(int argc, char **argv)
     
     if (status > 0) {
 
-      if (tun->fd != -1 && FD_ISSET(tun->fd, &fds) && 
+      if (tun && tun->fd != -1 && FD_ISSET(tun->fd, &fds) && 
 	  tun_decaps(tun) < 0) {
 	log_err(0, "tun_decaps failed!");
       }

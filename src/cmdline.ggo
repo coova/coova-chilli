@@ -105,5 +105,7 @@ option "cmdsocket"   - "path to the command unix socket" string no
 
 option "swapoctets"    - "Swap the meaning of input/output octets/packets" flag   off
 option "usestatusfile" - "Use the status file to keep track of sessions" flag   off
+option "localusers"    - "File keep 'Local' usernames and passwords" string no
+option "wpaguests"     - "Allow WPA 'Guest' access" flag off
 option "chillixml"     - "Use ChilliSpot XML in WISPr blocks" flag   off
 

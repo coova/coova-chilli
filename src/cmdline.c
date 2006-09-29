@@ -123,6 +123,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->cmdsocket_given = 0 ;
   args_info->swapoctets_given = 0 ;
   args_info->usestatusfile_given = 0 ;
+  args_info->localusers_given = 0 ;
+  args_info->wpaguests_given = 0 ;
   args_info->chillixml_given = 0 ;
 }
 
@@ -247,6 +249,9 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->cmdsocket_orig = NULL;
   args_info->swapoctets_flag = 0;
   args_info->usestatusfile_flag = 0;
+  args_info->localusers_arg = NULL;
+  args_info->localusers_orig = NULL;
+  args_info->wpaguests_flag = 0;
   args_info->chillixml_flag = 0;
   
 }
@@ -328,6 +333,8 @@ cmdline_parser_print_help (void)
   printf("%s\n","      --cmdsocket=STRING        path to the command unix socket");
   printf("%s\n","      --swapoctets              Swap the meaning of input/output octets/packets \n                                   (default=off)");
   printf("%s\n","      --usestatusfile           Use the status file to keep track of sessions  \n                                  (default=off)");
+  printf("%s\n","      --localusers=STRING       File keep 'Local' usernames and passwords");
+  printf("%s\n","      --wpaguests               Allow WPA 'Guest' access  (default=off)");
   printf("%s\n","      --chillixml               Use ChilliSpot XML in WISPr blocks  \n                                  (default=off)");
   
 }
@@ -843,6 +850,16 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
       free (args_info->cmdsocket_orig); /* free previous argument */
       args_info->cmdsocket_orig = 0;
     }
+  if (args_info->localusers_arg)
+    {
+      free (args_info->localusers_arg); /* free previous argument */
+      args_info->localusers_arg = 0;
+    }
+  if (args_info->localusers_orig)
+    {
+      free (args_info->localusers_orig); /* free previous argument */
+      args_info->localusers_orig = 0;
+    }
   
   clear_given (args_info);
 }
@@ -1281,6 +1298,16 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
   if (args_info->usestatusfile_given) {
     fprintf(outfile, "%s\n", "usestatusfile");
   }
+  if (args_info->localusers_given) {
+    if (args_info->localusers_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "localusers", args_info->localusers_orig);
+    } else {
+      fprintf(outfile, "%s\n", "localusers");
+    }
+  }
+  if (args_info->wpaguests_given) {
+    fprintf(outfile, "%s\n", "wpaguests");
+  }
   if (args_info->chillixml_given) {
     fprintf(outfile, "%s\n", "chillixml");
   }
@@ -1486,6 +1513,8 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "cmdsocket",	1, NULL, 0 },
         { "swapoctets",	0, NULL, 0 },
         { "usestatusfile",	0, NULL, 0 },
+        { "localusers",	1, NULL, 0 },
+        { "wpaguests",	0, NULL, 0 },
         { "chillixml",	0, NULL, 0 },
         { NULL,	0, NULL, 0 }
       };
@@ -2712,6 +2741,39 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             local_args_info.usestatusfile_given = 1;
             args_info->usestatusfile_given = 1;
             args_info->usestatusfile_flag = !(args_info->usestatusfile_flag);
+          }
+          /* File keep 'Local' usernames and passwords.  */
+          else if (strcmp (long_options[option_index].name, "localusers") == 0)
+          {
+            if (local_args_info.localusers_given)
+              {
+                fprintf (stderr, "%s: `--localusers' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->localusers_given && ! override)
+              continue;
+            local_args_info.localusers_given = 1;
+            args_info->localusers_given = 1;
+            if (args_info->localusers_arg)
+              free (args_info->localusers_arg); /* free previous string */
+            args_info->localusers_arg = gengetopt_strdup (optarg);
+            if (args_info->localusers_orig)
+              free (args_info->localusers_orig); /* free previous string */
+            args_info->localusers_orig = gengetopt_strdup (optarg);
+          }
+          /* Allow WPA 'Guest' access.  */
+          else if (strcmp (long_options[option_index].name, "wpaguests") == 0)
+          {
+            if (local_args_info.wpaguests_given)
+              {
+                fprintf (stderr, "%s: `--wpaguests' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->wpaguests_given && ! override)
+              continue;
+            local_args_info.wpaguests_given = 1;
+            args_info->wpaguests_given = 1;
+            args_info->wpaguests_flag = !(args_info->wpaguests_flag);
           }
           /* Use ChilliSpot XML in WISPr blocks.  */
           else if (strcmp (long_options[option_index].name, "chillixml") == 0)

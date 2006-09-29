@@ -199,6 +199,7 @@ int process_options(int argc, char **argv, int minimal) {
   options.no_uamsuccess = args_info.nouamsuccess_flag;
   options.no_uamwispr = args_info.nouamwispr_flag;
   options.uamanydns = args_info.uamanydns_flag;
+  options.wpaguests = args_info.wpaguests_flag;
   options.radiusnasporttype = args_info.radiusnasporttype_arg;
   options.radiusauthport = args_info.radiusauthport_arg;
   options.radiusacctport = args_info.radiusacctport_arg;
@@ -261,29 +262,30 @@ int process_options(int argc, char **argv, int minimal) {
 
   if (!reconfiguring) {
     if (args_info.net_arg) {
-      if(option_aton(&options.net, &options.mask, args_info.net_arg, 0)) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		"Invalid network address: %s!", args_info.net_arg);
+      if (option_aton(&options.net, &options.mask, args_info.net_arg, 0)) {
+	log_err(0, "Invalid network address: %s!", args_info.net_arg);
 	goto end_processing;
       }
-    if (!args_info.uamlisten_arg) {
-      options.uamlisten.s_addr = htonl(ntohl(options.net.s_addr)+1);
-    }
-    else if (!inet_aton(args_info.uamlisten_arg, &options.uamlisten)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-              "Invalid UAM IP address: %s!", args_info.uamlisten_arg);
-      goto end_processing;
-    }
+      if (!args_info.uamlisten_arg) {
+	options.uamlisten.s_addr = htonl(ntohl(options.net.s_addr)+1);
+      }
+      else if (!inet_aton(args_info.uamlisten_arg, &options.uamlisten)) {
+	log_err(0, "Invalid UAM IP address: %s!", args_info.uamlisten_arg);
+	goto end_processing;
+      }
       options.dhcplisten.s_addr = options.uamlisten.s_addr;
     }
     else if (!minimal) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Network address must be specified: %s!", args_info.net_arg);
+      log_err(0, "Network address must be specified ('net' parameter)!");
       goto end_processing;
     }
   }
 
-  if (args_info.uamserver_arg || !minimal) {
+  if (!args_info.uamserver_arg && !minimal) {
+    log_err(0, "WARNING: No uamserver defiend!");
+  }
+
+  if (args_info.uamserver_arg) {
     if (options.debug & DEBUG_CONF) {
       printf ("Uamserver: %s\n", args_info.uamserver_arg);
     }
@@ -291,8 +293,7 @@ int process_options(int argc, char **argv, int minimal) {
     options.uamserverlen = 0;
     if (get_namepart(args_info.uamserver_arg, hostname, USERURLSIZE, 
 		     &options.uamserverport)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Failed to parse uamserver: %s!", args_info.uamserver_arg);
+      log_err(0, "Failed to parse uamserver: %s!", args_info.uamserver_arg);
       goto end_processing;
     }
   
@@ -359,8 +360,7 @@ int process_options(int argc, char **argv, int minimal) {
       options.uamlisten.s_addr = htonl(ntohl(options.net.s_addr)+1);
     }
     else if (!inet_aton(args_info.uamlisten_arg, &options.uamlisten)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Invalid UAM IP address: %s!", args_info.uamlisten_arg);
+      log_err(0, "Invalid UAM IP address: %s!", args_info.uamlisten_arg);
       goto end_processing;
     }
   }
@@ -666,6 +666,9 @@ int process_options(int argc, char **argv, int minimal) {
   /** string parameters **/
   if (options.wwwdir) free(options.wwwdir);
   options.wwwdir = gengetopt_strdup(args_info.wwwdir_arg);
+
+  if (options.localusers) free(options.localusers);
+  options.localusers = gengetopt_strdup(args_info.localusers_arg);
 
   if (options.uamurl) free(options.uamurl);
   options.uamurl = gengetopt_strdup(args_info.uamserver_arg);
