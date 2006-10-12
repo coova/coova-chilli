@@ -26,8 +26,7 @@
 #include "options.h"
 
 struct options_t options = {0};
-extern char * gengetopt_strdup (const char *s);
-
+#define STRDUP(x) ((x)?strdup(x):0)
 
 /* Get IP address and mask */
 int option_aton(struct in_addr *addr, struct in_addr *mask,
@@ -214,7 +213,7 @@ int process_options(int argc, char **argv, int minimal) {
     }
     else {
       options.nodhcp = 0;
-      options.dhcpif = gengetopt_strdup(args_info.dhcpif_arg);
+      options.dhcpif = STRDUP(args_info.dhcpif_arg);
     }
   }
 
@@ -447,12 +446,12 @@ int process_options(int argc, char **argv, int minimal) {
   if (!reconfiguring) {
     options.allowdyn = 1;
     if (!args_info.dynip_arg) {
-      options.dynip = gengetopt_strdup(args_info.net_arg);
+      options.dynip = STRDUP(args_info.net_arg);
     }
     else {
       struct in_addr addr;
       struct in_addr mask;
-      options.dynip = gengetopt_strdup(args_info.dynip_arg);
+      options.dynip = STRDUP(args_info.dynip_arg);
       if (option_aton(&addr, &mask, options.dynip, 0)) {
 	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
 		"Failed to parse dynamic IP address pool!");
@@ -464,7 +463,7 @@ int process_options(int argc, char **argv, int minimal) {
     if (args_info.statip_arg) {
       struct in_addr addr;
       struct in_addr mask;
-      options.statip = gengetopt_strdup(args_info.statip_arg);
+      options.statip = STRDUP(args_info.statip_arg);
       if (option_aton(&addr, &mask, options.statip, 0)) {
 	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
 		"Failed to parse static IP address pool!");
@@ -665,84 +664,84 @@ int process_options(int argc, char **argv, int minimal) {
 
   /** string parameters **/
   if (options.wwwdir) free(options.wwwdir);
-  options.wwwdir = gengetopt_strdup(args_info.wwwdir_arg);
+  options.wwwdir = STRDUP(args_info.wwwdir_arg);
 
   if (options.localusers) free(options.localusers);
-  options.localusers = gengetopt_strdup(args_info.localusers_arg);
+  options.localusers = STRDUP(args_info.localusers_arg);
 
   if (options.uamurl) free(options.uamurl);
-  options.uamurl = gengetopt_strdup(args_info.uamserver_arg);
+  options.uamurl = STRDUP(args_info.uamserver_arg);
 
   if (options.uamhomepage) free(options.uamhomepage);
-  options.uamhomepage = gengetopt_strdup(args_info.uamhomepage_arg);
+  options.uamhomepage = STRDUP(args_info.uamhomepage_arg);
 
   if (options.uamsecret) free(options.uamsecret);
-  options.uamsecret = gengetopt_strdup(args_info.uamsecret_arg);
+  options.uamsecret = STRDUP(args_info.uamsecret_arg);
 
   if (options.proxysecret) free(options.proxysecret);
   if (!args_info.proxysecret_arg) {
-    options.proxysecret = gengetopt_strdup(args_info.radiussecret_arg);
+    options.proxysecret = STRDUP(args_info.radiussecret_arg);
   }
   else {
-    options.proxysecret = gengetopt_strdup(args_info.proxysecret_arg);
+    options.proxysecret = STRDUP(args_info.proxysecret_arg);
   }
 
   if (options.macsuffix) free(options.macsuffix);
-  options.macsuffix = gengetopt_strdup(args_info.macsuffix_arg);
+  options.macsuffix = STRDUP(args_info.macsuffix_arg);
 
   if (options.macpasswd) free(options.macpasswd);
-  options.macpasswd = gengetopt_strdup(args_info.macpasswd_arg);
+  options.macpasswd = STRDUP(args_info.macpasswd_arg);
 
   if (options.adminuser) free(options.adminuser);
-  options.adminuser = gengetopt_strdup(args_info.adminuser_arg);
+  options.adminuser = STRDUP(args_info.adminuser_arg);
 
   if (options.adminpasswd) free(options.adminpasswd);
-  options.adminpasswd = gengetopt_strdup(args_info.adminpasswd_arg);
+  options.adminpasswd = STRDUP(args_info.adminpasswd_arg);
 
   if (options.ssid) free(options.ssid);
-  options.ssid = gengetopt_strdup(args_info.ssid_arg);
+  options.ssid = STRDUP(args_info.ssid_arg);
 
   if (options.nasmac) free(options.nasmac);
-  options.nasmac = gengetopt_strdup(args_info.nasmac_arg);
+  options.nasmac = STRDUP(args_info.nasmac_arg);
 
   if (options.nasip) free(options.nasip);
-  options.nasip = gengetopt_strdup(args_info.nasip_arg);
+  options.nasip = STRDUP(args_info.nasip_arg);
 
   if (options.radiusnasid) free(options.radiusnasid);
-  options.radiusnasid = gengetopt_strdup(args_info.radiusnasid_arg);
+  options.radiusnasid = STRDUP(args_info.radiusnasid_arg);
 
   if (options.radiuslocationid) free(options.radiuslocationid);
-  options.radiuslocationid = gengetopt_strdup(args_info.radiuslocationid_arg);
+  options.radiuslocationid = STRDUP(args_info.radiuslocationid_arg);
 
   if (options.radiuslocationname) free(options.radiuslocationname);
-  options.radiuslocationname = gengetopt_strdup(args_info.radiuslocationname_arg);
+  options.radiuslocationname = STRDUP(args_info.radiuslocationname_arg);
 
   if (options.radiussecret) free(options.radiussecret);
-  options.radiussecret = gengetopt_strdup(args_info.radiussecret_arg);
+  options.radiussecret = STRDUP(args_info.radiussecret_arg);
 
   if (options.cmdsocket) free(options.cmdsocket);
-  options.cmdsocket = gengetopt_strdup(args_info.cmdsocket_arg);
+  options.cmdsocket = STRDUP(args_info.cmdsocket_arg);
 
   if (options.domain) free(options.domain);
-  options.domain = gengetopt_strdup(args_info.domain_arg);
+  options.domain = STRDUP(args_info.domain_arg);
 
   if (options.ipup) free(options.ipup);
-  options.ipup = gengetopt_strdup(args_info.ipup_arg);
+  options.ipup = STRDUP(args_info.ipup_arg);
 
   if (options.ipdown) free(options.ipdown);
-  options.ipdown = gengetopt_strdup(args_info.ipdown_arg);
+  options.ipdown = STRDUP(args_info.ipdown_arg);
 
   if (options.conup) free(options.conup);
-  options.conup = gengetopt_strdup(args_info.conup_arg);
+  options.conup = STRDUP(args_info.conup_arg);
 
   if (options.condown) free(options.condown);
-  options.condown = gengetopt_strdup(args_info.condown_arg);
+  options.condown = STRDUP(args_info.condown_arg);
 
   if (options.pidfile) free(options.pidfile);
-  options.pidfile = gengetopt_strdup(args_info.pidfile_arg);
+  options.pidfile = STRDUP(args_info.pidfile_arg);
 
   if (options.statedir) free(options.statedir);
-  options.statedir = gengetopt_strdup(args_info.statedir_arg);
+  options.statedir = STRDUP(args_info.statedir_arg);
 
   ret = 0;
 
@@ -772,10 +771,10 @@ void reprocess_options(int argc, char **argv) {
   options.mask = options2.mask;
   options.dhcplisten = options2.dhcplisten;
   if (options.dynip) free(options.dynip);
-  options.dynip = gengetopt_strdup(options2.dynip);
+  options.dynip = STRDUP(options2.dynip);
   options.allowdyn = options2.allowdyn; 
   if (options.statip) free(options.statip);
-  options.statip = gengetopt_strdup(options2.statip); 
+  options.statip = STRDUP(options2.statip); 
   options.allowstat = options2.allowstat; 
   options.uamlisten = options2.uamlisten; 
   options.uamport = options2.uamport; 
@@ -787,22 +786,22 @@ void reprocess_options(int argc, char **argv) {
   options.proxyaddr = options2.proxyaddr; 
   options.proxymask = options2.proxymask; 
   if (options.proxysecret) free(options.proxysecret);
-  options.proxysecret = gengetopt_strdup(options2.proxysecret); 
+  options.proxysecret = STRDUP(options2.proxysecret); 
   options.nodhcp = options2.nodhcp; 
   if (options.dhcpif) free(options.dhcpif);
-  options.dhcpif = gengetopt_strdup(options2.dhcpif); 
+  options.dhcpif = STRDUP(options2.dhcpif); 
   memcpy(options.dhcpmac, options2.dhcpmac, DHCP_ETH_ALEN); 
   options.dhcpusemac = options2.dhcpusemac; 
   options.lease = options2.lease; 
   options.eapolenable = options2.eapolenable; 
   if (options.adminuser) free(options.adminuser);
-  options.adminuser = gengetopt_strdup(options2.adminuser);
+  options.adminuser = STRDUP(options2.adminuser);
   if (options.adminpasswd) free(options.adminpasswd);
-  options.adminpasswd = gengetopt_strdup(options2.adminpasswd);
+  options.adminpasswd = STRDUP(options2.adminpasswd);
   if (options.cmdsocket) free(options.cmdsocket);
-  options.cmdsocket = gengetopt_strdup(options2.cmdsocket);
+  options.cmdsocket = STRDUP(options2.cmdsocket);
   if (options.pidfile) free(options.pidfile);
-  options.pidfile = gengetopt_strdup(options2.pidfile);
+  options.pidfile = STRDUP(options2.pidfile);
   **/
 }
 

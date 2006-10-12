@@ -1,2 +1,0 @@
-#!/bin/sh
-diff -baur cmdline.c.ggo cmdline.c > cmdline.c.patch

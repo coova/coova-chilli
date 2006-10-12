@@ -1,8 +1,10 @@
 
 == ChangeLog (Coova Chilli current svn/rev) ==
 
+* The [http://www.gnu.org/software/gengetopt/gengetopt.html gengetopt] project accepted our changes to allow 'include <file>' in config files. The new cmdline.c is generated with gengetopt v2.19 or higher
 * Added the ''wpaguests'' option to allow anonymous WPA access w/captive-portal
 * Added option for ''localusers'' file to authenticate users from a local file (inspired by FON)
+* Commented out the use of clearenv() as it is not on all platforms and not wanted 
 	
 == ChangeLog (Coova Chilli v1.0.2 svn/rev 17) ==
 

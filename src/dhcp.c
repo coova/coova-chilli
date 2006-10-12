@@ -631,16 +631,13 @@ int dhcp_send(struct dhcp_t *this, int fd, uint16_t protocol, unsigned char *his
   dest.sll_halen = DHCP_ETH_ALEN;
   memcpy (dest.sll_addr, hismac, DHCP_ETH_ALEN);
 
-  if (sendto(fd, packet, (length), 0,
-	     (struct sockaddr *)&dest ,sizeof(dest)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "sendto(fd=%d, len=%d) failed",
-	    fd, length);
+  if (sendto(fd, packet, length, 0, (struct sockaddr *)&dest ,sizeof(dest)) < 0) {
+    log_err(errno, "sendto(fd=%d, len=%d) failed", fd, length);
     return -1;
   }
 #elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   if (write(fd, packet, length) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno, "write() failed");
+    log_err(errno, "write() failed");
     return -1;
   }
 #endif

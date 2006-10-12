@@ -85,7 +85,7 @@ option "nouamwispr"   - "Do not send WISPr XML from ChilliSpot, assume back-end 
 option "macauth"     - "Authenticate based on MAC address" flag   off
 option "macallowed"  - "List of allowed MAC addresses" string no multiple
 option "macsuffix"   - "Suffix to add to the MAC address" string no
-option "macpasswd"   - "Password used when performing MAC authentication" string default="password" no
+option "macpasswd"   - "Password used when performing MAC authentication" string no
 
 # "local" content
 option "wwwdir"      - "Local content served by chilli (for splash page, etc)" string no

@@ -895,11 +895,13 @@ int tun_runscript(struct tun_t *tun, char* script) {
     return 0;
   }
   
+/*
   if (clearenv() != 0) {
     sys_err(LOG_ERR, __FILE__, __LINE__, errno,
 	    "clearenv() did not return 0!");
     exit(0);
   }
+*/
   
   if (setenv("DEV", tun->devname, 1) != 0) {
     sys_err(LOG_ERR, __FILE__, __LINE__, errno,

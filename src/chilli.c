@@ -205,11 +205,13 @@ int runscript(struct app_conn_t *appconn, char* script) {
     return 0; 
   }
 
+/*
   if (clearenv() != 0) {
     log_err(errno,
 	    "clearenv() did not return 0!");
     exit(0);
   }
+*/
 
   set_env("DEV", tun->devname, 0, NULL, NULL, NULL);
   set_env("NET", NULL, 0, &appconn->net, NULL, NULL);
