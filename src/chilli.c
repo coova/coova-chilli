@@ -379,29 +379,6 @@ int static getconn_usersession(struct app_conn_t **conn,
 {
   struct app_conn_t *appconn;
 
-  if (options.debug)
-    log_dbg("Looking for session [username=%.*s,sessionid=%.*s]\n", 
-	    uattr->l-2, uattr->v.t, sattr ? sattr->l-2 : 0, sattr ? sattr->v.t : "");
-  
-  appconn = firstusedconn;
-  while (appconn) {
-    if (!appconn->inuse) {
-      log_err(0, "Connection with inuse == 0!");
-    }
-
-    if ((appconn->authenticated) && 
-	(appconn->userlen == uattr->l-2 && 
-	 !memcmp(appconn->user, uattr->v.t, uattr->l-2)) &&
-	(!sattr || 
-	 (strlen(appconn->sessionid) == sattr->l-2 && 
-	  !strncasecmp(appconn->sessionid, sattr->v.t, sattr->l-2)))) {
-      *conn = appconn;
-      if (options.debug)
-	log_dbg("Found session\n");
-      return 0;
-    }
-    appconn = appconn->next;
-  }
 
   return -1; /* Not found */
 }
@@ -1808,6 +1785,201 @@ int upprot_getip(struct app_conn_t *appconn,
 
 }
 
+void config_radius_session(struct app_conn_t *appconn, struct radius_packet_t *pack, int reconfig) 
+{
+  struct radius_attr_t *attr = NULL;
+
+  /* Session timeout */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_SESSION_TIMEOUT, 0, 0, 0))
+    appconn->sessiontimeout = ntohl(attr->v.i);
+  else if (!reconfig)
+    appconn->sessiontimeout = 0;
+
+  /* Idle timeout */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_IDLE_TIMEOUT, 0, 0, 0))
+    appconn->idletimeout = ntohl(attr->v.i);
+  else if (!reconfig) 
+    appconn->idletimeout = 0;
+
+  /* Filter ID */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_FILTER_ID, 0, 0, 0)) {
+    appconn->filteridlen = attr->l-2;
+    memcpy(appconn->filteridbuf, attr->v.t, attr->l-2);
+    appconn->filteridbuf[attr->l-2] = 0;
+    /*conn->filterid = conn->filteridbuf;*/
+  }
+  else if (!reconfig) {
+    appconn->filteridlen = 0;
+    appconn->filteridbuf[0] = 0;
+    /*conn->filterid = NULL;*/
+  }
+
+  /* Interim interval */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 0, 0, 0)) {
+    appconn->interim_interval = ntohl(attr->v.i);
+    if (appconn->interim_interval < 60) {
+      log_err(0, "Received too small radius Acct-Interim-Interval value: %d. Disabling interim accounting",
+	      appconn->interim_interval);
+      appconn->interim_interval = 0;
+    } 
+    else if (appconn->interim_interval < 600) {
+      log(LOG_WARNING, "Received small radius Acct-Interim-Interval value: %d",
+	      appconn->interim_interval);
+    }
+  }
+  else if (!reconfig)
+    appconn->interim_interval = 0;
+
+  /* Bandwidth up */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_WISPR,
+		      RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0)) {
+    appconn->bandwidthmaxup = ntohl(attr->v.i);
+#ifdef LEAKY_BUCKET
+#ifdef BUCKET_SIZE
+    appconn->bucketupsize = BUCKET_SIZE;
+#else
+    appconn->bucketupsize = appconn->bandwidthmaxup / 8000 * BUCKET_TIME;
+    if (appconn->bucketupsize < BUCKET_SIZE_MIN) 
+      appconn->bucketupsize = BUCKET_SIZE_MIN;
+#endif
+#endif
+  }
+  else if (!reconfig)
+    appconn->bandwidthmaxup = 0;
+  
+  /* Bandwidth down */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_WISPR,
+		      RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0)) {
+    appconn->bandwidthmaxdown = ntohl(attr->v.i);
+#ifdef LEAKY_BUCKET
+#ifdef BUCKET_SIZE
+    appconn->bucketdownsize = BUCKET_SIZE;
+#else
+    appconn->bucketdownsize = appconn->bandwidthmaxdown / 8000 * BUCKET_TIME;
+    if (appconn->bucketdownsize < BUCKET_SIZE_MIN) 
+      appconn->bucketdownsize = BUCKET_SIZE_MIN;
+#endif
+#endif
+  }
+  else if (!reconfig)
+    appconn->bandwidthmaxdown = 0;
+
+#ifdef RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP
+  /* Bandwidth up */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_CHILLISPOT,
+		      RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0)) {
+    appconn->bandwidthmaxup = ntohl(attr->v.i) * 1000;
+#ifdef LEAKY_BUCKET
+    appconn->bucketupsize = BUCKET_TIME * appconn->bandwidthmaxup / 8000;
+    if (appconn->bucketupsize < BUCKET_SIZE_MIN) 
+      appconn->bucketupsize = BUCKET_SIZE_MIN;
+#endif
+  }
+#endif
+
+#ifdef RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN
+  /* Bandwidth down */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_CHILLISPOT,
+		      RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0)) {
+    appconn->bandwidthmaxdown = ntohl(attr->v.i) * 1000;
+#ifdef LEAKY_BUCKET
+    appconn->bucketdownsize = BUCKET_TIME * appconn->bandwidthmaxdown / 8000;
+    if (appconn->bucketdownsize < BUCKET_SIZE_MIN) 
+      appconn->bucketdownsize = BUCKET_SIZE_MIN;
+#endif
+  }
+#endif
+
+  /* Max input octets */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_CHILLISPOT,
+		      RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0)) {
+    appconn->maxinputoctets = ntohl(attr->v.i);
+  }
+  else if (!reconfig)
+    appconn->maxinputoctets = 0;
+
+  /* Max output octets */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_CHILLISPOT,
+		      RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0)) {
+    appconn->maxoutputoctets = ntohl(attr->v.i);
+  }
+  else if (!reconfig)
+    appconn->maxoutputoctets = 0;
+
+  /* Max total octets */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_CHILLISPOT,
+		      RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0)) {
+    appconn->maxtotaloctets = ntohl(attr->v.i);
+  }
+  else if (!reconfig)
+    appconn->maxtotaloctets = 0;
+
+  /* Session-Terminate-Time */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_WISPR,
+		      RADIUS_ATTR_WISPR_SESSION_TERMINATE_TIME, 0)) {
+    char attrs[RADIUS_ATTR_VLEN+1];
+    struct timeval timenow;
+    struct tm stt;
+    int tzhour, tzmin;
+    char *tz;
+    int result;
+
+    gettimeofday(&timenow, NULL);
+    memcpy(attrs, attr->v.t, attr->l-2);
+    attrs[attr->l-2] = 0;
+    memset(&stt, 0, sizeof(stt));
+    result = sscanf(attrs, "%d-%d-%dT%d:%d:%d %d:%d",
+		    &stt.tm_year, &stt.tm_mon, &stt.tm_mday,
+		    &stt.tm_hour, &stt.tm_min, &stt.tm_sec,
+		    &tzhour, &tzmin);
+    if (result == 8) { /* Timezone */
+      /* tzhour and tzmin is hours and minutes east of GMT */
+      /* timezone is defined as seconds west of GMT. Excludes DST */
+      stt.tm_year -= 1900;
+      stt.tm_mon  -= 1;
+      stt.tm_hour -= tzhour; /* Adjust for timezone */
+      stt.tm_min  -= tzmin;  /* Adjust for timezone */
+      /*      stt.tm_hour += daylight;*/
+      /*stt.tm_min  -= (timezone / 60);*/
+      tz = getenv("TZ");
+      setenv("TZ", "", 1); /* Set environment to UTC */
+      tzset();
+      appconn->sessionterminatetime = mktime(&stt);
+      if (tz) 
+			setenv("TZ", tz, 1); 
+      else
+			unsetenv("TZ");
+      tzset();
+    }
+    else if (result >= 6) { /* Local time */
+      tzset();
+      stt.tm_year -= 1900;
+      stt.tm_mon  -= 1;
+      stt.tm_isdst = -1; /*daylight;*/
+      appconn->sessionterminatetime = mktime(&stt);
+    }
+    else {
+      appconn->sessionterminatetime = 0;
+      log(LOG_WARNING, "Illegal WISPr-Session-Terminate-Time received: %s", attrs);
+    }
+    if ((appconn->sessionterminatetime) && 
+	(timenow.tv_sec > appconn->sessionterminatetime)) {
+      log(LOG_WARNING, "WISPr-Session-Terminate-Time in the past received: %s", attrs);
+      return dnprot_reject(appconn);
+    }
+  }
+  else if (!reconfig)
+    appconn->sessionterminatetime = 0;
+}
+
 
 /*********************************************************
  *
@@ -1834,14 +2006,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   struct radius_attr_t *attr = NULL;
 
-  char attrs[RADIUS_ATTR_VLEN+1];
-  struct tm stt;
-  int tzhour, tzmin;
-  char *tz;
-
   int instance = 0;
   int n;
-  int result;
   struct in_addr *hisip = NULL;
   int statip = 0;
 
@@ -1930,24 +2096,6 @@ int cb_radius_auth_conf(struct radius_t *radius,
     appconn->classlen = 0;
   }
 
-  /* Session timeout */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_SESSION_TIMEOUT,
-		      0, 0, 0)) {
-    appconn->sessiontimeout = ntohl(attr->v.i);
-  }
-  else {
-    appconn->sessiontimeout = 0;
-  }
-
-  /* Idle timeout */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_IDLE_TIMEOUT,
-		      0, 0, 0)) {
-    appconn->idletimeout = ntohl(attr->v.i);
-  }
-  else {
-    appconn->idletimeout = 0;
-  }
-
   /* Framed IP address (Optional) */
   if (!radius_getattr(pack, &hisipattr, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0, 0)) {
     if (options.debug) {
@@ -1966,186 +2114,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     hisip = (struct in_addr*) &appconn->reqip.s_addr;
   }
 
-  /* Filter ID */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_FILTER_ID,
-		      0, 0, 0)) {
-    appconn->filteridlen = attr->l-2;
-    memcpy(appconn->filteridbuf, attr->v.t, attr->l-2);
-    appconn->filteridbuf[attr->l-2] = 0;
-    /*conn->filterid = conn->filteridbuf;*/
-  }
-  else {
-    appconn->filteridlen = 0;
-    appconn->filteridbuf[0] = 0;
-    /*conn->filterid = NULL;*/
-  }
-
-  /* Interim interval */
-  if (!radius_getattr(pack, &interimattr, RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 
-		      0, 0, 0)) {
-    appconn->interim_interval = ntohl(interimattr->v.i);
-    if (appconn->interim_interval < 60) {
-      log_err(0, "Received too small radius Acct-Interim-Interval value: %d. Disabling interim accounting",
-	      appconn->interim_interval);
-      appconn->interim_interval = 0;
-    } 
-    else if (appconn->interim_interval < 600) {
-      log(LOG_WARNING, "Received small radius Acct-Interim-Interval value: %d",
-	      appconn->interim_interval);
-    }
-  }
-  else {
-    appconn->interim_interval = 0;
-  }
-
-  /* Bandwidth up */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_WISPR,
-		      RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0)) {
-    appconn->bandwidthmaxup = ntohl(attr->v.i);
-#ifdef LEAKY_BUCKET
-#ifdef BUCKET_SIZE
-    appconn->bucketupsize = BUCKET_SIZE;
-#else
-    appconn->bucketupsize = appconn->bandwidthmaxup / 8000 * BUCKET_TIME;
-    if (appconn->bucketupsize < BUCKET_SIZE_MIN) 
-      appconn->bucketupsize = BUCKET_SIZE_MIN;
-#endif
-#endif
-  }
-  else {
-    appconn->bandwidthmaxup = 0;
-  }
-  
-  /* Bandwidth down */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_WISPR,
-		      RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0)) {
-    appconn->bandwidthmaxdown = ntohl(attr->v.i);
-#ifdef LEAKY_BUCKET
-#ifdef BUCKET_SIZE
-    appconn->bucketdownsize = BUCKET_SIZE;
-#else
-    appconn->bucketdownsize = appconn->bandwidthmaxdown / 8000 * BUCKET_TIME;
-    if (appconn->bucketdownsize < BUCKET_SIZE_MIN) 
-      appconn->bucketdownsize = BUCKET_SIZE_MIN;
-#endif
-#endif
-  }
-  else {
-    appconn->bandwidthmaxdown = 0;
-  }
-
-#ifdef RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP
-  /* Bandwidth up */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0)) {
-    appconn->bandwidthmaxup = ntohl(attr->v.i) * 1000;
-#ifdef LEAKY_BUCKET
-    appconn->bucketupsize = BUCKET_TIME * appconn->bandwidthmaxup / 8000;
-    if (appconn->bucketupsize < BUCKET_SIZE_MIN) 
-      appconn->bucketupsize = BUCKET_SIZE_MIN;
-#endif
-  }
-#endif
-
-#ifdef RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN
-  /* Bandwidth down */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0)) {
-    appconn->bandwidthmaxdown = ntohl(attr->v.i) * 1000;
-#ifdef LEAKY_BUCKET
-    appconn->bucketdownsize = BUCKET_TIME * appconn->bandwidthmaxdown / 8000;
-    if (appconn->bucketdownsize < BUCKET_SIZE_MIN) 
-      appconn->bucketdownsize = BUCKET_SIZE_MIN;
-#endif
-  }
-#endif
-
-  /* Max input octets */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0)) {
-    appconn->maxinputoctets = ntohl(attr->v.i);
-  }
-  else {
-    appconn->maxinputoctets = 0;
-  }
-
-  /* Max output octets */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0)) {
-    appconn->maxoutputoctets = ntohl(attr->v.i);
-  }
-  else {
-    appconn->maxoutputoctets = 0;
-  }
-
-  /* Max total octets */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0)) {
-    appconn->maxtotaloctets = ntohl(attr->v.i);
-  }
-  else {
-    appconn->maxtotaloctets = 0;
-  }
-
-  /* Session-Terminate-Time */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_WISPR,
-		      RADIUS_ATTR_WISPR_SESSION_TERMINATE_TIME, 0)) {
-    struct timeval timenow;
-    gettimeofday(&timenow, NULL);
-    memcpy(attrs, attr->v.t, attr->l-2);
-    attrs[attr->l-2] = 0;
-    memset(&stt, 0, sizeof(stt));
-    result = sscanf(attrs, "%d-%d-%dT%d:%d:%d %d:%d",
-		    &stt.tm_year, &stt.tm_mon, &stt.tm_mday,
-		    &stt.tm_hour, &stt.tm_min, &stt.tm_sec,
-		    &tzhour, &tzmin);
-    if (result == 8) { /* Timezone */
-      /* tzhour and tzmin is hours and minutes east of GMT */
-      /* timezone is defined as seconds west of GMT. Excludes DST */
-      stt.tm_year -= 1900;
-      stt.tm_mon  -= 1;
-      stt.tm_hour -= tzhour; /* Adjust for timezone */
-      stt.tm_min  -= tzmin;  /* Adjust for timezone */
-      /*      stt.tm_hour += daylight;*/
-      /*stt.tm_min  -= (timezone / 60);*/
-      tz = getenv("TZ");
-      setenv("TZ", "", 1); /* Set environment to UTC */
-      tzset();
-      appconn->sessionterminatetime = mktime(&stt);
-      if (tz) 
-			setenv("TZ", tz, 1); 
-      else
-			unsetenv("TZ");
-      tzset();
-    }
-    else if (result >= 6) { /* Local time */
-      tzset();
-      stt.tm_year -= 1900;
-      stt.tm_mon  -= 1;
-      stt.tm_isdst = -1; /*daylight;*/
-      appconn->sessionterminatetime = mktime(&stt);
-    }
-    else {
-      appconn->sessionterminatetime = 0;
-      log(LOG_WARNING, "Illegal WISPr-Session-Terminate-Time received: %s", attrs);
-    }
-    if ((appconn->sessionterminatetime) && 
-	(timenow.tv_sec > appconn->sessionterminatetime)) {
-      log(LOG_WARNING, "WISPr-Session-Terminate-Time in the past received: %s", attrs);
-      return dnprot_reject(appconn);
-    }
-  }
-  else {
-    appconn->sessionterminatetime = 0;
-  }
+  config_radius_session(appconn, pack, 0);
 
   /* EAP Message */
   appconn->challen = 0;
@@ -2288,48 +2257,75 @@ int cb_radius_auth_conf(struct radius_t *radius,
 int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 		      struct sockaddr_in *peer) {
   struct app_conn_t *appconn;
-  struct radius_attr_t *userattr = NULL;
-  struct radius_attr_t *sessionattr = NULL;
+  struct radius_attr_t *uattr = NULL;
+  struct radius_attr_t *sattr = NULL;
   struct radius_packet_t radius_pack;
   int found = 0;
+  int iscoa = 0;
 
   if (options.debug)
     log_dbg("Received coa or disconnect request\n");
   
-  if (pack->code != RADIUS_CODE_DISCONNECT_REQUEST) {
+  if (pack->code != RADIUS_CODE_DISCONNECT_REQUEST &&
+      pack->code != RADIUS_CODE_COA_REQUEST) {
     log_err(0, "Radius packet not supported: %d,\n", pack->code);
     return -1;
   }
 
+  iscoa = pack->code == RADIUS_CODE_COA_REQUEST;
+
   /* Get username */
-  if (radius_getattr(pack, &userattr, RADIUS_ATTR_USER_NAME, 0, 0, 0)) {
+  if (radius_getattr(pack, &uattr, RADIUS_ATTR_USER_NAME, 0, 0, 0)) {
     log_warn(0, "Username must be included in disconnect request");
     return -1;
   }
 
-  if (!radius_getattr(pack, &sessionattr, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0))
+  if (!radius_getattr(pack, &sattr, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0))
     if (options.debug) 
       log_dbg("Session-id present in disconnect. Only disconnecting that session\n");
 
-  while (!getconn_usersession(&appconn, userattr, sessionattr)) {
-    terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
-    found = 1;
+
+  if (options.debug)
+    log_dbg("Looking for session [username=%.*s,sessionid=%.*s]\n", 
+	    uattr->l-2, uattr->v.t, sattr ? sattr->l-2 : 3, sattr ? sattr->v.t : "all");
+  
+  for (appconn = firstusedconn; appconn; appconn = appconn->next) {
+    if (!appconn->inuse) { log_err(0, "Connection with inuse == 0!"); }
+
+    if ((appconn->authenticated) && 
+	(appconn->userlen == uattr->l-2 && 
+	 !memcmp(appconn->user, uattr->v.t, uattr->l-2)) &&
+	(!sattr || 
+	 (strlen(appconn->sessionid) == sattr->l-2 && 
+	  !strncasecmp(appconn->sessionid, sattr->v.t, sattr->l-2)))) {
+
+      if (options.debug)
+	log_dbg("Found session\n");
+
+      if (iscoa)
+	config_radius_session(appconn, pack, 0);
+      else
+	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
+
+      found = 1;
+    }
   }
 
   if (found) {
     if (radius_default_pack(radius, &radius_pack, 
-			    RADIUS_CODE_DISCONNECT_ACK)) {
+			    iscoa ? RADIUS_CODE_COA_ACK : RADIUS_CODE_DISCONNECT_ACK)) {
       log_err(0, "radius_default_pack() failed");
       return -1;
     }
   }
   else {
     if (radius_default_pack(radius, &radius_pack, 
-			    RADIUS_CODE_DISCONNECT_NAK)) {
+			    iscoa ? RADIUS_CODE_COA_NAK : RADIUS_CODE_DISCONNECT_NAK)) {
       log_err(0, "radius_default_pack() failed");
       return -1;
     }
   }
+
   radius_pack.id = pack->id;
   (void) radius_coaresp(radius, &radius_pack, peer, pack->authenticator);
 
@@ -2390,12 +2386,11 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
     }
     appconn->hisip.s_addr = ipm->addr.s_addr;
     
-    sys_err(LOG_NOTICE, __FILE__, __LINE__, 0,
-	    "Client MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X assigned IP %s" , 
-	    conn->hismac[0], conn->hismac[1], 
-	    conn->hismac[2], conn->hismac[3],
-	    conn->hismac[4], conn->hismac[5], 
-	    inet_ntoa(appconn->hisip));
+    log(LOG_NOTICE, "Client MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X assigned IP %s" , 
+	conn->hismac[0], conn->hismac[1], 
+	conn->hismac[2], conn->hismac[3],
+	conn->hismac[4], conn->hismac[5], 
+	inet_ntoa(appconn->hisip));
 
     /* TODO: Listening address is network address plus 1 */
     appconn->ourip.s_addr = htonl((ntohl(options.net.s_addr)+1));
@@ -2420,11 +2415,10 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
 int cb_dhcp_connect(struct dhcp_conn_t *conn) {
   struct app_conn_t *appconn;
 
-  sys_err(LOG_NOTICE, __FILE__, __LINE__, 0,
-	  "New DHCP request from MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X" , 
-	  conn->hismac[0], conn->hismac[1], 
-	  conn->hismac[2], conn->hismac[3],
-	  conn->hismac[4], conn->hismac[5]);
+  log(LOG_NOTICE, "New DHCP request from MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X" , 
+      conn->hismac[0], conn->hismac[1], 
+      conn->hismac[2], conn->hismac[3],
+      conn->hismac[4], conn->hismac[5]);
   
   if (options.debug) log_dbg("New DHCP connection established\n");
 
