@@ -69,7 +69,7 @@ struct gengetopt_args_info
   char * dns2_arg;	/* Secondary DNS server IP address.  */
   char * dns2_orig;	/* Secondary DNS server IP address original value given at command line.  */
   const char *dns2_help; /* Secondary DNS server IP address help description.  */
-  char * domain_arg;	/* Domain to use for DNS lookups (default='picopoint.com').  */
+  char * domain_arg;	/* Domain to use for DNS lookups (default='coova.org').  */
   char * domain_orig;	/* Domain to use for DNS lookups original value given at command line.  */
   const char *domain_help; /* Domain to use for DNS lookups help description.  */
   char * ipup_arg;	/* Script to run after link-up.  */
@@ -171,6 +171,9 @@ struct gengetopt_args_info
   const char *nouamsuccess_help; /* Do not return to the UAM server on success, original url instead help description.  */
   int nouamwispr_flag;	/* Do not send WISPr XML from ChilliSpot, assume back-end does (default=off).  */
   const char *nouamwispr_help; /* Do not send WISPr XML from ChilliSpot, assume back-end does help description.  */
+  char * uamlogoutip_arg;	/* HTTP Auto-Logout IP Address (default='1.1.1.1').  */
+  char * uamlogoutip_orig;	/* HTTP Auto-Logout IP Address original value given at command line.  */
+  const char *uamlogoutip_help; /* HTTP Auto-Logout IP Address help description.  */
   int macauth_flag;	/* Authenticate based on MAC address (default=off).  */
   const char *macauth_help; /* Authenticate based on MAC address help description.  */
   char ** macallowed_arg;	/* List of allowed MAC addresses.  */
@@ -181,7 +184,7 @@ struct gengetopt_args_info
   char * macsuffix_arg;	/* Suffix to add to the MAC address.  */
   char * macsuffix_orig;	/* Suffix to add to the MAC address original value given at command line.  */
   const char *macsuffix_help; /* Suffix to add to the MAC address help description.  */
-  char * macpasswd_arg;	/* Password used when performing MAC authentication (default='password').  */
+  char * macpasswd_arg;	/* Password used when performing MAC authentication.  */
   char * macpasswd_orig;	/* Password used when performing MAC authentication original value given at command line.  */
   const char *macpasswd_help; /* Password used when performing MAC authentication help description.  */
   char * wwwdir_arg;	/* Local content served by chilli (for splash page, etc).  */
@@ -272,6 +275,7 @@ struct gengetopt_args_info
   int uamanydns_given ;	/* Whether uamanydns was given.  */
   int nouamsuccess_given ;	/* Whether nouamsuccess was given.  */
   int nouamwispr_given ;	/* Whether nouamwispr was given.  */
+  int uamlogoutip_given ;	/* Whether uamlogoutip was given.  */
   int macauth_given ;	/* Whether macauth was given.  */
   unsigned int macallowed_given ;	/* Whether macallowed was given.  */
   int macsuffix_given ;	/* Whether macsuffix was given.  */

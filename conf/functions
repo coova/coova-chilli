@@ -55,14 +55,15 @@ $*"; }
 writeconfig() {
     addconfig1 ${HS_DYNIP:+"dynip $HS_DYNIP/${HS_DYNIP_MASK:-255.255.255.0}"}
     addconfig1 ${HS_STATIP:+"statip $HS_STATIP/${HS_STATIP_MASK:-255.255.255.0}"}
-    addconfig1 ${HS_WWWDIR:+"wwwdir $HS_WWWDIR"}
-    addconfig1 ${HS_UAMHOMEPAGE:+"uamhomepage $(eval echo $HS_UAMHOMEPAGE)"}
     addconfig1 ${HS_SSID:+"ssid $HS_SSID"}
     addconfig1 ${HS_NASIP:+"nasip $HS_NASIP"}
     addconfig1 ${HS_NASMAC:+"nasmac $HS_NASMAC"}
     addconfig1 ${HS_DNS_DOMAIN:+"domain $HS_DNS_DOMAIN"}
     addconfig1 ${HS_DNS1:+"dns1 $HS_DNS1"}
     addconfig1 ${HS_DNS2:+"dns2 $HS_DNS2"}
+
+    addconfig1 ${HS_UAMHOMEPAGE:+"uamhomepage $(eval echo $HS_UAMHOMEPAGE)"}
+    addconfig1 ${HS_WWWDIR:+"wwwdir $HS_WWWDIR"}
 
     HS_MACALLOW=$(echo $HS_MACALLOW|sed 's/ /,/g')
     HS_MACALLOW=$(echo $HS_MACALLOW|sed 's/[:-]//g')

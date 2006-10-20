@@ -512,8 +512,7 @@ int process_options(int argc, char **argv, int minimal) {
   if (!reconfiguring) {
     if (args_info.radiuslisten_arg) {
       if (!(host = gethostbyname(args_info.radiuslisten_arg))) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
-		"Invalid listening address: %s! [%s]", 
+	log_err(0, "Invalid listening address: %s! [%s]", 
 		args_info.radiuslisten_arg, strerror(errno));
 	goto end_processing;
       }
@@ -526,12 +525,21 @@ int process_options(int argc, char **argv, int minimal) {
     }
   }
 
+  if (args_info.uamlogoutip_arg) {
+    if (!(host = gethostbyname(args_info.uamlogoutip_arg))) {
+      log_warn(0, "Invalid uamlogoutup address: %s! [%s]", 
+	       args_info.uamlogoutip_arg, strerror(errno));
+    }
+    else {
+      memcpy(&options.uamlogout.s_addr, host->h_addr, host->h_length);
+    }
+  }
+
   /* If no option is specified terminate                          */
   /* Do hostname lookup to translate hostname to IP address       */
   if (args_info.radiusserver1_arg) {
     if (!(host = gethostbyname(args_info.radiusserver1_arg))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Invalid radiusserver1 address: %s! [%s]", 
+      log_err(0, "Invalid radiusserver1 address: %s! [%s]", 
 	      args_info.radiusserver1_arg, strerror(errno));
       goto end_processing;
     }
@@ -550,8 +558,7 @@ int process_options(int argc, char **argv, int minimal) {
   /* Do hostname lookup to translate hostname to IP address       */
   if (args_info.radiusserver2_arg) {
     if (!(host = gethostbyname(args_info.radiusserver2_arg))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Invalid radiusserver2 address: %s! [%s]", 
+      log_err(0, "Invalid radiusserver2 address: %s! [%s]", 
 	      args_info.radiusserver2_arg, strerror(errno));
       goto end_processing;
     }

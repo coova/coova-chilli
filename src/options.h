@@ -113,6 +113,8 @@ struct options_t {
   int uamoknetlen;               /* Number of networks */
   int uamanydns;                 /* Allow client to use any DNS server */
 
+  struct in_addr uamlogout;      /* IP address of HTTP auto-logout */
+
   /* MAC Authentication */
   int macauth;                   /* Use MAC authentication */
   unsigned char macok[MACOK_MAX][DHCP_ETH_ALEN]; /* Allowed MACs */

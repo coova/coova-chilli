@@ -931,11 +931,9 @@ int dhcp_freeconn(struct dhcp_conn_t *conn)
 	   conn->hismac[3], conn->hismac[4], conn->hismac[5]);
 
 
-
   /* Application specific code */
   /* First remove from hash table */
   (void)dhcp_hashdel(this, conn);
-
 
   /* Remove from link of used */
   if ((conn->next) && (conn->prev)) {
@@ -1312,7 +1310,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
       conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
     }
     pack->iph.daddr = this->uamlisten.s_addr;
-    tcph->dst  = htons(this->uamport);
+    tcph->dst = htons(this->uamport);
     (void)dhcp_tcp_check(pack, len);
     (void)dhcp_ip_check((struct dhcp_ippacket_t*) pack);
     return 0;
@@ -2012,7 +2010,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack,
   struct in_addr ourip;
   unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
   struct in_addr addr;
-  /*struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;*/
+  struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
 
   if (this->debug) printf("DHCP packet received\n");
@@ -2073,6 +2071,20 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack,
       (udph->dst == htons(DHCP_DNS))) {
     if (dhcp_checkDNS(conn, pack, len)) return 0;
   } */
+
+  /* Was it a request for the auto-logout service? */
+  if ((pack->iph.daddr == options.uamlogout.s_addr) &&
+      (pack->iph.protocol == DHCP_IP_TCP) &&
+      (tcph->dst == htons(DHCP_HTTP))) {
+    if (conn->peer) {
+      struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+      if (appconn->authenticated) {
+	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
+	if (options.debug)
+	  log_dbg("Dropping session due to request for auto-logout ip");
+      }
+    }
+  }
 
   switch (conn->authstate) {
   case DHCP_AUTH_PASS:

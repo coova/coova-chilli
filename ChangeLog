@@ -6,6 +6,7 @@
 * Added option for ''localusers'' file to authenticate users from a local file (inspired by FON)
 * Commented out the use of clearenv() as it is not on all platforms and not wanted 
 * Look for Acct-Session-ID in addition to User-Name in Disconnect-Request - if given, only that specific session is disconnected (thanks to Jeremy Childs for patch)
+* Added option ''uamlogoutip'' (default 1.1.1.1) whereby any HTTP request to this address will result in the auto-logout of the associated session
 	
 == ChangeLog (Coova Chilli v1.0.2 svn revision 17) ==
 

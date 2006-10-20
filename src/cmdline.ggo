@@ -30,7 +30,7 @@ option "dynip"       - "Dynamic IP address pool"       string no
 option "statip"      - "Static IP address pool"        string no
 option "dns1"        - "Primary DNS server IP address" string no
 option "dns2"        - "Secondary DNS server IP address" string no
-option "domain"      - "Domain to use for DNS lookups" string default="picopoint.com" no
+option "domain"      - "Domain to use for DNS lookups" string default="coova.org" no
 option "ipup"        - "Script to run after link-up"   string no
 option "ipdown"      - "Script to run after link-down" string no
 option "conup"       - "Script to run after user logon"  string no
@@ -80,6 +80,7 @@ option "uamallowed"   - "Domain names exempt from access check " string no multi
 option "uamanydns"    - "Allow client to use any DNS server" flag   off
 option "nouamsuccess" - "Do not return to the UAM server on success, original url instead" flag  off
 option "nouamwispr"   - "Do not send WISPr XML from ChilliSpot, assume back-end does" flag  off
+option "uamlogoutip"  - "HTTP Auto-Logout IP Address" string default="1.1.1.1" no
 
 # MAC authentication
 option "macauth"     - "Authenticate based on MAC address" flag   off

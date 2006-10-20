@@ -479,46 +479,28 @@ int static checkconn()
 
       if ((conn->sessiontimeout) &&
 	  (sessiontime > conn->sessiontimeout)) {
-	dnprot_terminate(conn);
-	conn->terminate_cause = RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT;
-	(void) acct_req(conn, RADIUS_STATUS_TYPE_STOP);
-	set_sessionid(conn);
+	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
       }
       else if ((conn->sessionterminatetime) && 
 	       (timenow.tv_sec > conn->sessionterminatetime)) {
-	dnprot_terminate(conn);
-	conn->terminate_cause = RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT;
-	(void) acct_req(conn, RADIUS_STATUS_TYPE_STOP);
-	set_sessionid(conn);
+	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
       }
       else if ((conn->idletimeout) && 
 	       (idletime > conn->idletimeout)) {
-	dnprot_terminate(conn);
-	conn->terminate_cause = RADIUS_TERMINATE_CAUSE_IDLE_TIMEOUT;
-	(void) acct_req(conn, RADIUS_STATUS_TYPE_STOP);
-	set_sessionid(conn);
+	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_IDLE_TIMEOUT);
       }
       else if ((conn->maxinputoctets) &&
 	       (conn->input_octets > conn->maxinputoctets)) {
-	dnprot_terminate(conn);
-	conn->terminate_cause = RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT;
-	(void) acct_req(conn, RADIUS_STATUS_TYPE_STOP);
-	set_sessionid(conn);
+	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
       }
       else if ((conn->maxoutputoctets) &&
 	       (conn->output_octets > conn->maxoutputoctets)) {
-	dnprot_terminate(conn);
-	conn->terminate_cause = RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT;
-	(void) acct_req(conn, RADIUS_STATUS_TYPE_STOP);
-	set_sessionid(conn);
+	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
       }
       else if ((conn->maxtotaloctets) &&
 	       ((conn->input_octets + conn->output_octets) > 
 		conn->maxtotaloctets)) {
-	dnprot_terminate(conn);
-	conn->terminate_cause = RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT;
-	(void) acct_req(conn, RADIUS_STATUS_TYPE_STOP);
-	set_sessionid(conn);
+	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
       }
       else if ((conn->interim_interval) &&
 	       (interimtime > conn->interim_interval)) {
@@ -552,10 +534,7 @@ int static killconn()
 	log_err(0, "No downlink protocol");
 	return -1;
       }
-      dnprot_terminate(conn);
-      conn->terminate_cause = RADIUS_TERMINATE_CAUSE_NAS_REBOOT;
-      (void) acct_req(conn, RADIUS_STATUS_TYPE_STOP);
-      set_sessionid(conn);
+      terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_NAS_REBOOT);
     }
   }
   return 0;
@@ -2333,15 +2312,8 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
       log_dbg("Session-id present in disconnect. Only disconnecting that session\n");
 
   while (!getconn_usersession(&appconn, userattr, sessionattr)) {
+    terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
     found = 1;
-    if (appconn->authenticated == 1) {
-      if (options.debug) 
-	log_dbg("Disconnecting session...\n");
-      dnprot_terminate(appconn);
-      appconn->terminate_cause = RADIUS_TERMINATE_CAUSE_ADMIN_RESET;
-      (void) acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
-      set_sessionid(appconn);
-    }
   }
 
   if (found) {
@@ -2515,21 +2487,29 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, char *b, int blen) {
 		  appconn->userurl[0] ? appconn->userurl : "-");
 }
 
+int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
+  if (appconn->authenticated == 1) { /* Only send accounting if logged in */
+    dnprot_terminate(appconn);
+    appconn->terminate_cause = terminate_cause;
+    (void) acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
+    set_sessionid(appconn);
+  }
+}
+
 /* Callback when a dhcp connection is deleted */
 int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
   struct app_conn_t *appconn;
 
-  sys_err(LOG_NOTICE, __FILE__, __LINE__, 0,
-	  "DHCP addr released by MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X IP=%s", 
-	  conn->hismac[0], conn->hismac[1], 
-	  conn->hismac[2], conn->hismac[3],
-	  conn->hismac[4], conn->hismac[5], 
-	  inet_ntoa(conn->hisip));
-
+  log(LOG_INFO, "DHCP addr released by MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X IP=%s", 
+      conn->hismac[0], conn->hismac[1], 
+      conn->hismac[2], conn->hismac[3],
+      conn->hismac[4], conn->hismac[5], 
+      inet_ntoa(conn->hisip));
+  
   if (options.debug) log_dbg("DHCP connection removed\n");
 
   if (!conn->peer) return 0; /* No appconn allocated. Stop here */
-    appconn = (struct app_conn_t*) conn->peer;
+  appconn = (struct app_conn_t*) conn->peer;
 
   if ((appconn->dnprot != DNPROT_DHCP_NONE) &&
       (appconn->dnprot != DNPROT_UAM) &&
@@ -2539,16 +2519,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
     return 0; /* DNPROT_WPA and DNPROT_EAPOL are unaffected by dhcp release? */
   }
 
-  /* User is logged out here. Can also happen by radius disconnect */
-  if (appconn->authenticated == 1) { /* Only send accounting if logged in */
-    appconn->authenticated = 0;
-    printstatus(appconn);
-    appconn->terminate_cause = RADIUS_TERMINATE_CAUSE_LOST_CARRIER;
-    (void) acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
-    set_sessionid(appconn);
-  }
-
-  conn->authstate = DHCP_AUTH_NONE; /* TODO: Redundant */
+  terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
 
   if (appconn->uplink)
     if (ippool_freeip(ippool, (struct ippoolm_t *) appconn->uplink)) {
@@ -2820,11 +2791,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     dhcpconn->authstate = DHCP_AUTH_DNAT;
 
     if (appconn->authenticated == 1) {
-      appconn->authenticated = 0;
-      printstatus(appconn);
-      appconn->terminate_cause = RADIUS_TERMINATE_CAUSE_USER_REQUEST;
-      (void) acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
-      set_sessionid(appconn);
+      terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
       appconn->uamtime = 0;
       appconn->userurl[0] = 0;    
       appconn->user[0] = 0;
@@ -2844,13 +2811,8 @@ int static uam_msg(struct redir_msg_t *msg) {
     appconn->uamtime = 0;  /* Force generation of new challenge */
     dhcpconn->authstate = DHCP_AUTH_DNAT;
 
-    if (appconn->authenticated == 1) {
-      appconn->authenticated = 0;
-      printstatus(appconn);
-      appconn->terminate_cause = RADIUS_TERMINATE_CAUSE_USER_REQUEST;
-      (void) acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
-      set_sessionid(appconn);
-    }
+    terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
+
     return 0;
   }
   else if (msg->type == REDIR_CHALLENGE) {
