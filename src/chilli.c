@@ -2332,7 +2332,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
     if (options.debug) 
       log_dbg("Session-id present in disconnect. Only disconnecting that session\n");
 
-  if (!getconn_usersession(&appconn, userattr, sessionattr)) {
+  while (!getconn_usersession(&appconn, userattr, sessionattr)) {
     found = 1;
     if (appconn->authenticated == 1) {
       if (options.debug) 
