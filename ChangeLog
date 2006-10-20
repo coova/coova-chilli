@@ -1,12 +1,13 @@
 
-== ChangeLog (Coova Chilli current svn/rev) ==
+== ChangeLog (Coova Chilli current svn revision) ==
 
 * The [http://www.gnu.org/software/gengetopt/gengetopt.html gengetopt] project accepted our changes to allow 'include <file>' in config files. The new cmdline.c is generated with gengetopt v2.19 or higher
 * Added the ''wpaguests'' option to allow anonymous WPA access w/captive-portal
 * Added option for ''localusers'' file to authenticate users from a local file (inspired by FON)
 * Commented out the use of clearenv() as it is not on all platforms and not wanted 
+* Look for Acct-Session-ID in addition to User-Name in Disconnect-Request - if given, only that specific session is disconnected (thanks to Jeremy Childs for patch)
 	
-== ChangeLog (Coova Chilli v1.0.2 svn/rev 17) ==
+== ChangeLog (Coova Chilli v1.0.2 svn revision 17) ==
 
 * Configurable TX queue length (option ''txqlen'') on the tun/tap tunnel (Linux only)
 * Added option ''swapoctets'' to swap the meaning of input/output octets/packets 
@@ -22,7 +23,7 @@
 * Renamed and swapped meaning of config param ''uamwispr'' (mentioned below) to ''nouamwispr'' which defaults to ''off'' for compatibility - turn on this option to ''not'' have chilli send WISPr XML, but rather assume the UAM server is taking care of that.
 * Renamed and swapped meaning of config param ''uamsuccess'' (mentioned below) to ''nouamsuccess'' which defaults to ''off'' for compatibility - turn on this feature to ''not'' return the user to the UAM server on login, but their original url instead.
 
-== ChangeLog (Coova Chilli v1.0.1 svn/rev 2) ==
+== ChangeLog (Coova Chilli v1.0.1 svn revision 2) ==
 
 * Added the ability to use ''include <filename>'' in configuration files to include others. Using gengetopt version 2.16 and a patch is applied to the generated source.
 * A ''chilli_radconfig'' utility to perform a NAS Administrative-User RADIUS login in order to collect configurations (using the new ChilliSpot-Config VSA).

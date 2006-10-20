@@ -373,27 +373,36 @@ int static getconn(struct app_conn_t **conn, uint32_t nasip, uint32_t nasport)
   return -1; /* Not found */
 }
 
-int static getconn_username(struct app_conn_t **conn, char *username, 
-		     int usernamelen)
+int static getconn_usersession(struct app_conn_t **conn, 
+			       struct radius_attr_t *uattr, 
+			       struct radius_attr_t *sattr)
 {
   struct app_conn_t *appconn;
-  username[usernamelen] = 0; log_dbg("username: %s\n", username);
+
+  if (options.debug)
+    log_dbg("Looking for session [username=%.*s,sessionid=%.*s]\n", 
+	    uattr->l-2, uattr->v.t, sattr ? sattr->l-2 : 0, sattr ? sattr->v.t : "");
   
   appconn = firstusedconn;
   while (appconn) {
     if (!appconn->inuse) {
       log_err(0, "Connection with inuse == 0!");
     }
-    appconn->user[appconn->userlen] = 0; log_dbg("user: %s\n", appconn->user);
 
-    if ((appconn->authenticated) && (appconn->userlen == usernamelen) &&
-	!memcmp(appconn->user, username, usernamelen)) {
+    if ((appconn->authenticated) && 
+	(appconn->userlen == uattr->l-2 && 
+	 !memcmp(appconn->user, uattr->v.t, uattr->l-2)) &&
+	(!sattr || 
+	 (strlen(appconn->sessionid) == sattr->l-2 && 
+	  !strncasecmp(appconn->sessionid, sattr->v.t, sattr->l-2)))) {
       *conn = appconn;
-      log_dbg("Found\n");
+      if (options.debug)
+	log_dbg("Found session\n");
       return 0;
     }
     appconn = appconn->next;
   }
+
   return -1; /* Not found */
 }
 
@@ -2301,6 +2310,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 		      struct sockaddr_in *peer) {
   struct app_conn_t *appconn;
   struct radius_attr_t *userattr = NULL;
+  struct radius_attr_t *sessionattr = NULL;
   struct radius_packet_t radius_pack;
   int found = 0;
 
@@ -2308,19 +2318,25 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
     log_dbg("Received coa or disconnect request\n");
   
   if (pack->code != RADIUS_CODE_DISCONNECT_REQUEST) {
-    sys_err(LOG_INFO, __FILE__, __LINE__, 0, 
-	    "Radius packet not supported: %d,\n", pack->code);
+    log_err(0, "Radius packet not supported: %d,\n", pack->code);
+    return -1;
   }
 
   /* Get username */
   if (radius_getattr(pack, &userattr, RADIUS_ATTR_USER_NAME, 0, 0, 0)) {
-    sys_err(LOG_INFO, __FILE__, __LINE__, 0, 
-	    "Username must be included in disconnect request");
+    log_warn(0, "Username must be included in disconnect request");
+    return -1;
   }
 
-  while (!getconn_username(&appconn, (char*) userattr->v.t, userattr->l-2)) {
+  if (!radius_getattr(pack, &sessionattr, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0))
+    if (options.debug) 
+      log_dbg("Session-id present in disconnect. Only disconnecting that session\n");
+
+  if (!getconn_usersession(&appconn, userattr, sessionattr)) {
     found = 1;
     if (appconn->authenticated == 1) {
+      if (options.debug) 
+	log_dbg("Disconnecting session...\n");
       dnprot_terminate(appconn);
       appconn->terminate_cause = RADIUS_TERMINATE_CAUSE_ADMIN_RESET;
       (void) acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
