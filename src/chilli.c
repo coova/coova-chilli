@@ -556,8 +556,9 @@ int static macauth_radius(struct app_conn_t *appconn) {
 			(uint8_t*) appconn->proxyuser, appconn->proxyuserlen);
 
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-			(uint8_t*) options.macpasswd, strlen(options.macpasswd));
-
+			(uint8_t*) options.macpasswd ? options.macpasswd : appconn->proxyuser, 
+			options.macpasswd ? strlen(options.macpasswd) : appconn->proxyuserlen);
+  
   appconn->authtype = PAP_PASSWORD;
 
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
@@ -2337,7 +2338,6 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
 
   appconn->reqip.s_addr = addr->s_addr; /* Save for MAC auth later */
 
-
   /* If IP address is allready allocated: Fill it in */
   if (appconn->uplink) {
     ipm = (struct ippoolm_t*) appconn->uplink;
@@ -2373,6 +2373,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
       log_err(0, "Failed allocate dynamic IP address");
       return -1;
     }
+
     appconn->hisip.s_addr = ipm->addr.s_addr;
     
     log(LOG_NOTICE, "Client MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X assigned IP %s" , 
