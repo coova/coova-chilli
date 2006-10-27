@@ -160,6 +160,9 @@ struct gengetopt_args_info
   int uamport_arg;	/* TCP port to bind to for authentication requests (default='3990').  */
   char * uamport_orig;	/* TCP port to bind to for authentication requests original value given at command line.  */
   const char *uamport_help; /* TCP port to bind to for authentication requests help description.  */
+  int uamuiport_arg;	/* TCP port to bind to for UAM UI requests (default='3991').  */
+  char * uamuiport_orig;	/* TCP port to bind to for UAM UI requests original value given at command line.  */
+  const char *uamuiport_help; /* TCP port to bind to for UAM UI requests help description.  */
   char ** uamallowed_arg;	/* Domain names exempt from access check .  */
   char ** uamallowed_orig;	/* Domain names exempt from access check  original value given at command line.  */
   int uamallowed_min; /* Domain names exempt from access check 's minimum occurreces */
@@ -187,9 +190,17 @@ struct gengetopt_args_info
   char * macpasswd_arg;	/* Password used when performing MAC authentication.  */
   char * macpasswd_orig;	/* Password used when performing MAC authentication original value given at command line.  */
   const char *macpasswd_help; /* Password used when performing MAC authentication help description.  */
+  int macallowlocal_flag;	/* Do not use RADIUS for authenticating the macallowed (default=off).  */
+  const char *macallowlocal_help; /* Do not use RADIUS for authenticating the macallowed help description.  */
   char * wwwdir_arg;	/* Local content served by chilli (for splash page, etc).  */
   char * wwwdir_orig;	/* Local content served by chilli (for splash page, etc) original value given at command line.  */
   const char *wwwdir_help; /* Local content served by chilli (for splash page, etc) help description.  */
+  char * wwwbin_arg;	/* Script binary (such as haserl) for simple web programming.  */
+  char * wwwbin_orig;	/* Script binary (such as haserl) for simple web programming original value given at command line.  */
+  const char *wwwbin_help; /* Script binary (such as haserl) for simple web programming help description.  */
+  char * uamui_arg;	/* Program in inetd style to handle all uam requests.  */
+  char * uamui_orig;	/* Program in inetd style to handle all uam requests original value given at command line.  */
+  const char *uamui_help; /* Program in inetd style to handle all uam requests help description.  */
   char * adminuser_arg;	/* RADIUS administrative user login username.  */
   char * adminuser_orig;	/* RADIUS administrative user login username original value given at command line.  */
   const char *adminuser_help; /* RADIUS administrative user login username help description.  */
@@ -271,6 +282,7 @@ struct gengetopt_args_info
   int uamsecret_given ;	/* Whether uamsecret was given.  */
   int uamlisten_given ;	/* Whether uamlisten was given.  */
   int uamport_given ;	/* Whether uamport was given.  */
+  int uamuiport_given ;	/* Whether uamuiport was given.  */
   unsigned int uamallowed_given ;	/* Whether uamallowed was given.  */
   int uamanydns_given ;	/* Whether uamanydns was given.  */
   int nouamsuccess_given ;	/* Whether nouamsuccess was given.  */
@@ -280,7 +292,10 @@ struct gengetopt_args_info
   unsigned int macallowed_given ;	/* Whether macallowed was given.  */
   int macsuffix_given ;	/* Whether macsuffix was given.  */
   int macpasswd_given ;	/* Whether macpasswd was given.  */
+  int macallowlocal_given ;	/* Whether macallowlocal was given.  */
   int wwwdir_given ;	/* Whether wwwdir was given.  */
+  int wwwbin_given ;	/* Whether wwwbin was given.  */
+  int uamui_given ;	/* Whether uamui was given.  */
   int adminuser_given ;	/* Whether adminuser was given.  */
   int adminpasswd_given ;	/* Whether adminpasswd was given.  */
   int nasmac_given ;	/* Whether nasmac was given.  */

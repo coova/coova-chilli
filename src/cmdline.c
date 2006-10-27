@@ -74,6 +74,7 @@ const char *gengetopt_args_info_help[] = {
   "      --uamsecret=STRING        Shared secret between uamserver and chilli",
   "      --uamlisten=STRING        IP address to listen to for authentication \n                                  requests",
   "      --uamport=INT             TCP port to bind to for authentication requests \n                                   (default=`3990')",
+  "      --uamuiport=INT           TCP port to bind to for UAM UI requests  \n                                  (default=`3991')",
   "      --uamallowed=STRING       Domain names exempt from access check ",
   "      --uamanydns               Allow client to use any DNS server  \n                                  (default=off)",
   "      --nouamsuccess            Do not return to the UAM server on success, \n                                  original url instead  (default=off)",
@@ -83,7 +84,10 @@ const char *gengetopt_args_info_help[] = {
   "      --macallowed=STRING       List of allowed MAC addresses",
   "      --macsuffix=STRING        Suffix to add to the MAC address",
   "      --macpasswd=STRING        Password used when performing MAC \n                                  authentication",
+  "      --macallowlocal           Do not use RADIUS for authenticating the \n                                  macallowed  (default=off)",
   "      --wwwdir=STRING           Local content served by chilli (for splash \n                                  page, etc)",
+  "      --wwwbin=STRING           Script binary (such as haserl) for simple web \n                                  programming",
+  "      --uamui=STRING            Program in inetd style to handle all uam \n                                  requests",
   "      --adminuser=STRING        RADIUS administrative user login username",
   "      --adminpasswd=STRING      RADIUS administrative user login password",
   "      --nasmac=STRING           Unique MAC address of the NAS \n                                  (called-station-id)",
@@ -195,6 +199,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamsecret_given = 0 ;
   args_info->uamlisten_given = 0 ;
   args_info->uamport_given = 0 ;
+  args_info->uamuiport_given = 0 ;
   args_info->uamallowed_given = 0 ;
   args_info->uamanydns_given = 0 ;
   args_info->nouamsuccess_given = 0 ;
@@ -204,7 +209,10 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->macallowed_given = 0 ;
   args_info->macsuffix_given = 0 ;
   args_info->macpasswd_given = 0 ;
+  args_info->macallowlocal_given = 0 ;
   args_info->wwwdir_given = 0 ;
+  args_info->wwwbin_given = 0 ;
+  args_info->uamui_given = 0 ;
   args_info->adminuser_given = 0 ;
   args_info->adminpasswd_given = 0 ;
   args_info->nasmac_given = 0 ;
@@ -310,6 +318,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->uamlisten_orig = NULL;
   args_info->uamport_arg = 3990;
   args_info->uamport_orig = NULL;
+  args_info->uamuiport_arg = 3991;
+  args_info->uamuiport_orig = NULL;
   args_info->uamallowed_arg = NULL;
   args_info->uamallowed_orig = NULL;
   args_info->uamanydns_flag = 0;
@@ -324,8 +334,13 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->macsuffix_orig = NULL;
   args_info->macpasswd_arg = NULL;
   args_info->macpasswd_orig = NULL;
+  args_info->macallowlocal_flag = 0;
   args_info->wwwdir_arg = NULL;
   args_info->wwwdir_orig = NULL;
+  args_info->wwwbin_arg = NULL;
+  args_info->wwwbin_orig = NULL;
+  args_info->uamui_arg = NULL;
+  args_info->uamui_orig = NULL;
   args_info->adminuser_arg = NULL;
   args_info->adminuser_orig = NULL;
   args_info->adminpasswd_arg = NULL;
@@ -400,32 +415,36 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->uamsecret_help = gengetopt_args_info_help[45] ;
   args_info->uamlisten_help = gengetopt_args_info_help[46] ;
   args_info->uamport_help = gengetopt_args_info_help[47] ;
-  args_info->uamallowed_help = gengetopt_args_info_help[48] ;
+  args_info->uamuiport_help = gengetopt_args_info_help[48] ;
+  args_info->uamallowed_help = gengetopt_args_info_help[49] ;
   args_info->uamallowed_min = -1;
   args_info->uamallowed_max = -1;
-  args_info->uamanydns_help = gengetopt_args_info_help[49] ;
-  args_info->nouamsuccess_help = gengetopt_args_info_help[50] ;
-  args_info->nouamwispr_help = gengetopt_args_info_help[51] ;
-  args_info->uamlogoutip_help = gengetopt_args_info_help[52] ;
-  args_info->macauth_help = gengetopt_args_info_help[53] ;
-  args_info->macallowed_help = gengetopt_args_info_help[54] ;
+  args_info->uamanydns_help = gengetopt_args_info_help[50] ;
+  args_info->nouamsuccess_help = gengetopt_args_info_help[51] ;
+  args_info->nouamwispr_help = gengetopt_args_info_help[52] ;
+  args_info->uamlogoutip_help = gengetopt_args_info_help[53] ;
+  args_info->macauth_help = gengetopt_args_info_help[54] ;
+  args_info->macallowed_help = gengetopt_args_info_help[55] ;
   args_info->macallowed_min = -1;
   args_info->macallowed_max = -1;
-  args_info->macsuffix_help = gengetopt_args_info_help[55] ;
-  args_info->macpasswd_help = gengetopt_args_info_help[56] ;
-  args_info->wwwdir_help = gengetopt_args_info_help[57] ;
-  args_info->adminuser_help = gengetopt_args_info_help[58] ;
-  args_info->adminpasswd_help = gengetopt_args_info_help[59] ;
-  args_info->nasmac_help = gengetopt_args_info_help[60] ;
-  args_info->nasip_help = gengetopt_args_info_help[61] ;
-  args_info->ssid_help = gengetopt_args_info_help[62] ;
-  args_info->vlan_help = gengetopt_args_info_help[63] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[64] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[65] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[66] ;
-  args_info->localusers_help = gengetopt_args_info_help[67] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[68] ;
-  args_info->chillixml_help = gengetopt_args_info_help[69] ;
+  args_info->macsuffix_help = gengetopt_args_info_help[56] ;
+  args_info->macpasswd_help = gengetopt_args_info_help[57] ;
+  args_info->macallowlocal_help = gengetopt_args_info_help[58] ;
+  args_info->wwwdir_help = gengetopt_args_info_help[59] ;
+  args_info->wwwbin_help = gengetopt_args_info_help[60] ;
+  args_info->uamui_help = gengetopt_args_info_help[61] ;
+  args_info->adminuser_help = gengetopt_args_info_help[62] ;
+  args_info->adminpasswd_help = gengetopt_args_info_help[63] ;
+  args_info->nasmac_help = gengetopt_args_info_help[64] ;
+  args_info->nasip_help = gengetopt_args_info_help[65] ;
+  args_info->ssid_help = gengetopt_args_info_help[66] ;
+  args_info->vlan_help = gengetopt_args_info_help[67] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[68] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[69] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[70] ;
+  args_info->localusers_help = gengetopt_args_info_help[71] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[72] ;
+  args_info->chillixml_help = gengetopt_args_info_help[73] ;
   
 }
 
@@ -817,6 +836,11 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
       free (args_info->uamport_orig); /* free previous argument */
       args_info->uamport_orig = 0;
     }
+  if (args_info->uamuiport_orig)
+    {
+      free (args_info->uamuiport_orig); /* free previous argument */
+      args_info->uamuiport_orig = 0;
+    }
   if (args_info->uamallowed_arg)
     {
       for (i = 0; i < args_info->uamallowed_given; ++i)
@@ -900,6 +924,26 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
     {
       free (args_info->wwwdir_orig); /* free previous argument */
       args_info->wwwdir_orig = 0;
+    }
+  if (args_info->wwwbin_arg)
+    {
+      free (args_info->wwwbin_arg); /* free previous argument */
+      args_info->wwwbin_arg = 0;
+    }
+  if (args_info->wwwbin_orig)
+    {
+      free (args_info->wwwbin_orig); /* free previous argument */
+      args_info->wwwbin_orig = 0;
+    }
+  if (args_info->uamui_arg)
+    {
+      free (args_info->uamui_arg); /* free previous argument */
+      args_info->uamui_arg = 0;
+    }
+  if (args_info->uamui_orig)
+    {
+      free (args_info->uamui_orig); /* free previous argument */
+      args_info->uamui_orig = 0;
     }
   if (args_info->adminuser_arg)
     {
@@ -1311,6 +1355,13 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s\n", "uamport");
     }
   }
+  if (args_info->uamuiport_given) {
+    if (args_info->uamuiport_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "uamuiport", args_info->uamuiport_orig);
+    } else {
+      fprintf(outfile, "%s\n", "uamuiport");
+    }
+  }
   if (args_info->uamallowed_orig)
     {
       for (i = 0; i < args_info->uamallowed_given; ++i)
@@ -1364,11 +1415,28 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s\n", "macpasswd");
     }
   }
+  if (args_info->macallowlocal_given) {
+    fprintf(outfile, "%s\n", "macallowlocal");
+  }
   if (args_info->wwwdir_given) {
     if (args_info->wwwdir_orig) {
       fprintf(outfile, "%s=\"%s\"\n", "wwwdir", args_info->wwwdir_orig);
     } else {
       fprintf(outfile, "%s\n", "wwwdir");
+    }
+  }
+  if (args_info->wwwbin_given) {
+    if (args_info->wwwbin_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "wwwbin", args_info->wwwbin_orig);
+    } else {
+      fprintf(outfile, "%s\n", "wwwbin");
+    }
+  }
+  if (args_info->uamui_given) {
+    if (args_info->uamui_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "uamui", args_info->uamui_orig);
+    } else {
+      fprintf(outfile, "%s\n", "uamui");
     }
   }
   if (args_info->adminuser_given) {
@@ -1736,6 +1804,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "uamsecret",	1, NULL, 0 },
         { "uamlisten",	1, NULL, 0 },
         { "uamport",	1, NULL, 0 },
+        { "uamuiport",	1, NULL, 0 },
         { "uamallowed",	1, NULL, 0 },
         { "uamanydns",	0, NULL, 0 },
         { "nouamsuccess",	0, NULL, 0 },
@@ -1745,7 +1814,10 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "macallowed",	1, NULL, 0 },
         { "macsuffix",	1, NULL, 0 },
         { "macpasswd",	1, NULL, 0 },
+        { "macallowlocal",	0, NULL, 0 },
         { "wwwdir",	1, NULL, 0 },
+        { "wwwbin",	1, NULL, 0 },
+        { "uamui",	1, NULL, 0 },
         { "adminuser",	1, NULL, 0 },
         { "adminpasswd",	1, NULL, 0 },
         { "nasmac",	1, NULL, 0 },
@@ -2656,6 +2728,27 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               free (args_info->uamport_orig); /* free previous string */
             args_info->uamport_orig = gengetopt_strdup (optarg);
           }
+          /* TCP port to bind to for UAM UI requests.  */
+          else if (strcmp (long_options[option_index].name, "uamuiport") == 0)
+          {
+            if (local_args_info.uamuiport_given)
+              {
+                fprintf (stderr, "%s: `--uamuiport' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->uamuiport_given && ! override)
+              continue;
+            local_args_info.uamuiport_given = 1;
+            args_info->uamuiport_given = 1;
+            args_info->uamuiport_arg = strtol (optarg, &stop_char, 0);
+            if (!(stop_char && *stop_char == '\0')) {
+              fprintf(stderr, "%s: invalid numeric value: %s\n", argv[0], optarg);
+              goto failure;
+            }
+            if (args_info->uamuiport_orig)
+              free (args_info->uamuiport_orig); /* free previous string */
+            args_info->uamuiport_orig = gengetopt_strdup (optarg);
+          }
           /* Domain names exempt from access check .  */
           else if (strcmp (long_options[option_index].name, "uamallowed") == 0)
           {
@@ -2823,6 +2916,20 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               free (args_info->macpasswd_orig); /* free previous string */
             args_info->macpasswd_orig = gengetopt_strdup (optarg);
           }
+          /* Do not use RADIUS for authenticating the macallowed.  */
+          else if (strcmp (long_options[option_index].name, "macallowlocal") == 0)
+          {
+            if (local_args_info.macallowlocal_given)
+              {
+                fprintf (stderr, "%s: `--macallowlocal' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->macallowlocal_given && ! override)
+              continue;
+            local_args_info.macallowlocal_given = 1;
+            args_info->macallowlocal_given = 1;
+            args_info->macallowlocal_flag = !(args_info->macallowlocal_flag);
+          }
           /* Local content served by chilli (for splash page, etc).  */
           else if (strcmp (long_options[option_index].name, "wwwdir") == 0)
           {
@@ -2841,6 +2948,44 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             if (args_info->wwwdir_orig)
               free (args_info->wwwdir_orig); /* free previous string */
             args_info->wwwdir_orig = gengetopt_strdup (optarg);
+          }
+          /* Script binary (such as haserl) for simple web programming.  */
+          else if (strcmp (long_options[option_index].name, "wwwbin") == 0)
+          {
+            if (local_args_info.wwwbin_given)
+              {
+                fprintf (stderr, "%s: `--wwwbin' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->wwwbin_given && ! override)
+              continue;
+            local_args_info.wwwbin_given = 1;
+            args_info->wwwbin_given = 1;
+            if (args_info->wwwbin_arg)
+              free (args_info->wwwbin_arg); /* free previous string */
+            args_info->wwwbin_arg = gengetopt_strdup (optarg);
+            if (args_info->wwwbin_orig)
+              free (args_info->wwwbin_orig); /* free previous string */
+            args_info->wwwbin_orig = gengetopt_strdup (optarg);
+          }
+          /* Program in inetd style to handle all uam requests.  */
+          else if (strcmp (long_options[option_index].name, "uamui") == 0)
+          {
+            if (local_args_info.uamui_given)
+              {
+                fprintf (stderr, "%s: `--uamui' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->uamui_given && ! override)
+              continue;
+            local_args_info.uamui_given = 1;
+            args_info->uamui_given = 1;
+            if (args_info->uamui_arg)
+              free (args_info->uamui_arg); /* free previous string */
+            args_info->uamui_arg = gengetopt_strdup (optarg);
+            if (args_info->uamui_orig)
+              free (args_info->uamui_orig); /* free previous string */
+            args_info->uamui_orig = gengetopt_strdup (optarg);
           }
           /* RADIUS administrative user login username.  */
           else if (strcmp (long_options[option_index].name, "adminuser") == 0)

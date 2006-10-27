@@ -76,6 +76,7 @@ option "uamhomepage"  - "URL of homepage to redirect unauthenticated users to" s
 option "uamsecret"    - "Shared secret between uamserver and chilli" string no
 option "uamlisten"    - "IP address to listen to for authentication requests" string no
 option "uamport"      - "TCP port to bind to for authentication requests" int default="3990" no
+option "uamuiport"    - "TCP port to bind to for UAM UI requests" int default="3991" no
 option "uamallowed"   - "Domain names exempt from access check " string no multiple
 option "uamanydns"    - "Allow client to use any DNS server" flag   off
 option "nouamsuccess" - "Do not return to the UAM server on success, original url instead" flag  off
@@ -87,9 +88,12 @@ option "macauth"     - "Authenticate based on MAC address" flag   off
 option "macallowed"  - "List of allowed MAC addresses" string no multiple
 option "macsuffix"   - "Suffix to add to the MAC address" string no
 option "macpasswd"   - "Password used when performing MAC authentication" string no
+option "macallowlocal" - "Do not use RADIUS for authenticating the macallowed" flag off
 
 # "local" content
 option "wwwdir"      - "Local content served by chilli (for splash page, etc)" string no
+option "wwwbin"      - "Script binary (such as haserl) for simple web programming" string no
+option "uamui"       - "Program in inetd style to handle all uam requests" string no
 
 # Centralized Configuration
 option "adminuser"   - "RADIUS administrative user login username" string no

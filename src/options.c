@@ -146,6 +146,13 @@ int static get_namepart(char *src, char *host, int hostsize, int *port) {
   return 0;
 }
 
+int pass_through_add(pass_through *pt) {
+  if (options.num_pass_throughs >= MAX_PASS_THROUGHS) return -1;
+  memcpy(&options.pass_throughs[options.num_pass_throughs], pt, sizeof(pass_through));
+  options.num_pass_throughs++;
+  return 0;
+}
+
 int process_options(int argc, char **argv, int minimal) {
   int reconfiguring = options.initialized;
   struct gengetopt_args_info args_info = {0};
@@ -195,9 +202,10 @@ int process_options(int argc, char **argv, int minimal) {
   options.chillixml = args_info.chillixml_flag;
   options.macauth = args_info.macauth_flag;
   options.uamport = args_info.uamport_arg;
+  options.uamuiport = args_info.uamuiport_arg;
+  options.macallowlocal = args_info.macallowlocal_flag;
   options.no_uamsuccess = args_info.nouamsuccess_flag;
   options.no_uamwispr = args_info.nouamwispr_flag;
-  options.uamanydns = args_info.uamanydns_flag;
   options.wpaguests = args_info.wpaguests_flag;
   options.radiusnasporttype = args_info.radiusnasporttype_arg;
   options.radiusauthport = args_info.radiusauthport_arg;
@@ -364,81 +372,72 @@ int process_options(int argc, char **argv, int minimal) {
     }
   }
 
-  /* uamallowed                                                   */
-  memset(options.uamokip, 0, sizeof(options.uamokip));
-  options.uamokiplen = 0;
-  memset(options.uamokaddr, 0, sizeof(options.uamokaddr));
-  memset(options.uamokmask, 0, sizeof(options.uamokmask));
-  options.uamoknetlen = 0;
+  options.uamanydns = args_info.uamanydns_flag;
+
+  /* pass-throughs */
+  memset(options.pass_throughs, 0, sizeof(options.pass_throughs));
+  options.num_pass_throughs = 0;
+
   for (numargs = 0; numargs < args_info.uamallowed_given; ++numargs) {
+    pass_through pt;
+    char *t, *p1 = NULL, *p2 = NULL;
+    char *p3 = malloc(strlen(args_info.uamallowed_arg[numargs])+1);
+    strcpy(p3, args_info.uamallowed_arg[numargs]);
+    p1 = p3;
+
     if (options.debug & DEBUG_CONF) {
       printf ("Uamallowed #%d: %s\n", 
 	      numargs, args_info.uamallowed_arg[numargs]);
     }
-    char *p1 = NULL;
-    char *p2 = NULL;
-    char *p3 = malloc(strlen(args_info.uamallowed_arg[numargs])+1);
-    strcpy(p3, args_info.uamallowed_arg[numargs]);
-    p1 = p3;
-    if ((p2 = strchr(p1, ','))) {
-      *p2 = '\0';
-    }
-    while (p1) {
-      if (strchr(p1, '/')) {
-	if (options.uamoknetlen>=UAMOKNET_MAX) {
-	  sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		  "Too many network segments in uamallowed %s!",
+
+    for ( ; p1; p1 = p2) {
+
+      /* save the next entry position */
+      if ((p2 = strchr(p1, ','))) { *p2=0; p2++; }
+
+      /* clear the pass-through entry in case we partitially filled it already */
+      memset(&pt, 0, sizeof(pass_through));
+
+      /* eat whitespace */
+      while (isspace(*p1)) p1++;
+
+      /* look for specific protocols, if proto is not know, this entry will fail */
+      if      (!strncasecmp(p1,"tcp:", 4)) { pt.proto = DHCP_IP_TCP;  p1+=4; }
+      else if (!strncasecmp(p1,"udp:", 4)) { pt.proto = DHCP_IP_UDP;  p1+=4; }
+      else if (!strncasecmp(p1,"icmp:",5)) { pt.proto = DHCP_IP_ICMP; p1+=5; }
+
+      /* look for an optional port */
+      if ((t = strchr(p1, ':'))) { pt.port = atoi(t+1); *t = 0; }
+
+      if (strchr(p1, '/')) {	/* parse a network address */
+	if (option_aton(&pt.host, &pt.mask, p1, 0)) {
+	  log_err(0, "Invalid uamallowed network address or mask %s!", 
 		  args_info.uamallowed_arg[numargs]);
+	  continue;
 	} 
-	else {
-	  if(option_aton(&options.uamokaddr[options.uamoknetlen], 
-			 &options.uamokmask[options.uamoknetlen], 
-			 p1, 0)) {
-	    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		    "Invalid uamallowed network address or mask %s!", 
-		    args_info.uamallowed_arg[numargs]);
-	  } 
-	  else {
-	    options.uamoknetlen++;
-	  }
-	}
+	if (pass_through_add(&pt))
+	  log_err(0, "Too many pass-throughs! skipped %s", args_info.uamallowed_arg[numargs]);
       }
-      else {
+      else {	/* otherwise, parse a host ip or hostname */
+	int j = 0;
+	pt.mask.s_addr = 0xffffffff;
 	if (!(host = gethostbyname(p1))) {
-	  sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
-		  "Invalid uamallowed domain or address: %s! [%s]", 
-		  args_info.uamallowed_arg[numargs], strerror(errno));
+	  log_err(0, "Invalid uamallowed domain or address: %s! [%s]", p1, strerror(errno));
+	  continue;
 	} 
-	else {
-	  int j = 0;
-	  while (host->h_addr_list[j] != NULL) {
-	    if (options.debug & DEBUG_CONF) {
-	      printf("Uamallowed IP address #%d:%d: %s\n", 
-		     j, options.uamokiplen,
-		     inet_ntoa(*(struct in_addr*) host->h_addr_list[j]));
-	    }
-	    if (options.uamokiplen>=UAMOKIP_MAX) {
-	      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		      "Too many domains or IPs in uamallowed %s!",
-		      args_info.uamallowed_arg[numargs]);
-	    }
-	    else {
-	      options.uamokip[options.uamokiplen++] = 
-		*((struct in_addr*) host->h_addr_list[j++]);
-	    }
+	while (host->h_addr_list[j] != NULL) {
+	  if (options.debug & DEBUG_CONF) {
+	    printf("Uamallowed IP address #%d:%d: %s\n", 
+		   j, options.num_pass_throughs,
+		   inet_ntoa(*(struct in_addr*) host->h_addr_list[j]));
 	  }
+	  pt.host = *((struct in_addr *) host->h_addr_list[j++]);
+	  if (pass_through_add(&pt))
+	    log_err(0, "Too many pass-throughs! skipped %s", args_info.uamallowed_arg[numargs]);
 	}
-      }
-      if (p2) {
-	p1 = p2+1;
-	if ((p2 = strchr(p1, ','))) {
-	  *p2 = '\0';
-	}
-      }
-      else {
-	p1 = NULL;
       }
     }
+
     free(p3);
   }
 
@@ -673,6 +672,12 @@ int process_options(int argc, char **argv, int minimal) {
   if (options.wwwdir) free(options.wwwdir);
   options.wwwdir = STRDUP(args_info.wwwdir_arg);
 
+  if (options.wwwbin) free(options.wwwbin);
+  options.wwwbin = STRDUP(args_info.wwwbin_arg);
+
+  if (options.uamui) free(options.uamui);
+  options.uamui = STRDUP(args_info.uamui_arg);
+
   if (options.localusers) free(options.localusers);
   options.localusers = STRDUP(args_info.localusers_arg);
 
@@ -769,46 +774,5 @@ void reprocess_options(int argc, char **argv) {
 	    "Error reading configuration file!");
     memcpy(&options, &options2, sizeof(options));
   }
-
-  /* Options which we do not allow to be affected */
-  /* fg, conf, pidfile and statedir are not stored in options */
-  /* BE SURE TO free() dynamic memory!! */
-  /**
-  options.net = options2.net;
-  options.mask = options2.mask;
-  options.dhcplisten = options2.dhcplisten;
-  if (options.dynip) free(options.dynip);
-  options.dynip = STRDUP(options2.dynip);
-  options.allowdyn = options2.allowdyn; 
-  if (options.statip) free(options.statip);
-  options.statip = STRDUP(options2.statip); 
-  options.allowstat = options2.allowstat; 
-  options.uamlisten = options2.uamlisten; 
-  options.uamport = options2.uamport; 
-  options.radiuslisten = options2.radiuslisten; 
-  options.coaport = options.coaport; 
-  options.coanoipcheck = options.coanoipcheck; 
-  options.proxylisten = options2.proxylisten; 
-  options.proxyport = options2.proxyport; 
-  options.proxyaddr = options2.proxyaddr; 
-  options.proxymask = options2.proxymask; 
-  if (options.proxysecret) free(options.proxysecret);
-  options.proxysecret = STRDUP(options2.proxysecret); 
-  options.nodhcp = options2.nodhcp; 
-  if (options.dhcpif) free(options.dhcpif);
-  options.dhcpif = STRDUP(options2.dhcpif); 
-  memcpy(options.dhcpmac, options2.dhcpmac, DHCP_ETH_ALEN); 
-  options.dhcpusemac = options2.dhcpusemac; 
-  options.lease = options2.lease; 
-  options.eapolenable = options2.eapolenable; 
-  if (options.adminuser) free(options.adminuser);
-  options.adminuser = STRDUP(options2.adminuser);
-  if (options.adminpasswd) free(options.adminpasswd);
-  options.adminpasswd = STRDUP(options2.adminpasswd);
-  if (options.cmdsocket) free(options.cmdsocket);
-  options.cmdsocket = STRDUP(options2.cmdsocket);
-  if (options.pidfile) free(options.pidfile);
-  options.pidfile = STRDUP(options2.pidfile);
-  **/
 }
 

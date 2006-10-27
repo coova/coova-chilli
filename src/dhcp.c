@@ -1139,52 +1139,15 @@ dhcp_set(struct dhcp_t *dhcp, int debug) {
   /* Copy list of uamserver IP addresses */
   if ((dhcp)->authip) free((dhcp)->authip);
   dhcp->authiplen = options.uamserverlen;
+
   if (!(dhcp->authip = calloc(sizeof(struct in_addr), options.uamserverlen))) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0, "calloc() failed");
     dhcp->authip = 0;
     return -1;
   }
+
   memcpy(dhcp->authip, &options.uamserver, sizeof(struct in_addr) * options.uamserverlen);
 
-  /* Make hash table for allowed domains */
-  if (dhcp->iphash) iphash_free(dhcp->iphash);
-  if ((!options.uamokip) || (options.uamokiplen==0)) {
-    dhcp->iphashm = NULL;
-    dhcp->iphash = NULL;
-  }
-  else {
-    if (dhcp->iphashm) free(dhcp->iphashm);
-    if (!(dhcp->iphashm = calloc(options.uamokiplen, sizeof(struct ippoolm_t)))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "calloc() failed");
-      return -1;
-    }
-    for (i=0; i< options.uamokiplen; i++) {
-      dhcp->iphashm[i].addr = options.uamokip[i];
-    }
-    (void)iphash_new(&dhcp->iphash, dhcp->iphashm, options.uamokiplen);
-  }
-
-  /* Copy allowed networks */
-  if (dhcp->uamokaddr) free(dhcp->uamokaddr);
-  if (dhcp->uamokmask) free(dhcp->uamokmask);
-  if ((!options.uamokaddr) || (!options.uamokmask) || (options.uamoknetlen==0)) {
-    dhcp->uamokaddr = NULL;
-    dhcp->uamokmask = NULL;
-    dhcp->uamoknetlen = 0;
-  }
-  else {
-    dhcp->uamoknetlen = options.uamoknetlen;
-    if (!(dhcp->uamokaddr = calloc(options.uamoknetlen, sizeof(struct in_addr)))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,"calloc() failed");
-      return -1;
-    }
-    if (!(dhcp->uamokmask = calloc(options.uamoknetlen, sizeof(struct in_addr)))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "calloc() failed");
-      return -1;
-    }
-    memcpy(dhcp->uamokaddr, options.uamokaddr, options.uamoknetlen * sizeof(struct in_addr));
-    memcpy(dhcp->uamokmask, options.uamokmask, options.uamoknetlen * sizeof(struct in_addr));
-  }
   return 0;
 }
 
@@ -1195,11 +1158,7 @@ dhcp_set(struct dhcp_t *dhcp, int debug) {
 int dhcp_free(struct dhcp_t *dhcp) {
 
   if (dhcp->hash) free(dhcp->hash);
-  if (dhcp->iphash) iphash_free(dhcp->iphash);
-  if (dhcp->iphashm) free(dhcp->iphashm);
   if (dhcp->authip) free(dhcp->authip);
-  if (dhcp->uamokaddr) free(dhcp->uamokaddr);
-  if (dhcp->uamokmask) free(dhcp->uamokmask);
   (void)dhcp_sifflags(dhcp->devname, dhcp->devflags);
   close(dhcp->fd);
   close(dhcp->arp_fd);
@@ -1244,7 +1203,7 @@ dhcp_timeleft(struct dhcp_t *this, struct timeval *tvp)
  **/
 int dhcp_doDNAT(struct dhcp_conn_t *conn, 
 		struct dhcp_ippacket_t *pack, int len) {
-
+  pass_through *pt;
   struct dhcp_t *this = conn->parent;
   struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
@@ -1279,18 +1238,17 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
       (tcph->dst == htons(this->uamport)))
     return 0; /* Destination was local redir server */
 
-  /* Was it a request for an allowed domain? */
-  if (this->iphash && 
-      (!ippool_getip(this->iphash, NULL, (struct in_addr*) &pack->iph.daddr)))
-    return 0;
-  
-  /* Was it a request for an allowed network? */
-  for (i=0; i<this->uamoknetlen; i++) {
-    if (this->uamokaddr[i].s_addr == 
-	(pack->iph.daddr & this->uamokmask[i].s_addr))
-      return 0;
+  /* Was it a request for a pass-through entry? */
+  for (i = 0; i < options.num_pass_throughs; i++) {
+    pt = &options.pass_throughs[i];
+    if (pt->proto == 0 || pack->iph.protocol == pt->proto)
+      if (pt->host.s_addr == 0 || pt->host.s_addr == (pack->iph.daddr & pt->mask.s_addr))
+	if (pt->port == 0 || 
+	    (pack->iph.protocol == DHCP_IP_TCP && tcph->dst == htons(pt->port)) ||
+	    (pack->iph.protocol == DHCP_IP_UDP && udph->dst == htons(pt->port)))
+	  return 0;
   }
-
+  
   /* Was it a http request for another server? */
   /* We are changing dest IP and dest port to local UAM server */
   if ((pack->iph.protocol == DHCP_IP_TCP) &&
@@ -1326,7 +1284,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
  **/
 int dhcp_undoDNAT(struct dhcp_conn_t *conn, 
 		  struct dhcp_ippacket_t *pack, int len) {
-
+  pass_through *pt;
   struct dhcp_t *this = conn->parent;
   struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
@@ -1373,21 +1331,18 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
       return 0; /* Destination was authentication server */
   }
   
-  /* Was it a reply from an allowed domain? */
-  if (this->iphash && 
-      (!ippool_getip(this->iphash, NULL, (struct in_addr*) &pack->iph.saddr)))
-    return 0;
-
-  /* Was it a reply from for an allowed network? */
-  for (i=0; i<this->uamoknetlen; i++) {
-    if (this->uamokaddr[i].s_addr == 
-	(pack->iph.saddr & this->uamokmask[i].s_addr))
-      return 0;
+  /* Was it a reply for a pass-through entry? */
+  for (i = 0; i < options.num_pass_throughs; i++) {
+    pt = &options.pass_throughs[i];
+    if (pt->proto == 0 || pack->iph.protocol == pt->proto)
+      if (pt->host.s_addr == 0 || pt->host.s_addr == (pack->iph.saddr & pt->mask.s_addr))
+	if (pt->port == 0 || 
+	    (pack->iph.protocol == DHCP_IP_TCP && tcph->src == htons(pt->port)) ||
+	    (pack->iph.protocol == DHCP_IP_UDP && udph->src == htons(pt->port)))
+	  return 0;
   }
 
-
   return -1; /* Something else */
-
 }
 
 #ifdef DHCP_CHECKDNS

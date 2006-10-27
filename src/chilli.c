@@ -75,7 +75,7 @@ void static sighup_handler(int signum) {
 void static set_sessionid(struct app_conn_t *appconn) {
   struct timeval timenow;
   gettimeofday(&timenow, NULL);
-  (void) snprintf(appconn->sessionid, sizeof(appconn->sessionid), "%.8x%.8x",
+  (void) snprintf(appconn->params.sessionid, sizeof(appconn->params.sessionid), "%.8x%.8x",
 	   (int) timenow.tv_sec, appconn->unit);
 }
 
@@ -111,11 +111,11 @@ int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
 			    timediff, conn->bucketup, conn->bucketdown, 
 			    octetsup, octetsdown);*/
 
-  if (conn->bandwidthmaxup) {
+  if (conn->params.bandwidthmaxup) {
 
     /* Subtract what the leak since last time we visited */
-    if (conn->bucketup > ((timediff * conn->bandwidthmaxup)/8000000)) {
-      conn->bucketup -= (timediff * conn->bandwidthmaxup) / 8000000;
+    if (conn->bucketup > ((timediff * conn->params.bandwidthmaxup)/8000000)) {
+      conn->bucketup -= (timediff * conn->params.bandwidthmaxup) / 8000000;
     }
     else {
       conn->bucketup = 0;
@@ -130,9 +130,9 @@ int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
     }
   }
 
-  if (conn->bandwidthmaxdown) {
-    if (conn->bucketdown > ((timediff * conn->bandwidthmaxdown)/8000000)) {
-      conn->bucketdown -= (timediff * conn->bandwidthmaxdown) / 8000000;
+  if (conn->params.bandwidthmaxdown) {
+    if (conn->bucketdown > ((timediff * conn->params.bandwidthmaxdown)/8000000)) {
+      conn->bucketdown -= (timediff * conn->params.bandwidthmaxdown) / 8000000;
     }
     else {
       conn->bucketdown = 0;
@@ -221,31 +221,31 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("NAS_IP_ADDRESS", NULL, 0, &options.radiuslisten, NULL, NULL);
   set_env("SERVICE_TYPE", "1", 0, NULL, NULL, NULL);
   set_env("FRAMED_IP_ADDRESS", NULL, 0, &appconn->hisip, NULL, NULL);
-  set_env("FILTER_ID", appconn->filteridbuf, 0, NULL, NULL, NULL);
+  set_env("FILTER_ID", appconn->params.filteridbuf, 0, NULL, NULL, NULL);
   set_env("STATE", (char*) appconn->statebuf, appconn->statelen, NULL, NULL, NULL);
   set_env("CLASS", (char*) appconn->classbuf, appconn->classlen, NULL, NULL, NULL);
-  set_env("SESSION_TIMEOUT", NULL, 0, NULL, NULL, &appconn->sessiontimeout);
-  set_env("IDLE_TIMEOUT", NULL, 0, NULL, NULL, &appconn->idletimeout);
+  set_env("SESSION_TIMEOUT", NULL, 0, NULL, NULL, &appconn->params.sessiontimeout);
+  set_env("IDLE_TIMEOUT", NULL, 0, NULL, NULL, &appconn->params.idletimeout);
   set_env("CALLING_STATION_ID", NULL, 0, NULL, appconn->hismac, NULL);
   set_env("CALLED_STATION_ID", NULL, 0, NULL, appconn->ourmac, NULL);
   set_env("NAS_ID", options.radiusnasid, 0, NULL, NULL, NULL);
   set_env("NAS_PORT_TYPE", "19", 0, NULL, NULL, NULL);
-  set_env("ACCT_SESSION_ID", appconn->sessionid, 0, NULL, NULL, NULL);
-  l = appconn->interim_interval;
+  set_env("ACCT_SESSION_ID", appconn->params.sessionid, 0, NULL, NULL, NULL);
+  l = appconn->params.interim_interval;
   set_env("ACCT_INTERIM_INTERVAL", NULL, 0, NULL, NULL, &l);
   set_env("WISPR_LOCATION_ID", options.radiuslocationid, 0, NULL, NULL, NULL);
   set_env("WISPR_LOCATION_NAME", options.radiuslocationname, 0, NULL, NULL, NULL);
-  l = appconn->bandwidthmaxup;
+  l = appconn->params.bandwidthmaxup;
   set_env("WISPR_BANDWIDTH_MAX_UP", NULL, 0, NULL, NULL, &l);
-  l = appconn->bandwidthmaxdown;
+  l = appconn->params.bandwidthmaxdown;
   set_env("WISPR_BANDWIDTH_MAX_DOWN", NULL, 0, NULL, NULL, &l);
   /*set_env("WISPR-SESSION_TERMINATE_TIME", appconn->sessionterminatetime, 0,
     NULL, NULL, NULL);*/
-  l = appconn->maxinputoctets;
+  l = appconn->params.maxinputoctets;
   set_env("CHILLISPOT_MAX_INPUT_OCTETS", NULL, 0, NULL, NULL, &l);
-  l = appconn->maxoutputoctets;
+  l = appconn->params.maxoutputoctets;
   set_env("CHILLISPOT_MAX_OUTPUT_OCTETS", NULL, 0, NULL, NULL, &l);
-  l = appconn->maxtotaloctets;
+  l = appconn->params.maxtotaloctets;
   set_env("CHILLISPOT_MAX_TOTAL_OCTETS", NULL, 0, NULL, NULL, &l);
 
   if (execl(script, script, (char *) 0) != 0) {
@@ -454,33 +454,33 @@ int static checkconn()
       interimtime = timenow.tv_sec - conn->interim_time.tv_sec;
       interimtime += (timenow.tv_usec - conn->interim_time.tv_usec) / 1000000;
 
-      if ((conn->sessiontimeout) &&
-	  (sessiontime > conn->sessiontimeout)) {
+      if ((conn->params.sessiontimeout) &&
+	  (sessiontime > conn->params.sessiontimeout)) {
 	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
       }
-      else if ((conn->sessionterminatetime) && 
-	       (timenow.tv_sec > conn->sessionterminatetime)) {
+      else if ((conn->params.sessionterminatetime) && 
+	       (timenow.tv_sec > conn->params.sessionterminatetime)) {
 	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
       }
-      else if ((conn->idletimeout) && 
-	       (idletime > conn->idletimeout)) {
+      else if ((conn->params.idletimeout) && 
+	       (idletime > conn->params.idletimeout)) {
 	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_IDLE_TIMEOUT);
       }
-      else if ((conn->maxinputoctets) &&
-	       (conn->input_octets > conn->maxinputoctets)) {
+      else if ((conn->params.maxinputoctets) &&
+	       (conn->input_octets > conn->params.maxinputoctets)) {
 	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
       }
-      else if ((conn->maxoutputoctets) &&
-	       (conn->output_octets > conn->maxoutputoctets)) {
+      else if ((conn->params.maxoutputoctets) &&
+	       (conn->output_octets > conn->params.maxoutputoctets)) {
 	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
       }
-      else if ((conn->maxtotaloctets) &&
+      else if ((conn->params.maxtotaloctets) &&
 	       ((conn->input_octets + conn->output_octets) > 
-		conn->maxtotaloctets)) {
+		conn->params.maxtotaloctets)) {
 	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
       }
-      else if ((conn->interim_interval) &&
-	       (interimtime > conn->interim_interval)) {
+      else if ((conn->params.interim_interval) &&
+	       (interimtime > conn->params.interim_interval)) {
 	(void) acct_req(conn, RADIUS_STATUS_TYPE_INTERIM_UPDATE);
       }
     }
@@ -586,7 +586,7 @@ int static macauth_radius(struct app_conn_t *appconn) {
 		   (uint8_t*) options.radiusnasid, strlen(options.radiusnasid));
 
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*) appconn->sessionid, REDIR_SESSIONID_LEN-1);
+		 (uint8_t*) appconn->params.sessionid, REDIR_SESSIONID_LEN-1);
 
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
 			options.radiusnasporttype, NULL, 0);
@@ -823,7 +823,7 @@ int static acct_req(struct app_conn_t *conn, int status_type)
 
 
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*) conn->sessionid, REDIR_SESSIONID_LEN-1);
+		 (uint8_t*) conn->params.sessionid, REDIR_SESSIONID_LEN-1);
 
   if ((status_type == RADIUS_STATUS_TYPE_STOP) ||
       (status_type == RADIUS_STATUS_TYPE_INTERIM_UPDATE)) {
@@ -1010,7 +1010,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     
     /* This is the one and only place UAM authentication is accepted */
     dhcpconn->authstate = DHCP_AUTH_PASS;
-    appconn->require_uam_auth = 0;
+    appconn->params.require_uam_auth = 0;
 
     /* Initialise parameters for accounting */
     appconn->userlen = appconn->proxyuserlen; 
@@ -1032,7 +1032,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 			  options.domain);
     
     /* This is the one and only place WPA authentication is accepted */
-    if (appconn->require_uam_auth) {
+    if (appconn->params.require_uam_auth) {
       appconn->dnprot = DNPROT_DHCP_NONE;
       dhcpconn->authstate = DHCP_AUTH_NONE;
     }
@@ -1066,7 +1066,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     
     /* This is the one and only place MAC authentication is accepted */
     dhcpconn->authstate = DHCP_AUTH_PASS;
-    appconn->require_uam_auth = 0;
+    appconn->params.require_uam_auth = 0;
     
     /* Initialise parameters for accounting */
     appconn->userlen = appconn->proxyuserlen; 
@@ -1082,7 +1082,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     return 0;
   }
 
-  if (!appconn->require_uam_auth) {
+  if (!appconn->params.require_uam_auth) {
     /* This is the one and only place state is switched to authenticated */
     appconn->authenticated = 1;
     
@@ -1211,21 +1211,18 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
   memcpy(conn->ourmac, dhcpconn->ourmac, DHCP_ETH_ALEN);
   conn->ourip = appconn->ourip;
   conn->hisip = appconn->hisip;
-  memcpy(conn->sessionid, appconn->sessionid, REDIR_SESSIONID_LEN);
+
+  memcpy(&conn->params, &appconn->params, sizeof(appconn->params));
 
   if ((!conn->userurl || !*conn->userurl) && 
       (appconn->userurl && *appconn->userurl)) {
-  strncpy(conn->userurl, appconn->userurl, REDIR_MAXCHAR);
-  conn->userurl[REDIR_MAXCHAR-1] = 0;
+    strncpy(conn->userurl, appconn->userurl, REDIR_MAXCHAR);
+    conn->userurl[REDIR_MAXCHAR-1] = 0;
   }   
 
   /* Stuff needed for status */
   conn->input_octets    = appconn->input_octets;
   conn->output_octets   = appconn->output_octets;
-  conn->sessiontimeout  = appconn->sessiontimeout;
-  conn->maxinputoctets  = appconn->maxinputoctets;
-  conn->maxoutputoctets = appconn->maxoutputoctets;
-  conn->maxtotaloctets  = appconn->maxtotaloctets;
   conn->start_time      = appconn->start_time;
  
   if (appconn->authenticated == 1)
@@ -1620,12 +1617,15 @@ int access_request(struct radius_packet_t *pack,
     memcpy(appconn->proxyuser, uidattr->v.t, uidattr->l-2);
     appconn->proxyuserlen = uidattr->l-2;
   }
+
   appconn->radiuswait = 1;
   appconn->radiusid = pack->id;
+
   if (pwdattr)
     appconn->authtype = PAP_PASSWORD;
   else
     appconn->authtype = EAP_MESSAGE;
+
   memcpy(&appconn->radiuspeer, peer, sizeof(*peer));
   memcpy(appconn->authenticator, pack->authenticator, RADIUS_AUTHLEN);
   memcpy(appconn->proxyhismac, dhcpconn->hismac, DHCP_ETH_ALEN);
@@ -1785,154 +1785,108 @@ int upprot_getip(struct app_conn_t *appconn,
 
 }
 
-void config_radius_session(struct app_conn_t *appconn, struct radius_packet_t *pack, int reconfig) 
+void config_radius_session(struct session_params *params, struct radius_packet_t *pack, int reconfig) 
 {
   struct radius_attr_t *attr = NULL;
 
   /* Session timeout */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_SESSION_TIMEOUT, 0, 0, 0))
-    appconn->sessiontimeout = ntohl(attr->v.i);
+    params->sessiontimeout = ntohl(attr->v.i);
   else if (!reconfig)
-    appconn->sessiontimeout = 0;
+    params->sessiontimeout = 0;
 
   /* Idle timeout */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_IDLE_TIMEOUT, 0, 0, 0))
-    appconn->idletimeout = ntohl(attr->v.i);
+    params->idletimeout = ntohl(attr->v.i);
   else if (!reconfig) 
-    appconn->idletimeout = 0;
+    params->idletimeout = 0;
 
   /* Filter ID */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_FILTER_ID, 0, 0, 0)) {
-    appconn->filteridlen = attr->l-2;
-    memcpy(appconn->filteridbuf, attr->v.t, attr->l-2);
-    appconn->filteridbuf[attr->l-2] = 0;
-    /*conn->filterid = conn->filteridbuf;*/
+    params->filteridlen = attr->l-2;
+    memcpy(params->filteridbuf, attr->v.t, attr->l-2);
+    params->filteridbuf[attr->l-2] = 0;
   }
   else if (!reconfig) {
-    appconn->filteridlen = 0;
-    appconn->filteridbuf[0] = 0;
-    /*conn->filterid = NULL;*/
+    params->filteridlen = 0;
+    params->filteridbuf[0] = 0;
   }
 
   /* Interim interval */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 0, 0, 0)) {
-    appconn->interim_interval = ntohl(attr->v.i);
-    if (appconn->interim_interval < 60) {
+    params->interim_interval = ntohl(attr->v.i);
+    if (params->interim_interval < 60) {
       log_err(0, "Received too small radius Acct-Interim-Interval value: %d. Disabling interim accounting",
-	      appconn->interim_interval);
-      appconn->interim_interval = 0;
+	      params->interim_interval);
+      params->interim_interval = 0;
     } 
-    else if (appconn->interim_interval < 600) {
+    else if (params->interim_interval < 600) {
       log(LOG_WARNING, "Received small radius Acct-Interim-Interval value: %d",
-	      appconn->interim_interval);
+	      params->interim_interval);
     }
   }
   else if (!reconfig)
-    appconn->interim_interval = 0;
+    params->interim_interval = 0;
 
   /* Bandwidth up */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_WISPR,
-		      RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0)) {
-    appconn->bandwidthmaxup = ntohl(attr->v.i);
-#ifdef LEAKY_BUCKET
-#ifdef BUCKET_SIZE
-    appconn->bucketupsize = BUCKET_SIZE;
-#else
-    appconn->bucketupsize = appconn->bandwidthmaxup / 8000 * BUCKET_TIME;
-    if (appconn->bucketupsize < BUCKET_SIZE_MIN) 
-      appconn->bucketupsize = BUCKET_SIZE_MIN;
-#endif
-#endif
-  }
+		      RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0))
+    params->bandwidthmaxup = ntohl(attr->v.i);
   else if (!reconfig)
-    appconn->bandwidthmaxup = 0;
+    params->bandwidthmaxup = 0;
   
   /* Bandwidth down */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_WISPR,
-		      RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0)) {
-    appconn->bandwidthmaxdown = ntohl(attr->v.i);
-#ifdef LEAKY_BUCKET
-#ifdef BUCKET_SIZE
-    appconn->bucketdownsize = BUCKET_SIZE;
-#else
-    appconn->bucketdownsize = appconn->bandwidthmaxdown / 8000 * BUCKET_TIME;
-    if (appconn->bucketdownsize < BUCKET_SIZE_MIN) 
-      appconn->bucketdownsize = BUCKET_SIZE_MIN;
-#endif
-#endif
-  }
+		      RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0))
+    params->bandwidthmaxdown = ntohl(attr->v.i);
   else if (!reconfig)
-    appconn->bandwidthmaxdown = 0;
+    params->bandwidthmaxdown = 0;
 
 #ifdef RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP
   /* Bandwidth up */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0)) {
-    appconn->bandwidthmaxup = ntohl(attr->v.i) * 1000;
-#ifdef LEAKY_BUCKET
-    appconn->bucketupsize = BUCKET_TIME * appconn->bandwidthmaxup / 8000;
-    if (appconn->bucketupsize < BUCKET_SIZE_MIN) 
-      appconn->bucketupsize = BUCKET_SIZE_MIN;
-#endif
-  }
+		      RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0))
+    params->bandwidthmaxup = ntohl(attr->v.i) * 1000;
 #endif
 
 #ifdef RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN
   /* Bandwidth down */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0)) {
-    appconn->bandwidthmaxdown = ntohl(attr->v.i) * 1000;
-#ifdef LEAKY_BUCKET
-    appconn->bucketdownsize = BUCKET_TIME * appconn->bandwidthmaxdown / 8000;
-    if (appconn->bucketdownsize < BUCKET_SIZE_MIN) 
-      appconn->bucketdownsize = BUCKET_SIZE_MIN;
-#endif
-  }
+		      RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0))
+    params->bandwidthmaxdown = ntohl(attr->v.i) * 1000;
 #endif
 
   /* Max input octets */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0)) {
-    appconn->maxinputoctets = ntohl(attr->v.i);
-  }
+		      RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0))
+    params->maxinputoctets = ntohl(attr->v.i);
   else if (!reconfig)
-    appconn->maxinputoctets = 0;
+    params->maxinputoctets = 0;
 
   /* Max output octets */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0)) {
-    appconn->maxoutputoctets = ntohl(attr->v.i);
-  }
+		      RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0))
+    params->maxoutputoctets = ntohl(attr->v.i);
   else if (!reconfig)
-    appconn->maxoutputoctets = 0;
+    params->maxoutputoctets = 0;
 
   /* Max total octets */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0)) {
-    appconn->maxtotaloctets = ntohl(attr->v.i);
-  }
+		      RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0))
+    params->maxtotaloctets = ntohl(attr->v.i);
   else if (!reconfig)
-    appconn->maxtotaloctets = 0;
+    params->maxtotaloctets = 0;
 
   /* Session-Terminate-Time */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
 		      RADIUS_VENDOR_WISPR,
 		      RADIUS_ATTR_WISPR_SESSION_TERMINATE_TIME, 0)) {
     char attrs[RADIUS_ATTR_VLEN+1];
-    struct timeval timenow;
     struct tm stt;
     int tzhour, tzmin;
     char *tz;
     int result;
 
-    gettimeofday(&timenow, NULL);
     memcpy(attrs, attr->v.t, attr->l-2);
     attrs[attr->l-2] = 0;
     memset(&stt, 0, sizeof(stt));
@@ -1952,7 +1906,7 @@ void config_radius_session(struct app_conn_t *appconn, struct radius_packet_t *p
       tz = getenv("TZ");
       setenv("TZ", "", 1); /* Set environment to UTC */
       tzset();
-      appconn->sessionterminatetime = mktime(&stt);
+      params->sessionterminatetime = mktime(&stt);
       if (tz) 
 			setenv("TZ", tz, 1); 
       else
@@ -1964,20 +1918,15 @@ void config_radius_session(struct app_conn_t *appconn, struct radius_packet_t *p
       stt.tm_year -= 1900;
       stt.tm_mon  -= 1;
       stt.tm_isdst = -1; /*daylight;*/
-      appconn->sessionterminatetime = mktime(&stt);
+      params->sessionterminatetime = mktime(&stt);
     }
     else {
-      appconn->sessionterminatetime = 0;
+      params->sessionterminatetime = 0;
       log(LOG_WARNING, "Illegal WISPr-Session-Terminate-Time received: %s", attrs);
-    }
-    if ((appconn->sessionterminatetime) && 
-	(timenow.tv_sec > appconn->sessionterminatetime)) {
-      log(LOG_WARNING, "WISPr-Session-Terminate-Time in the past received: %s", attrs);
-      return dnprot_reject(appconn);
     }
   }
   else if (!reconfig)
-    appconn->sessionterminatetime = 0;
+    params->sessionterminatetime = 0;
 }
 
 
@@ -2114,7 +2063,40 @@ int cb_radius_auth_conf(struct radius_t *radius,
     hisip = (struct in_addr*) &appconn->reqip.s_addr;
   }
 
-  config_radius_session(appconn, pack, 0);
+  config_radius_session(&appconn->params, pack, 0);
+
+  if (appconn->params.sessionterminatetime) {
+    struct timeval timenow;
+    gettimeofday(&timenow, NULL);
+    if (timenow.tv_sec > appconn->params.sessionterminatetime) {
+      log(LOG_WARNING, "WISPr-Session-Terminate-Time in the past received, rejecting");
+      return dnprot_reject(appconn);
+    }
+  }
+
+#ifdef LEAKY_BUCKET
+  if (appconn->params.bandwidthmaxup) {
+#ifdef BUCKET_SIZE
+    appconn->bucketupsize = BUCKET_SIZE;
+#else
+    appconn->bucketupsize = appconn->bandwidthmaxup / 8000 * BUCKET_TIME;
+    if (appconn->bucketupsize < BUCKET_SIZE_MIN) 
+      appconn->bucketupsize = BUCKET_SIZE_MIN;
+#endif
+  }
+#endif
+  
+#ifdef LEAKY_BUCKET
+  if (appconn->params.bandwidthmaxdown) {
+#ifdef BUCKET_SIZE
+    appconn->bucketdownsize = BUCKET_SIZE;
+#else
+    appconn->bucketdownsize = params->bandwidthmaxdown / 8000 * BUCKET_TIME;
+    if (appconn->bucketdownsize < BUCKET_SIZE_MIN) 
+      appconn->bucketdownsize = BUCKET_SIZE_MIN;
+#endif
+  }
+#endif
 
   /* EAP Message */
   appconn->challen = 0;
@@ -2198,7 +2180,17 @@ int cb_radius_auth_conf(struct radius_t *radius,
     }
     memcpy(appconn->ms2succ, ((void*)&succattr->v.t)+3, MS2SUCCSIZE);
   }
-  
+
+  if (options.wpaguests) {
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+			RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 0)) { 
+      size_t len = attr->l-2;
+      const char *uamauth = "require-uam-auth";
+      if (len == strlen(uamauth) && !memcmp(attr->v.t, uamauth, len))
+	appconn->params.require_uam_auth = 1;
+    }
+  }
+
   switch(appconn->authtype) {
   case PAP_PASSWORD:
     appconn->policy = 0; /* TODO */
@@ -2216,7 +2208,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     if (!lmntattr) {
       log(LOG_INFO, "No MPPE keys found");
       return dnprot_reject(appconn);
-    }
+      }
     if (!succattr) {
       log_err(0, "No MS-CHAP2 success found");
       return dnprot_reject(appconn);
@@ -2232,23 +2224,13 @@ int cb_radius_auth_conf(struct radius_t *radius,
       log(LOG_INFO, "No MPPE recvkey found");
       return dnprot_reject(appconn);
     }
-
+    
     break;
   default:
     log_err(0, "Unknown authtype");
     return dnprot_reject(appconn);
   }
-
-  if (options.wpaguests) {
-    if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-			RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 0)) { 
-      size_t len = attr->l-2;
-      const char *uamauth = "require-uam-auth";
-      if (len == strlen(uamauth) && !memcmp(attr->v.t, uamauth, len))
-	appconn->require_uam_auth = 1;
-    }
-  }
-
+  
   return upprot_getip(appconn, hisip, statip);
 }
 
@@ -2296,8 +2278,8 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 	(appconn->userlen == uattr->l-2 && 
 	 !memcmp(appconn->user, uattr->v.t, uattr->l-2)) &&
 	(!sattr || 
-	 (strlen(appconn->sessionid) == sattr->l-2 && 
-	  !strncasecmp(appconn->sessionid, sattr->v.t, sattr->l-2)))) {
+	 (strlen(appconn->params.sessionid) == sattr->l-2 && 
+	  !strncasecmp(appconn->params.sessionid, sattr->v.t, sattr->l-2)))) {
 
       if (options.debug)
 	log_dbg("Found session\n");
@@ -2363,15 +2345,22 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
   else if (appconn->dnprot == DNPROT_MAC) {
     return -1;
   }
-  else if ((options.macauth) && (appconn->dnprot == DNPROT_DHCP_NONE) ){
+  else if ((options.macauth) && 
+	   (appconn->dnprot == DNPROT_DHCP_NONE) ){
     appconn->dnprot = DNPROT_MAC;
-    (void) macauth_radius(appconn);
+    macauth_radius(appconn);
     return -1;
   }
-  else if ((options.macoklen) && (appconn->dnprot == DNPROT_DHCP_NONE) &&
+  else if ((options.macoklen) && 
+	   (appconn->dnprot == DNPROT_DHCP_NONE) &&
 	   !maccmp(conn->hismac)) {
     appconn->dnprot = DNPROT_MAC;
-    (void) macauth_radius(appconn);    
+    if (options.macallowlocal) {
+      upprot_getip(appconn, 0, 0);/**/
+      dnprot_accept(appconn);
+    } else {
+      macauth_radius(appconn);    
+    }
     return -1;
   }
   else {
@@ -2470,15 +2459,15 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, char *b, int blen) {
   }
   
    return snprintf(b, blen, "%.*s %d %.*s %d/%d %d/%d %.*s", 
-		  appconn->sessionid[0] ? strlen(appconn->sessionid) : 1,
-		  appconn->sessionid[0] ? appconn->sessionid : "-",
-		  appconn->authenticated,
-		  appconn->userlen ? appconn->userlen : 1,
-		  appconn->userlen ? appconn->user : "-",
-		   sessiontime, (int)appconn->sessiontimeout,
-		   idletime, (int)appconn->idletimeout,
-		  appconn->userurl[0] ? strlen(appconn->userurl) : 1,
-		  appconn->userurl[0] ? appconn->userurl : "-");
+		   appconn->params.sessionid[0] ? strlen(appconn->params.sessionid) : 1,
+		   appconn->params.sessionid[0] ? appconn->params.sessionid : "-",
+		   appconn->authenticated,
+		   appconn->userlen ? appconn->userlen : 1,
+		   appconn->userlen ? appconn->user : "-",
+		   sessiontime, (int)appconn->params.sessiontimeout,
+		   idletime, (int)appconn->params.idletimeout,
+		   appconn->userurl[0] ? strlen(appconn->userurl) : 1,
+		   appconn->userurl[0] ? appconn->userurl : "-");
 }
 
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
@@ -2731,17 +2720,8 @@ int static uam_msg(struct redir_msg_t *msg) {
     memcpy(appconn->statebuf, msg->statebuf, msg->statelen);
     appconn->classlen = msg->classlen;
     memcpy(appconn->classbuf, msg->classbuf, msg->classlen);
-    appconn->sessiontimeout = msg->sessiontimeout;
-    appconn->idletimeout = msg->idletimeout;
-    appconn->interim_interval = msg->interim_interval;
-    appconn->bandwidthmaxup = msg->bandwidthmaxup;
-    appconn->bandwidthmaxdown = msg->bandwidthmaxdown;
-    appconn->maxinputoctets = msg->maxinputoctets;
-    appconn->maxoutputoctets = msg->maxoutputoctets;
-    appconn->maxtotaloctets = msg->maxtotaloctets;
-    appconn->sessionterminatetime = msg->sessionterminatetime;
-    strncpy(appconn->filteridbuf, msg->filteridbuf, RADIUS_ATTR_VLEN+1);
-    appconn->filteridlen = msg->filteridlen;
+
+    memcpy(&appconn->params, &msg->params, sizeof(msg->params));
 
 #ifdef LEAKY_BUCKET
 #ifdef BUCKET_SIZE
@@ -2790,8 +2770,8 @@ int static uam_msg(struct redir_msg_t *msg) {
       appconn->userurl[0] = 0;    
       appconn->user[0] = 0;
       appconn->userlen = 0;
-      appconn->sessiontimeout = 0;
-      appconn->idletimeout = 0;
+      appconn->params.sessiontimeout = 0;
+      appconn->params.idletimeout = 0;
     }
 
     return 0;
@@ -2826,7 +2806,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 
 static int cmdsock_accept(int sock) {
   struct sockaddr_un remote; 
-  struct cmdsock_query query;
+  struct cmdsock_request req;
 
   unsigned int len;
   int csock;
@@ -2841,13 +2821,13 @@ static int cmdsock_accept(int sock) {
     return -1;
   }
 
-  if (read(csock, &query, sizeof(query)) != sizeof(query)) {
+  if (read(csock, &req, sizeof(req)) != sizeof(req)) {
     perror("cmdsock_accept()/read()");
     close(csock);
     return -1;
   }
 
-  switch(query.type) {
+  switch(req.type) {
   case CMDSOCK_LIST:
     if (dhcp) dhcp_list(dhcp, csock, 1);
     break;
@@ -2855,7 +2835,11 @@ static int cmdsock_accept(int sock) {
     if (dhcp) dhcp_list(dhcp, csock, 0);
     break;
   case CMDSOCK_DHCP_RELEASE:
-    if (dhcp) dhcp_release_mac(dhcp, query.data.mac);
+    if (dhcp) dhcp_release_mac(dhcp, req.data.mac);
+    break;
+  case CMDSOCK_AUTHORIZE:
+    if (dhcp) {
+    }
     break;
   default:
     perror("unknown command");
@@ -2910,10 +2894,10 @@ int printstatus(struct app_conn_t *appconn)
 	apptemp->hismac[0], apptemp->hismac[1],
 	apptemp->hismac[2], apptemp->hismac[3],
 	apptemp->hismac[4], apptemp->hismac[5],
-	apptemp->sessionid,
+	apptemp->params.sessionid,
 	(apptemp->start_time).tv_sec,
-	apptemp->sessiontimeout,
-	apptemp->sessionterminatetime);
+	apptemp->params.sessiontimeout,
+	apptemp->params.sessionterminatetime);
     }
     apptemp = apptemp->prev;
   }
@@ -2928,10 +2912,10 @@ int printstatus(struct app_conn_t *appconn)
 	apptemp->hismac[0], apptemp->hismac[1],
 	apptemp->hismac[2], apptemp->hismac[3],
 	apptemp->hismac[4], apptemp->hismac[5],
-	apptemp->sessionid,
+	apptemp->params.sessionid,
 	(apptemp->start_time).tv_sec,
-	apptemp->sessiontimeout,
-	apptemp->sessionterminatetime);
+	apptemp->params.sessiontimeout,
+	apptemp->params.sessionterminatetime);
     }
     apptemp = apptemp->next;
   }
@@ -3041,12 +3025,13 @@ int chilli_main(int argc, char **argv)
   }
 
   /* Create an instance of redir */
-  if (redir_new(&redir, &options.uamlisten, options.uamport)) {
+  if (redir_new(&redir, &options.uamlisten, options.uamport, options.uamuiport)) {
     log_err(0, "Failed to create redir");
     return -1;
   }
 
-  if (redir->fd > maxfd) maxfd = redir->fd;
+  if (redir->fd[0] > maxfd) maxfd = redir->fd[0];
+  if (redir->fd[1] > maxfd) maxfd = redir->fd[1];
   redir_set(redir, (options.debug & DEBUG_REDIR));
   redir_set_cb_getstate(redir, cb_redir_getstate);
   
@@ -3180,7 +3165,8 @@ int chilli_main(int argc, char **argv)
 #endif
     if (radius->fd != -1) FD_SET(radius->fd, &fds);
     if (radius->proxyfd != -1) FD_SET(radius->proxyfd, &fds);
-    if (redir->fd != -1) FD_SET(redir->fd, &fds);
+    if (redir->fd[0] > 0) FD_SET(redir->fd[0], &fds);
+    if (redir->fd[1] > 0) FD_SET(redir->fd[1], &fds);
     if (cmdsock != -1) FD_SET(cmdsock, &fds);
 
     idleTime.tv_sec = 1; /*IDLETIME;*/
@@ -3245,7 +3231,10 @@ int chilli_main(int argc, char **argv)
 	log_err(0, "radius_proxy_ind() failed!");
       }
 
-      if (redir->fd != -1 && FD_ISSET(redir->fd, &fds) && redir_accept(redir) < 0) {
+      if (redir->fd[0] > 0 && FD_ISSET(redir->fd[0], &fds) && redir_accept(redir, 0) < 0) {
+	log_err(0, "redir_accept() failed!");
+      }
+      if (redir->fd[1] > 0 && FD_ISSET(redir->fd[1], &fds) && redir_accept(redir, 1) < 0) {
 	log_err(0, "redir_accept() failed!");
       }
 

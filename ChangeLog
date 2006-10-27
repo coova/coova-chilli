@@ -8,6 +8,12 @@
 * Look for Acct-Session-ID in addition to User-Name in Disconnect-Request - if given, only that specific session is disconnected (thanks to Jeremy Childs for patch)
 * Added option ''uamlogoutip'' (default 1.1.1.1) whereby any HTTP request to this address will result in the auto-logout of the associated session
 * Support for CoARequest RADIUS requests to reconfigure session parameters (session-timeout, data/bandwidth limits, etc)
+* New optional flag ''macallowlocal'' which when turned on results in the macallowed list being auto-logged in with any RADIUS (local "authentication")
+* Port and protocol allowed in the ''uamallowed'' to allow for a more specific definition of the walled-garden
+* Add option for ''uamuiport'' which is an alternate port for embedded local content (where as uamlisten/uamport is also used to grab the initial redirect)
+* The option ''wwwbin'' which, when configured, is the program used to deliver local content (in the ''wwwdir'') with the extention ".chi" (perfect for haserl)
+* The option ''wwwui'' which when used with ''uamuiport'' is the alternate program to use for local content
+* The ''chilli_response'' binary taking 3 arguments <hex-challenge> <uamsecret> <password> and returning the appropriate response
 	
 == ChangeLog (Coova Chilli v1.0.2 svn revision 17) ==
 

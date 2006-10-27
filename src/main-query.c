@@ -38,6 +38,7 @@ static cmd_info commands[] = {
   { CMDSOCK_LIST,          "list",          NULL },
   { CMDSOCK_DHCP_LIST,     "dhcp-list",     NULL },
   { CMDSOCK_DHCP_RELEASE,  "dhcp-release",  NULL },
+  { CMDSOCK_AUTHORIZE,     "authorize",     NULL },
   { 0, NULL, NULL }
 };
 
@@ -49,7 +50,7 @@ int main(int argc, char **argv) {
 
   int s, len;
   struct sockaddr_un remote;
-  struct cmdsock_query query;
+  struct cmdsock_request request;
   char line[1024], *cmd;
 
   if (argc < 3) return usage(argv[0]);
@@ -57,7 +58,7 @@ int main(int argc, char **argv) {
   cmd = argv[2];
   for (s = 0; commands[s].command; s++) {
     if (!strcmp(cmd, commands[s].command)) {
-      query.type = commands[s].type;
+      request.type = commands[s].type;
       switch(commands[s].type) {
       case CMDSOCK_DHCP_RELEASE:
 	if (argc < 4) {
@@ -86,7 +87,7 @@ int main(int argc, char **argv) {
 	    return -1;
 	  }
 	  for(i = 0; i < DHCP_ETH_ALEN; i++) 
-	    query.data.mac[i] = temp[i];
+	    request.data.mac[i] = temp[i];
 	}
 	break;
       }
@@ -111,7 +112,7 @@ int main(int argc, char **argv) {
     exit(1);
   }
   
-  if (write(s, &query, sizeof(query)) != sizeof(query)) {
+  if (write(s, &request, sizeof(request)) != sizeof(request)) {
     perror("write");
     exit(1);
   }

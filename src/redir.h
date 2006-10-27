@@ -43,10 +43,11 @@
 #define REDIR_MAXBUFFER 5125
 
 #define REDIR_USERNAMESIZE 256 /* Max length of username */
-#define REDIR_USERURLSIZE 256  /* Max length of URL requested by user */
+#define REDIR_USERURLSIZE 1024  /* Max length of URL requested by user */
+#define REDIR_MAXQUERYSTRING 256
 #define REDIR_USERAGENTSIZE 256
-#define REDIR_LANGSIZE 256
-#define REDIR_IDENTSIZE 256
+#define REDIR_LANGSIZE 16
+#define REDIR_IDENTSIZE 16
 
 #define REDIR_MAXCONN 16
 
@@ -79,18 +80,33 @@
 
 #define REDIR_ETH_ALEN  6
 
-struct redir_conn_t {
+struct session_params {
+  char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
+  char filteridbuf[RADIUS_ATTR_VLEN+1];
+  char filteridlen;
+  unsigned long bandwidthmaxup;
+  unsigned long bandwidthmaxdown;
+  unsigned long maxinputoctets;
+  unsigned long maxoutputoctets;
+  unsigned long maxtotaloctets;
+  unsigned long sessiontimeout;
+  unsigned short idletimeout;
+  unsigned short interim_interval;     /* Seconds. 0 = No interim accounting */
+  time_t sessionterminatetime;
+  char require_uam_auth;
+};
 
+struct redir_conn_t {
   /* Parameters from HTTP request */
   int type; /* REDIR_LOGOUT, LOGIN, PRELOGIN, CHALLENGE, MSDOWNLOAD */
   char username[REDIR_USERNAMESIZE];
   char userurl[REDIR_USERURLSIZE];
 
-  /* Will be used to get useragent, lang and ident parameters on redir.c*/
+  char qs[REDIR_MAXQUERYSTRING];
   char useragent[REDIR_USERAGENTSIZE];
   char lang[REDIR_LANGSIZE];
   char ident[REDIR_IDENTSIZE];
-  
+
   int chap; /* 0 if using normal password; 1 if using CHAP */
   uint8_t chappassword[REDIR_MAXCHAR];
   uint8_t password[REDIR_MAXCHAR];
@@ -106,11 +122,7 @@ struct redir_conn_t {
   uint8_t ourmac[REDIR_ETH_ALEN];    /* Our MAC address */
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
-  char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
   int response; /* 0: No radius response yet; 1:Reject; 2:Accept; 3:Timeout */
-  long int sessiontimeout;
-  long int idletimeout;
-  long int interim_interval;  /* Interim accounting */
   char redirurlbuf[RADIUS_ATTR_VLEN+1];
   int redirurllen;
   char *redirurl;
@@ -120,26 +132,21 @@ struct redir_conn_t {
   int statelen;
   uint8_t classbuf[RADIUS_ATTR_VLEN+1];
   int classlen;
-  int bandwidthmaxup;
-  int bandwidthmaxdown;
-  int maxinputoctets;
-  int maxoutputoctets;
-  int maxtotaloctets;
-  time_t sessionterminatetime;
-  char filteridbuf[RADIUS_ATTR_VLEN+1];
-  int filteridlen;
-  char *filterid;
+
   uint64_t input_octets;     /* Transferred in callback */
   uint64_t output_octets;    /* Transferred in callback */
   struct timeval start_time; /* Transferred in callback */
+
+  struct session_params params;
 };
 
 struct redir_t {
-  int fd;                /* File descriptor */
+  int fd[2];             /* File descriptors */
   int debug;
   int msgid;             /* Message Queue */
   struct in_addr addr;
   int port;
+  int uiport;
   char *url;
   char *homepage;
   char *secret;
@@ -167,9 +174,6 @@ struct redir_t {
 
 struct redir_msg_t {
   long int type;
-  long int interim_interval;
-  long int sessiontimeout;
-  long int idletimeout;
   struct in_addr addr;
   char username[REDIR_USERNAMESIZE];
   char userurl[REDIR_USERURLSIZE];
@@ -178,25 +182,18 @@ struct redir_msg_t {
   int statelen;
   uint8_t classbuf[RADIUS_ATTR_VLEN+1];
   int classlen;
-  char filteridbuf[RADIUS_ATTR_VLEN+1];
-  int filteridlen;
-  int bandwidthmaxup;
-  int bandwidthmaxdown;
-  int maxinputoctets;
-  int maxoutputoctets;
-  int maxtotaloctets;
-  int sessionterminatetime;
+  struct session_params params;
 };
 
 
 extern int redir_new(struct redir_t **redir,
-		     struct in_addr *addr, int port);
+		     struct in_addr *addr, int port, int uiport);
 
 extern int redir_free(struct redir_t *redir);
 
 extern void redir_set(struct redir_t *redir, int debug);
 
-extern int redir_accept(struct redir_t *redir);
+extern int redir_accept(struct redir_t *redir, int idx);
 
 extern int redir_setchallenge(struct redir_t *redir, struct in_addr *addr,
 			      unsigned char *challenge);

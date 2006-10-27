@@ -21,10 +21,16 @@
 #define IPADDRLEN 256
 #define IDLETIME  10  /* Idletime between each select */
 
-#define UAMOKIP_MAX 256 /* Max number of allowed UAM IP addresses */
-#define UAMOKNET_MAX 10 /* Max number of allowed UAM networks */
+#define MAX_PASS_THROUGHS 256 /* Max number of allowed UAM pass-throughs */
 
 #define UAMSERVER_MAX 8
+
+typedef struct pass_through_t {
+  struct in_addr host;              /* IP or Network */
+  struct in_addr mask;              /* Netmask */
+  char proto;                       /* TCP, UDP, or ICMP */
+  short port;                       /* TCP or UDP Port */
+} pass_through;
 
 struct options_t {
   int initialized;
@@ -106,14 +112,13 @@ struct options_t {
 
   struct in_addr uamlisten;      /* IP address of local authentication */
   int uamport;                   /* TCP port to listen to */
-  struct in_addr uamokip[UAMOKIP_MAX]; /* List of allowed IP addresses */
-  int uamokiplen;                /* Number of allowed IP addresses */
-  struct in_addr uamokaddr[UAMOKNET_MAX]; /* List of allowed network IP */
-  struct in_addr uamokmask[UAMOKNET_MAX]; /* List of allowed network mask */
-  int uamoknetlen;               /* Number of networks */
-  int uamanydns;                 /* Allow client to use any DNS server */
+  int uamuiport;                 /* TCP port to listen to */
 
   struct in_addr uamlogout;      /* IP address of HTTP auto-logout */
+
+  int uamanydns;                 /* Allow any dns server */
+  pass_through pass_throughs[MAX_PASS_THROUGHS];
+  int num_pass_throughs;
 
   /* MAC Authentication */
   int macauth;                   /* Use MAC authentication */
@@ -121,11 +126,14 @@ struct options_t {
   int macoklen;                   /* Number of MAC addresses */
   char* macsuffix;               /* Suffix to add to MAC address */
   char* macpasswd;               /* Password to use for MAC authentication */  
+  int macallowlocal;             /* Do not use RADIUS for authenticating the macallowed */
 
   int wpaguests; /* Allow WPS "Guest" access */
 
   /* local content */
   char *wwwdir;
+  char *wwwbin;
+  char *uamui;
   char *localusers;
 
   /* Admin RADIUS Authentication & Configuration */

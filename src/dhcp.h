@@ -368,12 +368,7 @@ struct dhcp_t {
   uint16_t uamport;     /* TCP port to redirect HTTP requests to */
   struct in_addr *authip; /* IP address of authentication server */
   int authiplen;        /* Number of authentication server IP addresses */
-  int anydns;           /* Allow client to use any DNS */
-  struct ippool_t *iphash; /* Hash table for uamallowed */
-  struct ippoolm_t *iphashm; /* Hash table members for uamallowed */
-  struct in_addr *uamokaddr; /* Allowed network IP addresses */
-  struct in_addr *uamokmask; /* Allowed network IP masks */
-  int uamoknetlen;          /* Number of allowed networks */
+  int anydns;           /* Allow any dns server */
 
   /* Connection management */
   struct dhcp_conn_t *conn;

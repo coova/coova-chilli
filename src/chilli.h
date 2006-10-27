@@ -82,6 +82,8 @@ struct app_conn_t {
   struct app_conn_t *next;    /* Next in linked list. 0: Last */
   struct app_conn_t *prev;    /* Previous in linked list. 0: First */
 
+  struct session_params params; /* Session parameters */
+
   /* Pointers to protocol handlers */
   void *uplink;                  /* Uplink network interface (Internet) */
   void *dnlink;                  /* Downlink network interface (Wireless) */
@@ -102,23 +104,11 @@ struct app_conn_t {
   uint32_t types;
   uint8_t ms2succ[MS2SUCCSIZE];
   int ms2succlen;
-  char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
-  long int sessiontimeout;
-  long int idletimeout;
   uint8_t statebuf[RADIUS_ATTR_VLEN+1];
   int statelen;
   uint8_t classbuf[RADIUS_ATTR_VLEN+1];
   int classlen;
-  char filteridbuf[RADIUS_ATTR_VLEN+1];
-  int filteridlen;
-  int bandwidthmaxup;
-  int bandwidthmaxdown;
-  int maxinputoctets;
-  int maxoutputoctets;
-  int maxtotaloctets;
-  time_t sessionterminatetime;
-  int require_uam_auth;
-  
+
   /* Radius proxy stuff */
   /* Parameters are initialised whenever a radius proxy request is received */
   /* Only one outstanding request allowed at a time */
@@ -152,7 +142,6 @@ struct app_conn_t {
   /* Accounting */
   struct timeval start_time;
   struct timeval interim_time;
-  uint32_t interim_interval;   /* Seconds. 0 = No interim accounting */
   uint32_t input_packets;
   uint32_t output_packets;
   uint64_t input_octets;
