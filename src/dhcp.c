@@ -70,7 +70,19 @@ void dhcp_list(struct dhcp_t *this, int sock, int withinfo)
   char info[1024];
   int ilen = 0;
 
-  while (conn && conn->inuse) {
+  while (conn) {
+    dhcp_print(this,sock,withinfo,conn);
+    conn = conn->next;
+  }
+}
+
+void dhcp_print(struct dhcp_t *this, int sock, int withinfo, struct dhcp_conn_t *conn)
+{
+  char line[2048];
+  char info[1024];
+  int ilen = 0;
+
+  if (conn && conn->inuse) {
     if (withinfo && this->cb_getinfo)
       ilen = this->cb_getinfo(conn, info, sizeof(info));
     write(sock, line, 
@@ -80,7 +92,6 @@ void dhcp_list(struct dhcp_t *this, int sock, int withinfo)
 		   conn->hismac[3], conn->hismac[4], conn->hismac[5],
 		   inet_ntoa(conn->hisip), dhcp_state2name(conn->authstate), 
 		   ilen, info));
-    conn = conn->next;
   }
 }
 

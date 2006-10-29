@@ -2269,7 +2269,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 
 
   if (options.debug)
-    log_dbg("Looking for session [username=%.*s,sessionid=%.*s]\n", 
+    log_dbg("Looking for session [username=%.*s,sessionid=%.*s]", 
 	    uattr->l-2, uattr->v.t, sattr ? sattr->l-2 : 3, sattr ? sattr->v.t : "all");
   
   for (appconn = firstusedconn; appconn; appconn = appconn->next) {
@@ -2286,7 +2286,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 	log_dbg("Found session\n");
 
       if (iscoa)
-	config_radius_session(appconn, pack, 0);
+	config_radius_session(&appconn->params, pack, 0);
       else
 	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
 
@@ -2829,17 +2829,49 @@ static int cmdsock_accept(int sock) {
   }
 
   switch(req.type) {
-  case CMDSOCK_LIST:
-    if (dhcp) dhcp_list(dhcp, csock, 1);
-    break;
   case CMDSOCK_DHCP_LIST:
     if (dhcp) dhcp_list(dhcp, csock, 0);
     break;
   case CMDSOCK_DHCP_RELEASE:
     if (dhcp) dhcp_release_mac(dhcp, req.data.mac);
     break;
+  case CMDSOCK_LIST:
+    if (dhcp) dhcp_list(dhcp, csock, 1);
+    break;
+  case CMDSOCK_SHOW:
+    if (dhcp) {
+      struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
+      log_dbg("looking to authorized session %s",inet_ntoa(req.data.sess.ip));
+      while (dhcpconn && dhcpconn->inuse) {
+	if (dhcpconn->peer) {
+	  struct app_conn_t * appconn = (struct app_conn_t*) dhcpconn->peer;
+	  if (appconn->hisip.s_addr == req.data.sess.ip.s_addr) {
+	    log_dbg("remotely authorized session %s",appconn->params.sessionid);
+	    memcpy(&appconn->params, &req.data.sess.params, sizeof(req.data.sess.params));
+	    dnprot_accept(appconn);
+	    break;
+	  }
+	}
+	dhcpconn = dhcpconn->next;
+      }
+    }
+    break;
   case CMDSOCK_AUTHORIZE:
     if (dhcp) {
+      struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
+      log_dbg("looking to authorized session %s",inet_ntoa(req.data.sess.ip));
+      while (dhcpconn && dhcpconn->inuse) {
+	if (dhcpconn->peer) {
+	  struct app_conn_t * appconn = (struct app_conn_t*) dhcpconn->peer;
+	  if (appconn->hisip.s_addr == req.data.sess.ip.s_addr) {
+	    log_dbg("remotely authorized session %s",appconn->params.sessionid);
+	    memcpy(&appconn->params, &req.data.sess.params, sizeof(req.data.sess.params));
+	    dnprot_accept(appconn);
+	    break;
+	  }
+	}
+	dhcpconn = dhcpconn->next;
+      }
     }
     break;
   default:

@@ -482,4 +482,6 @@ void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr);
 
 void dhcp_list(struct dhcp_t *this, int sock, int withinfo);
 
+void dhcp_print(struct dhcp_t *this, int sock, int withinfo, struct dhcp_conn_t *conn);
+
 #endif	/* !_DHCP_H */

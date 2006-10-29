@@ -54,8 +54,6 @@
 #define REDIR_CHALLENGETIMEOUT1 300 /* Seconds */
 #define REDIR_CHALLENGETIMEOUT2 600 /* Seconds */
 
-#define REDIR_SESSIONID_LEN 17
-
 #define REDIR_URL_LEN    2048
 
 #define REDIR_LOGIN      1
@@ -79,6 +77,7 @@
 #define REDIR_ABORT_NAK  57 /* Reply to /abortlogin */
 
 #define REDIR_ETH_ALEN  6
+#define REDIR_SESSIONID_LEN 17
 
 struct session_params {
   char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */

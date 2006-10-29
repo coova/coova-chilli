@@ -1,16 +1,20 @@
 #ifndef CMDSOCK
 #define CMDSOCK
 
-#define  CMDSOCK_LIST           0
-#define  CMDSOCK_DHCP_LIST      1
-#define  CMDSOCK_DHCP_RELEASE   2
-#define  CMDSOCK_AUTHORIZE      3
+#define  CMDSOCK_DHCP_LIST      0
+#define  CMDSOCK_DHCP_RELEASE   1
+#define  CMDSOCK_LIST           2
+#define  CMDSOCK_SHOW           3
+#define  CMDSOCK_AUTHORIZE      4
 
 struct cmdsock_request { 
-  int type;
+  unsigned char type;
   union {
     unsigned char mac[DHCP_ETH_ALEN];
-    struct session_params params;
+    struct cmdsock_session {
+      struct in_addr ip;
+      struct session_params params;
+    } sess;
   } data;
 }  __attribute__((packed));
 

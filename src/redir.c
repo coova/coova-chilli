@@ -1356,7 +1356,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   unsigned char user_password[REDIR_MD5LEN+1];
   unsigned char chap_challenge[REDIR_MD5LEN];
   unsigned char tmp[REDIR_MD5LEN+1];
-  char u[128]; char p[128];
+  char u[256]; char p[256];
   size_t sz=1024;
   int len, match=0;
   char *line=0;
@@ -1413,7 +1413,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
       char *pl=line, *pu=u, *pp=p;
       while (*pl && *pl != ':') *pu++ = *pl++;
       if (*pl == ':') *pl++;
-      while (*pl && *pl != '\n') *pp++ = *pl++;
+      while (*pl && *pl != ':' && *pl != '\n') *pp++ = *pl++;
       *pu = 0; *pp = 0;
 
       if (!strcmp(conn->username, u)) {
