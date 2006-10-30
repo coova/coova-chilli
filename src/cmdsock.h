@@ -13,6 +13,8 @@ struct cmdsock_request {
     unsigned char mac[DHCP_ETH_ALEN];
     struct cmdsock_session {
       struct in_addr ip;
+      char username[256];
+      char sessionid[17];
       struct session_params params;
     } sess;
   } data;

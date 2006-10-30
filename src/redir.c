@@ -988,7 +988,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       if (redir_getparam(redir, buffer, "ident", conn->ident, sizeof(conn->ident)))
 	strcpy(conn->ident, "0"); /* default value ident = 0 */
       
-      if (redir_getparam(redir, conn->qs, "username", conn->username, sizeof(conn->username))) {
+      if (redir_getparam(redir, conn->qs, "username", 
+			 conn->username, sizeof(conn->username))) {
 	if (optionsdebug) log_dbg("No username found!");
 	return -1;
       }
@@ -1060,7 +1061,6 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   char *tz;
   int result;
   struct redir_conn_t *conn = (struct redir_conn_t*) cbp;
-
 
   if (optionsdebug)
     log_dbg("Received access request confirmation from radius server\n");
@@ -1258,7 +1258,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*) conn->params.sessionid, REDIR_SESSIONID_LEN-1);
+		 (uint8_t*) conn->sessionid, REDIR_SESSIONID_LEN-1);
 
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
@@ -1723,7 +1723,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 		  NULL, conn.hismac, &conn.hisip);
       redir_close();
     }
-
 
     if (is_local_user(redir, &conn)) { 
        conn.response = REDIR_SUCCESS;

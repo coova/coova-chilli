@@ -80,9 +80,8 @@
 #define REDIR_SESSIONID_LEN 17
 
 struct session_params {
-  char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
   char filteridbuf[RADIUS_ATTR_VLEN+1];
-  char filteridlen;
+  unsigned char filteridlen;
   unsigned long bandwidthmaxup;
   unsigned long bandwidthmaxdown;
   unsigned long maxinputoctets;
@@ -93,14 +92,15 @@ struct session_params {
   unsigned short interim_interval;     /* Seconds. 0 = No interim accounting */
   time_t sessionterminatetime;
   char require_uam_auth;
-};
+} __attribute__((packed));
 
 struct redir_conn_t {
   /* Parameters from HTTP request */
   int type; /* REDIR_LOGOUT, LOGIN, PRELOGIN, CHALLENGE, MSDOWNLOAD */
-  char username[REDIR_USERNAMESIZE];
-  char userurl[REDIR_USERURLSIZE];
 
+  char username[REDIR_USERNAMESIZE];
+  char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
+  char userurl[REDIR_USERURLSIZE];
   char qs[REDIR_MAXQUERYSTRING];
   char useragent[REDIR_USERAGENTSIZE];
   char lang[REDIR_LANGSIZE];
@@ -122,15 +122,16 @@ struct redir_conn_t {
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
   int response; /* 0: No radius response yet; 1:Reject; 2:Accept; 3:Timeout */
-  char redirurlbuf[RADIUS_ATTR_VLEN+1];
-  int redirurllen;
   char *redirurl;
   char replybuf[RADIUS_ATTR_VLEN+1];
   char *reply;
+
+  char redirurlbuf[RADIUS_ATTR_VLEN+1];
+  unsigned char redirurllen;
   uint8_t statebuf[RADIUS_ATTR_VLEN+1];
-  int statelen;
+  unsigned char statelen;
   uint8_t classbuf[RADIUS_ATTR_VLEN+1];
-  int classlen;
+  unsigned char classlen;
 
   uint64_t input_octets;     /* Transferred in callback */
   uint64_t output_octets;    /* Transferred in callback */
@@ -182,7 +183,7 @@ struct redir_msg_t {
   uint8_t classbuf[RADIUS_ATTR_VLEN+1];
   int classlen;
   struct session_params params;
-};
+} __attribute__((packed));
 
 
 extern int redir_new(struct redir_t **redir,

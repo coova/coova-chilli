@@ -82,6 +82,9 @@ struct app_conn_t {
   struct app_conn_t *next;    /* Next in linked list. 0: Last */
   struct app_conn_t *prev;    /* Previous in linked list. 0: First */
 
+  char username[REDIR_USERNAMESIZE];
+  char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
+
   struct session_params params; /* Session parameters */
 
   /* Pointers to protocol handlers */

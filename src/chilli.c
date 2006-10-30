@@ -75,7 +75,7 @@ void static sighup_handler(int signum) {
 void static set_sessionid(struct app_conn_t *appconn) {
   struct timeval timenow;
   gettimeofday(&timenow, NULL);
-  (void) snprintf(appconn->params.sessionid, sizeof(appconn->params.sessionid), "%.8x%.8x",
+  (void) snprintf(appconn->sessionid, sizeof(appconn->sessionid), "%.8x%.8x",
 	   (int) timenow.tv_sec, appconn->unit);
 }
 
@@ -230,7 +230,7 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("CALLED_STATION_ID", NULL, 0, NULL, appconn->ourmac, NULL);
   set_env("NAS_ID", options.radiusnasid, 0, NULL, NULL, NULL);
   set_env("NAS_PORT_TYPE", "19", 0, NULL, NULL, NULL);
-  set_env("ACCT_SESSION_ID", appconn->params.sessionid, 0, NULL, NULL, NULL);
+  set_env("ACCT_SESSION_ID", appconn->sessionid, 0, NULL, NULL, NULL);
   l = appconn->params.interim_interval;
   set_env("ACCT_INTERIM_INTERVAL", NULL, 0, NULL, NULL, &l);
   set_env("WISPR_LOCATION_ID", options.radiuslocationid, 0, NULL, NULL, NULL);
@@ -587,7 +587,7 @@ int static macauth_radius(struct app_conn_t *appconn) {
 		   (uint8_t*) options.radiusnasid, strlen(options.radiusnasid));
 
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*) appconn->params.sessionid, REDIR_SESSIONID_LEN-1);
+		 (uint8_t*) appconn->sessionid, REDIR_SESSIONID_LEN-1);
 
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
 			options.radiusnasporttype, NULL, 0);
@@ -824,7 +824,7 @@ int static acct_req(struct app_conn_t *conn, int status_type)
 
 
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*) conn->params.sessionid, REDIR_SESSIONID_LEN-1);
+		 (uint8_t*) conn->sessionid, REDIR_SESSIONID_LEN-1);
 
   if ((status_type == RADIUS_STATUS_TYPE_STOP) ||
       (status_type == RADIUS_STATUS_TYPE_INTERIM_UPDATE)) {
@@ -2279,8 +2279,8 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 	(appconn->userlen == uattr->l-2 && 
 	 !memcmp(appconn->user, uattr->v.t, uattr->l-2)) &&
 	(!sattr || 
-	 (strlen(appconn->params.sessionid) == sattr->l-2 && 
-	  !strncasecmp(appconn->params.sessionid, sattr->v.t, sattr->l-2)))) {
+	 (strlen(appconn->sessionid) == sattr->l-2 && 
+	  !strncasecmp(appconn->sessionid, sattr->v.t, sattr->l-2)))) {
 
       if (options.debug)
 	log_dbg("Found session\n");
@@ -2460,8 +2460,8 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, char *b, int blen) {
   }
   
    return snprintf(b, blen, "%.*s %d %.*s %d/%d %d/%d %.*s", 
-		   appconn->params.sessionid[0] ? strlen(appconn->params.sessionid) : 1,
-		   appconn->params.sessionid[0] ? appconn->params.sessionid : "-",
+		   appconn->sessionid[0] ? strlen(appconn->sessionid) : 1,
+		   appconn->sessionid[0] ? appconn->sessionid : "-",
 		   appconn->authenticated,
 		   appconn->userlen ? appconn->userlen : 1,
 		   appconn->userlen ? appconn->user : "-",
@@ -2846,7 +2846,7 @@ static int cmdsock_accept(int sock) {
 	if (dhcpconn->peer) {
 	  struct app_conn_t * appconn = (struct app_conn_t*) dhcpconn->peer;
 	  if (appconn->hisip.s_addr == req.data.sess.ip.s_addr) {
-	    log_dbg("remotely authorized session %s",appconn->params.sessionid);
+	    log_dbg("remotely authorized session %s",appconn->sessionid);
 	    memcpy(&appconn->params, &req.data.sess.params, sizeof(req.data.sess.params));
 	    dnprot_accept(appconn);
 	    break;
@@ -2864,7 +2864,7 @@ static int cmdsock_accept(int sock) {
 	if (dhcpconn->peer) {
 	  struct app_conn_t * appconn = (struct app_conn_t*) dhcpconn->peer;
 	  if (appconn->hisip.s_addr == req.data.sess.ip.s_addr) {
-	    log_dbg("remotely authorized session %s",appconn->params.sessionid);
+	    log_dbg("remotely authorized session %s",appconn->sessionid);
 	    memcpy(&appconn->params, &req.data.sess.params, sizeof(req.data.sess.params));
 	    dnprot_accept(appconn);
 	    break;
@@ -2927,7 +2927,7 @@ int printstatus(struct app_conn_t *appconn)
 	apptemp->hismac[0], apptemp->hismac[1],
 	apptemp->hismac[2], apptemp->hismac[3],
 	apptemp->hismac[4], apptemp->hismac[5],
-	apptemp->params.sessionid,
+	apptemp->sessionid,
 	(apptemp->start_time).tv_sec,
 	apptemp->params.sessiontimeout,
 	apptemp->params.sessionterminatetime);
@@ -2945,7 +2945,7 @@ int printstatus(struct app_conn_t *appconn)
 	apptemp->hismac[0], apptemp->hismac[1],
 	apptemp->hismac[2], apptemp->hismac[3],
 	apptemp->hismac[4], apptemp->hismac[5],
-	apptemp->params.sessionid,
+	apptemp->sessionid,
 	(apptemp->start_time).tv_sec,
 	apptemp->params.sessiontimeout,
 	apptemp->params.sessionterminatetime);
