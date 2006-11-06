@@ -1030,7 +1030,7 @@ int
 dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 	 int usemac, uint8_t *mac, int promisc, 
 	 struct in_addr *listen, int lease, int allowdyn,
-	 struct in_addr *uamlisten, uint16_t uamport, int useeapol) {
+	 struct in_addr *uamlisten, uint16_t uamport, uint16_t uamuiport, int useeapol) {
   
   struct in_addr noaddr;
   
@@ -1125,6 +1125,7 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
   (*dhcp)->allowdyn = allowdyn;
   (*dhcp)->uamlisten.s_addr = uamlisten->s_addr;
   (*dhcp)->uamport = uamport;
+  (*dhcp)->uamuiport = uamuiport;
 
   /* Initialise call back functions */
   (*dhcp)->cb_data_ind = 0;
@@ -1220,6 +1221,10 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
   int i;
 
+  /* Allow localhost through network... */
+  if (pack->iph.daddr == INADDR_LOOPBACK)
+    return 0;
+
   /* Was it a DNS request? */
   if (((this->anydns) ||
        (pack->iph.daddr == conn->dns1.s_addr) ||
@@ -1246,7 +1251,8 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
   /* Was it a request for local redirection server? */
   if ((pack->iph.daddr == this->uamlisten.s_addr) &&
       (pack->iph.protocol == DHCP_IP_TCP) &&
-      (tcph->dst == htons(this->uamport)))
+      (tcph->dst == htons(this->uamport) ||
+      (tcph->dst == htons(this->uamuiport))))
     return 0; /* Destination was local redir server */
 
   /* Was it a request for a pass-through entry? */
@@ -1301,6 +1307,9 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
   int i;
 
+  /* Allow localhost through network... */
+  if (pack->iph.saddr == INADDR_LOOPBACK)
+    return 0;
   
   /* Was it a DNS reply? */
   if (((this->anydns) ||

@@ -305,7 +305,7 @@ static int redir_xmlreply(struct redir_t *redir,
 	       redir->radiuslocationname);
     }
     redir_stradd(dst, dstsize, 
-		 "<LoginURL>%s?res=smartclient&uamip=%s&uamport=%d&challenge=%s</LoginURL>\r\n",
+		 "<LoginURL>%s?res=smartclient&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
 		 redir->url, inet_ntoa(redir->addr), redir->port, hexchal);
     redir_stradd(dst, dstsize, 
 		 "<AbortLoginURL>http://%s:%d/abort</AbortLoginURL>\r\n",
@@ -703,14 +703,23 @@ int redir_new(struct redir_t **redir,
 
   /* Set up address */
   address.sin_family = AF_INET;
-  address.sin_addr.s_addr = addr->s_addr;
 #if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   address.sin_len = sizeof (struct sockaddr_in);
 #endif
 
   for (n = 0; n < 2 && (*redir)->fd[n]; n++) {
 
-    address.sin_port = htons(n == 1 ? uiport : port);
+    switch(n) {
+    case 0:
+      address.sin_addr.s_addr = addr->s_addr;
+      address.sin_port = htons(port);
+      break;
+    case 1:
+      /* XXX: binding to 0.0.0.0:uiport (should be configurable?) */
+      address.sin_addr.s_addr = INADDR_ANY;
+      address.sin_port = htons(uiport);
+      break;
+    }
 
     if (setsockopt((*redir)->fd[n], SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))) {
       log_err(errno, "setsockopt() failed");
@@ -1372,7 +1381,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
     return 0;
   }
 
-  {/*debug*/
+  if (options.debug) {/*debug*/
     char buffer[64];
     redir_chartohex(conn->uamchal, buffer);
     log_dbg("challenge: %s", buffer);
@@ -1388,7 +1397,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
     memcpy(chap_challenge, conn->uamchal, REDIR_MD5LEN);
   }
 
-  {/*debug*/
+  if (options.debug) {/*debug*/
     char buffer[64];
     redir_chartohex(chap_challenge, buffer);
     log_dbg("chap challenge: %s", buffer);
@@ -1559,7 +1568,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     msg.type = msg_type;
     msg.addr = address->sin_addr;
     memcpy(msg.uamchal, challenge, REDIR_MD5LEN);
-  {/*debug*/
+  if (options.debug) {/*debug*/
     log_dbg("---->>> resetting challenge: %s", hexchal);
   }/**/
   }
@@ -1630,14 +1639,17 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       if      (!strcmp(filename + (namelen - 5), ".html")) ctype = "text/html";
       else if (!strcmp(filename + (namelen - 4), ".gif"))  ctype = "image/gif";
       else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
+      else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
       else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
       else if (!strcmp(filename + (namelen - 4), ".chi"))  { ctype = "text/html"; parse = 1; }
 
       if (parse) {
 	FILE *f;
 	
-	if (!options.wwwbin)
+	if (!options.wwwbin) {
+	  log_err(0, "the 'wwwbin' setting must be configured for CGI use");
 	  redir_close();
+	}
 	
 	if (clear_nonblocking(socket.fd[0])) {
 	  log_err(errno, "fcntl() failed");

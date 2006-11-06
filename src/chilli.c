@@ -3074,7 +3074,8 @@ int chilli_main(int argc, char **argv)
     if (dhcp_new(&dhcp, APP_NUM_CONN, options.dhcpif,
 		 options.dhcpusemac, options.dhcpmac, options.dhcpusemac, 
 		 &options.dhcplisten, options.lease, 1, 
-		 &options.uamlisten, options.uamport, options.eapolenable)) {
+		 &options.uamlisten, options.uamport, options.uamuiport, 
+		 options.eapolenable)) {
       log_err(0, "Failed to create dhcp");
       exit(1);
     }
