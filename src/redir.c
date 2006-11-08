@@ -1045,6 +1045,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
   default:
     {
+      /* this is a redirection, check for logoutip! */
       snprintf(conn->userurl, sizeof(conn->userurl), "http://%s/%s%s%s", 
 	       host, path, conn->qs[0] ? "?" : "", conn->qs[0] ? conn->qs : "");
       if (optionsdebug) log_dbg("-->> Setting userurl=[%s]",conn->userurl);
