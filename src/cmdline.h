@@ -229,6 +229,12 @@ struct gengetopt_args_info
   char * localusers_arg;	/* File keep 'Local' usernames and passwords.  */
   char * localusers_orig;	/* File keep 'Local' usernames and passwords original value given at command line.  */
   const char *localusers_help; /* File keep 'Local' usernames and passwords help description.  */
+  char * postauthproxy_arg;	/* IP of an upstream transparent proxy.  */
+  char * postauthproxy_orig;	/* IP of an upstream transparent proxy original value given at command line.  */
+  const char *postauthproxy_help; /* IP of an upstream transparent proxy help description.  */
+  int postauthproxyport_arg;	/* Port of an upstream transparent proxy (default='0').  */
+  char * postauthproxyport_orig;	/* Port of an upstream transparent proxy original value given at command line.  */
+  const char *postauthproxyport_help; /* Port of an upstream transparent proxy help description.  */
   int wpaguests_flag;	/* Allow WPA 'Guest' access (default=off).  */
   const char *wpaguests_help; /* Allow WPA 'Guest' access help description.  */
   int chillixml_flag;	/* Use ChilliSpot XML in WISPr blocks (default=off).  */
@@ -306,6 +312,8 @@ struct gengetopt_args_info
   int swapoctets_given ;	/* Whether swapoctets was given.  */
   int usestatusfile_given ;	/* Whether usestatusfile was given.  */
   int localusers_given ;	/* Whether localusers was given.  */
+  int postauthproxy_given ;	/* Whether postauthproxy was given.  */
+  int postauthproxyport_given ;	/* Whether postauthproxyport was given.  */
   int wpaguests_given ;	/* Whether wpaguests was given.  */
   int chillixml_given ;	/* Whether chillixml was given.  */
 

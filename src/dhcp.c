@@ -1030,7 +1030,7 @@ int
 dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 	 int usemac, uint8_t *mac, int promisc, 
 	 struct in_addr *listen, int lease, int allowdyn,
-	 struct in_addr *uamlisten, uint16_t uamport, uint16_t uamuiport, int useeapol) {
+	 struct in_addr *uamlisten, uint16_t uamport, int useeapol) {
   
   struct in_addr noaddr;
   
@@ -1125,7 +1125,6 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
   (*dhcp)->allowdyn = allowdyn;
   (*dhcp)->uamlisten.s_addr = uamlisten->s_addr;
   (*dhcp)->uamport = uamport;
-  (*dhcp)->uamuiport = uamuiport;
 
   /* Initialise call back functions */
   (*dhcp)->cb_data_ind = 0;
@@ -1251,8 +1250,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
   /* Was it a request for local redirection server? */
   if ((pack->iph.daddr == this->uamlisten.s_addr) &&
       (pack->iph.protocol == DHCP_IP_TCP) &&
-      (tcph->dst == htons(this->uamport) ||
-      (tcph->dst == htons(this->uamuiport))))
+      (tcph->dst == htons(this->uamport)))
     return 0; /* Destination was local redir server */
 
   /* Was it a request for a pass-through entry? */
@@ -1293,6 +1291,70 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
 
   return -1; /* Something else */
 
+}
+
+int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct dhcp_ippacket_t *pack, int len, int isreturn) {
+  struct dhcp_t *this = conn->parent;
+  struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
+  struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
+
+  if (options.postauth_proxyport > 0) {
+    if (isreturn) {
+      if ((pack->iph.protocol == DHCP_IP_TCP) &&
+	  (pack->iph.saddr == options.postauth_proxyip.s_addr) &&
+	  (tcph->src == htons(options.postauth_proxyport))) {
+	int n;
+	for (n=0; n<DHCP_DNAT_MAX; n++) {
+	  if (tcph->dst == conn->dnatport[n]) {
+	    pack->iph.saddr = conn->dnatip[n];
+	    tcph->src = htons(DHCP_HTTP);
+	    (void)dhcp_tcp_check(pack, len);
+	    (void)dhcp_ip_check((struct dhcp_ippacket_t*) pack);
+	    return 0; /* It was a DNAT reply */
+	  }
+	}
+	return 0; 
+      }
+    }
+    else {
+      if ((pack->iph.protocol == DHCP_IP_TCP) &&
+	  (tcph->dst == htons(DHCP_HTTP))) {
+
+	int n;
+	int pos=-1;
+
+	for (n = 0; n<this->authiplen; n++)
+	  if ((pack->iph.daddr == this->authip[n].s_addr))
+	      return 0;
+	
+	for (n=0; n<DHCP_DNAT_MAX; n++) {
+	  if ((conn->dnatip[n] == pack->iph.daddr) && 
+	      (conn->dnatport[n] == tcph->src)) {
+	    pos = n;
+	    break;
+	  }
+	}
+	
+	if (pos==-1) { /* Save for undoing */
+	  conn->dnatip[conn->nextdnat] = pack->iph.daddr; 
+	  conn->dnatport[conn->nextdnat] = tcph->src;
+	  conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
+	}
+	
+	log_dbg("rewriting packet for post-auth proxy %s:%d",
+		inet_ntoa(options.postauth_proxyip),
+		options.postauth_proxyport);
+	
+	pack->iph.daddr = options.postauth_proxyip.s_addr;
+	tcph->dst = htons(options.postauth_proxyport);
+	(void)dhcp_tcp_check(pack, len);
+	(void)dhcp_ip_check((struct dhcp_ippacket_t*) pack);
+	return 0;
+      }
+    }
+  }
+
+  return -1; /* Something else */
 }
 
 /**
@@ -1978,20 +2040,20 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
 }
 
 
-int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack,
-		    int len)
+int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
 {
-  struct dhcp_conn_t *conn;
-  struct in_addr ourip;
   unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  struct in_addr addr;
   struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
+  struct dhcp_conn_t *conn;
+  struct in_addr ourip;
+  struct in_addr addr;
 
   if (this->debug) printf("DHCP packet received\n");
   
   /* Check that MAC address is our MAC or Broadcast */
-  if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN)))
+  if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
+      (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN)))
     return 0;
 
   /* Check to see if we know MAC address. */
@@ -2013,14 +2075,13 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack,
   }
 
   /* Return if we do not know peer */
-  if (!conn) 
-    return 0;
+  if (!conn) return 0;
 
   /* Request an IP address */
   if ((conn->authstate == DHCP_AUTH_NONE) && 
       (pack->iph.daddr != 0) && (pack->iph.daddr != 0xffffffff)) {
     addr.s_addr = pack->iph.saddr;
-    if (this ->cb_request)
+    if (this->cb_request)
       if (this->cb_request(conn, &addr)) {
 	return 0; /* Ignore request if IP address was not allocated */
       }
@@ -2063,7 +2124,8 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack,
 
   switch (conn->authstate) {
   case DHCP_AUTH_PASS:
-    /* Pass packets unmodified */
+    /* Check for post-auth proxy, otherwise pass packets unmodified */
+    dhcp_postauthDNAT(conn, pack, len, 0);
     break; 
   case DHCP_AUTH_UNAUTH_TOS:
     /* Set TOS to specified value (unauthenticated) */
@@ -2085,8 +2147,8 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack,
     return 0;
   }
 
-  if ((conn->hisip.s_addr) && (this ->cb_data_ind)) {
-    this ->cb_data_ind(conn, &pack->iph, len-DHCP_ETH_HLEN);
+  if ((conn->hisip.s_addr) && (this->cb_data_ind)) {
+    this->cb_data_ind(conn, &pack->iph, len-DHCP_ETH_HLEN);
   }
   
   return 0;
@@ -2103,16 +2165,10 @@ int dhcp_decaps(struct dhcp_t *this)  /* DHCP Indication */
   struct dhcp_ippacket_t packet;
   int length;
   
-  /*struct dhcp_conn_t *conn;*/
-  /*struct in_addr ourip;*/
-  /*unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};*/
-
   if (this->debug) printf("DHCP packet received\n");
 
   if ((length = recv(this->fd, &packet, sizeof(packet), 0)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "recv(fd=%d, len=%d) failed",
-	    this->fd, sizeof(packet));
+    log_err(errno, "recv(fd=%d, len=%d) failed", this->fd, sizeof(packet));
     return -1;
   }
 
@@ -2140,6 +2196,8 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, unsigned len)
   
   switch (conn->authstate) {
   case DHCP_AUTH_PASS:
+    dhcp_postauthDNAT(conn, &packet, length, 1);
+    break;
   case DHCP_AUTH_UNAUTH_TOS:
   case DHCP_AUTH_AUTH_TOS:
     /* Pass packets unmodified */

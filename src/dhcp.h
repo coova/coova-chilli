@@ -264,7 +264,7 @@ struct dhcp_t; /* Forward declaration */
 
 #define DHCP_DOMAIN_LEN      30
 
-#define DHCP_DNAT_MAX 10
+#define DHCP_DNAT_MAX 56
 
 struct dhcp_conn_t {
   int inuse;                    /* Free = 0; Inuse = 1 */
@@ -366,7 +366,6 @@ struct dhcp_t {
   int allowdyn;         /* Allow allocation of IP address on DHCP request */
   struct in_addr uamlisten; /* IP address to redirect HTTP requests to */
   uint16_t uamport;     /* TCP port to redirect HTTP requests to */
-  uint16_t uamuiport;   /* TCP port to HTTP internal ui */
   struct in_addr *authip; /* IP address of authentication server */
   int authiplen;        /* Number of authentication server IP addresses */
   int anydns;           /* Allow any dns server */
@@ -403,7 +402,7 @@ extern int
 dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 	 int usemac, uint8_t *mac, int promisc, 
 	 struct in_addr *listen, int lease, int allowdyn,
-	 struct in_addr *uamlisten, uint16_t uamport, uint16_t uamuiport,
+	 struct in_addr *uamlisten, uint16_t uamport, 
 	 int useeapol);
 
 extern int

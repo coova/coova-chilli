@@ -82,6 +82,9 @@ struct options_t {
   struct in_addr proxymask;      /* IP mask of proxy client(s) */
   char* proxysecret;             /* Proxy shared secret */
 
+  struct in_addr postauth_proxyip;  /* IP address to proxy http to */
+  int postauth_proxyport;           /* TCP port to proxy to */
+
   /* DHCP parameters */
   int nodhcp;                    /* Do not use DHCP */
   char* dhcpif;                 /* Interface: eth0 */

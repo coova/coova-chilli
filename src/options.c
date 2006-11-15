@@ -214,6 +214,7 @@ int process_options(int argc, char **argv, int minimal) {
   options.coanoipcheck = args_info.coanoipcheck_flag;
   options.proxyport = args_info.proxyport_arg;
   options.txqlen = args_info.txqlen_arg;
+  options.postauth_proxyport = args_info.postauthproxyport_arg;
 
   if (!reconfiguring) { 
     if (!args_info.dhcpif_arg) {
@@ -531,6 +532,16 @@ int process_options(int argc, char **argv, int minimal) {
     }
     else {
       memcpy(&options.uamlogout.s_addr, host->h_addr, host->h_length);
+    }
+  }
+
+  if (args_info.postauthproxy_arg) {
+    if (!(host = gethostbyname(args_info.postauthproxy_arg))) {
+      log_warn(0, "Invalid postauthproxy address: %s! [%s]", 
+	       args_info.postauthproxy_arg, strerror(errno));
+    }
+    else {
+      memcpy(&options.postauth_proxyip.s_addr, host->h_addr, host->h_length);
     }
   }
 

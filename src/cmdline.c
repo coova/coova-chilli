@@ -98,6 +98,8 @@ const char *gengetopt_args_info_help[] = {
   "      --swapoctets              Swap the meaning of input/output octets/packets \n                                   (default=off)",
   "      --usestatusfile           Use the status file to keep track of sessions  \n                                  (default=off)",
   "      --localusers=STRING       File keep 'Local' usernames and passwords",
+  "      --postauthproxy=STRING    IP of an upstream transparent proxy",
+  "      --postauthproxyport=INT   Port of an upstream transparent proxy  \n                                  (default=`0')",
   "      --wpaguests               Allow WPA 'Guest' access  (default=off)",
   "      --chillixml               Use ChilliSpot XML in WISPr blocks  \n                                  (default=off)",
     0
@@ -223,6 +225,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->swapoctets_given = 0 ;
   args_info->usestatusfile_given = 0 ;
   args_info->localusers_given = 0 ;
+  args_info->postauthproxy_given = 0 ;
+  args_info->postauthproxyport_given = 0 ;
   args_info->wpaguests_given = 0 ;
   args_info->chillixml_given = 0 ;
 }
@@ -359,6 +363,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->usestatusfile_flag = 0;
   args_info->localusers_arg = NULL;
   args_info->localusers_orig = NULL;
+  args_info->postauthproxy_arg = NULL;
+  args_info->postauthproxy_orig = NULL;
+  args_info->postauthproxyport_arg = 0;
+  args_info->postauthproxyport_orig = NULL;
   args_info->wpaguests_flag = 0;
   args_info->chillixml_flag = 0;
   
@@ -443,8 +451,10 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->swapoctets_help = gengetopt_args_info_help[69] ;
   args_info->usestatusfile_help = gengetopt_args_info_help[70] ;
   args_info->localusers_help = gengetopt_args_info_help[71] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[72] ;
-  args_info->chillixml_help = gengetopt_args_info_help[73] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[72] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[73] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[74] ;
+  args_info->chillixml_help = gengetopt_args_info_help[75] ;
   
 }
 
@@ -1025,6 +1035,21 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
       free (args_info->localusers_orig); /* free previous argument */
       args_info->localusers_orig = 0;
     }
+  if (args_info->postauthproxy_arg)
+    {
+      free (args_info->postauthproxy_arg); /* free previous argument */
+      args_info->postauthproxy_arg = 0;
+    }
+  if (args_info->postauthproxy_orig)
+    {
+      free (args_info->postauthproxy_orig); /* free previous argument */
+      args_info->postauthproxy_orig = 0;
+    }
+  if (args_info->postauthproxyport_orig)
+    {
+      free (args_info->postauthproxyport_orig); /* free previous argument */
+      args_info->postauthproxyport_orig = 0;
+    }
   
   clear_given (args_info);
 }
@@ -1501,6 +1526,20 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s\n", "localusers");
     }
   }
+  if (args_info->postauthproxy_given) {
+    if (args_info->postauthproxy_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "postauthproxy", args_info->postauthproxy_orig);
+    } else {
+      fprintf(outfile, "%s\n", "postauthproxy");
+    }
+  }
+  if (args_info->postauthproxyport_given) {
+    if (args_info->postauthproxyport_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "postauthproxyport", args_info->postauthproxyport_orig);
+    } else {
+      fprintf(outfile, "%s\n", "postauthproxyport");
+    }
+  }
   if (args_info->wpaguests_given) {
     fprintf(outfile, "%s\n", "wpaguests");
   }
@@ -1828,6 +1867,8 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "swapoctets",	0, NULL, 0 },
         { "usestatusfile",	0, NULL, 0 },
         { "localusers",	1, NULL, 0 },
+        { "postauthproxy",	1, NULL, 0 },
+        { "postauthproxyport",	1, NULL, 0 },
         { "wpaguests",	0, NULL, 0 },
         { "chillixml",	0, NULL, 0 },
         { NULL,	0, NULL, 0 }
@@ -3166,6 +3207,46 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             if (args_info->localusers_orig)
               free (args_info->localusers_orig); /* free previous string */
             args_info->localusers_orig = gengetopt_strdup (optarg);
+          }
+          /* IP of an upstream transparent proxy.  */
+          else if (strcmp (long_options[option_index].name, "postauthproxy") == 0)
+          {
+            if (local_args_info.postauthproxy_given)
+              {
+                fprintf (stderr, "%s: `--postauthproxy' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->postauthproxy_given && ! override)
+              continue;
+            local_args_info.postauthproxy_given = 1;
+            args_info->postauthproxy_given = 1;
+            if (args_info->postauthproxy_arg)
+              free (args_info->postauthproxy_arg); /* free previous string */
+            args_info->postauthproxy_arg = gengetopt_strdup (optarg);
+            if (args_info->postauthproxy_orig)
+              free (args_info->postauthproxy_orig); /* free previous string */
+            args_info->postauthproxy_orig = gengetopt_strdup (optarg);
+          }
+          /* Port of an upstream transparent proxy.  */
+          else if (strcmp (long_options[option_index].name, "postauthproxyport") == 0)
+          {
+            if (local_args_info.postauthproxyport_given)
+              {
+                fprintf (stderr, "%s: `--postauthproxyport' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->postauthproxyport_given && ! override)
+              continue;
+            local_args_info.postauthproxyport_given = 1;
+            args_info->postauthproxyport_given = 1;
+            args_info->postauthproxyport_arg = strtol (optarg, &stop_char, 0);
+            if (!(stop_char && *stop_char == '\0')) {
+              fprintf(stderr, "%s: invalid numeric value: %s\n", argv[0], optarg);
+              goto failure;
+            }
+            if (args_info->postauthproxyport_orig)
+              free (args_info->postauthproxyport_orig); /* free previous string */
+            args_info->postauthproxyport_orig = gengetopt_strdup (optarg);
           }
           /* Allow WPA 'Guest' access.  */
           else if (strcmp (long_options[option_index].name, "wpaguests") == 0)
