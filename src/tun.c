@@ -21,7 +21,16 @@
 
 #include "system.h"
 #include "tun.h"
+#include "ippool.h"
+#include "radius.h"
+#include "radius_wispr.h"
+#include "radius_chillispot.h"
+#include "redir.h"
 #include "syserr.h"
+#include "dhcp.h"
+#include "cmdline.h"
+#include "chilli.h"
+#include "options.h"
 
 
 #if defined(__linux__)
@@ -871,20 +880,13 @@ int tun_encaps(struct tun_t *tun, void *pack, unsigned len)
 
 int tun_runscript(struct tun_t *tun, char* script) {
   char saddr[TUN_ADDRSIZE];
-  char snet[TUN_ADDRSIZE];
   char smask[TUN_ADDRSIZE];
-  int status;
+  char b[TUN_ADDRSIZE];
   struct in_addr net;
+  int status;
 
   net.s_addr = tun->addr.s_addr & tun->netmask.s_addr;
 
-  strncpy(saddr, inet_ntoa(tun->addr), sizeof(saddr));
-  saddr[sizeof(saddr)-1] = 0;
-  strncpy(snet, inet_ntoa(net), sizeof(snet));
-  snet[sizeof(snet)-1] = 0;
-  strncpy(smask, inet_ntoa(tun->netmask), sizeof(smask));
-  smask[sizeof(smask)-1] = 0;
-  
   if ((status = fork()) < 0) {
     sys_err(LOG_ERR, __FILE__, __LINE__, errno,
 	    "fork() returned -1!");
@@ -896,34 +898,58 @@ int tun_runscript(struct tun_t *tun, char* script) {
   }
   
 /*
+#ifdef HAVE_CLEARENV
   if (clearenv() != 0) {
     sys_err(LOG_ERR, __FILE__, __LINE__, errno,
 	    "clearenv() did not return 0!");
     exit(0);
   }
+#endif
 */
   
   if (setenv("DEV", tun->devname, 1) != 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "setenv() did not return 0!");
+    log_err(errno, "setenv() did not return 0!");
     exit(0);
   }
+
+  strncpy(saddr, inet_ntoa(tun->addr), sizeof(saddr));
+  saddr[sizeof(saddr)-1] = 0;
   if (setenv("ADDR", saddr, 1 ) != 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "setenv() did not return 0!");
+    log_err(errno, "setenv() did not return 0!");
     exit(0);
   }
-  if (setenv("NET", snet, 1 ) != 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "setenv() did not return 0!");
-    exit(0);
-  }
+
+  strncpy(smask, inet_ntoa(tun->netmask), sizeof(smask));
+  smask[sizeof(smask)-1] = 0;
   if (setenv("MASK", smask, 1) != 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "setenv() did not return 0!");
+    log_err(errno, "setenv() did not return 0!");
     exit(0);
   }
-  
+
+  strncpy(b, inet_ntoa(net), sizeof(b));
+  b[sizeof(b)-1] = 0;
+  if (setenv("NET", b, 1 ) != 0) {
+    log_err(errno, "setenv() did not return 0!");
+    exit(0);
+  }
+
+  snprintf(b, sizeof(b), "%d", options.uamport);
+  if (setenv("UAMPORT", b, 1 ) != 0) {
+    log_err(errno, "setenv() did not return 0!");
+    exit(0);
+  }
+
+  snprintf(b, sizeof(b), "%d", options.uamuiport);
+  if (setenv("UAMUIPORT", b, 1 ) != 0) {
+    log_err(errno, "setenv() did not return 0!");
+    exit(0);
+  }
+
+  if (setenv("DHCPIF", options.dhcpif ? options.dhcpif : "", 1 ) != 0) {
+    log_err(errno, "setenv() did not return 0!");
+    exit(0);
+  }
+
   if (execl(script, script, tun->devname, saddr, smask, (char *) 0) != 0) {
     sys_err(LOG_ERR, __FILE__, __LINE__, errno,
 	    "execl() did not return 0!");

@@ -1574,9 +1574,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     }
   }
 
-  void redir_challenge_timeout() {
-  }
-
   memset(&socket,0,sizeof(socket));
 
   socket.fd[0] = infd;
