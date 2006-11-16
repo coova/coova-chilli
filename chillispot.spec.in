@@ -75,9 +75,9 @@ make clean
 %attr(755, root, root) /usr/sbin/test_radius
 %attr(755, root, root) /etc/rc.d/init.d/chilli
 
-%doc doc/chilli.conf
+%doc conf/chilli.conf
 %doc doc/chilli.init
-%doc doc/firewall.iptables
+%doc conf/firewall
 %doc doc/hotspotlogin.cgi
 %doc doc/dictionary.chillispot
 %doc COPYING

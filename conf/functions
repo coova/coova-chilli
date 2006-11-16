@@ -77,7 +77,6 @@ writeconfig() {
     [ "$HS_WEB_ADMIN" = "http"  ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:80"
     [ "$HS_WEB_ADMIN" = "https" ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:443"
     [ "$HS_LOCAL" = "on" ] && webadmin="$webadmin,$HS_UAMLISTEN:3443"
-    [ "$HS_MACAUTH" = "on" ] && addconfig2 "macauth"
     [ "$HS_MACAUTHMODE" = "local" ] && addconfig1 "macallowlocal"
     [ "$HS_USELOCALUSERS" = "on" ] && [ -s /etc/chilli/localusers ] && \
 	addconfig1 "localusers /etc/chilli/localusers"
@@ -98,6 +97,13 @@ $configs1
 EOF
     ) > $MAIN_CONF 
     if [ "x$HS_RADCONF" != "xon" ]; then 
+
+	[ "$HS_MACAUTH" = "on" ] && addconfig2 "macauth"
+	[ -n "$HS_POSTAUTH_PROXY" -a -n "$HS_POSTAUTH_PROXYPORT" ] && {
+	    addconfig2 "postauthproxy $HS_POSTAUTH_PROXY"
+	    addconfig2 "postauthproxyport $HS_POSTAUTH_PROXYPORT"
+	}
+
 	(cat <<EOF
 radiusserver1	$HS_RADIUS
 radiusserver2	$HS_UAMSERVER
