@@ -1556,22 +1556,25 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   struct redir_socket socket;
 
   /* Close of socket */
-  void redir_close(){
+  void redir_close (){
     shutdown(infd, SHUT_RDWR);
     close(infd);
     close(outfd);
     exit(0);
   }
   
-  void redir_memcopy(int msg_type){
+  void redir_memcopy(int msg_type) {
     redir_challenge(challenge);
     (void)redir_chartohex(challenge, hexchal);
     msg.type = msg_type;
     msg.addr = address->sin_addr;
     memcpy(msg.uamchal, challenge, REDIR_MD5LEN);
-  if (options.debug) {/*debug*/
-    log_dbg("---->>> resetting challenge: %s", hexchal);
-  }/**/
+    if (options.debug) {
+      log_dbg("---->>> resetting challenge: %s", hexchal);
+    }
+  }
+
+  void redir_challenge_timeout() {
   }
 
   memset(&socket,0,sizeof(socket));
@@ -1601,6 +1604,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   itval.it_interval.tv_usec = 0; 
   itval.it_value.tv_sec = REDIR_MAXTIME;
   itval.it_value.tv_usec = 0; 
+
   if (setitimer(ITIMER_REAL, &itval, NULL)) {
     log_err(errno, "setitimer() failed!");
   }
@@ -1627,90 +1631,95 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   termstate = REDIR_TERM_PROCESS;
   if (optionsdebug) log_dbg("Processing received request\n");
 
-  if (conn.type == REDIR_WWW) { 
-    int fd = -1;
-    if (options.wwwdir && conn.userurl && *conn.userurl) {
-      char *ctype = "text/plain";
-      char *filename = conn.userurl;
-      int namelen = strlen(filename);
-      int parse = 0;
 
-      /* serve the local content */
-      
-      if      (!strcmp(filename + (namelen - 5), ".html")) ctype = "text/html";
-      else if (!strcmp(filename + (namelen - 4), ".gif"))  ctype = "image/gif";
-      else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
-      else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
-      else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
-      else if (!strcmp(filename + (namelen - 4), ".chi"))  { ctype = "text/html"; parse = 1; }
+  switch (conn.type) {
 
-      if (parse) {
-	FILE *f;
+  case REDIR_WWW:
+    {
+      int fd = -1;
+      if (options.wwwdir && conn.userurl && *conn.userurl) {
+	char *ctype = "text/plain";
+	char *filename = conn.userurl;
+	int namelen = strlen(filename);
+	int parse = 0;
 	
-	if (!options.wwwbin) {
-	  log_err(0, "the 'wwwbin' setting must be configured for CGI use");
+	/* serve the local content */
+	
+	if      (!strcmp(filename + (namelen - 5), ".html")) ctype = "text/html";
+	else if (!strcmp(filename + (namelen - 4), ".gif"))  ctype = "image/gif";
+	else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
+	else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
+	else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
+	else if (!strcmp(filename + (namelen - 4), ".chi"))  { ctype = "text/html"; parse = 1; }
+	
+	if (parse) {
+	  FILE *f;
+	  
+	  if (!options.wwwbin) {
+	    log_err(0, "the 'wwwbin' setting must be configured for CGI use");
+	    redir_close();
+	  }
+	  
+	  if (clear_nonblocking(socket.fd[0])) {
+	    log_err(errno, "fcntl() failed");
+	}
+	  
+	  /* XXX: Todo: look for malicious content! */
+
+	  log_dbg("Running: %s %s/%s",options.wwwbin, options.wwwdir, filename);
+	  sprintf(buffer, "%s %s/%s", options.wwwbin, options.wwwdir, filename);
+	  
+	  setenv("REQUEST_METHOD", "GET", 1);
+	  setenv("QUERY_STRING", conn.qs, 1);
+	  
+	  f = popen(buffer, "r");
+	  
+	  if (f) {
+	    while ((buflen = fread(buffer, 1, bufsize, f)) > 0)
+	      if (tcp_write(&socket, buffer, buflen) < 0)
+		log_err(errno, "tcp_write() failed!");
+	  } else {
+	    log_err(errno, "could not open wwwbin program");
+	}
+	  
 	  redir_close();
 	}
 	
-	if (clear_nonblocking(socket.fd[0])) {
-	  log_err(errno, "fcntl() failed");
-	}
-
-	/* XXX: Todo: look for malicious content! */
-
-	log_dbg("Running: %s %s/%s",options.wwwbin, options.wwwdir, filename);
-	sprintf(buffer, "%s %s/%s", options.wwwbin, options.wwwdir, filename);
-
-	setenv("REQUEST_METHOD", "GET", 1);
-	setenv("QUERY_STRING", conn.qs, 1);
-	
-	f = popen(buffer, "r");
-	
-	if (f) {
-	  while ((buflen = fread(buffer, 1, bufsize, f)) > 0)
-	    if (tcp_write(&socket, buffer, buflen) < 0)
+	if (!chroot(options.wwwdir) && !chdir("/")) {
+	  
+	  fd = open(filename, O_RDONLY);
+	  
+	  if (fd > 0) {
+	    
+	    if (clear_nonblocking(socket.fd[0])) {
+	      log_err(errno, "fcntl() failed");
+	    }
+	    
+	    buflen = snprintf(buffer, bufsize,
+			      "HTTP/1.0 200 OK\r\nContent-type: %s\r\n\r\n", ctype);
+	    
+	    if (tcp_write(&socket, buffer, buflen) < 0) {
 	      log_err(errno, "tcp_write() failed!");
-	} else {
-	  log_err(errno, "could not open wwwbin program");
+	    }
+	    
+	    while ((buflen = read(fd, buffer, bufsize)) > 0)
+	      if (tcp_write(&socket, buffer, buflen) < 0)
+		log_err(errno, "tcp_write() failed!");
+	    
+	    close(fd);
+	    redir_close(); /* which exits */
+	  } 
+	  else log_err(0, "could not open local content file %s!", filename);
 	}
-	
-	redir_close();
-      }
+	else log_err(0, "chroot to %s was not successful\n", options.wwwdir); 
+      } 
+      else log_err(0, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param\n"); 
       
-      if (!chroot(options.wwwdir) && !chdir("/")) {
-
-	fd = open(filename, O_RDONLY);
-	
-	if (fd > 0) {
-
-	  if (clear_nonblocking(socket.fd[0])) {
-	    log_err(errno, "fcntl() failed");
-	  }
-
-	  buflen = snprintf(buffer, bufsize,
-			    "HTTP/1.0 200 OK\r\nContent-type: %s\r\n\r\n", ctype);
-	  
-	  if (tcp_write(&socket, buffer, buflen) < 0) {
-	    log_err(errno, "tcp_write() failed!");
-	  }
-	  
-	  while ((buflen = read(fd, buffer, bufsize)) > 0)
-	    if (tcp_write(&socket, buffer, buflen) < 0)
-	      log_err(errno, "tcp_write() failed!");
-	  
-	  close(fd);
-	  redir_close(); /* which exits */
-	} 
-	else log_err(0, "could not open local content file %s!", filename);
-      }
-      else log_err(0, "chroot to %s was not successful\n", options.wwwdir); 
-    } 
-    else log_err(0, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param\n"); 
-
-    redir_close();
-  }
+      redir_close();
+    }
   
-  if (conn.type == REDIR_LOGIN) { 
+
+  case REDIR_LOGIN:
     
     /* Was client was already logged on? */
     if (state == 1) {
@@ -1794,38 +1803,45 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 		    NULL, conn.hismac, &conn.hisip);
       }
     }    
-
     redir_close();
-  }
-  else if (conn.type == REDIR_LOGOUT) {
-    char *besturl = conn.redirurl;
-    redir_memcopy(REDIR_LOGOUT); 
-    if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
-	       sizeof(struct redir_msg_t), 0) < 0) {
-      log_err(errno, "msgsnd() failed!");
-      redir_close();
+
+  case REDIR_LOGOUT:
+    {
+      char *besturl = conn.redirurl;
+      redir_memcopy(REDIR_LOGOUT); 
+      if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
+		 sizeof(struct redir_msg_t), 0) < 0) {
+	log_err(errno, "msgsnd() failed!");
+	redir_close();
+      }
+      
+      if (!(besturl && besturl[0])) besturl = conn.userurl;
+      if (redir->no_uamsuccess && besturl && besturl[0])
+	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, besturl, 0, 
+		    hexchal, NULL, conn.userurl, NULL, 
+		    NULL, conn.hismac, &conn.hisip);
+      else 
+	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, NULL, 0, 
+		    hexchal, NULL, conn.userurl, NULL, 
+		    NULL, conn.hismac, &conn.hisip);
+      
+      redir_close();    
     }
+    
+  case REDIR_PRELOGIN:
 
-    if (!(besturl && besturl[0])) besturl = conn.userurl;
-    if (redir->no_uamsuccess && besturl && besturl[0])
-      redir_reply(redir, &socket, &conn, REDIR_LOGOFF, besturl, 0, 
-		  hexchal, NULL, conn.userurl, NULL, 
-		  NULL, conn.hismac, &conn.hisip);
-    else 
-      redir_reply(redir, &socket, &conn, REDIR_LOGOFF, NULL, 0, 
-		  hexchal, NULL, conn.userurl, NULL, 
-		  NULL, conn.hismac, &conn.hisip);
-
-    redir_close();    
-  }
-  else if (conn.type == REDIR_PRELOGIN) {
-    redir_memcopy(REDIR_CHALLENGE);
-    if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
-	       sizeof(struct redir_msg_t), 0) < 0) {
-      log_err(errno, "msgsnd() failed!");
-      redir_close();
+    /* Did the challenge expire? */
+    if ((conn.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
+      redir_memcopy(REDIR_CHALLENGE);
+      if (msgsnd(redir->msgid, (struct msgbuf*) &msg,  sizeof(msg), 0) < 0) {
+	log_err(errno, "msgsnd() failed!");
+	redir_close();
+      }
     }
-
+    else {
+      (void)redir_chartohex(conn.uamchal, hexchal);
+    }
+    
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ALREADY, 
 		  NULL, 0, NULL, NULL, conn.userurl, NULL,
@@ -1837,8 +1853,9 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 		  NULL, conn.hismac, &conn.hisip);
     }
     redir_close();
-  }
-  else if (conn.type == REDIR_ABORT) {
+
+  case REDIR_ABORT:
+
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ABORT_NAK, 
 		  NULL, 0, NULL, NULL, conn.userurl, NULL, 
@@ -1856,29 +1873,31 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 		  NULL, conn.hismac, &conn.hisip);
     }
     redir_close();
-  }
-  else if (conn.type == REDIR_ABOUT) {
+
+  case REDIR_ABOUT:
     redir_reply(redir, &socket, &conn, REDIR_ABOUT, NULL, 
 		0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
     redir_close();
-  }
-  else if (conn.type == REDIR_STATUS) {
-    uint32_t sessiontime;
-    uint32_t timeleft;
-    struct timeval timenow;
-    gettimeofday(&timenow, NULL);
-    sessiontime = timenow.tv_sec - conn.start_time.tv_sec;
-    sessiontime += (timenow.tv_usec - conn.start_time.tv_usec) / 1000000;
-    if (conn.params.sessiontimeout)
-      timeleft = conn.params.sessiontimeout - sessiontime;
-    else
-      timeleft = 0;
-    
-    redir_reply(redir, &socket, &conn, REDIR_STATUS, NULL, timeleft,
-		NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-    redir_close();
-  }
-  else if (conn.type == REDIR_MSDOWNLOAD) {
+
+  case REDIR_STATUS:
+    {
+      uint32_t sessiontime;
+      uint32_t timeleft;
+      struct timeval timenow;
+      gettimeofday(&timenow, NULL);
+      sessiontime = timenow.tv_sec - conn.start_time.tv_sec;
+      sessiontime += (timenow.tv_usec - conn.start_time.tv_usec) / 1000000;
+      if (conn.params.sessiontimeout)
+	timeleft = conn.params.sessiontimeout - sessiontime;
+      else
+	timeleft = 0;
+      
+      redir_reply(redir, &socket, &conn, REDIR_STATUS, NULL, timeleft,
+		  NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+      redir_close();
+    }
+
+  case REDIR_MSDOWNLOAD:
     buflen = snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
     tcp_write(&socket, buffer, buflen);
     redir_close();
