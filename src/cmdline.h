@@ -237,6 +237,8 @@ struct gengetopt_args_info
   const char *postauthproxyport_help; /* Port of an upstream transparent proxy help description.  */
   int wpaguests_flag;	/* Allow WPA 'Guest' access (default=off).  */
   const char *wpaguests_help; /* Allow WPA 'Guest' access help description.  */
+  int papalwaysok_flag;	/* Always allow 'PAP' (password) style authentication (not advised) (default=off).  */
+  const char *papalwaysok_help; /* Always allow 'PAP' (password) style authentication (not advised) help description.  */
   int chillixml_flag;	/* Use ChilliSpot XML in WISPr blocks (default=off).  */
   const char *chillixml_help; /* Use ChilliSpot XML in WISPr blocks help description.  */
   
@@ -315,6 +317,7 @@ struct gengetopt_args_info
   int postauthproxy_given ;	/* Whether postauthproxy was given.  */
   int postauthproxyport_given ;	/* Whether postauthproxyport was given.  */
   int wpaguests_given ;	/* Whether wpaguests was given.  */
+  int papalwaysok_given ;	/* Whether papalwaysok was given.  */
   int chillixml_given ;	/* Whether chillixml was given.  */
 
 } ;

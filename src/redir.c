@@ -1014,7 +1014,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	conn->chap = 1;
 	conn->password[0] = 0;
       }
-      else if (!redir->secret && 
+      else if ((!redir->secret || options.pap_always_ok) && 
 	       !redir_getparam(redir, conn->qs, "password", resp, sizeof(resp))) {
 	(void)redir_hextochar(resp, conn->password);
 	conn->chap = 0;

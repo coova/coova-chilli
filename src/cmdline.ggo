@@ -114,5 +114,6 @@ option "localusers"    - "File keep 'Local' usernames and passwords" string no
 option "postauthproxy" - "IP of an upstream transparent proxy" string no
 option "postauthproxyport" - "Port of an upstream transparent proxy" int default="0" no
 option "wpaguests"     - "Allow WPA 'Guest' access" flag off
+option "papalwaysok"   - "Always allow 'PAP' (password) style authentication (not advised)" flag off
 option "chillixml"     - "Use ChilliSpot XML in WISPr blocks" flag   off
 

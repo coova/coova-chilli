@@ -78,6 +78,7 @@ writeconfig() {
     [ "$HS_WEB_ADMIN" = "https" ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:443"
     [ "$HS_LOCAL" = "on" ] && webadmin="$webadmin,$HS_UAMLISTEN:3443"
     [ "$HS_MACAUTHMODE" = "local" ] && addconfig1 "macallowlocal"
+    [ "$HS_PAP_OK" = "on" ] && addconfig1 "papalwaysok"
     [ "$HS_USELOCALUSERS" = "on" ] && [ -s /etc/chilli/localusers ] && \
 	addconfig1 "localusers /etc/chilli/localusers"
 

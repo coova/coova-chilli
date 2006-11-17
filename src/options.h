@@ -102,6 +102,8 @@ struct options_t {
   int usestatusfile;
   int chillixml;
 
+  int pap_always_ok;
+
   /* UAM parameters */
   struct in_addr uamserver[UAMSERVER_MAX]; /* IP address of UAM server */
   int uamserverlen;              /* Number of UAM servers */

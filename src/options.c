@@ -215,6 +215,7 @@ int process_options(int argc, char **argv, int minimal) {
   options.proxyport = args_info.proxyport_arg;
   options.txqlen = args_info.txqlen_arg;
   options.postauth_proxyport = args_info.postauthproxyport_arg;
+  options.pap_always_ok = args_info.papalwaysok_flag;
 
   if (!reconfiguring) { 
     if (!args_info.dhcpif_arg) {

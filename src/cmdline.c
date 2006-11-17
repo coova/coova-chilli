@@ -101,6 +101,7 @@ const char *gengetopt_args_info_help[] = {
   "      --postauthproxy=STRING    IP of an upstream transparent proxy",
   "      --postauthproxyport=INT   Port of an upstream transparent proxy  \n                                  (default=`0')",
   "      --wpaguests               Allow WPA 'Guest' access  (default=off)",
+  "      --papalwaysok             Always allow 'PAP' (password) style \n                                  authentication (not advised)  (default=off)",
   "      --chillixml               Use ChilliSpot XML in WISPr blocks  \n                                  (default=off)",
     0
 };
@@ -228,6 +229,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->postauthproxy_given = 0 ;
   args_info->postauthproxyport_given = 0 ;
   args_info->wpaguests_given = 0 ;
+  args_info->papalwaysok_given = 0 ;
   args_info->chillixml_given = 0 ;
 }
 
@@ -368,6 +370,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->postauthproxyport_arg = 0;
   args_info->postauthproxyport_orig = NULL;
   args_info->wpaguests_flag = 0;
+  args_info->papalwaysok_flag = 0;
   args_info->chillixml_flag = 0;
   
 }
@@ -454,7 +457,8 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->postauthproxy_help = gengetopt_args_info_help[72] ;
   args_info->postauthproxyport_help = gengetopt_args_info_help[73] ;
   args_info->wpaguests_help = gengetopt_args_info_help[74] ;
-  args_info->chillixml_help = gengetopt_args_info_help[75] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[75] ;
+  args_info->chillixml_help = gengetopt_args_info_help[76] ;
   
 }
 
@@ -1543,6 +1547,9 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
   if (args_info->wpaguests_given) {
     fprintf(outfile, "%s\n", "wpaguests");
   }
+  if (args_info->papalwaysok_given) {
+    fprintf(outfile, "%s\n", "papalwaysok");
+  }
   if (args_info->chillixml_given) {
     fprintf(outfile, "%s\n", "chillixml");
   }
@@ -1870,6 +1877,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "postauthproxy",	1, NULL, 0 },
         { "postauthproxyport",	1, NULL, 0 },
         { "wpaguests",	0, NULL, 0 },
+        { "papalwaysok",	0, NULL, 0 },
         { "chillixml",	0, NULL, 0 },
         { NULL,	0, NULL, 0 }
       };
@@ -3261,6 +3269,20 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             local_args_info.wpaguests_given = 1;
             args_info->wpaguests_given = 1;
             args_info->wpaguests_flag = !(args_info->wpaguests_flag);
+          }
+          /* Always allow 'PAP' (password) style authentication (not advised).  */
+          else if (strcmp (long_options[option_index].name, "papalwaysok") == 0)
+          {
+            if (local_args_info.papalwaysok_given)
+              {
+                fprintf (stderr, "%s: `--papalwaysok' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->papalwaysok_given && ! override)
+              continue;
+            local_args_info.papalwaysok_given = 1;
+            args_info->papalwaysok_given = 1;
+            args_info->papalwaysok_flag = !(args_info->papalwaysok_flag);
           }
           /* Use ChilliSpot XML in WISPr blocks.  */
           else if (strcmp (long_options[option_index].name, "chillixml") == 0)

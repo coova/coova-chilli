@@ -1,7 +1,7 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
-== ChangeLog (Coova Chilli v1.0.3 svn revision 33?) ==
+== ChangeLog (Coova Chilli v1.0.3 svn revision 36) ==
 
 * The [http://www.gnu.org/software/gengetopt/gengetopt.html gengetopt] project accepted our changes to allow 'include <file>' in config files. The new cmdline.c is generated with gengetopt v2.19 or higher
 * Added the ''wpaguests'' option to allow anonymous WPA access w/captive-portal
@@ -17,7 +17,8 @@
 * The option ''wwwui'' which when used with ''uamuiport'' is the alternate program to use for local content
 * The ''chilli_response'' binary taking 3 arguments <hex-challenge> <uamsecret> <password> and returning the appropriate response
 * New options ''postauthproxy'' and ''postauthproxyport'' to configure an upstream transparent proxy to use post-authentication for http traffic
-	
+* Option ''papalwaysok'' to allow back-ward compatibility with UAM back-end's using PAP authentication (with ''password'') even when configured with a ''uamsecret''
+
 == ChangeLog (Coova Chilli v1.0.2 svn revision 17) ==
 
 * Configurable TX queue length (option ''txqlen'') on the tun/tap tunnel (Linux only)
