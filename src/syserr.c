@@ -29,7 +29,7 @@ void sys_err(int pri, char *fn, int ln, int en, char *fmt, ...) {
   va_end(args);
   buf[SYSERR_MSGSIZE-1] = 0; /* Make sure it is null terminated */
   if (options.foreground && options.debug) {
-    printf("%s: %d: %d (%s) %s\n", fn, ln, en, strerror(en), buf);
+    fprintf(stderr, "%s: %d: %d (%s) %s\n", fn, ln, en, strerror(en), buf);
   } else {
     if (en)
       syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), buf);

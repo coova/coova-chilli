@@ -835,8 +835,9 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param,
 }
 
 /* Read the an HTTP request from a client */
+/* If POST is allowed, 1 is the input value of ispost */
 static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
-			struct redir_conn_t *conn) {
+			struct redir_conn_t *conn, int *ispost, int *clen) {
   int fd = sock->fd[0];
   fd_set fds;
   struct timeval idleTime;
@@ -871,7 +872,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
     }
   
     if ((status > 0) && FD_ISSET(fd, &fds)) {
-      if ((recvlen = recv(fd, buffer+buflen, sizeof(buffer)-1-buflen, 0)) < 0) {
+      /* if post is allowed, we do not buffer on the read (to not eat post data) */
+      if ((recvlen = recv(fd, buffer+buflen, (*ispost) ? 1 : sizeof(buffer)-1-buflen, 0)) < 0) {
 	if (errno != ECONNRESET)
 	  log_err(errno, "recv() failed!");
 	return -1;
@@ -899,8 +901,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
 	log_dbg("http-request: %s",buffer);
 
-	if      (!strncmp("GET ",  p1, 4)) p1 += 4;
-	else if (!strncmp("HEAD ", p1, 5)) p1 += 5;
+	if      (!strncmp("GET ",  p1, 4)) { p1 += 4; *ispost = 0; }
+	else if (!strncmp("HEAD ", p1, 5)) { p1 += 5; *ispost = 0; }
+	else if ((*ispost) && 
+		 !strncmp("POST ", p1, 5)) { p1 += 5; *ispost = 1; }
 	else return -1;
 
 	while (*p1 == ' ') p1++; /* Advance through additional white space */
@@ -967,6 +971,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	  host[len]=0;
 	  log_dbg("Host: %s",host);
 	} 
+	else if (!strncasecmp(buffer,"Content-Length:",15)) {
+	  p = buffer + 15;
+	  while (*p && isspace(*p)) p++;
+	  len = strlen(p);
+	  if (len > 0) *clen = atoi(p);
+	  log_dbg("Content-Length: %s",p);
+	}
 	else if (!strncasecmp(buffer,"User-Agent:",11)) {
 	  p = buffer + 11;
 	  while (*p && isspace(*p)) p++;
@@ -1512,6 +1523,18 @@ int redir_accept(struct redir_t *redir, int idx) {
     return 0; 
   }
 
+#if defined(F_DUPFD)
+  if (fcntl(new_socket,F_GETFL,0) == -1) return -1;
+  close(0);
+  if (fcntl(new_socket,F_DUPFD,0) == -1) return -1;
+  if (fcntl(new_socket,F_GETFL,1) == -1) return -1;
+  close(1);
+  if (fcntl(new_socket,F_DUPFD,1) == -1) return -1;
+#else
+  if (dup2(new_socket,0) == -1) return -1;
+  if (dup2(new_socket,1) == -1) return -1;
+#endif
+    
   if (idx == 1 && options.uamui) {
     char *binqqargs[2] = { options.uamui, 0 } ;
     char buffer[56];
@@ -1523,25 +1546,12 @@ int redir_accept(struct redir_t *redir, int idx) {
     setenv("TCPREMOTEPORT",buffer,1);
     setenv("REMOTE_PORT",buffer,1);
 
-#if defined(F_DUPFD)
-    if (fcntl(new_socket,F_GETFL,0) == -1) return -1;
-    close(0);
-    if (fcntl(new_socket,F_DUPFD,0) == -1) return -1;
-    if (fcntl(new_socket,F_GETFL,1) == -1) return -1;
-    close(1);
-    if (fcntl(new_socket,F_DUPFD,1) == -1) return -1;
-#else
-    if (dup2(new_socket,0) == -1) return -1;
-    if (dup2(new_socket,1) == -1) return -1;
-#endif
-    
     execv(*binqqargs, binqqargs);
 
-  } else 
-    return redir_main(redir, new_socket, new_socket, &address);
+  } else return redir_main(redir, 0, 1, &address, idx);
 }
 
-int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *address) {
+int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *address, int isui) {
   int bufsize = REDIR_MAXBUFFER;
   char buffer[bufsize+1];
   int buflen;
@@ -1554,6 +1564,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   struct sigaction act, oldact;
   struct itimerval itval;
   struct redir_socket socket;
+  int ispost = isui;
+  int clen = 0;
 
   /* Close of socket */
   void redir_close (){
@@ -1610,7 +1622,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   if (optionsdebug) log_dbg("Calling redir_getreq()\n");
 
 
-  if (redir_getreq(redir, &socket, &conn)) {
+  if (redir_getreq(redir, &socket, &conn, &ispost, &clen)) {
     if (optionsdebug) log_dbg("Error calling get_req. Terminating\n");
     redir_close();
   }
@@ -1627,7 +1639,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   termstate = REDIR_TERM_PROCESS;
   if (optionsdebug) log_dbg("Processing received request\n");
-
 
   switch (conn.type) {
 
@@ -1659,26 +1670,23 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	  
 	  if (clear_nonblocking(socket.fd[0])) {
 	    log_err(errno, "fcntl() failed");
-	}
+	  }
 	  
 	  /* XXX: Todo: look for malicious content! */
 
-	  log_dbg("Running: %s %s/%s",options.wwwbin, options.wwwdir, filename);
-	  sprintf(buffer, "%s %s/%s", options.wwwbin, options.wwwdir, filename);
-	  
-	  setenv("REQUEST_METHOD", "GET", 1);
+	  sprintf(buffer,"%d", clen > 0 ? clen : 0);
+	  setenv("CONTENT_LENGTH", buffer, 1);
+	  setenv("REQUEST_METHOD", ispost ? "POST" : "GET", 1);
 	  setenv("QUERY_STRING", conn.qs, 1);
-	  
-	  f = popen(buffer, "r");
-	  
-	  if (f) {
-	    while ((buflen = fread(buffer, 1, bufsize, f)) > 0)
-	      if (tcp_write(&socket, buffer, buflen) < 0)
-		log_err(errno, "tcp_write() failed!");
-	  } else {
-	    log_err(errno, "could not open wwwbin program");
-	}
-	  
+
+	  log_dbg("Running: %s %s/%s",options.wwwbin, options.wwwdir, filename);
+	  sprintf(buffer, "%s/%s", options.wwwdir, filename);
+
+	  {
+	    char *binqqargs[3] = { options.wwwbin, buffer, 0 } ;
+	    execv(*binqqargs, binqqargs);
+	  }
+
 	  redir_close();
 	}
 	
