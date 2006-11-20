@@ -83,8 +83,10 @@ writeconfig() {
     [ "$HS_LOCAL" = "on" ] && webadmin="$webadmin,$HS_UAMLISTEN:3443"
     [ "$HS_MACAUTHMODE" = "local" ] && addconfig1 "macallowlocal"
     [ "$HS_PAP_OK" = "on" ] && addconfig1 "papalwaysok"
-    [ "$HS_USELOCALUSERS" = "on" ] && [ -s /etc/chilli/localusers ] && \
+    [ "$HS_USELOCALUSERS" = "on" ] && {
+	touch /etc/chilli/localusers
 	addconfig1 "localusers /etc/chilli/localusers"
+    }
 
     [ -n "$HS_LOC_NAME" ] && {
 	isocc=$(echo    "$HS_LOC_ISOCC"  | sed 's/[^a-zA-Z]//g')
