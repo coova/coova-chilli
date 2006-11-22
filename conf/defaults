@@ -13,12 +13,12 @@ HS_MODE=interface
 HS_TAPIF=$HS_LANIF
 HS_TUNIF=tun0
 #
-#	Settings for PicoPoint Gatekeeper
+#	Settings for a demo back-end
 #
 # (these need to be changed for live locations):
-HS_NASID=ppChilliSpotDemo
-HS_UAMSERVER=staging.picopoint.com
-HS_UAMSECRET=picopoint
+HS_NASID=nas01
+HS_UAMSERVER=coova.org
+HS_UAMSECRET=coova-free
 #
 # (while these will not):
 HS_TYPE=chillispot
@@ -26,9 +26,8 @@ HS_RADAUTH=1812
 HS_RADACCT=1813
 HS_ADMUSR=chillispot
 HS_ADMPWD=chillispot
-HS_PROVIDER=GateKeeper
-HS_PROVIDER_LINK=http://www.picopoint.com/
-HS_UAMFORMAT=https://\$HS_UAMSERVER/gk/gateway/rd/chillispot/\$HS_NASID
-HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/splash.html
+HS_PROVIDER=Coova
+HS_PROVIDER_LINK=http://www.coova.org/
+HS_UAMFORMAT=https://\$HS_UAMSERVER/uam/tos/tos.cgi
+HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 HS_WWWDIR=/etc/chilli/www
-

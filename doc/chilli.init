@@ -21,6 +21,8 @@ fi
 
 [ -f /usr/sbin/chilli ] || exit 0
 [ -f /etc/chilli.conf ] || exit 0
+[ -f /etc/chilli/functions ] || exit 0
+. /etc/chilli/functions
 
 RETVAL=0
 prog="chilli"
@@ -35,6 +37,9 @@ start() {
 	# Enable routing of packets: WARNING!!!
 	# Users should enable this explicitly
 	# echo 1 > /proc/sys/net/ipv4/ip_forward
+
+        writeconfig
+        radiusconfig
 
 	daemon /usr/sbin/chilli 
 	RETVAL=$?

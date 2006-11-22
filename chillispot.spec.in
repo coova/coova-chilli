@@ -50,7 +50,8 @@ install -m755 conf/firewall $RPM_BUILD_ROOT/etc/chilli/firewall
 install -m755 conf/functions $RPM_BUILD_ROOT/etc/chilli/functions
 install -m644 conf/defaults $RPM_BUILD_ROOT/etc/chilli/defaults
 mkdir -p $RPM_BUILD_ROOT/etc/chilli/www
-install -m644 conf/splash.html $RPM_BUILD_ROOT/etc/chilli/www/splash.html
+install -m644 conf/coova.html $RPM_BUILD_ROOT/etc/chilli/www/coova.html
+install -m644 conf/coova.jpg $RPM_BUILD_ROOT/etc/chilli/www/coova.jpg
 
 #Clean up unwanted library files
 rm -rf $RPM_BUILD_ROOT/usr/include/*
@@ -88,7 +89,8 @@ make clean
 %config /etc/chilli/firewall
 %config /etc/chilli/functions
 %config /etc/chilli/defaults
-%config /etc/chilli/www/splash.html
+%config /etc/chilli/www/coova.html
+%config /etc/chilli/www/coova.jpg
 
 %changelog
 * Wed Nov 15 2006  <david@coova.com>

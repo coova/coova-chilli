@@ -870,17 +870,21 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
     default:
       break;
     }
-  
+
     if ((status > 0) && FD_ISSET(fd, &fds)) {
+      if (buflen + 2 >= sizeof(buffer)) { /* ensure space for a least one more byte + null */
+        log_err(errno, "too much data in http request!");
+        return -1;
+      }
       /* if post is allowed, we do not buffer on the read (to not eat post data) */
       if ((recvlen = recv(fd, buffer+buflen, (*ispost) ? 1 : sizeof(buffer)-1-buflen, 0)) < 0) {
 	if (errno != ECONNRESET)
 	  log_err(errno, "recv() failed!");
 	return -1;
       }
-      buflen += recvlen;
       /* TODO: Hack to make Flash work */
-      for (i = 0; i < buflen; i++) if (buffer[i] == 0) buffer[i] = 0x0a; 
+      for (i = 0; i < recvlen; i++) if (buffer[buflen+i] == 0) buffer[buflen+i] = 0x0a; 
+      buflen += recvlen;
       buffer[buflen] = 0;
     }
 
