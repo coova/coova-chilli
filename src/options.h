@@ -34,13 +34,15 @@ typedef struct pass_through_t {
 
 struct options_t {
   int initialized;
-
   int foreground;
   int debug;
   /* conf */
   int interval;
   char *pidfile;
   char *statedir;
+
+  int tap;
+  unsigned char tapmac[DHCP_ETH_ALEN]; /* TAP MAC address */
 
   /* TUN parameters */
   struct in_addr net;            /* Network IP address */

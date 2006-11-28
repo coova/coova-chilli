@@ -103,6 +103,7 @@ const char *gengetopt_args_info_help[] = {
   "      --wpaguests               Allow WPA 'Guest' access  (default=off)",
   "      --papalwaysok             Always allow 'PAP' (password) style \n                                  authentication (not advised)  (default=off)",
   "      --chillixml               Use ChilliSpot XML in WISPr blocks  \n                                  (default=off)",
+  "      --usetap                  Use a TAP instead of TUN (linux only)  \n                                  (default=off)",
     0
 };
 
@@ -231,6 +232,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->wpaguests_given = 0 ;
   args_info->papalwaysok_given = 0 ;
   args_info->chillixml_given = 0 ;
+  args_info->usetap_given = 0 ;
 }
 
 static
@@ -372,6 +374,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->wpaguests_flag = 0;
   args_info->papalwaysok_flag = 0;
   args_info->chillixml_flag = 0;
+  args_info->usetap_flag = 0;
   
 }
 
@@ -459,6 +462,7 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->wpaguests_help = gengetopt_args_info_help[74] ;
   args_info->papalwaysok_help = gengetopt_args_info_help[75] ;
   args_info->chillixml_help = gengetopt_args_info_help[76] ;
+  args_info->usetap_help = gengetopt_args_info_help[77] ;
   
 }
 
@@ -1553,6 +1557,9 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
   if (args_info->chillixml_given) {
     fprintf(outfile, "%s\n", "chillixml");
   }
+  if (args_info->usetap_given) {
+    fprintf(outfile, "%s\n", "usetap");
+  }
   
   fclose (outfile);
 
@@ -1879,6 +1886,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "wpaguests",	0, NULL, 0 },
         { "papalwaysok",	0, NULL, 0 },
         { "chillixml",	0, NULL, 0 },
+        { "usetap",	0, NULL, 0 },
         { NULL,	0, NULL, 0 }
       };
 
@@ -3297,6 +3305,20 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             local_args_info.chillixml_given = 1;
             args_info->chillixml_given = 1;
             args_info->chillixml_flag = !(args_info->chillixml_flag);
+          }
+          /* Use a TAP instead of TUN (linux only).  */
+          else if (strcmp (long_options[option_index].name, "usetap") == 0)
+          {
+            if (local_args_info.usetap_given)
+              {
+                fprintf (stderr, "%s: `--usetap' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->usetap_given && ! override)
+              continue;
+            local_args_info.usetap_given = 1;
+            args_info->usetap_given = 1;
+            args_info->usetap_flag = !(args_info->usetap_flag);
           }
           
           break;

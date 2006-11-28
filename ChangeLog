@@ -1,6 +1,8 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+* Experimenting with new option ''usetap'' to use a TAP instead of TUN
+
 == ChangeLog (Coova Chilli v1.0.3 svn revision 39) ==
 
 * The [http://www.gnu.org/software/gengetopt/gengetopt.html gengetopt] project accepted our changes to allow 'include <file>' in config files. The new cmdline.c is generated with gengetopt v2.19 or higher

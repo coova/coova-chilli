@@ -1106,23 +1106,96 @@ int static dnprot_accept(struct app_conn_t *appconn) {
  *
  * Tun callbacks
  *
- *********************************************************/
+ * Called from the tun_decaps function. This method is passed either
+ * a TAP Ethernet frame or a TUN IP packet. 
+ */
 
 
-/* Callback for receiving messages from tun */
 int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
-  struct ippoolm_t *ipm;
   struct in_addr dst;
-  struct tun_packet_t *iph = (struct tun_packet_t*) pack;
+  struct ippoolm_t *ipm;
   struct app_conn_t *appconn;
+  struct tun_packet_t *iph;
+
+  if (options.tap) {
+    struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
+    iph = (struct tun_packet_t*)(pack + DHCP_ETH_HLEN);
+    switch (ntohs(ethh->prot)) {
+    case DHCP_ETH_IP:
+      break;
+    case DHCP_ETH_ARP:
+      log_dbg("arp: dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x\n",
+	      ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+	      ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
+	      ntohs(ethh->prot));
+      /*
+       * send arp reply with us being target
+       */
+      {
+	struct dhcp_arp_fullpacket_t *p = (struct dhcp_arp_fullpacket_t *)pack;
+	struct dhcp_arp_fullpacket_t packet;
+	uint16_t length = sizeof(packet);
+	struct in_addr reqaddr;
+
+	/* Get local copy */
+	memcpy(&reqaddr.s_addr, p->arp.tpa, DHCP_IP_ALEN);
+
+	if (ippool_getip(ippool, &ipm, &reqaddr)) {
+	  if (options.debug) 
+	    log_dbg("ARP for unknown IP %s\n", inet_ntoa(reqaddr));
+	  return 0;
+	}
+	
+	if (!((ipm->peer) || ((struct app_conn_t*) ipm->peer)->dnlink)) {
+	  log_err(0, "No peer protocol defined for ARP request");
+	  return 0;
+	}
+	
+	appconn = (struct app_conn_t*) ipm->peer;
+	
+	/* Get packet default values */
+	memset(&packet, 0, sizeof(packet));
+	
+	/* ARP Payload */
+	packet.arp.hrd = htons(DHCP_HTYPE_ETH);
+	packet.arp.pro = htons(DHCP_ETH_IP);
+	packet.arp.hln = DHCP_ETH_ALEN;
+	packet.arp.pln = DHCP_IP_ALEN;
+	packet.arp.op  = htons(DHCP_ARP_REPLY);
+	
+	/* Source address */
+	/*memcpy(packet.arp.sha, dhcp->arp_hwaddr, DHCP_ETH_ALEN);
+	  memcpy(packet.arp.spa, &dhcp->ourip.s_addr, DHCP_IP_ALEN);*/
+	/*memcpy(packet.arp.sha, appconn->hismac, DHCP_ETH_ALEN);*/
+	memcpy(packet.arp.sha, options.tapmac, DHCP_ETH_ALEN);
+	memcpy(packet.arp.spa, &appconn->hisip.s_addr, DHCP_IP_ALEN);
+	
+	/* Target address */
+	/*memcpy(packet.arp.tha, &appconn->hismac, DHCP_ETH_ALEN);
+	  memcpy(packet.arp.tpa, &appconn->hisip.s_addr, DHCP_IP_ALEN); */
+	memcpy(packet.arp.tha, p->arp.sha, DHCP_ETH_ALEN);
+	memcpy(packet.arp.tpa, p->arp.spa, DHCP_IP_ALEN);
+	
+	/* Ethernet header */
+	memcpy(packet.ethh.dst, p->ethh.src, DHCP_ETH_ALEN);
+	memcpy(packet.ethh.src, dhcp->hwaddr, DHCP_ETH_ALEN);
+	packet.ethh.prot = htons(DHCP_ETH_ARP);
+	
+	return tun_encaps(tun, &packet, length);
+      }
+    }
+  } else {
+    iph = (struct tun_packet_t*)pack;
+  }
 
   if (options.debug) 
     log_dbg("cb_tun_ind. Packet received: Forwarding to link layer\n");
-  
+
   dst.s_addr = iph->dst;
 
   if (ippool_getip(ippool, &ipm, &dst)) {
-    if (options.debug) log_dbg("Received packet with no destination!!!\n");
+    if (options.debug) 
+      log_dbg("Received packet with no destination! %s\n", inet_ntoa(dst));
     return 0;
   }
 
@@ -1169,13 +1242,11 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
     (void) dhcp_data_req((struct dhcp_conn_t *) appconn->dnlink, pack, len);
     break;
   default:
-    log_err(0, "Unknown downlink protocol: %d",
-	    appconn->dnprot);
+    log_err(0, "Unknown downlink protocol: %d", appconn->dnprot);
     break;
   }
 
   return 0;
- 
 }
 
 
@@ -2518,8 +2589,9 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
 
 /* Callback for receiving messages from dhcp */
 int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
-  struct tun_packet_t *iph = (struct tun_packet_t*) pack;
   struct app_conn_t *appconn = conn->peer;
+  struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
+  struct tun_packet_t *iph = (struct tun_packet_t*)(pack + DHCP_ETH_HLEN);
 
   if (options.debug)
     log_dbg("cb_dhcp_data_ind. Packet received. DHCP authstate: %d\n", 

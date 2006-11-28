@@ -190,6 +190,7 @@ int process_options(int argc, char **argv, int minimal) {
     options.debug = 0;
 
   /** simple configuration parameters **/
+  options.tap = args_info.usetap_flag;
   options.foreground = args_info.fg_flag;
   options.interval = args_info.interval_arg;
   options.lease = args_info.lease_arg;

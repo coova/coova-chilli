@@ -416,7 +416,6 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
     }
   }
 
-
   /* Verify that MTU = ETH_DATA_LEN */
   strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
   if (ioctl(fd, SIOCGIFMTU, &ifr) < 0) {
@@ -430,7 +429,6 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
 	    ifr.ifr_mtu, ETH_DATA_LEN);
   }
 
-  
   /* Get ifindex */
   strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
   if (ioctl(fd, SIOCGIFINDEX, &ifr) < 0) {
@@ -439,7 +437,6 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
   }
   if (ifindex)
     *ifindex = ifr.ifr_ifindex;
-  
   
   /* Set interface in promisc mode */
   if (promisc) {
@@ -453,7 +450,6 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
 	      fd, SOL_SOCKET, PACKET_ADD_MEMBERSHIP, sizeof(mr));
     }
   }
-
 
   /* Bind to particular interface */
   memset(&sa, 0, sizeof(sa));
@@ -1278,10 +1274,14 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
       }
     }
     if (pos==-1) { /* Save for undoing */
+      if (options.tap) 
+	memcpy(conn->dnatmac[conn->nextdnat], pack->ethh.dst, DHCP_ETH_ALEN); 
       conn->dnatip[conn->nextdnat] = pack->iph.daddr; 
       conn->dnatport[conn->nextdnat] = tcph->src;
       conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
     }
+    if (options.tap) 
+      memcpy(pack->ethh.dst, options.tapmac, DHCP_ETH_ALEN); 
     pack->iph.daddr = this->uamlisten.s_addr;
     tcph->dst = htons(this->uamport);
     (void)dhcp_tcp_check(pack, len);
@@ -1306,6 +1306,7 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct dhcp_ippacket_t *pack, in
 	int n;
 	for (n=0; n<DHCP_DNAT_MAX; n++) {
 	  if (tcph->dst == conn->dnatport[n]) {
+	    memcpy(pack->ethh.src, conn->dnatmac[n], DHCP_ETH_ALEN); 
 	    pack->iph.saddr = conn->dnatip[n];
 	    tcph->src = htons(DHCP_HTTP);
 	    (void)dhcp_tcp_check(pack, len);
@@ -1336,6 +1337,7 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct dhcp_ippacket_t *pack, in
 	}
 	
 	if (pos==-1) { /* Save for undoing */
+	  memcpy(conn->dnatmac[conn->nextdnat], pack->ethh.dst, DHCP_ETH_ALEN); 
 	  conn->dnatip[conn->nextdnat] = pack->iph.daddr; 
 	  conn->dnatport[conn->nextdnat] = tcph->src;
 	  conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
@@ -1393,6 +1395,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
     int n;
     for (n=0; n<DHCP_DNAT_MAX; n++) {
       if (tcph->dst == conn->dnatport[n]) {
+	memcpy(pack->ethh.src, conn->dnatmac[n], DHCP_ETH_ALEN); 
 	pack->iph.saddr = conn->dnatip[n];
 	tcph->src = htons(DHCP_HTTP);
 	(void)dhcp_tcp_check(pack, len);
@@ -1534,9 +1537,7 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
       /* Calculate total length */
       length = udp_len + DHCP_IP_HLEN + DHCP_ETH_HLEN;
       
-      return dhcp_send(this, this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
-		       &answer, length);
-
+      return dhcp_send(this, this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex, &answer, length);
     }
   }
   return -0; /* Something else */
@@ -2049,12 +2050,14 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
   struct in_addr ourip;
   struct in_addr addr;
 
-  if (this->debug) printf("DHCP packet received\n");
+  if (this->debug) log_dbg("DHCP packet received\n");
   
   /* Check that MAC address is our MAC or Broadcast */
   if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
-      (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN)))
+      (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
+    if (this->debug) log_dbg("dropping packet; no dynamic ip allocation");
     return 0;
+  }
 
   /* Check to see if we know MAC address. */
   if (!dhcp_hashget(this, &conn, pack->ethh.src)) {
@@ -2066,16 +2069,23 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
     ourip.s_addr = this->ourip.s_addr;
     
     /* Do we allow dynamic allocation of IP addresses? */
-    if (!this->allowdyn)
+    if (!this->allowdyn) {
+      if (this->debug) log_dbg("dropping packet; no dynamic ip allocation");
       return 0; 
+    }
     
     /* Allocate new connection */
-    if (dhcp_newconn(this, &conn, pack->ethh.src))
+    if (dhcp_newconn(this, &conn, pack->ethh.src)) {
+      if (this->debug) log_dbg("dropping packet; out of connections");
       return 0; /* Out of connections */
+    }
   }
 
   /* Return if we do not know peer */
-  if (!conn) return 0;
+  if (!conn) {
+    if (this->debug) log_dbg("dropping packet; no peer");
+    return 0;
+  }
 
   /* Request an IP address */
   if ((conn->authstate == DHCP_AUTH_NONE) && 
@@ -2083,6 +2093,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
     addr.s_addr = pack->iph.saddr;
     if (this->cb_request)
       if (this->cb_request(conn, &addr)) {
+	if (this->debug) log_dbg("dropping packet; ip not known");
 	return 0; /* Ignore request if IP address was not allocated */
       }
   }
@@ -2090,11 +2101,10 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
   /* Check to see if it is a packet for us */
   /* TODO: Handle IP packets with options. Currently these are just ignored */
   if (((pack->iph.daddr == 0) ||
-      (pack->iph.daddr == 0xffffffff) ||
+       (pack->iph.daddr == 0xffffffff) ||
        (pack->iph.daddr == ourip.s_addr)) &&
       ((pack->iph.ihl == 5) && (pack->iph.protocol == DHCP_IP_UDP) &&
        (((struct dhcp_fullpacket_t*)pack)->udph.dst == htons(DHCP_BOOTPS)))) {
-    
     (void)dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
   }
 
@@ -2139,16 +2149,31 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
     break;
   case DHCP_AUTH_DNAT:
     /* Destination NAT if request to unknown web server */
-    if (dhcp_doDNAT(conn, pack, len))
+    if (dhcp_doDNAT(conn, pack, len)) {
+      if (this->debug) log_dbg("dropping packet; not nat'ed");
       return 0; /* Drop is not http or dns */
+    }
     break;
   case DHCP_AUTH_DROP: 
   default:
+    if (this->debug) log_dbg("dropping packet; auth-drop");
     return 0;
   }
 
+  if (options.tap) {
+    /*    struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
+    sscanf ("00:0C:F1:F4:1B:48", "%2x:%2x:%2x:%2x:%2x:%2x",
+		&ethh->dst[0],
+		&ethh->dst[1],
+		&ethh->dst[2],
+		&ethh->dst[3],
+		&ethh->dst[4],
+		&ethh->dst[5]);*/
+    memcpy(ethh->dst,options.tapmac,DHCP_ETH_ALEN);
+  }
+
   if ((conn->hisip.s_addr) && (this->cb_data_ind)) {
-    this->cb_data_ind(conn, &pack->iph, len-DHCP_ETH_HLEN);
+    this->cb_data_ind(conn, pack, len);
   }
   
   return 0;
@@ -2178,21 +2203,27 @@ int dhcp_decaps(struct dhcp_t *this)  /* DHCP Indication */
 /**
  * dhcp_data_req()
  * Call this function to send an IP packet to the peer.
+ * Called from the tun_ind function. This method is passed either
+ * a TAP Ethernet frame or a TUN IP packet. 
  **/
 int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, unsigned len)
 {
   struct dhcp_t *this = conn->parent;
-  int length = len + DHCP_ETH_HLEN;
-  
   struct dhcp_ippacket_t packet;
+  int length = len;
+
+  /* IP Packet */
+  if (options.tap) {
+    memcpy(&packet, pack, len);
+  } else {
+    memcpy(&packet.iph, pack, len);
+    length += DHCP_ETH_HLEN;
+  }
 
   /* Ethernet header */
   memcpy(packet.ethh.dst, conn->hismac, DHCP_ETH_ALEN);
   memcpy(packet.ethh.src, this->hwaddr, DHCP_ETH_ALEN);
   packet.ethh.prot = htons(DHCP_ETH_IP);
-
-  /* IP Packet */
-  memcpy(&packet.iph, pack, len);
   
   switch (conn->authstate) {
   case DHCP_AUTH_PASS:
@@ -2288,7 +2319,8 @@ int dhcp_receive_arp(struct dhcp_t *this,
 
 
   /* Check that MAC address is our MAC or Broadcast */
-  if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
+  if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
+      (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
     if (this->debug) printf("Received ARP request for other destination!\n");
     return 0;
   }
@@ -2367,11 +2399,8 @@ int dhcp_arp_ind(struct dhcp_t *this)  /* ARP Indication */
  **/
 int dhcp_senddot1x(struct dhcp_conn_t *conn,  
 		   struct dhcp_dot1xpacket_t *pack, int len) {
-
   struct dhcp_t *this = conn->parent;
-  
-  return dhcp_send(this, this->fd, DHCP_ETH_EAPOL, conn->hismac, this->ifindex,
-		   pack, len);
+  return dhcp_send(this, this->fd, DHCP_ETH_EAPOL, conn->hismac, this->ifindex, pack, len);
 }
 
 /**
@@ -2457,7 +2486,9 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
   }
   
   /* Check that MAC address is our MAC, Broadcast or authentication MAC */
-  if ((memcmp(packet.ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && (memcmp(packet.ethh.dst, bmac, DHCP_ETH_ALEN)) && (memcmp(packet.ethh.dst, amac, DHCP_ETH_ALEN)))
+  if ((memcmp(packet.ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
+      (memcmp(packet.ethh.dst, bmac, DHCP_ETH_ALEN)) && 
+      (memcmp(packet.ethh.dst, amac, DHCP_ETH_ALEN)))
     return 0;
   
   if (this->debug) printf("IEEE 802.1x Packet: %.2x, %.2x %d\n",

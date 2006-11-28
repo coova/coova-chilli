@@ -87,7 +87,7 @@ struct dhcp_ethhdr_t
   uint8_t  dst[DHCP_ETH_ALEN];
   uint8_t  src[DHCP_ETH_ALEN];
   uint16_t prot;
-};
+} __attribute__((packed));
 
 /* Constants for IP packet */
 #define DHCP_IP_ALEN   4
@@ -95,6 +95,7 @@ struct dhcp_ethhdr_t
 #define DHCP_IP_ICMP   1 /* ICMP Protocol number */
 #define DHCP_IP_TCP    6 /* TCP Protocol number */
 #define DHCP_IP_UDP   17 /* UDP Protocol number */
+#define DHCP_IP_GRE   47 /* GRE Protocol number */
 
 struct dhcp_iphdr_t {
   uint8_t  ihl:4;
@@ -108,7 +109,7 @@ struct dhcp_iphdr_t {
   uint16_t check;
   uint32_t saddr;
   uint32_t daddr;
-};
+} __attribute__((packed));
 
 
 #define DHCP_IP_PLEN 1500 /* IP Payload length */
@@ -127,7 +128,7 @@ struct dhcp_udphdr_t {
   uint16_t dst;
   uint16_t len;
   uint16_t check;
-};
+} __attribute__((packed));
 
 struct dhcp_tcphdr_t {
   uint16_t src;
@@ -138,7 +139,7 @@ struct dhcp_tcphdr_t {
   uint8_t win;
   uint16_t check;
   uint8_t options[1]; /* TODO */
-};
+} __attribute__((packed));
 
 
 /* Length constants for DHCP packet */
@@ -288,6 +289,7 @@ struct dhcp_conn_t {
   int nextdnat;                /* Next location to use for DNAT */
   uint32_t dnatip[DHCP_DNAT_MAX]; /* Destination NAT destination IP address */
   uint16_t dnatport[DHCP_DNAT_MAX]; /* Destination NAT source port */
+  uint8_t dnatmac[DHCP_DNAT_MAX][DHCP_ETH_ALEN]; /* Destination NAT source mac */
 /*  uint16_t mtu;                 Maximum transfer unit */
 };
 
