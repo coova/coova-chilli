@@ -1027,7 +1027,7 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 	 int usemac, uint8_t *mac, int promisc, 
 	 struct in_addr *listen, int lease, int allowdyn,
 	 struct in_addr *uamlisten, uint16_t uamport, int useeapol) {
-  
+  int blen=0;
   struct in_addr noaddr;
   
   if (!(*dhcp = calloc(sizeof(struct dhcp_t), 1))) {
@@ -2161,14 +2161,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
   }
 
   if (options.tap) {
-    /*    struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
-    sscanf ("00:0C:F1:F4:1B:48", "%2x:%2x:%2x:%2x:%2x:%2x",
-		&ethh->dst[0],
-		&ethh->dst[1],
-		&ethh->dst[2],
-		&ethh->dst[3],
-		&ethh->dst[4],
-		&ethh->dst[5]);*/
+    struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
     memcpy(ethh->dst,options.tapmac,DHCP_ETH_ALEN);
   }
 

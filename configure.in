@@ -32,7 +32,8 @@ AC_FUNC_FORK
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MEMCMP
 AC_FUNC_SELECT_ARGTYPES
-AC_CHECK_FUNCS([gethostbyname gettimeofday inet_ntoa memset select socket strdup strerror strstr strtol])
+AC_CHECK_FUNCS([gethostbyname gettimeofday inet_ntoa memset select socket strdup strerror strstr strtol getline])
+AC_CHECK_LIB(resolv, res_init)
 
 AC_CONFIG_FILES([Makefile
                  doc/Makefile

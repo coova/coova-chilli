@@ -33,13 +33,11 @@
 #include <sys/wait.h>
 #include <sys/un.h>
 
-
 #if defined(__linux__)
 #include <asm/types.h>
 #include <linux/if.h>
 #include <linux/if_packet.h>
 #include <linux/if_ether.h>
-#include <linux/if_tun.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
@@ -48,8 +46,11 @@
 #include <net/bpf.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#include <net/if_tun.h>
 #include <ifaddrs.h>
+#endif
+
+#ifdef HAVE_NET_IF_TUN
+#include <net/if_tun.h>
 #endif
 
 #ifndef EIDRM
