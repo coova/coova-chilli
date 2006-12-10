@@ -2,6 +2,7 @@
 == ChangeLog (Coova Chilli current svn revision) ==
 
 * Experimenting with new option ''usetap'' to use a TAP instead of TUN
+* Fixed session-id not in access-request for UAM login bug
 
 == ChangeLog (Coova Chilli v1.0.3 svn revision 39) ==
 

@@ -1306,8 +1306,8 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   if (snprintf(url, sizeof(url)-1, "http://%s:%d/logoff", 
 	       inet_ntoa(redir->addr), redir->port) > 0)
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		 RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOGOFF_URL, 0,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOGOFF_URL, 0,
 		   url, strlen(url));
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 

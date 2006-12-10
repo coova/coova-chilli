@@ -1281,6 +1281,7 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
   conn->nasport = appconn->unit;
   memcpy(conn->hismac, dhcpconn->hismac, DHCP_ETH_ALEN);
   memcpy(conn->ourmac, dhcpconn->ourmac, DHCP_ETH_ALEN);
+  memcpy(conn->sessionid, appconn->sessionid, REDIR_SESSIONID_LEN);
   conn->ourip = appconn->ourip;
   conn->hisip = appconn->hisip;
 
