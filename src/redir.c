@@ -1006,10 +1006,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
   case REDIR_LOGIN:
     {
       /* We look for ident and lang parameters on url and put them on the struct */
-      if (!redir_getparam(redir, buffer, "lang", conn->lang, sizeof(conn->lang)))
+      if (!redir_getparam(redir, conn->qs, "lang", conn->lang, sizeof(conn->lang)))
 	if (optionsdebug) log_dbg("No lang parameter on url");
       
-      if (redir_getparam(redir, buffer, "ident", conn->ident, sizeof(conn->ident)))
+      if (redir_getparam(redir, conn->qs, "ident", conn->ident, sizeof(conn->ident)))
 	strcpy(conn->ident, "0"); /* default value ident = 0 */
       
       if (redir_getparam(redir, conn->qs, "username", 
@@ -1556,12 +1556,12 @@ int redir_accept(struct redir_t *redir, int idx) {
 }
 
 int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *address, int isui) {
-  int bufsize = REDIR_MAXBUFFER;
-  char buffer[bufsize+1];
-  int buflen;
   char hexchal[1+(2*REDIR_MD5LEN)];
   unsigned char challenge[REDIR_MD5LEN];
+  int bufsize = REDIR_MAXBUFFER;
+  char buffer[bufsize+1];
   struct redir_msg_t msg;
+  int buflen;
   int state = 0;
 
   struct redir_conn_t conn;
@@ -1572,10 +1572,18 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   int clen = 0;
 
   /* Close of socket */
-  void redir_close (){
-    shutdown(infd, SHUT_RDWR);
-    close(infd);
+  void redir_close () {
+    if (shutdown(outfd, SHUT_WR) != 0)
+      log_err(errno, "shutdown socket for writing");
+
+    if (!set_nonblocking(infd)) 
+      while(read(infd, buffer, sizeof(buffer)) > 0);
+
+    if (shutdown(infd, SHUT_RD) != 0)
+      log_err(errno, "shutdown socket for reading");
+
     close(outfd);
+    close(infd);
     exit(0);
   }
   
@@ -1624,7 +1632,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   termstate = REDIR_TERM_GETREQ;
   if (optionsdebug) log_dbg("Calling redir_getreq()\n");
-
 
   if (redir_getreq(redir, &socket, &conn, &ispost, &clen)) {
     if (optionsdebug) log_dbg("Error calling get_req. Terminating\n");
