@@ -1694,10 +1694,29 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	  sprintf(buffer, "%s/%s", options.wwwdir, filename);
 
 	  {
-	    char *binqqargs[3] = { options.wwwbin, buffer, 0 } ;
-	    execv(*binqqargs, binqqargs);
-	  }
-
+            char *binqqargs[3] = { options.wwwbin, buffer, 0 } ;
+            int status;
+	    
+            if ((status = fork()) < 0) {
+              log_err(errno, "fork() returned -1!");
+              /* lets just execv and ignore the extra crlf problem */
+              execv(*binqqargs, binqqargs);
+            }
+	    
+            if (status > 0) { /* Parent */
+              /* now wait for the child (the cgi-prog) to finish
+               * and let redir_close remove unwanted data
+               * (for instance) extra crlf from ie7 in POSTs)
+               * to avoid a tcp-reset.
+               */
+              wait(NULL);
+            }
+            else {
+              /* Child */
+	      execv(*binqqargs, binqqargs);
+	    }
+          }
+	  
 	  redir_close();
 	}
 	
