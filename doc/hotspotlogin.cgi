@@ -30,7 +30,9 @@
 # for radius authentication. Must be used together with $uamsecret.
 #$userpassword=1;
 
-# Our own path
+# This code is horrible -- it came that way, and remains that way. A
+# real open-source captive portal for coova-chilli should be built -- david
+
 $loginpath = "/cgi-bin/hotspotlogin.cgi";
 
 use Digest::MD5  qw(md5 md5_hex md5_base64);
@@ -87,8 +89,8 @@ if (!($ENV{HTTPS} =~ /^on$/)) {
 foreach $var ( @array )
 {
     @array2 = split('=',$var);
-    if ($array2[0] =~ /^UserName$/) { $username = $array2[1]; }
-    if ($array2[0] =~ /^Password$/) { $password = $array2[1]; }
+    if ($array2[0] =~ /^username$/i) { $username = $array2[1]; }
+    if ($array2[0] =~ /^password$/i) { $password = $array2[1]; }
     if ($array2[0] =~ /^challenge$/) { $challenge = $array2[1]; }
     if ($array2[0] =~ /^button$/) { $button = $array2[1]; }
     if ($array2[0] =~ /^logout$/) { $logout = $array2[1]; }
@@ -106,6 +108,8 @@ foreach $var ( @array )
 foreach $var ( @array )
 {
     @array2 = split('=',$var);
+    if ($array2[0] =~ /^username$/i) { $username = $array2[1]; }
+    if ($array2[0] =~ /^password$/i) { $password = $array2[1]; }
     if ($array2[0] =~ /^res$/)       { $res = $array2[1]; }
     if ($array2[0] =~ /^challenge$/) { $challenge = $array2[1]; }
     if ($array2[0] =~ /^uamip$/)     { $uamip = $array2[1]; }

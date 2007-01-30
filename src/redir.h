@@ -19,10 +19,10 @@
 
 #define REDIR_MAXTIME 100  /* Seconds */
 
-#define REDIR_HTTP_MAX_TIME 5  /* Seconds */
+#define REDIR_HTTP_MAX_TIME    10      /* Seconds */
 #define REDIR_HTTP_SELECT_TIME 500000  /* microseconds = 0.5 seconds */
 
-#define REDIR_RADIUS_MAX_TIME 60  /* Seconds */
+#define REDIR_RADIUS_MAX_TIME    200     /* Seconds */
 #define REDIR_RADIUS_SELECT_TIME 500000  /* microseconds = 0.5 seconds */
 
 #define REDIR_TERM_INIT     0  /* Nothing done yet */
@@ -43,8 +43,8 @@
 #define REDIR_MAXBUFFER 5125
 
 #define REDIR_USERNAMESIZE 256 /* Max length of username */
-#define REDIR_USERURLSIZE 1024  /* Max length of URL requested by user */
-#define REDIR_MAXQUERYSTRING 256
+#define REDIR_MAXQUERYSTRING 2048
+#define REDIR_USERURLSIZE    2048  /* Max length of URL requested by user */
 #define REDIR_USERAGENTSIZE 256
 #define REDIR_LANGSIZE 16
 #define REDIR_IDENTSIZE 16
@@ -101,7 +101,6 @@ struct redir_conn_t {
   char username[REDIR_USERNAMESIZE];
   char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
   char userurl[REDIR_USERURLSIZE];
-  char qs[REDIR_MAXQUERYSTRING];
   char useragent[REDIR_USERAGENTSIZE];
   char lang[REDIR_LANGSIZE];
   char ident[REDIR_IDENTSIZE];

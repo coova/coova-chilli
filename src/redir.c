@@ -305,8 +305,8 @@ static int redir_xmlreply(struct redir_t *redir,
 	       redir->radiuslocationname);
     }
     redir_stradd(dst, dstsize, 
-		 "<LoginURL>%s?res=smartclient&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
-		 redir->url, inet_ntoa(redir->addr), redir->port, hexchal);
+    		 "<LoginURL>%s?res=smartclient&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
+    		 redir->url, inet_ntoa(redir->addr), redir->port, hexchal); 
     redir_stradd(dst, dstsize, 
 		 "<AbortLoginURL>http://%s:%d/abort</AbortLoginURL>\r\n",
 		 inet_ntoa(redir->addr), redir->port);
@@ -627,8 +627,8 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
     }
 
     buffer[0] = 0;
-    (void) redir_xmlreply(redir, conn, res, timeleft, hexchal, reply, 
-			  redirurl, buffer, sizeof(buffer));
+    redir_xmlreply(redir, conn, res, timeleft, hexchal, reply, 
+		   redirurl, buffer, sizeof(buffer));
 
     if (tcp_write(sock, buffer, strlen(buffer)) < 0) {
       log_err(errno, "tcp_write() failed!");
@@ -646,7 +646,7 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
   else {
     snprintf(buffer, sizeof(buffer)-1, 
 	     "HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n"
-	     "<HTML><HEAD><TITLE>ChilliSpot</TITLE></HEAD><BODY>%s</BODY></HTML>\r\n", 
+	     "<HTML><HEAD><TITLE>(Coova-)ChilliSpot</TITLE></HEAD><BODY>%s</BODY></HTML>\r\n", 
 	     credits);
     if (tcp_write(sock, buffer, strlen(buffer)) < 0) {
       log_err(errno, "tcp_write() failed!");
@@ -817,7 +817,7 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param,
   strncat(sstr, "=", sizeof(sstr));
   sstr[sizeof(sstr)-1] = 0;
 
-  if (!(p1 = strstr(src, sstr))) return -1;
+  if (!(p1 = strcasestr(src, sstr))) return -1;
   p1 += strlen(sstr);
 
   /* The parameter ends with a & or null */
@@ -837,7 +837,8 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param,
 /* Read the an HTTP request from a client */
 /* If POST is allowed, 1 is the input value of ispost */
 static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
-			struct redir_conn_t *conn, int *ispost, int *clen) {
+			struct redir_conn_t *conn, int *ispost, int *clen,
+			char *qs, int qslen) {
   int fd = sock->fd[0];
   fd_set fds;
   struct timeval idleTime;
@@ -925,7 +926,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	  dstlen = sizeof(path)-1;
 
 	strncpy(path, p1, dstlen);
-	log_dbg("The path is: %s", path); 
+	log_dbg("The path: %s", path); 
 
 	/* TODO: Should also check the Host: to make sure we are talking directly to uamlisten */
 
@@ -944,15 +945,15 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	else if (!strcmp(path, "status"))
 	  { conn->type = REDIR_STATUS; return 0; }
 
-	if (conn->type && *p2 == '?') {
+	if (*p2 == '?') {
 	  p1 = p2 + 1;
 	  p2 = strchr(p1, ' ');
 	  if (p2) {
 	    dstlen = p2 - p1;
-	    if (dstlen >= sizeof(conn->qs)-1) 
-	      dstlen = sizeof(conn->qs)-1;
-	    strncpy(conn->qs, p1, dstlen);
-	    log_dbg("The query string: %s", conn->qs); 
+	    if (dstlen >= qslen-1) 
+	      dstlen = qslen-1;
+	    strncpy(qs, p1, dstlen);
+	    log_dbg("Query string: %s", qs); 
 	  }
 	}
       } else if (linelen == 0) { 
@@ -1006,31 +1007,31 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
   case REDIR_LOGIN:
     {
       /* We look for ident and lang parameters on url and put them on the struct */
-      if (!redir_getparam(redir, conn->qs, "lang", conn->lang, sizeof(conn->lang)))
+      if (!redir_getparam(redir, qs, "lang", conn->lang, sizeof(conn->lang)))
 	if (optionsdebug) log_dbg("No lang parameter on url");
       
-      if (redir_getparam(redir, conn->qs, "ident", conn->ident, sizeof(conn->ident)))
+      if (redir_getparam(redir, qs, "ident", conn->ident, sizeof(conn->ident)))
 	strcpy(conn->ident, "0"); /* default value ident = 0 */
       
-      if (redir_getparam(redir, conn->qs, "username", 
+      if (redir_getparam(redir, qs, "username", 
 			 conn->username, sizeof(conn->username))) {
 	if (optionsdebug) log_dbg("No username found!");
 	return -1;
       }
       
-      if (!redir_getparam(redir, conn->qs, "userurl", resp, sizeof(resp))) {
+      if (!redir_getparam(redir, qs, "userurl", resp, sizeof(resp))) {
 	(void)redir_urldecode(resp, strlen(resp), conn->userurl, sizeof(conn->userurl));
 	if (optionsdebug) log_dbg("-->> Setting userurl=[%s]",conn->userurl);
       }
       
       if (redir->secret &&
-	  !redir_getparam(redir, conn->qs, "response", resp, sizeof(resp))) {
+	  !redir_getparam(redir, qs, "response", resp, sizeof(resp))) {
 	(void)redir_hextochar(resp, conn->chappassword);
 	conn->chap = 1;
 	conn->password[0] = 0;
       }
       else if ((!redir->secret || options.pap_always_ok) && 
-	       !redir_getparam(redir, conn->qs, "password", resp, sizeof(resp))) {
+	       !redir_getparam(redir, qs, "password", resp, sizeof(resp))) {
 	(void)redir_hextochar(resp, conn->password);
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
@@ -1042,8 +1043,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
     break;
 
   case REDIR_LOGOUT:
+  case REDIR_PRELOGIN:
     {
-      if (!redir_getparam(redir, conn->qs, "userurl", resp, sizeof(resp))) {
+      if (!redir_getparam(redir, qs, "userurl", resp, sizeof(resp))) {
 	(void)redir_urldecode(resp, strlen(resp), conn->userurl, sizeof(conn->userurl));
 	if (optionsdebug) log_dbg("-->> Setting userurl=[%s]",conn->userurl);
       }
@@ -1062,7 +1064,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
     {
       /* this is a redirection, check for logoutip! */
       snprintf(conn->userurl, sizeof(conn->userurl), "http://%s/%s%s%s", 
-	       host, path, conn->qs[0] ? "?" : "", conn->qs[0] ? conn->qs : "");
+	       host, path, qs[0] ? "?" : "", qs[0] ? qs : "");
       if (optionsdebug) log_dbg("-->> Setting userurl=[%s]",conn->userurl);
     }
     break;
@@ -1560,6 +1562,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   unsigned char challenge[REDIR_MD5LEN];
   int bufsize = REDIR_MAXBUFFER;
   char buffer[bufsize+1];
+  char qs[REDIR_USERURLSIZE];
   struct redir_msg_t msg;
   int buflen;
   int state = 0;
@@ -1633,7 +1636,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   termstate = REDIR_TERM_GETREQ;
   if (optionsdebug) log_dbg("Calling redir_getreq()\n");
 
-  if (redir_getreq(redir, &socket, &conn, &ispost, &clen)) {
+  if (redir_getreq(redir, &socket, &conn, &ispost, &clen, qs, sizeof(qs))) {
     if (optionsdebug) log_dbg("Error calling get_req. Terminating\n");
     redir_close();
   }
@@ -1688,7 +1691,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	  sprintf(buffer,"%d", clen > 0 ? clen : 0);
 	  setenv("CONTENT_LENGTH", buffer, 1);
 	  setenv("REQUEST_METHOD", ispost ? "POST" : "GET", 1);
-	  setenv("QUERY_STRING", conn.qs, 1);
+	  setenv("QUERY_STRING", qs, 1);
 
 	  log_dbg("Running: %s %s/%s",options.wwwbin, options.wwwdir, filename);
 	  sprintf(buffer, "%s/%s", options.wwwdir, filename);
@@ -1959,8 +1962,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   
   if (redir->homepage) {
     char url[REDIR_URL_LEN+1];
-    char url2[REDIR_URL_LEN+1];
-    int len;
+    char urlEnc[REDIR_URL_LEN+1];
 
     if (redir_buildurl(&conn, url, sizeof(url), redir, "notyet", 0, hexchal, NULL,
 		       conn.userurl, NULL, NULL, conn.hismac, &conn.hisip) == -1) {
@@ -1968,28 +1970,14 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       redir_close();
     }
 
-    snprintf(url, REDIR_URL_LEN, "http://%s:%d/prelogin", inet_ntoa(redir->addr), redir->port);
-    url[REDIR_URL_LEN] = 0;
+    redir_urlencode(url, strlen(url), urlEnc, sizeof(urlEnc));
 
-    redir_xmlencode(url, strlen(url), url2, sizeof(url2));
+    snprintf(url, REDIR_URL_LEN, "%s%cloginurl=%s",
+	     redir->homepage, strchr(redir->homepage, '?') ? '&' : '?', urlEnc);
 
-    buflen = snprintf(buffer, bufsize,
-		      "HTTP/1.0 302 Moved Temporarily\r\n"
-		      "Location: %s%c" "loginurl=%s\r\n"
-		      "Content-type: text/html\r\n\r\n<HTML>"
-		      "<HEAD><TITLE>302 Moved Temporarily</TITLE></HEAD><BODY><H1>Browser error!</H1>"
-		      "Browser does not support redirects!</BODY>\n"
-		      "<!--\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
-		      "<WISPAccessGatewayParam xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
-		      " xsi:noNamespaceSchemaLocation=\"WISPAccessGatewayParam.xsd\">"
-		      "<Proxy><MessageType>110</MessageType>"
-		      "<ResponseCode>200</ResponseCode><Delay>0</Delay>"
-		      "<NextURL>%s</NextURL></Proxy></WISPAccessGatewayParam>\n-->\n</HTML>",
-		      redir->homepage, strchr(redir->homepage, '?') ? '&' : '?', url, url2);
-
-    if (buflen > bufsize) buflen = bufsize;
-    if (optionsdebug) log_dbg("redir_reply: Sending http reply: %s\n", buffer);
-    tcp_write(&socket, buffer, buflen);
+    redir_reply(redir, &socket, &conn, REDIR_NOTYET, url, 
+		0, hexchal, NULL, conn.userurl, NULL, 
+		NULL, conn.hismac, &conn.hisip);
   }
   else if (state == 1) {
     redir_reply(redir, &socket, &conn, REDIR_ALREADY, NULL, 0, 

@@ -1,10 +1,27 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html><head><title>Coova</title>
 <!-- redirecting... either by meta tag or javascript -->
-<meta http-equiv="refresh" content="5; URL=/prelogin"> 
 <script type="text/javascript" language="Javascript">
 //<!--
-function redirect() { window.location = "/prelogin"; }
+function getURLParam(n) {
+  var s = "";
+  var href = window.location.href;
+  if (href.indexOf("?") > -1) {
+    var qs = href.substr(href.indexOf("?"));
+    var qsList = qs.split("&");
+    for (var i = 0; i < qsList.length; i++) {
+      if (qsList[i].indexOf(n + "=") > -1) {
+        var pList = qsList[i].split("=");
+        s = pList[1];
+        break;
+      }
+    }
+  }
+  return unescape(s.replace(/\+/g, " "));
+}
+var loginUrl = getURLParam("loginurl");
+window.document.write("<meta http-equiv=\"refresh\" content=\"5; URL="+loginUrl+"\">");
+function redirect() { window.location = loginUrl; }
 function loaded() { setTimeout('redirect()', 10000) }
 //-->
 </script>
