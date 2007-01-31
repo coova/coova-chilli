@@ -2065,20 +2065,29 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
     ourip.s_addr = conn->ourip.s_addr;
   }
   else {
-    if (this->debug) printf("Address not found\n");
-    ourip.s_addr = this->ourip.s_addr;
-    
+    /* ALPAPAD */
+    struct in_addr reqaddr;
+    /* Get local copy */
+    memcpy(&reqaddr.s_addr, &pack->iph.saddr, DHCP_IP_ALEN);
+    if (options.debug) printf("Address not found (%s)\n",inet_ntoa(reqaddr)); 
+
     /* Do we allow dynamic allocation of IP addresses? */
-    if (!this->allowdyn) {
-      if (this->debug) log_dbg("dropping packet; no dynamic ip allocation");
+    if (!this->allowdyn && !options.uamanyip)
       return 0; 
-    }
-    
+
+    ourip.s_addr = this->ourip.s_addr;
+
     /* Allocate new connection */
     if (dhcp_newconn(this, &conn, pack->ethh.src)) {
       if (this->debug) log_dbg("dropping packet; out of connections");
       return 0; /* Out of connections */
     }
+
+    /* Request an IP address */
+    if (options.uamanyip && 
+	conn->authstate == DHCP_AUTH_NONE) {
+      this->cb_request(conn,&reqaddr);
+    } 
   }
 
   /* Return if we do not know peer */
@@ -2260,7 +2269,6 @@ int dhcp_sendARP(struct dhcp_conn_t *conn,
 
   /* Check that request is within limits */
 
-  
   /* Is ARP request for clients own address: Ignore */
   if (conn->hisip.s_addr == reqaddr.s_addr)
     return 0;
@@ -2311,27 +2319,37 @@ int dhcp_receive_arp(struct dhcp_t *this,
     return 0;
   }
 
-
-  /* Check that MAC address is our MAC or Broadcast */
-  if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
-      (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
-    if (this->debug) printf("Received ARP request for other destination!\n");
-    return 0;
+  if (!options.uamanyip) {
+    /* Check that MAC address is our MAC or Broadcast */
+    if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
+	(memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
+      if (this->debug) printf("Received ARP request for other destination!\n");
+      return 0;
+    }
   }
 
   /* Check to see if we know MAC address. */
   if (dhcp_hashget(this, &conn, pack->ethh.src)) {
-    if (this->debug) printf("Address not found\n");
-    
+    /* ALPAPAD */
+    struct in_addr reqaddr;
+    /* Get local copy */
+    memcpy(&reqaddr.s_addr, &pack->arp.spa, DHCP_IP_ALEN);
+    if (options.debug) printf("Address not found (%s)\n",inet_ntoa(reqaddr));
+
     /* Do we allow dynamic allocation of IP addresses? */
-    if (!this->allowdyn)  /* TODO: Experimental */
+    if (!this->allowdyn && !options.uamanyip)
       return 0; 
     
     /* Allocate new connection */
-    if (dhcp_newconn(this, &conn, pack->ethh.src)) /* TODO: Experimental */
+    if (dhcp_newconn(this, &conn, pack->ethh.src))
       return 0; /* Out of connections */
+
+    /* Request an IP address */
+    if (options.uamanyip && 
+	conn->authstate == DHCP_AUTH_NONE) {
+      this->cb_request(conn, &reqaddr);
+    }
   }
-  
   
   gettimeofday(&conn->lasttime, NULL);
 
@@ -2340,12 +2358,15 @@ int dhcp_receive_arp(struct dhcp_t *this,
     return 0; /* Only reply if he was allocated an address */
   }
   
-  if (memcmp(&conn->ourip.s_addr, pack->arp.tpa, 4)) {
-    if (this->debug) printf("Did not ask for router address: %.8x - %.2x%.2x%.2x%.2x\n", conn->ourip.s_addr, 
-			    pack->arp.tpa[0],
-			    pack->arp.tpa[1],
-			    pack->arp.tpa[2],
-			    pack->arp.tpa[3]);
+  if ((options.uamanyip ? 
+       !memcmp(&conn->hisip.s_addr, pack->arp.tpa, 4) : /* this line (and above too) for anyip! */
+       memcmp(&conn->ourip.s_addr, pack->arp.tpa, 4))) { /* check for out address */
+    if (options.debug) 
+      printf("ARP: Did not ask for router address: %.8x - %.2x%.2x%.2x%.2x\n", conn->ourip.s_addr, 
+	     pack->arp.tpa[0],
+	     pack->arp.tpa[1],
+	     pack->arp.tpa[2],
+	     pack->arp.tpa[3]);
     return 0; /* Only reply if he asked for his router address */
   }
   

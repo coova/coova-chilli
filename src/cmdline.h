@@ -170,6 +170,8 @@ struct gengetopt_args_info
   const char *uamallowed_help; /* Domain names exempt from access check  help description.  */
   int uamanydns_flag;	/* Allow client to use any DNS server (default=off).  */
   const char *uamanydns_help; /* Allow client to use any DNS server help description.  */
+  int uamanyip_flag;	/* Allow client to use any IP Address (default=off).  */
+  const char *uamanyip_help; /* Allow client to use any IP Address help description.  */
   int nouamsuccess_flag;	/* Do not return to the UAM server on success, original url instead (default=off).  */
   const char *nouamsuccess_help; /* Do not return to the UAM server on success, original url instead help description.  */
   int nouamwispr_flag;	/* Do not send WISPr XML from ChilliSpot, assume back-end does (default=off).  */
@@ -295,6 +297,7 @@ struct gengetopt_args_info
   int uamuiport_given ;	/* Whether uamuiport was given.  */
   unsigned int uamallowed_given ;	/* Whether uamallowed was given.  */
   int uamanydns_given ;	/* Whether uamanydns was given.  */
+  int uamanyip_given ;	/* Whether uamanyip was given.  */
   int nouamsuccess_given ;	/* Whether nouamsuccess was given.  */
   int nouamwispr_given ;	/* Whether nouamwispr was given.  */
   int uamlogoutip_given ;	/* Whether uamlogoutip was given.  */

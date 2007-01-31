@@ -376,6 +376,7 @@ int process_options(int argc, char **argv, int minimal) {
   }
 
   options.uamanydns = args_info.uamanydns_flag;
+  options.uamanyip = args_info.uamanyip_flag;
 
   /* pass-throughs */
   memset(options.pass_throughs, 0, sizeof(options.pass_throughs));

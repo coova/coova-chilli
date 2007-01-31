@@ -124,6 +124,8 @@ struct options_t {
   struct in_addr uamlogout;      /* IP address of HTTP auto-logout */
 
   int uamanydns;                 /* Allow any dns server */
+  int uamanyip;                  /* Allow any ip address */
+
   pass_through pass_throughs[MAX_PASS_THROUGHS];
   int num_pass_throughs;
 

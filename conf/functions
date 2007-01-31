@@ -33,6 +33,7 @@ HS_ADMINTERVAL=${HS_ADMINTERVAL:-60}
 
 HS_RADCONF=${HS_RADCONF:-on}
 HS_RADCONF_SERVER=${HS_RADCONF_SERVER:-rad01.coova.org}
+HS_RADCONF_SERVERS=${HS_RADCONF_SERVERS:+$(echo "$HS_RADCONF_SERVERS"|sed 's/[;, ]/ /g')}
 HS_RADCONF_SECRET=${HS_RADCONF_SECRET:-coova-anonymous}
 HS_RADCONF_AUTHPORT=${HS_RADCONF_AUTHPORT:-1812}
 HS_RADCONF_ACCTPORT=${HS_RADCONF_ACCTPORT:-1813}
@@ -146,30 +147,35 @@ EOF
     fi
 }
 
-radiusconfig() {
-    touch $LOCAL_CONF $HS_CONF 
-    if [ "x$HS_RADCONF" = "xon" ]; then 
-	chilli_radconfig \
-	    -c /dev/null \
-	    --radiusserver1="$HS_RADCONF_SERVER" \
-	    --radiussecret="$HS_RADCONF_SECRET" \
-	    --radiusauthport="$HS_RADCONF_AUTHPORT" \
-	    --radiusacctport="$HS_RADCONF_ACCTPORT" \
-	    --adminuser="$HS_RADCONF_USER" \
-	    --adminpasswd="$HS_RADCONF_PWD" \
-	    > $HS_TEMP
-    else
-	chilli_radconfig > $HS_TEMP
-    fi
+checkfornew() {
     if [ -x /usr/bin/cmp ]; then
 	cmp -s $HS_TEMP $HS_CONF || (
 	    mv $HS_TEMP $HS_CONF
-	    killall -HUP chilli 2>&- >&-
+	    killall -HUP chilli 2>/dev/null >/dev/null
 	)
     else
         # no diff, so lets copy and let chilli
         # refresh on its own (interval option)
 	mv $HS_TEMP $HS_CONF
+    fi
+}
+
+radiusconfig() {
+    touch $LOCAL_CONF $HS_CONF 
+    if [ "x$HS_RADCONF" = "xon" ]; then 
+	for s in "$HS_RADCONF_SERVER $HS_RADCONF_SERVERS"; do
+	    chilli_radconfig \
+		-c /dev/null \
+		--radiusserver1="$HS_RADCONF_SERVER" \
+		--radiussecret="$HS_RADCONF_SECRET" \
+		--radiusauthport="$HS_RADCONF_AUTHPORT" \
+		--radiusacctport="$HS_RADCONF_ACCTPORT" \
+		--adminuser="$HS_RADCONF_USER" \
+		--adminpasswd="$HS_RADCONF_PWD" \
+		> $HS_TEMP && {	checkfornew; break; }
+	done
+    else
+	chilli_radconfig > $HS_TEMP && { checkfornew; break; }
     fi
 }
 

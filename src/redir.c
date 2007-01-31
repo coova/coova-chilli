@@ -1646,13 +1646,132 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     redir_close();
   }
 
-  termstate = REDIR_TERM_GETSTATE;
-  if (optionsdebug) log_dbg("Calling cb_getstate()\n");
-
-  if (!redir->cb_getstate) {
-    log_err(0, "No cb_getstate() defined!");
+  if (conn.type == REDIR_WWW) {
+    int fd = -1;
+    if (options.wwwdir && conn.userurl && *conn.userurl) {
+      char *ctype = "text/plain";
+      char *filename = conn.userurl;
+      int namelen = strlen(filename);
+      int parse = 0;
+      
+      /* check filename */
+      { char *p;
+	for (p=filename; *p; p++) {
+	  if (*p >= 'a' && *p <= 'z') 
+	    continue;
+	  switch(*p) {
+	  case '.':
+	  case '_':
+	  case '-':
+	    break;
+	  default:
+	    /* invalid file name! */
+	    log_err(0, "invalid www request [%s]!", filename);
+	    redir_close();
+	  }
+	}
+      }
+      
+      /* serve the local content */
+      
+      if      (!strcmp(filename + (namelen - 5), ".html")) ctype = "text/html";
+      else if (!strcmp(filename + (namelen - 4), ".gif"))  ctype = "image/gif";
+      else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
+      else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
+      else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
+      else if (!strcmp(filename + (namelen - 4), ".chi")){ ctype = "text/html"; parse = 1; }
+      else { 
+	/* we do not serve it! */
+	log_err(0, "invalid file extension! [%s]", filename);
+	redir_close();
+      }
+      
+      if (parse) {
+	FILE *f;
+	
+	if (!options.wwwbin) {
+	  log_err(0, "the 'wwwbin' setting must be configured for CGI use");
+	  redir_close();
+	}
+	
+	if (clear_nonblocking(socket.fd[0])) {
+	  log_err(errno, "fcntl() failed");
+	}
+	
+	/* XXX: Todo: look for malicious content! */
+	
+	sprintf(buffer,"%d", clen > 0 ? clen : 0);
+	setenv("CONTENT_LENGTH", buffer, 1);
+	setenv("REQUEST_METHOD", ispost ? "POST" : "GET", 1);
+	setenv("QUERY_STRING", qs, 1);
+	
+	log_dbg("Running: %s %s/%s",options.wwwbin, options.wwwdir, filename);
+	sprintf(buffer, "%s/%s", options.wwwdir, filename);
+	
+	{
+	  char *binqqargs[3] = { options.wwwbin, buffer, 0 } ;
+	  int status;
+	  
+	  if ((status = fork()) < 0) {
+	    log_err(errno, "fork() returned -1!");
+	    /* lets just execv and ignore the extra crlf problem */
+	    execv(*binqqargs, binqqargs);
+	  }
+	  
+	  if (status > 0) { /* Parent */
+	    /* now wait for the child (the cgi-prog) to finish
+	     * and let redir_close remove unwanted data
+	     * (for instance) extra crlf from ie7 in POSTs)
+	     * to avoid a tcp-reset.
+	     */
+	    wait(NULL);
+	  }
+	  else {
+	    /* Child */
+	    execv(*binqqargs, binqqargs);
+	  }
+	}
+	
+	redir_close();
+      }
+      
+      if (!chroot(options.wwwdir) && !chdir("/")) {
+	
+	fd = open(filename, O_RDONLY);
+	
+	if (fd > 0) {
+	  
+	  if (clear_nonblocking(socket.fd[0])) {
+	    log_err(errno, "fcntl() failed");
+	  }
+	  
+	  buflen = snprintf(buffer, bufsize,
+			    "HTTP/1.0 200 OK\r\nContent-type: %s\r\n\r\n", ctype);
+	  
+	  if (tcp_write(&socket, buffer, buflen) < 0) {
+	    log_err(errno, "tcp_write() failed!");
+	  }
+	  
+	  while ((buflen = read(fd, buffer, bufsize)) > 0)
+	    if (tcp_write(&socket, buffer, buflen) < 0)
+	      log_err(errno, "tcp_write() failed!");
+	  
+	  close(fd);
+	  redir_close(); /* which exits */
+	} 
+	else log_err(0, "could not open local content file %s!", filename);
+      }
+      else log_err(0, "chroot to %s was not successful\n", options.wwwdir); 
+    } 
+    else log_err(0, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param\n"); 
+    
     redir_close();
   }
+
+
+  termstate = REDIR_TERM_GETSTATE;
+  if (optionsdebug) log_dbg("Calling cb_getstate()\n");
+  if (!redir->cb_getstate) { log_err(0, "No cb_getstate() defined!"); redir_close(); }
 
   state = redir->cb_getstate(redir, &address->sin_addr, &conn);
 
@@ -1660,130 +1779,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   if (optionsdebug) log_dbg("Processing received request\n");
 
   switch (conn.type) {
-
-  case REDIR_WWW:
-    {
-      int fd = -1;
-      if (options.wwwdir && conn.userurl && *conn.userurl) {
-	char *ctype = "text/plain";
-	char *filename = conn.userurl;
-	int namelen = strlen(filename);
-	int parse = 0;
-
-	/* check filename */
-	{ char *p;
-	  for (p=filename; *p; p++) {
-	    if (*p >= 'a' && *p <= 'z') 
-	      continue;
-	    switch(*p) {
-	    case '.':
-	    case '_':
-	    case '-':
-	      break;
-	    default:
-	      /* invalid file name! */
-	      log_err(0, "invalid www request [%s]!", filename);
-	      redir_close();
-	    }
-	  }
-	}
-	
-	/* serve the local content */
-	
-	if      (!strcmp(filename + (namelen - 5), ".html")) ctype = "text/html";
-	else if (!strcmp(filename + (namelen - 4), ".gif"))  ctype = "image/gif";
-	else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
-	else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
-	else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
-	else if (!strcmp(filename + (namelen - 4), ".chi")){ ctype = "text/html"; parse = 1; }
-	else { 
-	  /* we do not serve it! */
-	  log_err(0, "invalid file extension! [%s]", filename);
-	  redir_close();
-	}
-	
-	if (parse) {
-	  FILE *f;
-	  
-	  if (!options.wwwbin) {
-	    log_err(0, "the 'wwwbin' setting must be configured for CGI use");
-	    redir_close();
-	  }
-	  
-	  if (clear_nonblocking(socket.fd[0])) {
-	    log_err(errno, "fcntl() failed");
-	  }
-	  
-	  /* XXX: Todo: look for malicious content! */
-
-	  sprintf(buffer,"%d", clen > 0 ? clen : 0);
-	  setenv("CONTENT_LENGTH", buffer, 1);
-	  setenv("REQUEST_METHOD", ispost ? "POST" : "GET", 1);
-	  setenv("QUERY_STRING", qs, 1);
-
-	  log_dbg("Running: %s %s/%s",options.wwwbin, options.wwwdir, filename);
-	  sprintf(buffer, "%s/%s", options.wwwdir, filename);
-
-	  {
-            char *binqqargs[3] = { options.wwwbin, buffer, 0 } ;
-            int status;
-	    
-            if ((status = fork()) < 0) {
-              log_err(errno, "fork() returned -1!");
-              /* lets just execv and ignore the extra crlf problem */
-              execv(*binqqargs, binqqargs);
-            }
-	    
-            if (status > 0) { /* Parent */
-              /* now wait for the child (the cgi-prog) to finish
-               * and let redir_close remove unwanted data
-               * (for instance) extra crlf from ie7 in POSTs)
-               * to avoid a tcp-reset.
-               */
-              wait(NULL);
-            }
-            else {
-              /* Child */
-	      execv(*binqqargs, binqqargs);
-	    }
-          }
-	  
-	  redir_close();
-	}
-	
-	if (!chroot(options.wwwdir) && !chdir("/")) {
-	  
-	  fd = open(filename, O_RDONLY);
-	  
-	  if (fd > 0) {
-	    
-	    if (clear_nonblocking(socket.fd[0])) {
-	      log_err(errno, "fcntl() failed");
-	    }
-	    
-	    buflen = snprintf(buffer, bufsize,
-			      "HTTP/1.0 200 OK\r\nContent-type: %s\r\n\r\n", ctype);
-	    
-	    if (tcp_write(&socket, buffer, buflen) < 0) {
-	      log_err(errno, "tcp_write() failed!");
-	    }
-	    
-	    while ((buflen = read(fd, buffer, bufsize)) > 0)
-	      if (tcp_write(&socket, buffer, buflen) < 0)
-		log_err(errno, "tcp_write() failed!");
-	    
-	    close(fd);
-	    redir_close(); /* which exits */
-	  } 
-	  else log_err(0, "could not open local content file %s!", filename);
-	}
-	else log_err(0, "chroot to %s was not successful\n", options.wwwdir); 
-      } 
-      else log_err(0, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param\n"); 
-      
-      redir_close();
-    }
-  
 
   case REDIR_LOGIN:
     

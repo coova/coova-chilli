@@ -2475,6 +2475,16 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
   if (appconn->dnprot == DNPROT_DHCP_NONE)
     appconn->dnprot = DNPROT_UAM;
 
+  /* ALPAPAD */
+  /* Add routing entry ;-) */
+  if (options.uamanyip) {
+    if(ipm->inuse == 2) {
+      struct in_addr mask;
+      mask.s_addr = 0xffffffff;
+      printf("Adding route: %d\n", tun_addroute(tun,addr,&appconn->ourip,&mask));
+    }
+  }
+
   return 0;
 }
 
@@ -2582,10 +2592,21 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
 
   terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
 
-  if (appconn->uplink)
+  /* ALPAPAD */
+  if (appconn->uplink) {
+    if (options.uamanyip) {
+      struct ippoolm_t *member;
+      member = (struct ippoolm_t *) appconn->uplink;
+      if (member->inuse  == 2) {
+	struct in_addr mask;
+	mask.s_addr = 0xffffffff;
+	printf("Removing route: %d\n", tun_delroute(tun,&member->addr,&appconn->ourip,&mask,1));
+      }
+    }
     if (ippool_freeip(ippool, (struct ippoolm_t *) appconn->uplink)) {
       log_err(0, "ippool_freeip() failed!");
     }
+  }
   
   (void) freeconn(appconn);
 

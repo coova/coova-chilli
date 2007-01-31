@@ -77,6 +77,7 @@ const char *gengetopt_args_info_help[] = {
   "      --uamuiport=INT           TCP port to bind to for UAM UI requests  \n                                  (default=`3991')",
   "      --uamallowed=STRING       Domain names exempt from access check ",
   "      --uamanydns               Allow client to use any DNS server  \n                                  (default=off)",
+  "      --uamanyip                Allow client to use any IP Address  \n                                  (default=off)",
   "      --nouamsuccess            Do not return to the UAM server on success, \n                                  original url instead  (default=off)",
   "      --nouamwispr              Do not send WISPr XML from ChilliSpot, assume \n                                  back-end does  (default=off)",
   "      --uamlogoutip=STRING      HTTP Auto-Logout IP Address  \n                                  (default=`1.1.1.1')",
@@ -206,6 +207,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamuiport_given = 0 ;
   args_info->uamallowed_given = 0 ;
   args_info->uamanydns_given = 0 ;
+  args_info->uamanyip_given = 0 ;
   args_info->nouamsuccess_given = 0 ;
   args_info->nouamwispr_given = 0 ;
   args_info->uamlogoutip_given = 0 ;
@@ -331,6 +333,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->uamallowed_arg = NULL;
   args_info->uamallowed_orig = NULL;
   args_info->uamanydns_flag = 0;
+  args_info->uamanyip_flag = 0;
   args_info->nouamsuccess_flag = 0;
   args_info->nouamwispr_flag = 0;
   args_info->uamlogoutip_arg = gengetopt_strdup ("1.1.1.1");
@@ -434,35 +437,36 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->uamallowed_min = -1;
   args_info->uamallowed_max = -1;
   args_info->uamanydns_help = gengetopt_args_info_help[50] ;
-  args_info->nouamsuccess_help = gengetopt_args_info_help[51] ;
-  args_info->nouamwispr_help = gengetopt_args_info_help[52] ;
-  args_info->uamlogoutip_help = gengetopt_args_info_help[53] ;
-  args_info->macauth_help = gengetopt_args_info_help[54] ;
-  args_info->macallowed_help = gengetopt_args_info_help[55] ;
+  args_info->uamanyip_help = gengetopt_args_info_help[51] ;
+  args_info->nouamsuccess_help = gengetopt_args_info_help[52] ;
+  args_info->nouamwispr_help = gengetopt_args_info_help[53] ;
+  args_info->uamlogoutip_help = gengetopt_args_info_help[54] ;
+  args_info->macauth_help = gengetopt_args_info_help[55] ;
+  args_info->macallowed_help = gengetopt_args_info_help[56] ;
   args_info->macallowed_min = -1;
   args_info->macallowed_max = -1;
-  args_info->macsuffix_help = gengetopt_args_info_help[56] ;
-  args_info->macpasswd_help = gengetopt_args_info_help[57] ;
-  args_info->macallowlocal_help = gengetopt_args_info_help[58] ;
-  args_info->wwwdir_help = gengetopt_args_info_help[59] ;
-  args_info->wwwbin_help = gengetopt_args_info_help[60] ;
-  args_info->uamui_help = gengetopt_args_info_help[61] ;
-  args_info->adminuser_help = gengetopt_args_info_help[62] ;
-  args_info->adminpasswd_help = gengetopt_args_info_help[63] ;
-  args_info->nasmac_help = gengetopt_args_info_help[64] ;
-  args_info->nasip_help = gengetopt_args_info_help[65] ;
-  args_info->ssid_help = gengetopt_args_info_help[66] ;
-  args_info->vlan_help = gengetopt_args_info_help[67] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[68] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[69] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[70] ;
-  args_info->localusers_help = gengetopt_args_info_help[71] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[72] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[73] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[74] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[75] ;
-  args_info->chillixml_help = gengetopt_args_info_help[76] ;
-  args_info->usetap_help = gengetopt_args_info_help[77] ;
+  args_info->macsuffix_help = gengetopt_args_info_help[57] ;
+  args_info->macpasswd_help = gengetopt_args_info_help[58] ;
+  args_info->macallowlocal_help = gengetopt_args_info_help[59] ;
+  args_info->wwwdir_help = gengetopt_args_info_help[60] ;
+  args_info->wwwbin_help = gengetopt_args_info_help[61] ;
+  args_info->uamui_help = gengetopt_args_info_help[62] ;
+  args_info->adminuser_help = gengetopt_args_info_help[63] ;
+  args_info->adminpasswd_help = gengetopt_args_info_help[64] ;
+  args_info->nasmac_help = gengetopt_args_info_help[65] ;
+  args_info->nasip_help = gengetopt_args_info_help[66] ;
+  args_info->ssid_help = gengetopt_args_info_help[67] ;
+  args_info->vlan_help = gengetopt_args_info_help[68] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[69] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[70] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[71] ;
+  args_info->localusers_help = gengetopt_args_info_help[72] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[73] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[74] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[75] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[76] ;
+  args_info->chillixml_help = gengetopt_args_info_help[77] ;
+  args_info->usetap_help = gengetopt_args_info_help[78] ;
   
 }
 
@@ -1408,6 +1412,9 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
   if (args_info->uamanydns_given) {
     fprintf(outfile, "%s\n", "uamanydns");
   }
+  if (args_info->uamanyip_given) {
+    fprintf(outfile, "%s\n", "uamanyip");
+  }
   if (args_info->nouamsuccess_given) {
     fprintf(outfile, "%s\n", "nouamsuccess");
   }
@@ -1860,6 +1867,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "uamuiport",	1, NULL, 0 },
         { "uamallowed",	1, NULL, 0 },
         { "uamanydns",	0, NULL, 0 },
+        { "uamanyip",	0, NULL, 0 },
         { "nouamsuccess",	0, NULL, 0 },
         { "nouamwispr",	0, NULL, 0 },
         { "uamlogoutip",	1, NULL, 0 },
@@ -2846,6 +2854,20 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             local_args_info.uamanydns_given = 1;
             args_info->uamanydns_given = 1;
             args_info->uamanydns_flag = !(args_info->uamanydns_flag);
+          }
+          /* Allow client to use any IP Address.  */
+          else if (strcmp (long_options[option_index].name, "uamanyip") == 0)
+          {
+            if (local_args_info.uamanyip_given)
+              {
+                fprintf (stderr, "%s: `--uamanyip' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->uamanyip_given && ! override)
+              continue;
+            local_args_info.uamanyip_given = 1;
+            args_info->uamanyip_given = 1;
+            args_info->uamanyip_flag = !(args_info->uamanyip_flag);
           }
           /* Do not return to the UAM server on success, original url instead.  */
           else if (strcmp (long_options[option_index].name, "nouamsuccess") == 0)
