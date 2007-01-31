@@ -171,7 +171,10 @@ struct app_conn_t {
   uint8_t uamchal[REDIR_MD5LEN];
   int uamtime;
   char userurl[USERURLSIZE];
-  int uamabort;
+
+  char uamabort:1;
+  char uamexit:1;
+  char reserved:6;
 };
 
 extern struct app_conn_t *firstfreeconn; /* First free in linked list */

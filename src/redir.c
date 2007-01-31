@@ -1062,7 +1062,6 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
   default:
     {
-      /* this is a redirection, check for logoutip! */
       snprintf(conn->userurl, sizeof(conn->userurl), "http://%s/%s%s%s", 
 	       host, path, qs[0] ? "?" : "", qs[0] ? qs : "");
       if (optionsdebug) log_dbg("-->> Setting userurl=[%s]",conn->userurl);
@@ -1070,6 +1069,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
     break;
 
   }
+
   return 0;
 }
 
@@ -1181,15 +1181,16 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 /* Send radius Access-Request and wait for answer */
 static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		 struct redir_conn_t *conn) {
-  struct radius_t *radius;      /* Radius client instance */
-  struct radius_packet_t radius_pack;
-  int maxfd = 0;	        /* For select() */
-  fd_set fds;			/* For select() */
-  struct timeval idleTime;	/* How long to select() */
-  int status;
   unsigned char chap_password[REDIR_MD5LEN + 1];
   unsigned char chap_challenge[REDIR_MD5LEN];
   unsigned char user_password[REDIR_MD5LEN+1];
+  struct radius_packet_t radius_pack;
+  struct radius_t *radius;      /* Radius client instance */
+  struct timeval idleTime;	/* How long to select() */
+  int endtime, now;             /* for radius wait */
+  int maxfd = 0;	        /* For select() */
+  fd_set fds;			/* For select() */
+  int status;
 
   MD5_CTX context;
 
@@ -1320,7 +1321,10 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   radius_req(radius, &radius_pack, conn);
 
-  while ((redir->starttime + REDIR_RADIUS_MAX_TIME) > time(NULL)) {
+  now = time(NULL);
+  endtime = now + REDIR_RADIUS_MAX_TIME;
+
+  while (endtime > now) {
 
     FD_ZERO(&fds);
     if (radius->fd != -1) FD_SET(radius->fd, &fds);
@@ -1352,14 +1356,15 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 	  radius_proxy_ind(radius) < 0) {
 	log_err(0, "radius_proxy_ind() failed!");
       }
-      
     }
   
     if (conn->response) {
       radius_free(radius);
       return 0;
     }
+    now = time(NULL);
   }
+
   return 0;
 }
 
@@ -1664,6 +1669,24 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	char *filename = conn.userurl;
 	int namelen = strlen(filename);
 	int parse = 0;
+
+	/* check filename */
+	{ char *p;
+	  for (p=filename; *p; p++) {
+	    if (*p >= 'a' && *p <= 'z') 
+	      continue;
+	    switch(*p) {
+	    case '.':
+	    case '_':
+	    case '-':
+	      break;
+	    default:
+	      /* invalid file name! */
+	      log_err(0, "invalid www request [%s]!", filename);
+	      redir_close();
+	    }
+	  }
+	}
 	
 	/* serve the local content */
 	
@@ -1672,7 +1695,12 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
 	else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
 	else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
-	else if (!strcmp(filename + (namelen - 4), ".chi"))  { ctype = "text/html"; parse = 1; }
+	else if (!strcmp(filename + (namelen - 4), ".chi")){ ctype = "text/html"; parse = 1; }
+	else { 
+	  /* we do not serve it! */
+	  log_err(0, "invalid file extension! [%s]", filename);
+	  redir_close();
+	}
 	
 	if (parse) {
 	  FILE *f;

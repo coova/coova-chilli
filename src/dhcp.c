@@ -2128,6 +2128,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
 	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
 	if (options.debug)
 	  log_dbg("Dropping session due to request for auto-logout ip");
+	appconn->uamexit=1;
       }
     }
   }

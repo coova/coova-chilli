@@ -1287,11 +1287,16 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
 
   memcpy(&conn->params, &appconn->params, sizeof(appconn->params));
 
-  if ((!conn->userurl || !*conn->userurl) && 
-      (appconn->userurl && *appconn->userurl)) {
+  if (appconn->uamexit || 
+      ((!conn->userurl || !*conn->userurl) && 
+       (appconn->userurl && *appconn->userurl))) 
+  {
     strncpy(conn->userurl, appconn->userurl, REDIR_MAXCHAR);
     conn->userurl[REDIR_MAXCHAR-1] = 0;
   }   
+
+  /* reset state */
+  appconn->uamexit=0;
 
   /* Stuff needed for status */
   conn->input_octets    = appconn->input_octets;

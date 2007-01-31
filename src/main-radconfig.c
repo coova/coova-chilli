@@ -67,16 +67,17 @@ int static chilliauth_radius() {
   struct radius_t *radius;
   struct radius_packet_t radius_pack;
   struct timeval idleTime;
-  int starttime;
+  int endtime, now;
   int maxfd = 0;
   fd_set fds;
   int status;
+  int ret = -1;
 
   if (!options.adminuser || !options.adminpasswd) return 1;
 
   if (radius_new(&radius, &options.radiuslisten, 0, 0, NULL, 0, NULL, NULL, NULL)) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Failed to create radius");
-    return -1;
+    return ret;
   }
 
   radius_set(radius, (options.debug & DEBUG_RADIUS));
@@ -85,7 +86,7 @@ int static chilliauth_radius() {
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0, "radius_default_pack() failed");
-    return -1;
+    return ret;
   }
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
@@ -128,13 +129,16 @@ int static chilliauth_radius() {
 
   if (radius->fd <= 0) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0, "not a valid socket!");
-    return -1;
+    return ret;
   } 
 
   maxfd = radius->fd;
 
-  starttime = time(NULL);
-  while ((starttime + REDIR_RADIUS_MAX_TIME) > time(NULL)) {
+  now = time(NULL);
+  endtime = now + REDIR_RADIUS_MAX_TIME;
+
+  while (endtime > now) {
+
     FD_ZERO(&fds);
     FD_SET(radius->fd, &fds);
     
@@ -157,13 +161,18 @@ int static chilliauth_radius() {
 	if (radius_decaps(radius) < 0) {
 	  sys_err(LOG_ERR, __FILE__, __LINE__, 0, "radius_ind() failed!");
 	}
+	else {
+	  ret = 0;
+	}
 	break;
       }
     }
+
+    now = time(NULL);
   }  
 
   radius_free(radius);
-  return 0;
+  return ret;
 }
 
 int main(int argc, char **argv)
