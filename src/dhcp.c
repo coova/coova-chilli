@@ -2256,8 +2256,8 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, unsigned len)
  * dhcp_sendARP()
  * Send ARP message to peer
  **/
-int dhcp_sendARP(struct dhcp_conn_t *conn, 
-		 struct dhcp_arp_fullpacket_t *pack, int len) {
+static int
+dhcp_sendARP(struct dhcp_conn_t *conn, struct dhcp_arp_fullpacket_t *pack, int len) {
 
   struct dhcp_t *this = conn->parent;
   struct dhcp_arp_fullpacket_t packet;
@@ -2268,15 +2268,6 @@ int dhcp_sendARP(struct dhcp_conn_t *conn,
   memcpy(&reqaddr.s_addr, pack->arp.tpa, DHCP_IP_ALEN);
 
   /* Check that request is within limits */
-
-  /* Is ARP request for clients own address: Ignore */
-  if (conn->hisip.s_addr == reqaddr.s_addr)
-    return 0;
-
-  /* If ARP request outside of mask: Ignore */
-  if ((conn->hisip.s_addr & conn->hismask.s_addr) !=
-      (reqaddr.s_addr & conn->hismask.s_addr))
-    return 0;
 
   /* Get packet default values */
   memset(&packet, 0, sizeof(packet));
@@ -2295,7 +2286,6 @@ int dhcp_sendARP(struct dhcp_conn_t *conn,
   /* Target address */
   memcpy(packet.arp.tha, &conn->hismac, DHCP_ETH_ALEN);
   memcpy(packet.arp.tpa, &conn->hisip.s_addr, DHCP_IP_ALEN);
-  
 
   /* Ethernet header */
   memcpy(packet.ethh.dst, conn->hismac, DHCP_ETH_ALEN);
@@ -2309,9 +2299,10 @@ int dhcp_sendARP(struct dhcp_conn_t *conn,
 int dhcp_receive_arp(struct dhcp_t *this, 
 		     struct dhcp_arp_fullpacket_t *pack, int len) {
   
-  struct dhcp_conn_t *conn;
   unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  /*struct in_addr addr;*/
+  struct dhcp_conn_t *conn;
+  struct in_addr reqaddr;
+  struct in_addr taraddr;
 
   /* Check that this is ARP request */
   if (pack->arp.op != htons(DHCP_ARP_REQUEST)) {
@@ -2319,22 +2310,35 @@ int dhcp_receive_arp(struct dhcp_t *this,
     return 0;
   }
 
-  if (!options.uamanyip) {
-    /* Check that MAC address is our MAC or Broadcast */
-    if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
-	(memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
-      if (this->debug) printf("Received ARP request for other destination!\n");
-      return 0;
-    }
+  /* Check that MAC address is our MAC or Broadcast */
+  if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
+      (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
+    if (this->debug) printf("Received ARP request for other destination!\n");
+    return 0;
+  }
+
+  /* get sender IP address */
+  memcpy(&reqaddr.s_addr, &pack->arp.spa, DHCP_IP_ALEN);
+
+  /* get target IP address */
+  memcpy(&taraddr.s_addr, &pack->arp.tpa, DHCP_IP_ALEN);
+
+  /* if no sender ip, then client is checking their own ip */
+  if (!reqaddr.s_addr) {
+    if (this->debug) printf("ARP: Ignoring self-discovery: %s\n", inet_ntoa(taraddr));
+    return 0; 
+  }
+
+  if (!memcmp(&reqaddr.s_addr, &taraddr.s_addr, 4)) { 
+    if (options.debug) 
+      printf("ARP: Asking for own IP address: %s\n", inet_ntoa(reqaddr));
+    return 0; 
   }
 
   /* Check to see if we know MAC address. */
   if (dhcp_hashget(this, &conn, pack->ethh.src)) {
-    /* ALPAPAD */
-    struct in_addr reqaddr;
-    /* Get local copy */
-    memcpy(&reqaddr.s_addr, &pack->arp.spa, DHCP_IP_ALEN);
-    if (options.debug) printf("Address not found (%s)\n",inet_ntoa(reqaddr));
+
+    if (options.debug) printf("Address not found: %s\n", inet_ntoa(reqaddr));
 
     /* Do we allow dynamic allocation of IP addresses? */
     if (!this->allowdyn && !options.uamanyip)
@@ -2351,26 +2355,37 @@ int dhcp_receive_arp(struct dhcp_t *this,
     }
   }
   
-  gettimeofday(&conn->lasttime, NULL);
-
   if (!conn->hisip.s_addr) {
-    if (this->debug) printf("ARP request did not come from known client!\n");
+    if (this->debug) printf("ARP: request did not come from known client!\n");
     return 0; /* Only reply if he was allocated an address */
   }
   
-  if ((options.uamanyip ? 
-       !memcmp(&conn->hisip.s_addr, pack->arp.tpa, 4) : /* this line (and above too) for anyip! */
-       memcmp(&conn->ourip.s_addr, pack->arp.tpa, 4))) { /* check for out address */
-    if (options.debug) 
-      printf("ARP: Did not ask for router address: %.8x - %.2x%.2x%.2x%.2x\n", conn->ourip.s_addr, 
-	     pack->arp.tpa[0],
-	     pack->arp.tpa[1],
-	     pack->arp.tpa[2],
-	     pack->arp.tpa[3]);
-    return 0; /* Only reply if he asked for his router address */
+  /* Is ARP request for clients own address: Ignore */
+  if (conn->hisip.s_addr == taraddr.s_addr) {
+    if (this->debug) printf("ARP: hisip equals target ip: %s = %s!\n",
+			    inet_ntoa(conn->hisip), inet_ntoa(taraddr));
+    return 0;
+  }
+
+  if (!options.uamanyip) {
+    /* If ARP request outside of mask: Ignore */
+    if ((conn->hisip.s_addr & conn->hismask.s_addr) !=
+	(reqaddr.s_addr & conn->hismask.s_addr)) {
+      if (this->debug) printf("ARP: request not in our subnet\n");
+      return 0;
+    }
+  
+    if (memcmp(&conn->ourip.s_addr, &taraddr.s_addr, 4)) { /* if ourip differs from target ip */
+      if (options.debug) 
+	printf("ARP: Did not ask for router address: %s - %s\n", 
+	       inet_ntoa(conn->ourip), inet_ntoa(taraddr));
+      return 0; /* Only reply if he asked for his router address */
+    }
   }
   
-  (void)dhcp_sendARP(conn, pack, len);
+  gettimeofday(&conn->lasttime, NULL);
+
+  dhcp_sendARP(conn, pack, len);
 
   return 0;
 }
