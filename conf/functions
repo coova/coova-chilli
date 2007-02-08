@@ -128,7 +128,8 @@ uamanydns
 $configs1
 EOF
     ) > $MAIN_CONF 
-    if [ "x$HS_RADCONF" != "xon" ]; then 
+    if [ "x$HS_RADCONF" != "xon" -a "x$HS_RADCONF" != "xurl" ]; then 
+	rm -f $HS_CONF 2>/dev/null
 
 	[ "$HS_MACAUTH" = "on" ] && addconfig2 "macauth"
 	[ -n "$HS_POSTAUTH_PROXY" -a -n "$HS_POSTAUTH_PROXYPORT" ] && {
@@ -166,7 +167,16 @@ checkfornew() {
 
 radiusconfig() {
     touch $LOCAL_CONF $HS_CONF 
-    if [ "x$HS_RADCONF" = "xon" ]; then 
+    if [ "x$HS_RADCONF" = "xurl" ]; then 
+	for s in "$HS_RADCONF_URL $HS_RADCONF_URLS"; do
+	    sep='?'
+	    opt=
+	    qs="config=chilli&mac=$HS_NASMAC&nasid=$HS_NASID&nasip=$HS_NASIP&ssid=$HS_SSID"
+	    [ "$s" = "$(echo $s|awk -F'?' '{ print $1 }')" ] || sep='&'
+	    [ "$HS_RADCONF_USER" = "" ] || opt="-u '$HS_RADCONF_USER:$HS_RADCONF_PWD'"
+	    curl -k -A CoovaAP $opt "$s$sep$qs" 2>/dev/null > $HS_TEMP && { checkfornew; break; }
+	done
+    elif [ "x$HS_RADCONF" = "xon" ]; then 
 	for s in "$HS_RADCONF_SERVER $HS_RADCONF_SERVERS"; do
 	    chilli_radconfig \
 		-c /dev/null \
