@@ -1220,6 +1220,11 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
   if (pack->iph.daddr == INADDR_LOOPBACK)
     return 0;
 
+  /* Was it an ICMP request for us? */
+  if (pack->iph.protocol == DHCP_IP_ICMP)
+    if (pack->iph.daddr == conn->ourip.s_addr)
+      return 0;
+
   /* Was it a DNS request? */
   if (((this->anydns) ||
        (pack->iph.daddr == conn->dns1.s_addr) ||
@@ -1228,11 +1233,6 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
       (udph->dst == htons(DHCP_DNS)))
     return 0; 
 
-  /* Was it an ICMP request for us? */
-  if ((pack->iph.daddr == conn->ourip.s_addr) &&
-      (pack->iph.protocol == DHCP_IP_ICMP))
-    return 0;
-  
   /* Was it a http or https request for authentication server? */
   /* Was it a request for authentication server? */
   for (i = 0; i<this->authiplen; i++) {
@@ -1383,10 +1383,19 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
       (udph->src == htons(DHCP_DNS)))
     return 0; 
 
-  /* Was it an ICMP reply from us? */
-  if ((pack->iph.saddr == conn->ourip.s_addr) &&
-      (pack->iph.protocol == DHCP_IP_ICMP))
-    return 0;
+  if (pack->iph.protocol == DHCP_IP_ICMP) {
+    /* Was it an ICMP reply from us? */
+    if (pack->iph.saddr == conn->ourip.s_addr)
+      return 0;
+    /* Allow for MTU negotiation */
+    switch(pack->payload[0]) {
+    case 0:  /* echo reply */
+    case 3:  /* destination unreachable */
+    case 5:  /* redirect */
+    case 11: /* time excedded */
+      return 0;
+    }
+  }
 
   /* Was it a reply from redir server? */
   if ((pack->iph.saddr == this->uamlisten.s_addr) &&
