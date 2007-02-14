@@ -1431,8 +1431,16 @@ int accounting_request(struct radius_packet_t *pack,
   }
   
   /* Silently ignore radius request if allready processing one */
-  if (appconn->radiuswait)
-    return 0;
+  if (appconn->radiuswait) {
+    if (appconn->radiuswait == 2) {
+      log_dbg("Giving up on previous packet.. not dropping this one");
+      appconn->radiuswait=0;
+    } else {
+      log_dbg("Dropping RADIUS while waiting");
+      appconn->radiuswait++;
+      return 0;
+    }
+  }
   
   /* TODO: Check validity of pointers */
   
@@ -1560,23 +1568,15 @@ int access_request(struct radius_packet_t *pack,
     log_err(0, "User-Name is missing from radius request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   } 
-  else {
-    if (options.debug) {
-      log_dbg("Username is: ");
-      for (n=0; n<uidattr->l-2; n++) log_dbg("%c", uidattr->v.t[n]); 
-      log_dbg("\n");
-    }
-  }
 
-  
   if (hisipattr) { /* Find user based on IP address */
     if (ippool_getip(ippool, &ipm, &hisip)) {
-      if (options.debug) log_dbg("Radius request: Address not found!!!\n");
+      log_err(0, "RADIUS-Request: IP Address not found");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     
     if (!(ipm->peer) || (!((struct app_conn_t*) ipm->peer)->dnlink)) {
-      log_err(0, "No peer protocol defined");
+      log_err(0, "RADIUS-Request: No peer protocol defined");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     appconn = (struct app_conn_t*) ipm->peer;
@@ -1594,8 +1594,8 @@ int access_request(struct radius_packet_t *pack,
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     appconn = (struct app_conn_t*) dhcpconn->peer;
-    if (appconn->dnprot == DNPROT_DHCP_NONE)
-      appconn->dnprot = DNPROT_WPA;
+    /*if (appconn->dnprot == DNPROT_DHCP_NONE)
+    appconn->dnprot = DNPROT_WPA;*/
   }
   else {
     log_err(0, "Framed IP address or Calling Station ID is missing from radius request");
@@ -1603,22 +1603,19 @@ int access_request(struct radius_packet_t *pack,
   }
 
   /* Silently ignore radius request if allready processing one */
-  if (appconn->radiuswait)
-    return 0;
-  
-  /* Radius auth only for DHCP */
-  if ((appconn->dnprot != DNPROT_UAM) &&
-      (appconn->dnprot != DNPROT_WPA))  { 
-    return radius_resp(radius, &radius_pack, peer, pack->authenticator);
+  if (appconn->radiuswait) {
+    if (appconn->radiuswait == 2) {
+      log_dbg("Giving up on previous packet.. not dropping this one");
+      appconn->radiuswait=0;
+    } else {
+      log_dbg("Dropping RADIUS while waiting");
+      appconn->radiuswait++;
+      return 0;
+    }
   }
-
+  
   /* Password */
   if (!radius_getattr(pack, &pwdattr, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0)) {
-    if (options.debug) {
-      log_dbg("Password is: ");
-      for (n=0; n<pwdattr->l-2; n++) log_dbg("%.2x", pwdattr->v.t[n]); 
-      log_dbg("\n");
-    }
     if (radius_pwdecode(radius, (uint8_t*) pwd, RADIUS_ATTR_VLEN, &pwdlen, 
 			pwdattr->v.t, pwdattr->l-2, pack->authenticator,
 			radius->proxysecret,
@@ -1652,25 +1649,35 @@ int access_request(struct radius_packet_t *pack,
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
 
-  /* Dublicate logins should be allowed as it might be the terminal
+  /* ChilliSpot Notes:
+     Dublicate logins should be allowed as it might be the terminal
      moving from one access point to another. It is however
      unacceptable to login with another username on top of an allready
-     existing connection */
+     existing connection 
 
-  /* TODO: New username should be allowed, but should result in
+     TODO: New username should be allowed, but should result in
      a accounting stop message for the old connection.
-     this does however pose a denial of service attack possibility */
+     this does however pose a denial of service attack possibility 
   
-  /* If allready logged in send back accept message with username */
-  /* TODO ? Should this be a reject: Dont login twice ? */
+     If allready logged in send back accept message with username
+     TODO ? Should this be a reject: Dont login twice ? 
+  */
 
-
-  /* Reject if trying to login with another username */
+  /* Terminate previous session if trying to login with another username */
   if ((appconn->authenticated == 1) && 
       ((appconn->userlen != uidattr->l-2) ||
        (memcmp(appconn->user, uidattr->v.t, uidattr->l-2)))) {
-    return radius_resp(radius, &radius_pack, peer, pack->authenticator);
+    terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
+    /* DWB: But, let's not reject someone who is trying to authenticate under
+       a new (potentially) valid account - that is for the up-stream RADIUS to discern
+      return radius_resp(radius, &radius_pack, peer, pack->authenticator);*/
   }
+
+  /* Radius auth only for DHCP */
+  /*if ((appconn->dnprot != DNPROT_UAM) && (appconn->dnprot != DNPROT_WPA))  { */
+    /*return radius_resp(radius, &radius_pack, peer, pack->authenticator);*/
+  appconn->dnprot = DNPROT_WPA;
+  /*  }/*
 
   /* NAS IP */
   if (!radius_getattr(pack, &nasipattr, RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, 0)) {
@@ -2125,11 +2132,6 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   /* Framed IP address (Optional) */
   if (!radius_getattr(pack, &hisipattr, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0, 0)) {
-    if (options.debug) {
-      log_dbg("Framed IP address is: ");
-      for (n=0; n<hisipattr->l-2; n++) log_dbg("%.2x", hisipattr->v.t[n]); 
-      log_dbg("\n");
-    }
     if ((hisipattr->l-2) != sizeof(struct in_addr)) {
       log_err(0, "Wrong length of framed IP address");
       return dnprot_reject(appconn);

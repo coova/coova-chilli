@@ -1388,11 +1388,20 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
     if (pack->iph.saddr == conn->ourip.s_addr)
       return 0;
     /* Allow for MTU negotiation */
-    switch(pack->payload[0]) {
+    if (options.debug)
+      log_dbg("Received ICMP type=%d code=%d",
+	      (int)pack->payload[0],(int)pack->payload[1]);
+    switch((unsigned char)pack->payload[0]) {
     case 0:  /* echo reply */
     case 3:  /* destination unreachable */
     case 5:  /* redirect */
     case 11: /* time excedded */
+      switch((unsigned char)pack->payload[1]) {
+      case 4: 
+	log(LOG_NOTICE, "Fragmentation needed ICMP");
+      }
+      if (options.debug)
+	log_dbg("Forwarding ICMP to chilli client");
       return 0;
     }
   }
