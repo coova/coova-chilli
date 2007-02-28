@@ -1,7 +1,7 @@
 Summary:   ChilliSpot is a Wireless LAN Access Point Controller
 Name:      @PACKAGE@
 Version:   1.0
-Release:   coova.4 
+Release:   coova.5 
 URL:       http://coova.org/wiki/index.php/CoovaChilli
 Source0:   %{name}-%{version}-%{release}.tar.gz
 License:   GPL
