@@ -1610,6 +1610,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   socket.fd[0] = infd;
   socket.fd[1] = outfd;
+
   redir->starttime = time(NULL);
 
   if (set_nonblocking(socket.fd[0])) {
@@ -1617,11 +1618,12 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     redir_close();
   }
 
-  hexchal[0]=0;
+  memset(hexchal, 0, sizeof(hexchal));
+  memset(qs, 0, sizeof(qs));
   memset(&conn, 0, sizeof(conn));
   memset(&msg, 0, sizeof(msg));
-
   memset(&act, 0, sizeof(act));
+
   act.sa_handler = redir_termination;
   sigaction(SIGTERM, &act, &oldact);
   sigaction(SIGINT, &act, &oldact);

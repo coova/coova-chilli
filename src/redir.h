@@ -80,6 +80,7 @@
 #define REDIR_SESSIONID_LEN 17
 
 struct session_params {
+  char url[REDIR_USERURLSIZE];
   char filteridbuf[RADIUS_ATTR_VLEN+1];
   unsigned char filteridlen;
   unsigned long bandwidthmaxup;
@@ -92,6 +93,7 @@ struct session_params {
   unsigned short interim_interval;     /* Seconds. 0 = No interim accounting */
   time_t sessionterminatetime;
   char require_uam_auth;
+  char require_redirect;
 } __attribute__((packed));
 
 struct redir_conn_t {

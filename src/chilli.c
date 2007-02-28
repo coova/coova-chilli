@@ -3,7 +3,7 @@
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2007 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -1915,14 +1915,16 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
 
   /* Bandwidth up */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0))
+		      RADIUS_VENDOR_WISPR, 
+		      RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0))
     params->bandwidthmaxup = ntohl(attr->v.i);
   else if (!reconfig)
     params->bandwidthmaxup = 0;
   
   /* Bandwidth down */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0))
+		      RADIUS_VENDOR_WISPR, 
+		      RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0))
     params->bandwidthmaxdown = ntohl(attr->v.i);
   else if (!reconfig)
     params->bandwidthmaxdown = 0;
@@ -1930,38 +1932,66 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
 #ifdef RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP
   /* Bandwidth up */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0))
+		      RADIUS_VENDOR_CHILLISPOT, 
+		      RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0))
     params->bandwidthmaxup = ntohl(attr->v.i) * 1000;
 #endif
 
 #ifdef RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN
   /* Bandwidth down */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0))
+		      RADIUS_VENDOR_CHILLISPOT, 
+		      RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0))
     params->bandwidthmaxdown = ntohl(attr->v.i) * 1000;
 #endif
 
   /* Max input octets */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0))
+		      RADIUS_VENDOR_CHILLISPOT, 
+		      RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0))
     params->maxinputoctets = ntohl(attr->v.i);
   else if (!reconfig)
     params->maxinputoctets = 0;
 
   /* Max output octets */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0))
+		      RADIUS_VENDOR_CHILLISPOT, 
+		      RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0))
     params->maxoutputoctets = ntohl(attr->v.i);
   else if (!reconfig)
     params->maxoutputoctets = 0;
 
   /* Max total octets */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0))
+		      RADIUS_VENDOR_CHILLISPOT, 
+		      RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0))
     params->maxtotaloctets = ntohl(attr->v.i);
   else if (!reconfig)
     params->maxtotaloctets = 0;
 
+  if (options.wpaguests) {
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+			RADIUS_VENDOR_CHILLISPOT, 
+			RADIUS_ATTR_CHILLISPOT_CONFIG, 0)) { 
+      size_t len = attr->l-2;
+      const char *uamauth = "require-uam-auth";
+      if (len == strlen(uamauth) && !memcmp(attr->v.t, uamauth, len))
+	params->require_uam_auth = 1;
+    }
+  }
+  
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_WISPR, 
+		      RADIUS_ATTR_WISPR_REDIRECTION_URL, 0)) { 
+    size_t len = attr->l-2;
+    char *url = attr->v.t;
+    if (len > sizeof(params->url)-1) 
+      len=sizeof(params->url)-1;
+    strncpy(params->url, url, len);
+    params->url[len]=0;
+    params->require_redirect = 1;
+  }
+  
   /* Session-Terminate-Time */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
 		      RADIUS_VENDOR_WISPR,
@@ -2261,15 +2291,6 @@ int cb_radius_auth_conf(struct radius_t *radius,
     memcpy(appconn->ms2succ, ((void*)&succattr->v.t)+3, MS2SUCCSIZE);
   }
 
-  if (options.wpaguests) {
-    if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-			RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 0)) { 
-      size_t len = attr->l-2;
-      const char *uamauth = "require-uam-auth";
-      if (len == strlen(uamauth) && !memcmp(attr->v.t, uamauth, len))
-	appconn->params.require_uam_auth = 1;
-    }
-  }
 
   switch(appconn->authtype) {
   case PAP_PASSWORD:
@@ -2940,22 +2961,7 @@ static int cmdsock_accept(int sock) {
     if (dhcp) dhcp_list(dhcp, csock, 1);
     break;
   case CMDSOCK_SHOW:
-    if (dhcp) {
-      struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
-      log_dbg("looking to authorized session %s",inet_ntoa(req.data.sess.ip));
-      while (dhcpconn && dhcpconn->inuse) {
-	if (dhcpconn->peer) {
-	  struct app_conn_t * appconn = (struct app_conn_t*) dhcpconn->peer;
-	  if (appconn->hisip.s_addr == req.data.sess.ip.s_addr) {
-	    log_dbg("remotely authorized session %s",appconn->sessionid);
-	    memcpy(&appconn->params, &req.data.sess.params, sizeof(req.data.sess.params));
-	    dnprot_accept(appconn);
-	    break;
-	  }
-	}
-	dhcpconn = dhcpconn->next;
-      }
-    }
+    /*ToDo*/
     break;
   case CMDSOCK_AUTHORIZE:
     if (dhcp) {
@@ -2964,9 +2970,17 @@ static int cmdsock_accept(int sock) {
       while (dhcpconn && dhcpconn->inuse) {
 	if (dhcpconn->peer) {
 	  struct app_conn_t * appconn = (struct app_conn_t*) dhcpconn->peer;
-	  if (appconn->hisip.s_addr == req.data.sess.ip.s_addr) {
+	  if (  (req.data.sess.ip.s_addr == 0    || appconn->hisip.s_addr == req.data.sess.ip.s_addr) &&
+		(req.data.sess.sessionid[0] == 0 || !strcmp(appconn->sessionid,req.data.sess.sessionid))
+		){
+	    char *uname = req.data.sess.username;
 	    log_dbg("remotely authorized session %s",appconn->sessionid);
 	    memcpy(&appconn->params, &req.data.sess.params, sizeof(req.data.sess.params));
+	    if (!uname[0]) uname = "anonymous";
+	    strncpy(appconn->proxyuser, uname, USERNAMESIZE);
+	    appconn->proxyuserlen = strlen(uname);
+	    strncpy(appconn->user, uname, USERNAMESIZE);
+	    appconn->userlen = strlen(uname);
 	    dnprot_accept(appconn);
 	    break;
 	  }
