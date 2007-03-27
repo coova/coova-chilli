@@ -1,5 +1,4 @@
 /* 
- *
  * DHCP library functions
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (c) 2007 David Bird <david@coova.com>
@@ -22,8 +21,6 @@
 #define DHCP_ETH_IP                 0x0800
 #define DHCP_ETH_ARP                0x0806
 #define DHCP_ETH_EAPOL              0x888e
-
-
 
 /* Misc decl */
 #define DHCP_DEBUG        0      /* Print debug information */
@@ -98,8 +95,7 @@ struct dhcp_ethhdr_t
 #define DHCP_IP_GRE   47 /* GRE Protocol number */
 
 struct dhcp_iphdr_t {
-  uint8_t  ihl:4;
-  uint8_t  version:4;
+  uint8_t  version_ihl;
   uint8_t  tos;
   uint16_t tot_len;
   uint16_t id;
@@ -140,7 +136,6 @@ struct dhcp_tcphdr_t {
   uint16_t check;
   uint8_t options[1]; /* TODO */
 } __attribute__((packed));
-
 
 /* Length constants for DHCP packet */
 #define DHCP_CHADDR_LEN    16    /* Length of client hardware address */

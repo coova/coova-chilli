@@ -1,8 +1,7 @@
 /*
- *
  * DHCP library functions.
  * Copyright (C) 2003, 2004, 2005, 2006 Mondru AB.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -112,7 +111,7 @@ int dhcp_ip_check(struct dhcp_ippacket_t *pack) {
   int i;
   uint32_t sum = 0;
   pack->iph.check = 0;
-  for (i=0; i<(pack->iph.ihl * 2); i++) {
+  for (i=0; i < ((pack->iph.version_ihl & 0x0f) * 2); i++) {
     sum += ((uint16_t*) &pack->iph)[i];
   }
   while (sum>>16)
@@ -179,7 +178,7 @@ int dhcp_tcp_check(struct dhcp_ippacket_t *pack, int length) {
   if (ntohs(pack->iph.tot_len) > (length - DHCP_ETH_HLEN))
     return -1; /* Wrong length of packet */
 
-  tcp_len = ntohs(pack->iph.tot_len) - pack->iph.ihl * 4;
+  tcp_len = ntohs(pack->iph.tot_len) - (pack->iph.version_ihl & 0x0f) * 4;
 
   if (tcp_len < 20) /* TODO */
     return -1; /* Packet too short */
@@ -1531,8 +1530,7 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
       answer.udph.dst = udph->src;
       
       /* IP header */
-      answer.iph.ihl = 5;
-      answer.iph.version = 4;
+      answer.iph.version_ihl = 4 << 4 | 5;
       answer.iph.tos = 0;
       answer.iph.tot_len = htons(udp_len + DHCP_IP_HLEN);
       answer.iph.id = 0;
@@ -1583,8 +1581,7 @@ dhcp_getdefault(struct dhcp_fullpacket_t *pack)
   pack->udph.dst = htons(DHCP_BOOTPC);
 
   /* IP header */
-  pack->iph.ihl = 5;
-  pack->iph.version = 4;
+  pack->iph.version_ihl = 4 << 4 | 5;
   pack->iph.tos = 0;
   pack->iph.tot_len = 0; /* Calculate at end of packet */
   pack->iph.id = 0;
@@ -2130,7 +2127,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
   if (((pack->iph.daddr == 0) ||
        (pack->iph.daddr == 0xffffffff) ||
        (pack->iph.daddr == ourip.s_addr)) &&
-      ((pack->iph.ihl == 5) && (pack->iph.protocol == DHCP_IP_UDP) &&
+      ((pack->iph.version_ihl & 0x0f == 5) && (pack->iph.protocol == DHCP_IP_UDP) &&
        (((struct dhcp_fullpacket_t*)pack)->udph.dst == htons(DHCP_BOOTPS)))) {
     (void)dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
   }
