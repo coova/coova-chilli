@@ -93,6 +93,7 @@ struct dhcp_ethhdr_t
 #define DHCP_IP_TCP    6 /* TCP Protocol number */
 #define DHCP_IP_UDP   17 /* UDP Protocol number */
 #define DHCP_IP_GRE   47 /* GRE Protocol number */
+#define IP_VER_HLEN   0x45 
 
 struct dhcp_iphdr_t {
   uint8_t  version_ihl;

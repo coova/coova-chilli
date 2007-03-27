@@ -132,9 +132,7 @@ int dhcp_udp_check(struct dhcp_fullpacket_t *pack) {
   pack->udph.check = 0;
   
   if (udp_len > DHCP_UDP_HLEN + DHCP_LEN) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Length of dhcp packet larger then %d: %d",
-	    DHCP_UDP_HLEN + DHCP_LEN, udp_len);
+    log_err(0, "Length of dhcp packet larger then %d: %d", DHCP_UDP_HLEN+DHCP_LEN, udp_len);
     return -1; /* Packet too long */
   }
 
@@ -1530,7 +1528,7 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
       answer.udph.dst = udph->src;
       
       /* IP header */
-      answer.iph.version_ihl = 4 << 4 | 5;
+      answer.iph.version_ihl = IP_VER_HLEN;
       answer.iph.tos = 0;
       answer.iph.tot_len = htons(udp_len + DHCP_IP_HLEN);
       answer.iph.id = 0;
@@ -1581,7 +1579,7 @@ dhcp_getdefault(struct dhcp_fullpacket_t *pack)
   pack->udph.dst = htons(DHCP_BOOTPC);
 
   /* IP header */
-  pack->iph.version_ihl = 4 << 4 | 5;
+  pack->iph.version_ihl = IP_VER_HLEN;
   pack->iph.tos = 0;
   pack->iph.tot_len = 0; /* Calculate at end of packet */
   pack->iph.id = 0;
@@ -2127,9 +2125,10 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
   if (((pack->iph.daddr == 0) ||
        (pack->iph.daddr == 0xffffffff) ||
        (pack->iph.daddr == ourip.s_addr)) &&
-      ((pack->iph.version_ihl & 0x0f == 5) && (pack->iph.protocol == DHCP_IP_UDP) &&
+      ((pack->iph.version_ihl == IP_VER_HLEN) && (pack->iph.protocol == DHCP_IP_UDP) &&
        (((struct dhcp_fullpacket_t*)pack)->udph.dst == htons(DHCP_BOOTPS)))) {
-    (void)dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
+    
+    dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
   }
 
   gettimeofday(&conn->lasttime, NULL);

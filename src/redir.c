@@ -31,7 +31,7 @@ static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
 char credits[] =
 "<H1>ChilliSpot " VERSION "</H1>"
 "<p>Copyright 2002-2005 Mondru AB</p>"
-"<p>Copyright 2006 <a href=\"http://coova.org/\">Coova Technologies Ltd</a></p>"
+"<p>Copyright 2006-2007 <a href=\"http://coova.org/\">Coova Technologies Ltd</a></p>"
 "ChilliSpot is an Open Source captive portal or wireless LAN access point "
 "controller developed by the community at "
 "<a href=\"http://coova.org\">coova.org</a> and "
