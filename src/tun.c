@@ -673,7 +673,7 @@ int tun_new(struct tun_t **tun, int txqlen)
   strncpy((*tun)->devname, ifr.ifr_name, IFNAMSIZ);
   (*tun)->devname[IFNAMSIZ] = 0;
   
-  ioctl((*tun)->fd, TUNSETNOCSUM, 1); /* Disable checksums */
+  /* ioctl((*tun)->fd, TUNSETNOCSUM, 1); /* Disable checksums */
 
   /* Get the MAC address of our tap interface */
   if (options.tap) {

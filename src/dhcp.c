@@ -50,6 +50,30 @@ const static int paranoid = 0; /* Trust that the program has no bugs */
 const static int paranoid = 1; /* Check for errors which cannot happen */
 #endif
 
+#define cksum_wrap(c) (c=(c>>16)+(c&0xffff),(~(c+(c>>16))&0xffff))
+
+int
+in_cksum(uint16_t *addr, int len)
+{
+  int         nleft = len;
+  uint32_t    sum = 0;
+  uint16_t  * w = addr;
+  
+  while (nleft > 1)  {
+    sum += *w++;
+    nleft -= 2;
+  }
+  
+  if (nleft == 1) {
+    uint16_t ans = 0;
+    *(unsigned char *)(&ans) = *(unsigned char *)w ;
+    sum += ans;
+  }
+  
+  return(sum);
+}
+
+
 char *dhcp_state2name(int authstate) {
   switch(authstate) {
   case DHCP_AUTH_NONE: return "none";
@@ -108,15 +132,10 @@ void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr)
  * Generates an IPv4 header checksum.
  **/
 int dhcp_ip_check(struct dhcp_ippacket_t *pack) {
-  int i;
-  uint32_t sum = 0;
+  int sum, hlen = (pack->iph.version_ihl & 0x0f) << 2;
   pack->iph.check = 0;
-  for (i=0; i < ((pack->iph.version_ihl & 0x0f) * 2); i++) {
-    sum += ((uint16_t*) &pack->iph)[i];
-  }
-  while (sum>>16)
-    sum = (sum & 0xFFFF)+(sum >> 16);
-  pack->iph.check = ~sum;
+  sum = in_cksum((uint16_t *)&pack->iph, hlen);
+  pack->iph.check = cksum_wrap(sum);
   return 0;
 }
 
@@ -125,40 +144,14 @@ int dhcp_ip_check(struct dhcp_ippacket_t *pack) {
  * Generates an UDP header checksum.
  **/
 int dhcp_udp_check(struct dhcp_fullpacket_t *pack) {
-  int i;
-  uint32_t sum = 0;
-  int udp_len = ntohs(pack->udph.len);
+  int len = ntohs(pack->udph.len);
+  int sum = 0;
 
   pack->udph.check = 0;
-  
-  if (udp_len > DHCP_UDP_HLEN + DHCP_LEN) {
-    log_err(0, "Length of dhcp packet larger then %d: %d", DHCP_UDP_HLEN+DHCP_LEN, udp_len);
-    return -1; /* Packet too long */
-  }
-
-  /* Sum UDP header and payload */
-  for (i=0; i<(udp_len/2); i++) {
-    sum += ((uint16_t*) &pack->udph)[i];
-  }
-
-  /* Sum any uneven payload octet */
-  if (udp_len & 0x01) {
-    sum += ((uint8_t*) &pack->udph)[udp_len-1];
-  }
-
-  /* Sum both source and destination address */
-  for (i=0; i<4; i++) {
-    sum += ((uint16_t*) &pack->iph.saddr)[i];
-  }
-
-  /* Sum both protocol and udp_len (again) */
-  sum = sum + pack->udph.len + ((pack->iph.protocol<<8)&0xFF00);
-
-  while (sum>>16)
-    sum = (sum & 0xFFFF)+(sum >> 16);
-
-  pack->udph.check = ~sum;
-
+  sum = in_cksum((uint16_t *)&pack->iph.saddr, 8);
+  sum += ntohs(IPPROTO_UDP + len);
+  sum += in_cksum((uint16_t *)&pack->udph, len);
+  pack->udph.check = cksum_wrap(sum);
   return 0;
 }
 
@@ -168,45 +161,24 @@ int dhcp_udp_check(struct dhcp_fullpacket_t *pack) {
  * Generates an TCP header checksum.
  **/
 int dhcp_tcp_check(struct dhcp_ippacket_t *pack, int length) {
-  int i;
-  uint32_t sum = 0;
   struct dhcp_tcphdr_t *tcph;
-  int tcp_len;
+  int len = ntohs(pack->iph.tot_len);
+  int sum = 0;
 
-  if (ntohs(pack->iph.tot_len) > (length - DHCP_ETH_HLEN))
+  if (len > (length - DHCP_ETH_HLEN))
     return -1; /* Wrong length of packet */
 
-  tcp_len = ntohs(pack->iph.tot_len) - (pack->iph.version_ihl & 0x0f) * 4;
+  len -= (pack->iph.version_ihl & 0x0f) << 2;
 
-  if (tcp_len < 20) /* TODO */
-    return -1; /* Packet too short */
+  if (len < 20) return -1;  /* Packet too short */
 
   tcph = (struct dhcp_tcphdr_t*) pack->payload;
   tcph->check = 0;
 
-  /* Sum TCP header and payload */
-  for (i=0; i<(tcp_len/2); i++) {
-    sum += ((uint16_t*) pack->payload)[i];
-  }
-
-  /* Sum any uneven payload octet */
-  if (tcp_len & 0x01) {
-    sum += ((uint8_t*) pack->payload)[tcp_len-1];
-  }
-
-  /* Sum both source and destination address */
-  for (i=0; i<4; i++) {
-    sum += ((uint16_t*) &pack->iph.saddr)[i];
-  }
-
-  /* Sum both protocol and tcp_len */
-  sum = sum + htons(tcp_len) + ((pack->iph.protocol<<8)&0xFF00);
-
-  while (sum>>16)
-    sum = (sum & 0xFFFF)+(sum >> 16);
-
-  tcph->check = ~sum;
-
+  sum = in_cksum((uint16_t *)&pack->iph.saddr, 8);
+  sum += ntohs(IPPROTO_TCP + len);
+  sum += in_cksum((uint16_t *)tcph, len);
+  tcph->check = cksum_wrap(sum);
   return 0;
 }
 
@@ -2343,11 +2315,13 @@ int dhcp_receive_arp(struct dhcp_t *this,
     return 0; 
   }
 
+  /*
   if (!memcmp(&reqaddr.s_addr, &taraddr.s_addr, 4)) { 
     if (options.debug) 
       printf("ARP: Asking for own IP address: %s\n", inet_ntoa(reqaddr));
     return 0; 
   }
+  */
 
   /* Check to see if we know MAC address. */
   if (dhcp_hashget(this, &conn, pack->ethh.src)) {

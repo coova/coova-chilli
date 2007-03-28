@@ -910,7 +910,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	else if (!strncmp("HEAD ", p1, 5)) { p1 += 5; *ispost = 0; }
 	else if ((*ispost) && 
 		 !strncmp("POST ", p1, 5)) { p1 += 5; *ispost = 1; }
-	else return -1;
+	else { 
+	  log_err(0,"unhandled http request: %s", buffer);
+	  return -1;
+	}
 
 	while (*p1 == ' ') p1++; /* Advance through additional white space */
 	if (*p1 == '/') p1++;
