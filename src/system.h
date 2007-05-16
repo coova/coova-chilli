@@ -8,6 +8,13 @@
 
 #include "../config.h"
 
+/*
+ *   I do not like this here, but otherwise
+ *   __u64 is not defined. Set by -ansi
+ */
+
+#undef __STRICT_ANSI__
+
 #include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>

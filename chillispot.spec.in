@@ -21,7 +21,7 @@ For more information on this Coova release of ChilliSpot, visit
 http://coova.org/
 
 %prep
-%setup -n chillispot-1.0-coova.4 
+%setup -n chillispot-1.0-coova.5 
 
 %build
 
@@ -93,6 +93,8 @@ make clean
 %config /etc/chilli/www/coova.jpg
 
 %changelog
+* Wed May 16 2007  <david@coova.com>
+- 1.0-coova.5 release
 * Wed Feb 07 2007  <david@coova.com>
 - 1.0-coova.4 release
 * Wed Nov 15 2006  <david@coova.com>

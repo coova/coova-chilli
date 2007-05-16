@@ -1,8 +1,11 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+== ChangeLog (Coova Chilli v1.0.5 svn revision 60) ==
+
 * Allow certain ICMP packets from external interface into chilli LAN for proper MTU negotiation - includes ICMP types 0, 3, 5, 11.
 * Fixups in WPA RADIUS proxy code - allow for change of credentials (logging out previous session) and drop fewer authentication requests.
+* Bug fix for when using local MAC authentication	
 
 == ChangeLog (Coova Chilli v1.0.4 svn revision 51) ==
 

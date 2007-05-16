@@ -2040,7 +2040,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
   /* Check that MAC address is our MAC or Broadcast */
   if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
       (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
-    if (this->debug) log_dbg("dropping packet; no dynamic ip allocation");
+    if (this->debug) log_dbg("dropping packet; not for our MAC or broadcast");
     return 0;
   }
 
@@ -2224,8 +2224,10 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, unsigned len)
     break; 
   case DHCP_AUTH_DNAT:
     /* Undo destination NAT */
-    if (dhcp_undoDNAT(conn, &packet, length))
+    if (dhcp_undoDNAT(conn, &packet, length)) {
+      if (options.debug) log_dbg("dhcp_undoDNAT() returns true");
       return 0;
+    }
     break;
   case DHCP_AUTH_DROP: 
   default:

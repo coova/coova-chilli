@@ -673,7 +673,7 @@ int tun_new(struct tun_t **tun, int txqlen)
   strncpy((*tun)->devname, ifr.ifr_name, IFNAMSIZ);
   (*tun)->devname[IFNAMSIZ] = 0;
   
-  /* ioctl((*tun)->fd, TUNSETNOCSUM, 1); /* Disable checksums */
+  ioctl((*tun)->fd, TUNSETNOCSUM, 1); /* Disable checksums */
 
   /* Get the MAC address of our tap interface */
   if (options.tap) {
@@ -832,9 +832,11 @@ int tun_decaps(struct tun_t *this)
   int status;
   
   if ((status = read(this->fd, buffer, sizeof(buffer))) <= 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno, "read() failed");
+    log_err(errno, "read() failed");
     return -1;
   }
+
+  if (options.debug) log_dbg("tun_decaps(%d)",status);
   
    if (this->cb_ind)
 #if defined (__OpenBSD__)
@@ -855,7 +857,7 @@ int tun_decaps(struct tun_t *this)
   sbuf.maxlen = PACKET_MAX;      
   sbuf.buf = buffer;
   if (getmsg(this->fd, NULL, &sbuf, &f) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno, "getmsg() failed");
+    log_err(errno, "getmsg() failed");
     return -1;
   }
 
@@ -881,6 +883,9 @@ int tun_encaps(struct tun_t *tun, void *pack, unsigned len)
     pack += DHCP_ETH_HLEN;
     len -= DHCP_ETH_HLEN;
   }
+
+  if (options.debug) log_dbg("tun_encaps(%d)",len);
+
 #if defined (__OpenBSD__)
 
   unsigned char buffer[PACKET_MAX+4];

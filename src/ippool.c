@@ -102,7 +102,8 @@ unsigned long int ippool_hash6(struct in6_addr *addr) {
 
 
 /* Create new address pool */
-int ippool_new(struct ippool_t **this, char *dyn, int start, int end, char *stat, 
+int ippool_new(struct ippool_t **this, 
+	       char *dyn, int start, int end, char *stat, 
 	       int allowdyn, int allowstat) {
 
   /* Parse only first instance of pool for now */
@@ -318,13 +319,13 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
   }
 
   /* If not found yet and dynamic IP then allocate dynamic IP */
-  if ((!p2) && (!statip) && (!addr->s_addr)) {
+  if ((!p2) && (!statip) && (!addr || !addr->s_addr)) {
     if (!this->firstdyn) {
       log_err(0, "No more IP addresses available");
       return -1;
     }
     else
-      p2 = this ->firstdyn;
+      p2 = this->firstdyn;
   }
   
   if (p2) { /* Was allocated from dynamic address pool */
