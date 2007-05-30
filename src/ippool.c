@@ -2,7 +2,7 @@
  *
  * IP address pool functions.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -209,7 +209,7 @@ int ippool_new(struct ippool_t **this,
   for (i = dynsize; i<listsize; i++) {
     (*this)->member[i].addr.s_addr = 0;
     (*this)->member[i].inuse = 0;
-
+    
     /* Insert into list of unused */
     (*this)->member[i].prev = (*this)->laststat;
     if ((*this)->laststat) {
@@ -221,7 +221,7 @@ int ippool_new(struct ippool_t **this,
     (*this)->laststat = &((*this)->member[i]);
     (*this)->member[i].next = NULL; /* Redundant */
   }
-
+  
   if (0) (void)ippool_printaddr(*this);
   return 0;
 }
@@ -344,6 +344,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
       p2->next->prev = p2->prev;
     else
       this->lastdyn = p2->prev;
+
     p2->next = NULL;
     p2->prev = NULL;
     p2->inuse = 1; /* Dynamic address in use */

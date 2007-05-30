@@ -3155,8 +3155,8 @@ int chilli_main(int argc, char **argv)
     log_dbg("ChilliSpot version %s started.\n", VERSION);
 
   syslog(LOG_INFO, "ChilliSpot %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006 Coova Technologies Ltd. Licensed under GPL. "
-	 "See http://www.chillispot.org for credits.", VERSION);
+	 "Copyright 2006-2007 Coova Technologies Ltd. Licensed under GPL. "
+	 "See http://www.chillispot.org/ & http://coova.org/ for details.", VERSION);
   
   (void) radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
   (void) radius_set_cb_ind(radius, cb_radius_ind);

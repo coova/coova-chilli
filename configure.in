@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(chillispot, 1.0-coova.5, support@coova.org)
+AC_INIT(chillispot, 1.0-coova.6, support@coova.org)
 AC_CONFIG_SRCDIR([src/cmdline.c])
 
 AM_INIT_AUTOMAKE
@@ -36,6 +36,7 @@ AC_CHECK_FUNCS([gethostbyname gettimeofday inet_ntoa memset select socket strdup
 AC_CHECK_LIB(resolv, res_init)
 
 AC_CONFIG_FILES([Makefile
+                 bstring/Makefile
                  doc/Makefile
                  src/Makefile
 		 chillispot.spec])

@@ -108,4 +108,28 @@
 #include <dmalloc.h>
 #endif
 
+#include <stdio.h>
+#include <time.h> 
+#include <stdint.h>
+#include <sys/param.h>
+#ifdef linux
+# include <endian.h>
+#endif
+
+#if (!defined(LITTLE_ENDIAN) && !defined(BIG_ENDIAN))
+#if (defined(__BYTE_ORDER) && defined(__LITTLE_ENDIAN) && __BYTE_ORDER == __LITTLE_ENDIAN) || \
+    (defined(i386) || defined(__i386__) || defined(__i486__) || \
+     defined(__i586__) || defined(__i686__) || defined(vax) || defined(MIPSEL))
+# define LITTLE_ENDIAN 1
+# define BIG_ENDIAN 0
+#elif (defined(__BYTE_ORDER) && defined(__BIG_ENDIAN) && __BYTE_ORDER == __BIG_ENDIAN) || \
+      (defined(sparc) || defined(POWERPC) || defined(mc68000) || defined(sel))
+# define LITTLE_ENDIAN 0
+# define BIG_ENDIAN 1
+#else
+# define LITTLE_ENDIAN 0
+# define BIG_ENDIAN 0
+#endif
+#endif
+
 #endif

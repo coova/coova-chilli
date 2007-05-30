@@ -2,7 +2,7 @@
  *
  * HTTP redirection functions.
  * Copyright (C) 2004, 2005 Mondru AB.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@cova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -21,6 +21,7 @@
 #include "dhcp.h"
 #include "chilli.h"
 #include "options.h"
+#include "bstrlib.h"
 
 static int optionsdebug = 0; /* TODO: Should be changed to instance */
 
@@ -103,6 +104,7 @@ static int redir_chartohex(unsigned char *src, char *dst) {
     dst[n*2+0] = x[0];
     dst[n*2+1] = x[1];
   }
+
   dst[REDIR_MD5LEN*2] = 0;
   return 0;
 }
@@ -134,228 +136,252 @@ static int redir_xmlencode(char *src, int srclen, char *dst, int dstsize) {
   return 0;
 }
 
+static int bstrtocstr(bstring src, char *dst, unsigned int len) {
+  int l;
+
+  if (!src || src->slen == 0) {
+    strcpy(dst,"");
+    return 0;
+  }
+
+  l = src->slen;
+  if (l > len) l = len;
+  strncpy(dst, src->data, len);
+  return 0;
+}
+
 /* Encode src as urlencoded and place null terminated result in dst */
-static int redir_urlencode(char *src, int srclen, char *dst, int dstsize) {
+static int redir_urlencode(bstring src, bstring dst) {
   char x[3];
   int n;
-  int i = 0;
   
-  for (n=0; n<srclen; n++) {
-    if ((('A' <= src[n]) && (src[n] <= 'Z')) ||
-	(('a' <= src[n]) && (src[n] <= 'z')) ||
-	(('0' <= src[n]) && (src[n] <= '9')) ||
-	('-' == src[n]) ||
-	('_' == src[n]) ||
-	('.' == src[n]) ||
-	('!' == src[n]) ||
-	('~' == src[n]) ||
-	('*' == src[n]) ||
-	('\'' == src[n]) ||
-	('(' == src[n]) ||
-	(')' == src[n])) {
-      if (i<dstsize-1) {
-	dst[i++] = src[n];
-      }
+  bassigncstr(dst, "");
+  for (n=0; n<src->slen; n++) {
+    if ((('A' <= src->data[n]) && (src->data[n] <= 'Z')) ||
+	(('a' <= src->data[n]) && (src->data[n] <= 'z')) ||
+	(('0' <= src->data[n]) && (src->data[n] <= '9')) ||
+	('-' == src->data[n]) ||
+	('_' == src->data[n]) ||
+	('.' == src->data[n]) ||
+	('!' == src->data[n]) ||
+	('~' == src->data[n]) ||
+	('*' == src->data[n]) ||
+	('\'' == src->data[n]) ||
+	('(' == src->data[n]) ||
+	(')' == src->data[n])) {
+      bconchar(dst,src->data[n]);
     }
     else {
-      snprintf(x, 3, "%.2x", src[n]);
-      if (i<dstsize-3) {
-	dst[i++] = '%';
-	dst[i++] = x[0];
-	dst[i++] = x[1];
-      }
+      snprintf(x, 3, "%.2x", src->data[n]);
+      bconchar(dst, '%');
+      bconchar(dst, x[0]);
+      bconchar(dst, x[1]);
     }
   }
-  dst[i] = 0;
   return 0;
 }
 
 /* Decode urlencoded src and place null terminated result in dst */
-static int redir_urldecode(char *src, int srclen, char *dst, int dstsize) {
+static int redir_urldecode(bstring src, bstring dst) {
   char x[3];
   int n = 0;
-  int i = 0;
   unsigned int c;
 
-  while (n<srclen) {
-    if (src[n] == '%') {
-      if ((n+2) < srclen) {
-	x[0] = src[n+1];
-	x[1] = src[n+2];
+  bassigncstr(dst, "");
+  while (n<src->slen) {
+    if (src->data[n] == '%') {
+      if ((n+2) < src->slen) {
+	x[0] = src->data[n+1];
+	x[1] = src->data[n+2];
 	x[2] = 0;
 	c = '_';
 	sscanf(x, "%x", &c);
-	if (i<(dstsize-1)) dst[i++] = c; 
+	bconchar(dst,c);
       }
       n += 3;
     }
     else {
-      if (i<(dstsize-1)) dst[i++] = src[n];
+      bconchar(dst,src->data[n]);
       n++;
     }
   }
-  dst[i] = 0;
   return 0;
 }
-
-/* Concatenate src to dst and place result dst */
-static int redir_stradd(char *dst, int dstsize, char *fmt, ...) {
-  va_list args;
-  char buf[REDIR_MAXBUFFER];
-
-  va_start(args, fmt);
-  vsnprintf(buf, REDIR_MAXBUFFER, fmt, args);
-  va_end(args);
-
-  buf[REDIR_MAXBUFFER-1] = 0; 
-  if ((strlen(dst) + strlen(buf)) > dstsize-1) {
-    log_err(0, "redir_stradd() failed");
-    return -1;
-  }
-
-  strcpy(dst + strlen(dst), buf);
-  return 0;
-}
-
 
 /* Make an XML Reply */
 static int redir_xmlreply(struct redir_t *redir, 
 			  struct redir_conn_t *conn, int res, long int timeleft, char* hexchal, 
-			  char* reply, char* redirurl, 
-			  char *dst, int dstsize) {
-  if (redir->no_uamwispr && !(redir->chillixml)) return 0;
+			  char* reply, char* redirurl, bstring b) {
+  bstring bt;
 
-  snprintf(dst, dstsize,
+  if (redir->no_uamwispr && 
+      !(redir->chillixml)) return 0;
+
+  bt = bfromcstr("");
+
+  bcatcstr(b,
 	   "<!--\r\n"
 	   "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n");
-
+  
   if (!redir->no_uamwispr) {
-    redir_stradd(dst, dstsize, 
-		 "<WISPAccessGatewayParam\r\n"
-		 "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
-		 "  xsi:noNamespaceSchemaLocation=\"http://www.acmewisp.com/WISPAccessGatewayParam.xsd\""
-		 ">\r\n");
-  switch (res) {
-  case REDIR_ALREADY:
-    redir_stradd(dst, dstsize, "<AuthenticationPollReply>\r\n");
-    redir_stradd(dst, dstsize, "<MessageType>140</MessageType>\r\n");
-    redir_stradd(dst, dstsize, "<ResponseCode>102</ResponseCode>\r\n");
-    redir_stradd(dst, dstsize, "<ReplyMessage>Already logged on</ReplyMessage>\r\n");
-    redir_stradd(dst, dstsize, "</AuthenticationPollReply>\r\n");
-    break;
-  case REDIR_FAILED_REJECT:
-    redir_stradd(dst, dstsize, "<AuthenticationPollReply>\r\n");
-    redir_stradd(dst, dstsize, "<MessageType>140</MessageType>\r\n");
-    redir_stradd(dst, dstsize, "<ResponseCode>100</ResponseCode>\r\n");
-    if (reply) {
-      redir_stradd(dst, dstsize, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+    bcatcstr(b, 
+	     "<WISPAccessGatewayParam\r\n"
+	     "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
+	     "  xsi:noNamespaceSchemaLocation=\"http://www.acmewisp.com/WISPAccessGatewayParam.xsd\""
+	     ">\r\n");
+    
+    switch (res) {
+      
+    case REDIR_ALREADY:
+      bcatcstr(b, 
+	       "<AuthenticationPollReply>\r\n"
+	       "<MessageType>140</MessageType>\r\n"
+	       "<ResponseCode>102</ResponseCode>\r\n"
+	       "<ReplyMessage>Already logged on</ReplyMessage>\r\n"
+	       "</AuthenticationPollReply>\r\n");
+      break;
+      
+    case REDIR_FAILED_REJECT:
+      bcatcstr(b, 
+	       "<AuthenticationPollReply>\r\n"
+	       "<MessageType>140</MessageType>\r\n"
+	       "<ResponseCode>100</ResponseCode>\r\n");
+      
+      if (reply) {
+	bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+	bconcat(b, bt);
+      }
+      else {
+	bcatcstr(b, "<ReplyMessage>Invalid Password</ReplyMessage>\r\n");
+      }
+      
+      bcatcstr(b, "</AuthenticationPollReply>\r\n");
+      break;
+      
+    case REDIR_FAILED_OTHER:
+      bcatcstr(b, 
+	       "<AuthenticationPollReply>\r\n"
+	       "<MessageType>140</MessageType>\r\n"
+	       "<ResponseCode>102</ResponseCode>\r\n");
+      
+      if (reply) {
+	bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+	bconcat(b, bt);
+      }
+      else {
+	bcatcstr(b, "<ReplyMessage>Radius error</ReplyMessage>\r\n");
+      }
+      
+      bcatcstr(b, "</AuthenticationPollReply>\r\n");
+      break;
+      
+    case REDIR_SUCCESS:
+      bcatcstr(b, 
+	       "<AuthenticationPollReply>\r\n"
+	       "<MessageType>140</MessageType>\r\n"
+	       "<ResponseCode>50</ResponseCode>\r\n");
+      
+      if (reply) {
+	bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+	bconcat(b, bt);
+      }
+      
+      bassignformat(bt, "<LogoffURL>http://%s:%d/logoff</LogoffURL>\r\n",
+		    inet_ntoa(redir->addr), redir->port);
+      bconcat(b, bt);
+      
+      if (redirurl) {
+	bassignformat(bt, "<RedirectionURL>%s</RedirectionURL>\r\n", redirurl);
+	bconcat(b, bt);
+      }
+      bcatcstr(b, "</AuthenticationPollReply>\r\n");
+      break;
+      
+    case REDIR_LOGOFF:
+      bcatcstr(b, 
+	       "<LogoffReply>\r\n"
+	       "<MessageType>130</MessageType>\r\n"
+	       "<ResponseCode>150</ResponseCode>\r\n"
+	       "</LogoffReply>\r\n");
+      break;
+      
+    case REDIR_NOTYET:
+      bcatcstr(b, 
+	       "<Redirect>\r\n"
+	       "<AccessProcedure>1.0</AccessProcedure>\r\n");
+      if (redir->radiuslocationid) {
+	bassignformat(bt, "<AccessLocation>%s</AccessLocation>\r\n", redir->radiuslocationid);
+	bconcat(b, bt);
+      }
+      if (redir->radiuslocationname) {
+	bassignformat(bt, "<LocationName>%s</LocationName>\r\n", redir->radiuslocationname);
+	bconcat(b, bt);
+      }
+      
+      bassignformat(bt, "<LoginURL>%s?res=smartclient&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
+		    redir->url, inet_ntoa(redir->addr), redir->port, hexchal); 
+      bconcat(b, bt);
+      
+      bassignformat(bt, "<AbortLoginURL>http://%s:%d/abort</AbortLoginURL>\r\n",
+		    inet_ntoa(redir->addr), redir->port);
+      bconcat(b, bt);
+      
+      bcatcstr(b, 
+	       "<MessageType>100</MessageType>\r\n"
+	       "<ResponseCode>0</ResponseCode>\r\n"
+	       "</Redirect>\r\n");
+      break;
+      
+    case REDIR_ABORT_ACK:
+      bcatcstr(b, 
+	       "<AbortLoginReply>\r\n"
+	       "<MessageType>150</MessageType>\r\n"
+	       "<ResponseCode>151</ResponseCode>\r\n"
+	       "</AbortLoginReply>\r\n");
+      break;
+
+    case REDIR_ABORT_NAK:
+      bcatcstr(b, 
+	       "<AbortLoginReply>\r\n"
+	       "<MessageType>150</MessageType>\r\n"
+	       "<ResponseCode>50</ResponseCode>\r\n");
+      bassignformat(bt, "<LogoffURL>http://%s:%d/logoff</LogoffURL>\r\n",
+		    inet_ntoa(redir->addr), redir->port);
+      bconcat(b, bt);
+      bcatcstr(b, "</AbortLoginReply>\r\n");
+      break;
+
+    case REDIR_STATUS:
+      bcatcstr(b, 
+	       "<AuthenticationPollReply>\r\n"
+	       "<MessageType>140</MessageType>\r\n");
+      if (conn->authenticated != 1) {
+	bcatcstr(b, 
+		 "<ResponseCode>150</ResponseCode>\r\n"
+		 "<ReplyMessage>Not logged on</ReplyMessage>\r\n");
+      } else {
+	bcatcstr(b, 
+		 "<ResponseCode>50</ResponseCode>\r\n"
+		 "<ReplyMessage>Already logged on</ReplyMessage>\r\n");
+      }
+      bcatcstr(b, "</AuthenticationPollReply>\r\n");
+      break;
+      
+    default:
+      log_err(0, "Unknown res in switch");
+      bdestroy(bt);
+      return -1;
+      
     }
-    else {
-      redir_stradd(dst, dstsize, 
-		   "<ReplyMessage>Invalid Password</ReplyMessage>\r\n");
-    }
-    redir_stradd(dst, dstsize, "</AuthenticationPollReply>\r\n");
-    break;
-  case REDIR_FAILED_OTHER:
-    redir_stradd(dst, dstsize, "<AuthenticationPollReply>\r\n");
-    redir_stradd(dst, dstsize, "<MessageType>140</MessageType>\r\n");
-    redir_stradd(dst, dstsize, "<ResponseCode>102</ResponseCode>\r\n");
-    if (reply) {
-      redir_stradd(dst, dstsize, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-    }
-    else {
-      redir_stradd(dst, dstsize, 
-		   "<ReplyMessage>Radius error</ReplyMessage>\r\n");
-    }
-    redir_stradd(dst, dstsize, "</AuthenticationPollReply>\r\n");
-    break;
-  case REDIR_SUCCESS:
-    redir_stradd(dst, dstsize, "<AuthenticationPollReply>\r\n");
-    redir_stradd(dst, dstsize, "<MessageType>140</MessageType>\r\n");
-    redir_stradd(dst, dstsize, "<ResponseCode>50</ResponseCode>\r\n");
-    if (reply) {
-      redir_stradd(dst, dstsize, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-    }
-    redir_stradd(dst, dstsize,
-		 "<LogoffURL>http://%s:%d/logoff</LogoffURL>\r\n",
-		 inet_ntoa(redir->addr), redir->port);
-    if (redirurl) {
-      redir_stradd(dst, dstsize,
-		   "<RedirectionURL>%s</RedirectionURL>\r\n", redirurl);
-    }
-    redir_stradd(dst, dstsize, "</AuthenticationPollReply>\r\n");
-    break;
-  case REDIR_LOGOFF:
-    redir_stradd(dst, dstsize, "<LogoffReply>\r\n");
-    redir_stradd(dst, dstsize, "<MessageType>130</MessageType>\r\n");
-    redir_stradd(dst, dstsize, "<ResponseCode>150</ResponseCode>\r\n");
-    redir_stradd(dst, dstsize, "</LogoffReply>\r\n");
-    break;
-  case REDIR_NOTYET:
-    redir_stradd(dst, dstsize, "<Redirect>\r\n");
-    redir_stradd(dst, dstsize, "<AccessProcedure>1.0</AccessProcedure>\r\n");
-    if (redir->radiuslocationid) {
-      redir_stradd(dst, dstsize, 
-		   "<AccessLocation>%s</AccessLocation>\r\n",
-		   redir->radiuslocationid);
-    }
-    if (redir->radiuslocationname) {
-      redir_stradd(dst, dstsize, 
-	       "<LocationName>%s</LocationName>\r\n",
-	       redir->radiuslocationname);
-    }
-    redir_stradd(dst, dstsize, 
-    		 "<LoginURL>%s?res=smartclient&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
-    		 redir->url, inet_ntoa(redir->addr), redir->port, hexchal); 
-    redir_stradd(dst, dstsize, 
-		 "<AbortLoginURL>http://%s:%d/abort</AbortLoginURL>\r\n",
-		 inet_ntoa(redir->addr), redir->port);
-    redir_stradd(dst, dstsize, "<MessageType>100</MessageType>\r\n");
-    redir_stradd(dst, dstsize, "<ResponseCode>0</ResponseCode>\r\n");
-    redir_stradd(dst, dstsize, "</Redirect>\r\n");
-    break;
-  case REDIR_ABORT_ACK:
-    redir_stradd(dst, dstsize, "<AbortLoginReply>\r\n");
-    redir_stradd(dst, dstsize, "<MessageType>150</MessageType>\r\n");
-    redir_stradd(dst, dstsize, "<ResponseCode>151</ResponseCode>\r\n");
-    redir_stradd(dst, dstsize, "</AbortLoginReply>\r\n");
-    break;
-  case REDIR_ABORT_NAK:
-    redir_stradd(dst, dstsize, "<AbortLoginReply>\r\n");
-    redir_stradd(dst, dstsize, "<MessageType>150</MessageType>\r\n");
-    redir_stradd(dst, dstsize, "<ResponseCode>50</ResponseCode>\r\n");
-    redir_stradd(dst, dstsize,
-		 "<LogoffURL>http://%s:%d/logoff</LogoffURL>\r\n",
-		 inet_ntoa(redir->addr), redir->port);
-    redir_stradd(dst, dstsize, "</AbortLoginReply>\r\n");
-    break;
-  case REDIR_STATUS:
-    redir_stradd(dst, dstsize, "<AuthenticationPollReply>\r\n");
-    redir_stradd(dst, dstsize, "<MessageType>140</MessageType>\r\n");
-    if (conn->authenticated != 1) {
-      redir_stradd(dst, dstsize, "<ResponseCode>150</ResponseCode>\r\n");
-      redir_stradd(dst, dstsize,
-                  "<ReplyMessage>Not logged on</ReplyMessage>\r\n");
-    }
-    else {
-      redir_stradd(dst, dstsize, "<ResponseCode>50</ResponseCode>\r\n");
-      redir_stradd(dst, dstsize,
-                  "<ReplyMessage>Already logged on</ReplyMessage>\r\n");
-    }
-    redir_stradd(dst, dstsize, "</AuthenticationPollReply>\r\n");
-    break;
-  default:
-    log_err(0, "Unknown res in switch");
-    return -1;
-  }
-  redir_stradd(dst, dstsize, "</WISPAccessGatewayParam>\r\n");
+    bcatcstr(b, "</WISPAccessGatewayParam>\r\n");
   }
 
   if (redir->chillixml) {
-    redir_stradd(dst, dstsize, "<ChilliSpotSession>\r\n");
+    bcatcstr(b, "<ChilliSpotSession>\r\n");
     switch (res) {
     case REDIR_NOTYET:
-      redir_stradd(dst, dstsize, "<Challenge>%s</Challenge>\r\n", hexchal) ;
+      bassignformat(bt, "<Challenge>%s</Challenge>\r\n", hexchal);
+      bconcat(b, bt);
       break;
     case REDIR_STATUS:
       if (conn->authenticated == 1) {
@@ -365,87 +391,108 @@ static int redir_xmlreply(struct redir_t *redir,
         sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
         sessiontime += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
 
-        redir_stradd(dst, dstsize, "<State>1</State>\r\n");
-        redir_stradd(dst, dstsize, "<StartTime>%d</StartTime>\r\n" , conn->start_time);
-        redir_stradd(dst, dstsize, "<SessionTime>%d</SessionTime>\r\n", sessiontime);
+        bcatcstr(b, "<State>1</State>\r\n");
+
+        bassignformat(bt, "<StartTime>%d</StartTime>\r\n" , conn->start_time);
+	bconcat(b, bt);
+
+        bassignformat(bt, "<SessionTime>%d</SessionTime>\r\n", sessiontime);
+	bconcat(b, bt);
+
         if (timeleft) {
-         redir_stradd(dst, dstsize, "<TimeLeft>%d</TimeLeft>\r\n",
-                      timeleft);
+	  bassignformat(bt, "<TimeLeft>%d</TimeLeft>\r\n", timeleft);
+	  bconcat(b, bt);
         }
-        redir_stradd(dst, dstsize, "<Timeout>%d</Timeout>\r\n",
-                    conn->params.sessiontimeout);
-        redir_stradd(dst, dstsize, "<InputOctets>%d</InputOctets>\r\n",
-                    conn->input_octets);
-        redir_stradd(dst, dstsize, "<OutputOctets>%d</OutputOctets>\r\n",
-                    conn->output_octets);
-        redir_stradd(dst, dstsize, "<MaxInputOctets>%d</MaxInputOctets>\r\n",
-                    conn->params.maxinputoctets);
-        redir_stradd(dst, dstsize, "<MaxOutputOctets>%d</MaxOutputOctets>\r\n",
-                    conn->params.maxoutputoctets);
-        redir_stradd(dst, dstsize, "<MaxTotalOctets>%d</MaxTotalOctets>\r\n",
-                    conn->params.maxtotaloctets);
+
+        bassignformat(bt, "<Timeout>%d</Timeout>\r\n", conn->params.sessiontimeout);
+	bconcat(b, bt);
+
+        bassignformat(bt, "<InputOctets>%d</InputOctets>\r\n", conn->input_octets);
+	bconcat(b, bt);
+
+        bassignformat(bt, "<OutputOctets>%d</OutputOctets>\r\n", conn->output_octets);
+	bconcat(b, bt);
+	
+        bassignformat(bt, "<MaxInputOctets>%d</MaxInputOctets>\r\n", conn->params.maxinputoctets);
+	bconcat(b, bt);
+	
+        bassignformat(bt, "<MaxOutputOctets>%d</MaxOutputOctets>\r\n", conn->params.maxoutputoctets);
+	bconcat(b, bt);
+
+        bassignformat(bt, "<MaxTotalOctets>%d</MaxTotalOctets>\r\n", conn->params.maxtotaloctets);
+	bconcat(b, bt);
       }
       else {
-        redir_stradd(dst, dstsize, "<State>0</State>\r\n");
-
+        bcatcstr(b, "<State>0</State>\r\n");
       }
+      
       break;
+
     case REDIR_ALREADY:
-      redir_stradd(dst, dstsize, "<Already>1</Already>\r\n");
+      bcatcstr(b, "<Already>1</Already>\r\n");
       break;
+
     case REDIR_FAILED_REJECT:
     case REDIR_FAILED_OTHER:
       if (reply) {
-        redir_stradd(dst, dstsize, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+	bconcat(b, bt);
       }
-      redir_stradd(dst, dstsize, "<State>0</State>\r\n");
+      bcatcstr(b, "<State>0</State>\r\n");
+
       break;
     case REDIR_SUCCESS:
       if (reply) {
-	redir_stradd(dst, dstsize, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+	bconcat(b, bt);
       }
-      redir_stradd(dst, dstsize, "<State>1</State>\r\n");
-    break;
+      bcatcstr(b, "<State>1</State>\r\n");
+      break;
     case REDIR_LOGOFF:
-      redir_stradd(dst, dstsize, "<State>0</State>\r\n");
+      bcatcstr(b, "<State>0</State>\r\n");
       break;
     case REDIR_ABORT_ACK:
-      redir_stradd(dst, dstsize, "<Abort_ack>1</Abort_ack>\r\n");
+      bcatcstr(b, "<Abort_ack>1</Abort_ack>\r\n");
       break;
     case REDIR_ABORT_NAK:
-      redir_stradd(dst, dstsize, "<Abort_nak>1</Abort_nak>\r\n");
+      bcatcstr(b, "<Abort_nak>1</Abort_nak>\r\n");
       break;
     default:
       log_err(0, "Unknown res in switch");
+      bdestroy(bt);
       return -1;
     }
-    redir_stradd(dst, dstsize, "</ChilliSpotSession>\r\n");  
+    bcatcstr(b, "</ChilliSpotSession>\r\n");  
   }
   
-  redir_stradd(dst, dstsize, "-->\r\n");
+  bcatcstr(b, "-->\r\n");
+  bdestroy(bt);
   return 0;
 }
 
-static int redir_buildurl(struct redir_conn_t *conn, char *buffer, int buflen,
+static int redir_buildurl(struct redir_conn_t *conn, bstring str,
 			  struct redir_t *redir, char *resp,
 			  long int timeleft, char* hexchal, char* uid, 
 			  char* userurl, char* reply, char* redirurl,
 			  uint8_t *hismac, struct in_addr *hisip) {
-  char b[512];
 
-  snprintf(buffer, buflen, "%s?res=%s&uamip=%s&uamport=%d", 
-	   redir->url, resp, inet_ntoa(redir->addr), redir->port);
+  bstring bt = bfromcstr("");
+  bstring bt2 = bfromcstr("");
 
-  buffer[buflen-1] = 0;
+  bassignformat(str, "%s?res=%s&uamip=%s&uamport=%d", 
+		redir->url, resp, inet_ntoa(redir->addr), redir->port);
 
   if (hexchal) {
-    if (redir_stradd(buffer, buflen, "&challenge=%s", hexchal) == -1) return -1;
+    bassignformat(bt, "&challenge=%s", hexchal);
+    bconcat(str, bt);
+    bassigncstr(bt,"");
   }
   
   if (uid) {
-    b[0] = 0;
-    (void)redir_urlencode(uid, strlen(uid), b, sizeof(b));
-    if (redir_stradd(buffer, buflen, "&uid=%s", b) == -1) return -1;
+    bcatcstr(str, "&uid=");
+    bassigncstr(bt, uid);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
   }
 
   {/* maybe make optional */
@@ -455,70 +502,105 @@ static int redir_buildurl(struct redir_conn_t *conn, char *buffer, int buflen,
       struct timeval timenow;
       gettimeofday(&timenow, NULL);
       sessiontime = timenow.tv_sec - starttime;
-      redir_stradd(buffer, buflen, "&starttime=%ld", starttime);
-      redir_stradd(buffer, buflen, "&sessiontime=%ld", sessiontime);
+      bassignformat(bt, "&starttime=%ld", starttime);
+      bconcat(str, bt);
+      bassignformat(bt, "&sessiontime=%ld", sessiontime);
+      bconcat(str, bt);
     }
-    if (conn->params.sessiontimeout) 
-      redir_stradd(buffer, buflen, "&sessiontimeout=%ld", conn->params.sessiontimeout);
-    if (conn->params.sessionterminatetime)
-      redir_stradd(buffer, buflen, "&stoptime=%ld", conn->params.sessionterminatetime);
+
+    if (conn->params.sessiontimeout) {
+      bassignformat(bt, "&sessiontimeout=%ld", conn->params.sessiontimeout);
+      bconcat(str, bt);
+    }
+    if (conn->params.sessionterminatetime) {
+      bassignformat(bt, "&stoptime=%ld", conn->params.sessionterminatetime);
+      bconcat(str, bt);
+    }
   }
  
   if (timeleft) {
-    if (redir_stradd(buffer, buflen, "&timeleft=%ld", timeleft) == -1) return -1;
+    bassignformat(bt, "&timeleft=%ld", timeleft);
+    bconcat(str, bt);
   }
   
   if (hismac) {
-    char mac[REDIR_MACSTRLEN+1];
-    b[0] = 0;
-    snprintf(mac, REDIR_MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	     hismac[0], hismac[1],
-	     hismac[2], hismac[3],
-	     hismac[4], hismac[5]);
-    (void)redir_urlencode(mac, strlen(mac), b, sizeof(b));
-    if (redir_stradd(buffer, buflen, "&mac=%s", b) == -1) return -1;
+    bcatcstr(str, "&mac=");
+    bassignformat(bt, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+		  hismac[0], hismac[1], 
+		  hismac[2], hismac[3],
+		  hismac[4], hismac[5]);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
   }
 
   if (hisip) {
-    if (redir_stradd(buffer, buflen, "&ip=%s", inet_ntoa(*hisip)) == -1) return -1;
+    bassignformat(bt, "&ip=%s", inet_ntoa(*hisip));
+    bconcat(str, bt);
   }
 
   if (reply) {
-    b[0] = 0;
-    (void)redir_urlencode(reply, strlen(reply), b, sizeof(b));
-    if (redir_stradd(buffer, buflen, "&reply=%s", b) == -1) return -1;
+    bcatcstr(str, "&reply=");
+    bassigncstr(bt, reply);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
   }
 
   if (redir->ssid) {
-    b[0] = 0;
-    (void)redir_urlencode(redir->ssid, strlen(redir->ssid), b, sizeof(b));
-    if (redir_stradd(buffer, buflen, "&ssid=%s", b) == -1) return -1;
+    bcatcstr(str, "&ssid=");
+    bassigncstr(bt, redir->ssid);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
   }
 
   if (redir->nasmac) {
-    b[0] = 0;
-    (void)redir_urlencode(redir->nasmac, strlen(redir->nasmac), b, sizeof(b));
-    if (redir_stradd(buffer, buflen, "&called=%s", b) == -1) return -1;
+    bcatcstr(str, "&called=");
+    bassigncstr(bt, redir->nasmac);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
   }
 
   if (redir->radiusnasid) {
-    b[0] = 0;
-    (void)redir_urlencode(redir->radiusnasid, strlen(redir->radiusnasid), b, sizeof(b));
-    if (redir_stradd(buffer, buflen, "&nasid=%s", b) == -1) return -1;
+    bcatcstr(str, "&nasid=");
+    bassigncstr(bt, redir->radiusnasid);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
   }
 
   if (redirurl) {
-    b[0] = 0;
-    (void)redir_urlencode(redirurl, strlen(redirurl), b, sizeof(b));
-    if (redir_stradd(buffer, buflen, "&redirurl=%s", b) == -1) return -1;
+    bcatcstr(str, "&redirurl=");
+    bassigncstr(bt, redirurl);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
   }
 
   if (userurl) {
-    b[0] = 0;
-    (void)redir_urlencode(userurl, strlen(userurl), b, sizeof(b));
-    if (redir_stradd(buffer, buflen, "&userurl=%s", b) == -1) return -1;
+    bcatcstr(str, "&userurl=");
+    bassigncstr(bt, userurl);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
   }
 
+  if (redir->secret) { /* take the md5 of the url+uamsecret as a checksum */
+    MD5_CTX context;
+    unsigned char cksum[16];
+    unsigned char hex[32+1];
+    int i;
+
+    MD5Init(&context);
+    MD5Update(&context, (uint8_t*)str->data, str->slen);
+    MD5Update(&context, (uint8_t*)redir->secret, strlen(redir->secret));
+    MD5Final(cksum, &context);
+
+    hex[0]=0;
+    for (i=0; i<16; i++)
+      sprintf(hex+strlen(hex), "%.2X", cksum[i]);
+
+    bcatcstr(str, "&md=");
+    bcatcstr(str, hex);
+  }
+
+  bdestroy(bt);
+  bdestroy(bt2);
   return 0;
 }
 
@@ -566,11 +648,10 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
 		       long int timeleft, char* hexchal, char* uid, 
 		       char* userurl, char* reply, char* redirurl,
 		       uint8_t *hismac, struct in_addr *hisip) {
-  char buffer[5120];
-  char urlb[2048];
-  char *resp = NULL;
 
-  buffer[0] = 0;
+  char *resp = NULL;
+  bstring buffer;
+  
   switch (res) {
   case REDIR_ALREADY:
     resp = "already";
@@ -597,71 +678,69 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
   case REDIR_ABOUT:
     break;
   case REDIR_STATUS:
-    if (conn->authenticated == 1)
-      resp = "already";
-    else
-      resp = "notyet";
+    resp = conn->authenticated == 1 ? "already" : "notyet";
     break;
   default:
     log_err(0, "Unknown res in switch");
     return -1;
   }
 
+  buffer = bfromcstralloc(1024, "");
+
   if (resp) {
-    if (!url) {
-      if (redir_buildurl(conn, urlb, sizeof(urlb), redir, resp, timeleft, hexchal, 
-			 uid, userurl, reply, redirurl, hismac, hisip) == -1) return -1;
-      url = urlb;
+    bcatcstr(buffer, "HTTP/1.0 302 Moved Temporarily\r\nLocation: ");
+    
+    if (url && *url) {
+      bcatcstr(buffer, url);
+    } else {
+      bstring bt = bfromcstralloc(1024,"");
+      if (redir_buildurl(conn, bt, redir, resp, timeleft, hexchal, 
+			 uid, userurl, reply, redirurl, hismac, hisip) == -1) {
+	bdestroy(bt);
+	bdestroy(buffer);
+	return -1;
+      }
+      log_dbg( "here: %s\n",bt->data);
+      bconcat(buffer, bt);
+      bdestroy(bt);
     }
-
-    snprintf(buffer, sizeof(buffer), 
-	     "HTTP/1.0 302 Moved Temporarily\r\n"
-	     "Location: %s\r\n\r\n"
-	     "<HTML><BODY><H2>Browser error!</H2>"
-	     "Browser does not support redirects!</BODY>\r\n"
-	     "<!--\r\n", url);
-
-    if (tcp_write(sock, buffer, strlen(buffer)) < 0) {
+    
+    bcatcstr(buffer, 
+	     "\r\n\r\n<HTML><BODY><H2>Browser error!</H2>"
+	     "Browser does not support redirects!</BODY>\r\n");
+    
+    redir_xmlreply(redir, conn, res, timeleft, hexchal, reply, redirurl, buffer);
+    
+    bcatcstr(buffer, "\r\n</HTML>\r\n");
+    
+    if (tcp_write(sock, buffer->data, buffer->slen) < 0) {
       log_err(errno, "tcp_write() failed!");
+      bdestroy(buffer);
       return -1;
     }
+    
+  } else {
+    bassigncstr(buffer, 
+		"HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n"
+		"<HTML><HEAD><TITLE>(Coova-)ChilliSpot</TITLE></HEAD><BODY>");
+    bcatcstr(buffer, credits);
+    bcatcstr(buffer, "</BODY></HTML>\r\n");
 
-    buffer[0] = 0;
-    redir_xmlreply(redir, conn, res, timeleft, hexchal, reply, 
-		   redirurl, buffer, sizeof(buffer));
-
-    if (tcp_write(sock, buffer, strlen(buffer)) < 0) {
+    if (tcp_write(sock, buffer->data, buffer->slen) < 0) {
       log_err(errno, "tcp_write() failed!");
-      return -1;
-    }
-
-    buffer[0] = 0;
-    snprintf(buffer, sizeof(buffer), "\r\n-->\r\n</HTML>\r\n");
-
-    if (tcp_write(sock, buffer, strlen(buffer)) < 0) {
-      log_err(errno, "tcp_write() failed!");
-      return -1;
-    }
-  }
-  else {
-    snprintf(buffer, sizeof(buffer)-1, 
-	     "HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n"
-	     "<HTML><HEAD><TITLE>(Coova-)ChilliSpot</TITLE></HEAD><BODY>%s</BODY></HTML>\r\n", 
-	     credits);
-    if (tcp_write(sock, buffer, strlen(buffer)) < 0) {
-      log_err(errno, "tcp_write() failed!");
+      bdestroy(buffer);
       return -1;
     }
   }
 
   if (strstr(conn->useragent, "Flash")) {
-    buffer[0] = 0;
-    if (tcp_write(sock, buffer, 1) < 0) {
+    char *c = "";
+    if (tcp_write(sock, c, 1) < 0) {
       log_err(errno, "tcp_write() failed!");
-      return -1;
     }
   }
   
+  bdestroy(buffer);
   return 0;
 }
 
@@ -805,8 +884,7 @@ void redir_set(struct redir_t *redir, int debug) {
 
 /* Get a parameter of an HTTP request. Parameter is url decoded */
 /* TODO: Should be merged with other parsers */
-static int redir_getparam(struct redir_t *redir, char *src, char *param,
-			  char *dst, int dstsize) {
+static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
   char *p1;
   char *p2;
   char sstr[255];
@@ -826,9 +904,14 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param,
   if (p2) len = p2 - p1;
   else len = strlen(p1);
 
-  (void)redir_urldecode(p1, len, dst, dstsize);
+  if (len) {
+    bstring s = blk2bstr(p1, len);
+    redir_urldecode(s, dst);
+    bdestroy(s);
+  } else 
+    bassigncstr(dst, "");
 
-  log_dbg("The parameter %s is: [%s]", param, dst);/**/
+  log_dbg("The parameter %s is: [%.*s]", param, dst->slen, dst->data);/**/
 
   return 0;
 
@@ -1009,57 +1092,80 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
   switch(conn->type) {
   case REDIR_LOGIN:
     {
+      bstring bt = bfromcstr("");
+
       /* We look for ident and lang parameters on url and put them on the struct */
-      if (!redir_getparam(redir, qs, "lang", conn->lang, sizeof(conn->lang)))
-	if (optionsdebug) log_dbg("No lang parameter on url");
+      if (!redir_getparam(redir, qs, "lang", bt))
+	if (optionsdebug) 
+	  log_dbg("No lang parameter on url");
+
+      bstrtocstr(bt, conn->lang, sizeof(conn->lang));
       
-      if (redir_getparam(redir, qs, "ident", conn->ident, sizeof(conn->ident)))
+      if (redir_getparam(redir, qs, "ident", bt))
 	strcpy(conn->ident, "0"); /* default value ident = 0 */
+      else
+	bstrtocstr(bt, conn->ident, sizeof(conn->ident));
       
-      if (redir_getparam(redir, qs, "username", 
-			 conn->username, sizeof(conn->username))) {
+      if (redir_getparam(redir, qs, "username", bt)) {
 	if (optionsdebug) log_dbg("No username found!");
+	bdestroy(bt);
 	return -1;
       }
+
+      bstrtocstr(bt, conn->username, sizeof(conn->username));
       
-      if (!redir_getparam(redir, qs, "userurl", resp, sizeof(resp))) {
-	(void)redir_urldecode(resp, strlen(resp), conn->userurl, sizeof(conn->userurl));
+      if (!redir_getparam(redir, qs, "userurl", bt)) {
+	bstring bt2 = bfromcstr("");
+	redir_urldecode(bt, bt2);
+	bstrtocstr(bt2, conn->userurl, sizeof(conn->userurl));
 	if (optionsdebug) log_dbg("-->> Setting userurl=[%s]",conn->userurl);
+	bdestroy(bt2);
       }
       
       if (redir->secret &&
-	  !redir_getparam(redir, qs, "response", resp, sizeof(resp))) {
-	(void)redir_hextochar(resp, conn->chappassword);
+	  !redir_getparam(redir, qs, "response", bt)) {
+	redir_hextochar(bt->data, conn->chappassword);
 	conn->chap = 1;
 	conn->password[0] = 0;
       }
       else if ((!redir->secret || options.pap_always_ok) && 
-	       !redir_getparam(redir, qs, "password", resp, sizeof(resp))) {
-	(void)redir_hextochar(resp, conn->password);
+	       !redir_getparam(redir, qs, "password", bt)) {
+	redir_hextochar(bt->data, conn->password);
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
       } else {
 	if (optionsdebug) log_dbg("No password found!");
+	bdestroy(bt);
 	return -1;
       }
+      bdestroy(bt);
     }
     break;
 
   case REDIR_LOGOUT:
   case REDIR_PRELOGIN:
     {
-      if (!redir_getparam(redir, qs, "userurl", resp, sizeof(resp))) {
-	(void)redir_urldecode(resp, strlen(resp), conn->userurl, sizeof(conn->userurl));
+      bstring bt = bfromcstr("");
+      if (!redir_getparam(redir, qs, "userurl", bt)) {
+	bstring bt2 = bfromcstr("");
+	redir_urldecode(bt, bt2);
+	bstrtocstr(bt2, conn->userurl, sizeof(conn->userurl));
 	if (optionsdebug) log_dbg("-->> Setting userurl=[%s]",conn->userurl);
+	bdestroy(bt2);
       }
+      bdestroy(bt);
     } 
     break;
 
   case REDIR_WWW:
     {
-      strncpy(resp, path + 4, sizeof(resp)-1);
-      (void)redir_urldecode(resp, strlen(resp), conn->userurl, sizeof(conn->userurl));
+      bstring bt = bfromcstr(path+4);
+      bstring bt2 = bfromcstr("");
+      redir_urldecode(bt, bt2);
+      bstrtocstr(bt2,conn->userurl, sizeof(conn->userurl));
       if (optionsdebug) log_dbg("Serving file %s", conn->userurl);
+      bdestroy(bt2);
+      bdestroy(bt);
     } 
     break;
 
@@ -1989,19 +2095,20 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   }
   
   if (redir->homepage) {
-    char url[REDIR_URL_LEN+1];
-    char urlEnc[REDIR_URL_LEN+1];
+    bstring url = bfromcstralloc(1024,"");
+    bstring urlenc = bfromcstralloc(1024,"");
 
-    if (redir_buildurl(&conn, url, sizeof(url), redir, "notyet", 0, hexchal, NULL,
+    if (redir_buildurl(&conn, url, redir, "notyet", 0, hexchal, NULL,
 		       conn.userurl, NULL, NULL, conn.hismac, &conn.hisip) == -1) {
       log_err(errno, "redir_buildurl failed!");
       redir_close();
     }
 
-    redir_urlencode(url, strlen(url), urlEnc, sizeof(urlEnc));
+    redir_urlencode(url, urlenc);
 
-    snprintf(url, REDIR_URL_LEN, "%s%cloginurl=%s",
-	     redir->homepage, strchr(redir->homepage, '?') ? '&' : '?', urlEnc);
+    bassignformat(url, "%s%cloginurl=%.*s",
+		  redir->homepage, strchr(redir->homepage, '?') ? '&' : '?', 
+		  urlenc->slen, urlenc->data);
 
     redir_reply(redir, &socket, &conn, REDIR_NOTYET, url, 
 		0, hexchal, NULL, conn.userurl, NULL, 

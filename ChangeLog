@@ -1,6 +1,10 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+* Updated hashing algorithm to lookup3 by Bob Jenkins
+* Using [http://bstring.sourceforge.net/ bstring] in certain places instead of large, but static character arrays
+* URL Checksum: md5 of the redirect url + ''uamsecret'' passed to captive portal (''md'' query string parameter)
+	
 == ChangeLog (Coova Chilli v1.0.5 svn revision 60) ==
 
 * Allow certain ICMP packets from external interface into chilli LAN for proper MTU negotiation - includes ICMP types 0, 3, 5, 11.
