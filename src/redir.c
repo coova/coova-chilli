@@ -644,7 +644,7 @@ tcp_write(struct redir_socket *sock, char *buf, int len) {
 
 /* Make an HTTP redirection reply and send it to the client */
 static int redir_reply(struct redir_t *redir, struct redir_socket *sock, 
-		       struct redir_conn_t *conn, int res, char *url,
+		       struct redir_conn_t *conn, int res, bstring url,
 		       long int timeleft, char* hexchal, char* uid, 
 		       char* userurl, char* reply, char* redirurl,
 		       uint8_t *hismac, struct in_addr *hisip) {
@@ -690,8 +690,8 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
   if (resp) {
     bcatcstr(buffer, "HTTP/1.0 302 Moved Temporarily\r\nLocation: ");
     
-    if (url && *url) {
-      bcatcstr(buffer, url);
+    if (url) {
+      bconcat(buffer, url);
     } else {
       bstring bt = bfromcstralloc(1024,"");
       if (redir_buildurl(conn, bt, redir, resp, timeleft, hexchal, 
@@ -1930,17 +1930,21 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     }
 
     if (conn.response == REDIR_SUCCESS) { /* Radius-Accept */
-      char *besturl = conn.redirurl;
-      if (!(besturl && besturl[0])) besturl = conn.userurl;
+      bstring besturl = bfromcstr(conn.redirurl);
 
-      if (redir->no_uamsuccess && besturl && besturl[0])
+      if (! (besturl && besturl->slen)) 
+	bassigncstr(besturl, conn.userurl);
+
+      if (redir->no_uamsuccess && besturl && besturl->slen)
 	redir_reply(redir, &socket, &conn, conn.response, besturl, conn.params.sessiontimeout,
-		    hexchal, conn.username, besturl, conn.reply,
+		    hexchal, conn.username, conn.userurl, conn.reply,
 		    conn.redirurl, conn.hismac, &conn.hisip);
       else 
 	redir_reply(redir, &socket, &conn, conn.response, NULL, conn.params.sessiontimeout,
-		    hexchal, conn.username, conn.userurl, conn.reply,
+		    hexchal, conn.username, conn.userurl, conn.reply, 
 		    conn.redirurl, conn.hismac, &conn.hisip);
+
+      bdestroy(besturl);
       
       msg.type = REDIR_LOGIN;
       strncpy(msg.username, conn.username, sizeof(msg.username));
@@ -1979,7 +1983,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   case REDIR_LOGOUT:
     {
-      char *besturl = conn.redirurl;
+      bstring besturl = bfromcstr(conn.redirurl);
+
       redir_memcopy(REDIR_LOGOUT); 
       if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
 		 sizeof(struct redir_msg_t), 0) < 0) {
@@ -1987,8 +1992,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	redir_close();
       }
       
-      if (!(besturl && besturl[0])) besturl = conn.userurl;
-      if (redir->no_uamsuccess && besturl && besturl[0])
+      if (! (besturl && besturl->slen)) 
+	bassigncstr(besturl, conn.userurl);
+
+      if (redir->no_uamsuccess && besturl && besturl->slen)
+
 	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, besturl, 0, 
 		    hexchal, NULL, conn.userurl, NULL, 
 		    NULL, conn.hismac, &conn.hisip);
@@ -1996,6 +2004,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, NULL, 0, 
 		    hexchal, NULL, conn.userurl, NULL, 
 		    NULL, conn.hismac, &conn.hisip);
+
+      bdestroy(besturl);
       
       redir_close();    
     }
@@ -2106,9 +2116,9 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
     redir_urlencode(url, urlenc);
 
-    bassignformat(url, "%s%cloginurl=%.*s",
-		  redir->homepage, strchr(redir->homepage, '?') ? '&' : '?', 
-		  urlenc->slen, urlenc->data);
+    bassignformat(url, "%s%cloginurl=",
+		  redir->homepage, strchr(redir->homepage, '?') ? '&' : '?');
+    bconcat(url, urlenc);
 
     redir_reply(redir, &socket, &conn, REDIR_NOTYET, url, 
 		0, hexchal, NULL, conn.userurl, NULL, 
