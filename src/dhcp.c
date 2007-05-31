@@ -826,19 +826,19 @@ int dhcp_initconn(struct dhcp_t *this)
  * Allocates a new connection from the pool. 
  * Returns -1 if unsuccessful.
  **/
-int dhcp_newconn(struct dhcp_t *this, struct dhcp_conn_t **conn, 
+int dhcp_newconn(struct dhcp_t *this, 
+		 struct dhcp_conn_t **conn, 
 		 uint8_t *hwaddr)
 {
 
   if (this->debug) 
-    printf("DHCP newconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", 
-	   hwaddr[0], hwaddr[1], hwaddr[2],
-	   hwaddr[3], hwaddr[4], hwaddr[5]);
+    log_dbg("DHCP newconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", 
+	    hwaddr[0], hwaddr[1], hwaddr[2],
+	    hwaddr[3], hwaddr[4], hwaddr[5]);
 
 
   if (!this->firstfreeconn) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Out of free connections");
+    log_err(0, "Out of free connections");
     return -1;
   }
 
@@ -875,13 +875,14 @@ int dhcp_newconn(struct dhcp_t *this, struct dhcp_conn_t **conn,
   memcpy((*conn)->hismac, hwaddr, DHCP_ETH_ALEN);
   memcpy((*conn)->ourmac, this->hwaddr, DHCP_ETH_ALEN);
   gettimeofday(&(*conn)->lasttime, NULL);
-  (void)dhcp_hashadd(this, *conn);
+  
+  dhcp_hashadd(this, *conn);
   
   if (paranoid) dhcp_validate(this);
 
   /* Inform application that connection was created */
-  if (this ->cb_connect)
-    this ->cb_connect(*conn);
+  if (this->cb_connect)
+    this->cb_connect(*conn);
   
   return 0; /* Success */
 }
@@ -909,7 +910,7 @@ int dhcp_freeconn(struct dhcp_conn_t *conn)
 
   /* Application specific code */
   /* First remove from hash table */
-  (void)dhcp_hashdel(this, conn);
+  dhcp_hashdel(this, conn);
 
   /* Remove from link of used */
   if ((conn->next) && (conn->prev)) {
@@ -1952,7 +1953,7 @@ int dhcp_getreq(struct dhcp_t *this,
   /* Request an IP address */
   if (conn->authstate == DHCP_AUTH_NONE) {
     addr.s_addr = pack->dhcp.ciaddr;
-    if (this ->cb_request)
+    if (this->cb_request)
       if (this->cb_request(conn, &addr)) {
 	return 0; /* Ignore request if IP address was not allocated */
       }
@@ -2035,18 +2036,20 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
   struct in_addr ourip;
   struct in_addr addr;
 
-  if (this->debug) log_dbg("DHCP packet received\n");
+  if (this->debug) 
+    log_dbg("DHCP packet received\n");
   
   /* Check that MAC address is our MAC or Broadcast */
   if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
       (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
-    if (this->debug) log_dbg("dropping packet; not for our MAC or broadcast");
+    if (this->debug) 
+      log_dbg("dropping packet; not for our MAC or broadcast");
     return 0;
   }
 
   /* Check to see if we know MAC address. */
   if (!dhcp_hashget(this, &conn, pack->ethh.src)) {
-    if (this->debug) printf("Address found\n");
+    if (this->debug) log_dbg("Address found");
     ourip.s_addr = conn->ourip.s_addr;
   }
   else {
@@ -2054,7 +2057,9 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
     struct in_addr reqaddr;
     /* Get local copy */
     memcpy(&reqaddr.s_addr, &pack->iph.saddr, DHCP_IP_ALEN);
-    if (options.debug) printf("Address not found (%s)\n",inet_ntoa(reqaddr)); 
+
+    if (options.debug) 
+      log_dbg("Address not found (%s)\n", inet_ntoa(reqaddr)); 
 
     /* Do we allow dynamic allocation of IP addresses? */
     if (!this->allowdyn && !options.uamanyip)
@@ -2064,30 +2069,35 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
 
     /* Allocate new connection */
     if (dhcp_newconn(this, &conn, pack->ethh.src)) {
-      if (this->debug) log_dbg("dropping packet; out of connections");
+      if (this->debug) 
+	log_dbg("dropping packet; out of connections");
       return 0; /* Out of connections */
     }
-
-    /* Request an IP address */
-    if (options.uamanyip && 
-	conn->authstate == DHCP_AUTH_NONE) {
-      this->cb_request(conn,&reqaddr);
-    } 
   }
 
+  /* Request an IP address 
+  if (options.uamanyip && 
+      conn->authstate == DHCP_AUTH_NONE) {
+    this->cb_request(conn, &pack->iph.saddr);
+  } */
+  
   /* Return if we do not know peer */
   if (!conn) {
-    if (this->debug) log_dbg("dropping packet; no peer");
+    if (this->debug) 
+      log_dbg("dropping packet; no peer");
     return 0;
   }
 
   /* Request an IP address */
   if ((conn->authstate == DHCP_AUTH_NONE) && 
-      (pack->iph.daddr != 0) && (pack->iph.daddr != 0xffffffff)) {
+      (options.uamanyip || 
+       ((pack->iph.daddr != 0) && 
+	(pack->iph.daddr != 0xffffffff)))) {
     addr.s_addr = pack->iph.saddr;
     if (this->cb_request)
       if (this->cb_request(conn, &addr)) {
-	if (this->debug) log_dbg("dropping packet; ip not known");
+	if (this->debug) 
+	  log_dbg("dropping packet; ip not known");
 	return 0; /* Ignore request if IP address was not allocated */
       }
   }
@@ -2129,30 +2139,37 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
   }
 
   switch (conn->authstate) {
+
   case DHCP_AUTH_PASS:
     /* Check for post-auth proxy, otherwise pass packets unmodified */
     dhcp_postauthDNAT(conn, pack, len, 0);
     break; 
+
   case DHCP_AUTH_UNAUTH_TOS:
     /* Set TOS to specified value (unauthenticated) */
     pack->iph.tos = conn->unauth_cp;
     (void)dhcp_ip_check(pack);
     break;
+
   case DHCP_AUTH_AUTH_TOS:
     /* Set TOS to specified value (authenticated) */
     pack->iph.tos = conn->auth_cp;
     (void)dhcp_ip_check(pack);
     break;
+
   case DHCP_AUTH_DNAT:
     /* Destination NAT if request to unknown web server */
     if (dhcp_doDNAT(conn, pack, len)) {
-      if (this->debug) log_dbg("dropping packet; not nat'ed");
+      if (this->debug) 
+	log_dbg("dropping packet; not nat'ed");
       return 0; /* Drop is not http or dns */
     }
     break;
+
   case DHCP_AUTH_DROP: 
   default:
-    if (this->debug) log_dbg("dropping packet; auth-drop");
+    if (this->debug) 
+      log_dbg("dropping packet; auth-drop");
     return 0;
   }
 
@@ -2179,7 +2196,8 @@ int dhcp_decaps(struct dhcp_t *this)  /* DHCP Indication */
   struct dhcp_ippacket_t packet;
   int length;
   
-  if (this->debug) printf("DHCP packet received\n");
+  if (this->debug)
+    log_dbg("DHCP packet received");
 
   if ((length = recv(this->fd, &packet, sizeof(packet), 0)) < 0) {
     log_err(errno, "recv(fd=%d, len=%d) failed", this->fd, sizeof(packet));
@@ -2294,14 +2312,16 @@ int dhcp_receive_arp(struct dhcp_t *this,
 
   /* Check that this is ARP request */
   if (pack->arp.op != htons(DHCP_ARP_REQUEST)) {
-    if (this->debug) printf("Received other ARP than request!\n");
+    if (this->debug)
+      log_dbg("Received other ARP than request!\n");
     return 0;
   }
 
   /* Check that MAC address is our MAC or Broadcast */
   if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
       (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
-    if (this->debug) printf("Received ARP request for other destination!\n");
+    if (this->debug) 
+      log_dbg("Received ARP request for other destination!\n");
     return 0;
   }
 
@@ -2311,24 +2331,12 @@ int dhcp_receive_arp(struct dhcp_t *this,
   /* get target IP address */
   memcpy(&taraddr.s_addr, &pack->arp.tpa, DHCP_IP_ALEN);
 
-  /* if no sender ip, then client is checking their own ip */
-  if (!reqaddr.s_addr) {
-    if (this->debug) printf("ARP: Ignoring self-discovery: %s\n", inet_ntoa(taraddr));
-    return 0; 
-  }
-
-  /*
-  if (!memcmp(&reqaddr.s_addr, &taraddr.s_addr, 4)) { 
-    if (options.debug) 
-      printf("ARP: Asking for own IP address: %s\n", inet_ntoa(reqaddr));
-    return 0; 
-  }
-  */
 
   /* Check to see if we know MAC address. */
   if (dhcp_hashget(this, &conn, pack->ethh.src)) {
 
-    if (options.debug) printf("Address not found: %s\n", inet_ntoa(reqaddr));
+    if (options.debug) 
+      log_dbg("Address not found: %s\n", inet_ntoa(reqaddr));
 
     /* Do we allow dynamic allocation of IP addresses? */
     if (!this->allowdyn && !options.uamanyip)
@@ -2337,38 +2345,60 @@ int dhcp_receive_arp(struct dhcp_t *this,
     /* Allocate new connection */
     if (dhcp_newconn(this, &conn, pack->ethh.src))
       return 0; /* Out of connections */
-
-    /* Request an IP address */
-    if (options.uamanyip && 
-	conn->authstate == DHCP_AUTH_NONE) {
-      this->cb_request(conn, &reqaddr);
-    }
   }
   
-  if (!conn->hisip.s_addr) {
-    if (this->debug) printf("ARP: request did not come from known client!\n");
+  /* if no sender ip, then client is checking their own ip */
+  if (!reqaddr.s_addr) {
+    /* XXX: lookup in ippool to see if we really do know who has this */
+    /* XXX: it should also ack if *we* are that ip */
+    if (this->debug) 
+      log_dbg("ARP: Ignoring self-discovery: %s\n", inet_ntoa(taraddr));
+    return 0; 
+  }
+
+  if (!memcmp(&reqaddr.s_addr, &taraddr.s_addr, 4)) { 
+
+    /* Request an IP address */
+    if (options.uamanyip /*or static ip*/ &&
+	conn->authstate == DHCP_AUTH_NONE) {
+      this->cb_request(conn, &reqaddr);
+    } 
+
+    if (this->debug)
+      log_dbg("ARP: gratuitous arp %s!\n", inet_ntoa(taraddr));
+    return 0;
+  }
+
+  if (!conn->hisip.s_addr && !options.uamanyip) {
+    if (this->debug)
+      log_dbg("ARP: request did not come from known client!\n");
     return 0; /* Only reply if he was allocated an address */
   }
+
   
   /* Is ARP request for clients own address: Ignore */
   if (conn->hisip.s_addr == taraddr.s_addr) {
-    if (this->debug) printf("ARP: hisip equals target ip: %s = %s!\n",
-			    inet_ntoa(conn->hisip), inet_ntoa(taraddr));
+    if (this->debug)
+      log_dbg("ARP: hisip equals target ip: %s!\n",
+	      inet_ntoa(conn->hisip));
     return 0;
   }
 
   if (!options.uamanyip) {
     /* If ARP request outside of mask: Ignore */
-    if ((conn->hisip.s_addr & conn->hismask.s_addr) !=
+    if (reqaddr.s_addr &&
+	(conn->hisip.s_addr & conn->hismask.s_addr) !=
 	(reqaddr.s_addr & conn->hismask.s_addr)) {
-      if (this->debug) printf("ARP: request not in our subnet\n");
+      if (this->debug) 
+	log_dbg("ARP: request not in our subnet\n");
       return 0;
     }
   
     if (memcmp(&conn->ourip.s_addr, &taraddr.s_addr, 4)) { /* if ourip differs from target ip */
-      if (options.debug) 
-	printf("ARP: Did not ask for router address: %s - %s\n", 
-	       inet_ntoa(conn->ourip), inet_ntoa(taraddr));
+      if (options.debug) {
+	log_dbg("ARP: Did not ask for router address: %s", inet_ntoa(conn->ourip));
+	log_dbg("ARP: Asked for target: %s", inet_ntoa(taraddr));
+      }
       return 0; /* Only reply if he asked for his router address */
     }
   }

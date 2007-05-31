@@ -894,18 +894,23 @@ int static dnprot_reject(struct app_conn_t *appconn) {
   struct ippoolm_t *ipm;
 
   switch (appconn->dnprot) {
+
   case DNPROT_EAPOL:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
       log_err(0, "No downlink protocol");
       return 0;
     }
-    (void) dhcp_sendEAPreject(dhcpconn, NULL, 0);
+
+    dhcp_sendEAPreject(dhcpconn, NULL, 0);
     return 0;
+
   case DNPROT_UAM:
     log_err(0, "Rejecting UAM");
     return 0;
+
   case DNPROT_WPA:
     return radius_access_reject(appconn);
+
   case DNPROT_MAC:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
       log_err(0, "No downlink protocol");
@@ -913,10 +918,12 @@ int static dnprot_reject(struct app_conn_t *appconn) {
     }
     
     /* Allocate dynamic IP address */
-    if (ippool_newip(ippool, &ipm, &appconn->reqip, 0)) {
+    /*XXX    if (ippool_newip(ippool, &ipm, &appconn->reqip, 0)) {*/
+    if (newip(&ipm, &appconn->reqip)) {
       log_err(0, "Failed allocate dynamic IP address");
       return 0;
     }
+
     appconn->hisip.s_addr = ipm->addr.s_addr;
     
     /* TODO: Listening address is network address plus 1 */
@@ -925,13 +932,14 @@ int static dnprot_reject(struct app_conn_t *appconn) {
     appconn->uplink =  ipm;
     ipm->peer = appconn;
     
-    (void) dhcp_set_addrs(dhcpconn, &ipm->addr, &options.mask, &appconn->ourip,
-			  &options.dns1, &options.dns2, options.domain);
+    dhcp_set_addrs(dhcpconn, &ipm->addr, &options.mask, &appconn->ourip,
+		   &options.dns1, &options.dns2, options.domain);
     
     dhcpconn->authstate = DHCP_AUTH_DNAT;
     appconn->dnprot = DNPROT_UAM;
     
     return 0;    
+
   default:
     log_err(0, "Unknown downlink protocol");
     return 0;
@@ -942,19 +950,25 @@ int static dnprot_challenge(struct app_conn_t *appconn) {
   struct dhcp_conn_t* dhcpconn = NULL;
 
   switch (appconn->dnprot) {
+
   case DNPROT_EAPOL:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
       log_err(0, "No downlink protocol");
       return 0;
     }
-    (void) dhcp_sendEAP(dhcpconn, appconn->chal, appconn->challen);
+
+    dhcp_sendEAP(dhcpconn, appconn->chal, appconn->challen);
     break;
+
   case DNPROT_UAM:
+
   case DNPROT_WPA:
     radius_access_challenge(appconn);
     break;
+
   case DNPROT_MAC:
     break;
+
   default:
     log_err(0, "Unknown downlink protocol");
   }
@@ -1078,6 +1092,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     memcpy(appconn->ourmac, appconn->proxyourmac, DHCP_ETH_ALEN);
 
     break;
+
   default:
     log_err(0, "Unknown downlink protocol");
     return 0;
@@ -1090,12 +1105,12 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     /* Run connection up script */
     if (options.conup) {
       if (options.debug) log_dbg("Calling connection up script: %s\n", options.conup);
-      (void) runscript(appconn, options.conup);
+      runscript(appconn, options.conup);
     }
     
     printstatus(appconn);
     
-    (void) acct_req(appconn, RADIUS_STATUS_TYPE_START);
+    acct_req(appconn, RADIUS_STATUS_TYPE_START);
   }
   
   return 0;
@@ -1120,9 +1135,12 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
   if (options.tap) {
     struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
     iph = (struct tun_packet_t*)(pack + DHCP_ETH_HLEN);
+
     switch (ntohs(ethh->prot)) {
+
     case DHCP_ETH_IP:
       break;
+
     case DHCP_ETH_ARP:
       log_dbg("arp: dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x\n",
 	      ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
@@ -1830,6 +1848,16 @@ int cb_radius_ind(struct radius_t *rp, struct radius_packet_t *pack,
  *
  ***********************************************************/
 
+int newip(struct ippoolm_t **ipm, struct in_addr *hisip) {
+  if (ippool_newip(ippool, ipm, hisip, 1)) {
+    if (ippool_newip(ippool, ipm, hisip, 0)) {
+      log_err(0, "Failed to allocate either static or dynamic IP address");
+      return -1;
+    }
+  }
+  return 0;
+}
+
 int upprot_getip(struct app_conn_t *appconn, 
 		 struct in_addr *hisip, int statip) {
   struct ippoolm_t *ipm;
@@ -1842,14 +1870,14 @@ int upprot_getip(struct app_conn_t *appconn,
   }
   else {
     /* Allocate static or dynamic IP address */
-    
+
+    if (newip(&ipm, hisip))
+      return dnprot_reject(appconn);
+
+    /*    
     if ((hisip) && (statip)) {
-      if (ippool_newip(ippool, &ipm, hisip, 1)) {
-	if (ippool_newip(ippool, &ipm, NULL, 0)) {
-	  log_err(0, "Failed to allocate both static and dynamic IP address");
-	  return dnprot_reject(appconn);
-	}
-      }
+      if (newip(&ipm, hisip))
+	return dnprot_reject(appconn);
     }
     else {
       if (ippool_newip(ippool, &ipm, hisip, 0)) {
@@ -1857,6 +1885,8 @@ int upprot_getip(struct app_conn_t *appconn,
 	return dnprot_reject(appconn);
       }
     }
+    */
+
     appconn->hisip.s_addr = ipm->addr.s_addr;
 
     /* TODO: Listening address is network address plus 1 */
@@ -2293,18 +2323,22 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
 
   switch(appconn->authtype) {
+
   case PAP_PASSWORD:
     appconn->policy = 0; /* TODO */
     break;
+
   case EAP_MESSAGE:
     if (!appconn->challen) {
       log(LOG_INFO, "No EAP message found");
       return dnprot_reject(appconn);
     }
     break;
+
   case CHAP_DIGEST_MD5:
     appconn->policy = 0; /* TODO */
     break;
+
   case CHAP_MICROSOFT:
     if (!lmntattr) {
       log(LOG_INFO, "No MPPE keys found");
@@ -2315,6 +2349,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
       return dnprot_reject(appconn);
     }
     break;
+
   case CHAP_MICROSOFT_V2:
     if (!sendattr) {
       log(LOG_INFO, "No MPPE sendkey found");
@@ -2327,6 +2362,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     }
     
     break;
+
   default:
     log_err(0, "Unknown authtype");
     return dnprot_reject(appconn);
@@ -2429,7 +2465,8 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
   struct ippoolm_t *ipm;
   struct app_conn_t *appconn = conn->peer;
 
-  if (options.debug) log_dbg("DHCP requested IP address\n");
+  if (options.debug) 
+    log_dbg("DHCP requested IP address\n");
 
   if (!appconn) {
     log_err(0, "Peer protocol not defined");
@@ -2443,6 +2480,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
     ipm = (struct ippoolm_t*) appconn->uplink;
   }
   else if (appconn->dnprot == DNPROT_MAC) {
+    log_dbg("Protocol MAC, returning.\n");
     return -1;
   }
   else if ((options.macauth) && 
@@ -2456,7 +2494,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
 	   !maccmp(conn->hismac)) {
     appconn->dnprot = DNPROT_MAC;
     if (options.macallowlocal) {
-      upprot_getip(appconn, 0, 0);/**/
+      upprot_getip(appconn, &appconn->reqip, 0);/**/
       dnprot_accept(appconn);
     } else {
       macauth_radius(appconn);    
@@ -2469,7 +2507,8 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
     }
     
     /* Allocate dynamic IP address */
-    if (ippool_newip(ippool, &ipm, &appconn->reqip, 0)) {
+    /*XXX    if (ippool_newip(ippool, &ipm, &appconn->reqip, 0)) {*/
+    if (newip(&ipm, &appconn->reqip)) {
       log_err(0, "Failed allocate dynamic IP address");
       return -1;
     }
@@ -2489,8 +2528,8 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
     ipm->peer   = appconn; 
   }
   
-  (void) dhcp_set_addrs(conn, &ipm->addr, &options.mask, &appconn->ourip,
-			&options.dns1, &options.dns2, options.domain);
+  dhcp_set_addrs(conn, &ipm->addr, &options.mask, &appconn->ourip,
+		 &options.dns1, &options.dns2, options.domain);
 
   conn->authstate = DHCP_AUTH_DNAT;
 
@@ -2504,7 +2543,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
     if(ipm->inuse == 2) {
       struct in_addr mask;
       mask.s_addr = 0xffffffff;
-      printf("Adding route: %d\n", tun_addroute(tun,addr,&appconn->ourip,&mask));
+      log_dbg("Adding route: %d\n", tun_addroute(tun,addr,&appconn->ourip,&mask));
     }
   }
 
@@ -2520,7 +2559,8 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
       conn->hismac[2], conn->hismac[3],
       conn->hismac[4], conn->hismac[5]);
   
-  if (options.debug) log_dbg("New DHCP connection established\n");
+  if (options.debug) 
+    log_dbg("New DHCP connection established\n");
 
   /* Allocate new application connection */
   if (newconn(&appconn)) {
@@ -2648,7 +2688,8 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
 	    conn->authstate);
 
   if (iph->src != conn->hisip.s_addr) {
-    if (options.debug) log_dbg("Received packet with spoofed source!!!\n");
+    if (options.debug) 
+      log_dbg("Received packet with spoofed source!!!\n");
     return 0;
   }
 
@@ -2951,18 +2992,23 @@ static int cmdsock_accept(int sock) {
   }
 
   switch(req.type) {
+
   case CMDSOCK_DHCP_LIST:
     if (dhcp) dhcp_list(dhcp, csock, 0);
     break;
+
   case CMDSOCK_DHCP_RELEASE:
     if (dhcp) dhcp_release_mac(dhcp, req.data.mac);
     break;
+
   case CMDSOCK_LIST:
     if (dhcp) dhcp_list(dhcp, csock, 1);
     break;
+
   case CMDSOCK_SHOW:
     /*ToDo*/
     break;
+
   case CMDSOCK_AUTHORIZE:
     if (dhcp) {
       struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
@@ -2989,6 +3035,7 @@ static int cmdsock_accept(int sock) {
       }
     }
     break;
+
   default:
     perror("unknown command");
     close(csock);
@@ -3166,8 +3213,13 @@ int chilli_main(int argc, char **argv)
   (void) initconn();
   
   /* Allocate ippool for dynamic IP address allocation */
-  if (ippool_new(&ippool, options.dynip, options.dhcpstart, options.dhcpend, options.statip, 
-		 options.allowdyn, options.allowstat)) {
+  if (ippool_new(&ippool, 
+		 options.dynip, 
+		 options.dhcpstart, 
+		 options.dhcpend, 
+		 options.statip, 
+		 options.allowdyn, 
+		 options.allowstat)) {
     log_err(0, "Failed to allocate IP pool!");
     exit(1);
   }
