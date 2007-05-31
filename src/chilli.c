@@ -2829,8 +2829,9 @@ int static uam_msg(struct redir_msg_t *msg) {
   struct dhcp_conn_t* dhcpconn;
 
   if (ippool_getip(ippool, &ipm, &msg->addr)) {
-    if (options.debug) log_dbg("UAM login with unknown IP address: %s\n",
-			       inet_ntoa(msg->addr));
+    if (options.debug) 
+      log_dbg("UAM login with unknown IP address: %s\n",
+	      inet_ntoa(msg->addr));
     return 0;
   }
 
@@ -2923,11 +2924,6 @@ int static uam_msg(struct redir_msg_t *msg) {
     if (options.debug)
       log_dbg("Received logoff from UAM\n");
 
-    memcpy(appconn->uamchal, msg->uamchal, REDIR_MD5LEN);
-    appconn->uamtime = time(NULL);
-    appconn->uamabort = 0;
-    dhcpconn->authstate = DHCP_AUTH_DNAT;
-
     if (appconn->authenticated == 1) {
       terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
       appconn->uamtime = 0;
@@ -2937,6 +2933,11 @@ int static uam_msg(struct redir_msg_t *msg) {
       appconn->params.sessiontimeout = 0;
       appconn->params.idletimeout = 0;
     }
+
+    memcpy(appconn->uamchal, msg->uamchal, REDIR_MD5LEN);
+    appconn->uamtime = time(NULL);
+    appconn->uamabort = 0;
+    dhcpconn->authstate = DHCP_AUTH_DNAT;
 
     return 0;
   }

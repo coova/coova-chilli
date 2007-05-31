@@ -1996,7 +1996,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	bassigncstr(besturl, conn.userurl);
 
       if (redir->no_uamsuccess && besturl && besturl->slen)
-
 	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, besturl, 0, 
 		    hexchal, NULL, conn.userurl, NULL, 
 		    NULL, conn.hismac, &conn.hisip);
@@ -2004,7 +2003,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, NULL, 0, 
 		    hexchal, NULL, conn.userurl, NULL, 
 		    NULL, conn.hismac, &conn.hisip);
-
+      
       bdestroy(besturl);
       
       redir_close();    
