@@ -23,6 +23,8 @@
 #include "chilli.h"
 #include "options.h"
 
+#define ADMIN_TIMEOUT 10
+
 static int chilliauth_cb(struct radius_t *radius,
 			 struct radius_packet_t *pack,
 			 struct radius_packet_t *pack_req, void *cbp) {
@@ -135,7 +137,7 @@ int static chilliauth_radius() {
   maxfd = radius->fd;
 
   now = time(NULL);
-  endtime = now + REDIR_RADIUS_MAX_TIME;
+  endtime = now + ADMIN_TIMEOUT; 
 
   while (endtime > now) {
 

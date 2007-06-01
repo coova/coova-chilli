@@ -15,26 +15,46 @@
 
 #undef __STRICT_ANSI__
 
-#include <syslog.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <netdb.h>
-#include <unistd.h>
 #include <string.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <time.h>
 #include <ctype.h>
-#include <resolv.h> 
 #include <stdarg.h>
 
+#ifdef HAVE_SYSLOG_H
+#include <syslog.h>
+#endif
+
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+
+#ifdef HAVE_NETDB_H
+#include <netdb.h>
+#endif
+
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
+
+#ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
+#endif
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+
+#ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
+#endif
+
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <sys/wait.h>
@@ -55,10 +75,6 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <ifaddrs.h>
-#endif
-
-#ifdef HAVE_NET_IF_TUN
-#include <net/if_tun.h>
 #endif
 
 #ifndef EIDRM
@@ -92,13 +108,13 @@
 #include <net/route.h>
 #endif
 
+#ifdef HAVE_RESOLV_H
+#include <resolv.h>
+#endif
+
+#ifdef HAVE_NET_IF_ARP_H
 #include <net/if_arp.h>
-#include <netinet/in.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/ioctl.h>
+#endif
 
 #ifdef MTRACE
 #include <mcheck.h> 
@@ -108,12 +124,16 @@
 #include <dmalloc.h>
 #endif
 
-#include <stdio.h>
-#include <time.h> 
+#ifdef HAVE_STDINT_H
 #include <stdint.h>
+#endif
+
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
-#ifdef linux
-# include <endian.h>
+#endif
+
+#ifdef HAVE_ENDIAN_H
+#include <endian.h>
 #endif
 
 #if (!defined(LITTLE_ENDIAN) && !defined(BIG_ENDIAN))

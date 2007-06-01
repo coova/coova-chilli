@@ -85,7 +85,7 @@ writeconfig() {
 
     [ "$HS_WEB_ADMIN" = "http"  ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:80"
     [ "$HS_WEB_ADMIN" = "https" ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:443"
-    [ "$HS_LOCAL" = "on" ] && webadmin="$webadmin,$HS_UAMLISTEN:3443"
+    [ "$HS_LOCAL" = "on" ] && webadmin="$webadmin,$HS_UAMLISTEN:$HS_LOCAL_PORT"
     [ "$HS_MACAUTHMODE" = "local" ] && addconfig1 "macallowlocal"
     [ "$HS_PAP_OK" = "on" ] && addconfig1 "papalwaysok"
     [ "$HS_USELOCALUSERS" = "on" ] && {
@@ -189,7 +189,7 @@ radiusconfig() {
 		--adminpasswd="$HS_RADCONF_PWD" \
 		> $HS_TEMP && {	checkfornew; break; }
 	done
-    else
+    elif [ "x$HS_LOCAL" != "xon" ]; then 
 	chilli_radconfig > $HS_TEMP && { checkfornew; break; }
     fi
 }
