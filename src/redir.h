@@ -78,6 +78,9 @@
 
 #define REDIR_ETH_ALEN  6
 #define REDIR_SESSIONID_LEN 17
+#define REDIR_PASS_THROUGH_MAX 4
+
+#include "garden.h"
 
 struct session_params {
   char url[REDIR_USERURLSIZE];
@@ -94,6 +97,9 @@ struct session_params {
   time_t sessionterminatetime;
   char require_uam_auth;
   char require_redirect;
+
+  pass_through pass_throughs[REDIR_PASS_THROUGH_MAX];
+  int pass_through_count;
 } __attribute__((packed));
 
 struct redir_conn_t {
@@ -123,12 +129,10 @@ struct redir_conn_t {
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
   int response; /* 0: No radius response yet; 1:Reject; 2:Accept; 3:Timeout */
-  char *redirurl;
+
   char replybuf[RADIUS_ATTR_VLEN+1];
   char *reply;
 
-  char redirurlbuf[RADIUS_ATTR_VLEN+1];
-  unsigned char redirurllen;
   uint8_t statebuf[RADIUS_ATTR_VLEN+1];
   unsigned char statelen;
   uint8_t classbuf[RADIUS_ATTR_VLEN+1];

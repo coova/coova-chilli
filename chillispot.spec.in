@@ -93,7 +93,7 @@ make clean
 %config /etc/chilli/www/coova.jpg
 
 %changelog
-* to be released
+* Thu Jun 7 2007 <david@coova.com>
 - 1.0-coova.6 release
 * Wed May 16 2007  <david@coova.com>
 - 1.0-coova.5 release

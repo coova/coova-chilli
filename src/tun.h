@@ -43,6 +43,7 @@ struct tun_packet_t {
  *************************************************************/
 
 struct tun_t {
+  int debug;
   int fd;                /* File descriptor to tun interface */
   struct in_addr addr;
   struct in_addr dstaddr;

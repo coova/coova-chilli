@@ -81,6 +81,8 @@ const char *gengetopt_args_info_help[] = {
   "      --nouamsuccess            Do not return to the UAM server on success, \n                                  original url instead  (default=off)",
   "      --nouamwispr              Do not send WISPr XML from ChilliSpot, assume \n                                  back-end does  (default=off)",
   "      --uamlogoutip=STRING      HTTP Auto-Logout IP Address  \n                                  (default=`1.1.1.1')",
+  "      --defsessiontimeout=LONG  Default session-timeout if not returned by \n                                  RADIUS  (default=`0')",
+  "      --defidletimeout=INT      Default idle-timeout if not returned by RADIUS  \n                                  (default=`0')",
   "      --macauth                 Authenticate based on MAC address  \n                                  (default=off)",
   "      --macallowed=STRING       List of allowed MAC addresses",
   "      --macsuffix=STRING        Suffix to add to the MAC address",
@@ -102,7 +104,8 @@ const char *gengetopt_args_info_help[] = {
   "      --postauthproxy=STRING    IP of an upstream transparent proxy",
   "      --postauthproxyport=INT   Port of an upstream transparent proxy  \n                                  (default=`0')",
   "      --wpaguests               Allow WPA 'Guest' access  (default=off)",
-  "      --papalwaysok             Always allow 'PAP' (password) style \n                                  authentication (not advised)  (default=off)",
+  "      --openidauth              Allow OpenID authentication  (default=off)",
+  "      --papalwaysok             Always allow 'PAP' (password) style \n                                  authentication  (default=off)",
   "      --chillixml               Use ChilliSpot XML in WISPr blocks  \n                                  (default=off)",
   "      --usetap                  Use a TAP instead of TUN (linux only)  \n                                  (default=off)",
     0
@@ -211,6 +214,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->nouamsuccess_given = 0 ;
   args_info->nouamwispr_given = 0 ;
   args_info->uamlogoutip_given = 0 ;
+  args_info->defsessiontimeout_given = 0 ;
+  args_info->defidletimeout_given = 0 ;
   args_info->macauth_given = 0 ;
   args_info->macallowed_given = 0 ;
   args_info->macsuffix_given = 0 ;
@@ -232,6 +237,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->postauthproxy_given = 0 ;
   args_info->postauthproxyport_given = 0 ;
   args_info->wpaguests_given = 0 ;
+  args_info->openidauth_given = 0 ;
   args_info->papalwaysok_given = 0 ;
   args_info->chillixml_given = 0 ;
   args_info->usetap_given = 0 ;
@@ -338,6 +344,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->nouamwispr_flag = 0;
   args_info->uamlogoutip_arg = gengetopt_strdup ("1.1.1.1");
   args_info->uamlogoutip_orig = NULL;
+  args_info->defsessiontimeout_arg = 0;
+  args_info->defsessiontimeout_orig = NULL;
+  args_info->defidletimeout_arg = 0;
+  args_info->defidletimeout_orig = NULL;
   args_info->macauth_flag = 0;
   args_info->macallowed_arg = NULL;
   args_info->macallowed_orig = NULL;
@@ -375,6 +385,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->postauthproxyport_arg = 0;
   args_info->postauthproxyport_orig = NULL;
   args_info->wpaguests_flag = 0;
+  args_info->openidauth_flag = 0;
   args_info->papalwaysok_flag = 0;
   args_info->chillixml_flag = 0;
   args_info->usetap_flag = 0;
@@ -441,32 +452,35 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->nouamsuccess_help = gengetopt_args_info_help[52] ;
   args_info->nouamwispr_help = gengetopt_args_info_help[53] ;
   args_info->uamlogoutip_help = gengetopt_args_info_help[54] ;
-  args_info->macauth_help = gengetopt_args_info_help[55] ;
-  args_info->macallowed_help = gengetopt_args_info_help[56] ;
+  args_info->defsessiontimeout_help = gengetopt_args_info_help[55] ;
+  args_info->defidletimeout_help = gengetopt_args_info_help[56] ;
+  args_info->macauth_help = gengetopt_args_info_help[57] ;
+  args_info->macallowed_help = gengetopt_args_info_help[58] ;
   args_info->macallowed_min = -1;
   args_info->macallowed_max = -1;
-  args_info->macsuffix_help = gengetopt_args_info_help[57] ;
-  args_info->macpasswd_help = gengetopt_args_info_help[58] ;
-  args_info->macallowlocal_help = gengetopt_args_info_help[59] ;
-  args_info->wwwdir_help = gengetopt_args_info_help[60] ;
-  args_info->wwwbin_help = gengetopt_args_info_help[61] ;
-  args_info->uamui_help = gengetopt_args_info_help[62] ;
-  args_info->adminuser_help = gengetopt_args_info_help[63] ;
-  args_info->adminpasswd_help = gengetopt_args_info_help[64] ;
-  args_info->nasmac_help = gengetopt_args_info_help[65] ;
-  args_info->nasip_help = gengetopt_args_info_help[66] ;
-  args_info->ssid_help = gengetopt_args_info_help[67] ;
-  args_info->vlan_help = gengetopt_args_info_help[68] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[69] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[70] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[71] ;
-  args_info->localusers_help = gengetopt_args_info_help[72] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[73] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[74] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[75] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[76] ;
-  args_info->chillixml_help = gengetopt_args_info_help[77] ;
-  args_info->usetap_help = gengetopt_args_info_help[78] ;
+  args_info->macsuffix_help = gengetopt_args_info_help[59] ;
+  args_info->macpasswd_help = gengetopt_args_info_help[60] ;
+  args_info->macallowlocal_help = gengetopt_args_info_help[61] ;
+  args_info->wwwdir_help = gengetopt_args_info_help[62] ;
+  args_info->wwwbin_help = gengetopt_args_info_help[63] ;
+  args_info->uamui_help = gengetopt_args_info_help[64] ;
+  args_info->adminuser_help = gengetopt_args_info_help[65] ;
+  args_info->adminpasswd_help = gengetopt_args_info_help[66] ;
+  args_info->nasmac_help = gengetopt_args_info_help[67] ;
+  args_info->nasip_help = gengetopt_args_info_help[68] ;
+  args_info->ssid_help = gengetopt_args_info_help[69] ;
+  args_info->vlan_help = gengetopt_args_info_help[70] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[71] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[72] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[73] ;
+  args_info->localusers_help = gengetopt_args_info_help[74] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[75] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[76] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[77] ;
+  args_info->openidauth_help = gengetopt_args_info_help[78] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[79] ;
+  args_info->chillixml_help = gengetopt_args_info_help[80] ;
+  args_info->usetap_help = gengetopt_args_info_help[81] ;
   
 }
 
@@ -894,6 +908,16 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
     {
       free (args_info->uamlogoutip_orig); /* free previous argument */
       args_info->uamlogoutip_orig = 0;
+    }
+  if (args_info->defsessiontimeout_orig)
+    {
+      free (args_info->defsessiontimeout_orig); /* free previous argument */
+      args_info->defsessiontimeout_orig = 0;
+    }
+  if (args_info->defidletimeout_orig)
+    {
+      free (args_info->defidletimeout_orig); /* free previous argument */
+      args_info->defidletimeout_orig = 0;
     }
   if (args_info->macallowed_arg)
     {
@@ -1428,6 +1452,20 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s\n", "uamlogoutip");
     }
   }
+  if (args_info->defsessiontimeout_given) {
+    if (args_info->defsessiontimeout_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "defsessiontimeout", args_info->defsessiontimeout_orig);
+    } else {
+      fprintf(outfile, "%s\n", "defsessiontimeout");
+    }
+  }
+  if (args_info->defidletimeout_given) {
+    if (args_info->defidletimeout_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "defidletimeout", args_info->defidletimeout_orig);
+    } else {
+      fprintf(outfile, "%s\n", "defidletimeout");
+    }
+  }
   if (args_info->macauth_given) {
     fprintf(outfile, "%s\n", "macauth");
   }
@@ -1557,6 +1595,9 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
   }
   if (args_info->wpaguests_given) {
     fprintf(outfile, "%s\n", "wpaguests");
+  }
+  if (args_info->openidauth_given) {
+    fprintf(outfile, "%s\n", "openidauth");
   }
   if (args_info->papalwaysok_given) {
     fprintf(outfile, "%s\n", "papalwaysok");
@@ -1871,6 +1912,8 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "nouamsuccess",	0, NULL, 0 },
         { "nouamwispr",	0, NULL, 0 },
         { "uamlogoutip",	1, NULL, 0 },
+        { "defsessiontimeout",	1, NULL, 0 },
+        { "defidletimeout",	1, NULL, 0 },
         { "macauth",	0, NULL, 0 },
         { "macallowed",	1, NULL, 0 },
         { "macsuffix",	1, NULL, 0 },
@@ -1892,6 +1935,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "postauthproxy",	1, NULL, 0 },
         { "postauthproxyport",	1, NULL, 0 },
         { "wpaguests",	0, NULL, 0 },
+        { "openidauth",	0, NULL, 0 },
         { "papalwaysok",	0, NULL, 0 },
         { "chillixml",	0, NULL, 0 },
         { "usetap",	0, NULL, 0 },
@@ -2916,6 +2960,48 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               free (args_info->uamlogoutip_orig); /* free previous string */
             args_info->uamlogoutip_orig = gengetopt_strdup (optarg);
           }
+          /* Default session-timeout if not returned by RADIUS.  */
+          else if (strcmp (long_options[option_index].name, "defsessiontimeout") == 0)
+          {
+            if (local_args_info.defsessiontimeout_given)
+              {
+                fprintf (stderr, "%s: `--defsessiontimeout' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->defsessiontimeout_given && ! override)
+              continue;
+            local_args_info.defsessiontimeout_given = 1;
+            args_info->defsessiontimeout_given = 1;
+            args_info->defsessiontimeout_arg = strtol (optarg, &stop_char, 0);
+            if (!(stop_char && *stop_char == '\0')) {
+              fprintf(stderr, "%s: invalid numeric value: %s\n", argv[0], optarg);
+              goto failure;
+            }
+            if (args_info->defsessiontimeout_orig)
+              free (args_info->defsessiontimeout_orig); /* free previous string */
+            args_info->defsessiontimeout_orig = gengetopt_strdup (optarg);
+          }
+          /* Default idle-timeout if not returned by RADIUS.  */
+          else if (strcmp (long_options[option_index].name, "defidletimeout") == 0)
+          {
+            if (local_args_info.defidletimeout_given)
+              {
+                fprintf (stderr, "%s: `--defidletimeout' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->defidletimeout_given && ! override)
+              continue;
+            local_args_info.defidletimeout_given = 1;
+            args_info->defidletimeout_given = 1;
+            args_info->defidletimeout_arg = strtol (optarg, &stop_char, 0);
+            if (!(stop_char && *stop_char == '\0')) {
+              fprintf(stderr, "%s: invalid numeric value: %s\n", argv[0], optarg);
+              goto failure;
+            }
+            if (args_info->defidletimeout_orig)
+              free (args_info->defidletimeout_orig); /* free previous string */
+            args_info->defidletimeout_orig = gengetopt_strdup (optarg);
+          }
           /* Authenticate based on MAC address.  */
           else if (strcmp (long_options[option_index].name, "macauth") == 0)
           {
@@ -3300,7 +3386,21 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             args_info->wpaguests_given = 1;
             args_info->wpaguests_flag = !(args_info->wpaguests_flag);
           }
-          /* Always allow 'PAP' (password) style authentication (not advised).  */
+          /* Allow OpenID authentication.  */
+          else if (strcmp (long_options[option_index].name, "openidauth") == 0)
+          {
+            if (local_args_info.openidauth_given)
+              {
+                fprintf (stderr, "%s: `--openidauth' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->openidauth_given && ! override)
+              continue;
+            local_args_info.openidauth_given = 1;
+            args_info->openidauth_given = 1;
+            args_info->openidauth_flag = !(args_info->openidauth_flag);
+          }
+          /* Always allow 'PAP' (password) style authentication.  */
           else if (strcmp (long_options[option_index].name, "papalwaysok") == 0)
           {
             if (local_args_info.papalwaysok_given)

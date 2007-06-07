@@ -146,13 +146,6 @@ int static get_namepart(char *src, char *host, int hostsize, int *port) {
   return 0;
 }
 
-int pass_through_add(pass_through *pt) {
-  if (options.num_pass_throughs >= MAX_PASS_THROUGHS) return -1;
-  memcpy(&options.pass_throughs[options.num_pass_throughs], pt, sizeof(pass_through));
-  options.num_pass_throughs++;
-  return 0;
-}
-
 int process_options(int argc, char **argv, int minimal) {
   int reconfiguring = options.initialized;
   struct gengetopt_args_info args_info = {0};
@@ -208,6 +201,9 @@ int process_options(int argc, char **argv, int minimal) {
   options.no_uamsuccess = args_info.nouamsuccess_flag;
   options.no_uamwispr = args_info.nouamwispr_flag;
   options.wpaguests = args_info.wpaguests_flag;
+  options.openidauth = args_info.openidauth_flag;
+  options.defsessiontimeout = args_info.defsessiontimeout_arg;
+  options.defidletimeout = args_info.defidletimeout_arg;
   options.radiusnasporttype = args_info.radiusnasporttype_arg;
   options.radiusauthport = args_info.radiusauthport_arg;
   options.radiusacctport = args_info.radiusacctport_arg;
@@ -383,68 +379,11 @@ int process_options(int argc, char **argv, int minimal) {
   options.num_pass_throughs = 0;
 
   for (numargs = 0; numargs < args_info.uamallowed_given; ++numargs) {
-    pass_through pt;
-    char *t, *p1 = NULL, *p2 = NULL;
-    char *p3 = malloc(strlen(args_info.uamallowed_arg[numargs])+1);
-    strcpy(p3, args_info.uamallowed_arg[numargs]);
-    p1 = p3;
-
-    if (options.debug & DEBUG_CONF) {
-      printf ("Uamallowed #%d: %s\n", 
-	      numargs, args_info.uamallowed_arg[numargs]);
-    }
-
-    for ( ; p1; p1 = p2) {
-
-      /* save the next entry position */
-      if ((p2 = strchr(p1, ','))) { *p2=0; p2++; }
-
-      /* clear the pass-through entry in case we partitially filled it already */
-      memset(&pt, 0, sizeof(pass_through));
-
-      /* eat whitespace */
-      while (isspace(*p1)) p1++;
-
-      /* look for specific protocols, if proto is not know, this entry will fail */
-      if      (!strncasecmp(p1,"tcp:", 4)) { pt.proto = DHCP_IP_TCP;  p1+=4; }
-      else if (!strncasecmp(p1,"udp:", 4)) { pt.proto = DHCP_IP_UDP;  p1+=4; }
-      else if (!strncasecmp(p1,"icmp:",5)) { pt.proto = DHCP_IP_ICMP; p1+=5; }
-
-      /* look for an optional port */
-      if ((t = strchr(p1, ':'))) { pt.port = atoi(t+1); *t = 0; }
-
-      if (strchr(p1, '/')) {	/* parse a network address */
-	if (option_aton(&pt.host, &pt.mask, p1, 0)) {
-	  log_err(0, "Invalid uamallowed network address or mask %s!", 
-		  args_info.uamallowed_arg[numargs]);
-	  continue;
-	} 
-	if (pass_through_add(&pt))
-	  log_err(0, "Too many pass-throughs! skipped %s", args_info.uamallowed_arg[numargs]);
-      }
-      else {	/* otherwise, parse a host ip or hostname */
-	int j = 0;
-	pt.mask.s_addr = 0xffffffff;
-	if (!(host = gethostbyname(p1))) {
-	  log_err(0, "Invalid uamallowed domain or address: %s! [%s]", p1, strerror(errno));
-	  continue;
-	} 
-	while (host->h_addr_list[j] != NULL) {
-	  if (options.debug & DEBUG_CONF) {
-	    printf("Uamallowed IP address #%d:%d: %s\n", 
-		   j, options.num_pass_throughs,
-		   inet_ntoa(*(struct in_addr*) host->h_addr_list[j]));
-	  }
-	  pt.host = *((struct in_addr *) host->h_addr_list[j++]);
-	  if (pass_through_add(&pt))
-	    log_err(0, "Too many pass-throughs! skipped %s", args_info.uamallowed_arg[numargs]);
-	}
-      }
-    }
-
-    free(p3);
+    pass_throughs_from_string(options.pass_throughs,
+			      MAX_PASS_THROUGHS,
+			      &options.num_pass_throughs,
+			      args_info.uamallowed_arg[numargs]);
   }
-
 
   if (!reconfiguring) {
     options.allowdyn = 1;

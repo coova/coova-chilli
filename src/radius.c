@@ -173,16 +173,13 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
   struct timeval *tv;
   struct radius_attr_t *ma = NULL; /* Message authenticator */
 
-  if (this->debug) printf("radius_queue_in\n");
-
   if (this->debug) {
-    printf("radius_queue_in\n");
+    log_dbg("radius_queue_in");
     radius_printqueue(this);
   }
 
   if (this->queue[this->next].state == 1) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius queue is full!");
+    log_err(0, "radius queue is full!");
     /* Queue is not really full. It only means that the next space
        in queue is not available, but there might be space elsewhere */
     return -1;
@@ -242,13 +239,12 @@ int radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
   if (this->debug) if (this->debug) printf("radius_queue_out\n");
 
   if (this->queue[id].state != 1) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "No such id in radius queue: %d!", id);
+    log_err(0, "No such id in radius queue: %d!", id);
     return -1;
   }
 
   if (this->debug) {
-    printf("radius_queue_out\n");
+    log_dbg("radius_queue_out");
     radius_printqueue(this);
   }
   
@@ -269,7 +265,7 @@ int radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
     this->queue[this->queue[id].prev].next = this->queue[id].next;
 
   if (this->debug) {
-    printf("radius_queue_out end\n");
+    log_dbg("radius_queue_out end");
     radius_printqueue(this);
   }
 
@@ -282,16 +278,17 @@ int radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
  */
 int radius_queue_reschedule(struct radius_t *this, int id) {
   struct timeval *tv;
-  if (this->debug) printf("radius_queue_reschedule\n");
+
+  if (this->debug) 
+    log_dbg("radius_queue_reschedule");
 
   if (this->queue[id].state != 1) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "No such id in radius queue: %d!", id);
+    log_err(0, "No such id in radius queue: %d!", id);
     return -1;
   }
 
   if (this->debug) {
-    printf("radius_reschedule\n");
+    log_dbg("radius_reschedule");
     radius_printqueue(this);
   }
 
@@ -498,8 +495,7 @@ int radius_timeout(struct radius_t *this) {
       if (sendto(this->fd, &this->queue[this->first].p,
 		 ntohs(this->queue[this->first].p.length), 0,
 		 (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-		"sendto() failed!");
+	log_err(errno, "sendto() failed!");
 	radius_queue_reschedule(this, this->first);
 	return -1;
       }
@@ -507,8 +503,7 @@ int radius_timeout(struct radius_t *this) {
     }
     else { /* Finished retrans */
       if (radius_queue_out(this, &pack_req, this->first, &cbp)) {
-	sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-		"Matching request was not found in queue: %d!", this->first);
+	log_warn(0, "Matching request was not found in queue: %d!", this->first);
 	return -1;
       }
 
@@ -573,14 +568,12 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
     
     if (vlen > RADIUS_ATTR_VLEN) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Data too long!");
+      log_err(0, "Data too long!");
       return -1;
     }
 
     if ((length+vlen+2) > RADIUS_PACKSIZE) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "No more space!");
+      log_err(0, "No more space!");
       return -1;
     }
 
@@ -606,14 +599,12 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
 
     if (vlen > RADIUS_ATTR_VLEN) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Data too long!");
+      log_err(0, "Data too long!");
       return -1;
     }
 
     if ((length+vlen+2) > RADIUS_PACKSIZE) { 
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "No more space!");
+      log_err(0, "No more space!");
       return -1;
     }
 
@@ -758,14 +749,12 @@ int radius_keydecode(struct radius_t *this, uint8_t *dst, int dstsize,
   blocks = (srclen - 2) / RADIUS_MD5LEN;
 
   if ((blocks * RADIUS_MD5LEN +2) != srclen) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_keydecode: srclen must be 2 plus n*16");
+    log_err(0, "radius_keydecode: srclen must be 2 plus n*16");
     return -1;
   }
 
   if (blocks < 1) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_keydecode srclen must be at least 18");
+    log_err(0, "radius_keydecode srclen must be at least 18");
     return -1;
   }
 
@@ -777,14 +766,12 @@ int radius_keydecode(struct radius_t *this, uint8_t *dst, int dstsize,
   MD5Final(b, &context);
 
   if ((src[2] ^ b[0]) > dstsize) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_keydecode dstsize too small");
+    log_err(0,"radius_keydecode dstsize too small");
     return -1; 
   }
 
   if ((src[2] ^ b[0]) > (srclen - 3)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_keydecode dstlen > srclen -3");
+    log_err(0,"radius_keydecode dstlen > srclen -3");
     return -1; 
   }
 
@@ -825,8 +812,7 @@ int radius_keyencode(struct radius_t *this, uint8_t *dst, int dstsize,
   if ((blocks * RADIUS_MD5LEN) < (srclen +1)) blocks++;
   
   if (((blocks * RADIUS_MD5LEN) +2 ) > dstsize) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_keyencode dstsize too small");
+    log_err(0, "radius_keyencode dstsize too small");
     return -1;
   }
 
@@ -834,8 +820,7 @@ int radius_keyencode(struct radius_t *this, uint8_t *dst, int dstsize,
 
   /* Read two salt octets */
   if (fread(dst, 1, 2, this->urandom_fp) != 2) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "fread() failed");
+    log_err(errno, "fread() failed");
     return -1;
   }
 
@@ -881,14 +866,12 @@ int radius_pwdecode(struct radius_t *this, uint8_t *dst, int dstsize,
   unsigned char output[RADIUS_MD5LEN];
 
   if (srclen > dstsize) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_pwdecode srclen larger than dstsize");
+    log_err(0, "radius_pwdecode srclen larger than dstsize");
     return -1;
   }
 
   if (srclen % RADIUS_MD5LEN) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "radius_pwdecode srclen is not multiple of 16 octets");
+    log_err(0, "radius_pwdecode srclen is not multiple of 16 octets");
     return -1;
   }
 
@@ -1028,8 +1011,7 @@ int radius_new(struct radius_t **this,
 
   /* Allocate storage for instance */
   if (!(*this = calloc(sizeof(struct radius_t), 1))) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "calloc() failed");
+    log_err(0, "calloc() failed");
     return -1;
   }
 
@@ -1056,14 +1038,12 @@ int radius_new(struct radius_t **this,
       (*this)->proxymask.s_addr = 0;
     
     if (((*this)->proxysecretlen = strlen(proxysecret)) > RADIUS_SECRETSIZE) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "proxysecret longer than %d", RADIUS_SECRETSIZE);
+      log_err(0, "proxysecret longer than %d", RADIUS_SECRETSIZE);
       return -1;
     }
     
     if (((*this)->proxysecretlen = strlen(proxysecret)) > RADIUS_SECRETSIZE) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "proxy secret longer than %d", RADIUS_SECRETSIZE);
+      log_err(0, "proxy secret longer than %d", RADIUS_SECRETSIZE);
       return -1;
     }
     memcpy((*this)->proxysecret, proxysecret, (*this)->proxysecretlen);
@@ -1075,14 +1055,12 @@ int radius_new(struct radius_t **this,
   (*this)->last = -1;
   
   if (((*this)->urandom_fp = fopen("/dev/urandom", "r")) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "fopen(/dev/urandom, r) failed");
+    log_err(errno, "fopen(/dev/urandom, r) failed");
   }
   
   /* Initialise radius socket */
   if (((*this)->fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "socket() failed!");
+    log_err(errno, "socket() failed!");
     return -1;
   }
 
@@ -1092,16 +1070,14 @@ int radius_new(struct radius_t **this,
   addr.sin_port = htons((*this)->ourport);
   
   if (bind((*this)->fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "bind() failed!");
+    log_err(errno, "bind() failed!");
     return -1;
   }
 
   /* Initialise proxy socket */
   if (proxysecret) {
     if (((*this)->proxyfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	      "socket() failed!");
+      log_err(errno, "socket() failed!");
       return -1;
     }
     
@@ -1131,12 +1107,10 @@ int
 radius_free(struct radius_t *this)
 {
   if (fclose(this->urandom_fp)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "fclose() failed!");
+    log_err(errno, "fclose() failed!");
   }
   if (close(this->fd)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "close() failed!");
+    log_err(errno, "close() failed!");
   }
   free(this);
   return 0;
@@ -1164,8 +1138,7 @@ void radius_set(struct radius_t *this, int debug) {
   }
 
   if ((this->secretlen = strlen(options.radiussecret)) > RADIUS_SECRETSIZE) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Radius secret too long. Truncating to %d characters", 
+    log_err(0, "Radius secret too long. Truncating to %d characters", 
 	    RADIUS_SECRETSIZE);
     this->secretlen = RADIUS_SECRETSIZE;
   }
@@ -1265,8 +1238,7 @@ int radius_req(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,
 	     (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "sendto() failed!");
+    log_err(errno, "sendto() failed!");
     return -1;
   } 
     
@@ -1299,8 +1271,7 @@ int radius_resp(struct radius_t *this,
   
   if (sendto(this->proxyfd, pack, len, 0,
 	     (struct sockaddr *) peer, sizeof(struct sockaddr_in)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "sendto() failed!");
+    log_err(errno, "sendto() failed!");
     return -1;
   } 
   
@@ -1332,15 +1303,12 @@ int radius_coaresp(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,
 	     (struct sockaddr *) peer, sizeof(struct sockaddr_in)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "sendto() failed!");
+    log_err(errno, "sendto() failed!");
     return -1;
   } 
   
   return 0;
 }
-
-
 
 
 /* 
@@ -1422,26 +1390,24 @@ int radius_decaps(struct radius_t *this) {
   socklen_t fromlen = sizeof(addr);
   int coarequest = 0;
 
-  if (this->debug) printf("Received radius packet\n");
+  if (this->debug) 
+    log_dbg("Received radius packet");
   
   if ((status = recvfrom(this->fd, &pack, sizeof(pack), 0, 
 			 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "recvfrom() failed");
+    log_err(errno, "recvfrom() failed");
     return -1;
   }
 
   if (status < RADIUS_HDRSIZE) {
-    sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	    "Received radius packet which is too short: %d < %d!",
-	    status, RADIUS_HDRSIZE);
+    log_warn(0, "Received radius packet which is too short: %d < %d!",
+	     status, RADIUS_HDRSIZE);
     return -1;
   }
 
   if (ntohs(pack.length) != status) {
-    sys_err(LOG_WARNING, __FILE__, __LINE__, errno,
-	    "Received radius packet with wrong length field %d != %d!",
-	    ntohs(pack.length), status);
+    log_warn(errno, "Received radius packet with wrong length field %d != %d!",
+	     ntohs(pack.length), status);
     return -1;
   }
 
@@ -1459,8 +1425,7 @@ int radius_decaps(struct radius_t *this) {
     /* Check that reply is from correct address */
     if ((addr.sin_addr.s_addr != this->hisaddr0.s_addr) &&
 	(addr.sin_addr.s_addr != this->hisaddr1.s_addr)) {
-      sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	      "Received radius reply from wrong address %.8x!",
+      log_warn(0, "Received radius reply from wrong address %.8x!",
 	      addr.sin_addr.s_addr);
       return -1;
     }
@@ -1468,21 +1433,18 @@ int radius_decaps(struct radius_t *this) {
     /* Check that UDP source port is correct */
     if ((addr.sin_port != htons(this->authport)) &&
 	(addr.sin_port != htons(this->acctport))) {
-      sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	      "Received radius packet from wrong port %.4x!",
+      log_warn(0, "Received radius packet from wrong port %.4x!",
 	      addr.sin_port);
       return -1;
     }
     
     if (radius_queue_out(this, &pack_req, pack.id, &cbp)) {
-      sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	      "Matching request was not found in queue: %d!", pack.id);
+      log_warn(0, "Matching request was not found in queue: %d!", pack.id);
       return -1;
     }
 
     if (radius_authcheck(this, &pack, &pack_req)) {
-      sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	      "Authenticator does not match request!");
+      log_warn(0, "Authenticator does not match request!");
       return -1;
     }
 
@@ -1498,16 +1460,14 @@ int radius_decaps(struct radius_t *this) {
       /* Check that request is from correct address */
       if ((addr.sin_addr.s_addr != this->hisaddr0.s_addr) &&
 	  (addr.sin_addr.s_addr != this->hisaddr1.s_addr)) {
-	sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-		"Received radius request from wrong address %.8x!",
+	log_warn(0, "Received radius request from wrong address %.8x!",
 		addr.sin_addr.s_addr);
 	return -1;
       }
     }
 
     if (radius_acctcheck(this, &pack)) {
-      sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	      "Authenticator did not match MD5 of packet!");
+      log_warn(0, "Authenticator did not match MD5 of packet!");
       return -1;
     }
   }
@@ -1541,13 +1501,11 @@ int radius_decaps(struct radius_t *this) {
       return 0;
     break;
   default:
-    sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	    "Received unknown radius packet %d!", pack.code);
+    log_warn(0, "Received unknown radius packet %d!", pack.code);
     return -1;
   }
   
-  sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	  "Received unknown radius packet %d!", pack.code);
+  log_warn(0, "Received unknown radius packet %d!", pack.code);
   return -1;
 }
 
@@ -1561,7 +1519,8 @@ int radius_proxy_ind(struct radius_t *this) {
   struct sockaddr_in addr;
   socklen_t fromlen = sizeof(addr);
 
-  if (this->debug) printf("Received radius packet\n");
+  if (this->debug) 
+    log_dbg("Received radius packet");
   
   if ((status = recvfrom(this->proxyfd, &pack, sizeof(pack), 0, 
 			 (struct sockaddr *) &addr, &fromlen)) <= 0) {

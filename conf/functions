@@ -42,6 +42,8 @@ HS_RADCONF_PWD=${HS_RADCONF_PWD:-coovachilli}
 HS_DNS_DOMAIN=${HS_DNS_DOMAIN:-lan}
 HS_MACAUTHMODE=${HS_MACAUTHMODE:-local}
 HS_USELOCALUSERS=${HS_USELOCALUSERS:-off}
+HS_OPENIDAUTH=${HS_OPENIDAUTH:-off}
+HS_PAP_OK=${HS_PAP_OK:-on}
 
 bailout() { echo $1; exit; }
 
@@ -87,7 +89,6 @@ writeconfig() {
     [ "$HS_WEB_ADMIN" = "https" ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:443"
     [ "$HS_LOCAL" = "on" ] && webadmin="$webadmin,$HS_UAMLISTEN:$HS_LOCAL_PORT"
     [ "$HS_MACAUTHMODE" = "local" ] && addconfig1 "macallowlocal"
-    [ "$HS_PAP_OK" = "on" ] && addconfig1 "papalwaysok"
     [ "$HS_USELOCALUSERS" = "on" ] && {
 	touch /etc/chilli/localusers
 	addconfig1 "localusers /etc/chilli/localusers"
@@ -131,8 +132,12 @@ EOF
     if [ "x$HS_RADCONF" != "xon" -a "x$HS_RADCONF" != "xurl" ]; then 
 	rm -f $HS_CONF 2>/dev/null
 
+	[ "$HS_PAP_OK" = "on" ] && addconfig2 "papalwaysok"
 	[ "$HS_MACAUTH" = "on" ] && addconfig2 "macauth"
 	[ "$HS_WPAGUESTS" = "on" ] && addconfig2 "wpaguests"
+	[ "$HS_OPENIDAUTH" = "on" ] && addconfig2 "openidauth"
+	test ${HS_DEFSESSIONTIMEOUT:-0} -gt 0 && addconfig2 "defsessiontimeout $HS_DEFSESSIONTIMEOUT"
+	test ${HS_DEFIDLETIMEOUT:-0} -gt 0 && addconfig2 "defidletimeout $HS_DEFIDLETIMEOUT"
 	[ -n "$HS_POSTAUTH_PROXY" -a -n "$HS_POSTAUTH_PROXYPORT" ] && {
 	    addconfig2 "postauthproxy $HS_POSTAUTH_PROXY"
 	    addconfig2 "postauthproxyport $HS_POSTAUTH_PROXYPORT"

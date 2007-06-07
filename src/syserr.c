@@ -2,7 +2,7 @@
  *
  * Syslog functions.
  * Copyright (C) 2003, 2004 Mondru AB.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  * 
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -19,59 +19,59 @@
 #include "redir.h"
 #include "chilli.h"
 #include "options.h"
+#include "bstrlib.h"
 
-void sys_err(int pri, char *fn, int ln, int en, char *fmt, ...) {
-  va_list args;
-  char buf[SYSERR_MSGSIZE];
+void sys_err(int pri, char *fn, int ln, int en, const char *fmt, ...) {
+  bstring bt = bfromcstralloc(128,"");
+  int sz;
 
-  va_start(args, fmt);
-  vsnprintf(buf, SYSERR_MSGSIZE, fmt, args);
-  va_end(args);
-  buf[SYSERR_MSGSIZE-1] = 0; /* Make sure it is null terminated */
+  if (pri==LOG_DEBUG && !options.debug) return;
+
+  bvformata(sz, bt, fmt, fmt);
+
   if (options.foreground && options.debug) {
-    fprintf(stderr, "%s: %d: %d (%s) %s\n", fn, ln, en, strerror(en), buf);
+    fprintf(stderr, "%s: %d: %d (%s) %s\n", fn, ln, en, en ? strerror(en) : "Debug", bt->data);
   } else {
     if (en)
-      syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), buf);
+      syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
     else
-      syslog(pri, "%s: %d: %s", fn, ln, buf);
+      syslog(pri, "%s: %d: %s", fn, ln, bt->data);
   }
+
+  bdestroy(bt);
 }
 
 void sys_errpack(int pri, char *fn, int ln, int en, struct sockaddr_in *peer,
 		 void *pack, unsigned len, char *fmt, ...) {
-  
-  va_list args;
-  char buf[SYSERR_MSGSIZE];
-  char buf2[SYSERR_MSGSIZE];
-  int n;
+  bstring bt = bfromcstr("");
+  bstring bt2 = bfromcstr("");
   int pos;
+  int sz;
+  int n;
   
-  va_start(args, fmt);
-  vsnprintf(buf, SYSERR_MSGSIZE, fmt, args);
-  va_end(args);
-  buf[SYSERR_MSGSIZE-1] = 0;
+  bvformata(sz, bt, fmt, fmt);
 
-  snprintf(buf2, SYSERR_MSGSIZE, "Packet from %s:%u, length: %d, content:",
-	   inet_ntoa(peer->sin_addr),
-	   ntohs(peer->sin_port),
-	   len);
-  buf2[SYSERR_MSGSIZE-1] = 0;
-  pos = strlen(buf2);
-  for(n=0; n<len; n++) {
-    if ((pos+4)<SYSERR_MSGSIZE) {
-      sprintf((buf2+pos), " %02hhx", ((unsigned char*)pack)[n]);
-      pos += 3;
-    }
+  bassignformat(bt2, ". Packet from %s:%u, length: %d, content:",
+		inet_ntoa(peer->sin_addr),
+		ntohs(peer->sin_port),
+		len);
+
+  bconcat(bt, bt2);
+
+  for(n=0; n < len; n++) {
+    bassignformat(bt, " %02hhx", ((unsigned char*)pack)[n]);
+    bconcat(bt, bt2);
   }
-  buf2[pos] = 0;
   
   if (options.foreground && options.debug) {
-    printf("%s: %d: %d (%s) %s", fn, ln, en, strerror(en), buf);
+    fprintf(stderr, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
   } else {
     if (en)
-      syslog(pri, "%s: %d: %d (%s) %s. %s", fn, ln, en, strerror(en), buf, buf2);
+      syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
     else
-      syslog(pri, "%s: %d: %s. %s", fn, ln, buf, buf2);
+      syslog(pri, "%s: %d: %s", fn, ln, bt->data);
   }
+
+  bdestroy(bt);
+  bdestroy(bt2);
 }

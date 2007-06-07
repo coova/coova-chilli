@@ -192,12 +192,10 @@ int dhcp_sifflags(char const *devname, int flags) {
   strncpy(ifr.ifr_name, devname, IFNAMSIZ);
   ifr.ifr_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "socket() failed");
+    log_err(errno,"socket() failed");
   }
   if (ioctl(fd, SIOCSIFFLAGS, &ifr)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "ioctl(SIOCSIFFLAGS) failed");
+    log_err(errno,"ioctl(SIOCSIFFLAGS) failed");
     close(fd);
     return -1;
   }
@@ -213,12 +211,10 @@ int dhcp_gifflags(char const *devname, int *flags) {
   strncpy(ifr.ifr_name, devname, IFNAMSIZ);
   ifr.ifr_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "socket() failed");
+    log_err(errno, "socket() failed");
   }
   if (ioctl(fd, SIOCGIFFLAGS, &ifr)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "ioctl(SIOCSIFFLAGS) failed");
+    log_err(errno, "ioctl(SIOCSIFFLAGS) failed");
     close(fd);
     return -1;
   }
@@ -255,8 +251,7 @@ int dhcp_setaddr(char const *devname,
 
   /* Create a channel to the NET kernel. */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "socket() failed");
+    log_err(errno, "socket() failed");
     return -1;
   }
 
@@ -264,12 +259,10 @@ int dhcp_setaddr(char const *devname,
     ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr = addr->s_addr;
     if (ioctl(fd, SIOCSIFADDR, (void *) &ifr) < 0) {
       if (errno != EEXIST) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-		"ioctl(SIOCSIFADDR) failed");
+	log_err(errno, "ioctl(SIOCSIFADDR) failed");
       }
       else {
-	sys_err(LOG_WARNING, __FILE__, __LINE__, errno,
-		"ioctl(SIOCSIFADDR): Address already exists");
+	log_warn(errno, "ioctl(SIOCSIFADDR): Address already exists");
       }
       close(fd);
       return -1;
@@ -280,8 +273,7 @@ int dhcp_setaddr(char const *devname,
     ((struct sockaddr_in *) &ifr.ifr_dstaddr)->sin_addr.s_addr = 
       dstaddr->s_addr;
     if (ioctl(fd, SIOCSIFDSTADDR, (caddr_t) &ifr) < 0) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	      "ioctl(SIOCSIFDSTADDR) failed");
+      log_err(errno, "ioctl(SIOCSIFDSTADDR) failed");
       close(fd);
       return -1; 
     }
@@ -304,8 +296,7 @@ int dhcp_setaddr(char const *devname,
 #endif
 
     if (ioctl(fd, SIOCSIFNETMASK, (void *) &ifr) < 0) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	      "ioctl(SIOCSIFNETMASK) failed");
+      log_err(errno, "ioctl(SIOCSIFNETMASK) failed");
       close(fd);
       return -1;
     }
@@ -348,19 +339,16 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
   /* Create socket */
   if ((fd = socket(PF_PACKET, SOCK_RAW, htons(protocol))) < 0) {
     if (errno == EPERM) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	      "Cannot create raw socket. Must be root.");
+      log_err(errno, "Cannot create raw socket. Must be root.");
     }
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "socket(domain=%d, protocol=%lx, protocol=%d) failed",
+    log_err(errno, "socket(domain=%d, protocol=%lx, protocol=%d) failed",
 	    PF_PACKET, SOCK_RAW, protocol);
   }
 
 
   /* Enable reception and transmission of broadcast frames */
   if (setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &option, sizeof(option)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
+    log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
 	    fd, SOL_SOCKET, SO_BROADCAST, sizeof(option));
   }
   
@@ -369,40 +357,34 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
   if ((!usemac) && (macaddr)) {
     strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
     if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	      "ioctl(d=%d, request=%d) failed",
+      log_err(errno, "ioctl(d=%d, request=%d) failed",
 	      fd, SIOCGIFHWADDR);
     }
     memcpy(macaddr, ifr.ifr_hwaddr.sa_data, DHCP_ETH_ALEN);
     if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Not Ethernet: %.16s", ifname);
+      log_err(0, "Not Ethernet: %.16s", ifname);
     }
     
     if (macaddr[0] & 0x01) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
-	      "Ethernet has broadcast or multicast address: %.16s", ifname);
+      log_err(0, "Ethernet has broadcast or multicast address: %.16s", ifname);
     }
   }
 
   /* Verify that MTU = ETH_DATA_LEN */
   strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
   if (ioctl(fd, SIOCGIFMTU, &ifr) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "ioctl(d=%d, request=%d) failed",
+    log_err(errno, "ioctl(d=%d, request=%d) failed",
 	    fd, SIOCGIFMTU);
   }
   if (ifr.ifr_mtu != ETH_DATA_LEN) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "MTU does not match EHT_DATA_LEN: %d %d", 
+    log_err(0, "MTU does not match EHT_DATA_LEN: %d %d", 
 	    ifr.ifr_mtu, ETH_DATA_LEN);
   }
 
   /* Get ifindex */
   strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
   if (ioctl(fd, SIOCGIFINDEX, &ifr) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "ioctl(SIOCFIGINDEX) failed");
+    log_err(errno, "ioctl(SIOCFIGINDEX) failed");
   }
   if (ifindex)
     *ifindex = ifr.ifr_ifindex;
@@ -414,8 +396,7 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
     mr.mr_type =  PACKET_MR_PROMISC;
     if(setsockopt(fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
 		  (char *)&mr, sizeof(mr)) < 0) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	      "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
+      log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
 	      fd, SOL_SOCKET, PACKET_ADD_MEMBERSHIP, sizeof(mr));
     }
   }
@@ -426,8 +407,7 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
   sa.sll_protocol = htons(protocol);
   sa.sll_ifindex = ifr.ifr_ifindex;
   if (bind(fd, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "bind(sockfd=%d) failed", fd);
+    log_err(errno, "bind(sockfd=%d) failed", fd);
   }
   return fd;
 }
@@ -440,7 +420,7 @@ int dhcp_getmac(const char *ifname, char *macaddr) {
   struct sockaddr_dl *sdl;
 
   if (getifaddrs(&ifap)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno, "getifaddrs() failed!");
+    log_err(errno, "getifaddrs() failed!");
     return -1;
   }
 
@@ -459,7 +439,7 @@ int dhcp_getmac(const char *ifname, char *macaddr) {
 	continue;
       }
       if (sdl->sdl_alen != DHCP_ETH_ALEN) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, errno, "Wrong sdl_alen!");
+	log_err(errno, "Wrong sdl_alen!");
 	freeifaddrs(ifap);
 	return -1;
       }
@@ -519,7 +499,7 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
     if (errno != EBUSY) break;
   } 
   if (fd < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno, "Can't find bpf device");
+    log_err(errno, "Can't find bpf device");
     return -1;
   }
 
@@ -527,18 +507,18 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
   memset(&ifr, 0, sizeof(ifr));
   strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
   if (ioctl(fd, BIOCSETIF, &ifr) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,"ioctl() failed");
+    log_err(errno,"ioctl() failed");
     return -1;
   }
 
   /* Get and validate BPF version */
   if (ioctl(fd, BIOCVERSION, &bv) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,"ioctl() failed!");
+    log_err(errno,"ioctl() failed!");
     return -1;
   }  
   if (bv.bv_major != BPF_MAJOR_VERSION ||
       bv.bv_minor < BPF_MINOR_VERSION) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,"wrong BPF version!");
+    log_err(errno,"wrong BPF version!");
     return -1;
   }
 
@@ -546,7 +526,7 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
   if ((!usemac) && (macaddr)) {
 
     if (dhcp_getmac(ifname, macaddr)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,"Did not find MAC address!");
+      log_err(0,"Did not find MAC address!");
       return -1;
     }
     
@@ -555,8 +535,7 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
 		  macaddr[3], macaddr[4], macaddr[5]);
     
     if (macaddr[0] & 0x01) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
-	      "Ethernet has broadcast or multicast address: %.16s", ifname);
+      log_err(0, "Ethernet has broadcast or multicast address: %.16s", ifname);
       return -1;
     }
   }
@@ -565,19 +544,19 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
   if (promisc) {
     value = 1;
     if (ioctl(fd, BIOCPROMISC, NULL) < 0) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,"ioctl() failed!");
+      log_err(errno,"ioctl() failed!");
       return -1;
     }  
     value = 1;
     if (ioctl(fd, BIOCSHDRCMPLT, &value) < 0) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,"ioctl() failed!");
+      log_err(errno,"ioctl() failed!");
       return -1;
     }  
   }
   else {
     value = 0;
     if (ioctl(fd, BIOCSHDRCMPLT, &value) < 0) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno,"ioctl() failed!");
+      log_err(errno,"ioctl() failed!");
       return -1;
     }  
   }
@@ -585,7 +564,7 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
   /* Make sure reads return as soon as packet has been received */
   value = 1;
   if (ioctl(fd, BIOCIMMEDIATE, &value) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,"ioctl() failed!");
+    log_err(errno,"ioctl() failed!");
     return -1;
   }  
 
@@ -695,7 +674,7 @@ int dhcp_hashdel(struct dhcp_t *this, struct dhcp_conn_t *conn) {
   }
 
   if ((paranoid) && (p!= conn)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+    log_err(0,
 	    "Tried to delete connection not in hash table");
   }
 
@@ -747,13 +726,11 @@ int dhcp_validate(struct dhcp_t *this)
   conn = this->firstusedconn;
   while (conn) {
     if (!conn->inuse) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Connection with inuse == 0!");
+      log_err(0, "Connection with inuse == 0!");
     }
     (void)dhcp_hashget(this, &hash_conn, conn->hismac);
     if (conn != hash_conn) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Connection could not be found by hashget!");
+      log_err(0, "Connection could not be found by hashget!");
     }
     used ++;
     conn = conn->next;
@@ -763,16 +740,14 @@ int dhcp_validate(struct dhcp_t *this)
   conn = this->firstfreeconn;
   while (conn) {
     if (conn->inuse) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Connection with inuse != 0!");
+      log_err(0, "Connection with inuse != 0!");
     }
     unused ++;
     conn = conn->next;
   }
 
   if (this->numconn != (used + unused)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "The number of free and unused connections does not match!");
+    log_err(0, "The number of free and unused connections does not match!");
     if (this->debug) {
       printf("used %d unused %d\n", used, unused);
       conn = this->firstusedconn;
@@ -965,7 +940,8 @@ int dhcp_checkconn(struct dhcp_t *this)
   conn = this->firstusedconn;
   while (conn) {
     if (timercmp(&now, &conn->lasttime, >)) {
-      if (this->debug) printf("DHCP timeout: Removing connection\n");
+      if (this->debug) 
+	log_dbg("DHCP timeout: Removing connection");
       dhcp_freeconn(conn);
       return 0; /* Returning after first deletion */
     }
@@ -1001,16 +977,14 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
   struct in_addr noaddr;
   
   if (!(*dhcp = calloc(sizeof(struct dhcp_t), 1))) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "calloc() failed");
+    log_err(0, "calloc() failed");
     return -1;
   }
 
   (*dhcp)->numconn = numconn;
 
   if (!((*dhcp)->conn = calloc(sizeof(struct dhcp_conn_t), numconn))) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "calloc() failed");
+    log_err(0, "calloc() failed");
     free(*dhcp);
     return -1;
   }
@@ -1041,12 +1015,12 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
   if (ioctl((*dhcp)->fd, BIOCGBLEN, &blen) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,"ioctl() failed!");
+    log_err(errno,"ioctl() failed!");
   }
   (*dhcp)->rbuf_max = blen;
   if (!((*dhcp)->rbuf = malloc((*dhcp)->rbuf_max))) {
     /* TODO: Free malloc */
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno, "malloc() failed");
+    log_err(errno, "malloc() failed");
   }
   (*dhcp)->rbuf_offset = 0;
   (*dhcp)->rbuf_len = 0;
@@ -1118,7 +1092,7 @@ dhcp_set(struct dhcp_t *dhcp, int debug) {
   dhcp->authiplen = options.uamserverlen;
 
   if (!(dhcp->authip = calloc(sizeof(struct in_addr), options.uamserverlen))) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "calloc() failed");
+    log_err(0, "calloc() failed");
     dhcp->authip = 0;
     return -1;
   }
@@ -1173,6 +1147,25 @@ dhcp_timeleft(struct dhcp_t *this, struct timeval *tvp)
   return tvp;
 }
 
+int check_garden(pass_through *ptlist, int ptcnt, struct dhcp_ippacket_t *pack, int dst) {
+  struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
+  struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
+  pass_through *pt;
+  int i;
+
+  for (i = 0; i < ptcnt; i++) {
+    pt = &ptlist[i];
+    if (pt->proto == 0 || pack->iph.protocol == pt->proto)
+      if (pt->host.s_addr == 0 || pt->host.s_addr == ((dst ? pack->iph.daddr : pack->iph.saddr) & pt->mask.s_addr))
+	if (pt->port == 0 || 
+	    (pack->iph.protocol == DHCP_IP_TCP && (dst ? tcph->dst : tcph->src) == htons(pt->port)) ||
+	    (pack->iph.protocol == DHCP_IP_UDP && (dst ? udph->dst : udph->src)== htons(pt->port)))
+	  return 1;
+  }
+
+  return 0;
+}
+
 
 /**
  * dhcp_doDNAT()
@@ -1180,7 +1173,6 @@ dhcp_timeleft(struct dhcp_t *this, struct timeval *tvp)
  **/
 int dhcp_doDNAT(struct dhcp_conn_t *conn, 
 		struct dhcp_ippacket_t *pack, int len) {
-  pass_through *pt;
   struct dhcp_t *this = conn->parent;
   struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
@@ -1220,14 +1212,14 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
     return 0; /* Destination was local redir server */
 
   /* Was it a request for a pass-through entry? */
-  for (i = 0; i < options.num_pass_throughs; i++) {
-    pt = &options.pass_throughs[i];
-    if (pt->proto == 0 || pack->iph.protocol == pt->proto)
-      if (pt->host.s_addr == 0 || pt->host.s_addr == (pack->iph.daddr & pt->mask.s_addr))
-	if (pt->port == 0 || 
-	    (pack->iph.protocol == DHCP_IP_TCP && tcph->dst == htons(pt->port)) ||
-	    (pack->iph.protocol == DHCP_IP_UDP && udph->dst == htons(pt->port)))
-	  return 0;
+  if (check_garden(options.pass_throughs, options.num_pass_throughs, pack, 1))
+    return 0;
+
+  /* Check appconn session specific pass-throughs */
+  if (conn->peer) {
+    struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+    if (check_garden(appconn->params.pass_throughs, appconn->params.pass_through_count, pack, 1))
+      return 0;
   }
   
   /* Was it a http request for another server? */
@@ -1405,14 +1397,14 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   }
   
   /* Was it a reply for a pass-through entry? */
-  for (i = 0; i < options.num_pass_throughs; i++) {
-    pt = &options.pass_throughs[i];
-    if (pt->proto == 0 || pack->iph.protocol == pt->proto)
-      if (pt->host.s_addr == 0 || pt->host.s_addr == (pack->iph.saddr & pt->mask.s_addr))
-	if (pt->port == 0 || 
-	    (pack->iph.protocol == DHCP_IP_TCP && tcph->src == htons(pt->port)) ||
-	    (pack->iph.protocol == DHCP_IP_UDP && udph->src == htons(pt->port)))
-	  return 0;
+  if (check_garden(options.pass_throughs, options.num_pass_throughs, pack, 0))
+    return 0;
+
+  /* Check appconn session specific pass-throughs */
+  if (conn->peer) {
+    struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+    if (check_garden(appconn->params.pass_throughs, appconn->params.pass_through_count, pack, 0))
+      return 0;
   }
 
   return -1; /* Something else */
@@ -1580,8 +1572,7 @@ int dhcp_gettag(struct dhcp_packet_t *pack, int length,
 
   
   /* if (length > DHCP_LEN) {
-    sys_err(LOG_WARNING, __FILE__, __LINE__, 0,
-	    "Length of dhcp packet larger then %d: %d", DHCP_LEN, length);
+    log_warn(0,"Length of dhcp packet larger then %d: %d", DHCP_LEN, length);
     length = DHCP_LEN;
   } */
   
@@ -2243,7 +2234,8 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, unsigned len)
   case DHCP_AUTH_DNAT:
     /* Undo destination NAT */
     if (dhcp_undoDNAT(conn, &packet, length)) {
-      if (options.debug) log_dbg("dhcp_undoDNAT() returns true");
+      if (this->debug) 
+	log_dbg("dhcp_undoDNAT() returns true");
       return 0;
     }
     break;
@@ -2427,8 +2419,7 @@ int dhcp_arp_ind(struct dhcp_t *this)  /* ARP Indication */
   if (this->debug) printf("ARP Packet Received!\n");
 
   if ((length = recv(this->arp_fd, &packet, sizeof(packet), 0)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "recv(fd=%d, len=%d) failed",
+    log_err(errno, "recv(fd=%d, len=%d) failed",
 	    this->arp_fd, sizeof(packet));
     return -1;
   }
@@ -2518,11 +2509,11 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
   unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
   unsigned char const amac[DHCP_ETH_ALEN] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
 
-  if (this->debug) printf("EAPOL packet received\n");
+  if (this->debug) 
+    log_dbg("EAPOL packet received");
   
   if ((length = recv(this->eapol_fd, &packet, sizeof(packet), 0)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "recv(fd=%d, len=%d) failed",
+    log_err(errno, "recv(fd=%d, len=%d) failed",
 	    this->fd, sizeof(packet));
     return -1;
   }

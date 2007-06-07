@@ -324,8 +324,6 @@ struct dhcp_dot1xpacket_t {
 } __attribute__((packed));
 
 
-
-
 /* ***********************************************************
  * Information storage for each dhcp instance
  *

@@ -3,7 +3,7 @@
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -25,12 +25,7 @@
 
 #define UAMSERVER_MAX 8
 
-typedef struct pass_through_t {
-  struct in_addr host;              /* IP or Network */
-  struct in_addr mask;              /* Netmask */
-  char proto;                       /* TCP, UDP, or ICMP */
-  short port;                       /* TCP or UDP Port */
-} pass_through;
+#include "garden.h"
 
 struct options_t {
   int initialized;
@@ -138,6 +133,10 @@ struct options_t {
   int macallowlocal;             /* Do not use RADIUS for authenticating the macallowed */
 
   int wpaguests; /* Allow WPS "Guest" access */
+  int openidauth; /* Allow OpenID authentication */
+
+  unsigned long defsessiontimeout;
+  unsigned int defidletimeout;
 
   /* local content */
   char *wwwdir;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
  */
 

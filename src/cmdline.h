@@ -179,6 +179,12 @@ struct gengetopt_args_info
   char * uamlogoutip_arg;	/* HTTP Auto-Logout IP Address (default='1.1.1.1').  */
   char * uamlogoutip_orig;	/* HTTP Auto-Logout IP Address original value given at command line.  */
   const char *uamlogoutip_help; /* HTTP Auto-Logout IP Address help description.  */
+  long defsessiontimeout_arg;	/* Default session-timeout if not returned by RADIUS (default='0').  */
+  char * defsessiontimeout_orig;	/* Default session-timeout if not returned by RADIUS original value given at command line.  */
+  const char *defsessiontimeout_help; /* Default session-timeout if not returned by RADIUS help description.  */
+  int defidletimeout_arg;	/* Default idle-timeout if not returned by RADIUS (default='0').  */
+  char * defidletimeout_orig;	/* Default idle-timeout if not returned by RADIUS original value given at command line.  */
+  const char *defidletimeout_help; /* Default idle-timeout if not returned by RADIUS help description.  */
   int macauth_flag;	/* Authenticate based on MAC address (default=off).  */
   const char *macauth_help; /* Authenticate based on MAC address help description.  */
   char ** macallowed_arg;	/* List of allowed MAC addresses.  */
@@ -239,8 +245,10 @@ struct gengetopt_args_info
   const char *postauthproxyport_help; /* Port of an upstream transparent proxy help description.  */
   int wpaguests_flag;	/* Allow WPA 'Guest' access (default=off).  */
   const char *wpaguests_help; /* Allow WPA 'Guest' access help description.  */
-  int papalwaysok_flag;	/* Always allow 'PAP' (password) style authentication (not advised) (default=off).  */
-  const char *papalwaysok_help; /* Always allow 'PAP' (password) style authentication (not advised) help description.  */
+  int openidauth_flag;	/* Allow OpenID authentication (default=off).  */
+  const char *openidauth_help; /* Allow OpenID authentication help description.  */
+  int papalwaysok_flag;	/* Always allow 'PAP' (password) style authentication (default=off).  */
+  const char *papalwaysok_help; /* Always allow 'PAP' (password) style authentication help description.  */
   int chillixml_flag;	/* Use ChilliSpot XML in WISPr blocks (default=off).  */
   const char *chillixml_help; /* Use ChilliSpot XML in WISPr blocks help description.  */
   int usetap_flag;	/* Use a TAP instead of TUN (linux only) (default=off).  */
@@ -301,6 +309,8 @@ struct gengetopt_args_info
   int nouamsuccess_given ;	/* Whether nouamsuccess was given.  */
   int nouamwispr_given ;	/* Whether nouamwispr was given.  */
   int uamlogoutip_given ;	/* Whether uamlogoutip was given.  */
+  int defsessiontimeout_given ;	/* Whether defsessiontimeout was given.  */
+  int defidletimeout_given ;	/* Whether defidletimeout was given.  */
   int macauth_given ;	/* Whether macauth was given.  */
   unsigned int macallowed_given ;	/* Whether macallowed was given.  */
   int macsuffix_given ;	/* Whether macsuffix was given.  */
@@ -322,6 +332,7 @@ struct gengetopt_args_info
   int postauthproxy_given ;	/* Whether postauthproxy was given.  */
   int postauthproxyport_given ;	/* Whether postauthproxyport was given.  */
   int wpaguests_given ;	/* Whether wpaguests was given.  */
+  int openidauth_given ;	/* Whether openidauth was given.  */
   int papalwaysok_given ;	/* Whether papalwaysok was given.  */
   int chillixml_given ;	/* Whether chillixml was given.  */
   int usetap_given ;	/* Whether usetap was given.  */

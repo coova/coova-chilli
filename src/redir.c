@@ -42,6 +42,7 @@ char credits[] =
 "<a href=\"http://www.chillispot.org/credits.html\">http://www.chillispot.org/credits.html</a>.";
 
 struct redir_socket{int fd[2];};
+static unsigned char redir_radius_id=0;
 
 /* Termination handler for clean shutdown */
 static void redir_termination(int signum) {
@@ -700,7 +701,7 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
 	bdestroy(buffer);
 	return -1;
       }
-      log_dbg( "here: %s\n",bt->data);
+      log_dbg("here: %s\n", bt->data);
       bconcat(buffer, bt);
       bdestroy(bt);
     }
@@ -929,14 +930,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
   int recvlen = 0;
   int buflen = 0;
   char buffer[REDIR_MAXBUFFER];
-  char resp[REDIR_URL_LEN];
   char host[256];
   char path[256];
   int i, lines=0, done=0;
   char *eol;
 
   memset(buffer, 0, sizeof(buffer));
-  memset(path, 0, sizeof(path));
+  memset(host,   0, sizeof(host));
+  memset(path,   0, sizeof(path));
   
   /* read whatever the client send to us */
   while (!done && (redir->starttime + REDIR_HTTP_MAX_TIME) > time(NULL)) {
@@ -957,7 +958,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
     if ((status > 0) && FD_ISSET(fd, &fds)) {
       if (buflen + 2 >= sizeof(buffer)) { /* ensure space for a least one more byte + null */
-        log_err(errno, "too much data in http request!");
+        log_err(errno, "Too much data in http request!");
         return -1;
       }
       /* if post is allowed, we do not buffer on the read (to not eat post data) */
@@ -966,14 +967,19 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	  log_err(errno, "recv() failed!");
 	return -1;
       }
+
       /* TODO: Hack to make Flash work */
-      for (i = 0; i < recvlen; i++) if (buffer[buflen+i] == 0) buffer[buflen+i] = 0x0a; 
+      for (i = 0; i < recvlen; i++) 
+	if (buffer[buflen+i] == 0) 
+	  buffer[buflen+i] = 0x0a; 
+
       buflen += recvlen;
       buffer[buflen] = 0;
     }
 
     if (buflen <= 0) {
-      if (optionsdebug) log_dbg("No HTTP request received!\n");
+      if (optionsdebug) 
+	log_dbg("No HTTP request received!");
       return -1;
     }
 
@@ -987,14 +993,16 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	char *peol;
 	int dstlen = 0;
 
-	log_dbg("http-request: %s",buffer);
+	if (optionsdebug)
+	  log_dbg("http-request: %s", buffer);
 
 	if      (!strncmp("GET ",  p1, 4)) { p1 += 4; *ispost = 0; }
 	else if (!strncmp("HEAD ", p1, 5)) { p1 += 5; *ispost = 0; }
 	else if ((*ispost) && 
 		 !strncmp("POST ", p1, 5)) { p1 += 5; *ispost = 1; }
 	else { 
-	  log_err(0,"unhandled http request: %s", buffer);
+	  if (optionsdebug)
+	    log_dbg("Unhandled http request: %s", buffer);
 	  return -1;
 	}
 
@@ -1012,7 +1020,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	  dstlen = sizeof(path)-1;
 
 	strncpy(path, p1, dstlen);
-	log_dbg("The path: %s", path); 
+	if (optionsdebug)
+	  log_dbg("The path: %s", path); 
 
 	/* TODO: Should also check the Host: to make sure we are talking directly to uamlisten */
 
@@ -1039,12 +1048,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	    if (dstlen >= qslen-1) 
 	      dstlen = qslen-1;
 	    strncpy(qs, p1, dstlen);
-	    log_dbg("Query string: %s", qs); 
+	    if (optionsdebug)
+	      log_dbg("Query string: %s", qs); 
 	  }
 	}
       } else if (linelen == 0) { 
 	/* end of headers */
-	log_dbg("end of http-request");
+	if (optionsdebug)
+	  log_dbg("end of http-request");
 	done = 1;
 	break;
       } else { 
@@ -1060,14 +1071,16 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	    len = sizeof(host)-1;
 	  strncpy(host, p, len);
 	  host[len]=0;
-	  log_dbg("Host: %s",host);
+	  if (optionsdebug)
+	    log_dbg("Host: %s",host);
 	} 
 	else if (!strncasecmp(buffer,"Content-Length:",15)) {
 	  p = buffer + 15;
 	  while (*p && isspace(*p)) p++;
 	  len = strlen(p);
 	  if (len > 0) *clen = atoi(p);
-	  log_dbg("Content-Length: %s",p);
+	  if (optionsdebug)
+	    log_dbg("Content-Length: %s",p);
 	}
 	else if (!strncasecmp(buffer,"User-Agent:",11)) {
 	  p = buffer + 11;
@@ -1077,7 +1090,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	    len = sizeof(conn->useragent)-1;
 	  strncpy(conn->useragent, p, len);
 	  conn->useragent[len]=0;
-	  log_dbg("User-Agent: %s",conn->useragent);
+	  if (optionsdebug)
+	    log_dbg("User-Agent: %s",conn->useragent);
 	}
       }
 
@@ -1107,7 +1121,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	bstrtocstr(bt, conn->ident, sizeof(conn->ident));
       
       if (redir_getparam(redir, qs, "username", bt)) {
-	if (optionsdebug) log_dbg("No username found!");
+	if (optionsdebug) 
+	  log_dbg("No username found!");
 	bdestroy(bt);
 	return -1;
       }
@@ -1118,7 +1133,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	bstring bt2 = bfromcstr("");
 	redir_urldecode(bt, bt2);
 	bstrtocstr(bt2, conn->userurl, sizeof(conn->userurl));
-	if (optionsdebug) log_dbg("-->> Setting userurl=[%s]",conn->userurl);
+	if (optionsdebug) 
+	  log_dbg("-->> Setting userurl=[%s]",conn->userurl);
 	bdestroy(bt2);
       }
       
@@ -1134,7 +1150,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
       } else {
-	if (optionsdebug) log_dbg("No password found!");
+	if (optionsdebug) 
+	  log_dbg("No password found!");
 	bdestroy(bt);
 	return -1;
       }
@@ -1150,7 +1167,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	bstring bt2 = bfromcstr("");
 	redir_urldecode(bt, bt2);
 	bstrtocstr(bt2, conn->userurl, sizeof(conn->userurl));
-	if (optionsdebug) log_dbg("-->> Setting userurl=[%s]",conn->userurl);
+	if (optionsdebug) 
+	  log_dbg("-->> Setting userurl=[%s]",conn->userurl);
 	bdestroy(bt2);
       }
       bdestroy(bt);
@@ -1163,7 +1181,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       bstring bt2 = bfromcstr("");
       redir_urldecode(bt, bt2);
       bstrtocstr(bt2,conn->userurl, sizeof(conn->userurl));
-      if (optionsdebug) log_dbg("Serving file %s", conn->userurl);
+      if (optionsdebug) 
+	log_dbg("Serving file %s", conn->userurl);
       bdestroy(bt2);
       bdestroy(bt);
     } 
@@ -1173,7 +1192,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
     {
       snprintf(conn->userurl, sizeof(conn->userurl), "http://%s/%s%s%s", 
 	       host, path, qs[0] ? "?" : "", qs[0] ? qs : "");
-      if (optionsdebug) log_dbg("-->> Setting userurl=[%s]",conn->userurl);
+
+      if (optionsdebug) 
+	log_dbg("-->> Setting userurl=[%s]",conn->userurl);
     }
     break;
 
@@ -1184,9 +1205,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
 /* Radius callback when access accept/reject/challenge has been received */
 static int redir_cb_radius_auth_conf(struct radius_t *radius,
-			      struct radius_packet_t *pack,
-			      struct radius_packet_t *pack_req, void *cbp) {
-  
+				     struct radius_packet_t *pack,
+				     struct radius_packet_t *pack_req, void *cbp) {
+  struct redir_conn_t *conn = (struct redir_conn_t*) cbp;
   struct radius_attr_t *interimattr = NULL;
   struct radius_attr_t *stateattr = NULL;
   struct radius_attr_t *classattr = NULL;
@@ -1196,7 +1217,6 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   int tzhour, tzmin;
   char *tz;
   int result;
-  struct redir_conn_t *conn = (struct redir_conn_t*) cbp;
 
   if (optionsdebug)
     log_dbg("Received access request confirmation from radius server\n");
@@ -1231,21 +1251,8 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     conn->replybuf[0] = 0;
     conn->reply = NULL;
   }
-  
-  /* ACCESS-ACCEPT */
-  if (pack->code != RADIUS_CODE_ACCESS_ACCEPT) {
-    conn->response = REDIR_FAILED_REJECT;
-    return 0;
-  }
 
-  /* State */
-  if (!radius_getattr(pack, &stateattr, RADIUS_ATTR_STATE, 0, 0, 0)) {
-    conn->statelen = stateattr->l-2;
-    memcpy(conn->statebuf, stateattr->v.t, stateattr->l-2);
-  }
-  else {
-    conn->statelen = 0;
-  }
+  config_radius_session(&conn->params, pack, 0);
   
   /* Class */
   if (!radius_getattr(pack, &classattr, RADIUS_ATTR_CLASS, 0, 0, 0)) {
@@ -1256,22 +1263,23 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     conn->classlen = 0;
   }
 
-  config_radius_session(&conn->params, pack, 0);
+  if (pack->code != RADIUS_CODE_ACCESS_ACCEPT) {
+    /* ACCESS-REJECT */
+    conn->response = REDIR_FAILED_REJECT;
+    return 0;
+  }
 
-  /* Redirection URL */
-  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_WISPR,
-		      RADIUS_ATTR_WISPR_REDIRECTION_URL, 0)) {
-    conn->redirurllen = attr->l-2;
-    memcpy(conn->redirurlbuf, attr->v.t, attr->l-2);
-    conn->redirurlbuf[attr->l-2] = 0;
-    conn->redirurl = conn->redirurlbuf;
+  /* ACCESS-ACCEPT */
+
+  /* State */
+  if (!radius_getattr(pack, &stateattr, RADIUS_ATTR_STATE, 0, 0, 0)) {
+    conn->statelen = stateattr->l-2;
+    memcpy(conn->statebuf, stateattr->v.t, stateattr->l-2);
   }
   else {
-    conn->redirurllen = 0;
-    conn->redirurlbuf[0] = 0;
-    conn->redirurl = NULL;
+    conn->statelen = 0;
   }
+  
 
   if (conn->params.sessionterminatetime) {
     struct timeval timenow;
@@ -1289,7 +1297,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 
 /* Send radius Access-Request and wait for answer */
 static int redir_radius(struct redir_t *redir, struct in_addr *addr,
-		 struct redir_conn_t *conn) {
+			struct redir_conn_t *conn) {
   unsigned char chap_password[REDIR_MD5LEN + 1];
   unsigned char chap_challenge[REDIR_MD5LEN];
   unsigned char user_password[REDIR_MD5LEN+1];
@@ -1314,6 +1322,8 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
     return -1;
   }
 
+  radius->next = redir_radius_id;
+
   if (radius->fd > maxfd)
     maxfd = radius->fd;
 
@@ -1323,8 +1333,9 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST);
   
-  if (optionsdebug) log_dbg("created radius packet (code=%d, id=%d, len=%d)\n",
-			   radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
+  if (optionsdebug) 
+    log_dbg("created radius packet (code=%d, id=%d, len=%d)\n",
+	    radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
 		 (uint8_t*) conn->username, strlen(conn->username));
@@ -1378,15 +1389,20 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
 		 (uint8_t*) mac, REDIR_MACSTRLEN);
-  
-  /* Include our MAC address */
-  snprintf(mac, REDIR_MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	   conn->ourmac[0], conn->ourmac[1],
-	   conn->ourmac[2], conn->ourmac[3],
-	   conn->ourmac[4], conn->ourmac[5]);
 
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-		 (uint8_t*) mac, REDIR_MACSTRLEN); /* WISPr_V1.0 */
+  if (redir->nasmac) {
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
+		   (uint8_t*) redir->nasmac, strlen(redir->nasmac)); 
+  } else {
+    /* Include our MAC address */
+    snprintf(mac, REDIR_MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	     conn->ourmac[0], conn->ourmac[1],
+	     conn->ourmac[2], conn->ourmac[3],
+	     conn->ourmac[4], conn->ourmac[5]);
+    
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
+		   (uint8_t*) mac, REDIR_MACSTRLEN); 
+  }
 
   if (redir->radiusnasid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
@@ -1397,6 +1413,11 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
 		 (uint8_t*) conn->sessionid, REDIR_SESSIONID_LEN-1);
 
+  if (conn->classlen) {
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
+		   conn->classbuf,
+		   conn->classlen);
+  }
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
 		 redir->radiusnasporttype, NULL, 0);
@@ -1421,12 +1442,18 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOGOFF_URL, 0,
 		   url, strlen(url));
+
+  if (options.openidauth)
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
+		   0, "allow-openidauth", 16);
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
 
-  if (optionsdebug) log_dbg("sending radius packet (code=%d, id=%d, len=%d)\n",
-			   radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
+  if (optionsdebug) 
+    log_dbg("sending radius packet (code=%d, id=%d, len=%d)\n",
+	    radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
 
   radius_req(radius, &radius_pack, conn);
 
@@ -1471,6 +1498,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
       radius_free(radius);
       return 0;
     }
+
     now = time(NULL);
   }
 
@@ -1627,11 +1655,12 @@ int redir_accept(struct redir_t *redir, int idx) {
     return 0;
   }
 
-
   /* This forks a new process. The child really should close all
      unused file descriptors and free memory allocated. This however
      is performed when the process exits, so currently we don't
      care */
+
+  redir_radius_id++;
   
   if ((status = fork()) < 0) {
     log_err(errno, "fork() returned -1!");
@@ -1750,10 +1779,12 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   }
 
   termstate = REDIR_TERM_GETREQ;
-  if (optionsdebug) log_dbg("Calling redir_getreq()\n");
+
+  if (optionsdebug) 
+    log_dbg("Calling redir_getreq()\n");
 
   if (redir_getreq(redir, &socket, &conn, &ispost, &clen, qs, sizeof(qs))) {
-    if (optionsdebug) log_dbg("Error calling get_req. Terminating\n");
+    log_err(errno, "Error calling get_req. Terminating\n");
     redir_close();
   }
 
@@ -1923,14 +1954,25 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     }
     else {
       termstate = REDIR_TERM_RADIUS;
-      if (optionsdebug) log_dbg("redir_accept: Sending radius request\n");
+
+      if (optionsdebug) 
+	log_dbg("redir_accept: Sending radius request\n");
+
       redir_radius(redir, &address->sin_addr, &conn);
       termstate = REDIR_TERM_REPLY;
-      if (optionsdebug) log_dbg("Received radius reply\n");
+
+      if (optionsdebug) 
+	log_dbg("Received radius reply\n");
     }
 
+    if (options.defsessiontimeout && !conn.params.sessiontimeout)
+      conn.params.sessiontimeout = options.defsessiontimeout;
+
+    if (options.defidletimeout && !conn.params.idletimeout)
+      conn.params.idletimeout = options.defidletimeout;
+
     if (conn.response == REDIR_SUCCESS) { /* Radius-Accept */
-      bstring besturl = bfromcstr(conn.redirurl);
+      bstring besturl = bfromcstr(conn.params.url);
 
       if (! (besturl && besturl->slen)) 
 	bassigncstr(besturl, conn.userurl);
@@ -1938,11 +1980,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       if (redir->no_uamsuccess && besturl && besturl->slen)
 	redir_reply(redir, &socket, &conn, conn.response, besturl, conn.params.sessiontimeout,
 		    hexchal, conn.username, conn.userurl, conn.reply,
-		    conn.redirurl, conn.hismac, &conn.hisip);
+		    conn.params.url, conn.hismac, &conn.hisip);
       else 
 	redir_reply(redir, &socket, &conn, conn.response, NULL, conn.params.sessiontimeout,
 		    hexchal, conn.username, conn.userurl, conn.reply, 
-		    conn.redirurl, conn.hismac, &conn.hisip);
+		    conn.params.url, conn.hismac, &conn.hisip);
 
       bdestroy(besturl);
       
@@ -1963,27 +2005,39 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	if (optionsdebug) log_dbg("-->> Msg userurl=[%s]\n",conn.userurl);
       }
       
-      if (msgsnd(redir->msgid, (struct msgbuf*) &msg,
-		 sizeof(struct redir_msg_t), 0) < 0) {
+      if (msgsnd(redir->msgid, (struct msgbuf*) &msg, sizeof(struct redir_msg_t), 0) < 0)
 	log_err(errno, "msgsnd() failed!");
-      }
     }
     else {
-      redir_memcopy(REDIR_CHALLENGE);      
-      if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
-		 sizeof(struct redir_msg_t), 0) < 0) {
+      bstring besturl = bfromcstr(conn.params.url);
+      int hasnexturl = (besturl && besturl->slen > 5);
+
+      if (!hasnexturl) {
+	redir_memcopy(REDIR_CHALLENGE);
+      } else {
+	msg.type = REDIR_NOTYET;
+	msg.addr = address->sin_addr;
+	msg.classlen = conn.classlen;
+	memcpy(msg.classbuf, conn.classbuf, conn.classlen);
+	memcpy(&msg.params, &conn.params, sizeof(msg.params));
+      }
+
+      if (msgsnd(redir->msgid, (struct msgbuf *)&msg, sizeof(struct redir_msg_t), 0) < 0) {
 	log_err(errno, "msgsnd() failed!");
       } else {
-	redir_reply(redir, &socket, &conn, conn.response, NULL, 0, 
-		    hexchal, NULL, conn.userurl, conn.reply, 
+	redir_reply(redir, &socket, &conn, conn.response, 
+		    hasnexturl ? besturl : NULL, 
+		    0, hexchal, NULL, conn.userurl, conn.reply, 
 		    NULL, conn.hismac, &conn.hisip);
       }
+      
+      bdestroy(besturl);
     }    
     redir_close();
 
   case REDIR_LOGOUT:
     {
-      bstring besturl = bfromcstr(conn.redirurl);
+      bstring besturl = bfromcstr(conn.params.url);
 
       redir_memcopy(REDIR_LOGOUT); 
       if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
@@ -2085,7 +2139,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   }
 
   /* It was not a request for a known path. It must be an original request */
-  if (optionsdebug) log_dbg("redir_accept: Original request\n");
+  if (optionsdebug) 
+    log_dbg("redir_accept: Original request");
 
   /* Did the challenge expire? */
   if ((conn.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {

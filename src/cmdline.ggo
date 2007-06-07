@@ -83,6 +83,9 @@ option "nouamsuccess" - "Do not return to the UAM server on success, original ur
 option "nouamwispr"   - "Do not send WISPr XML from ChilliSpot, assume back-end does" flag  off
 option "uamlogoutip"  - "HTTP Auto-Logout IP Address" string default="1.1.1.1" no
 
+option "defsessiontimeout" - "Default session-timeout if not returned by RADIUS" long default="0" no
+option "defidletimeout" - "Default idle-timeout if not returned by RADIUS" int default="0" no
+
 # MAC authentication
 option "macauth"     - "Authenticate based on MAC address" flag   off
 option "macallowed"  - "List of allowed MAC addresses" string no multiple
@@ -114,7 +117,8 @@ option "localusers"    - "File keep 'Local' usernames and passwords" string no
 option "postauthproxy" - "IP of an upstream transparent proxy" string no
 option "postauthproxyport" - "Port of an upstream transparent proxy" int default="0" no
 option "wpaguests"     - "Allow WPA 'Guest' access" flag off
-option "papalwaysok"   - "Always allow 'PAP' (password) style authentication (not advised)" flag off
+option "openidauth"    - "Allow OpenID authentication" flag off
+option "papalwaysok"   - "Always allow 'PAP' (password) style authentication" flag off
 option "chillixml"     - "Use ChilliSpot XML in WISPr blocks" flag   off
 
 option "usetap"        - "Use a TAP instead of TUN (linux only)" flag   off

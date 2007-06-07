@@ -1,9 +1,17 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+== ChangeLog (Coova Chilli v1.0.6 svn revision 66) ==
+
 * Updated hashing algorithm to lookup3 by Bob Jenkins
 * Using [http://bstring.sourceforge.net/ bstring] in certain places instead of large, but static character arrays
 * URL Checksum: md5 of the redirect url + ''uamsecret'' passed to captive portal (''md'' query string parameter)
+* Allows any protocol defined in <tt>/etc/protocols</tt> in the ''uamallowed'' (using format <tt>proto:host:port</tt>)
+* Allow the setting of a client/session specific walled garden (up to 4 entries) in an Access-Reject
+* Allow a WISPr-Redirection-URL in an Access-Reject (the value of which is able to span multiple attributes)
+* Added the ''openidauth'' option to allow inform a RADIUS server that OpenID auth is allowed (requires ''papalwaysok'')
+* Added option ''defsessiontimeout'' to define a session time when not otherwise set by RADIUS
+* Added option ''defidletimeout'' to define a session idle timeout when not otherwise set by RADIUS
 	
 == ChangeLog (Coova Chilli v1.0.5 svn revision 60) ==
 
