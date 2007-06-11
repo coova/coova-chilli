@@ -115,12 +115,13 @@ struct redir_conn_t {
   char userurl[REDIR_USERURLSIZE];
   char useragent[REDIR_USERAGENTSIZE];
   char lang[REDIR_LANGSIZE];
-  char ident[REDIR_IDENTSIZE];
 
   int chap; /* 0 if using normal password; 1 if using CHAP */
   uint8_t chappassword[REDIR_MAXCHAR];
   uint8_t password[REDIR_MAXCHAR];
   
+  unsigned char chap_ident;
+
   /* Challenge as sent to web server */
   uint8_t uamchal[REDIR_MD5LEN];
   int uamtime;

@@ -490,14 +490,7 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
     bassigncstr(bt,"");
   }
   
-  if (uid) {
-    bcatcstr(str, "&uid=");
-    bassigncstr(bt, uid);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
-  }
-
-  {/* maybe make optional */
+  if (conn->type == REDIR_STATUS) {
     int starttime = conn->start_time.tv_sec;
     if (starttime) {
       int sessiontime;
@@ -514,12 +507,20 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
       bassignformat(bt, "&sessiontimeout=%ld", conn->params.sessiontimeout);
       bconcat(str, bt);
     }
+
     if (conn->params.sessionterminatetime) {
       bassignformat(bt, "&stoptime=%ld", conn->params.sessionterminatetime);
       bconcat(str, bt);
     }
   }
  
+  if (uid) {
+    bcatcstr(str, "&uid=");
+    bassigncstr(bt, uid);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
+  }
+
   if (timeleft) {
     bassignformat(bt, "&timeleft=%ld", timeleft);
     bconcat(str, bt);
@@ -645,8 +646,9 @@ tcp_write(struct redir_socket *sock, char *buf, int len) {
 }
 
 static int redir_json_reply(struct redir_t *redir, int res, 
-			    struct redir_conn_t *conn, char *reply, 
-			    char *qs, bstring s) {
+			    struct redir_conn_t *conn, 
+			    char *reply, char *qs, bstring s) {
+  char hexchal[1+(2*REDIR_MD5LEN)];
   bstring tmp = bfromcstr("");
   unsigned char flg = 0;
 
@@ -686,8 +688,10 @@ static int redir_json_reply(struct redir_t *redir, int res,
     break;
   case REDIR_LOGOFF:
     flg |= 2;
+    flg |= 4;
     break;
   case REDIR_NOTYET:
+    flg |= 4;
     break;
   case REDIR_ABORT_ACK:
     break;
@@ -701,10 +705,20 @@ static int redir_json_reply(struct redir_t *redir, int res,
       bcatcstr(s,conn->sessionid);
       bcatcstr(s,"\"");
       flg |= 2;
+    } else {
+      flg |= 4;
     }
     break;
   default:
     break;
+  }
+
+
+  if (flg & 4) {
+      redir_chartohex(conn->uamchal, hexchal);
+      bcatcstr(s, ",\"challenge\":\"");
+      bcatcstr(s, hexchal);
+      bcatcstr(s, "\"");
   }
 
   if (flg & 2) {
@@ -1226,21 +1240,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
     {
       bstring bt = bfromcstr("");
 
-      /* We look for ident and lang parameters on url and put them on the struct */
       if (!redir_getparam(redir, qs, "lang", bt))
-	if (optionsdebug) 
-	  log_dbg("No lang parameter on url");
-
-      bstrtocstr(bt, conn->lang, sizeof(conn->lang));
+	bstrtocstr(bt, conn->lang, sizeof(conn->lang));
       
-      if (redir_getparam(redir, qs, "ident", bt))
-	strcpy(conn->ident, "0"); /* default value ident = 0 */
-      else
-	bstrtocstr(bt, conn->ident, sizeof(conn->ident));
+      if (!redir_getparam(redir, qs, "ident", bt) && bt->slen)
+	conn->chap_ident = atoi((char*)bt->data);
       
       if (redir_getparam(redir, qs, "username", bt)) {
-	if (optionsdebug) 
-	  log_dbg("No username found!");
+	log_err(0, "No username found in login request");
 	bdestroy(bt);
 	return -1;
       }
@@ -1256,14 +1263,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	bdestroy(bt2);
       }
       
-      if (redir->secret &&
-	  !redir_getparam(redir, qs, "response", bt)) {
+      if (!redir_getparam(redir, qs, "response", bt)) {
 	redir_hextochar(bt->data, conn->chappassword);
 	conn->chap = 1;
 	conn->password[0] = 0;
       }
-      else if ((!redir->secret || options.pap_always_ok) && 
-	       !redir_getparam(redir, qs, "password", bt)) {
+      else if (!redir_getparam(redir, qs, "password", bt)) {
 	redir_hextochar(bt->data, conn->password);
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
@@ -1411,7 +1416,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 /* Send radius Access-Request and wait for answer */
 static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 			struct redir_conn_t *conn) {
-  unsigned char chap_password[REDIR_MD5LEN + 1];
+  unsigned char chap_password[REDIR_MD5LEN + 2];
   unsigned char chap_challenge[REDIR_MD5LEN];
   unsigned char user_password[REDIR_MD5LEN+1];
   struct radius_packet_t radius_pack;
@@ -1478,8 +1483,8 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   (uint8_t*)user_password, strlen((char*)user_password));
   }
   else if (conn->chap == 1) {
-    chap_password[0] = atoi(conn->ident); /* Chap ident found on logon url */
-    memcpy(chap_password +1, conn->chappassword, REDIR_MD5LEN);
+    chap_password[0] = conn->chap_ident; /* Chap ident found on logon url */
+    memcpy(chap_password+1, conn->chappassword, REDIR_MD5LEN);
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CHAP_CHALLENGE, 0, 0, 0,
 		   chap_challenge, REDIR_MD5LEN);
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CHAP_PASSWORD, 0, 0, 0,
@@ -1709,7 +1714,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 	}
 	else if (conn->chap == 1) {
 	  MD5Init(&context);
-	  MD5Update(&context, (uint8_t*)"\0", 1);	  
+	  MD5Update(&context, (uint8_t*)&conn->chap_ident, 1);	  
 	  MD5Update(&context, (uint8_t*)p, strlen(p));
 	  MD5Update(&context, chap_challenge, REDIR_MD5LEN);
 	  MD5Final(tmp, &context);
@@ -1859,6 +1864,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   }
 
   memset(&socket,0,sizeof(socket));
+  memset(hexchal, 0, sizeof(hexchal));
+  memset(qs, 0, sizeof(qs));
+  memset(&conn, 0, sizeof(conn));
+  memset(&msg, 0, sizeof(msg));
+  memset(&act, 0, sizeof(act));
 
   socket.fd[0] = infd;
   socket.fd[1] = outfd;
@@ -1869,12 +1879,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     log_err(errno, "fcntl() failed");
     redir_close();
   }
-
-  memset(hexchal, 0, sizeof(hexchal));
-  memset(qs, 0, sizeof(qs));
-  memset(&conn, 0, sizeof(conn));
-  memset(&msg, 0, sizeof(msg));
-  memset(&act, 0, sizeof(act));
 
   act.sa_handler = redir_termination;
   sigaction(SIGTERM, &act, &oldact);

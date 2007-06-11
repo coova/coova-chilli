@@ -1,7 +1,7 @@
 /* 
  *
- * Copyright (c) 2006 Coova Technologies Ltd
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -52,12 +52,17 @@ static int chartohex(unsigned char *src, char *dst) {
 }
 
 int main(int argc, char **argv) {
+  unsigned char chap_ident = 0;
   unsigned char challenge[MD5LEN];
   unsigned char response[MD5LEN];
   char buffer[MD5LEN*3];
   MD5_CTX context;
 
-  if (argc != 4) return usage(argv[0]);
+  if (argc != 4 && argc != 5) 
+    return usage(argv[0]);
+
+  if (argc == 5) 
+    chap_ident = atoi(argv[4]);
 
   /* challeng - argv 1 */
   memset(buffer, 0, sizeof(buffer));
@@ -73,7 +78,7 @@ int main(int argc, char **argv) {
   MD5Final(challenge, &context);
 
   MD5Init(&context);
-  MD5Update(&context, (uint8_t*)"\0", 1);	  
+  MD5Update(&context, (uint8_t*)&chap_ident, 1);	  
   /* password - argv 3 */
   /*fprintf(stderr,"password: %s\n",argv[3]);*/
   MD5Update(&context, (uint8_t*)argv[3], strlen(argv[3]));
