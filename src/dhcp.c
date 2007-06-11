@@ -145,7 +145,7 @@ int dhcp_udp_check(struct dhcp_fullpacket_t *pack) {
   int sum = 0;
 
   pack->udph.check = 0;
-  sum = in_cksum(((uint16_t *)&pack->iph) + 12, 8);
+  sum = in_cksum(((uint16_t *)&pack->iph.saddr), 8);
   sum += ntohs(IPPROTO_UDP + len);
   sum += in_cksum((uint16_t *)&pack->udph, len);
   pack->udph.check = cksum_wrap(sum);
@@ -172,7 +172,7 @@ int dhcp_tcp_check(struct dhcp_ippacket_t *pack, int length) {
   tcph = (struct dhcp_tcphdr_t*) pack->payload;
   tcph->check = 0;
 
-  sum = in_cksum(((uint16_t *)&pack->iph) + 12, 8);
+  sum = in_cksum(((uint16_t *)&pack->iph.saddr), 8);
   sum += ntohs(IPPROTO_TCP + len);
   sum += in_cksum((uint16_t *)tcph, len);
   tcph->check = cksum_wrap(sum);
