@@ -868,10 +868,12 @@ int static acct_req(struct app_conn_t *conn, int status_type)
 		   (uint32_t) conn->input_octets, NULL, 0);
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_OCTETS, 0, 0,
 		   (uint32_t) conn->output_octets, NULL, 0);
+
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_GIGAWORDS, 
 		   0, 0, (uint32_t) (conn->input_octets >> 32), NULL, 0);
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_GIGAWORDS, 
 		   0, 0, (uint32_t) (conn->output_octets >> 32), NULL, 0);
+
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_PACKETS, 0, 0,
 		   conn->input_packets, NULL, 0);
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_PACKETS, 0, 0,
@@ -1357,6 +1359,7 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
   conn->input_octets    = appconn->input_octets;
   conn->output_octets   = appconn->output_octets;
   conn->start_time      = appconn->start_time;
+  conn->last_time       = appconn->last_time;
  
   if (appconn->authenticated == 1)
     return 1;

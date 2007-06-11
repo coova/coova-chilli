@@ -43,6 +43,7 @@ char credits[] =
 
 struct redir_socket{int fd[2];};
 static unsigned char redir_radius_id=0;
+static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst);
 
 /* Termination handler for clean shutdown */
 static void redir_termination(int signum) {
@@ -643,16 +644,122 @@ tcp_write(struct redir_socket *sock, char *buf, int len) {
   return r;
 }
 
+static int redir_json_reply(struct redir_t *redir, int res, 
+			    struct redir_conn_t *conn, char *reply, 
+			    char *qs, bstring s) {
+  bstring tmp = bfromcstr("");
+  unsigned char flg = 0;
+
+  redir_getparam(redir, qs, "callback", tmp);
+
+  bassigncstr(s, "HTTP/1.0 200 OK\r\nContent-type: ");
+  if (tmp->slen) bcatcstr(s, "text/javascript");
+  else bcatcstr(s, "application/json");
+  bcatcstr(s, "\r\n\r\n");
+
+  if (tmp->slen) {
+    bconcat(s, tmp);
+    bcatcstr(s, "(");
+    flg |= 1;
+  }
+  
+  bcatcstr(s, "{\"version\":\"1.0\",\"clientState\":");
+
+  bassignformat(tmp, "%d", conn->authenticated);
+  bconcat(s, tmp);
+
+  if (reply) {
+    bcatcstr(s, ",\"message\":\"");
+    bcatcstr(s, reply);
+    bcatcstr(s, "\"");
+  }
+
+  switch (res) {
+  case REDIR_ALREADY:
+    flg |= 2;
+    break;
+  case REDIR_FAILED_REJECT:
+  case REDIR_FAILED_OTHER:
+    break;
+  case REDIR_SUCCESS:
+    flg |= 2;
+    break;
+  case REDIR_LOGOFF:
+    flg |= 2;
+    break;
+  case REDIR_NOTYET:
+    break;
+  case REDIR_ABORT_ACK:
+    break;
+  case REDIR_ABORT_NAK:
+    break;
+  case REDIR_ABOUT:
+    break;
+  case REDIR_STATUS:
+    if (conn->authenticated == 1) {
+      bcatcstr(s,",\"sessionId\":\"");
+      bcatcstr(s,conn->sessionid);
+      bcatcstr(s,"\"");
+      flg |= 2;
+    }
+    break;
+  default:
+    break;
+  }
+
+  if (flg & 2) {
+    struct timeval timenow;
+    uint32_t sessiontime;
+    uint32_t idletime;
+    
+    gettimeofday(&timenow, NULL);
+
+    sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
+    sessiontime += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
+    idletime = timenow.tv_sec - conn->last_time.tv_sec;
+    idletime += (timenow.tv_usec - conn->last_time.tv_usec) / 1000000;
+
+    bcatcstr(s,",\"accounting\":{\"sessionTime\":");
+    bassignformat(tmp, "%ld", sessiontime);
+    bconcat(s, tmp);
+    bcatcstr(s,",\"idleTime\":");
+    bassignformat(tmp, "%ld", idletime);
+    bconcat(s, tmp);
+    bcatcstr(s,",\"inputOctets\":");
+    bassignformat(tmp, "%ld", (uint32_t)conn->input_octets);
+    bconcat(s, tmp);
+    bcatcstr(s,",\"outputOctets\":");
+    bassignformat(tmp, "%ld", (uint32_t)conn->output_octets);
+    bconcat(s, tmp);
+    bcatcstr(s,",\"inputGigawords\":");
+    bassignformat(tmp, "%ld", (uint32_t)(conn->input_octets >> 32));
+    bconcat(s, tmp);
+    bcatcstr(s,",\"outputGigawords\":");
+    bassignformat(tmp, "%ld", (uint32_t)(conn->output_octets >> 32));
+    bconcat(s, tmp);
+    bcatcstr(s,"}");
+  }
+
+  bcatcstr(s, "}");
+
+  if (flg & 1) {
+    bcatcstr(s, ")");
+  }
+
+  bdestroy(tmp);
+  return 0;
+}
+
 /* Make an HTTP redirection reply and send it to the client */
 static int redir_reply(struct redir_t *redir, struct redir_socket *sock, 
 		       struct redir_conn_t *conn, int res, bstring url,
 		       long int timeleft, char* hexchal, char* uid, 
 		       char* userurl, char* reply, char* redirurl,
-		       uint8_t *hismac, struct in_addr *hisip) {
+		       uint8_t *hismac, struct in_addr *hisip, char *qs) {
 
   char *resp = NULL;
   bstring buffer;
-  
+
   switch (res) {
   case REDIR_ALREADY:
     resp = "already";
@@ -688,7 +795,11 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
 
   buffer = bfromcstralloc(1024, "");
 
-  if (resp) {
+  if (conn->format == REDIR_FMT_JSON) {
+
+    redir_json_reply(redir, res, conn, reply, qs, buffer);
+    
+  } else if (resp) {
     bcatcstr(buffer, "HTTP/1.0 302 Moved Temporarily\r\nLocation: ");
     
     if (url) {
@@ -714,32 +825,27 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
     
     bcatcstr(buffer, "\r\n</HTML>\r\n");
     
-    if (tcp_write(sock, (char*)buffer->data, buffer->slen) < 0) {
-      log_err(errno, "tcp_write() failed!");
-      bdestroy(buffer);
-      return -1;
-    }
-    
   } else {
     bassigncstr(buffer, 
 		"HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n"
 		"<HTML><HEAD><TITLE>(Coova-)ChilliSpot</TITLE></HEAD><BODY>");
     bcatcstr(buffer, credits);
     bcatcstr(buffer, "</BODY></HTML>\r\n");
-
-    if (tcp_write(sock, (char*)buffer->data, buffer->slen) < 0) {
-      log_err(errno, "tcp_write() failed!");
-      bdestroy(buffer);
-      return -1;
-    }
   }
 
+  if (tcp_write(sock, (char*)buffer->data, buffer->slen) < 0) {
+    log_err(errno, "tcp_write() failed!");
+    bdestroy(buffer);
+    return -1;
+  }
+
+  /*XXX:FLASH    
   if (strstr(conn->useragent, "Flash")) {
     char *c = "";
     if (tcp_write(sock, c, 1) < 0) {
       log_err(errno, "tcp_write() failed!");
     }
-  }
+    }*/
   
   bdestroy(buffer);
   return 0;
@@ -915,7 +1021,6 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring
   log_dbg("The parameter %s is: [%.*s]", param, dst->slen, dst->data);/**/
 
   return 0;
-
 }
 
 /* Read the an HTTP request from a client */
@@ -968,10 +1073,11 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	return -1;
       }
 
-      /* TODO: Hack to make Flash work */
+      /* TODO: Hack to make Flash work 
       for (i = 0; i < recvlen; i++) 
 	if (buffer[buflen+i] == 0) 
 	  buffer[buflen+i] = 0x0a; 
+      */
 
       buflen += recvlen;
       buffer[buflen] = 0;
@@ -1024,20 +1130,29 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
 	/* TODO: Should also check the Host: to make sure we are talking directly to uamlisten */
 
+	if (!strncmp(path, "json/", 5) && strlen(path) > 6) {
+	  int i, last=strlen(path)-5;
+	  conn->format = REDIR_FMT_JSON;
+	  for (i=0; i < last; i++)
+	    path[i] = path[i+5];
+	  path[last]=0;
+	  log_dbg("The (json format) path: %s", path); 
+	}
+
 	if ((!strcmp(path, "logon")) || (!strcmp(path, "login")))
 	  conn->type = REDIR_LOGIN;
 	else if ((!strcmp(path, "logoff")) || (!strcmp(path, "logout")))
 	  conn->type = REDIR_LOGOUT;
 	else if (!strncmp(path, "www/", 4) && strlen(path) > 4)
 	  conn->type = REDIR_WWW;
+	else if (!strcmp(path, "status"))
+	  conn->type = REDIR_STATUS;
 	else if (!strncmp(path, "msdownload", 10))
 	  { conn->type = REDIR_MSDOWNLOAD; return 0; }
 	else if (!strcmp(path, "prelogin"))
 	  { conn->type = REDIR_PRELOGIN; return 0; }
 	else if (!strcmp(path, "abort"))
 	  { conn->type = REDIR_ABORT; return 0; }
-	else if (!strcmp(path, "status"))
-	  { conn->type = REDIR_STATUS; return 0; }
 
 	if (*p2 == '?') {
 	  p1 = p2 + 1;
@@ -1103,6 +1218,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
   }
 
   switch(conn->type) {
+
+  case REDIR_STATUS:
+    return 0;
+
   case REDIR_LOGIN:
     {
       bstring bt = bfromcstr("");
@@ -1813,6 +1932,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       
       if      (!strcmp(filename + (namelen - 5), ".html")) ctype = "text/html";
       else if (!strcmp(filename + (namelen - 4), ".gif"))  ctype = "image/gif";
+      else if (!strcmp(filename + (namelen - 3), ".js"))   ctype = "text/javascript";
+      else if (!strcmp(filename + (namelen - 4), ".css"))  ctype = "text/css";
       else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
       else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
       else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
@@ -1922,7 +2043,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       log_dbg("redir_accept: already logged on");
       redir_reply(redir, &socket, &conn, REDIR_ALREADY, NULL, 0, 
 		  NULL, NULL, conn.userurl, NULL,
-		  NULL, conn.hismac, &conn.hisip);
+		  NULL, conn.hismac, &conn.hisip, qs);
       redir_close();
     }
 
@@ -1938,7 +2059,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
       redir_reply(redir, &socket, &conn, REDIR_FAILED_OTHER, NULL, 
 		  0, hexchal, NULL, NULL, NULL, 
-		  NULL, conn.hismac, &conn.hisip);
+		  NULL, conn.hismac, &conn.hisip, qs);
       redir_close();
     }
 
@@ -1973,11 +2094,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       if (redir->no_uamsuccess && besturl && besturl->slen)
 	redir_reply(redir, &socket, &conn, conn.response, besturl, conn.params.sessiontimeout,
 		    hexchal, conn.username, conn.userurl, conn.reply,
-		    conn.params.url, conn.hismac, &conn.hisip);
+		    conn.params.url, conn.hismac, &conn.hisip, qs);
       else 
 	redir_reply(redir, &socket, &conn, conn.response, NULL, conn.params.sessiontimeout,
 		    hexchal, conn.username, conn.userurl, conn.reply, 
-		    conn.params.url, conn.hismac, &conn.hisip);
+		    conn.params.url, conn.hismac, &conn.hisip, qs);
 
       bdestroy(besturl);
       
@@ -2021,7 +2142,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	redir_reply(redir, &socket, &conn, conn.response, 
 		    hasnexturl ? besturl : NULL, 
 		    0, hexchal, NULL, conn.userurl, conn.reply, 
-		    NULL, conn.hismac, &conn.hisip);
+		    NULL, conn.hismac, &conn.hisip, qs);
       }
       
       bdestroy(besturl);
@@ -2038,6 +2159,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	log_err(errno, "msgsnd() failed!");
 	redir_close();
       }
+
+      conn.authenticated=0;
       
       if (! (besturl && besturl->slen)) 
 	bassigncstr(besturl, conn.userurl);
@@ -2045,11 +2168,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       if (redir->no_uamsuccess && besturl && besturl->slen)
 	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, besturl, 0, 
 		    hexchal, NULL, conn.userurl, NULL, 
-		    NULL, conn.hismac, &conn.hisip);
+		    NULL, conn.hismac, &conn.hisip, qs);
       else 
 	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, NULL, 0, 
 		    hexchal, NULL, conn.userurl, NULL, 
-		    NULL, conn.hismac, &conn.hisip);
+		    NULL, conn.hismac, &conn.hisip, qs);
       
       bdestroy(besturl);
       
@@ -2073,12 +2196,12 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ALREADY, 
 		  NULL, 0, NULL, NULL, conn.userurl, NULL,
-		  NULL, conn.hismac, &conn.hisip);
+		  NULL, conn.hismac, &conn.hisip, qs);
     }
     else {
       redir_reply(redir, &socket, &conn, REDIR_NOTYET, 
 		  NULL, 0, hexchal, NULL, conn.userurl, NULL, 
-		  NULL, conn.hismac, &conn.hisip);
+		  NULL, conn.hismac, &conn.hisip, qs);
     }
     redir_close();
 
@@ -2087,7 +2210,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ABORT_NAK, 
 		  NULL, 0, NULL, NULL, conn.userurl, NULL, 
-		  NULL, conn.hismac, &conn.hisip);
+		  NULL, conn.hismac, &conn.hisip, qs);
     }
     else {
       redir_memcopy(REDIR_ABORT);
@@ -2098,13 +2221,13 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       }
       redir_reply(redir, &socket, &conn, REDIR_ABORT_ACK, 
 		  NULL, 0, hexchal, NULL, conn.userurl, NULL, 
-		  NULL, conn.hismac, &conn.hisip);
+		  NULL, conn.hismac, &conn.hisip, qs);
     }
     redir_close();
 
   case REDIR_ABOUT:
     redir_reply(redir, &socket, &conn, REDIR_ABOUT, NULL, 
-		0, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+		0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, qs);
     redir_close();
 
   case REDIR_STATUS:
@@ -2121,7 +2244,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	timeleft = 0;
       
       redir_reply(redir, &socket, &conn, REDIR_STATUS, NULL, timeleft,
-		  NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+		  NULL, NULL, NULL, NULL, NULL, NULL, NULL, qs);
       redir_close();
     }
 
@@ -2169,17 +2292,17 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
     redir_reply(redir, &socket, &conn, REDIR_NOTYET, url, 
 		0, hexchal, NULL, conn.userurl, NULL, 
-		NULL, conn.hismac, &conn.hisip);
+		NULL, conn.hismac, &conn.hisip, qs);
   }
   else if (state == 1) {
     redir_reply(redir, &socket, &conn, REDIR_ALREADY, NULL, 0, 
 		NULL, NULL, conn.userurl, NULL,
-		NULL, conn.hismac, &conn.hisip);
+		NULL, conn.hismac, &conn.hisip, qs);
   }
   else {
     redir_reply(redir, &socket, &conn, REDIR_NOTYET, NULL, 
 		0, hexchal, NULL, conn.userurl, NULL, 
-		NULL, conn.hismac, &conn.hisip);
+		NULL, conn.hismac, &conn.hisip, qs);
   }
 
   redir_close();

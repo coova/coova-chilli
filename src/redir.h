@@ -67,6 +67,9 @@
 #define REDIR_MSDOWNLOAD 25
 #define REDIR_ADMIN_CONN 30
 
+#define REDIR_FMT_DEFAULT 0
+#define REDIR_FMT_JSON    1
+
 #define REDIR_ALREADY        50 /* Reply to /logon while allready logged on */
 #define REDIR_FAILED_REJECT  51 /* Reply to /logon if authentication reject */
 #define REDIR_FAILED_OTHER   52 /* Reply to /logon if authentication timeout */
@@ -104,7 +107,8 @@ struct session_params {
 
 struct redir_conn_t {
   /* Parameters from HTTP request */
-  int type; /* REDIR_LOGOUT, LOGIN, PRELOGIN, CHALLENGE, MSDOWNLOAD */
+  unsigned short type; /* REDIR_LOGOUT, LOGIN, PRELOGIN, CHALLENGE, MSDOWNLOAD */
+  unsigned char format; /* REDIR_FMT_DEFAULT, REDIR_FMT_JSON */
 
   char username[REDIR_USERNAMESIZE];
   char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
@@ -141,6 +145,7 @@ struct redir_conn_t {
   uint64_t input_octets;     /* Transferred in callback */
   uint64_t output_octets;    /* Transferred in callback */
   struct timeval start_time; /* Transferred in callback */
+  struct timeval last_time;  /* Transferred in callback */
 
   struct session_params params;
 };
