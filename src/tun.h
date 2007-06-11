@@ -70,6 +70,9 @@ extern int tun_setaddr(struct tun_t *this, struct in_addr *our_adr,
 int tun_addroute(struct tun_t *this, struct in_addr *dst, 
 		 struct in_addr *gateway, struct in_addr *mask);
 
+int tun_delroute(struct tun_t *this, struct in_addr *dst,
+		 struct in_addr *gateway, struct in_addr *mask);
+
 extern int tun_set_cb_ind(struct tun_t *this, 
      int (*cb_ind) (struct tun_t *tun, void *pack, unsigned len));
 

@@ -207,4 +207,6 @@ extern int redir_set_cb_getstate(struct redir_t *redir,
   int (*cb_getstate) (struct redir_t *redir, struct in_addr *addr,
 		      struct redir_conn_t *conn));
 
+int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *address, int isui);
+
 #endif	/* !_REDIR_H */

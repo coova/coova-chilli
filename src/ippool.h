@@ -98,6 +98,7 @@ extern int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member);
 extern int ippool_aton(struct in_addr *addr, struct in_addr *mask,
 		       char *pool, int number);
 
+int ippool_hashadd(struct ippool_t *this, struct ippoolm_t *member);
 
 #ifndef IPPOOL_NOIP6
 extern unsigned long int ippool_hash6(struct in6_addr *addr);

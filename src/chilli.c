@@ -61,7 +61,7 @@ static void termination_handler(int signum) {
 
 /* Alarm handler for general house keeping 
 void static alarm_handler(int signum) {
-  /*if (options.debug) log_dbg("SIGALRM received!\n");* /
+  if (options.debug) log_dbg("SIGALRM received!\n");
   do_timeouts = 1;
 }*/
 
@@ -156,44 +156,69 @@ int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
 
 
 /* Run external script */
+#define VAL_STRING   0
+#define VAL_IN_ADDR  1
+#define VAL_MAC_ADDR 2
+#define VAL_ULONG    3
+#define VAL_USHORT   4
 
-int set_env(char *name, char *value, int len, struct in_addr *addr,
-	    uint8_t *mac, long int *integer) {
+int set_env(char *name, char type, void *value, int len) {
+  char *v=0;
   char s[1024];
-  if (addr!=NULL) {
-    strncpy(s, inet_ntoa(*addr), sizeof(s)); s[sizeof(s)-1] = 0;
-    value = s;
-  }
-  else if (mac != NULL) {
-    (void) snprintf(s, sizeof(s)-1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		    mac[0], mac[1],
-		    mac[2], mac[3],
-		    mac[4], mac[5]);
-    value = s;
-  }
-  else if (integer != NULL) {
-    (void) snprintf(s, sizeof(s)-1, "%d", *integer);
-    value = s;
-  }
-  else if (len != 0) {
-    if (len >= sizeof(s)) {
-      return 0;
+
+  memset(s,0,sizeof(s));
+
+  switch(type) {
+
+  case VAL_IN_ADDR:
+    strncpy(s, inet_ntoa(*(struct in_addr *)value), sizeof(s)); 
+    v = s;
+    break;
+
+  case VAL_MAC_ADDR:
+    {
+      uint8_t * mac = (uint8_t*)value;
+      snprintf(s, sizeof(s)-1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	       mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+      v = s;
     }
-    memcpy(s, value, len);
-    s[len] = 0;
-    value = s;
+    break;
+
+  case VAL_ULONG:
+    snprintf(s, sizeof(s)-1, "%ld", *(unsigned long *)value);
+    v = s;
+    break;
+
+  case VAL_USHORT:
+    snprintf(s, sizeof(s)-1, "%d", (int)(*(unsigned short *)value));
+    v = s;
+    break;
+
+  case VAL_STRING:
+    if (len != 0) {
+      if (len >= sizeof(s)) {
+	return -1;
+      }
+      strncpy(s, (char*)value, len);
+      s[len] = 0;
+      v = s;
+    } else {
+      v = (char*)value;
+    }
+    break;
   }
-  if (name != NULL && value!= NULL) {
-    if (setenv(name, value, 1) != 0) {
-      log_err(errno,
-	      "setenv(%s, %s, 1) did not return 0!", name, value);
-      exit(0);
+
+  if (name != NULL && v != NULL) {
+    if (setenv(name, v, 1) != 0) {
+      log_err(errno, "setenv(%s, %s, 1) did not return 0!", name, v);
+      return -1;
     }
   }
+
+  return 0;
 }
 
 int runscript(struct app_conn_t *appconn, char* script) {  
-  long int l;
   int status;
 
   if ((status = fork()) < 0) {
@@ -214,40 +239,33 @@ int runscript(struct app_conn_t *appconn, char* script) {
   }
 */
 
-  set_env("DEV", tun->devname, 0, NULL, NULL, NULL);
-  set_env("NET", NULL, 0, &appconn->net, NULL, NULL);
-  set_env("MASK", NULL, 0, &appconn->mask, NULL, NULL);
-  set_env("ADDR", NULL, 0, &appconn->ourip,NULL, NULL);
-  set_env("USER_NAME", appconn->proxyuser, 0, NULL, NULL, NULL);
-  set_env("NAS_IP_ADDRESS", NULL, 0, &options.radiuslisten, NULL, NULL);
-  set_env("SERVICE_TYPE", "1", 0, NULL, NULL, NULL);
-  set_env("FRAMED_IP_ADDRESS", NULL, 0, &appconn->hisip, NULL, NULL);
-  set_env("FILTER_ID", appconn->params.filteridbuf, 0, NULL, NULL, NULL);
-  set_env("STATE", (char*) appconn->statebuf, appconn->statelen, NULL, NULL, NULL);
-  set_env("CLASS", (char*) appconn->classbuf, appconn->classlen, NULL, NULL, NULL);
-  set_env("SESSION_TIMEOUT", NULL, 0, NULL, NULL, &appconn->params.sessiontimeout);
-  set_env("IDLE_TIMEOUT", NULL, 0, NULL, NULL, &appconn->params.idletimeout);
-  set_env("CALLING_STATION_ID", NULL, 0, NULL, appconn->hismac, NULL);
-  set_env("CALLED_STATION_ID", NULL, 0, NULL, appconn->ourmac, NULL);
-  set_env("NAS_ID", options.radiusnasid, 0, NULL, NULL, NULL);
-  set_env("NAS_PORT_TYPE", "19", 0, NULL, NULL, NULL);
-  set_env("ACCT_SESSION_ID", appconn->sessionid, 0, NULL, NULL, NULL);
-  l = appconn->params.interim_interval;
-  set_env("ACCT_INTERIM_INTERVAL", NULL, 0, NULL, NULL, &l);
-  set_env("WISPR_LOCATION_ID", options.radiuslocationid, 0, NULL, NULL, NULL);
-  set_env("WISPR_LOCATION_NAME", options.radiuslocationname, 0, NULL, NULL, NULL);
-  l = appconn->params.bandwidthmaxup;
-  set_env("WISPR_BANDWIDTH_MAX_UP", NULL, 0, NULL, NULL, &l);
-  l = appconn->params.bandwidthmaxdown;
-  set_env("WISPR_BANDWIDTH_MAX_DOWN", NULL, 0, NULL, NULL, &l);
-  /*set_env("WISPR-SESSION_TERMINATE_TIME", appconn->sessionterminatetime, 0,
-    NULL, NULL, NULL);*/
-  l = appconn->params.maxinputoctets;
-  set_env("CHILLISPOT_MAX_INPUT_OCTETS", NULL, 0, NULL, NULL, &l);
-  l = appconn->params.maxoutputoctets;
-  set_env("CHILLISPOT_MAX_OUTPUT_OCTETS", NULL, 0, NULL, NULL, &l);
-  l = appconn->params.maxtotaloctets;
-  set_env("CHILLISPOT_MAX_TOTAL_OCTETS", NULL, 0, NULL, NULL, &l);
+  set_env("DEV", VAL_STRING, tun->devname, 0);
+  set_env("NET", VAL_IN_ADDR, &appconn->net, 0);
+  set_env("MASK", VAL_IN_ADDR, &appconn->mask, 0);
+  set_env("ADDR", VAL_IN_ADDR, &appconn->ourip, 0);
+  set_env("USER_NAME", VAL_STRING, appconn->proxyuser, 0);
+  set_env("NAS_IP_ADDRESS", VAL_IN_ADDR,&options.radiuslisten, 0);
+  set_env("SERVICE_TYPE", VAL_STRING, "1", 0);
+  set_env("FRAMED_IP_ADDRESS", VAL_IN_ADDR, &appconn->hisip, 0);
+  set_env("FILTER_ID", VAL_STRING, appconn->params.filteridbuf, 0);
+  set_env("STATE", VAL_STRING, appconn->statebuf, appconn->statelen);
+  set_env("CLASS", VAL_STRING, appconn->classbuf, appconn->classlen);
+  set_env("SESSION_TIMEOUT", VAL_ULONG, &appconn->params.sessiontimeout, 0);
+  set_env("IDLE_TIMEOUT", VAL_USHORT, &appconn->params.idletimeout, 0);
+  set_env("CALLING_STATION_ID", VAL_MAC_ADDR, appconn->hismac, 0);
+  set_env("CALLED_STATION_ID", VAL_MAC_ADDR, appconn->ourmac, 0);
+  set_env("NAS_ID", VAL_STRING, options.radiusnasid, 0);
+  set_env("NAS_PORT_TYPE", VAL_STRING, "19", 0);
+  set_env("ACCT_SESSION_ID", VAL_STRING, appconn->sessionid, 0);
+  set_env("ACCT_INTERIM_INTERVAL", VAL_USHORT, &appconn->params.interim_interval, 0);
+  set_env("WISPR_LOCATION_ID", VAL_STRING, options.radiuslocationid, 0);
+  set_env("WISPR_LOCATION_NAME", VAL_STRING, options.radiuslocationname, 0);
+  set_env("WISPR_BANDWIDTH_MAX_UP", VAL_ULONG, &appconn->params.bandwidthmaxup, 0);
+  set_env("WISPR_BANDWIDTH_MAX_DOWN", VAL_ULONG, &appconn->params.bandwidthmaxdown, 0);
+  /*set_env("WISPR-SESSION_TERMINATE_TIME", VAL_USHORT, &appconn->sessionterminatetime, 0);*/
+  set_env("CHILLISPOT_MAX_INPUT_OCTETS", VAL_ULONG, &appconn->params.maxinputoctets, 0);
+  set_env("CHILLISPOT_MAX_OUTPUT_OCTETS", VAL_ULONG, &appconn->params.maxoutputoctets, 0);
+  set_env("CHILLISPOT_MAX_TOTAL_OCTETS", VAL_ULONG, &appconn->params.maxtotaloctets, 0);
 
   if (execl(script, script, (char *) 0) != 0) {
       log_err(errno,
@@ -258,6 +276,22 @@ int runscript(struct app_conn_t *appconn, char* script) {
   exit(0);
 }
 
+/***********************************************************
+ *
+ * Functions handling uplink protocol authentication.
+ * Called in response to radius access request response.
+ *
+ ***********************************************************/
+
+static int newip(struct ippoolm_t **ipm, struct in_addr *hisip) {
+  if (ippool_newip(ippool, ipm, hisip, 1)) {
+    if (ippool_newip(ippool, ipm, hisip, 0)) {
+      log_err(0, "Failed to allocate either static or dynamic IP address");
+      return -1;
+    }
+  }
+  return 0;
+}
 
 
 /* 
@@ -371,16 +405,6 @@ int static getconn(struct app_conn_t **conn, uint32_t nasip, uint32_t nasport)
     }
     appconn = appconn->next;
   }
-  return -1; /* Not found */
-}
-
-int static getconn_usersession(struct app_conn_t **conn, 
-			       struct radius_attr_t *uattr, 
-			       struct radius_attr_t *sattr)
-{
-  struct app_conn_t *appconn;
-
-
   return -1; /* Not found */
 }
 
@@ -557,7 +581,7 @@ int static macauth_radius(struct app_conn_t *appconn) {
 			(uint8_t*) appconn->proxyuser, appconn->proxyuserlen);
 
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-			(uint8_t*) options.macpasswd ? options.macpasswd : appconn->proxyuser, 
+			(uint8_t*) (options.macpasswd ? options.macpasswd : appconn->proxyuser), 
 			options.macpasswd ? strlen(options.macpasswd) : appconn->proxyuserlen);
   
   appconn->authtype = PAP_PASSWORD;
@@ -1708,7 +1732,7 @@ int access_request(struct radius_packet_t *pack,
   /*if ((appconn->dnprot != DNPROT_UAM) && (appconn->dnprot != DNPROT_WPA))  { */
     /*return radius_resp(radius, &radius_pack, peer, pack->authenticator);*/
   appconn->dnprot = DNPROT_WPA;
-  /*  }/*
+  /*  }*/
 
   /* NAS IP */
   if (!radius_getattr(pack, &nasipattr, RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, 0)) {
@@ -1781,7 +1805,7 @@ int access_request(struct radius_packet_t *pack,
     if (options.wpaguests)
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		     RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
-		     0, "allow-wpa-guests", 16);
+		     0, (uint8_t*)"allow-wpa-guests", 16);
 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		   0, 0, 0, NULL, RADIUS_MD5LEN);
@@ -1859,23 +1883,6 @@ int cb_radius_ind(struct radius_t *rp, struct radius_packet_t *pack,
   }
 }
 
-
-/***********************************************************
- *
- * Functions handling uplink protocol authentication.
- * Called in response to radius access request response.
- *
- ***********************************************************/
-
-int newip(struct ippoolm_t **ipm, struct in_addr *hisip) {
-  if (ippool_newip(ippool, ipm, hisip, 1)) {
-    if (ippool_newip(ippool, ipm, hisip, 0)) {
-      log_err(0, "Failed to allocate either static or dynamic IP address");
-      return -1;
-    }
-  }
-  return 0;
-}
 
 int upprot_getip(struct app_conn_t *appconn, 
 		 struct in_addr *hisip, int statip) {
@@ -2030,7 +2037,7 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
 			       RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
 			       0, &offset)) { 
       size_t len = attr->l-2;
-      char *val = attr->v.t;
+      char *val = (char*)attr->v.t;
 
       if (options.wpaguests && len == strlen(uamauth) && !memcmp(val, uamauth, len)) {
 	params->require_uam_auth = 1;
@@ -2050,7 +2057,7 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
 			       RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_REDIRECTION_URL, 
 			       0, &offset)) { 
       size_t clen, nlen = attr->l-2;
-      char *url = attr->v.t;
+      char *url = (char*)attr->v.t;
       clen = strlen(params->url);
 
       if (clen + nlen > sizeof(params->url)-1) 
@@ -2137,12 +2144,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
   struct radius_attr_t *eapattr = NULL;
   struct radius_attr_t *stateattr = NULL;
   struct radius_attr_t *classattr = NULL;
-  struct radius_attr_t *interimattr = NULL;
-
-  struct radius_attr_t *attr = NULL;
 
   int instance = 0;
-  int n;
   struct in_addr *hisip = NULL;
   int statip = 0;
 
@@ -2448,7 +2451,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 
   if (options.debug)
     log_dbg("Looking for session [username=%.*s,sessionid=%.*s]", 
-	    uattr->l-2, uattr->v.t, sattr ? sattr->l-2 : 3, sattr ? sattr->v.t : "all");
+	    uattr->l-2, uattr->v.t, sattr ? sattr->l-2 : 3, sattr ? (char*)sattr->v.t : "all");
   
   for (appconn = firstusedconn; appconn; appconn = appconn->next) {
     if (!appconn->inuse) { log_err(0, "Connection with inuse == 0!"); }
@@ -2458,7 +2461,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 	 !memcmp(appconn->user, uattr->v.t, uattr->l-2)) &&
 	(!sattr || 
 	 (strlen(appconn->sessionid) == sattr->l-2 && 
-	  !strncasecmp(appconn->sessionid, sattr->v.t, sattr->l-2)))) {
+	  !strncasecmp(appconn->sessionid, (char*)sattr->v.t, sattr->l-2)))) {
 
       if (options.debug)
 	log_dbg("Found session\n");
@@ -2670,6 +2673,7 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
     acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
     set_sessionid(appconn);
   }
+  return 0;
 }
 
 /* Callback when a dhcp connection is deleted */
@@ -2705,7 +2709,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
       if (member->inuse  == 2) {
 	struct in_addr mask;
 	mask.s_addr = 0xffffffff;
-	printf("Removing route: %d\n", tun_delroute(tun,&member->addr,&appconn->ourip,&mask,1));
+	printf("Removing route: %d\n", tun_delroute(tun,&member->addr,&appconn->ourip,&mask));
       }
     }
     if (ippool_freeip(ippool, (struct ippoolm_t *) appconn->uplink)) {
@@ -2722,7 +2726,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
 /* Callback for receiving messages from dhcp */
 int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
   struct app_conn_t *appconn = conn->peer;
-  struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
+  /*struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;*/
   struct tun_packet_t *iph = (struct tun_packet_t*)(pack + DHCP_ETH_HLEN);
 
   /*if (options.debug)
@@ -3176,7 +3180,7 @@ int chilli_main(int argc, char **argv)
   int msgresult;
 
   struct redir_msg_t msg;
-  struct sigaction act, actb;
+  struct sigaction act;
   /*  struct itimerval itval; */
   int lastSecond = 0, thisSecond;
 
@@ -3361,9 +3365,9 @@ int chilli_main(int argc, char **argv)
 
   memset(&itval, 0, sizeof(itval));
   itval.it_interval.tv_sec = 0;
-  itval.it_interval.tv_usec = 500000; /* TODO 0.5 second * /
+  itval.it_interval.tv_usec = 500000; / * TODO 0.5 second * /
   itval.it_value.tv_sec = 0; 
-  itval.it_value.tv_usec = 500000; /* TODO 0.5 second * /
+  itval.it_value.tv_usec = 500000; / * TODO 0.5 second * /
 
   if (setitimer(ITIMER_REAL, &itval, NULL)) {
     log_err(errno, "setitimer() failed!");

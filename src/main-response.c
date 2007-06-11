@@ -61,22 +61,22 @@ int main(int argc, char **argv) {
 
   /* challeng - argv 1 */
   memset(buffer, 0, sizeof(buffer));
-  /*fprintf(stderr,"challenge: %s\n",argv[1]);/**/
+  /*fprintf(stderr,"challenge: %s\n",argv[1]);*/
   strcpy(buffer, argv[1]);
   hextochar(buffer, challenge);
 
   MD5Init(&context);
   MD5Update(&context, challenge, MD5LEN);
   /* uamsecret - argv 2 */
-  /*fprintf(stderr,"uamsecret: %s\n",argv[2]);/**/
-  MD5Update(&context, argv[2], strlen(argv[2]));
+  /*fprintf(stderr,"uamsecret: %s\n",argv[2]);*/
+  MD5Update(&context, (uint8_t*)argv[2], strlen(argv[2]));
   MD5Final(challenge, &context);
 
   MD5Init(&context);
-  MD5Update(&context, "\0", 1);	  
+  MD5Update(&context, (uint8_t*)"\0", 1);	  
   /* password - argv 3 */
-  /*fprintf(stderr,"password: %s\n",argv[3]);/**/
-  MD5Update(&context, argv[3], strlen(argv[3]));
+  /*fprintf(stderr,"password: %s\n",argv[3]);*/
+  MD5Update(&context, (uint8_t*)argv[3], strlen(argv[3]));
   MD5Update(&context, challenge, MD5LEN);
   MD5Final(response, &context);
 

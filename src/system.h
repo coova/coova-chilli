@@ -136,7 +136,9 @@
 #include <endian.h>
 #endif
 
-#if (!defined(LITTLE_ENDIAN) && !defined(BIG_ENDIAN))
+#undef LITTLE_ENDIAN
+#undef BIG_ENDIAN
+
 #if (defined(__BYTE_ORDER) && defined(__LITTLE_ENDIAN) && __BYTE_ORDER == __LITTLE_ENDIAN) || \
     (defined(i386) || defined(__i386__) || defined(__i486__) || \
      defined(__i586__) || defined(__i686__) || defined(vax) || defined(MIPSEL))
@@ -149,7 +151,6 @@
 #else
 # define LITTLE_ENDIAN 0
 # define BIG_ENDIAN 0
-#endif
 #endif
 
 #endif

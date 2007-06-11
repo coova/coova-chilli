@@ -75,7 +75,7 @@ static int redir_challenge(unsigned char *dst) {
 }
 
 /* Convert 32+1 octet ASCII hex string to 16 octet unsigned char */
-static int redir_hextochar(char *src, unsigned char * dst) {
+static int redir_hextochar(unsigned char *src, unsigned char * dst) {
   char x[3];
   int n;
   int y;
@@ -147,7 +147,7 @@ static int bstrtocstr(bstring src, char *dst, unsigned int len) {
 
   l = src->slen;
   if (l > len) l = len;
-  strncpy(dst, src->data, len);
+  strncpy(dst, (char*)src->data, len);
   return 0;
 }
 
@@ -584,7 +584,7 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
   if (redir->secret) { /* take the md5 of the url+uamsecret as a checksum */
     MD5_CTX context;
     unsigned char cksum[16];
-    unsigned char hex[32+1];
+    char hex[32+1];
     int i;
 
     MD5Init(&context);
@@ -714,7 +714,7 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
     
     bcatcstr(buffer, "\r\n</HTML>\r\n");
     
-    if (tcp_write(sock, buffer->data, buffer->slen) < 0) {
+    if (tcp_write(sock, (char*)buffer->data, buffer->slen) < 0) {
       log_err(errno, "tcp_write() failed!");
       bdestroy(buffer);
       return -1;
@@ -727,7 +727,7 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
     bcatcstr(buffer, credits);
     bcatcstr(buffer, "</BODY></HTML>\r\n");
 
-    if (tcp_write(sock, buffer->data, buffer->slen) < 0) {
+    if (tcp_write(sock, (char*)buffer->data, buffer->slen) < 0) {
       log_err(errno, "tcp_write() failed!");
       bdestroy(buffer);
       return -1;
@@ -989,8 +989,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
       if (lines++ == 0) { /* first line */
 	char *p1 = buffer;
-	char *p2, *p3;
-	char *peol;
+	char *p2;
 	int dstlen = 0;
 
 	if (optionsdebug)
@@ -1208,15 +1207,10 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 				     struct radius_packet_t *pack,
 				     struct radius_packet_t *pack_req, void *cbp) {
   struct redir_conn_t *conn = (struct redir_conn_t*) cbp;
-  struct radius_attr_t *interimattr = NULL;
   struct radius_attr_t *stateattr = NULL;
   struct radius_attr_t *classattr = NULL;
   struct radius_attr_t *attr = NULL;
   char attrs[RADIUS_ATTR_VLEN+1];
-  struct tm stt;
-  int tzhour, tzmin;
-  char *tz;
-  int result;
 
   if (optionsdebug)
     log_dbg("Received access request confirmation from radius server\n");
@@ -1344,7 +1338,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   if(conn->lang[0]) 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC, 
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_LANG, 
-		   0, conn->lang, strlen(conn->lang));
+		   0, (uint8_t*) conn->lang, strlen(conn->lang));
 
   if (redir->secret) {
     /* Get MD5 hash on challenge and uamsecret */
@@ -1362,7 +1356,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
       user_password[n] = conn->password[n] ^ chap_challenge[n];
     user_password[REDIR_MD5LEN] = 0;
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		   user_password, strlen((char*)user_password));
+		   (uint8_t*)user_password, strlen((char*)user_password));
   }
   else if (conn->chap == 1) {
     chap_password[0] = atoi(conn->ident); /* Chap ident found on logon url */
@@ -1441,12 +1435,12 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 	       inet_ntoa(redir->addr), redir->port) > 0)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOGOFF_URL, 0,
-		   url, strlen(url));
+		   (uint8_t*)url, strlen(url));
 
   if (options.openidauth)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
-		   0, "allow-openidauth", 16);
+		   0, (uint8_t*)"allow-openidauth", 16);
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
@@ -1549,8 +1543,8 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 
   if (redir->secret) {
     MD5Init(&context);
-    MD5Update(&context, conn->uamchal, REDIR_MD5LEN);
-    MD5Update(&context, redir->secret, strlen(redir->secret));
+    MD5Update(&context, (uint8_t*)conn->uamchal, REDIR_MD5LEN);
+    MD5Update(&context, (uint8_t*)redir->secret, strlen(redir->secret));
     MD5Final(chap_challenge, &context);
   }
   else {
@@ -1581,7 +1575,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
     if (len > 3 && len < sizeof(u) && line[0] != '#') {
       char *pl=line, *pu=u, *pp=p;
       while (*pl && *pl != ':') *pu++ = *pl++;
-      if (*pl == ':') *pl++;
+      if (*pl == ':') pl++;
       while (*pl && *pl != ':' && *pl != '\n') *pp++ = *pl++;
       *pu = 0; *pp = 0;
 
@@ -1596,8 +1590,8 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 	}
 	else if (conn->chap == 1) {
 	  MD5Init(&context);
-	  MD5Update(&context, "\0", 1);	  
-	  MD5Update(&context, p, strlen(p));
+	  MD5Update(&context, (uint8_t*)"\0", 1);	  
+	  MD5Update(&context, (uint8_t*)p, strlen(p));
 	  MD5Update(&context, chap_challenge, REDIR_MD5LEN);
 	  MD5Final(tmp, &context);
 	}
@@ -1698,6 +1692,7 @@ int redir_accept(struct redir_t *redir, int idx) {
     execv(*binqqargs, binqqargs);
 
   } else return redir_main(redir, 0, 1, &address, idx);
+  return 0;
 }
 
 int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *address, int isui) {
@@ -1720,13 +1715,13 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   /* Close of socket */
   void redir_close () {
     if (shutdown(outfd, SHUT_WR) != 0)
-      log_err(errno, "shutdown socket for writing");
+      log_dbg("shutdown socket for writing");
 
     if (!set_nonblocking(infd)) 
       while(read(infd, buffer, sizeof(buffer)) > 0);
 
     if (shutdown(infd, SHUT_RD) != 0)
-      log_err(errno, "shutdown socket for reading");
+      log_dbg("shutdown socket for reading");
 
     close(outfd);
     close(infd);
@@ -1784,7 +1779,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     log_dbg("Calling redir_getreq()\n");
 
   if (redir_getreq(redir, &socket, &conn, &ispost, &clen, qs, sizeof(qs))) {
-    log_err(errno, "Error calling get_req. Terminating\n");
+    log_dbg("Error calling get_req. Terminating\n");
     redir_close();
   }
 
@@ -1829,8 +1824,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       }
       
       if (parse) {
-	FILE *f;
-	
 	if (!options.wwwbin) {
 	  log_err(0, "the 'wwwbin' setting must be configured for CGI use");
 	  redir_close();

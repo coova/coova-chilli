@@ -45,7 +45,6 @@ void sys_errpack(int pri, char *fn, int ln, int en, struct sockaddr_in *peer,
 		 void *pack, unsigned len, char *fmt, ...) {
   bstring bt = bfromcstr("");
   bstring bt2 = bfromcstr("");
-  int pos;
   int sz;
   int n;
   

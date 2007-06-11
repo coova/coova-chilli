@@ -305,6 +305,10 @@ extern int radius_set_cb_acct_conf(struct radius_t *this,
 int (*cb_acct_conf) (struct radius_t *radius, struct radius_packet_t *pack,
 		     struct radius_packet_t *pack_req, void *cbp));
 
+extern int radius_set_cb_coa_ind(struct radius_t *this,
+int (*cb_coa_ind) (struct radius_t *radius, struct radius_packet_t *pack,
+		   struct sockaddr_in *peer));
+
 /* Send of a request */
 extern int radius_req(struct radius_t *this, 
 		      struct radius_packet_t *pack,

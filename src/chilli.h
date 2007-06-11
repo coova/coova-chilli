@@ -186,5 +186,7 @@ extern struct radius_t *radius;          /* Radius client instance */
 extern struct dhcp_t *dhcp;              /* DHCP instance */
 
 int printstatus(struct app_conn_t *appconn);
+int terminate_appconn(struct app_conn_t *appconn, int terminate_cause);
+void config_radius_session(struct session_params *params, struct radius_packet_t *pack, int reconfig);
 
 #endif /*_CHILLI_H */

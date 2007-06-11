@@ -42,6 +42,7 @@
 #include "chilli.h"
 #include "options.h"
 #include "ippool.h"
+#include "lookup.h"
 
 
 #ifdef NAIVE
@@ -89,10 +90,6 @@ char *dhcp_state2name(int authstate) {
 void dhcp_list(struct dhcp_t *this, int sock, int withinfo)
 {
   struct dhcp_conn_t *conn = this->firstusedconn;
-  char line[2048];
-  char info[1024];
-  int ilen = 0;
-
   while (conn) {
     dhcp_print(this,sock,withinfo,conn);
     conn = conn->next;
@@ -148,7 +145,7 @@ int dhcp_udp_check(struct dhcp_fullpacket_t *pack) {
   int sum = 0;
 
   pack->udph.check = 0;
-  sum = in_cksum((uint16_t *)&pack->iph.saddr, 8);
+  sum = in_cksum(((uint16_t *)&pack->iph) + 12, 8);
   sum += ntohs(IPPROTO_UDP + len);
   sum += in_cksum((uint16_t *)&pack->udph, len);
   pack->udph.check = cksum_wrap(sum);
@@ -175,7 +172,7 @@ int dhcp_tcp_check(struct dhcp_ippacket_t *pack, int length) {
   tcph = (struct dhcp_tcphdr_t*) pack->payload;
   tcph->check = 0;
 
-  sum = in_cksum((uint16_t *)&pack->iph.saddr, 8);
+  sum = in_cksum(((uint16_t *)&pack->iph) + 12, 8);
   sum += ntohs(IPPROTO_TCP + len);
   sum += in_cksum((uint16_t *)tcph, len);
   tcph->check = cksum_wrap(sum);
@@ -973,7 +970,6 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 	 int usemac, uint8_t *mac, int promisc, 
 	 struct in_addr *listen, int lease, int allowdyn,
 	 struct in_addr *uamlisten, uint16_t uamport, int useeapol) {
-  int blen=0;
   struct in_addr noaddr;
   
   if (!(*dhcp = calloc(sizeof(struct dhcp_t), 1))) {
@@ -1082,8 +1078,6 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
  **/
 int
 dhcp_set(struct dhcp_t *dhcp, int debug) {
-  int i;
-
   dhcp->debug = debug;
   dhcp->anydns = options.uamanydns;
 
@@ -1258,7 +1252,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
 int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct dhcp_ippacket_t *pack, int len, int isreturn) {
   struct dhcp_t *this = conn->parent;
   struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
-  struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
+  /*struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;*/
 
   if (options.postauth_proxyport > 0) {
     if (isreturn) {
@@ -1327,7 +1321,6 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct dhcp_ippacket_t *pack, in
  **/
 int dhcp_undoDNAT(struct dhcp_conn_t *conn, 
 		  struct dhcp_ippacket_t *pack, int len) {
-  pass_through *pt;
   struct dhcp_t *this = conn->parent;
   struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
@@ -2022,7 +2015,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
 {
   unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
   struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
-  struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
+  /*struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;*/
   struct dhcp_conn_t *conn;
   struct in_addr ourip;
   struct in_addr addr;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
  */
 #include "system.h"
@@ -17,7 +17,7 @@ static int chilliauth_cb(struct radius_t *radius,
 			 struct radius_packet_t *pack,
 			 struct radius_packet_t *pack_req, void *cbp) {
   struct radius_attr_t *attr = NULL;
-  char attrs[RADIUS_ATTR_VLEN+1];
+  /*char attrs[RADIUS_ATTR_VLEN+1];*/
   int offset = 0;
 
   if (!pack) { 

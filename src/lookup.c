@@ -19,13 +19,14 @@
 #include "system.h"
 #include <assert.h>
 
-extern uint32_t hashword(const uint32_t *k, size_t length, uint32_t initval);
+extern uint32_t hashlittle(const void *key, size_t length, uint32_t initval);
+extern uint32_t hashbig(const void *key, size_t length, uint32_t initval);
 
 uint32_t lookup(uint8_t *k,  uint32_t length,  uint32_t initval)
 {
 #if LITTLE_ENDIAN
   return hashlittle(k, length, initval);
-#endif
+#endif 
 #if BIG_ENDIAN
   return hashbig(k, length, initval);
 #endif

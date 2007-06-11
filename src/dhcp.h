@@ -455,6 +455,10 @@ dhcp_set_cb_eap_ind(struct dhcp_t *this,
   int (*cb_eap_ind) (struct dhcp_conn_t *conn, void *pack, unsigned len));
 
 extern int 
+dhcp_set_cb_getinfo(struct dhcp_t *this, 
+  int (*cb_getinfo) (struct dhcp_conn_t *conn, char *b, int blen));
+
+extern int 
 dhcp_hashget(struct dhcp_t *this, struct dhcp_conn_t **conn,
 	     uint8_t *hwaddr);
 
