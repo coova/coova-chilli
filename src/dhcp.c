@@ -1010,6 +1010,7 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
     }
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
+  { int blen=0;
   if (ioctl((*dhcp)->fd, BIOCGBLEN, &blen) < 0) {
     log_err(errno,"ioctl() failed!");
   }
@@ -1020,6 +1021,7 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
   }
   (*dhcp)->rbuf_offset = 0;
   (*dhcp)->rbuf_len = 0;
+  }
 #endif
 
   if (usemac) memcpy(((*dhcp)->arp_hwaddr), mac, DHCP_ETH_ALEN);
