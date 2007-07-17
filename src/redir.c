@@ -97,7 +97,6 @@ static int redir_hextochar(unsigned char *src, unsigned char * dst) {
 
 /* Convert 16 octet unsigned char to 32+1 octet ASCII hex string */
 static int redir_chartohex(unsigned char *src, char *dst) {
-
   char x[3];
   int n;
   
@@ -650,6 +649,10 @@ static int redir_json_reply(struct redir_t *redir, int res,
 			    char *reply, char *qs, bstring s) {
   char hexchal[1+(2*REDIR_MD5LEN)];
   bstring tmp = bfromcstr("");
+
+#define FLG_cb   1
+#define FLG_acct 2
+#define FLG_chlg 4
   unsigned char flg = 0;
 
   redir_getparam(redir, qs, "callback", tmp);
@@ -662,7 +665,7 @@ static int redir_json_reply(struct redir_t *redir, int res,
   if (tmp->slen) {
     bconcat(s, tmp);
     bcatcstr(s, "(");
-    flg |= 1;
+    flg |= FLG_cb;
   }
   
   bcatcstr(s, "{\"version\":\"1.0\",\"clientState\":");
@@ -678,20 +681,19 @@ static int redir_json_reply(struct redir_t *redir, int res,
 
   switch (res) {
   case REDIR_ALREADY:
-    flg |= 2;
+    flg |= FLG_acct;
     break;
   case REDIR_FAILED_REJECT:
   case REDIR_FAILED_OTHER:
     break;
   case REDIR_SUCCESS:
-    flg |= 2;
+    flg |= FLG_acct;
     break;
   case REDIR_LOGOFF:
-    flg |= 2;
-    flg |= 4;
+    flg |= FLG_acct | FLG_chlg;
     break;
   case REDIR_NOTYET:
-    flg |= 4;
+    flg |= FLG_chlg;
     break;
   case REDIR_ABORT_ACK:
     break;
@@ -704,9 +706,9 @@ static int redir_json_reply(struct redir_t *redir, int res,
       bcatcstr(s,",\"sessionId\":\"");
       bcatcstr(s,conn->sessionid);
       bcatcstr(s,"\"");
-      flg |= 2;
+      flg |= FLG_acct;
     } else {
-      flg |= 4;
+      flg |= FLG_chlg;
     }
     break;
   default:
@@ -714,14 +716,14 @@ static int redir_json_reply(struct redir_t *redir, int res,
   }
 
 
-  if (flg & 4) {
+  if (flg & FLG_chlg) {
       redir_chartohex(conn->uamchal, hexchal);
       bcatcstr(s, ",\"challenge\":\"");
       bcatcstr(s, hexchal);
       bcatcstr(s, "\"");
   }
 
-  if (flg & 2) {
+  if (flg & FLG_acct) {
     struct timeval timenow;
     uint32_t sessiontime;
     uint32_t idletime;
@@ -756,7 +758,7 @@ static int redir_json_reply(struct redir_t *redir, int res,
 
   bcatcstr(s, "}");
 
-  if (flg & 1) {
+  if (flg & FLG_cb) {
     bcatcstr(s, ")");
   }
 

@@ -76,6 +76,8 @@
 /* Struct information for each connection */
 struct app_conn_t {
   
+  char is_adminsession;
+
   /* Management of connections */
   int inuse;
   int unit;

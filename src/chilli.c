@@ -38,6 +38,8 @@ struct app_conn_t *lastfreeconn=0;  /* Last free in linked list */
 struct app_conn_t *firstusedconn=0; /* First used in linked list */
 struct app_conn_t *lastusedconn=0;  /* Last used in linked list */
 
+extern struct app_conn_t admin_session;
+
 struct timeval checktime;
 struct timeval rereadtime;
 
@@ -445,17 +447,58 @@ int static dnprot_terminate(struct app_conn_t *appconn) {
  * - Reread configuration file and DNS entries
  */
 
+void session_interval(struct app_conn_t *conn) {
+  uint32_t sessiontime;
+  uint32_t idletime;
+  uint32_t interimtime;
+  struct timeval timenow;
+  gettimeofday(&timenow, NULL);
+
+  sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
+  sessiontime += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
+  idletime = timenow.tv_sec - conn->last_time.tv_sec;
+  idletime += (timenow.tv_usec - conn->last_time.tv_usec) / 1000000;
+  interimtime = timenow.tv_sec - conn->interim_time.tv_sec;
+  interimtime += (timenow.tv_usec - conn->interim_time.tv_usec) / 1000000;
+  
+  if ((conn->params.sessiontimeout) &&
+      (sessiontime > conn->params.sessiontimeout)) {
+    terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
+  }
+  else if ((conn->params.sessionterminatetime) && 
+	   (timenow.tv_sec > conn->params.sessionterminatetime)) {
+    terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
+  }
+  else if ((conn->params.idletimeout) && 
+	   (idletime > conn->params.idletimeout)) {
+    terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_IDLE_TIMEOUT);
+  }
+  else if ((conn->params.maxinputoctets) &&
+	   (conn->input_octets > conn->params.maxinputoctets)) {
+    terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
+  }
+  else if ((conn->params.maxoutputoctets) &&
+	   (conn->output_octets > conn->params.maxoutputoctets)) {
+    terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
+  }
+  else if ((conn->params.maxtotaloctets) &&
+	   ((conn->input_octets + conn->output_octets) > 
+	    conn->params.maxtotaloctets)) {
+    terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
+  }
+  else if ((conn->params.interim_interval) &&
+	   (interimtime > conn->params.interim_interval)) {
+    acct_req(conn, RADIUS_STATUS_TYPE_INTERIM_UPDATE);
+  }
+}
+
 int static checkconn()
 {
   struct app_conn_t *conn;
   struct dhcp_conn_t* dhcpconn;
-  struct timeval timenow;
-  uint32_t sessiontime;
-  uint32_t idletime;
-  uint32_t interimtime;
   uint32_t checkdiff;
   uint32_t rereaddiff;
-
+  struct timeval timenow;
   gettimeofday(&timenow, NULL);
 
   checkdiff = timenow.tv_sec - checktime.tv_sec;
@@ -466,48 +509,14 @@ int static checkconn()
 
   checktime = timenow;
   
+  session_interval(&admin_session);
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->authenticated == 1)) {
       if (!(dhcpconn = (struct dhcp_conn_t*) conn->dnlink)) {
 	log_err(0, "No downlink protocol");
 	return -1;
       }
-      sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
-      sessiontime += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
-      idletime = timenow.tv_sec - conn->last_time.tv_sec;
-      idletime += (timenow.tv_usec - conn->last_time.tv_usec) / 1000000;
-      interimtime = timenow.tv_sec - conn->interim_time.tv_sec;
-      interimtime += (timenow.tv_usec - conn->interim_time.tv_usec) / 1000000;
-
-      if ((conn->params.sessiontimeout) &&
-	  (sessiontime > conn->params.sessiontimeout)) {
-	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
-      }
-      else if ((conn->params.sessionterminatetime) && 
-	       (timenow.tv_sec > conn->params.sessionterminatetime)) {
-	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
-      }
-      else if ((conn->params.idletimeout) && 
-	       (idletime > conn->params.idletimeout)) {
-	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_IDLE_TIMEOUT);
-      }
-      else if ((conn->params.maxinputoctets) &&
-	       (conn->input_octets > conn->params.maxinputoctets)) {
-	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
-      }
-      else if ((conn->params.maxoutputoctets) &&
-	       (conn->output_octets > conn->params.maxoutputoctets)) {
-	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
-      }
-      else if ((conn->params.maxtotaloctets) &&
-	       ((conn->input_octets + conn->output_octets) > 
-		conn->params.maxtotaloctets)) {
-	terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
-      }
-      else if ((conn->params.interim_interval) &&
-	       (interimtime > conn->params.interim_interval)) {
-	(void) acct_req(conn, RADIUS_STATUS_TYPE_INTERIM_UPDATE);
-      }
+      session_interval(conn);
     }
   }
   
@@ -530,6 +539,7 @@ int static killconn()
   struct app_conn_t *conn;
   struct dhcp_conn_t* dhcpconn;
 
+  terminate_appconn(&admin_session, RADIUS_TERMINATE_CAUSE_NAS_REBOOT);
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->authenticated == 1)) {
       if (!(dhcpconn = (struct dhcp_conn_t*) conn->dnlink)) {
@@ -779,7 +789,6 @@ int static acct_req(struct app_conn_t *conn, int status_type)
   uint32_t timediff;
 
   if (RADIUS_STATUS_TYPE_START == status_type) {
-
     gettimeofday(&conn->start_time, NULL);
     conn->interim_time = conn->start_time;
     conn->last_time = conn->start_time;
@@ -911,7 +920,6 @@ int static acct_req(struct app_conn_t *conn, int status_type)
     }
   }
   
-
   (void) radius_req(radius, &radius_pack, conn);
   
   return 0;
@@ -2125,6 +2133,51 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
     params->sessionterminatetime = 0;
 }
 
+static int chilliauth_cb(struct radius_t *radius,
+			 struct radius_packet_t *pack,
+			 struct radius_packet_t *pack_req, void *cbp) {
+  struct radius_attr_t *attr = NULL;
+  /*char attrs[RADIUS_ATTR_VLEN+1];*/
+  int offset = 0;
+
+  if (!pack) { 
+    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Radius request timed out");
+    return 0;
+  }
+
+  if ((pack->code != RADIUS_CODE_ACCESS_REJECT) && 
+      (pack->code != RADIUS_CODE_ACCESS_CHALLENGE) &&
+      (pack->code != RADIUS_CODE_ACCESS_ACCEPT)) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
+	    "Unknown radius access reply code %d", pack->code);
+    return 0;
+  }
+
+  /* ACCESS-ACCEPT */
+  if (pack->code != RADIUS_CODE_ACCESS_ACCEPT) {
+    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Administrative-User Login Failed");
+    return 0;
+  }
+
+  while (!radius_getnextattr(pack, &attr, 
+			     RADIUS_ATTR_VENDOR_SPECIFIC,
+			     RADIUS_VENDOR_CHILLISPOT,
+			     RADIUS_ATTR_CHILLISPOT_CONFIG, 
+			     0, &offset)) {
+    char value[RADIUS_ATTR_VLEN+1] = "";
+    strncpy(value, (const char *)attr->v.t, attr->l - 2);
+
+    /* build the command line argv here and pass to config parser! */
+    /* XXX */
+    printf("%s\n", value);
+  }
+
+  admin_session.authenticated = 1;
+  acct_req(&admin_session, RADIUS_STATUS_TYPE_START);
+
+  return 0;
+}
+
 
 /*********************************************************
  *
@@ -2214,6 +2267,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
       appconn->statelen = stateattr->l-2;
       memcpy(appconn->statebuf, stateattr->v.t, stateattr->l-2);
     }
+
     return dnprot_challenge(appconn);
   }
   
@@ -2369,6 +2423,10 @@ int cb_radius_auth_conf(struct radius_t *radius,
     memcpy(appconn->ms2succ, ((void*)&succattr->v.t)+3, MS2SUCCSIZE);
   }
 
+  /* for the admin session */
+  if (appconn->is_adminsession) {
+    return chilliauth_cb(radius, pack, pack_req, cbp);
+  }
 
   switch(appconn->authtype) {
 
@@ -2766,9 +2824,13 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
     if (options.swapoctets) {
       appconn->input_packets++;
       appconn->input_octets +=len;
+      admin_session.input_packets++;
+      admin_session.input_octets+=len;
     } else {
       appconn->output_packets++;
       appconn->output_octets +=len;
+      admin_session.output_packets++;
+      admin_session.output_octets+=len;
     }
 #ifdef LEAKY_BUCKET
 #ifdef COUNT_UPLINK_DROP
@@ -3230,8 +3292,9 @@ int chilli_main(int argc, char **argv)
   }
 
   /*tun_setaddr(tun, &options.dhcplisten,  &options.net, &options.mask);*/
-  (void) tun_setaddr(tun, &options.dhcplisten,  &options.dhcplisten, &options.mask);
-  (void) tun_set_cb_ind(tun, cb_tun_ind);
+  tun_setaddr(tun, &options.dhcplisten,  &options.dhcplisten, &options.mask);
+  tun_set_cb_ind(tun, cb_tun_ind);
+
   if (tun->fd > maxfd) maxfd = tun->fd;
   if (options.ipup) tun_runscript(tun, options.ipup);
 
@@ -3257,15 +3320,23 @@ int chilli_main(int argc, char **argv)
     log_dbg("ChilliSpot version %s started.\n", VERSION);
 
   syslog(LOG_INFO, "ChilliSpot %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006-2007 Coova Technologies Ltd. Licensed under GPL. "
+	 "Copyright 2006-2007 David Bird <dbird@acm.org>. Licensed under GPL. "
 	 "See http://www.chillispot.org/ & http://coova.org/ for details.", VERSION);
   
-  (void) radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
-  (void) radius_set_cb_ind(radius, cb_radius_ind);
-  (void) radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
+  radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
+  radius_set_cb_ind(radius, cb_radius_ind);
+  radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
+
+  if (options.adminuser) {
+    admin_session.is_adminsession = 1;
+    strncpy(admin_session.user, options.adminuser, sizeof(admin_session.user));
+    admin_session.userlen = strlen(options.adminuser);
+    set_sessionid(&admin_session);
+    chilliauth_radius(radius);
+  }
 
   /* Initialise connections */
-  (void) initconn();
+  initconn();
   
   /* Allocate ippool for dynamic IP address allocation */
   if (ippool_new(&ippool, 
@@ -3290,7 +3361,6 @@ int chilli_main(int argc, char **argv)
   redir_set(redir, (options.debug & DEBUG_REDIR));
   redir_set_cb_getstate(redir, cb_redir_getstate);
   
-
   /* Create an instance of dhcp */
   if (!options.nodhcp) {
     if (dhcp_new(&dhcp, APP_NUM_CONN, options.dhcpif,
@@ -3400,6 +3470,8 @@ int chilli_main(int argc, char **argv)
       
       /* Reinit Redir parameters */
       redir_set(redir, (options.debug & DEBUG_REDIR));
+
+      chilliauth_radius(radius);
     }
 
     if (lastSecond != (thisSecond = time(NULL)) /*do_timeouts*/) {
