@@ -795,7 +795,8 @@ int static acct_req(struct app_conn_t *conn, int status_type)
   struct timeval timenow;
   uint32_t timediff;
 
-  if (RADIUS_STATUS_TYPE_START == status_type) {
+  if (RADIUS_STATUS_TYPE_START == status_type ||
+      RADIUS_STATUS_TYPE_ACCOUNTING_ON == status_type) {
     gettimeofday(&conn->start_time, NULL);
     conn->interim_time = conn->start_time;
     conn->last_time = conn->start_time;
@@ -878,6 +879,7 @@ int static acct_req(struct app_conn_t *conn, int status_type)
 		 (uint8_t*) conn->sessionid, REDIR_SESSIONID_LEN-1);
 
   if ((status_type == RADIUS_STATUS_TYPE_STOP) ||
+      (status_type == RADIUS_STATUS_TYPE_ACCOUNTING_OFF) ||
       (status_type == RADIUS_STATUS_TYPE_INTERIM_UPDATE)) {
 
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_OCTETS, 0, 0,
@@ -915,15 +917,19 @@ int static acct_req(struct app_conn_t *conn, int status_type)
 		   strlen(options.radiuslocationname));
 
 
-  if (status_type == RADIUS_STATUS_TYPE_STOP) {
+  if (status_type == RADIUS_STATUS_TYPE_STOP ||
+      status_type == RADIUS_STATUS_TYPE_ACCOUNTING_OFF) {
+
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_TERMINATE_CAUSE, 
 		   0, 0, conn->terminate_cause, NULL, 0);
 
-    /* TODO: This probably belongs somewhere else */
-    if (options.condown) {
-      if (options.debug)
-	log_dbg("Calling connection down script: %s\n",options.condown);
-      (void) runscript(conn, options.condown);
+    if (status_type == RADIUS_STATUS_TYPE_STOP) {
+      /* TODO: This probably belongs somewhere else */
+      if (options.condown) {
+	if (options.debug)
+	  log_dbg("Calling connection down script: %s\n",options.condown);
+	(void) runscript(conn, options.condown);
+      }
     }
   }
   
