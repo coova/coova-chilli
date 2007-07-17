@@ -509,7 +509,10 @@ int static checkconn()
 
   checktime = timenow;
   
-  session_interval(&admin_session);
+  if (admin_session.authenticated) {
+    session_interval(&admin_session);
+  }
+
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->authenticated == 1)) {
       if (!(dhcpconn = (struct dhcp_conn_t*) conn->dnlink)) {
@@ -539,7 +542,11 @@ int static killconn()
   struct app_conn_t *conn;
   struct dhcp_conn_t* dhcpconn;
 
-  terminate_appconn(&admin_session, RADIUS_TERMINATE_CAUSE_NAS_REBOOT);
+  if (admin_session.authenticated) {
+    admin_session.terminate_cause = RADIUS_TERMINATE_CAUSE_NAS_REBOOT;
+    acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_OFF);
+  }
+
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->authenticated == 1)) {
       if (!(dhcpconn = (struct dhcp_conn_t*) conn->dnlink)) {
@@ -1286,9 +1293,17 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
     if (options.swapoctets) {
       appconn->output_packets++;
       appconn->output_octets += len;
+      if (admin_session.authenticated) {
+	admin_session.output_packets++;
+	admin_session.output_octets+=len;
+      }
     } else {
       appconn->input_packets++;
       appconn->input_octets += len;
+      if (admin_session.authenticated) {
+	admin_session.input_packets++;
+	admin_session.input_octets+=len;
+      }
     }
 #ifdef LEAKY_BUCKET
 #ifdef COUNT_DOWNLINK_DROP
@@ -2173,7 +2188,7 @@ static int chilliauth_cb(struct radius_t *radius,
   }
 
   admin_session.authenticated = 1;
-  acct_req(&admin_session, RADIUS_STATUS_TYPE_START);
+  acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
 
   return 0;
 }
@@ -2824,13 +2839,17 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
     if (options.swapoctets) {
       appconn->input_packets++;
       appconn->input_octets +=len;
-      admin_session.input_packets++;
-      admin_session.input_octets+=len;
+      if (admin_session.authenticated) {
+	admin_session.input_packets++;
+	admin_session.input_octets+=len;
+      }
     } else {
       appconn->output_packets++;
       appconn->output_octets +=len;
-      admin_session.output_packets++;
-      admin_session.output_octets+=len;
+      if (admin_session.authenticated) {
+	admin_session.output_packets++;
+	admin_session.output_octets+=len;
+      }
     }
 #ifdef LEAKY_BUCKET
 #ifdef COUNT_UPLINK_DROP
