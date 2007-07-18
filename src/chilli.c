@@ -542,11 +542,6 @@ int static killconn()
   struct app_conn_t *conn;
   struct dhcp_conn_t* dhcpconn;
 
-  if (admin_session.authenticated) {
-    admin_session.terminate_cause = RADIUS_TERMINATE_CAUSE_NAS_REBOOT;
-    acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_OFF);
-  }
-
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->authenticated == 1)) {
       if (!(dhcpconn = (struct dhcp_conn_t*) conn->dnlink)) {
@@ -556,6 +551,12 @@ int static killconn()
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_NAS_REBOOT);
     }
   }
+
+  if (admin_session.authenticated) {
+    admin_session.terminate_cause = RADIUS_TERMINATE_CAUSE_NAS_REBOOT;
+    acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_OFF);
+  }
+
   return 0;
 }
 
