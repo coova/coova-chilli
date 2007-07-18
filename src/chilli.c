@@ -554,8 +554,10 @@ int static killconn()
 
   if (admin_session.authenticated) {
     admin_session.terminate_cause = RADIUS_TERMINATE_CAUSE_NAS_REBOOT;
-    acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_OFF);
+    acct_req(&admin_session, RADIUS_STATUS_TYPE_STOP);
   }
+
+  acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_OFF);
 
   return 0;
 }
@@ -796,8 +798,7 @@ int static acct_req(struct app_conn_t *conn, int status_type)
   struct timeval timenow;
   uint32_t timediff;
 
-  if (RADIUS_STATUS_TYPE_START == status_type ||
-      RADIUS_STATUS_TYPE_ACCOUNTING_ON == status_type) {
+  if (RADIUS_STATUS_TYPE_START == status_type) {
     gettimeofday(&conn->start_time, NULL);
     conn->interim_time = conn->start_time;
     conn->last_time = conn->start_time;
@@ -817,50 +818,65 @@ int static acct_req(struct app_conn_t *conn, int status_type)
     return -1;
   }
 
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_STATUS_TYPE, 0, 0,
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_STATUS_TYPE, 0, 0,
 		 status_type, NULL, 0);
 
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
-		 (uint8_t*) conn->user, conn->userlen);
+  if (RADIUS_STATUS_TYPE_ACCOUNTING_ON != status_type &&
+      RADIUS_STATUS_TYPE_ACCOUNTING_OFF != status_type) {
 
-  if (conn->classlen) {
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
-		   conn->classbuf,
-		   conn->classlen);
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
+		   (uint8_t*) conn->user, conn->userlen);
+    
+    if (conn->classlen) {
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
+		     conn->classbuf,
+		     conn->classlen);
+    }
+
+    if (conn->is_adminsession) {
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
+		     RADIUS_SERVICE_TYPE_ADMIN_USER, NULL, 0); 
+    } else {
+      snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	       conn->hismac[0], conn->hismac[1],
+	       conn->hismac[2], conn->hismac[3],
+	       conn->hismac[4], conn->hismac[5]);
+      
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
+		     (uint8_t*) mac, MACSTRLEN);
+      
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
+		     options.radiusnasporttype, NULL, 0);
+      
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,
+		     ntohl(conn->hisip.s_addr), NULL, 0);
+      
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
+		     conn->unit, NULL, 0);
+      snprintf(portid, 16+1, "%.8d", conn->unit);
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_ID, 0, 0, 0,
+		     (uint8_t*) portid, strlen(portid));
+    }
+    
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
+		   (uint8_t*) conn->sessionid, REDIR_SESSIONID_LEN-1);
+    
   }
 
-  (void) snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	   conn->hismac[0], conn->hismac[1],
-	   conn->hismac[2], conn->hismac[3],
-	   conn->hismac[4], conn->hismac[5]);
-
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
-		 (uint8_t*) mac, MACSTRLEN);
+  radius_addnasip(radius, &radius_pack);
 
   if (options.nasmac) {
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
 		   (uint8_t *)options.nasmac, strlen(options.nasmac)); 
   } else {
-    (void) snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		    conn->ourmac[0], conn->ourmac[1],
-		    conn->ourmac[2], conn->ourmac[3],
-		    conn->ourmac[4], conn->ourmac[5]);
+    snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	     conn->ourmac[0], conn->ourmac[1],
+	     conn->ourmac[2], conn->ourmac[3],
+	     conn->ourmac[4], conn->ourmac[5]);
     
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-			  (uint8_t*) mac, MACSTRLEN);
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
+		   (uint8_t*) mac, MACSTRLEN);
   }
-
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-			options.radiusnasporttype, NULL, 0);
-
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
-		 conn->unit, NULL, 0);
-
-  (void) snprintf(portid, 16+1, "%.8d", conn->unit);
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_ID, 0, 0, 0,
-		 (uint8_t*) portid, strlen(portid));
-  
-  radius_addnasip(radius, &radius_pack);
 
   /* Include NAS-Identifier if given in configuration options */
   if (options.radiusnasid)
@@ -868,40 +884,32 @@ int static acct_req(struct app_conn_t *conn, int status_type)
 		   (uint8_t*) options.radiusnasid, 
 		   strlen(options.radiusnasid));
 
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,
-		 ntohl(conn->hisip.s_addr), NULL, 0);
-
   /*
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_MTU, 0, 0,
   conn->mtu, NULL, 0);*/
 
-
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*) conn->sessionid, REDIR_SESSIONID_LEN-1);
-
   if ((status_type == RADIUS_STATUS_TYPE_STOP) ||
-      (status_type == RADIUS_STATUS_TYPE_ACCOUNTING_OFF) ||
       (status_type == RADIUS_STATUS_TYPE_INTERIM_UPDATE)) {
 
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_OCTETS, 0, 0,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_OCTETS, 0, 0,
 		   (uint32_t) conn->input_octets, NULL, 0);
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_OCTETS, 0, 0,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_OCTETS, 0, 0,
 		   (uint32_t) conn->output_octets, NULL, 0);
 
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_GIGAWORDS, 
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_GIGAWORDS, 
 		   0, 0, (uint32_t) (conn->input_octets >> 32), NULL, 0);
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_GIGAWORDS, 
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_GIGAWORDS, 
 		   0, 0, (uint32_t) (conn->output_octets >> 32), NULL, 0);
 
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_PACKETS, 0, 0,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_PACKETS, 0, 0,
 		   conn->input_packets, NULL, 0);
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_PACKETS, 0, 0,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_PACKETS, 0, 0,
 		   conn->output_packets, NULL, 0);
 
     gettimeofday(&timenow, NULL);
     timediff = timenow.tv_sec - conn->start_time.tv_sec;
     timediff += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_TIME, 0, 0,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_TIME, 0, 0,
 		   timediff, NULL, 0);  
   }
 
@@ -2195,7 +2203,7 @@ static int chilliauth_cb(struct radius_t *radius,
   }
 
   admin_session.authenticated = 1;
-  acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
+  acct_req(&admin_session, RADIUS_STATUS_TYPE_START);
 
   return 0;
 }
@@ -3352,6 +3360,8 @@ int chilli_main(int argc, char **argv)
   radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
   radius_set_cb_ind(radius, cb_radius_ind);
   radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
+
+  acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
 
   if (options.adminuser) {
     admin_session.is_adminsession = 1;
