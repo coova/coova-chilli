@@ -265,7 +265,7 @@ struct dhcp_t; /* Forward declaration */
 
 struct dhcp_conn_t {
   int inuse;                    /* Free = 0; Inuse = 1 */
-  struct timeval lasttime;      /* Last time we heard anything from client */
+  time_t lasttime;      /* Last time we heard anything from client */
   struct dhcp_conn_t *nexthash; /* Linked list part of hash table */
   struct dhcp_conn_t *next;    /* Next in linked list. 0: Last */
   struct dhcp_conn_t *prev;    /* Previous in linked list. 0: First */

@@ -1613,6 +1613,12 @@ int chilliauth_radius(struct radius_t *radius) {
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
 
+  if (admin_session.classlen) {
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
+		   admin_session.classbuf,
+		   admin_session.classlen);
+  }
+  
   return radius_req(radius, &radius_pack, &admin_session); 
 }
 

@@ -145,8 +145,8 @@ struct app_conn_t {
   uint16_t mtu;
   
   /* Accounting */
-  struct timeval start_time;
-  struct timeval interim_time;
+  time_t start_time;
+  time_t interim_time;
   uint32_t input_packets;
   uint32_t output_packets;
   uint64_t input_octets;
@@ -159,7 +159,7 @@ struct app_conn_t {
   struct in_addr mask;
   struct in_addr dns1;
   struct in_addr dns2;
-  struct timeval last_time; /* Last time a packet was received or sent */
+  time_t last_time; /* Last time a packet was received or sent */
 
 #ifdef LEAKY_BUCKET
   /* Leaky bucket */

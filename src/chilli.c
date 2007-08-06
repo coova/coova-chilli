@@ -40,8 +40,9 @@ struct app_conn_t *lastusedconn=0;  /* Last used in linked list */
 
 extern struct app_conn_t admin_session;
 
-struct timeval checktime;
-struct timeval rereadtime;
+time_t mainclock;
+time_t checktime;
+time_t rereadtime;
 
 static int keep_going = 1;
 /*static int do_timeouts = 1;*/
@@ -75,10 +76,8 @@ static void sighup_handler(int signum) {
 
 
 static void set_sessionid(struct app_conn_t *appconn) {
-  struct timeval timenow;
-  gettimeofday(&timenow, NULL);
   snprintf(appconn->sessionid, sizeof(appconn->sessionid), "%.8x%.8x",
-	   (int) timenow.tv_sec, appconn->unit);
+	   (int) mainclock, appconn->unit);
   appconn->classlen = 0;
 }
 
@@ -100,25 +99,21 @@ void static log_pid(char *pidfile) {
 /* Perform leaky bucket on up- and downlink traffic */
 int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
   
-  struct timeval timenow;
-  uint64_t timediff; /* In microseconds */
+  time_t timenow = mainclock;
+  time_t timediff; 
   int result = 0;
 
  
-  gettimeofday(&timenow, NULL);
-
-  timediff = (timenow.tv_sec - conn->last_time.tv_sec) * ((uint64_t) 1000000);
-  timediff += (timenow.tv_usec - conn->last_time.tv_usec);
+  timediff = timenow - conn->last_time;
 
   /*  if (options.debug) log_dbg("Leaky bucket timediff: %lld, bucketup: %d, bucketdown: %d %d %d\n", 
 			    timediff, conn->bucketup, conn->bucketdown, 
 			    octetsup, octetsdown);*/
 
   if (conn->params.bandwidthmaxup) {
-
     /* Subtract what the leak since last time we visited */
-    if (conn->bucketup > ((timediff * conn->params.bandwidthmaxup)/8000000)) {
-      conn->bucketup -= (timediff * conn->params.bandwidthmaxup) / 8000000;
+    if (conn->bucketup > ((timediff * conn->params.bandwidthmaxup)/8)) {
+      conn->bucketup -= (timediff * conn->params.bandwidthmaxup) / 8;
     }
     else {
       conn->bucketup = 0;
@@ -134,8 +129,8 @@ int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
   }
 
   if (conn->params.bandwidthmaxdown) {
-    if (conn->bucketdown > ((timediff * conn->params.bandwidthmaxdown)/8000000)) {
-      conn->bucketdown -= (timediff * conn->params.bandwidthmaxdown) / 8000000;
+    if (conn->bucketdown > ((timediff * conn->params.bandwidthmaxdown)/8)) {
+      conn->bucketdown -= (timediff * conn->params.bandwidthmaxdown) / 8;
     }
     else {
       conn->bucketdown = 0;
@@ -150,7 +145,7 @@ int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
     }
   }
 
-  gettimeofday(&conn->last_time, NULL);
+  conn->last_time = timenow;
     
   return result;
 }
@@ -302,8 +297,7 @@ static int newip(struct ippoolm_t **ipm, struct in_addr *hisip) {
 
 int static initconn()
 {
-  gettimeofday(&checktime, NULL);
-  gettimeofday(&rereadtime, NULL);
+  checktime = rereadtime = mainclock;
   return 0;
 }
 
@@ -448,25 +442,21 @@ int static dnprot_terminate(struct app_conn_t *appconn) {
  */
 
 void session_interval(struct app_conn_t *conn) {
+  time_t timenow = mainclock;
   uint32_t sessiontime;
   uint32_t idletime;
   uint32_t interimtime;
-  struct timeval timenow;
-  gettimeofday(&timenow, NULL);
 
-  sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
-  sessiontime += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
-  idletime = timenow.tv_sec - conn->last_time.tv_sec;
-  idletime += (timenow.tv_usec - conn->last_time.tv_usec) / 1000000;
-  interimtime = timenow.tv_sec - conn->interim_time.tv_sec;
-  interimtime += (timenow.tv_usec - conn->interim_time.tv_usec) / 1000000;
+  sessiontime = timenow - conn->start_time;
+  idletime    = timenow - conn->last_time;
+  interimtime = timenow - conn->interim_time;
   
   if ((conn->params.sessiontimeout) &&
       (sessiontime > conn->params.sessiontimeout)) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->params.sessionterminatetime) && 
-	   (timenow.tv_sec > conn->params.sessionterminatetime)) {
+	   (timenow > conn->params.sessionterminatetime)) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->params.idletimeout) && 
@@ -494,15 +484,13 @@ void session_interval(struct app_conn_t *conn) {
 
 int static checkconn()
 {
+  time_t timenow = mainclock;
   struct app_conn_t *conn;
   struct dhcp_conn_t* dhcpconn;
   uint32_t checkdiff;
   uint32_t rereaddiff;
-  struct timeval timenow;
-  gettimeofday(&timenow, NULL);
 
-  checkdiff = timenow.tv_sec - checktime.tv_sec;
-  checkdiff += (timenow.tv_usec - checktime.tv_usec) / 1000000;
+  checkdiff = timenow - checktime;
 
   if (checkdiff < CHECK_INTERVAL)
     return 0;
@@ -525,8 +513,7 @@ int static checkconn()
   
   /* Reread configuration file and recheck DNS */
   if (options.interval) {
-    rereaddiff = timenow.tv_sec - rereadtime.tv_sec;
-    rereaddiff += (timenow.tv_usec - rereadtime.tv_usec) / 1000000;
+    rereaddiff = timenow - rereadtime;
     if (rereaddiff >= options.interval) {
       rereadtime = timenow;
       do_sighup = 1;
@@ -795,11 +782,11 @@ int static acct_req(struct app_conn_t *conn, int status_type)
   struct radius_packet_t radius_pack;
   char mac[MACSTRLEN+1];
   char portid[16+1];
-  struct timeval timenow;
-  uint32_t timediff;
+  time_t timenow;
+  time_t timediff;
 
   if (RADIUS_STATUS_TYPE_START == status_type) {
-    gettimeofday(&conn->start_time, NULL);
+    conn->start_time = mainclock;
     conn->interim_time = conn->start_time;
     conn->last_time = conn->start_time;
     conn->input_packets = 0;
@@ -809,7 +796,7 @@ int static acct_req(struct app_conn_t *conn, int status_type)
   }
 
   if (RADIUS_STATUS_TYPE_INTERIM_UPDATE == status_type) {
-    gettimeofday(&conn->interim_time, NULL);
+    conn->interim_time = mainclock;
   }
 
   if (radius_default_pack(radius, &radius_pack, 
@@ -906,9 +893,9 @@ int static acct_req(struct app_conn_t *conn, int status_type)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_PACKETS, 0, 0,
 		   conn->output_packets, NULL, 0);
 
-    gettimeofday(&timenow, NULL);
-    timediff = timenow.tv_sec - conn->start_time.tv_sec;
-    timediff += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
+    timenow = mainclock;
+    timediff = timenow - conn->start_time;
+
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_TIME, 0, 0,
 		   timediff, NULL, 0);  
   }
@@ -920,7 +907,7 @@ int static acct_req(struct app_conn_t *conn, int status_type)
 		   strlen(options.radiuslocationid));
 
   if (options.radiuslocationname)
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
 		   (uint8_t*) options.radiuslocationname, 
 		   strlen(options.radiuslocationname));
@@ -929,7 +916,7 @@ int static acct_req(struct app_conn_t *conn, int status_type)
   if (status_type == RADIUS_STATUS_TYPE_STOP ||
       status_type == RADIUS_STATUS_TYPE_ACCOUNTING_OFF) {
 
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_TERMINATE_CAUSE, 
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_TERMINATE_CAUSE, 
 		   0, 0, conn->terminate_cause, NULL, 0);
 
     if (status_type == RADIUS_STATUS_TYPE_STOP) {
@@ -937,12 +924,12 @@ int static acct_req(struct app_conn_t *conn, int status_type)
       if (options.condown) {
 	if (options.debug)
 	  log_dbg("Calling connection down script: %s\n",options.condown);
-	(void) runscript(conn, options.condown);
+	runscript(conn, options.condown);
       }
     }
   }
   
-  (void) radius_req(radius, &radius_pack, conn);
+  radius_req(radius, &radius_pack, conn);
   
   return 0;
 }
@@ -1297,7 +1284,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
     if (appconn->authenticated == 1) {
 
 #ifndef LEAKY_BUCKET
-    gettimeofday(&appconn->last_time, NULL);
+      appconn->last_time = mainclock;
 #endif
 
 #ifdef LEAKY_BUCKET
@@ -2202,8 +2189,10 @@ static int chilliauth_cb(struct radius_t *radius,
     printf("%s\n", value);
   }
 
-  admin_session.authenticated = 1;
-  acct_req(&admin_session, RADIUS_STATUS_TYPE_START);
+  if (!admin_session.authenticated) {
+    admin_session.authenticated = 1;
+    acct_req(&admin_session, RADIUS_STATUS_TYPE_START);
+  }
 
   return 0;
 }
@@ -2338,9 +2327,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
   config_radius_session(&appconn->params, pack, 0);
 
   if (appconn->params.sessionterminatetime) {
-    struct timeval timenow;
-    gettimeofday(&timenow, NULL);
-    if (timenow.tv_sec > appconn->params.sessionterminatetime) {
+    time_t timenow = mainclock;
+    if (timenow > appconn->params.sessionterminatetime) {
       log(LOG_WARNING, "WISPr-Session-Terminate-Time in the past received, rejecting");
       return dnprot_reject(appconn);
     }
@@ -2726,8 +2714,8 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
 }
 
 int cb_dhcp_getinfo(struct dhcp_conn_t *conn, char *b, int blen) {
+  time_t timenow = mainclock;
   struct app_conn_t *appconn;
-  struct timeval timenow;
   uint32_t sessiontime = 0;
   uint32_t idletime = 0;
 
@@ -2736,13 +2724,9 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, char *b, int blen) {
   appconn = (struct app_conn_t*) conn->peer;
   if (!appconn->inuse) return 2;
 
-  gettimeofday(&timenow, NULL);
-
   if (appconn->authenticated) {
-    sessiontime = timenow.tv_sec - appconn->start_time.tv_sec;
-    sessiontime += (timenow.tv_usec - appconn->start_time.tv_usec) / 1000000;
-    idletime = timenow.tv_sec - appconn->last_time.tv_sec;
-    idletime += (timenow.tv_usec - appconn->last_time.tv_usec) / 1000000;
+    sessiontime = timenow - appconn->start_time;
+    idletime    = timenow - appconn->last_time;
   }
   
    return snprintf(b, blen, "%.*s %d %.*s %d/%d %d/%d %.*s", 
@@ -2843,7 +2827,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
   if (appconn->authenticated == 1) {
 
 #ifndef LEAKY_BUCKET
-    gettimeofday(&appconn->last_time, NULL);
+    appconn->last_time = mainclock;
 #endif
 
 #ifdef LEAKY_BUCKET
@@ -3080,7 +3064,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     }
 
     memcpy(appconn->uamchal, msg->uamchal, REDIR_MD5LEN);
-    appconn->uamtime = time(NULL);
+    appconn->uamtime = mainclock;
     appconn->uamabort = 0;
     dhcpconn->authstate = DHCP_AUTH_DNAT;
 
@@ -3101,7 +3085,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 
   case REDIR_CHALLENGE:
     memcpy(appconn->uamchal, msg->uamchal, REDIR_MD5LEN);
-    appconn->uamtime = time(NULL);
+    appconn->uamtime = mainclock;
     appconn->uamabort = 0;
     if (msg->userurl[0]) {
       strncpy(appconn->userurl, msg->userurl, USERURLSIZE);
@@ -3204,7 +3188,7 @@ int printstatus(struct app_conn_t *appconn)
   struct app_conn_t *apptemp;
   FILE *file;
   char filedest[512];
-  struct timeval timenow;
+  time_t timenow = mainclock;
   struct stat statbuf;
 
   if (!options.usestatusfile) return 0;
@@ -3213,7 +3197,6 @@ int printstatus(struct app_conn_t *appconn)
   if (stat(options.statedir, &statbuf)) { log_err(errno, "statedir does not exist"); return -1; }
   if (!S_ISDIR(statbuf.st_mode)) { log_err(0, "statedir not a directory"); return -1; }
 
-  gettimeofday(&timenow, NULL);
   strcpy(filedest, options.statedir);
   strcat(filedest, "/chillispot.state");
 
@@ -3222,7 +3205,7 @@ int printstatus(struct app_conn_t *appconn)
   fprintf(file, "#Version:1.1\n");
   fprintf(file, "#SessionID = SID\n#Start-Time = ST\n");
   fprintf(file, "#SessionTimeOut = STO\n#SessionTerminateTime = STT\n");
-  fprintf(file, "#Timestamp: %d\n", timenow.tv_sec);
+  fprintf(file, "#Timestamp: %d\n", timenow);
   fprintf(file, "#User, IP, MAC, SID, ST, STO, STT\n");
   if(appconn == NULL)
   {
@@ -3241,7 +3224,7 @@ int printstatus(struct app_conn_t *appconn)
 	apptemp->hismac[2], apptemp->hismac[3],
 	apptemp->hismac[4], apptemp->hismac[5],
 	apptemp->sessionid,
-	(apptemp->start_time).tv_sec,
+	apptemp->start_time,
 	apptemp->params.sessiontimeout,
 	apptemp->params.sessionterminatetime);
     }
@@ -3259,7 +3242,7 @@ int printstatus(struct app_conn_t *appconn)
 	apptemp->hismac[2], apptemp->hismac[3],
 	apptemp->hismac[4], apptemp->hismac[5],
 	apptemp->sessionid,
-	(apptemp->start_time).tv_sec,
+        apptemp->start_time,
 	apptemp->params.sessiontimeout,
 	apptemp->params.sessionterminatetime);
     }
@@ -3490,6 +3473,7 @@ int chilli_main(int argc, char **argv)
   /******************************************************************/
   /* Main select loop                                               */
   /******************************************************************/
+  mainclock = time(0);
 
   while (keep_going) {
 
@@ -3510,7 +3494,7 @@ int chilli_main(int argc, char **argv)
       chilliauth_radius(radius);
     }
 
-    if (lastSecond != (thisSecond = time(NULL)) /*do_timeouts*/) {
+    if (lastSecond != (thisSecond = mainclock) /*do_timeouts*/) {
       radius_timeout(radius);
 
       if (dhcp) 
@@ -3550,6 +3534,8 @@ int chilli_main(int argc, char **argv)
     default:
       break;
     }
+
+    mainclock = time(0);
 
     if ((msgresult = msgrcv(redir->msgid, (struct msgbuf*) &msg, sizeof(msg), 
 			   0, IPC_NOWAIT)) < 0) {

@@ -51,6 +51,8 @@ const static int paranoid = 0; /* Trust that the program has no bugs */
 const static int paranoid = 1; /* Check for errors which cannot happen */
 #endif
 
+extern time_t mainclock;
+
 #define cksum_wrap(c) (c=(c>>16)+(c&0xffff),(~(c+(c>>16))&0xffff))
 
 int
@@ -846,7 +848,7 @@ int dhcp_newconn(struct dhcp_t *this,
   /* Application specific initialisations */
   memcpy((*conn)->hismac, hwaddr, DHCP_ETH_ALEN);
   memcpy((*conn)->ourmac, this->hwaddr, DHCP_ETH_ALEN);
-  gettimeofday(&(*conn)->lasttime, NULL);
+  (*conn)->lasttime = mainclock;
   
   dhcp_hashadd(this, *conn);
   
@@ -929,14 +931,12 @@ int dhcp_freeconn(struct dhcp_conn_t *conn)
 int dhcp_checkconn(struct dhcp_t *this)
 {
   struct dhcp_conn_t *conn;
-  struct timeval now;
+  time_t now = mainclock;
 
-  gettimeofday(&now, NULL);
-  now.tv_sec -= this->lease;
-
+  now -= this->lease;
   conn = this->firstusedconn;
   while (conn) {
-    if (timercmp(&now, &conn->lasttime, >)) {
+    if (now > conn->lasttime) {
       if (this->debug) 
 	log_dbg("DHCP timeout: Removing connection");
       dhcp_freeconn(conn);
@@ -1945,7 +1945,7 @@ int dhcp_getreq(struct dhcp_t *this,
       }
   }
   
-  gettimeofday(&conn->lasttime, NULL);
+  conn->lasttime = mainclock;
 
   /* Discover message */
   /* If an IP address was assigned offer it to the client */
@@ -2099,7 +2099,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
     dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
   }
 
-  gettimeofday(&conn->lasttime, NULL);
+  conn->lasttime = mainclock;
 
   /* Was it a DNS request? 
   if (((pack->iph.daddr == conn->dns1.s_addr) ||
@@ -2390,7 +2390,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
     }
   }
   
-  gettimeofday(&conn->lasttime, NULL);
+  conn->lasttime = mainclock;
 
   dhcp_sendARP(conn, pack, len);
 
@@ -2567,7 +2567,7 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
     if (!conn)
       return 0;
 
-    gettimeofday(&conn->lasttime, NULL);
+    conn->lasttime = mainclock;
     
     if (this ->cb_eap_ind)
       this ->cb_eap_ind(conn, &packet.eap, ntohs(packet.eap.length));

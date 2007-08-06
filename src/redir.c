@@ -386,11 +386,10 @@ static int redir_xmlreply(struct redir_t *redir,
       break;
     case REDIR_STATUS:
       if (conn->authenticated == 1) {
-        struct timeval timenow;
+        time_t timenow = time(0);
         uint32_t sessiontime;
-        gettimeofday(&timenow, NULL);
-        sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
-        sessiontime += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
+
+        sessiontime = timenow - conn->start_time;
 
         bcatcstr(b, "<State>1</State>\r\n");
 
@@ -490,12 +489,13 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
   }
   
   if (conn->type == REDIR_STATUS) {
-    int starttime = conn->start_time.tv_sec;
+    int starttime = conn->start_time;
     if (starttime) {
       int sessiontime;
-      struct timeval timenow;
-      gettimeofday(&timenow, NULL);
-      sessiontime = timenow.tv_sec - starttime;
+      time_t timenow = time(0);
+
+      sessiontime = timenow - starttime;
+
       bassignformat(bt, "&starttime=%ld", starttime);
       bconcat(str, bt);
       bassignformat(bt, "&sessiontime=%ld", sessiontime);
@@ -724,16 +724,12 @@ static int redir_json_reply(struct redir_t *redir, int res,
   }
 
   if (flg & FLG_acct) {
-    struct timeval timenow;
+    time_t timenow = time(0);
     uint32_t sessiontime;
     uint32_t idletime;
-    
-    gettimeofday(&timenow, NULL);
 
-    sessiontime = timenow.tv_sec - conn->start_time.tv_sec;
-    sessiontime += (timenow.tv_usec - conn->start_time.tv_usec) / 1000000;
-    idletime = timenow.tv_sec - conn->last_time.tv_sec;
-    idletime += (timenow.tv_usec - conn->last_time.tv_usec) / 1000000;
+    sessiontime = timenow - conn->start_time;
+    idletime    = timenow - conn->last_time;
 
     bcatcstr(s,",\"accounting\":{\"sessionTime\":");
     bassignformat(tmp, "%ld", sessiontime);
@@ -1402,9 +1398,8 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   
 
   if (conn->params.sessionterminatetime) {
-    struct timeval timenow;
-    gettimeofday(&timenow, NULL);
-    if (timenow.tv_sec > conn->params.sessionterminatetime) {
+    time_t timenow = time(0);
+    if (timenow > conn->params.sessionterminatetime) {
       conn->response = REDIR_FAILED_OTHER;
       log_warn(0, "WISPr-Session-Terminate-Time in the past received: %s", attrs);
     }
@@ -2240,10 +2235,10 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     {
       uint32_t sessiontime;
       uint32_t timeleft;
-      struct timeval timenow;
-      gettimeofday(&timenow, NULL);
-      sessiontime = timenow.tv_sec - conn.start_time.tv_sec;
-      sessiontime += (timenow.tv_usec - conn.start_time.tv_usec) / 1000000;
+      time_t timenow = time(0);
+
+      sessiontime = timenow - conn.start_time;
+
       if (conn.params.sessiontimeout)
 	timeleft = conn.params.sessiontimeout - sessiontime;
       else

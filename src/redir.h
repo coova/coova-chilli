@@ -145,8 +145,8 @@ struct redir_conn_t {
 
   uint64_t input_octets;     /* Transferred in callback */
   uint64_t output_octets;    /* Transferred in callback */
-  struct timeval start_time; /* Transferred in callback */
-  struct timeval last_time;  /* Transferred in callback */
+  time_t start_time; /* Transferred in callback */
+  time_t last_time;  /* Transferred in callback */
 
   struct session_params params;
 };
