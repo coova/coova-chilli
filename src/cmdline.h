@@ -251,6 +251,8 @@ struct gengetopt_args_info
   const char *papalwaysok_help; /* Always allow 'PAP' (password) style authentication help description.  */
   int chillixml_flag;	/* Use ChilliSpot XML in WISPr blocks (default=off).  */
   const char *chillixml_help; /* Use ChilliSpot XML in WISPr blocks help description.  */
+  int acctupdate_flag;	/* Allow updating of session attributes in Accounting-Response (default=off).  */
+  const char *acctupdate_help; /* Allow updating of session attributes in Accounting-Response help description.  */
   int usetap_flag;	/* Use a TAP instead of TUN (linux only) (default=off).  */
   const char *usetap_help; /* Use a TAP instead of TUN (linux only) help description.  */
   
@@ -335,6 +337,7 @@ struct gengetopt_args_info
   int openidauth_given ;	/* Whether openidauth was given.  */
   int papalwaysok_given ;	/* Whether papalwaysok was given.  */
   int chillixml_given ;	/* Whether chillixml was given.  */
+  int acctupdate_given ;	/* Whether acctupdate was given.  */
   int usetap_given ;	/* Whether usetap was given.  */
 
 } ;

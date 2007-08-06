@@ -2197,6 +2197,17 @@ static int chilliauth_cb(struct radius_t *radius,
   return 0;
 }
 
+int cb_radius_acct_conf(struct radius_t *radius, 
+			struct radius_packet_t *pack,
+			struct radius_packet_t *pack_req, void *cbp) {
+  struct app_conn_t *appconn = (struct app_conn_t*) cbp;
+  if (!appconn) {
+    log_err(0,"No peer protocol defined");
+    return 0;
+  }
+  config_radius_session(&appconn->params, pack, 1); /*XXX*/
+  return 0;
+}
 
 /*********************************************************
  *
@@ -3341,8 +3352,11 @@ int chilli_main(int argc, char **argv)
 	 "See http://www.chillispot.org/ & http://coova.org/ for details.", VERSION);
   
   radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
-  radius_set_cb_ind(radius, cb_radius_ind);
   radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
+  radius_set_cb_ind(radius, cb_radius_ind);
+
+  if (options.acct_update)
+    radius_set_cb_acct_conf(radius, cb_radius_acct_conf);
 
   acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
 

@@ -100,6 +100,7 @@ struct options_t {
   int chillixml;
 
   int pap_always_ok;
+  int acct_update;
 
   /* UAM parameters */
   struct in_addr uamserver[UAMSERVER_MAX]; /* IP address of UAM server */
