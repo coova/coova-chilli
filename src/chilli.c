@@ -3507,7 +3507,8 @@ int chilli_main(int argc, char **argv)
       /* Reinit Redir parameters */
       redir_set(redir, options.debug);
 
-      chilliauth_radius(radius);
+      if (options.adminuser)
+	chilliauth_radius(radius);
     }
 
     if (lastSecond != (thisSecond = mainclock) /*do_timeouts*/) {

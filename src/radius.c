@@ -1576,12 +1576,14 @@ int chilliauth_radius(struct radius_t *radius) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0, "radius_default_pack() failed");
     return ret;
   }
-  
+
+  /* adminuser is required */
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
 		 (uint8_t *)options.adminuser, strlen(options.adminuser));
 
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		 (uint8_t *)options.adminpasswd, strlen(options.adminpasswd));
+  if (options.adminpasswd)
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
+		   (uint8_t *)options.adminpasswd, strlen(options.adminpasswd));
 
   radius_addnasip(radius, &radius_pack);
 

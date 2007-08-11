@@ -26,7 +26,7 @@
 #include "options.h"
 
 struct options_t options = {0};
-#define STRDUP(x) ((x) ? strdup((x)) : 0)
+#define STRDUP(x) (((x) && *(x)) ? strdup((x)) : 0)
 
 /* Get IP address and mask */
 int option_aton(struct in_addr *addr, struct in_addr *mask,

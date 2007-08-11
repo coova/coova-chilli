@@ -209,10 +209,10 @@ struct gengetopt_args_info
   char * uamui_arg;	/* Program in inetd style to handle all uam requests.  */
   char * uamui_orig;	/* Program in inetd style to handle all uam requests original value given at command line.  */
   const char *uamui_help; /* Program in inetd style to handle all uam requests help description.  */
-  char * adminuser_arg;	/* RADIUS administrative user login username.  */
+  char * adminuser_arg;	/* RADIUS administrative user login username (default='chillispot').  */
   char * adminuser_orig;	/* RADIUS administrative user login username original value given at command line.  */
   const char *adminuser_help; /* RADIUS administrative user login username help description.  */
-  char * adminpasswd_arg;	/* RADIUS administrative user login password.  */
+  char * adminpasswd_arg;	/* RADIUS administrative user login password (default='chillispot').  */
   char * adminpasswd_orig;	/* RADIUS administrative user login password original value given at command line.  */
   const char *adminpasswd_help; /* RADIUS administrative user login password help description.  */
   char * nasmac_arg;	/* Unique MAC address of the NAS (called-station-id).  */

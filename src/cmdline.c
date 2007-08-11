@@ -91,8 +91,8 @@ const char *gengetopt_args_info_help[] = {
   "      --wwwdir=STRING           Local content served by chilli (for splash \n                                  page, etc)",
   "      --wwwbin=STRING           Script binary (such as haserl) for simple web \n                                  programming",
   "      --uamui=STRING            Program in inetd style to handle all uam \n                                  requests",
-  "      --adminuser=STRING        RADIUS administrative user login username",
-  "      --adminpasswd=STRING      RADIUS administrative user login password",
+  "      --adminuser=STRING        RADIUS administrative user login username  \n                                  (default=`chillispot')",
+  "      --adminpasswd=STRING      RADIUS administrative user login password  \n                                  (default=`chillispot')",
   "      --nasmac=STRING           Unique MAC address of the NAS \n                                  (called-station-id)",
   "      --nasip=STRING            Unique IP address of the NAS (nas-ip-address)",
   "      --ssid=STRING             SSID of the session",
@@ -364,9 +364,9 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->wwwbin_orig = NULL;
   args_info->uamui_arg = NULL;
   args_info->uamui_orig = NULL;
-  args_info->adminuser_arg = NULL;
+  args_info->adminuser_arg = gengetopt_strdup ("chillispot");
   args_info->adminuser_orig = NULL;
-  args_info->adminpasswd_arg = NULL;
+  args_info->adminpasswd_arg = gengetopt_strdup ("chillispot");
   args_info->adminpasswd_orig = NULL;
   args_info->nasmac_arg = NULL;
   args_info->nasmac_orig = NULL;
