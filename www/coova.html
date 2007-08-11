@@ -1,6 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
 <html><head><title>Coova</title>
 <!-- redirecting... either by meta tag or javascript -->
+<meta http-equiv="refresh" content="5; URL=/prelogin"> 
 <script type="text/javascript" language="Javascript">
 //<!--
 function getURLParam(n) {
@@ -21,16 +22,17 @@ function getURLParam(n) {
 }
 var loginUrl = getURLParam("loginurl");
 window.document.write("<meta http-equiv=\"refresh\" content=\"5; URL="+loginUrl+"\">");
-function redirect() { window.location = loginUrl; }
-function loaded() { setTimeout('redirect()', 10000) }
+function redirect() { window.location = loginUrl; return false; }
 //-->
 </script>
+<meta http-equiv="refresh" content="10; URL=/prelogin"> 
 </head>
-<body onload="loaded();" style="margin: 0pt auto; height:100%;">
+<body style="margin: 0pt auto; height:100%;">
 <div style="width:100%;height:80%;position:fixed;display:table;">
 <p style="display: table-cell; line-height: 2.5em;
 vertical-align:middle;text-align:center;color:grey;">
-<img src="coova.jpg" alt="" border="0" height="39" width="123"/><br>
+<a href="#" onclick="javascript:return redirect();">
+<img src="coova.jpg" alt="" border="0" height="39" width="123"/></a><br>
 <small>redirecting...</small></p>
 <br><br>
 </div>

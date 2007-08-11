@@ -307,27 +307,27 @@ int static newconn(struct app_conn_t **conn)
   if (!firstfreeconn) {
     if (connections == APP_NUM_CONN) {
       log_err(0, "reached max connections!");
-    return -1;
-  }
+      return -1;
+    }
     n = ++connections;
     if (!(*conn = calloc(1, sizeof(struct app_conn_t)))) {
       log_err(0, "Out of memory!");
       return -1;
     }
-  }
-  else {
-  *conn = firstfreeconn;
+  } else {
+    *conn = firstfreeconn;
     n = (*conn)->unit;
-  /* Remove from link of free */
-  if (firstfreeconn->next) {
-    firstfreeconn->next->prev = NULL;
-    firstfreeconn = firstfreeconn->next;
-  }
-  else { /* Took the last one */
-    firstfreeconn = NULL; 
-    lastfreeconn = NULL;
-  }
-  /* Initialise structures */
+    /* Remove from link of free */
+    if (firstfreeconn->next) {
+      firstfreeconn->next->prev = NULL;
+      firstfreeconn = firstfreeconn->next;
+    }
+    else { /* Took the last one */
+      firstfreeconn = NULL; 
+      lastfreeconn = NULL;
+    }
+
+    /* Initialise structures */
     memset(*conn, 0, sizeof(struct app_conn_t));
   }
 
@@ -339,12 +339,12 @@ int static newconn(struct app_conn_t **conn)
   else { /* First insert */
     lastusedconn = *conn;
   }
-
+  
   firstusedconn = *conn;
-
+  
   (*conn)->inuse = 1;
   (*conn)->unit = n;
-
+  
   return 0; /* Success */
 }
 
@@ -1280,7 +1280,8 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
 
   /* If the ip src is uamlisten and psrc is uamport we won't call leaky_bucket */
   if ( ! (iph->src  == options.uamlisten.s_addr && 
-	  iph->psrc == htons(options.uamport))) {
+	  (iph->psrc == htons(options.uamport) ||
+	   iph->psrc == htons(options.uamuiport)))) {
     if (appconn->authenticated == 1) {
 
 #ifndef LEAKY_BUCKET
@@ -2705,7 +2706,7 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
 
   appconn->dnlink =  conn;
   appconn->dnprot =  DNPROT_DHCP_NONE;
-  conn->peer  = appconn;
+  conn->peer = appconn;
 
   appconn->net.s_addr = options.net.s_addr;
   appconn->mask.s_addr = options.mask.s_addr;
@@ -2832,7 +2833,8 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
 
   /* If the ip dst is uamlisten and pdst is uamport we won't call leaky_bucket */
   if (iph->dst  == options.uamlisten.s_addr && 
-      iph->pdst == htons(options.uamport))
+      (iph->pdst == htons(options.uamport) ||
+       iph->pdst == htons(options.uamuiport)))
     return tun_encaps(tun, pack, len);
   
   if (appconn->authenticated == 1) {
@@ -3391,7 +3393,7 @@ int chilli_main(int argc, char **argv)
 
   if (redir->fd[0] > maxfd) maxfd = redir->fd[0];
   if (redir->fd[1] > maxfd) maxfd = redir->fd[1];
-  redir_set(redir, (options.debug & DEBUG_REDIR));
+  redir_set(redir, (options.debug));
   redir_set_cb_getstate(redir, cb_redir_getstate);
   
   /* Create an instance of dhcp */
@@ -3503,7 +3505,7 @@ int chilli_main(int argc, char **argv)
       radius_set(radius, (options.debug & DEBUG_RADIUS));
       
       /* Reinit Redir parameters */
-      redir_set(redir, (options.debug & DEBUG_REDIR));
+      redir_set(redir, options.debug);
 
       chilliauth_radius(radius);
     }

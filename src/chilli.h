@@ -143,8 +143,13 @@ struct app_conn_t {
   struct in_addr hisip;        /* Client IP address */
   struct in_addr reqip;        /* IP requested by client */
   uint16_t mtu;
+
+  /* Information for each connection */
+  struct in_addr net;
+  struct in_addr mask;
+  struct in_addr dns1;
+  struct in_addr dns2;
   
-  /* Accounting */
   time_t start_time;
   time_t interim_time;
   uint32_t input_packets;
@@ -153,14 +158,6 @@ struct app_conn_t {
   uint64_t output_octets;
   uint32_t terminate_cause;
   uint32_t session_id;
-
-  /* Information for each connection */
-  struct in_addr net;
-  struct in_addr mask;
-  struct in_addr dns1;
-  struct in_addr dns2;
-  time_t last_time; /* Last time a packet was received or sent */
-
 #ifdef LEAKY_BUCKET
   /* Leaky bucket */
   uint32_t bucketup;
@@ -168,12 +165,13 @@ struct app_conn_t {
   uint32_t bucketupsize;
   uint32_t bucketdownsize;
 #endif
-
+  time_t last_time; /* Last time a packet was received or sent */
+  
   /* UAM information */
   uint8_t uamchal[REDIR_MD5LEN];
   int uamtime;
   char userurl[USERURLSIZE];
-
+    
   char uamabort:1;
   char uamexit:1;
   char reserved:6;

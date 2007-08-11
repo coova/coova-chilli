@@ -582,7 +582,7 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
     bconcat(str, bt2);
   }
 
-  if (redir->secret) { /* take the md5 of the url+uamsecret as a checksum */
+  if (redir->secret && *redir->secret) { /* take the md5 of the url+uamsecret as a checksum */
     MD5_CTX context;
     unsigned char cksum[16];
     char hex[32+1];
@@ -644,56 +644,51 @@ tcp_write(struct redir_socket *sock, char *buf, int len) {
   return r;
 }
 
-static int redir_json_reply(struct redir_t *redir, int res, 
-			    struct redir_conn_t *conn, 
+static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t *conn,  
+			    char *hexchal, char *userurl, char *redirurl, uint8_t *hismac, 
 			    char *reply, char *qs, bstring s) {
-  char hexchal[1+(2*REDIR_MD5LEN)];
   bstring tmp = bfromcstr("");
+  bstring json = bfromcstr("");
 
-#define FLG_cb   1
-#define FLG_acct 2
-#define FLG_chlg 4
   unsigned char flg = 0;
+#define FLG_cb     1
+#define FLG_acct   2
+#define FLG_chlg   4
+#define FLG_sess   8
+#define FLG_loc   16
+#define FLG_redir 32
+
+  int auth = conn->authenticated;
 
   redir_getparam(redir, qs, "callback", tmp);
 
-  bassigncstr(s, "HTTP/1.0 200 OK\r\nContent-type: ");
-  if (tmp->slen) bcatcstr(s, "text/javascript");
-  else bcatcstr(s, "application/json");
-  bcatcstr(s, "\r\n\r\n");
-
   if (tmp->slen) {
-    bconcat(s, tmp);
-    bcatcstr(s, "(");
+    bconcat(json, tmp);
+    bcatcstr(json, "(");
     flg |= FLG_cb;
   }
   
-  bcatcstr(s, "{\"version\":\"1.0\",\"clientState\":");
-
-  bassignformat(tmp, "%d", conn->authenticated);
-  bconcat(s, tmp);
-
-  if (reply) {
-    bcatcstr(s, ",\"message\":\"");
-    bcatcstr(s, reply);
-    bcatcstr(s, "\"");
-  }
-
   switch (res) {
   case REDIR_ALREADY:
     flg |= FLG_acct;
     break;
   case REDIR_FAILED_REJECT:
   case REDIR_FAILED_OTHER:
+    flg |= FLG_chlg;
     break;
   case REDIR_SUCCESS:
     flg |= FLG_acct;
+    flg |= FLG_sess;
+    flg |= FLG_redir;
+    auth = 1;
     break;
   case REDIR_LOGOFF:
     flg |= FLG_acct | FLG_chlg;
     break;
   case REDIR_NOTYET:
     flg |= FLG_chlg;
+    flg |= FLG_loc;
+    flg |= FLG_redir;
     break;
   case REDIR_ABORT_ACK:
     break;
@@ -703,27 +698,72 @@ static int redir_json_reply(struct redir_t *redir, int res,
     break;
   case REDIR_STATUS:
     if (conn->authenticated == 1) {
-      bcatcstr(s,",\"sessionId\":\"");
-      bcatcstr(s,conn->sessionid);
-      bcatcstr(s,"\"");
       flg |= FLG_acct;
+      flg |= FLG_sess;
     } else {
       flg |= FLG_chlg;
+      flg |= FLG_loc;
     }
+    flg |= FLG_redir;
     break;
   default:
     break;
   }
 
+  bcatcstr(json, "{\"version\":\"1.0\",\"clientState\":");
 
-  if (flg & FLG_chlg) {
-      redir_chartohex(conn->uamchal, hexchal);
-      bcatcstr(s, ",\"challenge\":\"");
-      bcatcstr(s, hexchal);
-      bcatcstr(s, "\"");
+  bassignformat(tmp, "%d", auth);
+  bconcat(json, tmp);
+
+  if (auth == 1) {
+    bcatcstr(json,",\"sessionId\":\"");
+    bcatcstr(json,conn->sessionid);
+    bcatcstr(json,"\"");
   }
 
-  if (flg & FLG_acct) {
+  if (reply) {
+    bcatcstr(json, ",\"message\":\"");
+    bcatcstr(json, reply);
+    bcatcstr(json, "\"");
+  }
+
+  if (flg & FLG_chlg && hexchal) {
+      bcatcstr(json, ",\"challenge\":\"");
+      bcatcstr(json, hexchal);
+      bcatcstr(json, "\"");
+  }
+
+  if (flg & FLG_loc) {
+    bcatcstr(json,",\"location\":{\"name\":\"");
+    bcatcstr(json, redir->radiuslocationname);
+    bcatcstr(json,"\"");
+    bcatcstr(json,"}");
+  }
+
+  if (flg & FLG_redir) {
+    bcatcstr(json,",\"redir\":{\"originalURL\":\"");
+    bcatcstr(json, userurl?userurl:"");
+    bcatcstr(json,"\",\"redirectionURL\":\"");
+    bcatcstr(json, redirurl?redirurl:"");
+    bcatcstr(json,"\",\"macAddress\":\"");
+    if (hismac) {
+      char mac[REDIR_MACSTRLEN+2];
+      snprintf(mac, REDIR_MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	       hismac[0], hismac[1],
+	       hismac[2], hismac[3],
+	       hismac[4], hismac[5]);
+      bcatcstr(json, mac);
+    }
+    bcatcstr(json,"\"}");
+  }
+
+
+  if (flg & FLG_acct || flg & FLG_sess) {
+    time_t starttime = conn->start_time;
+    uint32_t inoctets = conn->input_octets;
+    uint32_t outoctets = conn->output_octets;
+    uint32_t ingigawords = (conn->input_octets >> 32);
+    uint32_t outgigawords = (conn->output_octets >> 32);
     time_t timenow = time(0);
     uint32_t sessiontime;
     uint32_t idletime;
@@ -731,34 +771,81 @@ static int redir_json_reply(struct redir_t *redir, int res,
     sessiontime = timenow - conn->start_time;
     idletime    = timenow - conn->last_time;
 
-    bcatcstr(s,",\"accounting\":{\"sessionTime\":");
-    bassignformat(tmp, "%ld", sessiontime);
-    bconcat(s, tmp);
-    bcatcstr(s,",\"idleTime\":");
-    bassignformat(tmp, "%ld", idletime);
-    bconcat(s, tmp);
-    bcatcstr(s,",\"inputOctets\":");
-    bassignformat(tmp, "%ld", (uint32_t)conn->input_octets);
-    bconcat(s, tmp);
-    bcatcstr(s,",\"outputOctets\":");
-    bassignformat(tmp, "%ld", (uint32_t)conn->output_octets);
-    bconcat(s, tmp);
-    bcatcstr(s,",\"inputGigawords\":");
-    bassignformat(tmp, "%ld", (uint32_t)(conn->input_octets >> 32));
-    bconcat(s, tmp);
-    bcatcstr(s,",\"outputGigawords\":");
-    bassignformat(tmp, "%ld", (uint32_t)(conn->output_octets >> 32));
-    bconcat(s, tmp);
-    bcatcstr(s,"}");
+    switch (res) {
+    case REDIR_SUCCESS:
+      /* they haven't be set yet in conn */
+      starttime = time(0);
+      inoctets = outoctets = 0;
+      ingigawords = outgigawords = 0;
+      sessiontime=0; 
+      idletime=0;
+      break;
+    default:
+      {
+      }
+      break;
+    }
+
+    if (flg & FLG_sess) {
+      struct tm *_tm = gmtime(&starttime);
+      char b[48];
+      *b=0;
+      if (_tm) strftime(b,sizeof(b),"%c",_tm);
+      bcatcstr(json,",\"session\":{\"startTime\":\"");
+      bcatcstr(json, b);
+      bcatcstr(json,"\"");
+      bcatcstr(json,",\"sessionTimeout\":");
+      bassignformat(tmp, "%ld", conn->params.sessiontimeout);
+      bconcat(json, tmp);
+      bcatcstr(json,",\"idleTimeout\":");
+      bassignformat(tmp, "%ld", conn->params.idletimeout);
+      bconcat(json, tmp);
+      bcatcstr(json,"}");
+    }
+
+    if (flg & FLG_acct) {
+      bcatcstr(json,",\"accounting\":{\"sessionTime\":");
+      bassignformat(tmp, "%ld", sessiontime);
+      bconcat(json, tmp);
+      bcatcstr(json,",\"idleTime\":");
+      bassignformat(tmp, "%ld", idletime);
+      bconcat(json, tmp);
+      bcatcstr(json,",\"inputOctets\":");
+      bassignformat(tmp, "%ld", inoctets);
+      bconcat(json, tmp);
+      bcatcstr(json,",\"outputOctets\":");
+      bassignformat(tmp, "%ld", outoctets);
+      bconcat(json, tmp);
+      bcatcstr(json,",\"inputGigawords\":");
+      bassignformat(tmp, "%ld", ingigawords);
+      bconcat(json, tmp);
+      bcatcstr(json,",\"outputGigawords\":");
+      bassignformat(tmp, "%ld", outgigawords);
+      bconcat(json, tmp);
+      bcatcstr(json,"}");
+    }
   }
 
-  bcatcstr(s, "}");
+  bcatcstr(json, "}");
 
   if (flg & FLG_cb) {
-    bcatcstr(s, ")");
+    bcatcstr(json, ")");
   }
 
   bdestroy(tmp);
+
+  bassigncstr(s, "HTTP/1.0 200 OK\r\nContent-type: ");
+  if (tmp->slen) bcatcstr(s, "text/javascript");
+  else bcatcstr(s, "application/json");
+  bcatcstr(s, "\r\n\r\n");
+  bconcat(s, json);
+
+  if (options.debug) {
+    log_dbg("sending json: %s\n", json->data);
+  }
+
+  bdestroy(json);
+
   return 0;
 }
 
@@ -809,7 +896,7 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
 
   if (conn->format == REDIR_FMT_JSON) {
 
-    redir_json_reply(redir, res, conn, reply, qs, buffer);
+    redir_json_reply(redir, res, conn, hexchal, userurl, redirurl, hismac, reply, qs, buffer);
     
   } else if (resp) {
     bcatcstr(buffer, "HTTP/1.0 302 Moved Temporarily\r\nLocation: ");
@@ -1180,8 +1267,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	}
       } else if (linelen == 0) { 
 	/* end of headers */
-	if (optionsdebug)
-	  log_dbg("end of http-request");
+	/*log_dbg("end of http-request");*/
 	done = 1;
 	break;
       } else { 
@@ -1301,9 +1387,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       bstring bt = bfromcstr(path+4);
       bstring bt2 = bfromcstr("");
       redir_urldecode(bt, bt2);
-      bstrtocstr(bt2,conn->userurl, sizeof(conn->userurl));
+      bstrtocstr(bt2,conn->wwwfile, sizeof(conn->wwwfile));
       if (optionsdebug) 
-	log_dbg("Serving file %s", conn->userurl);
+	log_dbg("Serving file %s", conn->wwwfile);
       bdestroy(bt2);
       bdestroy(bt);
     } 
@@ -1311,6 +1397,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
   default:
     {
+      /* some basic checks for urls we don't care about */
+      
       snprintf(conn->userurl, sizeof(conn->userurl), "http://%s/%s%s%s", 
 	       host, path, qs[0] ? "?" : "", qs[0] ? qs : "");
 
@@ -1442,7 +1530,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   if (radius->fd > maxfd)
     maxfd = radius->fd;
 
-  radius_set(radius, optionsdebug);
+  radius_set(radius, (options.debug & DEBUG_RADIUS));
   
   radius_set_cb_auth_conf(radius, redir_cb_radius_auth_conf);
 
@@ -1461,7 +1549,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_LANG, 
 		   0, (uint8_t*) conn->lang, strlen(conn->lang));
 
-  if (redir->secret) {
+  if (redir->secret && *redir->secret) {
     /* Get MD5 hash on challenge and uamsecret */
     MD5Init(&context);
     MD5Update(&context, conn->uamchal, REDIR_MD5LEN);
@@ -1590,7 +1678,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
       log_err(errno, "select() returned -1!");
       break;  
     case 0:
-      if (optionsdebug) log_dbg("Select returned 0\n");
+      /*log_dbg("Select returned 0");*/
       radius_timeout(radius);
       break; 
     default:
@@ -1662,7 +1750,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
     log_dbg("challenge: %s", buffer);
   }/**/
 
-  if (redir->secret) {
+  if (redir->secret && *redir->secret) {
     MD5Init(&context);
     MD5Update(&context, (uint8_t*)conn->uamchal, REDIR_MD5LEN);
     MD5Update(&context, (uint8_t*)redir->secret, strlen(redir->secret));
@@ -1905,9 +1993,9 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   if (conn.type == REDIR_WWW) {
     int fd = -1;
-    if (options.wwwdir && conn.userurl && *conn.userurl) {
+    if (options.wwwdir && conn.wwwfile && *conn.wwwfile) {
       char *ctype = "text/plain";
-      char *filename = conn.userurl;
+      char *filename = conn.wwwfile;
       int namelen = strlen(filename);
       int parse = 0;
       
@@ -2027,13 +2115,16 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
 
   termstate = REDIR_TERM_GETSTATE;
-  if (optionsdebug) log_dbg("Calling cb_getstate()\n");
+  /*log_dbg("Calling cb_getstate()\n");*/
   if (!redir->cb_getstate) { log_err(0, "No cb_getstate() defined!"); redir_close(); }
 
   state = redir->cb_getstate(redir, &address->sin_addr, &conn);
 
   termstate = REDIR_TERM_PROCESS;
   if (optionsdebug) log_dbg("Processing received request\n");
+
+  /* default hexchal for use in replies */
+  redir_chartohex(conn.uamchal, hexchal);
 
   switch (conn.type) {
 
@@ -2088,19 +2179,19 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
     if (conn.response == REDIR_SUCCESS) { /* Radius-Accept */
       bstring besturl = bfromcstr(conn.params.url);
-
+      
       if (! (besturl && besturl->slen)) 
 	bassigncstr(besturl, conn.userurl);
-
+      
       if (redir->no_uamsuccess && besturl && besturl->slen)
 	redir_reply(redir, &socket, &conn, conn.response, besturl, conn.params.sessiontimeout,
-		    hexchal, conn.username, conn.userurl, conn.reply,
+		    NULL, conn.username, conn.userurl, conn.reply,
 		    conn.params.url, conn.hismac, &conn.hisip, qs);
       else 
 	redir_reply(redir, &socket, &conn, conn.response, NULL, conn.params.sessiontimeout,
-		    hexchal, conn.username, conn.userurl, conn.reply, 
+		    NULL, conn.username, conn.userurl, conn.reply, 
 		    conn.params.url, conn.hismac, &conn.hisip, qs);
-
+      
       bdestroy(besturl);
       
       msg.type = REDIR_LOGIN;
@@ -2190,9 +2281,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	redir_close();
       }
     }
-    else {
-      (void)redir_chartohex(conn.uamchal, hexchal);
-    }
     
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ALREADY, 
@@ -2237,15 +2325,26 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       uint32_t timeleft;
       time_t timenow = time(0);
 
+      /* Did the challenge expire? */
+      if ((conn.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
+	redir_memcopy(REDIR_CHALLENGE);
+	if (msgsnd(redir->msgid, (struct msgbuf*) &msg,  sizeof(msg), 0) < 0) {
+	  log_err(errno, "msgsnd() failed!");
+	  redir_close();
+	}
+      }
+      
       sessiontime = timenow - conn.start_time;
 
       if (conn.params.sessiontimeout)
 	timeleft = conn.params.sessiontimeout - sessiontime;
       else
 	timeleft = 0;
-      
+
       redir_reply(redir, &socket, &conn, REDIR_STATUS, NULL, timeleft,
-		  NULL, NULL, NULL, NULL, NULL, NULL, NULL, qs);
+		  hexchal, conn.username, conn.userurl, conn.reply, 
+		  conn.params.url, conn.hismac, &conn.hisip, qs);
+      
       redir_close();
     }
 
@@ -2258,6 +2357,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   /* It was not a request for a known path. It must be an original request */
   if (optionsdebug) 
     log_dbg("redir_accept: Original request");
+
 
   /* Did the challenge expire? */
   if ((conn.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
@@ -2272,9 +2372,20 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     }
   }
   else {
-    (void)redir_chartohex(conn.uamchal, hexchal);
+    redir_chartohex(conn.uamchal, hexchal);
+    /*
+    msg.type = REDIR_CHALLENGE;
+    msg.addr = address->sin_addr;
+    strncpy(msg.userurl, conn.userurl, sizeof(msg.userurl));
+    memcpy(msg.uamchal, conn.uamchal, REDIR_MD5LEN);
+    if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
+	       sizeof(struct redir_msg_t), 0) < 0) {
+      log_err(errno, "msgsnd() failed!");
+      redir_close();
+    }
+    */
   }
-  
+
   if (redir->homepage) {
     bstring url = bfromcstralloc(1024,"");
     bstring urlenc = bfromcstralloc(1024,"");

@@ -1,0 +1,4 @@
+#!/bin/sh
+file=$(basename $1)
+cd /etc/chilli/www
+haserl $file

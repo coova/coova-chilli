@@ -26,7 +26,7 @@
 #include "options.h"
 
 struct options_t options = {0};
-#define STRDUP(x) ((x)?strdup(x):0)
+#define STRDUP(x) ((x) ? strdup((x)) : 0)
 
 /* Get IP address and mask */
 int option_aton(struct in_addr *addr, struct in_addr *mask,
@@ -168,7 +168,7 @@ int process_options(int argc, char **argv, int minimal) {
   }
 
   /* Get the system default DNS entries */
-  if (res_init()) {
+  if (!reconfiguring && res_init()) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0,
 	    "Failed to update system DNS settings (res_init()!");
     goto end_processing;
