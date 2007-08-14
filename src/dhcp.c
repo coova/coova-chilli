@@ -1695,8 +1695,7 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn,
   /* Calculate total length */
   length = udp_len + DHCP_IP_HLEN + DHCP_ETH_HLEN;
 
-  return dhcp_send(this, this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex,
-		   &packet, length);
+  return dhcp_send(this, this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex, &packet, length);
 }
 
 /**

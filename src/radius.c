@@ -1216,6 +1216,12 @@ int radius_req(struct radius_t *this,
   struct sockaddr_in addr;
   int len = ntohs(pack->length);
 
+  /* always add the chillispot version to access requests */
+  if (pack->code == RADIUS_CODE_ACCESS_REQUEST)
+    radius_addattr(this, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VERSION, 
+		   0, (uint8_t*)VERSION, strlen(VERSION));
+
   /* Place packet in queue */
   if (radius_queue_in(this, pack, cbp)) {
     return -1;

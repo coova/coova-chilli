@@ -1840,7 +1840,6 @@ int access_request(struct radius_packet_t *pack,
 		   0, 0, 0, NULL, RADIUS_MD5LEN);
   }
 
-
   /* Include his MAC address */
   (void) snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 	   appconn->proxyhismac[0], appconn->proxyhismac[1],

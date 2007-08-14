@@ -2,7 +2,7 @@
  *
  * Radius client functions.
  * Copyright (C) 2005 Mondru AB.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -22,5 +22,6 @@
 #define	RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN         5 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_CONFIG                     6 /* string */
 #define RADIUS_ATTR_CHILLISPOT_LANG                       7 /* string */
+#define RADIUS_ATTR_CHILLISPOT_VERSION                    8 /* string */
 
 #endif	/* !_RADIUS_CHILLISPOT_H */
