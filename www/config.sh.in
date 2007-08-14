@@ -1,0 +1,13 @@
+#!/bin/sh
+
+[ -f @ETCCHILLI@/defaults ] && . @ETCCHILLI@/defaults
+[ -f @ETCCHILLI@/config ] && . @ETCCHILLI@/config
+
+reg_mode=$HS_REG_MODE
+[ "$reg_mode" = "self" ] && register=1
+[ "$reg_mode" = "tos"  ] && tos=1
+openidauth=$HS_OPENIDAUTH
+uamsecret=$HS_UAMSECRET
+hs_uamlisten=$HS_UAMLISTEN
+hs_uamport=$HS_UAMPORT
+

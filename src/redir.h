@@ -174,6 +174,7 @@ struct redir_t {
   char *radiusnasid;
   char* radiuslocationid;
   char* radiuslocationname;
+  char* locationname;
   int radiusnasporttype;
   int starttime;
   int chillixml;     /* Send chilli specific XML along with WISPr */

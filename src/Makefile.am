@@ -1,7 +1,11 @@
 sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query test_radius
 
 # add -pg to enable gprof
-AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fstrict-aliasing -ansi -DSBINDIR='"$(sbindir)"' -I$(top_builddir)/bstring
+AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fstrict-aliasing -ansi\
+ -DDEFCHILLICONF='"$(sysconfdir)/chilli.conf"'\
+ -DDEFPIDFILE='"$(localstatedir)/run/chilli.pid"'\
+ -DDEFSTATEDIR='"$(localstatedir)/run/chilli"'\
+ -DSBINDIR='"$(sbindir)"' -I$(top_builddir)/bstring
 
 chilli_SOURCES = \
 main.c chilli.c options.c tun.c tun.h cmdline.c cmdline.h ippool.c ippool.h radius.h radius.c \

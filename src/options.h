@@ -36,14 +36,15 @@ struct options_t {
   char *pidfile;
   char *statedir;
 
-  int tap;
-  unsigned char tapmac[DHCP_ETH_ALEN]; /* TAP MAC address */
+  int usetap;
 
   /* TUN parameters */
   struct in_addr net;            /* Network IP address */
   char netc[IPADDRLEN];
   struct in_addr mask;           /* Network mask */
   char maskc[IPADDRLEN];
+
+  char *tundev;
   char *dynip;                   /* Dynamic IP address pool */
   char *statip;                  /* Static IP address pool */
   int allowdyn;                  /* Allow dynamic address allocation */
@@ -67,6 +68,7 @@ struct options_t {
   char* radiusnasid;             /* Radius NAS-Identifier */
   char* radiuslocationid;        /* WISPr location ID */
   char* radiuslocationname;      /* WISPr location name */
+  char* locationname;            /* Location name */
   int radiusnasporttype;         /* NAS-Port-Type */
   uint16_t coaport;              /* UDP port to listen to */
   int coanoipcheck;              /* Allow disconnect from any IP */
@@ -83,7 +85,6 @@ struct options_t {
   int postauth_proxyport;           /* TCP port to proxy to */
 
   /* DHCP parameters */
-  int nodhcp;                    /* Do not use DHCP */
   char* dhcpif;                 /* Interface: eth0 */
   unsigned char dhcpmac[DHCP_ETH_ALEN]; /* Interface MAC address */
   int dhcpusemac;               /* Use given MAC or interface default */

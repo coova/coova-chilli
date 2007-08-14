@@ -596,20 +596,8 @@ int static macauth_radius(struct app_conn_t *appconn) {
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
 		 (uint8_t*) mac, MACSTRLEN);
   
-  if (options.nasmac) {
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-		   (uint8_t *)options.nasmac, strlen(options.nasmac)); 
-  } else {
-    /* Include our MAC address */
-    (void) snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		    dhcpconn->ourmac[0], dhcpconn->ourmac[1],
-		    dhcpconn->ourmac[2], dhcpconn->ourmac[3],
-		    dhcpconn->ourmac[4], dhcpconn->ourmac[5]);
-    
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-			  (uint8_t*) mac, MACSTRLEN);
-  }
-  
+  radius_addcalledstation(radius, &radius_pack);
+
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
 		 appconn->unit, NULL, 0);
 
@@ -852,18 +840,8 @@ int static acct_req(struct app_conn_t *conn, int status_type)
 
   radius_addnasip(radius, &radius_pack);
 
-  if (options.nasmac) {
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-		   (uint8_t *)options.nasmac, strlen(options.nasmac)); 
-  } else {
-    snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	     conn->ourmac[0], conn->ourmac[1],
-	     conn->ourmac[2], conn->ourmac[3],
-	     conn->ourmac[4], conn->ourmac[5]);
-    
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-		   (uint8_t*) mac, MACSTRLEN);
-  }
+  radius_addcalledstation(radius, &radius_pack);
+
 
   /* Include NAS-Identifier if given in configuration options */
   if (options.radiusnasid)
@@ -1186,7 +1164,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
   struct app_conn_t *appconn;
   struct tun_packet_t *iph;
 
-  if (options.tap) {
+  if (options.usetap) {
     struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
     iph = (struct tun_packet_t*)(pack + DHCP_ETH_HLEN);
 
@@ -1239,7 +1217,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
 	/*memcpy(packet.arp.sha, dhcp->arp_hwaddr, DHCP_ETH_ALEN);
 	  memcpy(packet.arp.spa, &dhcp->ourip.s_addr, DHCP_IP_ALEN);*/
 	/*memcpy(packet.arp.sha, appconn->hismac, DHCP_ETH_ALEN);*/
-	memcpy(packet.arp.sha, options.tapmac, DHCP_ETH_ALEN);
+	memcpy(packet.arp.sha, tun->tap_hwaddr, DHCP_ETH_ALEN);
 	memcpy(packet.arp.spa, &appconn->hisip.s_addr, DHCP_IP_ALEN);
 	
 	/* Target address */
@@ -1849,20 +1827,8 @@ int access_request(struct radius_packet_t *pack,
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
 		 (uint8_t*) mac, MACSTRLEN);
   
-  if (options.nasmac) {
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-		   (uint8_t *)options.nasmac, strlen(options.nasmac)); 
-  } else {
-    /* Include our MAC address */
-    (void) snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		    appconn->proxyourmac[0], appconn->proxyourmac[1],
-		    appconn->proxyourmac[2], appconn->proxyourmac[3],
-		    appconn->proxyourmac[4], appconn->proxyourmac[5]);
-  }
+  radius_addcalledstation(radius, &radius_pack);
 
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-		 (uint8_t*) mac, MACSTRLEN);
-  
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
 		 options.radiusnasporttype, NULL, 0);
 
@@ -1895,11 +1861,6 @@ int cb_radius_ind(struct radius_t *rp, struct radius_packet_t *pack,
     return 0;
   }
   
-  if (options.nodhcp) {
-    log_err(0, "Radius request received when not using dhcp");
-    return 0;
-  }
-
   switch (pack->code) {
   case RADIUS_CODE_ACCOUNTING_REQUEST: /* TODO: Exclude ??? */
     return accounting_request(pack, peer);
@@ -3197,19 +3158,30 @@ static int cmdsock_accept(int sock) {
 /* Function that will create and write a status file in statedir*/
 int printstatus(struct app_conn_t *appconn)
 {
+  char *statedir = options.statedir ? options.statedir : DEFSTATEDIR;
   struct app_conn_t *apptemp;
   FILE *file;
   char filedest[512];
   time_t timenow = mainclock;
   struct stat statbuf;
 
-  if (!options.usestatusfile) return 0;
-  if (!options.statedir) return 0;
-  if (strlen(options.statedir)>sizeof(filedest)-1) return -1;
-  if (stat(options.statedir, &statbuf)) { log_err(errno, "statedir does not exist"); return -1; }
-  if (!S_ISDIR(statbuf.st_mode)) { log_err(0, "statedir not a directory"); return -1; }
+  if (!options.usestatusfile) 
+    return 0;
 
-  strcpy(filedest, options.statedir);
+  if (strlen(statedir)>sizeof(filedest)-1) 
+    return -1;
+
+  if (stat(statedir, &statbuf)) { 
+    log_err(errno, "statedir (%s) does not exist", statedir); 
+    return -1; 
+  }
+
+  if (!S_ISDIR(statbuf.st_mode)) { 
+    log_err(0, "statedir (%s) not a directory", statedir); 
+    return -1; 
+  }
+
+  strcpy(filedest, statedir);
   strcat(filedest, "/chillispot.state");
 
   file = fopen(filedest, "w");
@@ -3308,9 +3280,14 @@ int chilli_main(int argc, char **argv)
   openlog(PACKAGE, LOG_PID, (options.logfacility<<3));
   
   /* This has to be done after we have our final pid */
-  if (options.pidfile) {
-    log_pid(options.pidfile);
-  }
+  log_pid((options.pidfile && *options.pidfile) ? options.pidfile : DEFPIDFILE);
+
+  if (options.debug) 
+    log_dbg("ChilliSpot version %s started.\n", VERSION);
+
+  syslog(LOG_INFO, "ChilliSpot %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
+	 "Copyright 2006-2007 David Bird <dbird@acm.org>. Licensed under GPL. "
+	 "See http://www.chillispot.org/ & http://coova.org/ for details.", VERSION);
 
   printstatus(NULL);
 
@@ -3328,6 +3305,34 @@ int chilli_main(int argc, char **argv)
   if (options.ipup) tun_runscript(tun, options.ipup);
 
   
+  /* Create an instance of dhcp */
+  if (dhcp_new(&dhcp, APP_NUM_CONN, options.dhcpif,
+	       options.dhcpusemac, options.dhcpmac, options.dhcpusemac, 
+	       &options.dhcplisten, options.lease, 1, 
+	       &options.uamlisten, options.uamport, 
+	       options.eapolenable)) {
+    log_err(0, "Failed to create dhcp");
+    exit(1);
+  }
+  if (dhcp->fd > maxfd)
+    maxfd = dhcp->fd;
+  if (dhcp->arp_fd > maxfd)
+    maxfd = dhcp->arp_fd;
+  if (dhcp->eapol_fd > maxfd)
+    maxfd = dhcp->eapol_fd;
+  
+  (void) dhcp_set_cb_request(dhcp, cb_dhcp_request);
+  (void) dhcp_set_cb_connect(dhcp, cb_dhcp_connect);
+  (void) dhcp_set_cb_disconnect(dhcp, cb_dhcp_disconnect);
+  (void) dhcp_set_cb_data_ind(dhcp, cb_dhcp_data_ind);
+  (void) dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
+  (void) dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
+  if (dhcp_set(dhcp, (options.debug & DEBUG_DHCP))) {
+    log_err(0, "Failed to set DHCP parameters");
+    exit(1);
+  }
+
+
   /* Create an instance of radius */
   if (radius_new(&radius,
 		 &options.radiuslisten, options.coaport, options.coanoipcheck,
@@ -3337,37 +3342,20 @@ int chilli_main(int argc, char **argv)
     log_err(0, "Failed to create radius");
     return -1;
   }
+
   if (radius->fd > maxfd)
     maxfd = radius->fd;
   
   if ((radius->proxyfd != -1) && (radius->proxyfd > maxfd))
     maxfd = radius->proxyfd;
   
-  radius_set(radius, (options.debug & DEBUG_RADIUS));
-  
-  if (options.debug) 
-    log_dbg("ChilliSpot version %s started.\n", VERSION);
-
-  syslog(LOG_INFO, "ChilliSpot %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006-2007 David Bird <dbird@acm.org>. Licensed under GPL. "
-	 "See http://www.chillispot.org/ & http://coova.org/ for details.", VERSION);
-  
+  radius_set(radius, dhcp ? dhcp->hwaddr : 0, (options.debug & DEBUG_RADIUS));
   radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
   radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
   radius_set_cb_ind(radius, cb_radius_ind);
 
   if (options.acct_update)
     radius_set_cb_acct_conf(radius, cb_radius_acct_conf);
-
-  acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
-
-  if (options.adminuser) {
-    admin_session.is_adminsession = 1;
-    strncpy(admin_session.user, options.adminuser, sizeof(admin_session.user));
-    admin_session.userlen = strlen(options.adminuser);
-    set_sessionid(&admin_session);
-    chilliauth_radius(radius);
-  }
 
   /* Initialise connections */
   initconn();
@@ -3394,35 +3382,18 @@ int chilli_main(int argc, char **argv)
   if (redir->fd[1] > maxfd) maxfd = redir->fd[1];
   redir_set(redir, (options.debug));
   redir_set_cb_getstate(redir, cb_redir_getstate);
-  
-  /* Create an instance of dhcp */
-  if (!options.nodhcp) {
-    if (dhcp_new(&dhcp, APP_NUM_CONN, options.dhcpif,
-		 options.dhcpusemac, options.dhcpmac, options.dhcpusemac, 
-		 &options.dhcplisten, options.lease, 1, 
-		 &options.uamlisten, options.uamport, 
-		 options.eapolenable)) {
-      log_err(0, "Failed to create dhcp");
-      exit(1);
-    }
-    if (dhcp->fd > maxfd)
-      maxfd = dhcp->fd;
-    if (dhcp->arp_fd > maxfd)
-      maxfd = dhcp->arp_fd;
-    if (dhcp->eapol_fd > maxfd)
-      maxfd = dhcp->eapol_fd;
-    
-    (void) dhcp_set_cb_request(dhcp, cb_dhcp_request);
-    (void) dhcp_set_cb_connect(dhcp, cb_dhcp_connect);
-    (void) dhcp_set_cb_disconnect(dhcp, cb_dhcp_disconnect);
-    (void) dhcp_set_cb_data_ind(dhcp, cb_dhcp_data_ind);
-    (void) dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
-    (void) dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
-    if (dhcp_set(dhcp, (options.debug & DEBUG_DHCP))) {
-      log_err(0, "Failed to set DHCP parameters");
-      exit(1);
-    }
 
+  
+  memcpy(admin_session.ourmac, dhcp->hwaddr, sizeof(dhcp->hwaddr));
+  memcpy(admin_session.proxyourmac, dhcp->hwaddr, sizeof(dhcp->hwaddr));
+  acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
+
+  if (options.adminuser) {
+    admin_session.is_adminsession = 1;
+    strncpy(admin_session.user, options.adminuser, sizeof(admin_session.user));
+    admin_session.userlen = strlen(options.adminuser);
+    set_sessionid(&admin_session);
+    chilliauth_radius(radius);
   }
 
   if (options.cmdsocket) {
@@ -3501,7 +3472,7 @@ int chilli_main(int argc, char **argv)
 	dhcp_set(dhcp, (options.debug & DEBUG_DHCP));
       
       /* Reinit RADIUS parameters */
-      radius_set(radius, (options.debug & DEBUG_RADIUS));
+      radius_set(radius, dhcp ? dhcp->hwaddr : 0, (options.debug & DEBUG_RADIUS));
       
       /* Reinit Redir parameters */
       redir_set(redir, options.debug);

@@ -39,6 +39,7 @@
 #include "redir.h"
 #include "md5.h"
 #include "dhcp.h"
+#include "tun.h"
 #include "chilli.h"
 #include "options.h"
 #include "ippool.h"
@@ -999,15 +1000,15 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
   }
   
   if (usemac) memcpy(((*dhcp)->hwaddr), mac, DHCP_ETH_ALEN);
+
   if (((*dhcp)->fd = 
        dhcp_open_eth(interface, DHCP_ETH_IP, promisc, usemac,
 		     ((*dhcp)->hwaddr),
-		     &((*dhcp)->ifindex))) < 0) 
-    {
-      free((*dhcp)->conn);
-      free(*dhcp);
-      return -1; /* Error reporting done in dhcp_open_eth */
-    }
+		     &((*dhcp)->ifindex))) < 0) {
+    free((*dhcp)->conn);
+    free(*dhcp);
+    return -1; /* Error reporting done in dhcp_open_eth */
+  }
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
   { int blen=0;
@@ -1155,7 +1156,7 @@ int check_garden(pass_through *ptlist, int ptcnt, struct dhcp_ippacket_t *pack, 
       if (pt->host.s_addr == 0 || pt->host.s_addr == ((dst ? pack->iph.daddr : pack->iph.saddr) & pt->mask.s_addr))
 	if (pt->port == 0 || 
 	    (pack->iph.protocol == DHCP_IP_TCP && (dst ? tcph->dst : tcph->src) == htons(pt->port)) ||
-	    (pack->iph.protocol == DHCP_IP_UDP && (dst ? udph->dst : udph->src)== htons(pt->port)))
+	    (pack->iph.protocol == DHCP_IP_UDP && (dst ? udph->dst : udph->src) == htons(pt->port)))
 	  return 1;
   }
 
@@ -1187,8 +1188,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
   if (((this->anydns) ||
        (pack->iph.daddr == conn->dns1.s_addr) ||
        (pack->iph.daddr == conn->dns2.s_addr)) &&
-      (pack->iph.protocol == DHCP_IP_UDP) &&
-      (udph->dst == htons(DHCP_DNS)))
+      (pack->iph.protocol == DHCP_IP_UDP && udph->dst == htons(DHCP_DNS)))
     return 0; 
 
   /* Was it a http or https request for authentication server? */
@@ -1232,14 +1232,14 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
       }
     }
     if (pos==-1) { /* Save for undoing */
-      if (options.tap) 
+      if (options.usetap) 
 	memcpy(conn->dnatmac[conn->nextdnat], pack->ethh.dst, DHCP_ETH_ALEN); 
       conn->dnatip[conn->nextdnat] = pack->iph.daddr; 
       conn->dnatport[conn->nextdnat] = tcph->src;
       conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
     }
-    if (options.tap) 
-      memcpy(pack->ethh.dst, options.tapmac, DHCP_ETH_ALEN); 
+    if (options.usetap) 
+      memcpy(pack->ethh.dst, tun->tap_hwaddr, DHCP_ETH_ALEN); 
     pack->iph.daddr = this->uamlisten.s_addr;
     tcph->dst = htons(this->uamport);
     (void)dhcp_tcp_check(pack, len);
@@ -1336,8 +1336,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   if (((this->anydns) ||
        (pack->iph.saddr == conn->dns1.s_addr) ||
        (pack->iph.saddr == conn->dns2.s_addr)) &&
-      (pack->iph.protocol == DHCP_IP_UDP) &&
-      (udph->src == htons(DHCP_DNS)))
+      (pack->iph.protocol == DHCP_IP_UDP && udph->src == htons(DHCP_DNS)))
     return 0; 
 
   if (pack->iph.protocol == DHCP_IP_ICMP) {
@@ -2158,9 +2157,9 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
     return 0;
   }
 
-  if (options.tap) {
+  if (options.usetap) {
     struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
-    memcpy(ethh->dst,options.tapmac,DHCP_ETH_ALEN);
+    memcpy(ethh->dst,tun->tap_hwaddr,DHCP_ETH_ALEN);
   }
 
   if ((conn->hisip.s_addr) && (this->cb_data_ind)) {
@@ -2205,7 +2204,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, unsigned len)
   int length = len;
 
   /* IP Packet */
-  if (options.tap) {
+  if (options.usetap) {
     memcpy(&packet, pack, len);
   } else {
     memcpy(&packet.iph, pack, len);

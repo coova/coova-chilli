@@ -196,7 +196,7 @@ ChilliController.processUAM = function ( resp ) {
 	if ( typeof (resp.response) === 'string' ) { 
 	   var url = ChilliController.urlRoot() + 'logon?username=' + resp.username + '&response=' + resp.response ;
 	}
-	else if ( typeof (res.password) === 'string' ) {
+	else if ( typeof (resp.password) === 'string' ) {
 	   var url = ChilliController.urlRoot() + 'logon?username=' + resp.username + '&password=' + resp.password ;
 	}
 

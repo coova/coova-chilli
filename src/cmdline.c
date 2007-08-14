@@ -32,10 +32,10 @@ const char *gengetopt_args_info_help[] = {
   "  -d, --debug                   Run in debug mode  (default=off)",
   "      --debugfacility=INT       Which modules to print debug messages for  \n                                  (default=`1')",
   "      --logfacility=INT         Which modules to print debug messages for  \n                                  (default=`-1')",
-  "  -c, --conf=STRING             Read configuration file  \n                                  (default=`/etc/chilli.conf')",
+  "  -c, --conf=STRING             Read configuration file",
   "      --interval=INT            Re-read configuration file at this interval  \n                                  (default=`3600')",
-  "      --pidfile=STRING          Filename of process id file  \n                                  (default=`/var/run/chilli.pid')",
-  "      --statedir=STRING         Directory of nonvolatile data  \n                                  (default=`/var/lib/chilli/')",
+  "      --pidfile=STRING          Filename of process id file",
+  "      --statedir=STRING         Directory of nonvolatile data",
   "  -n, --net=STRING              Network  (default=`192.168.182.0/24')",
   "      --dhcpstart=INT           Network DHCP Starting IP  (default=`10')",
   "      --dhcpend=INT             Network DHCP Ending IP  (default=`254')",
@@ -49,6 +49,7 @@ const char *gengetopt_args_info_help[] = {
   "      --conup=STRING            Script to run after user logon",
   "      --condown=STRING          Script to run after user logoff",
   "      --txqlen=INT              TX Queue length for tun interface (linux only)  \n                                  (default=`100')",
+  "      --tundev=STRING           TUN/TAP Device, as in tun0 or tap1",
   "      --radiuslisten=STRING     IP address to send from",
   "      --radiusserver1=STRING    IP address of radius server 1",
   "      --radiusserver2=STRING    IP address of radius server 2",
@@ -58,6 +59,7 @@ const char *gengetopt_args_info_help[] = {
   "      --radiusnasid=STRING      Radius NAS-Identifier  (default=`nas01')",
   "      --radiuslocationid=STRING WISPr Location ID",
   "      --radiuslocationname=STRING\n                                WISPr Location Name",
+  "      --locationname=STRING     Location Name",
   "      --radiusnasporttype=INT   Radius NAS-Port-Type  (default=`19')",
   "      --coaport=INT             Radius disconnect port to listen to  \n                                  (default=`0')",
   "      --coanoipcheck            Allow radius disconnect from any IP  \n                                  (default=off)",
@@ -183,6 +185,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->conup_given = 0 ;
   args_info->condown_given = 0 ;
   args_info->txqlen_given = 0 ;
+  args_info->tundev_given = 0 ;
   args_info->radiuslisten_given = 0 ;
   args_info->radiusserver1_given = 0 ;
   args_info->radiusserver2_given = 0 ;
@@ -192,6 +195,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->radiusnasid_given = 0 ;
   args_info->radiuslocationid_given = 0 ;
   args_info->radiuslocationname_given = 0 ;
+  args_info->locationname_given = 0 ;
   args_info->radiusnasporttype_given = 0 ;
   args_info->coaport_given = 0 ;
   args_info->coanoipcheck_given = 0 ;
@@ -254,13 +258,13 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->debugfacility_orig = NULL;
   args_info->logfacility_arg = -1;
   args_info->logfacility_orig = NULL;
-  args_info->conf_arg = gengetopt_strdup ("/etc/chilli.conf");
+  args_info->conf_arg = NULL;
   args_info->conf_orig = NULL;
   args_info->interval_arg = 3600;
   args_info->interval_orig = NULL;
-  args_info->pidfile_arg = gengetopt_strdup ("/var/run/chilli.pid");
+  args_info->pidfile_arg = NULL;
   args_info->pidfile_orig = NULL;
-  args_info->statedir_arg = gengetopt_strdup ("/var/lib/chilli/");
+  args_info->statedir_arg = NULL;
   args_info->statedir_orig = NULL;
   args_info->net_arg = gengetopt_strdup ("192.168.182.0/24");
   args_info->net_orig = NULL;
@@ -288,6 +292,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->condown_orig = NULL;
   args_info->txqlen_arg = 100;
   args_info->txqlen_orig = NULL;
+  args_info->tundev_arg = NULL;
+  args_info->tundev_orig = NULL;
   args_info->radiuslisten_arg = NULL;
   args_info->radiuslisten_orig = NULL;
   args_info->radiusserver1_arg = NULL;
@@ -306,6 +312,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->radiuslocationid_orig = NULL;
   args_info->radiuslocationname_arg = NULL;
   args_info->radiuslocationname_orig = NULL;
+  args_info->locationname_arg = NULL;
+  args_info->locationname_orig = NULL;
   args_info->radiusnasporttype_arg = 19;
   args_info->radiusnasporttype_orig = NULL;
   args_info->coaport_arg = 0;
@@ -421,70 +429,72 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->conup_help = gengetopt_args_info_help[20] ;
   args_info->condown_help = gengetopt_args_info_help[21] ;
   args_info->txqlen_help = gengetopt_args_info_help[22] ;
-  args_info->radiuslisten_help = gengetopt_args_info_help[23] ;
-  args_info->radiusserver1_help = gengetopt_args_info_help[24] ;
-  args_info->radiusserver2_help = gengetopt_args_info_help[25] ;
-  args_info->radiusauthport_help = gengetopt_args_info_help[26] ;
-  args_info->radiusacctport_help = gengetopt_args_info_help[27] ;
-  args_info->radiussecret_help = gengetopt_args_info_help[28] ;
-  args_info->radiusnasid_help = gengetopt_args_info_help[29] ;
-  args_info->radiuslocationid_help = gengetopt_args_info_help[30] ;
-  args_info->radiuslocationname_help = gengetopt_args_info_help[31] ;
-  args_info->radiusnasporttype_help = gengetopt_args_info_help[32] ;
-  args_info->coaport_help = gengetopt_args_info_help[33] ;
-  args_info->coanoipcheck_help = gengetopt_args_info_help[34] ;
-  args_info->proxylisten_help = gengetopt_args_info_help[35] ;
-  args_info->proxyport_help = gengetopt_args_info_help[36] ;
-  args_info->proxyclient_help = gengetopt_args_info_help[37] ;
-  args_info->proxysecret_help = gengetopt_args_info_help[38] ;
-  args_info->dhcpif_help = gengetopt_args_info_help[39] ;
-  args_info->dhcpmac_help = gengetopt_args_info_help[40] ;
-  args_info->lease_help = gengetopt_args_info_help[41] ;
-  args_info->eapolenable_help = gengetopt_args_info_help[42] ;
-  args_info->uamserver_help = gengetopt_args_info_help[43] ;
-  args_info->uamhomepage_help = gengetopt_args_info_help[44] ;
-  args_info->uamsecret_help = gengetopt_args_info_help[45] ;
-  args_info->uamlisten_help = gengetopt_args_info_help[46] ;
-  args_info->uamport_help = gengetopt_args_info_help[47] ;
-  args_info->uamuiport_help = gengetopt_args_info_help[48] ;
-  args_info->uamallowed_help = gengetopt_args_info_help[49] ;
+  args_info->tundev_help = gengetopt_args_info_help[23] ;
+  args_info->radiuslisten_help = gengetopt_args_info_help[24] ;
+  args_info->radiusserver1_help = gengetopt_args_info_help[25] ;
+  args_info->radiusserver2_help = gengetopt_args_info_help[26] ;
+  args_info->radiusauthport_help = gengetopt_args_info_help[27] ;
+  args_info->radiusacctport_help = gengetopt_args_info_help[28] ;
+  args_info->radiussecret_help = gengetopt_args_info_help[29] ;
+  args_info->radiusnasid_help = gengetopt_args_info_help[30] ;
+  args_info->radiuslocationid_help = gengetopt_args_info_help[31] ;
+  args_info->radiuslocationname_help = gengetopt_args_info_help[32] ;
+  args_info->locationname_help = gengetopt_args_info_help[33] ;
+  args_info->radiusnasporttype_help = gengetopt_args_info_help[34] ;
+  args_info->coaport_help = gengetopt_args_info_help[35] ;
+  args_info->coanoipcheck_help = gengetopt_args_info_help[36] ;
+  args_info->proxylisten_help = gengetopt_args_info_help[37] ;
+  args_info->proxyport_help = gengetopt_args_info_help[38] ;
+  args_info->proxyclient_help = gengetopt_args_info_help[39] ;
+  args_info->proxysecret_help = gengetopt_args_info_help[40] ;
+  args_info->dhcpif_help = gengetopt_args_info_help[41] ;
+  args_info->dhcpmac_help = gengetopt_args_info_help[42] ;
+  args_info->lease_help = gengetopt_args_info_help[43] ;
+  args_info->eapolenable_help = gengetopt_args_info_help[44] ;
+  args_info->uamserver_help = gengetopt_args_info_help[45] ;
+  args_info->uamhomepage_help = gengetopt_args_info_help[46] ;
+  args_info->uamsecret_help = gengetopt_args_info_help[47] ;
+  args_info->uamlisten_help = gengetopt_args_info_help[48] ;
+  args_info->uamport_help = gengetopt_args_info_help[49] ;
+  args_info->uamuiport_help = gengetopt_args_info_help[50] ;
+  args_info->uamallowed_help = gengetopt_args_info_help[51] ;
   args_info->uamallowed_min = -1;
   args_info->uamallowed_max = -1;
-  args_info->uamanydns_help = gengetopt_args_info_help[50] ;
-  args_info->uamanyip_help = gengetopt_args_info_help[51] ;
-  args_info->nouamsuccess_help = gengetopt_args_info_help[52] ;
-  args_info->nouamwispr_help = gengetopt_args_info_help[53] ;
-  args_info->uamlogoutip_help = gengetopt_args_info_help[54] ;
-  args_info->defsessiontimeout_help = gengetopt_args_info_help[55] ;
-  args_info->defidletimeout_help = gengetopt_args_info_help[56] ;
-  args_info->macauth_help = gengetopt_args_info_help[57] ;
-  args_info->macallowed_help = gengetopt_args_info_help[58] ;
+  args_info->uamanydns_help = gengetopt_args_info_help[52] ;
+  args_info->uamanyip_help = gengetopt_args_info_help[53] ;
+  args_info->nouamsuccess_help = gengetopt_args_info_help[54] ;
+  args_info->nouamwispr_help = gengetopt_args_info_help[55] ;
+  args_info->uamlogoutip_help = gengetopt_args_info_help[56] ;
+  args_info->defsessiontimeout_help = gengetopt_args_info_help[57] ;
+  args_info->defidletimeout_help = gengetopt_args_info_help[58] ;
+  args_info->macauth_help = gengetopt_args_info_help[59] ;
+  args_info->macallowed_help = gengetopt_args_info_help[60] ;
   args_info->macallowed_min = -1;
   args_info->macallowed_max = -1;
-  args_info->macsuffix_help = gengetopt_args_info_help[59] ;
-  args_info->macpasswd_help = gengetopt_args_info_help[60] ;
-  args_info->macallowlocal_help = gengetopt_args_info_help[61] ;
-  args_info->wwwdir_help = gengetopt_args_info_help[62] ;
-  args_info->wwwbin_help = gengetopt_args_info_help[63] ;
-  args_info->uamui_help = gengetopt_args_info_help[64] ;
-  args_info->adminuser_help = gengetopt_args_info_help[65] ;
-  args_info->adminpasswd_help = gengetopt_args_info_help[66] ;
-  args_info->nasmac_help = gengetopt_args_info_help[67] ;
-  args_info->nasip_help = gengetopt_args_info_help[68] ;
-  args_info->ssid_help = gengetopt_args_info_help[69] ;
-  args_info->vlan_help = gengetopt_args_info_help[70] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[71] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[72] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[73] ;
-  args_info->localusers_help = gengetopt_args_info_help[74] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[75] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[76] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[77] ;
-  args_info->openidauth_help = gengetopt_args_info_help[78] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[79] ;
-  args_info->chillixml_help = gengetopt_args_info_help[80] ;
-  args_info->acctupdate_help = gengetopt_args_info_help[81] ;
-  args_info->usetap_help = gengetopt_args_info_help[82] ;
+  args_info->macsuffix_help = gengetopt_args_info_help[61] ;
+  args_info->macpasswd_help = gengetopt_args_info_help[62] ;
+  args_info->macallowlocal_help = gengetopt_args_info_help[63] ;
+  args_info->wwwdir_help = gengetopt_args_info_help[64] ;
+  args_info->wwwbin_help = gengetopt_args_info_help[65] ;
+  args_info->uamui_help = gengetopt_args_info_help[66] ;
+  args_info->adminuser_help = gengetopt_args_info_help[67] ;
+  args_info->adminpasswd_help = gengetopt_args_info_help[68] ;
+  args_info->nasmac_help = gengetopt_args_info_help[69] ;
+  args_info->nasip_help = gengetopt_args_info_help[70] ;
+  args_info->ssid_help = gengetopt_args_info_help[71] ;
+  args_info->vlan_help = gengetopt_args_info_help[72] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[73] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[74] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[75] ;
+  args_info->localusers_help = gengetopt_args_info_help[76] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[77] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[78] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[79] ;
+  args_info->openidauth_help = gengetopt_args_info_help[80] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[81] ;
+  args_info->chillixml_help = gengetopt_args_info_help[82] ;
+  args_info->acctupdate_help = gengetopt_args_info_help[83] ;
+  args_info->usetap_help = gengetopt_args_info_help[84] ;
   
 }
 
@@ -681,6 +691,16 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
       free (args_info->txqlen_orig); /* free previous argument */
       args_info->txqlen_orig = 0;
     }
+  if (args_info->tundev_arg)
+    {
+      free (args_info->tundev_arg); /* free previous argument */
+      args_info->tundev_arg = 0;
+    }
+  if (args_info->tundev_orig)
+    {
+      free (args_info->tundev_orig); /* free previous argument */
+      args_info->tundev_orig = 0;
+    }
   if (args_info->radiuslisten_arg)
     {
       free (args_info->radiuslisten_arg); /* free previous argument */
@@ -760,6 +780,16 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
     {
       free (args_info->radiuslocationname_orig); /* free previous argument */
       args_info->radiuslocationname_orig = 0;
+    }
+  if (args_info->locationname_arg)
+    {
+      free (args_info->locationname_arg); /* free previous argument */
+      args_info->locationname_arg = 0;
+    }
+  if (args_info->locationname_orig)
+    {
+      free (args_info->locationname_orig); /* free previous argument */
+      args_info->locationname_orig = 0;
     }
   if (args_info->radiusnasporttype_orig)
     {
@@ -1253,6 +1283,13 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s\n", "txqlen");
     }
   }
+  if (args_info->tundev_given) {
+    if (args_info->tundev_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "tundev", args_info->tundev_orig);
+    } else {
+      fprintf(outfile, "%s\n", "tundev");
+    }
+  }
   if (args_info->radiuslisten_given) {
     if (args_info->radiuslisten_orig) {
       fprintf(outfile, "%s=\"%s\"\n", "radiuslisten", args_info->radiuslisten_orig);
@@ -1314,6 +1351,13 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s=\"%s\"\n", "radiuslocationname", args_info->radiuslocationname_orig);
     } else {
       fprintf(outfile, "%s\n", "radiuslocationname");
+    }
+  }
+  if (args_info->locationname_given) {
+    if (args_info->locationname_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "locationname", args_info->locationname_orig);
+    } else {
+      fprintf(outfile, "%s\n", "locationname");
     }
   }
   if (args_info->radiusnasporttype_given) {
@@ -1887,6 +1931,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "conup",	1, NULL, 0 },
         { "condown",	1, NULL, 0 },
         { "txqlen",	1, NULL, 0 },
+        { "tundev",	1, NULL, 0 },
         { "radiuslisten",	1, NULL, 0 },
         { "radiusserver1",	1, NULL, 0 },
         { "radiusserver2",	1, NULL, 0 },
@@ -1896,6 +1941,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "radiusnasid",	1, NULL, 0 },
         { "radiuslocationid",	1, NULL, 0 },
         { "radiuslocationname",	1, NULL, 0 },
+        { "locationname",	1, NULL, 0 },
         { "radiusnasporttype",	1, NULL, 0 },
         { "coaport",	1, NULL, 0 },
         { "coanoipcheck",	0, NULL, 0 },
@@ -2366,6 +2412,25 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               free (args_info->txqlen_orig); /* free previous string */
             args_info->txqlen_orig = gengetopt_strdup (optarg);
           }
+          /* TUN/TAP Device, as in tun0 or tap1.  */
+          else if (strcmp (long_options[option_index].name, "tundev") == 0)
+          {
+            if (local_args_info.tundev_given)
+              {
+                fprintf (stderr, "%s: `--tundev' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->tundev_given && ! override)
+              continue;
+            local_args_info.tundev_given = 1;
+            args_info->tundev_given = 1;
+            if (args_info->tundev_arg)
+              free (args_info->tundev_arg); /* free previous string */
+            args_info->tundev_arg = gengetopt_strdup (optarg);
+            if (args_info->tundev_orig)
+              free (args_info->tundev_orig); /* free previous string */
+            args_info->tundev_orig = gengetopt_strdup (optarg);
+          }
           /* IP address to send from.  */
           else if (strcmp (long_options[option_index].name, "radiuslisten") == 0)
           {
@@ -2540,6 +2605,25 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             if (args_info->radiuslocationname_orig)
               free (args_info->radiuslocationname_orig); /* free previous string */
             args_info->radiuslocationname_orig = gengetopt_strdup (optarg);
+          }
+          /* Location Name.  */
+          else if (strcmp (long_options[option_index].name, "locationname") == 0)
+          {
+            if (local_args_info.locationname_given)
+              {
+                fprintf (stderr, "%s: `--locationname' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->locationname_given && ! override)
+              continue;
+            local_args_info.locationname_given = 1;
+            args_info->locationname_given = 1;
+            if (args_info->locationname_arg)
+              free (args_info->locationname_arg); /* free previous string */
+            args_info->locationname_arg = gengetopt_strdup (optarg);
+            if (args_info->locationname_orig)
+              free (args_info->locationname_orig); /* free previous string */
+            args_info->locationname_orig = gengetopt_strdup (optarg);
           }
           /* Radius NAS-Port-Type.  */
           else if (strcmp (long_options[option_index].name, "radiusnasporttype") == 0)

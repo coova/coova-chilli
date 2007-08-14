@@ -310,10 +310,12 @@ static int redir_xmlreply(struct redir_t *redir,
       bcatcstr(b, 
 	       "<Redirect>\r\n"
 	       "<AccessProcedure>1.0</AccessProcedure>\r\n");
+
       if (redir->radiuslocationid) {
 	bassignformat(bt, "<AccessLocation>%s</AccessLocation>\r\n", redir->radiuslocationid);
 	bconcat(b, bt);
       }
+
       if (redir->radiuslocationname) {
 	bassignformat(bt, "<LocationName>%s</LocationName>\r\n", redir->radiuslocationname);
 	bconcat(b, bt);
@@ -735,7 +737,10 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
 
   if (flg & FLG_loc) {
     bcatcstr(json,",\"location\":{\"name\":\"");
-    bcatcstr(json, redir->radiuslocationname);
+    if (redir->locationname)
+      bcatcstr(json, redir->locationname);
+    else if (redir->radiuslocationname)
+      bcatcstr(json, redir->radiuslocationname);
     bcatcstr(json,"\"");
     bcatcstr(json,"}");
   }
@@ -1084,6 +1089,7 @@ void redir_set(struct redir_t *redir, int debug) {
   redir->radiusnasid  = options.radiusnasid;
   redir->radiuslocationid  = options.radiuslocationid;
   redir->radiuslocationname  = options.radiuslocationname;
+  redir->locationname  = options.locationname;
   redir->radiusnasporttype = options.radiusnasporttype;
   return;
 }
@@ -1530,7 +1536,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   if (radius->fd > maxfd)
     maxfd = radius->fd;
 
-  radius_set(radius, (options.debug & DEBUG_RADIUS));
+  radius_set(radius, dhcp ? dhcp->hwaddr : 0, (options.debug & DEBUG_RADIUS));
   
   radius_set_cb_auth_conf(radius, redir_cb_radius_auth_conf);
 
@@ -1550,6 +1556,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   0, (uint8_t*) conn->lang, strlen(conn->lang));
 
   if (redir->secret && *redir->secret) {
+    fprintf(stderr,"SECRET: [%s]\n",redir->secret);
     /* Get MD5 hash on challenge and uamsecret */
     MD5Init(&context);
     MD5Update(&context, conn->uamchal, REDIR_MD5LEN);
@@ -1593,19 +1600,8 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
 		 (uint8_t*) mac, REDIR_MACSTRLEN);
 
-  if (redir->nasmac) {
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-		   (uint8_t*) redir->nasmac, strlen(redir->nasmac)); 
-  } else {
-    /* Include our MAC address */
-    snprintf(mac, REDIR_MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	     conn->ourmac[0], conn->ourmac[1],
-	     conn->ourmac[2], conn->ourmac[3],
-	     conn->ourmac[4], conn->ourmac[5]);
-    
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-		   (uint8_t*) mac, REDIR_MACSTRLEN); 
-  }
+  radius_addcalledstation(radius, &radius_pack);
+
 
   if (redir->radiusnasid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,

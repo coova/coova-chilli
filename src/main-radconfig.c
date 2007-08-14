@@ -66,6 +66,7 @@ static int chilliauth_cb(struct radius_t *radius,
 }
 
 int static chilliauth() {
+  unsigned char hwaddr[6];
   struct radius_t *radius;
   struct timeval idleTime;
   int endtime, now;
@@ -81,7 +82,9 @@ int static chilliauth() {
     return ret;
   }
 
-  radius_set(radius, (options.debug & DEBUG_RADIUS));
+  /* get dhcpif mac */
+
+  radius_set(radius, hwaddr, (options.debug & DEBUG_RADIUS));
   radius_set_cb_auth_conf(radius, chilliauth_cb); 
 
   ret = chilliauth_radius(radius);

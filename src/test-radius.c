@@ -69,7 +69,7 @@ int static test_radius() {
     return -1;
   }
 
-  radius_set(radius, (options.debug & DEBUG_RADIUS));
+  radius_set(radius, 0, (options.debug & DEBUG_RADIUS));
 
   radius_set_cb_auth_conf(radius, chilliauth_cb); 
 

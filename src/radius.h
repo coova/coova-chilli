@@ -229,6 +229,7 @@ struct radius_t {
   struct in_addr proxymask;      /* Proxy client mask */
   char proxysecret[RADIUS_SECRETSIZE]; /* Proxy secret */
   int proxysecretlen;            /* Length of sharet secret */
+  unsigned char nas_hwaddr[6];   /* Hardware address of NAS */
 
   int debug;                     /* Print debug messages */
   struct radius_queue_t queue[RADIUS_QUEUESIZE]; /* Outstanding replies */
@@ -290,7 +291,9 @@ extern int radius_new(struct radius_t **this,
 extern int radius_free(struct radius_t *this);
 
 /* Set radius parameters which can later be changed */
-extern void radius_set(struct radius_t *this, int debug);
+extern void radius_set(struct radius_t *this, 
+		       unsigned char *hwaddr,
+		       int debug);
 
 /* Callback function for received request */
 extern int radius_set_cb_ind(struct radius_t *this,
@@ -388,6 +391,7 @@ extern int radius_timeout(struct radius_t *this);
 extern int radius_timeleft(struct radius_t *this, struct timeval *timeout);
 
 extern void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack);
+extern void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pack);
 
 
 #endif	/* !_RADIUS_H */

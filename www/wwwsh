@@ -1,4 +1,14 @@
 #!/bin/sh
+
 file=$(basename $1)
-cd /etc/chilli/www
-haserl $file
+dir=$(dirname $1)
+haserl=$(which haserl 2>/dev/null)
+
+if [ -z "$haserl" ]; then
+    echo "<p>You need to install haserl to serve pages with this wwwsh script!</p>"
+    echo "<p>see <a href='http://haserl.sourceforge.net/'>http://haserl.sourceforge.net/</a></p>"
+    exit
+fi
+
+cd $dir
+$haserl $file

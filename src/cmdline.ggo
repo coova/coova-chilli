@@ -17,10 +17,10 @@ option  "debug"         d "Run in debug mode"             flag   off
 option  "debugfacility" - "Which modules to print debug messages for" int default="1" no
 option  "logfacility"   - "Which modules to print debug messages for" int default="-1" no
 
-option  "conf"        c "Read configuration file"       string default="/etc/chilli.conf" no
+option  "conf"        c "Read configuration file"       string no
 option  "interval"    - "Re-read configuration file at this interval"  int default="3600" no
-option  "pidfile"     - "Filename of process id file"   string default="/var/run/chilli.pid" no
-option  "statedir"    - "Directory of nonvolatile data" string default="/var/lib/chilli/" no
+option  "pidfile"     - "Filename of process id file"   string no
+option  "statedir"    - "Directory of nonvolatile data" string no
 
 #TUN parameters
 option "net"         n "Network"           string default="192.168.182.0/24" no
@@ -36,6 +36,7 @@ option "ipdown"      - "Script to run after link-down" string no
 option "conup"       - "Script to run after user logon"  string no
 option "condown"     - "Script to run after user logoff" string no
 option "txqlen"      - "TX Queue length for tun interface (linux only)"  int default="100" no
+option "tundev"      - "TUN/TAP Device, as in tun0 or tap1" string no
 
 
 # Radius parameters
@@ -46,9 +47,10 @@ option "radiusauthport"     - "Authentication UDP port of radius server" int def
 option "radiusacctport"     - "Accounting UDP port of radius server" int default="1813" no
 option "radiussecret"       - "Radius shared secret"          string no
 option "radiusnasid"        - "Radius NAS-Identifier"         string default="nas01" no
-option "radiuslocationid"   - "WISPr Location ID"            string no
-option "radiuslocationname" - "WISPr Location Name"        string no
-option "radiusnasporttype"  - "Radius NAS-Port-Type"        int default="19" no
+option "radiuslocationid"   - "WISPr Location ID"             string no
+option "radiuslocationname" - "WISPr Location Name"           string no
+option "locationname"       - "Location Name"                 string no
+option "radiusnasporttype"  - "Radius NAS-Port-Type"          int default="19" no
 option "coaport"            - "Radius disconnect port to listen to" int default="0" no
 option "coanoipcheck"       - "Allow radius disconnect from any IP" flag   off
 

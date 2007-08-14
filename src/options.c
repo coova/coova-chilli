@@ -3,7 +3,7 @@
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -26,7 +26,13 @@
 #include "options.h"
 
 struct options_t options = {0};
-#define STRDUP(x) (((x) && *(x)) ? strdup((x)) : 0)
+
+char *STRDUP(char *s) {
+  if (!s) return 0;
+  while (isspace(*s)) s++;
+  if (!*s) return 0;
+  return strdup(s);
+}
 
 /* Get IP address and mask */
 int option_aton(struct in_addr *addr, struct in_addr *mask,
@@ -37,9 +43,9 @@ int option_aton(struct in_addr *addr, struct in_addr *mask,
 
   unsigned int a1, a2, a3, a4;
   unsigned int m1, m2, m3, m4;
-  int c;
   unsigned int m;
   int masklog;
+  int c;
 
   c = sscanf(pool, "%u.%u.%u.%u/%u.%u.%u.%u",
 	     &a1, &a2, &a3, &a4,
@@ -99,8 +105,7 @@ int static get_namepart(char *src, char *host, int hostsize, int *port) {
     *port = DHCP_HTTPS;
   }
   else {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "URL must start with http:// or https:// %s!", src);
+    log_err(0, "URL must start with http:// or https:// %s!", src);
     return -1;
   }
   
@@ -160,7 +165,7 @@ int process_options(int argc, char **argv, int minimal) {
     goto end_processing;
   }
 
-  if (cmdline_parser_configfile(args_info.conf_arg, &args_info, 0, 0, 0)) {
+  if (cmdline_parser_configfile(args_info.conf_arg ? args_info.conf_arg : DEFCHILLICONF, &args_info, 0, 0, 0)) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0,
 	    "Failed to parse configuration file: %s!", 
 	    args_info.conf_arg);
@@ -183,7 +188,7 @@ int process_options(int argc, char **argv, int minimal) {
     options.debug = 0;
 
   /** simple configuration parameters **/
-  options.tap = args_info.usetap_flag;
+  options.usetap = args_info.usetap_flag;
   options.foreground = args_info.fg_flag;
   options.interval = args_info.interval_arg;
   options.lease = args_info.lease_arg;
@@ -215,14 +220,8 @@ int process_options(int argc, char **argv, int minimal) {
   options.pap_always_ok = args_info.papalwaysok_flag;
   options.acct_update = args_info.acctupdate_flag;
 
-  if (!reconfiguring) { 
-    if (!args_info.dhcpif_arg) {
-      options.nodhcp = 1;
-    }
-    else {
-      options.nodhcp = 0;
-      options.dhcpif = STRDUP(args_info.dhcpif_arg);
-    }
+  if (!reconfiguring) {
+    options.dhcpif = STRDUP(args_info.dhcpif_arg);
   }
 
   if (!args_info.radiussecret_arg) {
@@ -673,6 +672,9 @@ int process_options(int argc, char **argv, int minimal) {
   if (options.nasip) free(options.nasip);
   options.nasip = STRDUP(args_info.nasip_arg);
 
+  if (options.tundev) free(options.tundev);
+  options.tundev = STRDUP(args_info.tundev_arg);
+
   if (options.radiusnasid) free(options.radiusnasid);
   options.radiusnasid = STRDUP(args_info.radiusnasid_arg);
 
@@ -681,6 +683,9 @@ int process_options(int argc, char **argv, int minimal) {
 
   if (options.radiuslocationname) free(options.radiuslocationname);
   options.radiuslocationname = STRDUP(args_info.radiuslocationname_arg);
+
+  if (options.locationname) free(options.locationname);
+  options.locationname = STRDUP(args_info.locationname_arg);
 
   if (options.radiussecret) free(options.radiussecret);
   options.radiussecret = STRDUP(args_info.radiussecret_arg);
@@ -719,13 +724,11 @@ int process_options(int argc, char **argv, int minimal) {
 
 void reprocess_options(int argc, char **argv) {
   struct options_t options2;
-  sys_err(LOG_INFO, __FILE__, __LINE__, 0,
-	  "Rereading configuration file and doing DNS lookup");
+  log_err(0, "Rereading configuration file and doing DNS lookup");
 
   memcpy(&options2, &options, sizeof(options)); /* Save original */
   if (process_options(argc, argv, 0)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Error reading configuration file!");
+    log_err(0, "Error reading configuration file!");
     memcpy(&options, &options2, sizeof(options));
   }
 }

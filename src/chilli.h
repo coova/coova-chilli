@@ -184,6 +184,7 @@ extern struct app_conn_t *lastusedconn;  /* Last used in linked list */
 
 extern struct radius_t *radius;          /* Radius client instance */
 extern struct dhcp_t *dhcp;              /* DHCP instance */
+extern struct tun_t *tun;                /* TUN/TAP instance */
 
 int printstatus(struct app_conn_t *appconn);
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause);

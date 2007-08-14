@@ -635,10 +635,15 @@ int tun_new(struct tun_t **tun, int txqlen)
   /* Set device flags. For some weird reason this is also the method
      used to obtain the network interface name */
   memset(&ifr, 0, sizeof(ifr));
-  ifr.ifr_flags = (options.tap ? IFF_TAP : IFF_TUN ) | IFF_NO_PI; /* Tun device, no packet info */
+  ifr.ifr_flags = (options.usetap ? IFF_TAP : IFF_TUN) | IFF_NO_PI; /* Tun device, no packet info */
 #if defined(IFF_ONE_QUEUE) && defined(SIOCSIFTXQLEN)
   ifr.ifr_flags |= IFF_ONE_QUEUE;
 #endif
+
+  if (options.tundev && *options.tundev && 
+      strcmp(options.tundev, "tap") && strcmp(options.tundev, "tun"))
+    strncpy(ifr.ifr_name, options.tundev, IFNAMSIZ);
+
   if (ioctl((*tun)->fd, TUNSETIFF, (void *) &ifr) < 0) {
     log_err(errno, "ioctl() failed");
     close((*tun)->fd);
@@ -672,7 +677,7 @@ int tun_new(struct tun_t **tun, int txqlen)
   ioctl((*tun)->fd, TUNSETNOCSUM, 1); /* Disable checksums */
 
   /* Get the MAC address of our tap interface */
-  if (options.tap) {
+  if (options.usetap) {
     int fd;
     if ((fd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) {
       memset(&ifr, 0, sizeof(ifr));
@@ -680,10 +685,10 @@ int tun_new(struct tun_t **tun, int txqlen)
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
 	log_err(errno, "ioctl(d=%d, request=%d) failed", fd, SIOCGIFHWADDR);
       }
-      memcpy(options.tapmac, ifr.ifr_hwaddr.sa_data, DHCP_ETH_ALEN);
-      log_dbg("tap-mac: %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", ifr.ifr_name,
-	      options.tapmac[0],options.tapmac[1],options.tapmac[2],
-	      options.tapmac[3],options.tapmac[4],options.tapmac[5]);
+      memcpy((*tun)->tap_hwaddr, ifr.ifr_hwaddr.sa_data, DHCP_ETH_ALEN);
+      log_dbg("tap-mac: %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X", ifr.ifr_name,
+	      (*tun)->tap_hwaddr[0],(*tun)->tap_hwaddr[1],(*tun)->tap_hwaddr[2],
+	      (*tun)->tap_hwaddr[3],(*tun)->tap_hwaddr[4],(*tun)->tap_hwaddr[5]);
       close(fd);
     }
   }
@@ -796,7 +801,6 @@ int tun_new(struct tun_t **tun, int txqlen)
 
 int tun_free(struct tun_t *tun)
 {
-
   if (tun->routes) {
     tun_delroute(tun, &tun->dstaddr, &tun->addr, &tun->netmask);
   }
@@ -870,9 +874,9 @@ int tun_decaps(struct tun_t *this)
 
 int tun_encaps(struct tun_t *tun, void *pack, unsigned len)
 {
-  if (options.tap) {
+  if (options.usetap) {
     struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
-    memcpy(ethh->src, options.tapmac, DHCP_ETH_ALEN);
+    memcpy(ethh->src, tun->tap_hwaddr, DHCP_ETH_ALEN);
     log_dbg("writing to tun/tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
 	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
 	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5]);

@@ -42,6 +42,8 @@ struct tun_packet_t {
  * Information storage for each tun instance
  *************************************************************/
 
+#define TAP_ETH_ALEN 6
+
 struct tun_t {
   int debug;
   int fd;                /* File descriptor to tun interface */
@@ -51,6 +53,7 @@ struct tun_t {
   int addrs;             /* Number of allocated IP addresses */
   int routes;            /* One if we allocated an automatic route */
   char devname[IFNAMSIZ];/* Name of the tun device */
+  unsigned char tap_hwaddr[TAP_ETH_ALEN]; /* Hardware address of tap interface */
   int (*cb_ind) (struct tun_t *tun, void *pack, unsigned len);
 };
 

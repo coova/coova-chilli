@@ -27,14 +27,31 @@ void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   struct in_addr inaddr;
   struct in_addr *paddr = 0;
 
-  if (options.nasip)
+  if (options.nasip && *options.nasip)
     if (inet_aton(options.nasip, &inaddr))
       paddr = &inaddr;
 
-  if (!paddr)
+  if (!paddr && options.radiuslisten.s_addr != 0)
     paddr = &options.radiuslisten;
+
+  if (!paddr)
+    paddr = &options.uamlisten;
     
   radius_addattr(radius, pack, RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, ntohl(paddr->s_addr), NULL, 0); 
+}
+
+void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pack)  {
+  uint8_t b[24];
+  uint8_t *mac="";
+
+  if (options.nasmac)
+    mac = options.nasmac;
+  else 
+    sprintf((mac=b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+	    radius->nas_hwaddr[0],radius->nas_hwaddr[1],radius->nas_hwaddr[2],
+	    radius->nas_hwaddr[3],radius->nas_hwaddr[4],radius->nas_hwaddr[5]);
+
+  radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen(mac)); 
 }
 
 int radius_printqueue(struct radius_t *this) {
@@ -53,6 +70,7 @@ int radius_printqueue(struct radius_t *this) {
 	     (int) this->queue[n].retrans);
     }
   }
+
   return 0;
 }
 
@@ -1119,7 +1137,7 @@ radius_free(struct radius_t *this)
   return 0;
 }
 
-void radius_set(struct radius_t *this, int debug) {
+void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
   this->debug = debug;
 
   /* Remote radius server parameters */
@@ -1145,6 +1163,10 @@ void radius_set(struct radius_t *this, int debug) {
 	    RADIUS_SECRETSIZE);
     this->secretlen = RADIUS_SECRETSIZE;
   }
+
+  if (hwaddr)
+    memcpy(this->nas_hwaddr, hwaddr, sizeof(this->nas_hwaddr));
+
   memcpy(this->secret, options.radiussecret, this->secretlen);
 
   this->lastreply = 0; /* Start out using server 0 */  
@@ -1600,9 +1622,7 @@ int chilliauth_radius(struct radius_t *radius) {
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
 		   (uint8_t *)options.radiusnasid, strlen(options.radiusnasid));
   
-  if (options.nasmac)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-		   (uint8_t *)options.nasmac, strlen(options.nasmac)); 
+  radius_addcalledstation(radius, &radius_pack);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
 		 options.radiusnasporttype, NULL, 0);

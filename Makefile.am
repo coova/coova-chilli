@@ -1,7 +1,4 @@
 ## Process this file with automake to produce Makefile.in
-SUBDIRS = bstring src doc
-EXTRA_DIST = conf/chilli.conf conf/chilli.init conf/defaults \
-conf/firewall conf/functions conf/coova.html conf/coova.jpg \
-smartclient/bbsclib.as  smartclient/hexdump.as  smartclient/MD5.as  \
-smartclient/README  smartclient/simplebbsc.fla  smartclient/simplebbsc.swf
-
+SUBDIRS = bstring src doc www conf
+EXTRA_DIST = smartclient/bbsclib.as smartclient/hexdump.as smartclient/MD5.as  \
+smartclient/README smartclient/simplebbsc.fla smartclient/simplebbsc.swf 

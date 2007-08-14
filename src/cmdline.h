@@ -36,16 +36,16 @@ struct gengetopt_args_info
   int logfacility_arg;	/* Which modules to print debug messages for (default='-1').  */
   char * logfacility_orig;	/* Which modules to print debug messages for original value given at command line.  */
   const char *logfacility_help; /* Which modules to print debug messages for help description.  */
-  char * conf_arg;	/* Read configuration file (default='/etc/chilli.conf').  */
+  char * conf_arg;	/* Read configuration file.  */
   char * conf_orig;	/* Read configuration file original value given at command line.  */
   const char *conf_help; /* Read configuration file help description.  */
   int interval_arg;	/* Re-read configuration file at this interval (default='3600').  */
   char * interval_orig;	/* Re-read configuration file at this interval original value given at command line.  */
   const char *interval_help; /* Re-read configuration file at this interval help description.  */
-  char * pidfile_arg;	/* Filename of process id file (default='/var/run/chilli.pid').  */
+  char * pidfile_arg;	/* Filename of process id file.  */
   char * pidfile_orig;	/* Filename of process id file original value given at command line.  */
   const char *pidfile_help; /* Filename of process id file help description.  */
-  char * statedir_arg;	/* Directory of nonvolatile data (default='/var/lib/chilli/').  */
+  char * statedir_arg;	/* Directory of nonvolatile data.  */
   char * statedir_orig;	/* Directory of nonvolatile data original value given at command line.  */
   const char *statedir_help; /* Directory of nonvolatile data help description.  */
   char * net_arg;	/* Network (default='192.168.182.0/24').  */
@@ -87,6 +87,9 @@ struct gengetopt_args_info
   int txqlen_arg;	/* TX Queue length for tun interface (linux only) (default='100').  */
   char * txqlen_orig;	/* TX Queue length for tun interface (linux only) original value given at command line.  */
   const char *txqlen_help; /* TX Queue length for tun interface (linux only) help description.  */
+  char * tundev_arg;	/* TUN/TAP Device, as in tun0 or tap1.  */
+  char * tundev_orig;	/* TUN/TAP Device, as in tun0 or tap1 original value given at command line.  */
+  const char *tundev_help; /* TUN/TAP Device, as in tun0 or tap1 help description.  */
   char * radiuslisten_arg;	/* IP address to send from.  */
   char * radiuslisten_orig;	/* IP address to send from original value given at command line.  */
   const char *radiuslisten_help; /* IP address to send from help description.  */
@@ -114,6 +117,9 @@ struct gengetopt_args_info
   char * radiuslocationname_arg;	/* WISPr Location Name.  */
   char * radiuslocationname_orig;	/* WISPr Location Name original value given at command line.  */
   const char *radiuslocationname_help; /* WISPr Location Name help description.  */
+  char * locationname_arg;	/* Location Name.  */
+  char * locationname_orig;	/* Location Name original value given at command line.  */
+  const char *locationname_help; /* Location Name help description.  */
   int radiusnasporttype_arg;	/* Radius NAS-Port-Type (default='19').  */
   char * radiusnasporttype_orig;	/* Radius NAS-Port-Type original value given at command line.  */
   const char *radiusnasporttype_help; /* Radius NAS-Port-Type help description.  */
@@ -279,6 +285,7 @@ struct gengetopt_args_info
   int conup_given ;	/* Whether conup was given.  */
   int condown_given ;	/* Whether condown was given.  */
   int txqlen_given ;	/* Whether txqlen was given.  */
+  int tundev_given ;	/* Whether tundev was given.  */
   int radiuslisten_given ;	/* Whether radiuslisten was given.  */
   int radiusserver1_given ;	/* Whether radiusserver1 was given.  */
   int radiusserver2_given ;	/* Whether radiusserver2 was given.  */
@@ -288,6 +295,7 @@ struct gengetopt_args_info
   int radiusnasid_given ;	/* Whether radiusnasid was given.  */
   int radiuslocationid_given ;	/* Whether radiuslocationid was given.  */
   int radiuslocationname_given ;	/* Whether radiuslocationname was given.  */
+  int locationname_given ;	/* Whether locationname was given.  */
   int radiusnasporttype_given ;	/* Whether radiusnasporttype was given.  */
   int coaport_given ;	/* Whether coaport was given.  */
   int coanoipcheck_given ;	/* Whether coanoipcheck was given.  */

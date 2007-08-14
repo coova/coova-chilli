@@ -1,10 +1,17 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+== ChangeLog (Coova Chilli v1.0.7 svn revision) ==
+
+* First version of JSON interface, see [[CoovaChilli/JSON]]
+* Improved build environment installing complete default configuration (based on build config --prefix)
+* Removed default use of /etc/chilli.conf and made it based on build prefix (e.g. /usr/local/etc/chilli.conf)
 * RADIUS Accounting-On (during server startup) and Accounting-Off (during server shutdown) support
-* First version of JSON interface,  [[CoovaChilli/JSON]]
+* RADIUS Administrative-User accounting session giving device wide accounting
 * Added option ''acctupdate'' which will allow for session parameter updates with RADIUS Accounting-Response
+* New option ''tundev'' to explicitly set the TUN/TAP device, as in "tun1" or "tap3" (still be sure to use --usetap, if wanting TAP)
 * Depreceated option ''papalwaysok'' - it is considered always on
+* Better self determination of nasmac (Called-Station-Id) 
 	
 == ChangeLog (Coova Chilli v1.0.6 svn revision 66) ==
 

@@ -5,15 +5,14 @@
 # chkconfig: 2345 65 35
 # description: ChilliSpot
 
-. /etc/rc.d/init.d/functions
 . /etc/sysconfig/network
 
 [ ${NETWORKING} = "no" ] && exit 0
 
-[ -f /usr/sbin/chilli ] || exit 0
-[ -f /etc/chilli.conf ] || exit 0
+[ -f @SBINDIR@/chilli ] || exit 0
+[ -f @SYSCONFDIR@/chilli.conf ] || exit 0
 
-. /etc/chilli/functions
+. @ETCCHILLI@/functions
 
 check_required
 
@@ -35,10 +34,10 @@ case $1 in
             echo "*/2  * * * * $0 arping"
         ) | crontab - 2>&-
 	
-	sh /etc/chilli/firewall
+	sh @ETCCHILLI@/firewall
 
 	ifconfig $HS_TAPIF 0.0.0.0
-        daemon /usr/sbin/chilli
+        @SBINDIR@/chilli
         RETVAL=$?
 
         [ $RETVAL -eq 0 ] && touch /var/lock/subsys/chilli
@@ -69,10 +68,12 @@ case $1 in
 
 	crontab -l 2>&- | grep -v $0 | crontab -
 
-        killproc chilli
-        RETVAL=$?
-
-        [ $RETVAL = 0 ] && rm -f /var/lock/subsys/chilli /var/run/chilli.pid
+        [ -f @VARRUN@/chilli.pid ] && { 
+	    kill $(cat @VARRUN@/chilli.pid)
+	    RETVAL=$
+	    [ $RETVAL = 0 ] && rm -f /var/lock/subsys/chilli @VARRUN@/chilli.pid
+	}
+	killall chilli
         echo
 	;;
     
