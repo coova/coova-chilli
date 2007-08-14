@@ -3,7 +3,7 @@
 sysconf_DATA = chilli.conf 
 
 chillidir = $(sysconfdir)/chilli
-chilli_SCRIPTS = firewall functions
+chilli_SCRIPTS = functions up.sh down.sh
 chilli_DATA = defaults 
 
 initdir = $(sysconfdir)/init.d
@@ -22,10 +22,15 @@ functions: Makefile functions.in
 	$(edit) functions.in >functions.tmp
 	mv functions.tmp functions
 
-firewall: Makefile firewall.in
-	rm -f firewall firewall.tmp
-	$(edit) firewall.in >firewall.tmp
-	mv firewall.tmp firewall
+up.sh: Makefile up.sh.in
+	rm -f up.sh up.sh.tmp
+	$(edit) up.sh.in >up.sh.tmp
+	mv up.sh.tmp up.sh
+
+down.sh: Makefile down.sh.in
+	rm -f down.sh down.sh.tmp
+	$(edit) down.sh.in >down.sh.tmp
+	mv down.sh.tmp down.sh
 
 chilli: Makefile chilli.in
 	rm -f chilli chilli.tmp

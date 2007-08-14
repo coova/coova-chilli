@@ -19,3 +19,5 @@ include @ETCCHILLI@/main.conf
 include @ETCCHILLI@/hs.conf
 include @ETCCHILLI@/local.conf
 
+ipup=@ETCCHILLI@/up.sh
+ipdown=@ETCCHILLI@/down.sh

@@ -67,7 +67,7 @@ static int chilliauth_cb(struct radius_t *radius,
 
 int static chilliauth() {
   unsigned char hwaddr[6];
-  struct radius_t *radius;
+  struct radius_t *radius=0;
   struct timeval idleTime;
   int endtime, now;
   int maxfd = 0;
@@ -78,7 +78,7 @@ int static chilliauth() {
   if (!options.adminuser || !options.adminpasswd) return 1;
 
   if (radius_new(&radius, &options.radiuslisten, 0, 0, NULL, 0, NULL, NULL, NULL)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Failed to create radius");
+    log_err(0, "Failed to create radius");
     return ret;
   }
 
@@ -88,10 +88,9 @@ int static chilliauth() {
   radius_set_cb_auth_conf(radius, chilliauth_cb); 
 
   ret = chilliauth_radius(radius);
-  radius_free(radius);
 
   if (radius->fd <= 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "not a valid socket!");
+    log_err(0, "not a valid socket!");
     return ret;
   } 
 
@@ -134,6 +133,7 @@ int static chilliauth() {
     now = time(NULL);
   }  
 
+  radius_free(radius);
   return ret;
 }
 

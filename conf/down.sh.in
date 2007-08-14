@@ -1,0 +1,12 @@
+#!/bin/sh
+# Coova Chilli - David Bird <david@coova.com>
+# Licensed under the GPL, see http://coova.org/
+# down.sh /dev/tun0 192.168.0.10 255.255.255.0
+
+. @ETCCHILLI@/functions
+
+[ -e "@VARRUN@/chilli.iptables" ] && sh @VARRUN@/chilli.iptables 2>/dev/null
+rm -f @VARRUN@/chilli.iptables
+
+# site specific stuff optional
+[ -e @ETCCHILLI@/ipdown.sh ] && . @ETCCHILLI@/ipdown.sh

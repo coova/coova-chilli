@@ -1026,96 +1026,104 @@ int radius_new(struct radius_t **this,
 	       char* proxysecret)
 {
   struct sockaddr_in addr;
+  struct radius_t *new_radius;
 
   /* sys_err(LOG_INFO, __FILE__, __LINE__, 0,
      "Radius client started"); */
 
   /* Allocate storage for instance */
-  if (!(*this = calloc(sizeof(struct radius_t), 1))) {
+  if (!(new_radius = calloc(sizeof(struct radius_t), 1))) {
     log_err(0, "calloc() failed");
     return -1;
   }
 
-  (*this)->coanocheck = coanocheck;
+  new_radius->coanocheck = coanocheck;
 
   /* Radius parameters */
-  (*this)->ouraddr.s_addr = listen->s_addr;
-  (*this)->ourport = port;
-
+  new_radius->ouraddr.s_addr = listen->s_addr;
+  new_radius->ourport = port;
 
   /* Proxy parameters */
   if (proxysecret) {
-    (*this)->proxylisten.s_addr = proxylisten->s_addr;
-    (*this)->proxyport = proxyport;
+    new_radius->proxylisten.s_addr = proxylisten->s_addr;
+    new_radius->proxyport = proxyport;
     
     if (proxyaddr)
-      (*this)->proxyaddr.s_addr = proxyaddr->s_addr;
+      new_radius->proxyaddr.s_addr = proxyaddr->s_addr;
     else
-      (*this)->proxyaddr.s_addr = ~0;
+      new_radius->proxyaddr.s_addr = ~0;
     
     if (proxymask)
-      (*this)->proxymask.s_addr = proxymask->s_addr;
+      new_radius->proxymask.s_addr = proxymask->s_addr;
     else
-      (*this)->proxymask.s_addr = 0;
+      new_radius->proxymask.s_addr = 0;
     
-    if (((*this)->proxysecretlen = strlen(proxysecret)) > RADIUS_SECRETSIZE) {
-      log_err(0, "proxysecret longer than %d", RADIUS_SECRETSIZE);
-      return -1;
+    if ((new_radius->proxysecretlen = strlen(proxysecret)) < RADIUS_SECRETSIZE) {
+      memcpy(new_radius->proxysecret, proxysecret, new_radius->proxysecretlen);
     }
-    
-    if (((*this)->proxysecretlen = strlen(proxysecret)) > RADIUS_SECRETSIZE) {
-      log_err(0, "proxy secret longer than %d", RADIUS_SECRETSIZE);
-      return -1;
-    }
-    memcpy((*this)->proxysecret, proxysecret, (*this)->proxysecretlen);
   }
 
   /* Initialise queue */
-  (*this)->next = 0;
-  (*this)->first = -1;
-  (*this)->last = -1;
+  new_radius->next = 0;
+  new_radius->first = -1;
+  new_radius->last = -1;
   
-  if (((*this)->urandom_fp = fopen("/dev/urandom", "r")) < 0) {
+  if ((new_radius->urandom_fp = fopen("/dev/urandom", "r")) < 0) {
     log_err(errno, "fopen(/dev/urandom, r) failed");
+    free(new_radius);
+    return -1;
   }
   
   /* Initialise radius socket */
-  if (((*this)->fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+  if ((new_radius->fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
     log_err(errno, "socket() failed!");
+    fclose(new_radius->urandom_fp);
+    free(new_radius);
     return -1;
   }
 
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
-  addr.sin_addr = (*this)->ouraddr;
-  addr.sin_port = htons((*this)->ourport);
+  addr.sin_addr = new_radius->ouraddr;
+  addr.sin_port = htons(new_radius->ourport);
   
-  if (bind((*this)->fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+  if (bind(new_radius->fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
     log_err(errno, "bind() failed!");
+    fclose(new_radius->urandom_fp);
+    close(new_radius->fd);
+    free(new_radius);
     return -1;
   }
 
   /* Initialise proxy socket */
   if (proxysecret) {
-    if (((*this)->proxyfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-      log_err(errno, "socket() failed!");
+    if ((new_radius->proxyfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+      log_err(errno, "socket() failed for proxyfd!");
+      fclose(new_radius->urandom_fp);
+      close(new_radius->fd);
+      free(new_radius);
       return -1;
     }
     
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
-    addr.sin_addr = (*this)->proxylisten;
-    addr.sin_port = htons((*this)->proxyport);
+    addr.sin_addr = new_radius->proxylisten;
+    addr.sin_port = htons(new_radius->proxyport);
     
-    if (bind((*this)->proxyfd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+    if (bind(new_radius->proxyfd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
       log_err(errno, "bind() failed for proxylisten!");
+      fclose(new_radius->urandom_fp);
+      close(new_radius->fd);
+      close(new_radius->proxyfd);
+      free(new_radius);
       return -1;
     }
   }
   else {
-    (*this)->proxyfd = -1; /* Indicate that proxy is not used */
+    new_radius->proxyfd = -1; /* Indicate that proxy is not used */
   }
 
+  *this = new_radius;
   return 0;
 }
 

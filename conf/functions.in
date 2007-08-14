@@ -32,7 +32,7 @@ HS_RADACCT=${HS_RADACCT=1813}
 HS_ADMUSR=${HS_ADMUSR:-chillispot}
 HS_ADMPWD=${HS_ADMPWD:-chillispot}
 HS_ADMINTERVAL=${HS_ADMINTERVAL:-60}
-HS_RADCONF=${HS_RADCONF:-on}
+HS_RADCONF=${HS_RADCONF:-off}
 HS_RADCONF_SERVER=${HS_RADCONF_SERVER:-rad01.coova.org}
 HS_RADCONF_SERVERS=${HS_RADCONF_SERVERS:+$(echo "$HS_RADCONF_SERVERS"|sed 's/[;, ]/ /g')}
 HS_RADCONF_SECRET=${HS_RADCONF_SECRET:-coova-anonymous}
@@ -199,12 +199,14 @@ radiusconfig() {
 		--radiussecret="$HS_RADCONF_SECRET" \
 		--radiusauthport="$HS_RADCONF_AUTHPORT" \
 		--radiusacctport="$HS_RADCONF_ACCTPORT" \
+		--nasip="$HS_NASIP" \
+		--nasmac="$HS_NASMAC" \
 		--adminuser="$HS_RADCONF_USER" \
 		--adminpasswd="$HS_RADCONF_PWD" \
 		> $HS_TEMP && {	checkfornew; break; }
 	done
-    elif [ "x$HS_LOCAL" != "xon" ]; then 
-	$SBIN/chilli_radconfig > $HS_TEMP && { checkfornew; break; }
+#    elif [ "x$HS_LOCAL" != "xon" ]; then 
+#	$SBIN/chilli_radconfig > $HS_TEMP && { checkfornew; break; }
     fi
 }
 

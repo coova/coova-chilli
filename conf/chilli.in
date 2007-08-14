@@ -34,9 +34,7 @@ case $1 in
             echo "*/2  * * * * $0 arping"
         ) | crontab - 2>&-
 	
-	sh @ETCCHILLI@/firewall
-
-	ifconfig $HS_TAPIF 0.0.0.0
+	ifconfig $HS_LANIF 0.0.0.0
         @SBINDIR@/chilli
         RETVAL=$?
 
