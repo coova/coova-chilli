@@ -1,6 +1,0 @@
-This directory contains a Flash implementation of a simple browser based smart client (BBSC) for logging to the coova-chilli captivep portal.
-
-The .swf file MUST be served:
-- from a HTTP server running on port 80, on the same IP as chilli
-- or from coova-chilli internal HTTP server (wwwdir)
-
