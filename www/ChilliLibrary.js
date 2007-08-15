@@ -222,8 +222,8 @@ chilliController.logonStep2 = function ( resp ) {
 		// Build command URL
 		var url = chilliController.uamService + '?username=' + username +'&password=' + password +'&challenge=' + challenge ;
 
-		if (chilliController.queryObj && chilliController.queryObj.userurl ) {
-		    url += '&userurl='+chilliController.queryObj.userurl ;
+		if (chilliController.queryObj && chilliController.queryObj['userurl'] ) {
+		    url += '&userurl='+chilliController.queryObj['userurl'] ;
 		}
 
 		// Make uamService request
@@ -251,6 +251,9 @@ chilliController.logonStep2 = function ( resp ) {
 	
 		/* Build /logon command URL */
 		var logonUrl = chilliController.urlRoot() + 'logon?username=' + username + '&response='  + chappassword;
+		if (chilliController.queryObj && chilliController.queryObj['userurl'] ) {
+		    logonUrl += '&userurl='+chilliController.queryObj['userurl'] ;
+		}
 		chilliJSON.get ( logonUrl ) ;
 	}
 
@@ -317,6 +320,10 @@ chilliController.processReply = function ( resp ) {
 		chilliController.accounting = resp.accounting ;
 	}
 
+	if (  (typeof ( resp.redir ) == 'object') ) {
+		chilliController.redir = resp.redir ;
+	}		
+	
 	/* Update the session member only the first time after AUTH */
 	if (  (typeof ( resp.session ) == 'object') &&
               ( chilliController.clientState !== chilliController.stateCodes.AUTH  )  && 
@@ -337,7 +344,6 @@ chilliController.processReply = function ( resp ) {
 		}
 	}
 
-	
 	/* Update clientState */
 	if (  ( resp.clientState === chilliController.stateCodes.NOT_AUTH     ) ||
               ( resp.clientState === chilliController.stateCodes.AUTH         ) ||
