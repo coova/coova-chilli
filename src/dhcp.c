@@ -1322,10 +1322,12 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct dhcp_ippacket_t *pack, in
  * Change source address back to original server
  **/
 int dhcp_undoDNAT(struct dhcp_conn_t *conn, 
-		  struct dhcp_ippacket_t *pack, int len) {
+		  struct dhcp_ippacket_t *pack, 
+		  int *plen) {
   struct dhcp_t *this = conn->parent;
   struct dhcp_tcphdr_t *tcph = (struct dhcp_tcphdr_t*) pack->payload;
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
+  int len = *plen;
   int i;
 
   /* Allow localhost through network... */
@@ -1337,7 +1339,10 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
        (pack->iph.saddr == conn->dns1.s_addr) ||
        (pack->iph.saddr == conn->dns2.s_addr)) &&
       (pack->iph.protocol == DHCP_IP_UDP && udph->src == htons(DHCP_DNS)))
-    return 0; 
+#ifdef DNS_FILTER
+    if (dhcp_filterDNS(conn, pack, plen)) 
+#endif
+      return 0;
 
   if (pack->iph.protocol == DHCP_IP_ICMP) {
     /* Was it an ICMP reply from us? */
@@ -1404,7 +1409,129 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   return -1; /* Something else */
 }
 
-#ifdef DHCP_CHECKDNS
+
+#ifdef DNS_FILTER  
+int dhcp_filterDNS(struct dhcp_conn_t *conn, 
+		   struct dhcp_ippacket_t *pack, 
+		   int *plen) {
+  struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*)pack->payload;
+  struct dhcp_dns_packet_t *dnsp = (struct dhcp_dns_packet_t*)(pack->payload + sizeof(struct dhcp_udphdr_t));
+  int len = *plen - DHCP_DNS_HLEN - DHCP_UDP_HLEN - DHCP_IP_HLEN - DHCP_ETH_HLEN;
+
+  uint16_t id = ntohs(dnsp->id);
+  uint16_t flags = ntohs(dnsp->flags);
+  uint16_t qdcount = ntohs(dnsp->qdcount);
+  uint16_t ancount = ntohs(dnsp->ancount);
+  uint16_t nscount = ntohs(dnsp->nscount);
+  uint16_t arcount = ntohs(dnsp->arcount);
+
+  uint8_t *p_pkt = (uint8_t *)dnsp->records;
+
+  uint8_t  records[DHCP_IP_PLEN];
+  int recordspos = 0;
+
+  uint8_t  name[DHCP_IP_PLEN];
+  int namelen = 0;
+
+  uint16_t type;
+  uint16_t class;
+  uint32_t ttl;
+  uint16_t rdlen;
+
+  uint32_t ul;
+  uint16_t us;
+
+  int i;
+
+  int d = 1;
+
+#define return_error { if (d) printf("%s:%d: failed here\n",__FILE__,__LINE__); return -1; }
+
+  int get_name() {
+    uint8_t l;
+    namelen = 0;
+    while (len-- && (l = name[namelen++] = *p_pkt++) != 0) {
+      if ((l & 0xC0) == 0xC0) {
+	name[namelen++] = *p_pkt++;
+	len--;
+	break;
+      }
+    }
+    if (d) printf("namelen: %d\n", namelen);
+    if (!len) return_error;
+    return 0;
+  }
+
+  int copy_res(int q) {
+    if (get_name()) return_error;
+    if (len < 4) return_error;
+
+    memcpy(&us, p_pkt, sizeof(us));
+    type = ntohs(us);
+    p_pkt += 2;
+    len -= 2;
+
+    memcpy(&us, p_pkt, sizeof(us));
+    class = ntohs(us);
+    p_pkt += 2;
+    len -= 2;
+
+    if (d) printf("It was a dns response w type: %d class: %d \n", type, class);
+
+    if (q) 
+      return 0;
+
+    if (len < 6) return_error;
+
+    memcpy(&ul, p_pkt, sizeof(ul));
+    ttl = ntohl(ul);
+    p_pkt += 4;
+    len -= 4;
+
+    memcpy(&us, p_pkt, sizeof(us));
+    rdlen = ntohs(us);
+    p_pkt += 2;
+    len -= 2;
+
+    if (d) printf("-> w ttl: %d rdlength: %d/%d\n", ttl, rdlen, len);
+
+    if (len < rdlen) return_error;
+
+    p_pkt += rdlen;
+    len -= rdlen;
+
+    return 0;
+  }
+
+  if (d) printf("DNS ID:    %d\n", id);
+  if (d) printf("DNS Flags: %d\n", flags);
+
+  /* it was a query? shouldn't be */
+  if (((flags & 0x8000) >> 15) == 0) return 0;
+
+  if (d) printf("qd: %d\n", qdcount);
+  for (i=0; i < qdcount; i++) if (copy_res(1)) return 0;
+
+  if (d) printf("an: %d\n", ancount);
+  for (i=0; i < ancount; i++) if (copy_res(0)) return 0;
+
+  if (d) printf("ns: %d\n", nscount);
+  for (i=0; i < nscount; i++) if (copy_res(0)) return 0;
+
+  if (d) printf("ar: %d\n", arcount);
+  for (i=0; i < arcount; i++) if (copy_res(0)) return 0;
+
+  if (d) printf("left: %d\n", len);
+
+  dnsp->flags = htons(flags);
+  dnsp->qdcount = htons(qdcount);
+  dnsp->ancount = htons(ancount);
+  dnsp->nscount = htons(nscount);
+  dnsp->arcount = htons(arcount);
+
+  return 1;
+}
+
 /**
  * dhcp_checkDNS()
  * Check if it was request for known domain name.
@@ -2099,13 +2226,13 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, int len)
 
   conn->lasttime = mainclock;
 
-  /* Was it a DNS request? 
+  /*
   if (((pack->iph.daddr == conn->dns1.s_addr) ||
        (pack->iph.daddr == conn->dns2.s_addr)) &&
       (pack->iph.protocol == DHCP_IP_UDP) &&
       (udph->dst == htons(DHCP_DNS))) {
     if (dhcp_checkDNS(conn, pack, len)) return 0;
-  } */
+    }*/
 
   /* Was it a request for the auto-logout service? */
   if ((pack->iph.daddr == options.uamlogout.s_addr) &&
@@ -2226,7 +2353,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, unsigned len)
     break; 
   case DHCP_AUTH_DNAT:
     /* Undo destination NAT */
-    if (dhcp_undoDNAT(conn, &packet, length)) {
+    if (dhcp_undoDNAT(conn, &packet, &length)) {
       if (this->debug) 
 	log_dbg("dhcp_undoDNAT() returns true");
       return 0;

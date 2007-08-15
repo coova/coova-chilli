@@ -33,7 +33,7 @@ HS_NASID=nas01
 HS_UAMSERVER=coova.org
 HS_UAMSECRET=
 HS_RADIUS=rad01.coova.org
-HS_RADIUS2=rad02.coova.org
+HS_RADIUS2=rad01.coova.org
 HS_RADSECRET=coova-anonymous
 
 HS_UAMALLOWED=coova.org
@@ -54,26 +54,9 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 
 
 ###
-# Centralized configuration options
-# 
-HS_RADCONF=off		   # Defaults to 'off'
-
-#   Other options for HS_RADCONF:
-
-# HS_RADCONF=url	   # requires curl
-# HS_RADCONF_URL=https://coova.org/app/ap/
-
-# HS_RADCONF=radius	   # gather the ChilliSpot-Config attributes in
-#			   # Administrative-User login
-# HS_RADCONF_SERVER=rad01.coova.org		 # RADIUS Server
-# HS_RADCONF_SECRET=coova-anonymous		 # RADIUS Shared Secret 
-# HS_RADCONF_AUTHPORT=1812			 # Auth port
-# HS_RADCONF_USER=chillispot			 # Username
-# HS_RADCONF_PWD=chillispot			 # Password
-
-###
 #   Features not activated per-default (default to off)
 #
+# HS_RADCONF=off	   # Get some configurations from RADIUS or a URL ('on' and 'url' respectively)
 # HS_ANYIP=on		   # Allow any IP address on subscriber LAN
 # HS_MACAUTHMODE=local	   # To allow MAC Authentication based on macallowed, not RADIUS
 # HS_USELOCALUSERS=on      # To use the @ETCCHILLI@/localusers file
@@ -86,6 +69,21 @@ HS_RADCONF=off		   # Defaults to 'off'
 #   Other feature settings and their defaults
 # HS_DEFSESSIONTIMEOUT=0   # Default session-timeout if not defined by RADIUS (0 for unlimited)
 # HS_DEFIDLETIMEOUT=0	   # Default idle-timeout if not defined by RADIUS (0 for unlimited)
+
+
+###
+# Centralized configuration options examples
+# 
+# HS_RADCONF=url	   # requires curl
+# HS_RADCONF_URL=https://coova.org/app/ap/
+
+# HS_RADCONF=on		   # gather the ChilliSpot-Config attributes in
+#			   # Administrative-User login
+# HS_RADCONF_SERVER=rad01.coova.org		 # RADIUS Server
+# HS_RADCONF_SECRET=coova-anonymous		 # RADIUS Shared Secret 
+# HS_RADCONF_AUTHPORT=1812			 # Auth port
+# HS_RADCONF_USER=chillispot			 # Username
+# HS_RADCONF_PWD=chillispot			 # Password
 
 
 ###

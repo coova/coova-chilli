@@ -83,6 +83,20 @@ int static chilliauth() {
   }
 
   /* get dhcpif mac */
+  memset(hwaddr, 0, sizeof(hwaddr));
+  if (!options.nasmac && options.dhcpif) {
+    struct ifreq ifr;
+    int fd;
+    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
+      memset(&ifr, 0, sizeof(ifr));
+      strncpy(ifr.ifr_name, options.dhcpif, IFNAMSIZ);
+      if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
+	log_err(errno, "ioctl(d=%d, request=%d) failed", fd, SIOCGIFHWADDR);
+      }
+      memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, DHCP_ETH_ALEN);
+      close(fd);
+    }
+  }
 
   radius_set(radius, hwaddr, (options.debug & DEBUG_RADIUS));
   radius_set_cb_auth_conf(radius, chilliauth_cb); 

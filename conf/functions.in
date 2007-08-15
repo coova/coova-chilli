@@ -194,7 +194,6 @@ radiusconfig() {
     elif [ "x$HS_RADCONF" = "xon" ]; then 
 	for s in $HS_RADCONF_SERVER $HS_RADCONF_SERVERS; do
 	    $SBIN/chilli_radconfig \
-		-c /dev/null \
 		--radiusserver1="$s" \
 		--radiussecret="$HS_RADCONF_SECRET" \
 		--radiusauthport="$HS_RADCONF_AUTHPORT" \

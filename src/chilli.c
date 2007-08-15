@@ -823,14 +823,16 @@ int static acct_req(struct app_conn_t *conn, int status_type)
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
 		     options.radiusnasporttype, NULL, 0);
       
-      radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,
-		     ntohl(conn->hisip.s_addr), NULL, 0);
-      
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
 		     conn->unit, NULL, 0);
+
       snprintf(portid, 16+1, "%.8d", conn->unit);
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_ID, 0, 0, 0,
 		     (uint8_t*) portid, strlen(portid));
+
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,
+		     ntohl(conn->hisip.s_addr), NULL, 0);
+      
     }
     
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
@@ -3289,6 +3291,8 @@ int chilli_main(int argc, char **argv)
 	 "Copyright 2006-2007 David Bird <dbird@acm.org>. Licensed under GPL. "
 	 "See http://www.chillispot.org/ & http://coova.org/ for details.", VERSION);
 
+  mainclock = time(0);
+
   printstatus(NULL);
 
   /* Create a tunnel interface */
@@ -3418,9 +3422,9 @@ int chilli_main(int argc, char **argv)
 	  cmdsock = -1;
 	}
       }
+    }
   }
-  }
-
+  
   if (cmdsock > 0) maxfd = cmdsock;
 
 
@@ -3459,8 +3463,8 @@ int chilli_main(int argc, char **argv)
   /******************************************************************/
   /* Main select loop                                               */
   /******************************************************************/
-  mainclock = time(0);
 
+  mainclock = time(0);
   while (keep_going) {
 
     if (do_sighup) {

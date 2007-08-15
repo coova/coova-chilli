@@ -571,7 +571,6 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
 
   a = (struct radius_attr_t*) ((void*) pack + length);
 
-
   if (type == RADIUS_ATTR_USER_PASSWORD) {
     radius_pwencode(this, (uint8_t*) passwd, RADIUS_PWSIZE, &pwlen, 
 		    data, dlen, pack->authenticator,
@@ -1246,12 +1245,6 @@ int radius_req(struct radius_t *this,
   struct sockaddr_in addr;
   int len = ntohs(pack->length);
 
-  /* always add the chillispot version to access requests */
-  if (pack->code == RADIUS_CODE_ACCESS_REQUEST)
-    radius_addattr(this, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VERSION, 
-		   0, (uint8_t*)VERSION, strlen(VERSION));
-
   /* Place packet in queue */
   if (radius_queue_in(this, pack, cbp)) {
     return -1;
@@ -1369,6 +1362,13 @@ radius_default_pack(struct radius_t *this,
     log_err(errno, "fread() failed");
     return -1;
   }
+
+  /* always add the chillispot version to access requests */
+  if (code == RADIUS_CODE_ACCESS_REQUEST)
+    radius_addattr(this, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VERSION, 
+		   0, (uint8_t*)VERSION, strlen(VERSION));
+
   return 0;
 }
 
@@ -1646,15 +1646,18 @@ int chilliauth_radius(struct radius_t *radius) {
 		   (uint8_t *)options.radiuslocationname, 
 		   strlen(options.radiuslocationname));
   
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
-		 0, 0, 0, NULL, RADIUS_MD5LEN);
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
+		 (uint8_t*)admin_session.sessionid, REDIR_SESSIONID_LEN-1);
 
   if (admin_session.classlen) {
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
 		   admin_session.classbuf,
 		   admin_session.classlen);
   }
-  
+
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+		 0, 0, 0, NULL, RADIUS_MD5LEN);
+
   return radius_req(radius, &radius_pack, &admin_session); 
 }
 

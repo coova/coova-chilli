@@ -6,7 +6,7 @@
 . @ETCCHILLI@/functions
 
 [ -e "@VARRUN@/chilli.iptables" ] && sh @VARRUN@/chilli.iptables 2>/dev/null
-rm -f @VARRUN@/chilli.iptables
+rm -f @VARRUN@/chilli.iptables 2>/dev/null
 
 # site specific stuff optional
 [ -e @ETCCHILLI@/ipdown.sh ] && . @ETCCHILLI@/ipdown.sh

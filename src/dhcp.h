@@ -227,8 +227,6 @@ struct dhcp_arp_fullpacket_t {
   struct dhcp_arp_packet_t arp;
 } __attribute__((packed));
 
-#ifdef DHCP_CHECKDNS
-
 #define DHCP_DNS_HLEN  12
 
 struct dhcp_dns_packet_t { /* From RFC 1035 */
@@ -247,7 +245,6 @@ struct dhcp_dns_fullpacket_t {
   struct dhcp_udphdr_t udph;
   struct dhcp_dns_packet_t dns;
 } __attribute__((packed));
-#endif
 
 struct dhcp_t; /* Forward declaration */
 
