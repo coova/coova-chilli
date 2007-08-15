@@ -7,31 +7,21 @@ Cache: none
 . ./config.sh
 
     cat ChilliLibrary.js
-    echo "ChilliController.host = '$hs_uamlisten';"
-    echo "ChilliController.port = $hs_uamport;"
-#   echo "ChilliController.uamService = '';"
+    echo "chilliController.host = '$hs_uamlisten';"
+    echo "chilliController.port = $hs_uamport;"
+#   echo "chilliController.uamService = '';"
 ?>
 
-/* UAM SERVICE 
- *   This is a remote script running on a SSL enable web server, and knowning UAM SECRET.
- *
- *   The ChilliController javascript object will securely send the password (and challenge for CHAP) 
- *   to the UAM SERVICE script over a SSL tunnel. UAM SERVICE will reply with a JSON reply containing
- *
- *      - CHAP logon : CHAP-Password X0Red with UAM SECRET
- *      - PAP  logon : Password XORed with UAM SECRET
- *  by Yannick Deltroo - see http://chillispot.wesea.com/bbscv2/welcome.html
- */
 
-ChilliController.onUpdate = updateUI ;
-ChilliController.onError  = handleError ;
+chilliController.onUpdate = updateUI ;
+chilliController.onError  = handleError ;
 
 if (!window.queryObj) {
     window.queryObj = new Object();
     window.location.search.replace(new RegExp("([^?=&]+)(=([^&]*))?","g"), function($0,$1,$2,$3) { queryObj[$1] = $3; });
 }
 
-ChilliController.queryObj = window.queryObj;
+chilliController.queryObj = window.queryObj;
 
 function hidePage(page) { 
     var e = document.getElementById(page);
@@ -56,51 +46,51 @@ function setElementValue(elem, val, forceHTML) {
     }
 }
 
-ChilliClock.onChange = function ( newval ) {
-    setElementValue("sessionTime", ChilliController.formatTime(newval));
+chilliClock.onChange = function ( newval ) {
+    setElementValue("sessionTime", chilliController.formatTime(newval));
 }
     
-function updateUI (cmd, previousState) {
-    log ( "Update UI is called. ChilliController.clientState = " + ChilliController.clientState ) ; 
+function updateUI (cmd ) {
+    log ( "Update UI is called. chilliController.clientState = " + chilliController.clientState ) ; 
     
     clearTimeout ( delayTimer );
 
-    if ( ChilliController.redir ) {
-	if (ChilliController.redir.originalURL != null &&
-	    ChilliController.redir.originalURL != '') {
-	    setElementValue('originalURL', '<a target="_blank" href="'+ChilliController.redir.originalURL+
-			    '">'+ChilliController.redir.originalURL+'</a>', true);
+    if ( chilliController.redir ) {
+	if (chilliController.redir.originalURL != null &&
+	    chilliController.redir.originalURL != '') {
+	    setElementValue('originalURL', '<a target="_blank" href="'+chilliController.redir.originalURL+
+			    '">'+chilliController.redir.originalURL+'</a>', true);
 	}
-	if (ChilliController.redir.redirectionURL != null &&
-	    ChilliController.redir.redirectionURL != '') {
-	    setElementValue('redirectionURL', ChilliController.redir.redirectionURL);
+	if (chilliController.redir.redirectionURL != null &&
+	    chilliController.redir.redirectionURL != '') {
+	    setElementValue('redirectionURL', chilliController.redir.redirectionURL);
 	}
     }
 
-    if ( ChilliController.message ) {
-	setElementValue('logonMessage', ChilliController.message);
-	ChilliController.message = null;
-	ChilliController.refresh();
+    if ( chilliController.message ) {
+	setElementValue('logonMessage', chilliController.message);
+	chilliController.message = null;
+	chilliController.refresh();
     }
 
-    if ( ChilliController.location ) {
-	setElementValue('locationName', ChilliController.location.name);
-	ChilliController.location = null;
+    if ( chilliController.location ) {
+	setElementValue('locationName', chilliController.location.name);
+	chilliController.location = null;
     }
 
-    if ( ChilliController.clientState == 0 ) showLogonPage()  ;
+    if ( chilliController.clientState == 0 ) showLogonPage()  ;
 
-    if ( ChilliController.clientState == 1 ) {
+    if ( chilliController.clientState == 1 ) {
 	showStatusPage();
     }
 
-    if (ChilliController.redir.redirectionURL) {
-	//ChilliController.nextWindow = window.open(ChilliController.redir.redirectionURL,'nextURL');
-	window.location.href = ChilliController.redir.redirectionURL;
-	ChilliController.redir.redirectionURL = null;
+    if (chilliController.redir.redirectionURL) {
+	//chilliController.nextWindow = window.open(chilliController.redir.redirectionURL,'nextURL');
+	window.location.href = chilliController.redir.redirectionURL;
+	chilliController.redir.redirectionURL = null;
     }
     
-    if ( ChilliController.clientState == 2 ) showWaitPage();
+    if ( chilliController.clientState == 2 ) showWaitPage();
 }
 
 function handleError( code ) {
@@ -117,14 +107,14 @@ function connect() {
 	return setElementValue('logonMessage', 'Username is required');
     
     showWaitPage(1000);
-    ChilliController.logon( username , password ) ;
+    chilliController.logon( username , password ) ;
 }
 
 function disconnect() {
     if (confirm("Are you sure you want to disconnect now?")) {
-	ChilliClock.stop();
+	chilliClock.stop();
 	showWaitPage(1000);
-	ChilliController.logoff();
+	chilliController.logoff();
     }
     return false;
 }
@@ -138,7 +128,7 @@ function showLogonPage() {
 }
 
 function showStatusPage() {
-    setTimeout('ChilliController.refresh()', 15000);
+    setTimeout('chilliController.refresh()', 15000);
 
     hidePage("logonPage");
     showPage("statusPage");
@@ -146,38 +136,38 @@ function showStatusPage() {
     hidePage("errorPage");
     
     // Update message
-    if ( ChilliController.message ) { 
-	setElementValue("statusMessage", ChilliController.message);
+    if ( chilliController.message ) { 
+	setElementValue("statusMessage", chilliController.message);
     }
     
     // Update session
     setElementValue("sessionId",
-		    ChilliController.sessionId ?
-		    ChilliController.sessionId :
+		    chilliController.sessionId ?
+		    chilliController.sessionId :
 		    "Not available");
 
     setElementValue("startTime",
-		    ChilliController.session.startTime ?
-		    ChilliController.session.startTime :
+		    chilliController.session.startTime ?
+		    chilliController.session.startTime :
 		    "Not available");
     
     setElementValue("sessionTimeout",
-		    ChilliController.formatTime(ChilliController.session.sessionTimeout, 'unlimited'));
+		    chilliController.formatTime(chilliController.session.sessionTimeout, 'unlimited'));
 
     setElementValue("idleTimeout",
-		    ChilliController.formatTime(ChilliController.session.idleTimeout, 'unlimited'));
+		    chilliController.formatTime(chilliController.session.idleTimeout, 'unlimited'));
 
     // Update accounting
     setElementValue("sessionTime",
-		    ChilliController.formatTime(ChilliController.accounting.sessionTime));
+		    chilliController.formatTime(chilliController.accounting.sessionTime));
     
     setElementValue("idleTime",
-		    ChilliController.formatTime(ChilliController.accounting.idleTime));
+		    chilliController.formatTime(chilliController.accounting.idleTime));
     
-    setElementValue("inputOctets", ChilliController.formatBytes(ChilliController.accounting.inputOctets));
-    setElementValue("outputOctets", ChilliController.formatBytes(ChilliController.accounting.outputOctets));
+    setElementValue("inputOctets" , chilliController.formatBytes(chilliController.accounting.inputOctets));
+    setElementValue("outputOctets", chilliController.formatBytes(chilliController.accounting.outputOctets));
     
-    ChilliClock.resync (ChilliController.accounting.sessionTime);
+    chilliClock.resync (chilliController.accounting.sessionTime);
 }
 
 function showWaitPage(delay) {
@@ -196,7 +186,7 @@ function showWaitPage(delay) {
 }
 
 function showErrorPage( str )  {
-    setTimeout('ChilliController.refresh()', 15000);
+    setTimeout('chilliController.refresh()', 15000);
     
     hidePage("logonPage");
     hidePage("statusPage");
@@ -242,7 +232,7 @@ window.onload = function() {
 	    var script = document.createElement('script');
 	    script.id = 'chilliform';
 	    script.type = 'text/javascript';
-	    script.src = 'http://'+ChilliController.host+':'+ChilliController.port+'/www/chilliform.chi';
+	    script.src = 'http://'+chilliController.host+':'+chilliController.port+'/www/chilliform.chi';
 	    head.appendChild(script);
 	} else {
 	    logonForm.innerHTML='Error loading generic login form';
@@ -250,6 +240,6 @@ window.onload = function() {
     }
 
     showWaitPage(); 
-    setTimeout('ChilliController.refresh()', 500);
+    setTimeout( chilliController.refresh, 500);
 }
     

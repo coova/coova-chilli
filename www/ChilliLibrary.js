@@ -1,338 +1,517 @@
-/****************************************************/
-/*                 ChilliLibrary                    */
-/*                                                  */
-/* Creates three global objects:                    */
-/*    - ChilliController                            */
-/*    - ChilliClock                                 */
-/*    - ChilliJSON                                  */
-/*                                                  */
-/* Version 2.0 Copyright (C) Yannick Deltroo 2007   */
-/* Distributed under the BSD License                */
-/****************************************************/
+/**
+ *   ChilliLibrary.js
+ *   V2.0
+ *
+ *   This Javascript library can be used to create HTML/JS browser
+ *   based smart clients (BBSM) for the CoovaChilli access controller
+ *   Coova Chilli rev 81 or higher is required
+ *   
+ *   This library creates four global objects :
+ *
+ *    - chilliController  Expose session/client state and 
+ *                        connect()/disconnect() methods the to BBSM.
+ *
+ *    - chilliJSON        INTERNAL (should not be called from the BBSM).
+ *                        Issues a command to the chilli daemon by adding a new <SCRIPT>
+ *                        tag to the HTML DOM (this hack enables cross server requests). 
+ *                        
+ *    - chilliClock       Can be used by BBSMs to display a count down.
+ *                        Will sync with chilliController for smooth UI display (not yet implemented)
+ *
+ *    - chilliLibrary     Expose API and library versions
+ *
+ *  For more information http://coova.org/wiki/index.php/CoovaChilli/JSON
+ *
+ *  TODO :
+ *   - Fine tune level of debug messages
+ *   - Define error code when invoking onError
+ *   - Retry mechanism after a JSON request fails
+ *   - Delay clock tick when there is already an ongoing request
+ *   - Use a true JSON parser to validate what we received
+ *   - Use idleTime and idleTimeout to re-schedule autofresh after
+ *     a likely idle termination by chilli
+ *   - check that the library can be compiled as a Flash swf library
+ *     and used from Flash BBSMs with the same API.
+ *
+ *   Copyright (C) Y.Deltroo 2007
+ *   Distributed under the BSD License
+ *
+ *   This file also contains third party code :
+ *   - MD5, distributed under the BSD license
+ *     http://pajhome.org.uk/crypt/md5
+ *
+ */
 
-// TODO: use constants for clientState (AUTH/NOTAUTH/PENDING)
+var chilliLibrary = { revision:'85' , apiVersion:'2.0' } ;
 
-var ChilliController = new Object();
 
-/* Communication with Chilli daemon: Default values */
-ChilliController.interval = 30 ;
-ChilliController.host     = "192.168.182.1" ;
-ChilliController.port     = 3990            ;
-ChilliController.ssl      = false           ; // Use SSL to communucate with Chilli?
+/**
+ *   Global chilliController object
+ *
+ *   CONFIGUARION PROPERTIES
+ *   -----------------------
+ *    ident (String) 
+ *      Hex encoded string (used for client side CHAP-Password calculations) 
+ *		  
+ *    interval (Number)
+ *       Poll the gateway every interval, in seconds
+ *
+ *    host (String)
+ *       IP address of the controller (String)
+ *
+ *    port (Number)
+ *        UAM port to direct request to on the gateway
+ *
+ *    ssl (Boolean)
+ *       Shall we use HTTP or HTTPS to communicate with the chilli controller 
+ *
+ *    uamService : String
+ *        !!! EXPERIMENTAL FEATURE !!!
+ *        URL to external uamService script (used for external MD5 calculation when portal/chilli trust is required)
+ *        This remote script runs on a SSL enable web server, and knows UAM SECRET.
+ *        The chilliController javascript object will send the password over SSL (and challenge for CHAP) 
+ *        UAM SERVICE should reply with a JSON response containing
+ *           - CHAP logon : CHAP-Password X0Red with UAM SECRET
+ *           - PAP  logon : Password XORed with UAM SECRET
+ *
+ *   For more information http://coova.org/wiki/index.php/CoovaChilli/JSON
+ *
+ */
 
-/* Communications with uamService : default values */
-ChilliController.uamService = false ; // e.g. 'https://mysite.com/chilli.php'
+var chilliController = { interval:30 , host:"192.168.182.1" , port:3990 , ident:'00' , ssl:false , uamService: '' };
 
-/* Default ident (hex encoded string) for CHAP-Password calculations */
-ChilliController.ident = '00' ; // e.g. 'ff' or '00'
+/* Define clientState numerical code constants  */
+chilliController.stateCodes = { UNKNOWN:-1 , NOT_AUTH:0 , AUTH:1 , AUTH_PENDING:2 } ;
 
-/* Initializing session and accounting sections */
-ChilliController.session     = -1 ;
-ChilliController.accounting  = -1 ;
-ChilliController.clientState = -1 ;
-ChilliController.command     = -1 ;
+/* Initializing session and accounting members, objet properties */
+chilliController.session     = {} ;
+chilliController.accounting  = {} ;
+chilliController.redir       = {} ;
 
-/* calculate the root of command URLs */
-ChilliController.urlRoot= function () {
+chilliController.location   = { name: '' } ;
+chilliController.challenge       = '' ;
+chilliController.message         = '' ;
+chilliController.clientState     = chilliController.stateCodes.UNKNOWN ;
+chilliController.command         = '' ;
+chilliController.autorefreshTimer = 0  ;
 
-	var protocol = ( ChilliController.ssl ) ? "https" : "http" ;
-	return protocol + '://' + ChilliController.host + ':' + ChilliController.port + '/json/' ;
-}
+/* This method returns the root URL for commands */
+chilliController.urlRoot = function () {
+	var protocol = ( chilliController.ssl ) ? "https" : "http" ;
+	var urlRoot = protocol + "://" + chilliController.host + ":" + chilliController.port.toString() + "/json/" ;
+	return urlRoot;
+};
 
 /* Default event handlers */
-ChilliController.onUpdate = function ( cmd, state ) {
-	alert('Default onUpdate handler. cmd = ' + cmd );
-}
+chilliController.onUpdate = function ( cmd ) {
+	log('>> Default onUpdate handler. <<\n>> You should write your own. <<\n>> cmd = ' + cmd + ' <<' );
+};
 
-ChilliController.onError = function ( str ) {
-	log ( '>> Default Error Handler<<\nYou should write your own\n\n' + str )
-}
+chilliController.onError = function ( str ) {
+	log ( '>> Default Error Handler<<\n>> You should write your own  <<\n>> ' + str + ' <<' );
+};
 
-ChilliController.formatBytes = function ( bytes ) {
+
+/* Some formating functions */
+chilliController.formatBytes = function ( bytes ) {
     return bytes + ' bytes';
-}
+};
 
-ChilliController.formatTime = function ( sec, zeroReturn ) {
-    if (sec == null) return "Not available";
-    if (zeroReturn && sec == 0) return zeroReturn;
-    return sec + ' sec';
-}
+chilliController.formatTime = function ( t , zeroReturn ) {
 
-/*******************************/
-/*  ChilliController METHODS   */
-/*******************************/
+    if ( typeof(t) == 'undefined' ) {
+	return "Not available";
+    }
 
-/* logon()    */
-ChilliController.logon = function ( username , password )  {
+    t = parseInt ( t , 10 ) ;
+    if ( (typeof (zeroReturn) !='undefined') && ( t === 0 ) ) {
+	return zeroReturn;
+    }
 
-	if ( typeof(username) !== 'string') ChilliController.onError( 1 , "Missing username (or incorrect type)" ) ;
-	if ( typeof(password) !== 'string') ChilliController.onError( 2 , "Missing password (or incorrect type)" ) ;
+    var h = Math.floor( t/3600 ) ;
+    var m = Math.floor( (t - 3600*h)/60 ) ;
+    var s = t % 60  ;
 
-	log ( 'ChilliController.logon( "' + username + '" , "' + password + ' " )' );
+    var s_str = s.toString();
+    if (s < 10 ) { s_str = '0' + s_str;   }
 
-	ChilliController.command = 'logon';
+    var m_str = m.toString();
+    if (m < 10 ) { m_str= '0' + m_str;    }
 
-	/* TODO: Should check if challenge has expired and possiblity get a new home */
-	challenge = ChilliController.challenge ;
-	log ('ChilliController.logon: challenge = ' + challenge );
+    var h_str = h.toString();
+    if (h < 10 ) { h_str= '0' + h_str;    }
 
-	if ( ChilliController.uamService ) { /* MD5 CHAP will be calculated by uamService */
 
-		log ('Logon using uamService (external MD5 CHAP)');
+    if      ( t < 60 )   { return s_str + 's' ; }
+    else if ( t < 3600 ) { return m_str + 'm' + s_str + 's' ; }
+    else                 { return h_str + 'h' + m_str + 'm' + s_str + 's'; }
+
+};
+
+
+/**
+ *   Global chilliController object
+ *
+ *   PUBLIC METHODS
+ *   --------------
+ *     logon ( username, password ) :
+ *           Attempt a CHAP logon with username/password
+ *           issues a /logon command to chilli daemon
+ *
+ *     logoff () :
+ *           Disconnect the current user by issuing a
+ *           /logoff command to the chilli daemon
+ *
+ *     refresh () :
+ *           Issues a /status command to chilli daemon to refresh 
+ *           the local chilliController object state/session data
+ *
+ */
+ 
+chilliController.logon = function ( username , password )  {
+
+	if ( typeof(username) !== 'string') {
+		chilliController.onError( 1 , "username missing (or incorrect type)" ) ;
+	}
+	
+	if ( typeof(password) !== 'string') {
+		chilliController.onError( 2 , "password missing (or incorrect type)" ) ;
+	}
+
+	log ( 'chilliController.logon( "' + username + '" , "' + password + ' " )' );
+
+	chilliController.temp = { 'username': username , 'password': password };
+	chilliController.command = 'logon';
+
+	log ('chilliController.logon: asking for a new challenge ' );
+	chilliJSON.onError        = chilliController.onError    ;
+	chilliJSON.onJSONReady    = chilliController.logonStep2 ;
+	chilliController.clientState = chilliController.AUTH_PENDING ; 
+	chilliJSON.get( chilliController.urlRoot() + 'status'  ) ;
+};
+
+/**
+ *   Second part of the logon process invoked after
+ *   the just requested challenge has been received
+ */
+chilliController.logonStep2 = function ( resp ) {
+
+	log('Entering logonStep 2');
+
+	if ( typeof (resp.challenge) != 'string' ) {
+		log('logonStep2: cannot find a challenge. Aborting.');
+		return chilliController.onError('Cannot get challenge');
+	}
+
+	if ( resp.clientSate === chilliController.stateCodes.AUTH ) {
+		log('logonStep2: Already connected. Aborting.');
+		return chilliController.onError('Already connected.');
+	}
+
+	var challenge = resp.challenge;
+
+	var username = chilliController.temp.username ; 
+	var password = chilliController.temp.password ;
+
+	log ('chilliController.logonStep2: Got challenge = ' + challenge );
+
+	if ( chilliController.uamService ) { /* MD5 CHAP will be calculated by uamService */
+
+		log ('chilliController.logonStep2: Logon using uamService (external MD5 CHAP)');
 
 		// Build command URL
-		var url = ChilliController.uamService + '?username=' + username +'&password=' + password +'&challenge=' + challenge ;
+		var url = chilliController.uamService + '?username=' + username +'&password=' + password +'&challenge=' + challenge ;
 
-		if (ChilliController.queryObj && ChilliController.queryObj['userurl']) {
-		    url += '&userurl='+ChilliController.queryObj['userurl'];
+		if (chilliController.queryObj && chilliController.queryObj.userurl ) {
+		    url += '&userurl='+chilliController.queryObj.userurl ;
 		}
 
 		// Make uamService request
-		ChilliJSON.onError     = ChilliController.onError    ;
-		ChilliJSON.onJSONReady = ChilliController.processUAM ;
+		chilliJSON.onError     = chilliController.onError     ;
+		chilliJSON.onJSONReady = chilliController.processReply ;
 
-		ChilliController.clientState = 2 ; // AUTH_PENDING
-		ChilliJSON.get( url ) ;
+		chilliController.clientState = chilliController.AUTH_PENDING ; 
+		chilliJSON.get( url ) ;
 
 	}
-	else {	/* non uamService, calculate MD5 CHAP locally */
+	else {
+		/* TODO: Should check if challenge has expired and possibly get a new one */
+        	/*       OR always call status first to get a fresh challenge             */
 
-		log ('Logon with local MD5 CHAP calculation');
 
+		/* Calculate MD5 CHAP at the client side */
 		var myMD5 = new ChilliMD5();
-		var chappassword = myMD5.chap ( ChilliController.ident , password , challenge );
-		log ( 'Calculating CHAP-Password = ' + chappassword );
+		var chappassword = myMD5.chap ( chilliController.ident , password , challenge );
+		log ( 'chilliController.logonStep2: Calculating CHAP-Password = ' + chappassword );
 
-		// Build command URL
-		var url = ChilliController.urlRoot() + 'logon?username=' + username + '&response='  + chappassword;
-
-		if (ChilliController.queryObj && ChilliController.queryObj['userurl']) {
-		    url += '&userurl='+ChilliController.queryObj['userurl'];
-		}
-
-		// Make logon  request
-		ChilliJSON.onError     = ChilliController.onError     ;
-		ChilliJSON.onJSONReady = ChilliController.processJSON ;
-
-		ChilliController.clientState = 2 ; // AUTH_PENDING
-		ChilliJSON.get ( url ) ;
+		/* Prepare chilliJSON for logon request */
+		chilliJSON.onError     = chilliController.onError     ;
+		chilliJSON.onJSONReady = chilliController.processReply ;
+		chilliController.clientState = chilliController.stateCodes.AUTH_PENDING ; 
+	
+		/* Build /logon command URL */
+		var logonUrl = chilliController.urlRoot() + 'logon?username=' + username + '&response='  + chappassword;
+		chilliJSON.get ( logonUrl ) ;
 	}
-}
 
-/* METHOD: refresh()    */
-ChilliController.refresh = function () {
+}; 
 
-	ChilliController.command = 'refresh';
+chilliController.refresh = function ( ) {
 
-	// Make status request
-	ChilliJSON.onError     = ChilliController.onError     ;
-	ChilliJSON.onJSONReady = ChilliController.processJSON ;
+	if ( chilliController.autorefreshTimer ) {
+		chilliController.command = 'autorefresh' ;
+	}
+	else {
+		chilliController.command = 'refresh' ;
+	}
 
-	url = ChilliController.urlRoot() + 'status' ;
-	ChilliJSON.get( url );
-}
+	chilliJSON.onError     = chilliController.onError        ;
+	chilliJSON.onJSONReady = chilliController.processReply   ;
+	chilliJSON.get( chilliController.urlRoot() + 'status'  ) ;
+};
 
-/* METHOD: logoff()    */
-ChilliController.logoff = function () {
+chilliController.logoff = function () {
 
-	ChilliController.command = 'logoff';
+	chilliController.command  = 'logoff'                      ;
+	chilliJSON.onError        = chilliController.onError      ;
+	chilliJSON.onJSONReady    = chilliController.processReply ;
+	chilliJSON.get( chilliController.urlRoot() + 'logoff' );
+};
 
-	// Make status request
-	ChilliJSON.onError     = ChilliController.onError     ;
-	ChilliJSON.onJSONReady = ChilliController.processJSON ;
+/* *
+ *
+ * This functions does some check/type processing on the JSON resp
+ * and updates the corresponding chilliController members
+ *
+ */
+chilliController.processReply = function ( resp ) {
 
-	url = ChilliController.urlRoot() + 'logoff' ;
-	ChilliJSON.get( url );
-}
+	/* Log sessionId if any */
+	if ( resp.sessionId ) {
+		log('chilliController.processReply:  sessionId =  ' + resp.sessionId );
+	}
 
-/* METHOD: processJSON reply from Chilli daemon    */
-ChilliController.processJSON = function ( resp ) {
 
-	var sid = new String;
-	if ( resp.sessionId ) sid = '( sessionId = ' + resp.sessionId  + ' )';
-	if ( sid.length !== 0 ) log('ChilliController.processJSON: Processing reply. ' + sid );
+	if ( typeof (resp.message)  == 'string' ) {
 
-	if ( typeof (resp.message)   == 'string' ) ChilliController.message   = resp.message   ;
-	if ( typeof (resp.sessionId) == 'string' ) ChilliController.sessionId = resp.sessionId ;
-	if ( typeof (resp.challenge) == 'string' ) ChilliController.challenge = resp.challenge ;
+		/* The following trick will replace HTML entities with the corresponding
+                 * character. This will not work in Flash (no innerHTML) 
+                 */
+
+		var fakediv = document.createElement('div');
+		fakediv.innerHTML = resp.message ;
+		chilliController.message = fakediv.innerHTML  ;
+	}
+	if ( typeof (resp.sessionId) == 'string' ) {
+		chilliController.sessionId = resp.sessionId ;
+	}
+	if ( typeof (resp.challenge) == 'string' ) {
+		chilliController.challenge = resp.challenge ;
+	}
 
 	if ( typeof ( resp.location ) == 'object' ) {
-		ChilliController.location = resp.location;
-	}
-
-	if ( typeof ( resp.redir ) == 'object' ) {
-		ChilliController.redir = resp.redir;
+		chilliController.location =  resp.location ;
 	}
 
 	if ( typeof ( resp.accounting ) == 'object' ) {
-		ChilliController.accounting = resp.accounting ;
+		chilliController.accounting = resp.accounting ;
 	}
 
-	if ( (typeof ( resp.session ) == 'object') && ( ChilliController.clientState!==1 ) && ( resp.clientState===1 ) ) {
-		ChilliController.session = resp.session ;
+	/* Update the session member only the first time after AUTH */
+	if (  (typeof ( resp.session ) == 'object') &&
+              ( chilliController.clientState !== chilliController.stateCodes.AUTH  )  && 
+              ( resp.clientState === chilliController.stateCodes.AUTH  )) {
+
+		chilliController.session = resp.session ;
+
+		/* Convert date received as a string to a Javascript Date object */
+		if ( typeof (resp.session.startTime ) == 'string' ) {
+
+			var re = new RegExp( 'GMT|UTC' , 'i') ;
+			if ( resp.session.startTime.match (re) ) {
+				chilliController.session.startTime = new Date( resp.session.startTime);
+			}
+			else { /* No Timezone. Assume GMT. */
+				chilliController.session.startTime = new Date( resp.session.startTime +' GMT+0000');
+			}
+		}
 	}
 
-	var previousState = ChilliController.clientState;
+	
+	/* Update clientState */
+	if (  ( resp.clientState === chilliController.stateCodes.NOT_AUTH     ) ||
+              ( resp.clientState === chilliController.stateCodes.AUTH         ) ||
+	      ( resp.clientState === chilliController.stateCodes.AUTH_PENDING ) ) {
 
-	if ( resp.clientState == 0 || resp.clientState == 1 ) {
-		ChilliController.clientState = resp.clientState;
+		chilliController.clientState = resp.clientState ;
 	}
 	else {
-		this.onError("Incorrect clientState found in JSON reply");
+		chilliController.onError("Unknown clientState found in JSON reply");
 	}
 
-	// Lastly... call the event handler
-	log ('ChilliController.processJSON: Calling onUpdate. clienState = ' + ChilliController.clientState);
-	ChilliController.onUpdate( ChilliController.command, previousState );
-}
 
-// TODO: rename uamserver to uamservice (for webservice ?)
+	/* Launch or stop the autorefresh timer if required */
+	if ( chilliController.clientState === chilliController.stateCodes.AUTH  ) {
 
-/* processUAM json reply from uamserver */
-/* and then send logon to Chilli        */
-ChilliController.processUAM = function ( resp ) {
-
-	// Build command URL
-	if ( typeof (resp.response) === 'string' ) { 
-	   var url = ChilliController.urlRoot() + 'logon?username=' + resp.username + '&response=' + resp.response ;
-	}
-	else if ( typeof (resp.password) === 'string' ) {
-	   var url = ChilliController.urlRoot() + 'logon?username=' + resp.username + '&password=' + resp.password ;
+             if ( !chilliController.autorefreshTimer ) {
+			chilliController.autorefreshTimer = setInterval ( chilliController.refresh , 1000*chilliController.interval ) ;
+	     }
+	} 
+	else if ( chilliController.clientState  === chilliController.stateCodes.NOT_AUTH ) {
+		clearInterval ( chilliController.autorefreshTimer ) ;
+		 chilliController.autorefreshTimer = 0 ;
 	}
 
-	// Make logon  request
-	ChilliJSON.onError     = ChilliController.onError     ;
-	ChilliJSON.onJSONReady = ChilliController.processJSON ;
+	/* Lastly... call the event handler  */
+	log ('chilliController.processReply: Calling onUpdate. clienState = ' + chilliController.clientState);
+	chilliController.onUpdate( chilliController.command );
+};
 
-	ChilliController.clientState = 2 ; // AUTH_PENDING
-	ChilliJSON.get( url ) ;
-}
 
-/****************************************/
-/* ChilliJSON object                    */ 
-/* Implements cross domain hack         */
-/****************************************/
 
-var ChilliJSON = new Object();
+/** 
+ *  chilliJSON object  
+ *
+ *  This private objet implements the cross domain hack
+ *  If no answer is received before timeout, then an error is raised.
+ *
+ */
 
-ChilliJSON.timeout   = 20000 ;
-ChilliJSON.pending   = 0 ;
-ChilliJSON.node      = 0 ;
-ChilliJSON.timestamp = 0 ;
-ChilliJSON.expired   = function () {
+var chilliJSON = { timeout:25000 , timer:0 , node:0 , timestamp:0 };
 
-		if ( ChilliJSON.node.text ) log ('ChilliJSON: reply content \n' + ChilliJSON.node.text );
-		else log ('ChilliJSON: request timed out (or reply is not valid JS)');
+chilliJSON.expired   = function () {
 
-		clearInterval ( ChilliJSON.timer ) ;
+		if ( chilliJSON.node.text ) {
+			log ('chilliJSON: reply content \n' + chilliJSON.node.text );
+		}
+		else {
+			log ('chilliJSON: request timed out (or reply is not valid JS)');
+		}
 
-		// remove node (may exist if we received non JS text)
-		if ( typeof (ChilliJSON.node) !== 'number' ) document.getElementsByTagName('head')[0].removeChild(ChilliJSON.node);
-		ChilliJSON.pending = 0;
+		clearInterval ( chilliJSON.timer ) ;
+		chilliJSON.timer = 0 ;
+
+		/* remove the <SCRIPT> tag node that we have created */
+		if ( typeof (chilliJSON.node) !== 'number' ) {
+			window.document.getElementsByTagName('head')[0].removeChild(chilliJSON.node);
+		}
 
 		/* TODO: Implement some kind of retry mechanism here ... */
 
-		ChilliJSON.onError('JSON request timed out (or reply is not valid)');
-}
+		chilliJSON.onError('JSON request timed out (or reply is not valid)');
+};
 
-ChilliJSON.reply = function  ( raw ) {
+chilliJSON.reply = function  ( raw ) {
 
-
-		if ( ChilliJSON.timestamp ) {
-			var now = new Date();
-			var flightTime = now.getTime() - ChilliJSON.timestamp;
-			log ( 'ChilliJSON: JSON reply received in ' + flightTime + ' ms\n' + dumpObject ( raw )  );
+		var now = new Date()    ;
+		var end = now.getTime() ;
+		 
+		if ( chilliJSON.timestamp ) {
+			log ( 'chilliJSON: JSON reply received in ' + ( end - chilliJSON.timestamp ) + ' ms\n' + dumpObject(raw) );
 		}
 
+		clearInterval ( chilliJSON.timer ) ;
+		chilliJSON.timer = 0 ;
 
-		clearInterval ( ChilliJSON.timer ) ;
-		ChilliJSON.pending = 0 ;
-		ChilliJSON.started = 0 ;
+		if ( typeof (chilliJSON.node) !== 'number' ) {
+			document.getElementsByTagName('head')[0].removeChild ( chilliJSON.node );
+		}
+		chilliJSON.node = 0;
 
-		if ( typeof (ChilliJSON.node) !== 'number' ) document.getElementsByTagName('head')[0].removeChild ( ChilliJSON.node );
-		ChilliJSON.node = 0;
+         	/* TODO: We should parse raw JSON as an extra security measure */
+				
+		chilliJSON.onJSONReady( raw ) ;
+} ;
 
-                /* TODO: should clean-up raw JSON with a real parser HERE before passing it over */
-		ChilliJSON.onJSONReady( raw ) ;
-}
+chilliJSON.get = function ( gUrl ) {
 
-ChilliJSON.get = function ( url ) {
-
-		if ( typeof(url) == "string" ) {
-		        ChilliJSON.url = url  ;
+		if ( typeof(gUrl) == "string" ) {
+			chilliJSON.url = gUrl ;
 		}
 		else {
-			log ( "ChilliJSON:error:Incorrect url passed to ChilliJSON.get():" + url );
-			ChilliJSON.onError ( "Incorrect url passed to ChilliJSON.get() " );
+			log ( "chilliJSON:error:Incorrect url passed to chilliJSON.get():" + gUrl );
+			chilliJSON.onError ( "Incorrect url passed to chilliJSON.get() " );
 			return ;
 		}
 
-		if ( ChilliJSON.pending == 1 ) {
-
-			log('logon: There is a request already running');
-
-			// ChilliJSON.pending is not correctly set in IE7
-			// remove this line :
-			//ChilliJSON.onError ("Please wait for the previous request to complete.");	
+		if ( chilliJSON.timer ) {
+			log('logon:   There is already a request running. Return without launching a new request.');
+			return ;
 		}
 
-		/* Using interval instead of timeout to support Flash 5,6,7 */
-		ChilliJSON.timer     = setInterval ( 'ChilliJSON.expired()' , ChilliJSON.timeout ) ; 
-		var now = new Date();
-		ChilliJSON.timestamp = now.getTime() ;
-
+	
 		var scriptElement  = document.createElement('script');
 		scriptElement.type = 'text/javascript';
 
-		var c = new String();
+		var c ;
 		if ( this.url.indexOf('?') === -1 ) { 
 			c = '?' ;
 		}
 		else {
 			c = '&' ;
 		}
-
-		scriptElement.src = ChilliJSON.url + c + 'callback=ChilliJSON.reply';
-		scriptElement.src += '&'+Math.random();
+		scriptElement.src = chilliJSON.url + c + 'callback=chilliJSON.reply' ;
 		
-		// Adding the node that will trigger the HTTP request
-		ChilliJSON.node = document.getElementsByTagName('head')[0].appendChild(scriptElement);
-		ChilliJSON.pending = 1 ; 
+		/* Adding the node that will trigger the HTTP request to the DOM tree */
+		chilliJSON.node = document.getElementsByTagName('head')[0].appendChild(scriptElement);
 
-		log ('ChilliJSON: getting ' + ChilliJSON.url + ' . Waiting for reply ...');
-}
+		/* Using interval instead of timeout to support Flash 5,6,7 */
+		chilliJSON.timer     = setInterval ( chilliJSON.expired , chilliJSON.timeout ) ; 
+		var now              = new Date();
+		chilliJSON.timestamp = now.getTime() ;
 
-/****************************************/
-/* Clock object                         */ 
-/****************************************/
+		log ('chilliJSON: getting ' + chilliJSON.url + ' . Waiting for reply ...');
 
-var ChilliClock = new Object ();
-ChilliClock.timerId   = 0     ;
-ChilliClock.isStarted = false ;
-ChilliClock.value     = 0     ;
+}; // end chilliJSON.get = function ( url )
 
-ChilliClock.increment = function () {
-	ChilliClock.value =  ChilliClock.value + 1 ;
-	ChilliClock.onChange ( ChilliClock.value ) ;
-}
 
-ChilliClock.resync = function ( newval ) {
-	clearInterval ( ChilliClock.timerId )  ;
-	ChilliClock.value = parseInt( newval ) ;
-	ChilliClock.timerId = setInterval ( ChilliClock.increment , 1000 );
-	ChilliClock.isStarted = true ;		
-}
+/** 
+ *  chilliClock object  
+ *
+ *  Can be used by BBSMs to display a count down.
+ *
+ *  Will sync with chilliController and modulate the delay to call onTick
+ *  This will avoid ugly sequence of short updates in the IO
+ *  (not yet implemented)
+ *
+ */
 
-ChilliClock.stop = function () {
-	clearInterval ( ChilliClock.timerId )  ;
-	ChilliClock.timerId = 0 ;
-	ChilliClock.isStarted = false ;	
-}
+var chilliClock = { isStarted : 0 };
 
-/****************************************/
-/* Logging function for ActionScript    */ 
-/* and FireBug console                  */
-/****************************************/
+chilliClock.onTick = function () {
+	log ("You should define your own onTick() handler on this clock object. Clock value = " + this.value );
+};
+ 
+chilliClock.increment = function () {
+
+	chilliClock.value  =  chilliClock.value + 1 ;
+	chilliClock.onTick( chilliClock.value ) ;
+};
+
+chilliClock.resync = function ( newval ) {
+	clearInterval ( chilliClock.isStarted )    ;
+	chilliClock.value     = parseInt( newval , 10 ) ;
+	chilliClock.isStarted = setInterval ( chilliClock.increment , 1000 );
+};
+
+chilliClock.start = function ( newval ) {
+
+	if ( typeof (newval) !== 'Number' ) {
+		chilliClock.resync ( 0 ) ;
+	}
+	else {
+		chilliClock.resync ( newval ) ;
+	}
+};
+
+chilliClock.stop = function () {
+	clearInterval ( chilliClock.isStarted )  ;
+	chilliClock.isStarted = 0 ;
+};
+
+
+/* Some global functions used for debugging   */ 
+
 function log( msg , messageLevel ) {
 
 	if ( typeof(trace)=="function") {
@@ -343,22 +522,30 @@ function log( msg , messageLevel ) {
 		// FireBug console
 		console.debug ( msg );
 	}
+
+	if ( document.getElementById('debugarea') ) {
+		var e = document.getElementById('debugarea') ;
+		e.value = e.value + '\n' + msg;
+
+		e.scrollTop = e.scrollHeight - e.clientHeight;
+
+	}
+
+
 }
 
+/* Transform an object to a text representation */
 function dumpObject ( obj ) {
 
-	var str = new String ;
+	var str = '' ;
 
 	for (var key in obj ) {
-	
 		str = str + "    " + key + " = " + obj[key] + "\n" ;
-
 		if ( typeof ( obj[key] ) == "object" ) {
 			for ( var key2 in obj[key] ) {
 				str = str + "      " + key2 + " = "  + obj[key][key2] + "\n" ;
 			}
 		}
-
 	}
 
 	return str;
@@ -372,18 +559,25 @@ function dumpObject ( obj ) {
  * Distributed under the BSD License
  * See http://pajhome.org.uk/crypt/md5 for more info.
  *
- * chappassword, hex2binl, str2hex and added by Y.DELTROO
- * Copyright (C) 2007
+ * added by Y.DELTROO
+ *   - new functions: chap(), hex2binl() and str2hex() 
+ *   - modifications to comply with the jslint test, http://www.jslint.com/
+ *
+ * Copyright (c) 2007
  * Distributed under the BSD License
  *
  */
+
+
 function ChilliMD5() {
 
 	var hexcase = 0;  /* hex output format. 0 - lowercase; 1 - uppercase        */
 	var b64pad  = ""; /* base-64 pad character. "=" for strict RFC compliance   */
 	var chrsz   = 8;  /* bits per input character. 8 - ASCII; 16 - Unicode      */
 
-	this.hex_md5 = function (s){ return binl2hex(core_md5(str2binl(s), s.length * chrsz));}
+	this.hex_md5 = function (s){
+		return binl2hex(core_md5(str2binl(s), s.length * chrsz));
+	};
 
 	this.chap = function ( hex_ident , str_password , hex_chal ) {
 
@@ -400,10 +594,9 @@ function ChilliMD5() {
 		var md5 = core_md5( bin , hex.length * 4 ) ; 
 
 		return binl2hex( md5 );
-	}
+	};
 
-	function core_md5(x, len)
-	{
+	function core_md5(x, len) {
 	  x[len >> 5] |= 0x80 << ((len) % 32);
 	  x[(((len + 64) >>> 9) << 4) + 14] = len;
 
@@ -412,8 +605,7 @@ function ChilliMD5() {
 	  var c = -1732584194;
 	  var d =  271733878;
 
-	  for(var i = 0; i < x.length; i += 16)
-	  {
+	  for(var i = 0; i < x.length; i += 16) {
 		var olda = a;
 		var oldb = b;
 		var oldc = c;
@@ -492,67 +684,63 @@ function ChilliMD5() {
 		c = safe_add(c, oldc);
 		d = safe_add(d, oldd);
 	  }
-	  return Array(a, b, c, d);
+	  return [ a, b, c, d ];
 
 	}
-	function md5_cmn(q, a, b, x, s, t)
-	{
+
+	function md5_cmn(q, a, b, x, s, t) {
 	  return safe_add(bit_rol(safe_add(safe_add(a, q), safe_add(x, t)), s),b);
 	}
-	function md5_ff(a, b, c, d, x, s, t)
-	{
+
+	function md5_ff(a, b, c, d, x, s, t) {
 	  return md5_cmn((b & c) | ((~b) & d), a, b, x, s, t);
 	}
-	function md5_gg(a, b, c, d, x, s, t)
-	{
+
+	function md5_gg(a, b, c, d, x, s, t) {
 	  return md5_cmn((b & d) | (c & (~d)), a, b, x, s, t);
 	}
-	function md5_hh(a, b, c, d, x, s, t)
-	{
+
+	function md5_hh(a, b, c, d, x, s, t) {
 	  return md5_cmn(b ^ c ^ d, a, b, x, s, t);
 	}
-	function md5_ii(a, b, c, d, x, s, t)
-	{
+
+	function md5_ii(a, b, c, d, x, s, t) {
 	  return md5_cmn(c ^ (b | (~d)), a, b, x, s, t);
 	}
-	function safe_add(x, y)
-	{
+
+	function safe_add(x, y) {
 	  var lsw = (x & 0xFFFF) + (y & 0xFFFF);
 	  var msw = (x >> 16) + (y >> 16) + (lsw >> 16);
 	  return (msw << 16) | (lsw & 0xFFFF);
 	}
-	function bit_rol(num, cnt)
-	{
+	function bit_rol(num, cnt) {
 	  return (num << cnt) | (num >>> (32 - cnt));
 	}
 
-	function str2binl(str)
-	{
-	  var bin = Array();
+	function str2binl(str) {
+	  var bin = [] ;
 	  var mask = (1 << chrsz) - 1;
-	  for(var i = 0; i < str.length * chrsz; i += chrsz)
+	  for (var i = 0; i < str.length * chrsz; i += chrsz) {
 		bin[i>>5] |= (str.charCodeAt(i / chrsz) & mask) << (i%32);
+	  }
 	  return bin;
 	}
 
-	function binl2hex(binarray)
-	{
+	function binl2hex(binarray) {
 	  var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
 	  var str = "";
-	  for(var i = 0; i < binarray.length * 4; i++)
-	  {
+	  for (var i = 0; i < binarray.length * 4; i++) {
 		str += hex_tab.charAt((binarray[i>>2] >> ((i%4)*8+4)) & 0xF) +
 			   hex_tab.charAt((binarray[i>>2] >> ((i%4)*8  )) & 0xF);
 	  }
 	  return str;
 	}
 
-	function str2hex ( str )
-	{
+	function str2hex ( str ) {
 		var hex_tab = hexcase ? "0123456789ABCDEF" : "0123456789abcdef";
-		var hex = new String;
-		for ( var i=0 ; i<str.length ; i++)
-		{
+		var hex = '';
+		var val ;
+		for ( var i=0 ; i<str.length ; i++) {
 			/* TODO: adapt this if chrz=16   */
 			val = str.charCodeAt(i);
 			hex = hex + hex_tab.charAt( val/16 );
@@ -561,21 +749,18 @@ function ChilliMD5() {
 		return hex;
 	}
 
-	function hex2binl ( hex )
-	{
-		//  Clean-up hex encoded input string
+	function hex2binl ( hex ) {
+		/*  Clean-up hex encoded input string */
 		hex = hex.toLowerCase() ;
 		hex = hex.replace( / /g , "");
 
-		var bin = Array();
+		var bin =[] ;
 
-		// Transfrom to array of integers (binary representation) 
-		for ( i=0 ; i < hex.length*4   ; i=i+8 ) 
-		{
+		/* Transfrom to array of integers (binary representation) */ 
+		for ( i=0 ; i < hex.length*4   ; i=i+8 )  {
 			octet =  parseInt( hex.substr( i/4 , 2) , 16) ;
 			bin[i>>5] |= ( octet & 255 ) << (i%32);
 		}
-
 		return bin;
 	}
 	
