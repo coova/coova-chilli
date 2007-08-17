@@ -834,11 +834,17 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
     bcatcstr(json, ")");
   }
 
-  bdestroy(tmp);
+  bassigncstr(s, "HTTP/1.1 200 OK\r\n");
+  bcatcstr(s, "Cache-Control: no-cache, must-revalidate\r\n");
 
-  bassigncstr(s, "HTTP/1.0 200 OK\r\nContent-type: ");
+  bcatcstr(s, "Content-Length: ");
+  bassignformat(tmp , "%ld", blength(json) );
+  bconcat(s, tmp);
+
+  bcatcstr(s, "\r\nContent-type: ");
   if (tmp->slen) bcatcstr(s, "text/javascript");
   else bcatcstr(s, "application/json");
+
   bcatcstr(s, "\r\n\r\n");
   bconcat(s, json);
 
@@ -847,6 +853,7 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   }
 
   bdestroy(json);
+  bdestroy(tmp);
 
   return 0;
 }
@@ -2422,3 +2429,4 @@ int redir_set_cb_getstate(struct redir_t *redir,
   redir->cb_getstate = cb_getstate;
   return 0;
 }
+
