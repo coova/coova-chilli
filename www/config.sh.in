@@ -10,4 +10,4 @@ openidauth=$HS_OPENIDAUTH
 uamsecret=$HS_UAMSECRET
 hs_uamlisten=$HS_UAMLISTEN
 hs_uamport=$HS_UAMPORT
-
+hs_uamservice=$HS_UAMSERVICE

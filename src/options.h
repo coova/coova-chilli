@@ -110,6 +110,7 @@ struct options_t {
   char* uamsecret;               /* Shared secret */
   char* uamurl;                  /* URL of authentication server */
   char* uamhomepage;             /* URL of redirection homepage */
+  char* wisprlogin;              /* Specific WISPr login url */
   int uamhomepageport;		 /* Port of redirection homepage */
   int no_uamsuccess;             /* Do not send redirect back to UAM on success */
   int no_uamwispr;               /* Do not have ChilliSpot return WISPr blocks */

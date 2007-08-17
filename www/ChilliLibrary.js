@@ -190,6 +190,7 @@ chilliController.logon = function ( username , password )  {
 	chilliJSON.get( chilliController.urlRoot() + 'status'  ) ;
 };
 
+
 /**
  *   Second part of the logon process invoked after
  *   the just requested challenge has been received
@@ -228,11 +229,10 @@ chilliController.logonStep2 = function ( resp ) {
 
 		// Make uamService request
 		chilliJSON.onError     = chilliController.onError     ;
-		chilliJSON.onJSONReady = chilliController.processReply ;
+		chilliJSON.onJSONReady = chilliController.logonStep3 ;
 
 		chilliController.clientState = chilliController.AUTH_PENDING ; 
 		chilliJSON.get( url ) ;
-
 	}
 	else {
 		/* TODO: Should check if challenge has expired and possibly get a new one */
@@ -258,6 +258,29 @@ chilliController.logonStep2 = function ( resp ) {
 	}
 
 }; 
+
+/**
+ *   Third part of the logon process invoked after
+ *   getting a uamService response
+ */
+chilliController.logonStep3 = function ( resp ) {
+	log('Entering logonStep 3');
+
+	var username = chilliController.temp.username ; 
+
+	if ( typeof (resp.response) == 'string' ) {
+		chilliJSON.onError     = chilliController.onError     ;
+		chilliJSON.onJSONReady = chilliController.processReply ;
+		chilliController.clientState = chilliController.stateCodes.AUTH_PENDING ; 
+	
+		/* Build /logon command URL */
+		var logonUrl = chilliController.urlRoot() + 'logon?username=' + username + '&response='  + resp.response;
+		if (chilliController.queryObj && chilliController.queryObj['userurl'] ) {
+		    logonUrl += '&userurl='+chilliController.queryObj['userurl'] ;
+		}
+		chilliJSON.get ( logonUrl ) ;
+	}
+}
 
 chilliController.refresh = function ( ) {
 

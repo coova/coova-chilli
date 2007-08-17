@@ -640,6 +640,9 @@ int process_options(int argc, char **argv, int minimal) {
   if (options.uamhomepage) free(options.uamhomepage);
   options.uamhomepage = STRDUP(args_info.uamhomepage_arg);
 
+  if (options.wisprlogin) free(options.wisprlogin);
+  options.wisprlogin = STRDUP(args_info.wisprlogin_arg);
+
   if (options.uamsecret) free(options.uamsecret);
   options.uamsecret = STRDUP(args_info.uamsecret_arg);
 

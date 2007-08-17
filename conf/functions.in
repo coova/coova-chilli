@@ -44,6 +44,7 @@ HS_DNS_DOMAIN=${HS_DNS_DOMAIN:-lan}
 HS_MACAUTHMODE=${HS_MACAUTHMODE:-off}
 HS_USELOCALUSERS=${HS_USELOCALUSERS:-off}
 HS_OPENIDAUTH=${HS_OPENIDAUTH:-off}
+HS_WISPRLOGIN=${HS_WISPRLOGIN:-$HS_UAMSERVICE}
 HS_PAP_OK=${HS_PAP_OK:-on}
 HS_DNS1=${HS_DNS1:-$HS_DNS}
 HS_DNS1=${HS_DNS1:-$(grep '^nameserver' /etc/resolv.conf|awk '{print $2}')}
@@ -80,6 +81,7 @@ writeconfig() {
     addconfig1 ${HS_DNS2:+"dns2 $HS_DNS2"}
 
     addconfig1 ${HS_UAMHOMEPAGE:+"uamhomepage $(eval echo $HS_UAMHOMEPAGE)"}
+    addconfig1 ${HS_WISPRLOGIN:+"wisprlogin $HS_WISPRLOGIN"}
     addconfig1 ${HS_WWWDIR:+"wwwdir $HS_WWWDIR"}
     addconfig1 ${HS_WWWBIN:+"wwwbin $HS_WWWBIN"}
 

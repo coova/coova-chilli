@@ -25,7 +25,6 @@ HS_UAMPORT=3990		   # HotSpot Port (on subscriber network)
 # HS_DNS1=
 # HS_DNS2=
 
-
 ###
 #   HotSpot settings for simple Captive Portal
 #
@@ -52,6 +51,12 @@ HS_UAMFORMAT=http://\$HS_UAMSERVER/uam/
 #   Same principal goes for HS_UAMHOMEPAGE.
 HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 
+#   This option will be configured to be the WISPr LoginURL as well
+#   as provide "uamService" to the ChilliController. The UAM Service is
+#   described in: http://coova.org/wiki/index.php/CoovaChilli/UAMService
+#
+# HS_UAMSERVICE=https://coova.org/app/uam/auth
+
 
 ###
 #   Features not activated per-default (default to off)
@@ -75,7 +80,7 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 # Centralized configuration options examples
 # 
 # HS_RADCONF=url	   # requires curl
-# HS_RADCONF_URL=https://coova.org/app/ap/
+# HS_RADCONF_URL=https://coova.org/app/ap/config
 
 # HS_RADCONF=on		   # gather the ChilliSpot-Config attributes in
 #			   # Administrative-User login

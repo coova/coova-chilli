@@ -322,7 +322,8 @@ static int redir_xmlreply(struct redir_t *redir,
       }
       
       bassignformat(bt, "<LoginURL>%s?res=smartclient&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
-		    redir->url, inet_ntoa(redir->addr), redir->port, hexchal); 
+		    options.wisprlogin ? options.wisprlogin : redir->url, 
+		    inet_ntoa(redir->addr), redir->port, hexchal); 
       bconcat(b, bt);
       
       bassignformat(bt, "<AbortLoginURL>http://%s:%d/abort</AbortLoginURL>\r\n",

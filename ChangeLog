@@ -13,6 +13,8 @@
 * Depreceated option ''papalwaysok'' - it is considered always on
 * Better self determination of nasmac (Called-Station-Id) 
 * Sending ChilliSpot-Version attribute in access request
+* Added option ''wisprlogin'' to specific set the WISPr LoginURL
+
 	
 == ChangeLog (Coova Chilli v1.0.6 svn revision 66) ==
 

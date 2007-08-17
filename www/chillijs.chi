@@ -9,7 +9,7 @@ Cache: none
     cat ChilliLibrary.js
     echo "chilliController.host = '$hs_uamlisten';"
     echo "chilliController.port = $hs_uamport;"
-#   echo "chilliController.uamService = '';"
+    [ -n "$hs_uamservice" ] && echo "chilliController.uamService = '$hs_uamservice';"
 ?>
 
 

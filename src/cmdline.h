@@ -178,6 +178,9 @@ struct gengetopt_args_info
   const char *uamanydns_help; /* Allow client to use any DNS server help description.  */
   int uamanyip_flag;	/* Allow client to use any IP Address (default=off).  */
   const char *uamanyip_help; /* Allow client to use any IP Address help description.  */
+  char * wisprlogin_arg;	/* A specific WISPr login url to be used.  */
+  char * wisprlogin_orig;	/* A specific WISPr login url to be used original value given at command line.  */
+  const char *wisprlogin_help; /* A specific WISPr login url to be used help description.  */
   int nouamsuccess_flag;	/* Do not return to the UAM server on success, original url instead (default=off).  */
   const char *nouamsuccess_help; /* Do not return to the UAM server on success, original url instead help description.  */
   int nouamwispr_flag;	/* Do not send WISPr XML from ChilliSpot, assume back-end does (default=off).  */
@@ -316,6 +319,7 @@ struct gengetopt_args_info
   unsigned int uamallowed_given ;	/* Whether uamallowed was given.  */
   int uamanydns_given ;	/* Whether uamanydns was given.  */
   int uamanyip_given ;	/* Whether uamanyip was given.  */
+  int wisprlogin_given ;	/* Whether wisprlogin was given.  */
   int nouamsuccess_given ;	/* Whether nouamsuccess was given.  */
   int nouamwispr_given ;	/* Whether nouamwispr was given.  */
   int uamlogoutip_given ;	/* Whether uamlogoutip was given.  */
