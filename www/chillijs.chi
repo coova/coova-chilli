@@ -15,6 +15,7 @@ Cache: none
 
 chilliController.onUpdate = updateUI ;
 chilliController.onError  = handleError ;
+chilliClock.onTick = function () { }
 
 if (!window.queryObj) {
     window.queryObj = new Object();
@@ -78,7 +79,7 @@ function updateUI (cmd ) {
 	chilliController.location = null;
     }
 
-    if ( chilliController.clientState == 0 ) showLogonPage()  ;
+    if ( chilliController.clientState == 0 ) showLogonPage();
 
     if ( chilliController.clientState == 1 ) {
 	showStatusPage();
@@ -128,8 +129,6 @@ function showLogonPage() {
 }
 
 function showStatusPage() {
-    setTimeout('chilliController.refresh()', 15000);
-
     hidePage("logonPage");
     showPage("statusPage");
     hidePage("waitPage");
@@ -174,7 +173,7 @@ function showWaitPage(delay) {
     /* Wait for delay  */
     clearTimeout(delayTimer);	
     if (typeof(delay) == 'number' && (delay > 10)) {
-	delayTimer= setTimeout ( 'showWaitPage(0)' , delay ) ;
+	delayTimer= setTimeout('showWaitPage(0)' , delay);
 	return;
     }
     
@@ -240,6 +239,6 @@ window.onload = function() {
     }
 
     showWaitPage(); 
-    setTimeout( chilliController.refresh, 500);
+    setTimeout('chilliController.refresh()', 500);
 }
     

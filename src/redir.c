@@ -792,13 +792,9 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
     }
 
     if (flg & FLG_sess) {
-      struct tm *_tm = gmtime(&starttime);
-      char b[48];
-      *b=0;
-      if (_tm) strftime(b,sizeof(b),"%c",_tm);
-      bcatcstr(json,",\"session\":{\"startTime\":\"");
-      bcatcstr(json, b);
-      bcatcstr(json,"\"");
+      bcatcstr(json,",\"session\":{\"startTime\":");
+      bassignformat(tmp, "%ld", starttime);
+      bconcat(json, tmp);
       bcatcstr(json,",\"sessionTimeout\":");
       bassignformat(tmp, "%ld", conn->params.sessiontimeout);
       bconcat(json, tmp);

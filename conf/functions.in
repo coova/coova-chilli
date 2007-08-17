@@ -45,13 +45,15 @@ HS_MACAUTHMODE=${HS_MACAUTHMODE:-off}
 HS_USELOCALUSERS=${HS_USELOCALUSERS:-off}
 HS_OPENIDAUTH=${HS_OPENIDAUTH:-off}
 HS_PAP_OK=${HS_PAP_OK:-on}
+HS_DNS1=${HS_DNS1:-$HS_DNS}
+HS_DNS1=${HS_DNS1:-$(grep '^nameserver' /etc/resolv.conf|awk '{print $2}')}
 
 bailout() { echo $1; exit; }
 
 check_required() {
     [ -z "$HS_MODE" ]  && bailout "HS_MODE is required"
     [ -z "$HS_NASID" ] && bailout "HS_NASID is required"
-    [ -z "$HS_NETWORK"   -o -z "$HS_NETMASK"   ] && bailout "HS_NETWORK and HS_NETMASK are required"
+    [ -z "$HS_NETWORK" -o -z "$HS_NETMASK"   ] && bailout "HS_NETWORK and HS_NETMASK are required"
     [ -z "$HS_UAMLISTEN" ] && bailout "HS_UAMLISTEN is required"
 }
     

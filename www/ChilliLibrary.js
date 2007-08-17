@@ -305,9 +305,11 @@ chilliController.processReply = function ( resp ) {
 		fakediv.innerHTML = resp.message ;
 		chilliController.message = fakediv.innerHTML  ;
 	}
+
 	if ( typeof (resp.sessionId) == 'string' ) {
 		chilliController.sessionId = resp.sessionId ;
 	}
+
 	if ( typeof (resp.challenge) == 'string' ) {
 		chilliController.challenge = resp.challenge ;
 	}
@@ -326,21 +328,15 @@ chilliController.processReply = function ( resp ) {
 	
 	/* Update the session member only the first time after AUTH */
 	if (  (typeof ( resp.session ) == 'object') &&
-              ( chilliController.clientState !== chilliController.stateCodes.AUTH  )  && 
-              ( resp.clientState === chilliController.stateCodes.AUTH  )) {
+	      ( chilliController.session==null || (
+	         ( chilliController.clientState !== chilliController.stateCodes.AUTH  )  &&
+	         ( resp.clientState === chilliController.stateCodes.AUTH  )))) {
 
 		chilliController.session = resp.session ;
 
-		/* Convert date received as a string to a Javascript Date object */
-		if ( typeof (resp.session.startTime ) == 'string' ) {
-
-			var re = new RegExp( 'GMT|UTC' , 'i') ;
-			if ( resp.session.startTime.match (re) ) {
-				chilliController.session.startTime = new Date( resp.session.startTime);
-			}
-			else { /* No Timezone. Assume GMT. */
-				chilliController.session.startTime = new Date( resp.session.startTime +' GMT+0000');
-			}
+		if ( resp.session.startTime ) {
+			chilliController.session.startTime = new Date();
+			chilliController.session.startTime.setTime(resp.session.startTime);
 		}
 	}
 
@@ -360,7 +356,7 @@ chilliController.processReply = function ( resp ) {
 	if ( chilliController.clientState === chilliController.stateCodes.AUTH  ) {
 
              if ( !chilliController.autorefreshTimer ) {
-			chilliController.autorefreshTimer = setInterval ( chilliController.refresh , 1000*chilliController.interval ) ;
+			chilliController.autorefreshTimer = setInterval ('chilliController.refresh()' , 1000*chilliController.interval);
 	     }
 	} 
 	else if ( chilliController.clientState  === chilliController.stateCodes.NOT_AUTH ) {
@@ -399,8 +395,9 @@ chilliJSON.expired   = function () {
 
 		/* remove the <SCRIPT> tag node that we have created */
 		if ( typeof (chilliJSON.node) !== 'number' ) {
-			window.document.getElementsByTagName('head')[0].removeChild(chilliJSON.node);
+			document.getElementsByTagName('head')[0].removeChild ( chilliJSON.node );
 		}
+		chilliJSON.node = 0;
 
 		/* TODO: Implement some kind of retry mechanism here ... */
 
@@ -409,15 +406,15 @@ chilliJSON.expired   = function () {
 
 chilliJSON.reply = function  ( raw ) {
 
+		clearInterval ( chilliJSON.timer ) ;
+		chilliJSON.timer = 0 ;
+
 		var now = new Date()    ;
 		var end = now.getTime() ;
 		 
 		if ( chilliJSON.timestamp ) {
 			log ( 'chilliJSON: JSON reply received in ' + ( end - chilliJSON.timestamp ) + ' ms\n' + dumpObject(raw) );
 		}
-
-		clearInterval ( chilliJSON.timer ) ;
-		chilliJSON.timer = 0 ;
 
 		if ( typeof (chilliJSON.node) !== 'number' ) {
 			document.getElementsByTagName('head')[0].removeChild ( chilliJSON.node );
@@ -456,13 +453,15 @@ chilliJSON.get = function ( gUrl ) {
 		else {
 			c = '&' ;
 		}
+
 		scriptElement.src = chilliJSON.url + c + 'callback=chilliJSON.reply' ;
+		scriptElement.src += '&'+Math.random(); // prevent caching in Safari
 		
 		/* Adding the node that will trigger the HTTP request to the DOM tree */
 		chilliJSON.node = document.getElementsByTagName('head')[0].appendChild(scriptElement);
 
 		/* Using interval instead of timeout to support Flash 5,6,7 */
-		chilliJSON.timer     = setInterval ( chilliJSON.expired , chilliJSON.timeout ) ; 
+		chilliJSON.timer     = setInterval ( 'chilliJSON.expired()' , chilliJSON.timeout ) ; 
 		var now              = new Date();
 		chilliJSON.timestamp = now.getTime() ;
 
@@ -497,7 +496,7 @@ chilliClock.increment = function () {
 chilliClock.resync = function ( newval ) {
 	clearInterval ( chilliClock.isStarted )    ;
 	chilliClock.value     = parseInt( newval , 10 ) ;
-	chilliClock.isStarted = setInterval ( chilliClock.increment , 1000 );
+	chilliClock.isStarted = setInterval ( 'chilliClock.increment()' , 1000 );
 };
 
 chilliClock.start = function ( newval ) {
