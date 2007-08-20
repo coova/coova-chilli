@@ -15,7 +15,7 @@ controller. It supports web based login which is today's standard for
 public HotSpots and it supports Wireless Protected Access (WPA) which
 is the standard of the future. Authentication, Authorization and 
 Accounting (AAA) is handled by your favorite radius server. Read more
-on http://www.chillispot.org
+at http://coova.org/ and http://www.chillispot.org/.
 
 For more information on this Coova release of ChilliSpot, visit
 http://coova.org/
@@ -25,38 +25,21 @@ http://coova.org/
 
 %build
 
-./configure --prefix=/usr --enable-static-exec
+./configure --prefix=/usr --sysconfdir=/etc --enable-static-exec
 
 make
 
 %install
 
-make install prefix=$RPM_BUILD_ROOT/usr
+make install prefix=$RPM_BUILD_ROOT/usr sysconfdir=$RPM_BUILD_ROOT/etc
 strip $RPM_BUILD_ROOT/usr/sbin/chilli
 strip $RPM_BUILD_ROOT/usr/sbin/chilli_response
 strip $RPM_BUILD_ROOT/usr/sbin/chilli_radconfig
 strip $RPM_BUILD_ROOT/usr/sbin/chilli_query
 strip $RPM_BUILD_ROOT/usr/sbin/test_radius
 
-#Copy chilli init script in place
-mkdir -p $RPM_BUILD_ROOT/etc/rc.d/init.d
-install -m755 doc/chilli.init $RPM_BUILD_ROOT/etc/rc.d/init.d/chilli
-
-#Copy chilli.conf in place
-mkdir -p $RPM_BUILD_ROOT/etc/chilli
-install -m755 conf/chilli.conf $RPM_BUILD_ROOT/etc/chilli.conf
-#install -m755 conf/shape.sh $RPM_BUILD_ROOT/etc/chilli/shape.sh
-install -m755 conf/firewall $RPM_BUILD_ROOT/etc/chilli/firewall
-install -m755 conf/functions $RPM_BUILD_ROOT/etc/chilli/functions
-install -m644 conf/defaults $RPM_BUILD_ROOT/etc/chilli/defaults
-mkdir -p $RPM_BUILD_ROOT/etc/chilli/www
-install -m644 conf/coova.html $RPM_BUILD_ROOT/etc/chilli/www/coova.html
-install -m644 conf/coova.jpg $RPM_BUILD_ROOT/etc/chilli/www/coova.jpg
-
-#Clean up unwanted library files
 rm -rf $RPM_BUILD_ROOT/usr/include/*
 rm -rf $RPM_BUILD_ROOT/usr/lib/*
-
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -69,30 +52,31 @@ make clean
 %files
 %defattr(-,root,root)
 
-%attr(755, root, root) /usr/sbin/chilli
-%attr(755, root, root) /usr/sbin/chilli_response
-%attr(755, root, root) /usr/sbin/chilli_radconfig
-%attr(755, root, root) /usr/sbin/chilli_query
-%attr(755, root, root) /usr/sbin/test_radius
-%attr(755, root, root) /etc/rc.d/init.d/chilli
+%attr(0644,root,root) /usr/man/man[158]/*
 
-%doc conf/chilli.conf
-%doc doc/chilli.init
-%doc conf/firewall
+%dir %{_sysconfdir}/chilli
+%dir %{_sysconfdir}/chilli/www
+
+%attr(755, root, root) /usr/sbin/*
+%attr(755, root, root) /etc/init.d/chilli
+
 %doc doc/hotspotlogin.cgi
 %doc doc/dictionary.chillispot
-%doc COPYING
-
-%doc /usr/man/man8/chilli.8.gz
+%doc COPYING AUTHORS INSTALL README ChangeLog 
 
 %config /etc/chilli.conf
-%config /etc/chilli/firewall
 %config /etc/chilli/functions
 %config /etc/chilli/defaults
-%config /etc/chilli/www/coova.html
-%config /etc/chilli/www/coova.jpg
+
+%attr(644,root,root) %{_sysconfdir}/chilli/www/*
+%attr(755, root, root) /etc/chilli/wwwsh
+%attr(755, root, root) /etc/chilli/functions
+%attr(755, root, root) /etc/chilli/*.sh
+%attr(755, root, root) /etc/chilli/www/config.sh
 
 %changelog
+* Thu Aug 20 2007 <david@coova.com>
+- 1.0-coova.7 release
 * Thu Jun 7 2007 <david@coova.com>
 - 1.0-coova.6 release
 * Wed May 16 2007  <david@coova.com>

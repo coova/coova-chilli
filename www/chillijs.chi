@@ -122,6 +122,9 @@ function disconnect() {
 
 /* User interface pages update */
 function showLogonPage() {
+<?
+    [ "$hs_openidauth" = "on" ] && echo "showPage('openIDSelect');"
+?>
     showPage("logonPage");
     hidePage("statusPage");
     hidePage("waitPage");
@@ -167,6 +170,42 @@ function showStatusPage() {
     setElementValue("outputOctets", chilliController.formatBytes(chilliController.accounting.outputOctets));
     
     chilliClock.resync (chilliController.accounting.sessionTime);
+}
+
+function showOpenIDForm(e)
+{
+     var form = document.getElementById('openIDForm');
+     var x = document.createElement('div');
+     x.style.display = 'block';
+     x.style.position = 'absolute';
+     x.style.top = e.y - 25;
+     x.style.left = e.x + 25;
+     x.style.xIndex = 2;
+     x.innerHTML = form.innerHTML;
+     document.body.appendChild(x);
+}
+
+function openID() {
+  var openIDSelect = document.getElementById('openIDSelect');
+
+  openIDSelect.onclick = function(e) {
+     if (!e) e = window.event;
+     e.stopPropagation;
+     showOpenIDForm(e);
+  };
+
+  var openIDForm = document.getElementById('openIDForm');
+
+  openIDForm.onclick = function(e) {
+    if (!e) e = window.event;
+    e.stopPropagation;
+  };
+
+  document.onclick = closeOpenIDForm();
+}
+
+function closeOpenIDForm() {
+  hidePage('openIDForm');
 }
 
 function showWaitPage(delay) {

@@ -12,7 +12,7 @@
 
 .TH chilli_query 1 "August 2007"
 .SH NAME
-chilli_query \-  Interface into the chilli server.
+chilli_query \-  Interface into the chilli server
 
 .SH SYNOPSIS
 .B chilli_query
@@ -91,7 +91,7 @@ address (gotten from a list command).
 .RE
 00:0D:XX:XX:XX:XX 10.1.0.3 dnat 46c83f70000 0 - 0/0 0/0 http://url.com
 
-.I # chilli_query authorize ip 10.1.0.11 sessiontimeout 60 username N
+.I # chilli_query authorize ip 10.1.0.3 sessiontimeout 60 username N
 .RE
 
 .I # chilli_query list

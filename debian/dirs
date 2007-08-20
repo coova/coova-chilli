@@ -1,2 +1,4 @@
-usr/sbin
 etc
+etc/chilli
+etc/chilli/www
+usr/sbin

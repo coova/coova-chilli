@@ -62,17 +62,28 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 #   Features not activated per-default (default to off)
 #
 # HS_RADCONF=off	   # Get some configurations from RADIUS or a URL ('on' and 'url' respectively)
+#
 # HS_ANYIP=on		   # Allow any IP address on subscriber LAN
+#
 # HS_MACAUTHMODE=local	   # To allow MAC Authentication based on macallowed, not RADIUS
+#
 # HS_USELOCALUSERS=on      # To use the @ETCCHILLI@/localusers file
+#
 # HS_OPENIDAUTH=on	   # To inform the RADIUS server to allow OpenID Auth
+#
 # HS_WPAGUESTS=on	   # To inform the RADIUS server to allow WPA Guests
+#
+# HS_OPENIDAUTH=on	   # To inform the RADIUS server to allow OpenID Auth
+#			   # Will also configure the embedded login forms for OpenID
+#
 # HS_USE_MAP=on		   # Short hand for allowing the required google
 #			   # sites to use Google maps (adds many google sites!)
 #
 ###
 #   Other feature settings and their defaults
+#
 # HS_DEFSESSIONTIMEOUT=0   # Default session-timeout if not defined by RADIUS (0 for unlimited)
+#
 # HS_DEFIDLETIMEOUT=0	   # Default idle-timeout if not defined by RADIUS (0 for unlimited)
 
 

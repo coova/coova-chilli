@@ -9,9 +9,12 @@ chilli_DATA = defaults
 initdir = $(sysconfdir)/init.d
 init_SCRIPTS = chilli
 
+EXTRA_DIST = $(init_SCRIPTS:=.in) \
+$(chilli_SCRIPTS:=.in) chilli.conf.in defaults.in
+
 edit = sed \
 	-e 's,@SBINDIR\@,$(sbindir),g' \
-	-e 's,@INITDIR\@,$(sysconfdir)/init.d,g' \
+	-e 's,@INITDIR\@,$(initrddir),g' \
 	-e 's,@VARRUN\@,$(localstatedir)/run,g' \
 	-e 's,@ETCCHILLI\@,$(sysconfdir)/chilli,g' \
 	-e 's,@SYSCONFDIR\@,$(sysconfdir),g' \

@@ -6,8 +6,8 @@
 reg_mode=$HS_REG_MODE
 [ "$reg_mode" = "self" ] && register=1
 [ "$reg_mode" = "tos"  ] && tos=1
-openidauth=$HS_OPENIDAUTH
-uamsecret=$HS_UAMSECRET
+hs_openidauth=$HS_OPENIDAUTH
+hs_uamsecret=$HS_UAMSECRET
 hs_uamlisten=$HS_UAMLISTEN
 hs_uamport=$HS_UAMPORT
 hs_uamservice=$HS_UAMSERVICE

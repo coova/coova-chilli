@@ -84,6 +84,8 @@ int static chilliauth() {
 
   /* get dhcpif mac */
   memset(hwaddr, 0, sizeof(hwaddr));
+
+#ifdef SIOCGIFHWADDR
   if (!options.nasmac && options.dhcpif) {
     struct ifreq ifr;
     int fd;
@@ -97,6 +99,7 @@ int static chilliauth() {
       close(fd);
     }
   }
+#endif
 
   radius_set(radius, hwaddr, (options.debug & DEBUG_RADIUS));
   radius_set_cb_auth_conf(radius, chilliauth_cb); 
