@@ -1,0 +1,126 @@
+.\" * chilli_query
+.\" * Copyright (C) 2007 David Bird <david@coova.com>
+.\" *
+.\" * All rights reserved.
+.\" *
+.\" Manual page for chilli_query
+.\" SH section heading
+.\" SS subsection heading
+.\" LP paragraph
+.\" IP indented paragraph
+.\" TP hanging label
+
+.TH chilli_query 1 "August 2007"
+.SH NAME
+chilli_query \-  Interface into the chilli server.
+
+.SH SYNOPSIS
+.B chilli_query
+[ \-s <unix-socket> ] list
+
+.B chilli_query
+[ \-s <unix-socket> ] authorize <parameters>
+
+.B chilli_query
+[ \-s <unix-socket> ] logout <client-mac-address>
+
+.SH DESCRIPTION
+.B chilli_query
+is an interface into the running
+.B chilli
+server. It provides an administrator the ability to see who is logged in, to
+force a client to be logged out, or force a client to be authorized.
+
+Commands:
+
+.TP
+.BI list
+To list all connected clients (subscribers) providing the MAC Address, IP
+Address, internal chilli state (dnat, pass, etc), the session id (used in
+Acct-Session-ID), authenticated status (1 authorized, 0 not), user-name used
+during login, duration / max duration, idle time / max idle time, and the
+original URL.
+
+.TP
+.BI authorize " <parameters>"
+To explicity authorize a client, or change the session parameters of an already
+authorized client, by setting a series of session parameters. 
+
+.RS
+.I PARAMETERS
+.TP
+.BI ip " <ip-address>"
+Select the session to be authorized by the IP address using this option (may
+be used with the option below)
+
+.TP
+.BI sessionid " <session-id>"
+Select the session to be authorized by the Session-ID (may be used with the
+above option)
+
+.TP
+.BI username " <username>"
+Sets the username of the session.
+
+.TP
+.BI sessiontimeout " <seconds>"
+Sets the max session time of the session.
+
+.TP
+.BI maxoctets " <number-of-bytes>"
+Sets the max data limit of the session.
+
+.TP
+.BI maxbwup " <bandwidth>"
+Sets the max up bandwidth of the session.
+
+.TP
+.BI maxbwdown " <bandwidth>"
+Sets the max down bandwidth of the session.
+
+.RE
+
+.TP 
+.BI logout " <client-mac-address>" 
+Logout and releases the DHCP lease of a client explicitly based on the MAC
+address (gotten from a list command).  
+
+.SH EXAMPLES
+
+.I # chilli_query list
+.RE
+00:0D:XX:XX:XX:XX 10.1.0.3 dnat 46c83f70000 0 - 0/0 0/0 http://url.com
+
+.I # chilli_query authorize ip 10.1.0.11 sessiontimeout 60 username N
+.RE
+
+.I # chilli_query list
+.RE
+00:0D:XX:XX:XX:XX 10.1.0.3 pass 46c83f70000 1 N 2/60 2/0 http://url.com
+
+.I # chilli_query logout 00:0D:XX:XX:XX:XX
+.RE
+
+.SH FILES
+.I @VARRUN@/chilli.sock
+.RS
+UNIX socket used to daemon communication.
+.RE
+
+.SH "SEE ALSO"
+.BR chilli(8)
+.BR chilli.conf(5)
+
+.SH NOTES 
+.LP
+
+See
+.I http://coova.org/
+for further documentation and community support.
+The original ChilliSpot project homepage is/was at www.chillispot.org.
+
+.SH AUTHORS
+
+David Bird <david@coova.com>.
+CoovaChilli and ChilliSpot are licensed under the Gnu Public License.
+
