@@ -1,6 +1,6 @@
 # chilli - ChilliSpot.org. A Wireless LAN Access Point Controller
 # Copyright (C) 2003, 2004, 2005 Mondru AB.
-# Copyright (c) 2006 Coova Technologies Ltd
+# Copyright (c) 2006-2007 David Bird <david@coova.com>
 #
 # The contents of this file may be used under the terms of the GNU
 # General Public License Version 2, provided that the above copyright
@@ -15,7 +15,7 @@
 option  "fg"            f "Run in foreground"             flag   off
 option  "debug"         d "Run in debug mode"             flag   off
 option  "debugfacility" - "Which modules to print debug messages for" int default="1" no
-option  "logfacility"   - "Which modules to print debug messages for" int default="-1" no
+option  "logfacility"   - "Syslog facility to be used for logging" int default="-1" no
 
 option  "conf"        c "Read configuration file"       string no
 option  "interval"    - "Re-read configuration file at this interval"  int default="3600" no
@@ -41,11 +41,11 @@ option "tundev"      - "TUN/TAP Device, as in tun0 or tap1" string no
 
 # Radius parameters
 option "radiuslisten"       - "IP address to send from"       string no
-option "radiusserver1"      - "IP address of radius server 1" string no
-option "radiusserver2"      - "IP address of radius server 2" string no
+option "radiusserver1"      - "IP address of radius server 1" string default="rad01.coova.org" no
+option "radiusserver2"      - "IP address of radius server 2" string default="rad01.coova.org" no
 option "radiusauthport"     - "Authentication UDP port of radius server" int default="1812" no
 option "radiusacctport"     - "Accounting UDP port of radius server" int default="1813" no
-option "radiussecret"       - "Radius shared secret"          string no
+option "radiussecret"       - "Radius shared secret"          string default="coova-anonymous" no
 option "radiusnasid"        - "Radius NAS-Identifier"         string default="nas01" no
 option "radiuslocationid"   - "WISPr Location ID"             string no
 option "radiuslocationname" - "WISPr Location Name"           string no

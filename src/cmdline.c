@@ -31,7 +31,7 @@ const char *gengetopt_args_info_help[] = {
   "  -f, --fg                      Run in foreground  (default=off)",
   "  -d, --debug                   Run in debug mode  (default=off)",
   "      --debugfacility=INT       Which modules to print debug messages for  \n                                  (default=`1')",
-  "      --logfacility=INT         Which modules to print debug messages for  \n                                  (default=`-1')",
+  "      --logfacility=INT         Syslog facility to be used for logging  \n                                  (default=`-1')",
   "  -c, --conf=STRING             Read configuration file",
   "      --interval=INT            Re-read configuration file at this interval  \n                                  (default=`3600')",
   "      --pidfile=STRING          Filename of process id file",
@@ -51,11 +51,11 @@ const char *gengetopt_args_info_help[] = {
   "      --txqlen=INT              TX Queue length for tun interface (linux only)  \n                                  (default=`100')",
   "      --tundev=STRING           TUN/TAP Device, as in tun0 or tap1",
   "      --radiuslisten=STRING     IP address to send from",
-  "      --radiusserver1=STRING    IP address of radius server 1",
-  "      --radiusserver2=STRING    IP address of radius server 2",
+  "      --radiusserver1=STRING    IP address of radius server 1  \n                                  (default=`rad01.coova.org')",
+  "      --radiusserver2=STRING    IP address of radius server 2  \n                                  (default=`rad01.coova.org')",
   "      --radiusauthport=INT      Authentication UDP port of radius server  \n                                  (default=`1812')",
   "      --radiusacctport=INT      Accounting UDP port of radius server  \n                                  (default=`1813')",
-  "      --radiussecret=STRING     Radius shared secret",
+  "      --radiussecret=STRING     Radius shared secret  \n                                  (default=`coova-anonymous')",
   "      --radiusnasid=STRING      Radius NAS-Identifier  (default=`nas01')",
   "      --radiuslocationid=STRING WISPr Location ID",
   "      --radiuslocationname=STRING\n                                WISPr Location Name",
@@ -298,15 +298,15 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->tundev_orig = NULL;
   args_info->radiuslisten_arg = NULL;
   args_info->radiuslisten_orig = NULL;
-  args_info->radiusserver1_arg = NULL;
+  args_info->radiusserver1_arg = gengetopt_strdup ("rad01.coova.org");
   args_info->radiusserver1_orig = NULL;
-  args_info->radiusserver2_arg = NULL;
+  args_info->radiusserver2_arg = gengetopt_strdup ("rad01.coova.org");
   args_info->radiusserver2_orig = NULL;
   args_info->radiusauthport_arg = 1812;
   args_info->radiusauthport_orig = NULL;
   args_info->radiusacctport_arg = 1813;
   args_info->radiusacctport_orig = NULL;
-  args_info->radiussecret_arg = NULL;
+  args_info->radiussecret_arg = gengetopt_strdup ("coova-anonymous");
   args_info->radiussecret_orig = NULL;
   args_info->radiusnasid_arg = gengetopt_strdup ("nas01");
   args_info->radiusnasid_orig = NULL;
@@ -2121,7 +2121,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               free (args_info->debugfacility_orig); /* free previous string */
             args_info->debugfacility_orig = gengetopt_strdup (optarg);
           }
-          /* Which modules to print debug messages for.  */
+          /* Syslog facility to be used for logging.  */
           else if (strcmp (long_options[option_index].name, "logfacility") == 0)
           {
             if (local_args_info.logfacility_given)

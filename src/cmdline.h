@@ -33,9 +33,9 @@ struct gengetopt_args_info
   int debugfacility_arg;	/* Which modules to print debug messages for (default='1').  */
   char * debugfacility_orig;	/* Which modules to print debug messages for original value given at command line.  */
   const char *debugfacility_help; /* Which modules to print debug messages for help description.  */
-  int logfacility_arg;	/* Which modules to print debug messages for (default='-1').  */
-  char * logfacility_orig;	/* Which modules to print debug messages for original value given at command line.  */
-  const char *logfacility_help; /* Which modules to print debug messages for help description.  */
+  int logfacility_arg;	/* Syslog facility to be used for logging (default='-1').  */
+  char * logfacility_orig;	/* Syslog facility to be used for logging original value given at command line.  */
+  const char *logfacility_help; /* Syslog facility to be used for logging help description.  */
   char * conf_arg;	/* Read configuration file.  */
   char * conf_orig;	/* Read configuration file original value given at command line.  */
   const char *conf_help; /* Read configuration file help description.  */
@@ -93,10 +93,10 @@ struct gengetopt_args_info
   char * radiuslisten_arg;	/* IP address to send from.  */
   char * radiuslisten_orig;	/* IP address to send from original value given at command line.  */
   const char *radiuslisten_help; /* IP address to send from help description.  */
-  char * radiusserver1_arg;	/* IP address of radius server 1.  */
+  char * radiusserver1_arg;	/* IP address of radius server 1 (default='rad01.coova.org').  */
   char * radiusserver1_orig;	/* IP address of radius server 1 original value given at command line.  */
   const char *radiusserver1_help; /* IP address of radius server 1 help description.  */
-  char * radiusserver2_arg;	/* IP address of radius server 2.  */
+  char * radiusserver2_arg;	/* IP address of radius server 2 (default='rad01.coova.org').  */
   char * radiusserver2_orig;	/* IP address of radius server 2 original value given at command line.  */
   const char *radiusserver2_help; /* IP address of radius server 2 help description.  */
   int radiusauthport_arg;	/* Authentication UDP port of radius server (default='1812').  */
@@ -105,7 +105,7 @@ struct gengetopt_args_info
   int radiusacctport_arg;	/* Accounting UDP port of radius server (default='1813').  */
   char * radiusacctport_orig;	/* Accounting UDP port of radius server original value given at command line.  */
   const char *radiusacctport_help; /* Accounting UDP port of radius server help description.  */
-  char * radiussecret_arg;	/* Radius shared secret.  */
+  char * radiussecret_arg;	/* Radius shared secret (default='coova-anonymous').  */
   char * radiussecret_orig;	/* Radius shared secret original value given at command line.  */
   const char *radiussecret_help; /* Radius shared secret help description.  */
   char * radiusnasid_arg;	/* Radius NAS-Identifier (default='nas01').  */

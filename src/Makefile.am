@@ -4,7 +4,8 @@ sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query test_radius
 AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fstrict-aliasing -ansi\
  -DDEFCHILLICONF='"$(sysconfdir)/chilli.conf"'\
  -DDEFPIDFILE='"$(localstatedir)/run/chilli.pid"'\
- -DDEFSTATEDIR='"$(localstatedir)/run/chilli"'\
+ -DDEFSTATEDIR='"$(localstatedir)/run"'\
+ -DDEFCMDSOCK='"$(localstatedir)/run/chilli.sock"'\
  -DSBINDIR='"$(sbindir)"' -I$(top_builddir)/bstring
 
 chilli_SOURCES = \

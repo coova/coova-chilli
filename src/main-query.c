@@ -38,25 +38,39 @@ static cmd_info commands[] = {
   { CMDSOCK_DHCP_LIST,     "dhcp-list",     NULL },
   { CMDSOCK_DHCP_RELEASE,  "dhcp-release",  NULL },
   { CMDSOCK_AUTHORIZE,     "authorize",     NULL },
+  { CMDSOCK_DHCP_RELEASE,  "logout",        NULL },
+  { CMDSOCK_DHCP_RELEASE,  "logoff",        NULL },
   { 0, NULL, NULL }
 };
 
 int main(int argc, char **argv) {
   /*
-   *   chilli_query <unix-socket> <command> [<argument>]
+   *   chilli_query [ -s <unix-socket> ] <command> [<argument>]
    *   (or maybe this should get the unix-socket from the config file)
    */
 
+  char *cmdsock = DEFCMDSOCK;
   int s, len;
   struct sockaddr_un remote;
   struct cmdsock_request request;
   char line[1024], *cmd;
+  int argidx = 1;
 
-  if (argc < 3) return usage(argv[0]);
+  if (argc < 2) return usage(argv[0]);
+
+  if (*argv[argidx] == '/') {
+    /* for backward support, ignore a unix-socket given as first arg */
+    if (argc < 3) return usage(argv[0]);
+    cmdsock = argv[argidx++];
+  } else if (!strcmp(argv[argidx], "-s")) {
+    if (argc < 4) return usage(argv[0]);
+    argidx++;
+    cmdsock = argv[argidx++];
+  }
 
   memset(&request,0,sizeof(request));
 
-  cmd = argv[2];
+  cmd = argv[argidx++];
   for (s = 0; commands[s].command; s++) {
     if (!strcmp(cmd, commands[s].command)) {
       request.type = commands[s].type;
@@ -101,8 +115,8 @@ int main(int argc, char **argv) {
 	    /* more... */
 	  };
 	  int count = sizeof(args)/sizeof(struct arguments);
-	  int pos = 3;
-	  argc -= 3;
+	  int pos = argidx;
+	  argc -= argidx;
 	  while(argc > 0) {
 	    int i;
 
@@ -164,17 +178,17 @@ int main(int argc, char **argv) {
 	  int macstrlen;
 	  int i;
 
-	  if (argc < 4) {
+	  if (argc < argidx+1) {
 	    fprintf(stderr, "%s requires a MAC address argument\n", cmd);
 	    return usage(argv[0]);
 	  }
 	  
-	  if ((macstrlen = strlen(argv[3])) >= (RADIUS_ATTR_VLEN-1)) {
-	    fprintf(stderr, "%s: bad MAC address\n", argv[3]);
+	  if ((macstrlen = strlen(argv[argidx])) >= (RADIUS_ATTR_VLEN-1)) {
+	    fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
 	    return -1;
 	  }
 
-	  memcpy(macstr, argv[3], macstrlen);
+	  memcpy(macstr, argv[argidx], macstrlen);
 	  macstr[macstrlen] = 0;
 
 	  for (i=0; i<macstrlen; i++) 
@@ -184,7 +198,7 @@ int main(int argc, char **argv) {
 	  if (sscanf(macstr, "%2x %2x %2x %2x %2x %2x", 
 		     &temp[0], &temp[1], &temp[2], 
 		     &temp[3], &temp[4], &temp[5]) != 6) {
-	    fprintf(stderr, "%s: bad MAC address\n", argv[3]);
+	    fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
 	    return -1;
 	  }
 
@@ -209,7 +223,7 @@ int main(int argc, char **argv) {
   }
 
   remote.sun_family = AF_UNIX;
-  strcpy(remote.sun_path, argv[1]);
+  strcpy(remote.sun_path, cmdsock);
   len = strlen(remote.sun_path) + sizeof(remote.sun_family);
   if (connect(s, (struct sockaddr *)&remote, len) == -1) {
     perror("connect");
