@@ -1,0 +1,5 @@
+coova-chilli (1.0.7-1) unstable; urgency=low
+
+  * First debian packaging for Coova version of coova-chilli
+
+ -- Unixmedia S.r.l. (Medianix Devel) <devel@unixmedia.it>  Tue, 21 Aug 2007 17:25:58 +0200

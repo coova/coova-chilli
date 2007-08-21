@@ -1,0 +1,2 @@
+START_CHILLI=0
+CONFFILE="/etc/chilli.conf"
