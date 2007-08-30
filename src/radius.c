@@ -1010,7 +1010,9 @@ int radius_pwencode(struct radius_t *this,
   /* if (*dstlen <= RADIUS_MD5LEN) return 0;  Finished */
 
   /* Continue with the remaining octets of dst if any */
-  for (n = 0; n < 128 && n < (*dstlen - RADIUS_AUTHLEN); n += RADIUS_AUTHLEN) {
+  for (n = 0; 
+       n < 128 && n < (*dstlen - RADIUS_AUTHLEN); 
+       n += RADIUS_AUTHLEN) {
     MD5Init(&context);
     MD5Update(&context, (uint8_t*) secret, secretlen);
     MD5Update(&context, dst + n, RADIUS_AUTHLEN);
