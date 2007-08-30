@@ -42,12 +42,12 @@ void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
 
 void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pack)  {
   uint8_t b[24];
-  uint8_t *mac="";
+  uint8_t *mac= (uint8_t*)"";
 
   if (options.nasmac)
-    mac = options.nasmac;
+    mac = (uint8_t*)options.nasmac;
   else 
-    sprintf((mac=b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+    sprintf((char*)(mac=b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
 	    radius->nas_hwaddr[0],radius->nas_hwaddr[1],radius->nas_hwaddr[2],
 	    radius->nas_hwaddr[3],radius->nas_hwaddr[4],radius->nas_hwaddr[5]);
 
@@ -81,12 +81,12 @@ int radius_printqueue(struct radius_t *this) {
 int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack,
 		uint8_t *dst) {
   unsigned char digest[RADIUS_MD5LEN];
-  int length;
+  size_t length;
 
   MD5_CTX context;
 
   uint8_t *key;
-  int key_len;
+  size_t key_len;
 
   unsigned char k_ipad[65];
   unsigned char k_opad[65];
@@ -165,7 +165,7 @@ int radius_acctreq_authenticator(struct radius_t *this,
 int radius_authresp_authenticator(struct radius_t *this,
 				 struct radius_packet_t *pack,
 				 uint8_t *req_auth,
-				 char *secret, int secretlen) {
+				 char *secret, size_t secretlen) {
 
   /* From RFC 2865: Authenticator is the MD5 hash of:
      Code + Identifier + Length + request authenticator + request attributes +
@@ -564,12 +564,12 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
 	       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
 	       uint32_t value, uint8_t *data, uint16_t dlen) {
   struct radius_attr_t *a;
-  uint16_t length = ntohs(pack->length);
-  uint8_t vlen;
   char passwd[RADIUS_PWSIZE];
-  int pwlen;
+  size_t length = ntohs(pack->length);
+  size_t vlen;
+  size_t pwlen;
 
-  a = (struct radius_attr_t*) ((void*) pack + length);
+  a = (struct radius_attr_t *)((void*)pack + length);
 
   if (type == RADIUS_ATTR_USER_PASSWORD) {
     radius_pwencode(this, (uint8_t*) passwd, RADIUS_PWSIZE, &pwlen, 
@@ -599,10 +599,11 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
 
     length += vlen + 2;
 
-    pack->length = htons(length);
+    pack->length = htons((uint16_t)length);
 
     a->t = type;
     a->l = vlen+2;
+
     if (data)
       memcpy(&a->v, data, dlen);
     else if (dlen)
@@ -660,17 +661,17 @@ int
 radius_getattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 	       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
 	       int instance) {
-  int offset = 0;
+  size_t offset = 0;
   return radius_getnextattr(pack, attr, type, vendor_id, vendor_type, instance, &offset);
 }
 
 int
 radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 	       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
-	       int instance, int *roffset) {
+	       int instance, size_t *roffset) {
   struct radius_attr_t *t;
-  int len = ntohs(pack->length) - RADIUS_HDRSIZE;
-  int offset = *roffset;
+  size_t len = ntohs(pack->length) - RADIUS_HDRSIZE;
+  size_t offset = *roffset;
   int count = 0;
 
   if (0) {
@@ -723,7 +724,7 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 int 
 radius_countattr(struct radius_packet_t *pack, uint8_t type) {
   struct radius_attr_t *t;
-  int offset = 0;
+  size_t offset = 0;
   int count = 0;
   
   /* Need to check pack -> length */
@@ -758,13 +759,13 @@ radius_cmpattr(struct radius_attr_t *t1, struct radius_attr_t *t2) {
  * radius_keydecode()
  * Decode an MPPE key using MD5.
  */
-int radius_keydecode(struct radius_t *this, uint8_t *dst, int dstsize,
-		     int *dstlen, uint8_t *src, int srclen,
-		     uint8_t *authenticator, char *secret, int secretlen) {
+int radius_keydecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
+		     size_t *dstlen, uint8_t *src, size_t srclen,
+		     uint8_t *authenticator, char *secret, size_t secretlen) {
   int i, n;
   MD5_CTX context;
   unsigned char b[RADIUS_MD5LEN];
-  int blocks;
+  size_t blocks;
 
   blocks = (srclen - 2) / RADIUS_MD5LEN;
 
@@ -820,13 +821,13 @@ int radius_keydecode(struct radius_t *this, uint8_t *dst, int dstsize,
  * radius_keyencode()
  * Encode an MPPE key using MD5.
  */
-int radius_keyencode(struct radius_t *this, uint8_t *dst, int dstsize,
-		     int *dstlen, uint8_t *src, int srclen,
-		     uint8_t *authenticator, char *secret, int secretlen) {
+int radius_keyencode(struct radius_t *this, uint8_t *dst, size_t dstsize,
+		     size_t *dstlen, uint8_t *src, size_t srclen,
+		     uint8_t *authenticator, char *secret, size_t secretlen) {
   int i, n;
   MD5_CTX context;
   unsigned char b[RADIUS_MD5LEN];
-  int blocks;
+  size_t blocks;
 
   blocks = (srclen + 1) / RADIUS_MD5LEN;
   if ((blocks * RADIUS_MD5LEN) < (srclen +1)) blocks++;
@@ -878,9 +879,9 @@ int radius_keyencode(struct radius_t *this, uint8_t *dst, int dstsize,
  * radius_pwdecode()
  * Decode a password using MD5. Also used for MSCHAPv1 MPPE keys.
  */
-int radius_pwdecode(struct radius_t *this, uint8_t *dst, int dstsize,
-		    int *dstlen, uint8_t *src, int srclen, 
-		    uint8_t *authenticator, char *secret, int secretlen) {
+int radius_pwdecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
+		    size_t *dstlen, uint8_t *src, size_t srclen, 
+		    uint8_t *authenticator, char *secret, size_t secretlen) {
   int i, n;
   MD5_CTX context;
   unsigned char output[RADIUS_MD5LEN];
@@ -962,9 +963,9 @@ int radius_pwdecode(struct radius_t *this, uint8_t *dst, int dstsize,
  * radius_pwencode()
  * Encode a password using MD5.
  */
-int radius_pwencode(struct radius_t *this, uint8_t *dst, int dstsize,
-		    int *dstlen, uint8_t *src, int srclen, 
-		    uint8_t *authenticator, char *secret, int secretlen) {
+int radius_pwencode(struct radius_t *this, uint8_t *dst, size_t dstsize,
+		    size_t *dstlen, uint8_t *src, size_t srclen, 
+		    uint8_t *authenticator, char *secret, size_t secretlen) {
   int i, n;
   MD5_CTX context;
   unsigned char output[RADIUS_MD5LEN];
@@ -1243,7 +1244,7 @@ int radius_req(struct radius_t *this,
 	       void *cbp)
 {
   struct sockaddr_in addr;
-  int len = ntohs(pack->length);
+  size_t len = ntohs(pack->length);
 
   /* Place packet in queue */
   if (radius_queue_in(this, pack, cbp)) {
@@ -1286,7 +1287,7 @@ int radius_resp(struct radius_t *this,
 		struct radius_packet_t *pack,
 		struct sockaddr_in *peer, uint8_t *req_auth) {
 
-  int len = ntohs(pack->length);
+  size_t len = ntohs(pack->length);
   struct radius_attr_t *ma = NULL; /* Message authenticator */
 
   /* Prepare for message authenticator TODO */
@@ -1318,7 +1319,7 @@ int radius_coaresp(struct radius_t *this,
 		   struct radius_packet_t *pack,
 		   struct sockaddr_in *peer, uint8_t *req_auth) {
 
-  int len = ntohs(pack->length);
+  size_t len = ntohs(pack->length);
   struct radius_attr_t *ma = NULL; /* Message authenticator */
 
   /* Prepare for message authenticator TODO */
@@ -1602,14 +1603,14 @@ int radius_proxy_ind(struct radius_t *this) {
   return -1;
 }
 
-struct app_conn_t admin_session = { 0 };
+struct app_conn_t admin_session;
 
 int chilliauth_radius(struct radius_t *radius) {
   struct radius_packet_t radius_pack;
   int ret = -1;
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "radius_default_pack() failed");
+    log_err(0, "radius_default_pack() failed");
     return ret;
   }
 

@@ -174,6 +174,11 @@ struct gengetopt_args_info
   int uamallowed_min; /* Domain names exempt from access check 's minimum occurreces */
   int uamallowed_max; /* Domain names exempt from access check 's maximum occurreces */
   const char *uamallowed_help; /* Domain names exempt from access check  help description.  */
+  char ** uamdomain_arg;	/* Domain name allowed (active dns filtering; one per line!) .  */
+  char ** uamdomain_orig;	/* Domain name allowed (active dns filtering; one per line!)  original value given at command line.  */
+  int uamdomain_min; /* Domain name allowed (active dns filtering; one per line!) 's minimum occurreces */
+  int uamdomain_max; /* Domain name allowed (active dns filtering; one per line!) 's maximum occurreces */
+  const char *uamdomain_help; /* Domain name allowed (active dns filtering; one per line!)  help description.  */
   int uamanydns_flag;	/* Allow client to use any DNS server (default=off).  */
   const char *uamanydns_help; /* Allow client to use any DNS server help description.  */
   int uamanyip_flag;	/* Allow client to use any IP Address (default=off).  */
@@ -317,6 +322,7 @@ struct gengetopt_args_info
   int uamport_given ;	/* Whether uamport was given.  */
   int uamuiport_given ;	/* Whether uamuiport was given.  */
   unsigned int uamallowed_given ;	/* Whether uamallowed was given.  */
+  unsigned int uamdomain_given ;	/* Whether uamdomain was given.  */
   int uamanydns_given ;	/* Whether uamanydns was given.  */
   int uamanyip_given ;	/* Whether uamanyip was given.  */
   int wisprlogin_given ;	/* Whether wisprlogin was given.  */

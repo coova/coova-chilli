@@ -19,7 +19,7 @@ typedef struct pass_through_t {
   short port;                       /* TCP or UDP Port */
 } pass_through;
 
-int pass_through_add(pass_through *ptlist, int ptlen, int *ptcnt, pass_through *pt);
-int pass_throughs_from_string(pass_through *ptlist, int ptlen, int *ptcnt, char *s);
+int pass_through_add(pass_through *ptlist, size_t ptlen, size_t *ptcnt, pass_through *pt);
+int pass_throughs_from_string(pass_through *ptlist, size_t ptlen, size_t *ptcnt, char *s);
 
 #endif

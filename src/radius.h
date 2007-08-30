@@ -2,7 +2,7 @@
  *
  * Radius client functions.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  * 
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -200,8 +200,8 @@ struct radius_queue_t {      /* Holder for queued packets */
   struct sockaddr_in peer;   /* Address packet was sent to / received from */
   struct radius_packet_t p;  /* The packet stored */
   uint16_t seq;              /* The sequence number */
-  uint8_t type;             /* The type of packet */
-  int l;                     /* Length of the packet */
+  uint8_t type;              /* The type of packet */
+  size_t l;                  /* Length of the packet */
   struct qmsg_t *seqnext;    /* Pointer to next in sequence hash list */
   int next;                  /* Pointer to the next in queue. -1: Last */
   int prev;                  /* Pointer to the previous in queue. -1: First */
@@ -221,14 +221,14 @@ struct radius_t {
   struct in_addr hisaddr0;       /* Server address */
   struct in_addr hisaddr1;       /* Server address */
   char secret[RADIUS_SECRETSIZE];/* Shared secret */
-  int secretlen;                 /* Length of sharet secret */
+  size_t secretlen;                 /* Length of sharet secret */
   int proxyfd;                   /* Proxy socket file descriptor */
   struct in_addr proxylisten;    /* Proxy address to listen to */
   uint16_t proxyport;            /* Proxy port to listen to */
   struct in_addr proxyaddr;      /* Proxy client address */
   struct in_addr proxymask;      /* Proxy client mask */
   char proxysecret[RADIUS_SECRETSIZE]; /* Proxy secret */
-  int proxysecretlen;            /* Length of sharet secret */
+  size_t proxysecretlen;            /* Length of sharet secret */
   unsigned char nas_hwaddr[6];   /* Hardware address of NAS */
 
   int debug;                     /* Print debug messages */
@@ -349,7 +349,7 @@ extern int radius_default_pack(struct radius_t *this,
 extern int 
 radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 	       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
-	       int instance, int *roffset);
+	       int instance, size_t *roffset);
 extern int 
 radius_getattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 	       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
@@ -358,29 +358,29 @@ radius_getattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 
 /* Encode a password */
 extern int 
-radius_pwencode(struct radius_t *this, uint8_t *dst, int dstsize,
-		int *dstlen, uint8_t *src, int srclen, 
-		uint8_t *authenticator, char *secret, int secretlen);
+radius_pwencode(struct radius_t *this, uint8_t *dst, size_t dstsize,
+		size_t *dstlen, uint8_t *src, size_t srclen, 
+		uint8_t *authenticator, char *secret, size_t secretlen);
   
 
 /* Decode a password (also used for MSCHAPv1 MPPE keys) */
 extern int 
-radius_pwdecode(struct radius_t *this, uint8_t *dst, int dstsize,
-		    int *dstlen, uint8_t *src, int srclen, 
-		uint8_t *authenticator, char *secret, int secretlen);
+radius_pwdecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
+		size_t *dstlen, uint8_t *src, size_t srclen, 
+		uint8_t *authenticator, char *secret, size_t secretlen);
 
 
 /* Decode MPPE key */
 extern int 
-radius_keydecode(struct radius_t *this, uint8_t *dst, int dstsize,
-		 int *dstlen, uint8_t *src, int srclen, 
-		 uint8_t *authenticator, char *secret, int secretlen);
+radius_keydecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
+		 size_t *dstlen, uint8_t *src, size_t srclen, 
+		 uint8_t *authenticator, char *secret, size_t secretlen);
 
 /* Encode MPPE key */
 extern int 
-radius_keyencode(struct radius_t *this, uint8_t *dst, int dstsize,
-		     int *dstlen, uint8_t *src, int srclen,
-		 uint8_t *authenticator, char *secret, int secretlen);
+radius_keyencode(struct radius_t *this, uint8_t *dst, size_t dstsize,
+		 size_t *dstlen, uint8_t *src, size_t srclen,
+		 uint8_t *authenticator, char *secret, size_t secretlen);
 
 
 

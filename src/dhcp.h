@@ -18,9 +18,6 @@
 #define _DHCP_H
 
 /* DHCP Ethernet frame types */
-#define DHCP_ETH_IP                 0x0800
-#define DHCP_ETH_ARP                0x0806
-#define DHCP_ETH_EAPOL              0x888e
 
 /* Misc decl */
 #define DHCP_DEBUG        0      /* Print debug information */
@@ -35,8 +32,12 @@ struct dhcp_tag_t {
 };
 
 
+extern const uint16_t DHCP_ETH_IP;
+extern const uint16_t DHCP_ETH_ARP;
+extern const uint16_t DHCP_ETH_EAPOL;
+extern const uint32_t DHCP_OPTION_MAGIC;
+
 /* Option constants */
-#define DHCP_OPTION_MAGIC          0x63825363
 #define DHCP_OPTION_MAGIC_LEN       4
 
 #define DHCP_OPTION_PAD             0
@@ -340,9 +341,9 @@ struct dhcp_t {
   int ifindex;  /* Hardware address of interface */
 #if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
   char *rbuf;
-  int rbuf_max;
-  int rbuf_offset;
-  int rbuf_len;
+  size_t rbuf_max;
+  size_t rbuf_offset;
+  size_t rbuf_len;
 #endif
   int arp_fd;           /* File descriptor to network interface */
   unsigned char arp_hwaddr[DHCP_ETH_ALEN]; /* Hardware address of interface */
@@ -377,19 +378,18 @@ struct dhcp_t {
   struct dhcp_conn_t **hash;    /* Hashsize array of pointer to member */
 
   /* Call back functions */
-  int (*cb_data_ind) (struct dhcp_conn_t *conn, void *pack, unsigned len);
-  int (*cb_eap_ind)  (struct dhcp_conn_t *conn, void *pack, unsigned len);
+  int (*cb_data_ind) (struct dhcp_conn_t *conn, void *pack, size_t len);
+  int (*cb_eap_ind)  (struct dhcp_conn_t *conn, void *pack, size_t len);
   int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr);
   int (*cb_connect) (struct dhcp_conn_t *conn);
   int (*cb_disconnect) (struct dhcp_conn_t *conn);
-  int (*cb_getinfo) (struct dhcp_conn_t *conn, char *b, int blen);
+  int (*cb_getinfo) (struct dhcp_conn_t *conn, char *b, size_t blen);
 };
 
 
 /* External API functions */
 
-extern const char* 
-dhcp_version();
+extern const char* dhcp_version();
 
 extern int
 dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
@@ -428,12 +428,12 @@ dhcp_decaps(struct dhcp_t *this);
 
 
 extern int 
-dhcp_data_req(struct dhcp_conn_t *conn, void *pack, unsigned len);
+dhcp_data_req(struct dhcp_conn_t *conn, void *pack, size_t len);
 
 
 extern int 
 dhcp_set_cb_data_ind(struct dhcp_t *this, 
-  int (*cb_data_ind) (struct dhcp_conn_t *conn, void *pack, unsigned len));
+  int (*cb_data_ind) (struct dhcp_conn_t *conn, void *pack, size_t len));
 
 extern int 
 dhcp_set_cb_request(struct dhcp_t *this, 
@@ -449,11 +449,11 @@ dhcp_set_cb_connect(struct dhcp_t *this,
 
 extern int 
 dhcp_set_cb_eap_ind(struct dhcp_t *this, 
-  int (*cb_eap_ind) (struct dhcp_conn_t *conn, void *pack, unsigned len));
+  int (*cb_eap_ind) (struct dhcp_conn_t *conn, void *pack, size_t len));
 
 extern int 
 dhcp_set_cb_getinfo(struct dhcp_t *this, 
-  int (*cb_getinfo) (struct dhcp_conn_t *conn, char *b, int blen));
+  int (*cb_getinfo) (struct dhcp_conn_t *conn, char *b, size_t blen));
 
 extern int 
 dhcp_hashget(struct dhcp_t *this, struct dhcp_conn_t **conn,
@@ -470,9 +470,9 @@ int dhcp_freeconn(struct dhcp_conn_t *conn);
 extern int 
 dhcp_arp_ind(struct dhcp_t *this);  /* ARP Indication */
 
-extern int dhcp_sendEAP(struct dhcp_conn_t *conn, void *pack, int len);
+extern int dhcp_sendEAP(struct dhcp_conn_t *conn, void *pack, size_t len);
 
-extern int dhcp_sendEAPreject(struct dhcp_conn_t *conn, void *pack, int len);
+extern int dhcp_sendEAPreject(struct dhcp_conn_t *conn, void *pack, size_t len);
 
 extern int dhcp_eapol_ind(struct dhcp_t *this);
 

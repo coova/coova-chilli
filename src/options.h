@@ -125,7 +125,9 @@ struct options_t {
   int uamanyip;                  /* Allow any ip address */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
-  int num_pass_throughs;
+  size_t num_pass_throughs;
+
+  char** uamdomains;
 
   /* MAC Authentication */
   int macauth;                   /* Use MAC authentication */

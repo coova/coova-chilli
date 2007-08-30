@@ -25,7 +25,7 @@
 #include "chilli.h"
 #include "options.h"
 
-struct options_t options = {0};
+struct options_t options;
 
 char *STRDUP(char *s) {
   if (!s) return 0;
@@ -50,6 +50,7 @@ int option_aton(struct in_addr *addr, struct in_addr *mask,
   c = sscanf(pool, "%u.%u.%u.%u/%u.%u.%u.%u",
 	     &a1, &a2, &a3, &a4,
 	     &m1, &m2, &m3, &m4);
+
   switch (c) {
   case 4:
     mask->s_addr = 0xffffffff;
@@ -153,29 +154,34 @@ int static get_namepart(char *src, char *host, int hostsize, int *port) {
 
 int process_options(int argc, char **argv, int minimal) {
   int reconfiguring = options.initialized;
-  struct gengetopt_args_info args_info = {0};
+  struct gengetopt_args_info args_info;
   struct hostent *host;
   char hostname[USERURLSIZE];
   int numargs;
   int ret = -1;
 
+  if (!reconfiguring)
+    memset(&options, 0, sizeof(options));
+
+  memset(&args_info, 0, sizeof(args_info));
+
   if (cmdline_parser(argc, argv, &args_info) != 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Failed to parse command line options");
+    log_err(0, "Failed to parse command line options");
     goto end_processing;
   }
 
-  if (cmdline_parser_configfile(args_info.conf_arg ? args_info.conf_arg : DEFCHILLICONF, &args_info, 0, 0, 0)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Failed to parse configuration file: %s!", 
+  if (cmdline_parser_configfile(args_info.conf_arg ? 
+				args_info.conf_arg : 
+				DEFCHILLICONF, 
+				&args_info, 0, 0, 0)) {
+    log_err(0, "Failed to parse configuration file: %s!", 
 	    args_info.conf_arg);
     goto end_processing;
   }
 
   /* Get the system default DNS entries */
   if (!reconfiguring && res_init()) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Failed to update system DNS settings (res_init()!");
+    log_err(0, "Failed to update system DNS settings (res_init()!");
     goto end_processing;
   }
 
@@ -383,6 +389,19 @@ int process_options(int argc, char **argv, int minimal) {
 			      MAX_PASS_THROUGHS,
 			      &options.num_pass_throughs,
 			      args_info.uamallowed_arg[numargs]);
+  }
+
+  if (options.uamdomains) {
+    for (numargs = 0; options.uamdomains[numargs]; ++numargs) 
+      free(options.uamdomains[numargs]);
+    free(options.uamdomains);
+  }
+  options.uamdomains=0;
+
+  if (args_info.uamdomain_given) {
+    options.uamdomains = calloc(args_info.uamdomain_given+1, sizeof(char *));
+    for (numargs = 0; numargs < args_info.uamdomain_given; ++numargs) 
+      options.uamdomains[numargs] = STRDUP(args_info.uamdomain_arg[numargs]);
   }
 
   if (!reconfiguring) {

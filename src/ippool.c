@@ -22,6 +22,7 @@
 #include "chilli.h"
 #include "options.h"
 
+const unsigned int IPPOOL_STATSIZE = 0x10000;
 
 int ippool_printaddr(struct ippool_t *this) {
   int n;

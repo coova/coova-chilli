@@ -47,7 +47,7 @@ getline (char** lineptr, size_t* n, FILE* stream)
   c = fgetc (stream);
   if (c == EOF) return EOF;
   {
-    int offset;
+    size_t offset;
 
     offset = 0;
     while (c != EOF)

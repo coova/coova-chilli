@@ -1,3 +1,13 @@
+/* 
+ * Copyright (C) 2003, 2004, 2005 Mondru AB.
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
+ * 
+ * The contents of this file may be used under the terms of the GNU
+ * General Public License Version 2, provided that the above copyright
+ * notice and this permission notice is included in all copies or
+ * substantial portions of the software.
+ * 
+ */
 
 #include "system.h"
 #include "ippool.h"
@@ -11,12 +21,23 @@
 #include "chilli.h"
 #include "options.h"
 
-int pass_through_add(pass_through *ptlist, int ptlen, int *ptcnt, pass_through *pt) {
-  int cnt = *ptcnt;
+int pass_through_add(pass_through *ptlist, size_t ptlen, size_t *ptcnt, pass_through *pt) {
+  size_t cnt = *ptcnt;
+  int i;
+
   if (cnt >= ptlen) {
     if (options.debug) 
       log_dbg("No more room for walled garden entries");
     return -1;
+  }
+
+  for (i=0; i < cnt; i++) {
+    if (!memcmp(&ptlist[i],pt,sizeof(pass_through))) {
+      if (options.debug) 
+	log_dbg("Uamallowed already exists #%d:%d: proto=%d host=%s port=%d", i, ptlen,
+		pt->proto, inet_ntoa(pt->host), pt->port);
+      return 0;
+    }
   }
 
   if (options.debug) 
@@ -28,7 +49,7 @@ int pass_through_add(pass_through *ptlist, int ptlen, int *ptcnt, pass_through *
   return 0;
 }
 
-int pass_throughs_from_string(pass_through *ptlist, int ptlen, int *ptcnt, char *s) {
+int pass_throughs_from_string(pass_through *ptlist, size_t ptlen, size_t *ptcnt, char *s) {
   struct hostent *host;
   pass_through pt;
   char *t, *p1 = NULL, *p2 = NULL;
@@ -99,10 +120,12 @@ int pass_throughs_from_string(pass_through *ptlist, int ptlen, int *ptcnt, char 
     else {	/* otherwise, parse a host ip or hostname */
       int j = 0;
       pt.mask.s_addr = 0xffffffff;
+
       if (!(host = gethostbyname(p1))) {
-	log_err(0, "Invalid uamallowed domain or address: %s! [%s]", p1, strerror(errno));
+	log_err(errno, "Invalid uamallowed domain or address: %s!", p1);
 	continue;
-      } 
+      }
+
       while (host->h_addr_list[j] != NULL) {
 	pt.host = *((struct in_addr *) host->h_addr_list[j++]);
 	if (pass_through_add(ptlist, ptlen, ptcnt, &pt))

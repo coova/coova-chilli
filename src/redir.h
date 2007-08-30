@@ -102,7 +102,7 @@ struct session_params {
   char require_redirect;
 
   pass_through pass_throughs[REDIR_PASS_THROUGH_MAX];
-  int pass_through_count;
+  size_t pass_through_count;
 } __attribute__((packed));
 
 struct redir_conn_t {

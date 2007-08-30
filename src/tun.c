@@ -2,7 +2,7 @@
  *
  * TUN interface functions.
  * Copyright (C) 2002, 2003, 2004 Mondru AB.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  * 
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -35,10 +35,10 @@
 
 #if defined(__linux__)
 
-int tun_nlattr(struct nlmsghdr *n, int nsize, int type, void *d, int dlen)
+int tun_nlattr(struct nlmsghdr *n, int nsize, int type, void *d, size_t dlen)
 {
-  int len = RTA_LENGTH(dlen);
-  int alen = NLMSG_ALIGN(n->nlmsg_len);
+  size_t len = RTA_LENGTH(dlen);
+  size_t alen = NLMSG_ALIGN(n->nlmsg_len);
   struct rtattr *rta = (struct rtattr*) (((void*)n) + alen);
   if (alen + len > nsize)
     return -1;
@@ -203,7 +203,7 @@ int tun_addaddr(struct tun_t *this,
   } req;
   
   struct sockaddr_nl local;
-  int addr_len;
+  size_t addr_len;
   int fd;
   int status;
   
@@ -817,7 +817,7 @@ int tun_free(struct tun_t *tun)
 
 
 int tun_set_cb_ind(struct tun_t *this, 
-  int (*cb_ind) (struct tun_t *tun, void *pack, unsigned len)) {
+  int (*cb_ind) (struct tun_t *tun, void *pack, size_t len)) {
   this->cb_ind = cb_ind;
   return 0;
 }
@@ -872,7 +872,7 @@ int tun_decaps(struct tun_t *this)
 }
 
 
-int tun_encaps(struct tun_t *tun, void *pack, unsigned len)
+int tun_encaps(struct tun_t *tun, void *pack, size_t len)
 {
   if (options.usetap) {
     struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;

@@ -78,6 +78,7 @@ const char *gengetopt_args_info_help[] = {
   "      --uamport=INT             TCP port to bind to for authentication requests \n                                   (default=`3990')",
   "      --uamuiport=INT           TCP port to bind to for UAM UI requests  \n                                  (default=`3991')",
   "      --uamallowed=STRING       Domain names exempt from access check ",
+  "      --uamdomain=STRING        Domain name allowed (active dns filtering; one \n                                  per line!) ",
   "      --uamanydns               Allow client to use any DNS server  \n                                  (default=off)",
   "      --uamanyip                Allow client to use any IP Address  \n                                  (default=off)",
   "      --wisprlogin=STRING       A specific WISPr login url to be used",
@@ -215,6 +216,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamport_given = 0 ;
   args_info->uamuiport_given = 0 ;
   args_info->uamallowed_given = 0 ;
+  args_info->uamdomain_given = 0 ;
   args_info->uamanydns_given = 0 ;
   args_info->uamanyip_given = 0 ;
   args_info->wisprlogin_given = 0 ;
@@ -350,6 +352,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->uamuiport_orig = NULL;
   args_info->uamallowed_arg = NULL;
   args_info->uamallowed_orig = NULL;
+  args_info->uamdomain_arg = NULL;
+  args_info->uamdomain_orig = NULL;
   args_info->uamanydns_flag = 0;
   args_info->uamanyip_flag = 0;
   args_info->wisprlogin_arg = NULL;
@@ -464,42 +468,45 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->uamallowed_help = gengetopt_args_info_help[51] ;
   args_info->uamallowed_min = -1;
   args_info->uamallowed_max = -1;
-  args_info->uamanydns_help = gengetopt_args_info_help[52] ;
-  args_info->uamanyip_help = gengetopt_args_info_help[53] ;
-  args_info->wisprlogin_help = gengetopt_args_info_help[54] ;
-  args_info->nouamsuccess_help = gengetopt_args_info_help[55] ;
-  args_info->nouamwispr_help = gengetopt_args_info_help[56] ;
-  args_info->uamlogoutip_help = gengetopt_args_info_help[57] ;
-  args_info->defsessiontimeout_help = gengetopt_args_info_help[58] ;
-  args_info->defidletimeout_help = gengetopt_args_info_help[59] ;
-  args_info->macauth_help = gengetopt_args_info_help[60] ;
-  args_info->macallowed_help = gengetopt_args_info_help[61] ;
+  args_info->uamdomain_help = gengetopt_args_info_help[52] ;
+  args_info->uamdomain_min = -1;
+  args_info->uamdomain_max = -1;
+  args_info->uamanydns_help = gengetopt_args_info_help[53] ;
+  args_info->uamanyip_help = gengetopt_args_info_help[54] ;
+  args_info->wisprlogin_help = gengetopt_args_info_help[55] ;
+  args_info->nouamsuccess_help = gengetopt_args_info_help[56] ;
+  args_info->nouamwispr_help = gengetopt_args_info_help[57] ;
+  args_info->uamlogoutip_help = gengetopt_args_info_help[58] ;
+  args_info->defsessiontimeout_help = gengetopt_args_info_help[59] ;
+  args_info->defidletimeout_help = gengetopt_args_info_help[60] ;
+  args_info->macauth_help = gengetopt_args_info_help[61] ;
+  args_info->macallowed_help = gengetopt_args_info_help[62] ;
   args_info->macallowed_min = -1;
   args_info->macallowed_max = -1;
-  args_info->macsuffix_help = gengetopt_args_info_help[62] ;
-  args_info->macpasswd_help = gengetopt_args_info_help[63] ;
-  args_info->macallowlocal_help = gengetopt_args_info_help[64] ;
-  args_info->wwwdir_help = gengetopt_args_info_help[65] ;
-  args_info->wwwbin_help = gengetopt_args_info_help[66] ;
-  args_info->uamui_help = gengetopt_args_info_help[67] ;
-  args_info->adminuser_help = gengetopt_args_info_help[68] ;
-  args_info->adminpasswd_help = gengetopt_args_info_help[69] ;
-  args_info->nasmac_help = gengetopt_args_info_help[70] ;
-  args_info->nasip_help = gengetopt_args_info_help[71] ;
-  args_info->ssid_help = gengetopt_args_info_help[72] ;
-  args_info->vlan_help = gengetopt_args_info_help[73] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[74] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[75] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[76] ;
-  args_info->localusers_help = gengetopt_args_info_help[77] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[78] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[79] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[80] ;
-  args_info->openidauth_help = gengetopt_args_info_help[81] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[82] ;
-  args_info->chillixml_help = gengetopt_args_info_help[83] ;
-  args_info->acctupdate_help = gengetopt_args_info_help[84] ;
-  args_info->usetap_help = gengetopt_args_info_help[85] ;
+  args_info->macsuffix_help = gengetopt_args_info_help[63] ;
+  args_info->macpasswd_help = gengetopt_args_info_help[64] ;
+  args_info->macallowlocal_help = gengetopt_args_info_help[65] ;
+  args_info->wwwdir_help = gengetopt_args_info_help[66] ;
+  args_info->wwwbin_help = gengetopt_args_info_help[67] ;
+  args_info->uamui_help = gengetopt_args_info_help[68] ;
+  args_info->adminuser_help = gengetopt_args_info_help[69] ;
+  args_info->adminpasswd_help = gengetopt_args_info_help[70] ;
+  args_info->nasmac_help = gengetopt_args_info_help[71] ;
+  args_info->nasip_help = gengetopt_args_info_help[72] ;
+  args_info->ssid_help = gengetopt_args_info_help[73] ;
+  args_info->vlan_help = gengetopt_args_info_help[74] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[75] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[76] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[77] ;
+  args_info->localusers_help = gengetopt_args_info_help[78] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[79] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[80] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[81] ;
+  args_info->openidauth_help = gengetopt_args_info_help[82] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[83] ;
+  args_info->chillixml_help = gengetopt_args_info_help[84] ;
+  args_info->acctupdate_help = gengetopt_args_info_help[85] ;
+  args_info->usetap_help = gengetopt_args_info_help[86] ;
   
 }
 
@@ -937,6 +944,28 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
       args_info->uamallowed_arg = 0;
       free (args_info->uamallowed_orig); /* free previous argument */
       args_info->uamallowed_orig = 0;
+    }
+  if (args_info->uamdomain_arg)
+    {
+      for (i = 0; i < args_info->uamdomain_given; ++i)
+        {
+          if (args_info->uamdomain_arg [i])
+            {
+              free (args_info->uamdomain_arg [i]); /* free previous argument */
+              args_info->uamdomain_arg [i] = 0;
+            }
+          if (args_info->uamdomain_orig [i])
+            {
+              free (args_info->uamdomain_orig [i]); /* free previous argument */
+              args_info->uamdomain_orig [i] = 0;
+            }
+        }
+      if (args_info->uamdomain_arg [0])
+        free (args_info->uamdomain_arg [0]); /* free default string */
+      free (args_info->uamdomain_arg); /* free previous argument */
+      args_info->uamdomain_arg = 0;
+      free (args_info->uamdomain_orig); /* free previous argument */
+      args_info->uamdomain_orig = 0;
     }
   if (args_info->wisprlogin_arg)
     {
@@ -1496,6 +1525,16 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
             }
         }
     }
+  if (args_info->uamdomain_orig)
+    {
+      for (i = 0; i < args_info->uamdomain_given; ++i)
+        {
+          if (args_info->uamdomain_orig [i])
+            {
+              fprintf(outfile, "%s=\"%s\"\n", "uamdomain", args_info->uamdomain_orig [i]);
+            }
+        }
+    }
   if (args_info->uamanydns_given) {
     fprintf(outfile, "%s\n", "uamanydns");
   }
@@ -1892,6 +1931,9 @@ cmdline_parser_required2 (struct gengetopt_args_info *args_info, const char *pro
   if (check_multiple_option_occurrences(prog_name, args_info->uamallowed_given, args_info->uamallowed_min, args_info->uamallowed_max, "'--uamallowed'"))
      error = 1;
   
+  if (check_multiple_option_occurrences(prog_name, args_info->uamdomain_given, args_info->uamdomain_min, args_info->uamdomain_max, "'--uamdomain'"))
+     error = 1;
+  
   if (check_multiple_option_occurrences(prog_name, args_info->macallowed_given, args_info->macallowed_min, args_info->macallowed_max, "'--macallowed'"))
      error = 1;
   
@@ -1910,6 +1952,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
   int i;        /* Counter */
 
   struct string_list * uamallowed_list = NULL,* uamallowed_new = NULL;
+  struct string_list * uamdomain_list = NULL,* uamdomain_new = NULL;
   struct string_list * macallowed_list = NULL,* macallowed_new = NULL;
   int error = 0;
   struct gengetopt_args_info local_args_info;
@@ -1982,6 +2025,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "uamport",	1, NULL, 0 },
         { "uamuiport",	1, NULL, 0 },
         { "uamallowed",	1, NULL, 0 },
+        { "uamdomain",	1, NULL, 0 },
         { "uamanydns",	0, NULL, 0 },
         { "uamanyip",	0, NULL, 0 },
         { "wisprlogin",	1, NULL, 0 },
@@ -3000,6 +3044,33 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               }
             break;
           }
+          /* Domain name allowed (active dns filtering; one per line!) .  */
+          else if (strcmp (long_options[option_index].name, "uamdomain") == 0)
+          {
+            local_args_info.uamdomain_given++;
+          
+            multi_token = get_multiple_arg_token(optarg);
+            multi_next = get_multiple_arg_token_next (optarg);
+          
+            while (1)
+              {
+                uamdomain_new = (struct string_list *) malloc (sizeof (struct string_list));
+                uamdomain_new->next = uamdomain_list;
+                uamdomain_list = uamdomain_new;
+                uamdomain_new->arg = gengetopt_strdup (multi_token);
+                uamdomain_new->orig = multi_token;
+          
+                if (multi_next)
+                  {
+                    multi_token = get_multiple_arg_token(multi_next);
+                    multi_next = get_multiple_arg_token_next (multi_next);
+                    local_args_info.uamdomain_given++;
+                  }
+                else
+                  break;
+              }
+            break;
+          }
           /* Allow client to use any DNS server.  */
           else if (strcmp (long_options[option_index].name, "uamanydns") == 0)
           {
@@ -3618,6 +3689,21 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         }
     }
   
+  if (local_args_info.uamdomain_given && uamdomain_list)
+    {
+      struct string_list *tmp;
+      args_info->uamdomain_arg = (char * *) realloc (args_info->uamdomain_arg, (args_info->uamdomain_given + local_args_info.uamdomain_given) * sizeof (char *));
+      args_info->uamdomain_orig = (char **) realloc (args_info->uamdomain_orig, (args_info->uamdomain_given + local_args_info.uamdomain_given) * sizeof (char *));
+      for (i = (local_args_info.uamdomain_given - 1); i >= 0; --i)
+        {
+          tmp = uamdomain_list;
+          args_info->uamdomain_arg [i + args_info->uamdomain_given] = uamdomain_list->arg;
+          args_info->uamdomain_orig [i + args_info->uamdomain_given] = uamdomain_list->orig;
+          uamdomain_list = uamdomain_list->next;
+          free (tmp);
+        }
+    }
+  
   if (local_args_info.macallowed_given && macallowed_list)
     {
       struct string_list *tmp;
@@ -3636,6 +3722,8 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
 
   args_info->uamallowed_given += local_args_info.uamallowed_given;
   local_args_info.uamallowed_given = 0;
+  args_info->uamdomain_given += local_args_info.uamdomain_given;
+  local_args_info.uamdomain_given = 0;
   args_info->macallowed_given += local_args_info.macallowed_given;
   local_args_info.macallowed_given = 0;
   
@@ -3661,6 +3749,18 @@ failure:
           free (uamallowed_list->arg);
           free (uamallowed_list->orig);
           uamallowed_list = uamallowed_list->next;
+          free (tmp);
+        }
+    }
+  if (uamdomain_list)
+    {
+      struct string_list *tmp;
+      while (uamdomain_list)
+        {
+          tmp = uamdomain_list;
+          free (uamdomain_list->arg);
+          free (uamdomain_list->orig);
+          uamdomain_list = uamdomain_list->next;
           free (tmp);
         }
     }

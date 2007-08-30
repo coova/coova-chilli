@@ -2,7 +2,7 @@
  *
  * IP address pool functions.
  * Copyright (C) 2003, 2004 Mondru AB.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  * 
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -29,12 +29,6 @@
 */
 
 #define IPPOOL_NOIP6
-
-#define IPPOOL_NONETWORK   0x01
-#define IPPOOL_NOBROADCAST 0x02
-#define IPPOOL_NOGATEWAY   0x04
-
-#define IPPOOL_STATSIZE 0x10000
 
 struct ippoolm_t;                /* Forward declaration */
 

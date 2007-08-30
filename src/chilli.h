@@ -2,7 +2,7 @@
  *
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (c) 2006 Coova Technologies Ltd
+ * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -98,21 +98,21 @@ struct app_conn_t {
   /* Parameters are initialised whenever a reply to an access request
      is received. */
   uint8_t chal[EAP_LEN];         /* EAP challenge */
-  int challen;                   /* Length of EAP challenge */
+  size_t challen;                /* Length of EAP challenge */
   uint8_t sendkey[RADIUS_ATTR_VLEN];
   uint8_t recvkey[RADIUS_ATTR_VLEN];
   uint8_t lmntkeys[RADIUS_MPPEKEYSSIZE];
-  int sendlen;
-  int recvlen;
-  int lmntlen;
+  size_t sendlen;
+  size_t recvlen;
+  size_t lmntlen;
   uint32_t policy;
   uint32_t types;
   uint8_t ms2succ[MS2SUCCSIZE];
-  int ms2succlen;
+  size_t ms2succlen;
   uint8_t statebuf[RADIUS_ATTR_VLEN+1];
-  int statelen;
+  size_t statelen;
   uint8_t classbuf[RADIUS_ATTR_VLEN+1];
-  int classlen;
+  size_t classlen;
 
   /* Radius proxy stuff */
   /* Parameters are initialised whenever a radius proxy request is received */
@@ -172,9 +172,8 @@ struct app_conn_t {
   int uamtime;
   char userurl[USERURLSIZE];
     
-  char uamabort:1;
-  char uamexit:1;
-  char reserved:6;
+  char uamabort; /* should be bit options */
+  char uamexit;
 };
 
 extern struct app_conn_t *firstfreeconn; /* First free in linked list */

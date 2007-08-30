@@ -49,7 +49,7 @@ static int keep_going = 1;
 static int do_sighup = 0;
 
 /* Forward declarations */
-static int acct_req(struct app_conn_t *conn, int status_type);
+static int acct_req(struct app_conn_t *conn, uint8_t status_type);
 
 /* Fireman catches falling childs and eliminates zombies */
 static void fireman(int signum) { 
@@ -660,8 +660,8 @@ int static radius_access_reject(struct app_conn_t *conn) {
 /* Reply with an access challenge */
 int static radius_access_challenge(struct app_conn_t *conn) {
   struct radius_packet_t radius_pack;
-  int offset = 0;
-  int eaplen = 0;
+  size_t offset = 0;
+  size_t eaplen = 0;
   conn->radiuswait = 0;
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_CHALLENGE)){
     log_err(0, "radius_default_pack() failed");
@@ -701,10 +701,10 @@ int static radius_access_challenge(struct app_conn_t *conn) {
 
 int static radius_access_accept(struct app_conn_t *conn) {
   struct radius_packet_t radius_pack;
-  int offset = 0;
-  int eaplen = 0;
+  size_t offset = 0;
+  size_t eaplen = 0;
   uint8_t mppekey[RADIUS_ATTR_VLEN];
-  int mppelen;
+  size_t mppelen;
 
   conn->radiuswait = 0;
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_ACCEPT)) {
@@ -722,14 +722,14 @@ int static radius_access_accept(struct app_conn_t *conn) {
     else
       eaplen = conn->challen - offset;
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
-		   conn->chal + offset, eaplen);
+			  conn->chal + offset, eaplen);
     offset += eaplen;
   }
 
   /* Message Authenticator */
   if (conn->challen)
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
-		   0, 0, 0, NULL, RADIUS_MD5LEN);
+			  0, 0, 0, NULL, RADIUS_MD5LEN);
 
   if (conn->sendkey) {
     radius_keyencode(radius, mppekey, RADIUS_ATTR_VLEN,
@@ -738,8 +738,8 @@ int static radius_access_accept(struct app_conn_t *conn) {
 		     radius->proxysecret, radius->proxysecretlen);
 
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_MS, RADIUS_ATTR_MS_MPPE_SEND_KEY, 0,
-		   mppekey, mppelen);
+			  RADIUS_VENDOR_MS, RADIUS_ATTR_MS_MPPE_SEND_KEY, 0,
+			  (uint8_t *) mppekey, mppelen);
   }
 
   if (conn->recvkey) {
@@ -749,8 +749,8 @@ int static radius_access_accept(struct app_conn_t *conn) {
 		     radius->proxysecret, radius->proxysecretlen);
     
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_MS, RADIUS_ATTR_MS_MPPE_RECV_KEY, 0,
-		   mppekey, mppelen);
+			  RADIUS_VENDOR_MS, RADIUS_ATTR_MS_MPPE_RECV_KEY, 0,
+			  (uint8_t *)mppekey, mppelen);
   }
   
   (void) radius_resp(radius, &radius_pack, &conn->radiuspeer, conn->authenticator);
@@ -765,7 +765,7 @@ int static radius_access_accept(struct app_conn_t *conn) {
  *
  *********************************************************/
 
-int static acct_req(struct app_conn_t *conn, int status_type)
+static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 {
   struct radius_packet_t radius_pack;
   char mac[MACSTRLEN+1];
@@ -1160,7 +1160,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
  */
 
 
-int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
+int cb_tun_ind(struct tun_t *tun, void *pack, size_t len) {
   struct in_addr dst;
   struct ippoolm_t *ipm;
   struct app_conn_t *appconn;
@@ -1168,73 +1168,70 @@ int cb_tun_ind(struct tun_t *tun, void *pack, unsigned len) {
 
   if (options.usetap) {
     struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
+    uint16_t prot = ntohs(ethh->prot);
+
     iph = (struct tun_packet_t*)(pack + DHCP_ETH_HLEN);
 
-    switch (ntohs(ethh->prot)) {
-
-    case DHCP_ETH_IP:
-      break;
-
-    case DHCP_ETH_ARP:
+    if (prot == DHCP_ETH_ARP) {
+      /*
+       * send arp reply with us being target
+       */
+      
+      struct dhcp_arp_fullpacket_t *p = (struct dhcp_arp_fullpacket_t *)pack;
+      struct dhcp_arp_fullpacket_t packet;
+      struct in_addr reqaddr;
+      size_t length = sizeof(packet);
+      
       log_dbg("arp: dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x\n",
 	      ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
 	      ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
 	      ntohs(ethh->prot));
-      /*
-       * send arp reply with us being target
-       */
-      {
-	struct dhcp_arp_fullpacket_t *p = (struct dhcp_arp_fullpacket_t *)pack;
-	struct dhcp_arp_fullpacket_t packet;
-	uint16_t length = sizeof(packet);
-	struct in_addr reqaddr;
-
-	/* Get local copy */
-	memcpy(&reqaddr.s_addr, p->arp.tpa, DHCP_IP_ALEN);
-
-	if (ippool_getip(ippool, &ipm, &reqaddr)) {
-	  if (options.debug) 
+      
+      /* Get local copy */
+      memcpy(&reqaddr.s_addr, p->arp.tpa, DHCP_IP_ALEN);
+      
+      if (ippool_getip(ippool, &ipm, &reqaddr)) {
+	if (options.debug) 
 	    log_dbg("ARP for unknown IP %s\n", inet_ntoa(reqaddr));
-	  return 0;
-	}
-	
-	if (!((ipm->peer) || ((struct app_conn_t*) ipm->peer)->dnlink)) {
-	  log_err(0, "No peer protocol defined for ARP request");
-	  return 0;
-	}
-	
-	appconn = (struct app_conn_t*) ipm->peer;
-	
-	/* Get packet default values */
-	memset(&packet, 0, sizeof(packet));
-	
-	/* ARP Payload */
-	packet.arp.hrd = htons(DHCP_HTYPE_ETH);
-	packet.arp.pro = htons(DHCP_ETH_IP);
-	packet.arp.hln = DHCP_ETH_ALEN;
-	packet.arp.pln = DHCP_IP_ALEN;
-	packet.arp.op  = htons(DHCP_ARP_REPLY);
-	
-	/* Source address */
-	/*memcpy(packet.arp.sha, dhcp->arp_hwaddr, DHCP_ETH_ALEN);
-	  memcpy(packet.arp.spa, &dhcp->ourip.s_addr, DHCP_IP_ALEN);*/
-	/*memcpy(packet.arp.sha, appconn->hismac, DHCP_ETH_ALEN);*/
-	memcpy(packet.arp.sha, tun->tap_hwaddr, DHCP_ETH_ALEN);
-	memcpy(packet.arp.spa, &appconn->hisip.s_addr, DHCP_IP_ALEN);
-	
-	/* Target address */
-	/*memcpy(packet.arp.tha, &appconn->hismac, DHCP_ETH_ALEN);
-	  memcpy(packet.arp.tpa, &appconn->hisip.s_addr, DHCP_IP_ALEN); */
-	memcpy(packet.arp.tha, p->arp.sha, DHCP_ETH_ALEN);
-	memcpy(packet.arp.tpa, p->arp.spa, DHCP_IP_ALEN);
-	
-	/* Ethernet header */
-	memcpy(packet.ethh.dst, p->ethh.src, DHCP_ETH_ALEN);
-	memcpy(packet.ethh.src, dhcp->hwaddr, DHCP_ETH_ALEN);
-	packet.ethh.prot = htons(DHCP_ETH_ARP);
-	
-	return tun_encaps(tun, &packet, length);
+	return 0;
       }
+      
+      if (!((ipm->peer) || ((struct app_conn_t*) ipm->peer)->dnlink)) {
+	log_err(0, "No peer protocol defined for ARP request");
+	return 0;
+      }
+      
+      appconn = (struct app_conn_t*) ipm->peer;
+      
+      /* Get packet default values */
+      memset(&packet, 0, sizeof(packet));
+      
+      /* ARP Payload */
+      packet.arp.hrd = htons(DHCP_HTYPE_ETH);
+      packet.arp.pro = htons(DHCP_ETH_IP);
+      packet.arp.hln = DHCP_ETH_ALEN;
+      packet.arp.pln = DHCP_IP_ALEN;
+      packet.arp.op  = htons(DHCP_ARP_REPLY);
+      
+      /* Source address */
+      /*memcpy(packet.arp.sha, dhcp->arp_hwaddr, DHCP_ETH_ALEN);
+	memcpy(packet.arp.spa, &dhcp->ourip.s_addr, DHCP_IP_ALEN);*/
+      /*memcpy(packet.arp.sha, appconn->hismac, DHCP_ETH_ALEN);*/
+      memcpy(packet.arp.sha, tun->tap_hwaddr, DHCP_ETH_ALEN);
+      memcpy(packet.arp.spa, &appconn->hisip.s_addr, DHCP_IP_ALEN);
+	
+      /* Target address */
+      /*memcpy(packet.arp.tha, &appconn->hismac, DHCP_ETH_ALEN);
+	memcpy(packet.arp.tpa, &appconn->hisip.s_addr, DHCP_IP_ALEN); */
+      memcpy(packet.arp.tha, p->arp.sha, DHCP_ETH_ALEN);
+      memcpy(packet.arp.tpa, p->arp.spa, DHCP_IP_ALEN);
+      
+      /* Ethernet header */
+      memcpy(packet.ethh.dst, p->ethh.src, DHCP_ETH_ALEN);
+      memcpy(packet.ethh.src, dhcp->hwaddr, DHCP_ETH_ALEN);
+      packet.ethh.prot = htons(DHCP_ETH_ARP);
+      
+      return tun_encaps(tun, &packet, length);
     }
   } else {
     iph = (struct tun_packet_t*)pack;
@@ -1393,7 +1390,7 @@ int accounting_request(struct radius_packet_t *pack,
   struct dhcp_conn_t *dhcpconn = NULL;
   uint8_t hismac[DHCP_ETH_ALEN];
   char macstr[RADIUS_ATTR_VLEN];
-  int macstrlen;
+  size_t macstrlen;
   unsigned int temp[DHCP_ETH_ALEN];
   int	i;
   uint32_t nasip = 0;
@@ -1550,10 +1547,10 @@ int access_request(struct radius_packet_t *pack,
 
   struct in_addr hisip;
   char pwd[RADIUS_ATTR_VLEN];
-  int pwdlen;
+  size_t pwdlen;
   uint8_t hismac[DHCP_ETH_ALEN];
   char macstr[RADIUS_ATTR_VLEN];
-  int macstrlen;
+  size_t macstrlen;
   unsigned int temp[DHCP_ETH_ALEN];
   int	i;
   char mac[MACSTRLEN+1];
@@ -1562,11 +1559,11 @@ int access_request(struct radius_packet_t *pack,
   struct dhcp_conn_t *dhcpconn = NULL;
 
   uint8_t resp[EAP_LEN];         /* EAP response */
-  int resplen;                   /* Length of EAP response */
+  size_t resplen;                   /* Length of EAP response */
 
-  int offset = 0;
+  size_t offset = 0;
+  size_t eaplen = 0;
   int instance = 0;
-  int eaplen = 0;
 
   if (options.debug) log_dbg("Radius access request received!\n");
 
@@ -2019,7 +2016,7 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
   {
     const char *uamauth = "require-uam-auth";
     const char *uamallowed = "uamallowed=";
-    int offset = 0;
+    size_t offset = 0;
 
     /* Always reset the per session passthroughs */
     params->pass_through_count = 0;
@@ -2118,7 +2115,7 @@ static int chilliauth_cb(struct radius_t *radius,
 			 struct radius_packet_t *pack_req, void *cbp) {
   struct radius_attr_t *attr = NULL;
   /*char attrs[RADIUS_ATTR_VLEN+1];*/
-  int offset = 0;
+  size_t offset = 0;
 
   if (!pack) { 
     sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Radius request timed out");
@@ -2773,7 +2770,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
 
 
 /* Callback for receiving messages from dhcp */
-int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
+int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
   struct app_conn_t *appconn = conn->peer;
   /*struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;*/
   struct tun_packet_t *iph = (struct tun_packet_t*)(pack + DHCP_ETH_HLEN);
@@ -2840,7 +2837,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
   struct dhcp_eap_t *eap = (struct dhcp_eap_t*) pack;
   struct app_conn_t *appconn = conn->peer;
   struct radius_packet_t radius_pack;
-  int offset;
+  size_t offset;
 
   if (options.debug) log_dbg("EAP Packet received");
 
@@ -2888,7 +2885,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
   /* Include EAP (if present) */
   offset = 0;
   while (offset < len) {
-    int eaplen;
+    size_t eaplen;
     if ((len - offset) > RADIUS_ATTR_VLEN)
       eaplen = RADIUS_ATTR_VLEN;
     else
@@ -3082,7 +3079,7 @@ static int cmdsock_accept(int sock) {
   struct sockaddr_un remote; 
   struct cmdsock_request req;
 
-  unsigned int len;
+  size_t len;
   int csock;
   int rval = 0;
 
@@ -3387,7 +3384,7 @@ int chilli_main(int argc, char **argv)
   redir_set(redir, (options.debug));
   redir_set_cb_getstate(redir, cb_redir_getstate);
 
-  
+  memset(&admin_session, 0, sizeof(admin_session));
   memcpy(admin_session.ourmac, dhcp->hwaddr, sizeof(dhcp->hwaddr));
   memcpy(admin_session.proxyourmac, dhcp->hwaddr, sizeof(dhcp->hwaddr));
   acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
@@ -3402,7 +3399,7 @@ int chilli_main(int argc, char **argv)
 
   if (options.cmdsocket) {
     struct sockaddr_un local;
-    int len;
+    size_t len;
     
     if ((cmdsock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
       log_err(errno, "could not allocate UNIX Socket!");

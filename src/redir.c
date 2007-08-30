@@ -1135,14 +1135,14 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring
 /* Read the an HTTP request from a client */
 /* If POST is allowed, 1 is the input value of ispost */
 static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
-			struct redir_conn_t *conn, int *ispost, int *clen,
-			char *qs, int qslen) {
+			struct redir_conn_t *conn, int *ispost, size_t *clen,
+			char *qs, size_t qslen) {
   int fd = sock->fd[0];
   fd_set fds;
   struct timeval idleTime;
   int status;
-  int recvlen = 0;
-  int buflen = 0;
+  size_t recvlen = 0;
+  size_t buflen = 0;
   char buffer[REDIR_MAXBUFFER];
   char host[256];
   char path[256];
@@ -1176,7 +1176,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
         return -1;
       }
       /* if post is allowed, we do not buffer on the read (to not eat post data) */
-      if ((recvlen = recv(fd, buffer+buflen, (*ispost) ? 1 : sizeof(buffer)-1-buflen, 0)) < 0) {
+      if ((recvlen = recv(fd, buffer + buflen, (*ispost) ? 1 : sizeof(buffer) - 1 - buflen, 0)) < 0) {
 	if (errno != ECONNRESET)
 	  log_err(errno, "recv() failed!");
 	return -1;
@@ -1205,7 +1205,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       if (lines++ == 0) { /* first line */
 	char *p1 = buffer;
 	char *p2;
-	int dstlen = 0;
+	size_t dstlen = 0;
 
 	if (optionsdebug)
 	  log_dbg("http-request: %s", buffer);
@@ -1283,7 +1283,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       } else { 
 	/* headers */
 	char *p;
-	int len;
+	size_t len;
 
 	if (!strncasecmp(buffer,"Host:",5)) {
 	  p = buffer + 5;
@@ -1729,8 +1729,8 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   unsigned char chap_challenge[REDIR_MD5LEN];
   unsigned char tmp[REDIR_MD5LEN+1];
   char u[256]; char p[256];
-  size_t sz=1024;
-  int len, match=0;
+  size_t len, sz=1024;
+  int match=0;
   char *line=0;
   MD5_CTX context;
   FILE *f;
@@ -1907,11 +1907,11 @@ int redir_accept(struct redir_t *redir, int idx) {
 int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *address, int isui) {
   char hexchal[1+(2*REDIR_MD5LEN)];
   unsigned char challenge[REDIR_MD5LEN];
-  int bufsize = REDIR_MAXBUFFER;
+  size_t bufsize = REDIR_MAXBUFFER;
   char buffer[bufsize+1];
   char qs[REDIR_USERURLSIZE];
   struct redir_msg_t msg;
-  int buflen;
+  size_t buflen;
   int state = 0;
 
   struct redir_conn_t conn;
@@ -1919,7 +1919,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   struct itimerval itval;
   struct redir_socket socket;
   int ispost = isui;
-  int clen = 0;
+  size_t clen = 0;
 
   /* Close of socket */
   void redir_close () {
@@ -1996,7 +1996,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     if (options.wwwdir && conn.wwwfile && *conn.wwwfile) {
       char *ctype = "text/plain";
       char *filename = conn.wwwfile;
-      int namelen = strlen(filename);
+      size_t namelen = strlen(filename);
       int parse = 0;
       
       /* check filename */
