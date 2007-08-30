@@ -1658,9 +1658,9 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
   struct dhcp_t *this = conn->parent;
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*) pack->payload;
   struct dhcp_dns_packet_t *dnsp = (struct dhcp_dns_packet_t*)(pack->payload + sizeof(struct dhcp_udphdr_t));
+  struct dhcp_dns_fullpacket_t answer;
   uint8_t *p1 = NULL;
   uint8_t *p2 = NULL;
-  struct dhcp_dns_fullpacket_t answer;
   size_t length;
   size_t udp_len;
   uint8_t query[256];

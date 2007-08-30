@@ -15,8 +15,8 @@
 typedef struct pass_through_t {
   struct in_addr host;              /* IP or Network */
   struct in_addr mask;              /* Netmask */
-  char proto;                       /* TCP, UDP, or ICMP */
-  short port;                       /* TCP or UDP Port */
+  uint8_t proto;                       /* TCP, UDP, or ICMP */
+  uint16_t port;                       /* TCP or UDP Port */
 } pass_through;
 
 int pass_through_add(pass_through *ptlist, size_t ptlen, size_t *ptcnt, pass_through *pt);

@@ -86,23 +86,23 @@
 #include "garden.h"
 
 struct session_params {
-  char url[REDIR_USERURLSIZE];
-  char filteridbuf[RADIUS_ATTR_VLEN+1];
-  unsigned char filteridlen;
-  unsigned long bandwidthmaxup;
-  unsigned long bandwidthmaxdown;
-  unsigned long maxinputoctets;
-  unsigned long maxoutputoctets;
-  unsigned long maxtotaloctets;
-  unsigned long sessiontimeout;
-  unsigned short idletimeout;
-  unsigned short interim_interval;     /* Seconds. 0 = No interim accounting */
+  uint8_t url[REDIR_USERURLSIZE];
+  uint8_t filteridbuf[RADIUS_ATTR_VLEN+1];
+  uint8_t filteridlen;
+  uint32_t bandwidthmaxup;
+  uint32_t bandwidthmaxdown;
+  uint64_t maxinputoctets;
+  uint64_t maxoutputoctets;
+  uint64_t maxtotaloctets;
+  uint64_t sessiontimeout;
+  uint32_t idletimeout;
+  uint16_t interim_interval;     /* Seconds. 0 = No interim accounting */
   time_t sessionterminatetime;
   char require_uam_auth;
   char require_redirect;
 
   pass_through pass_throughs[REDIR_PASS_THROUGH_MAX];
-  size_t pass_through_count;
+  uint32_t pass_through_count;
 } __attribute__((packed));
 
 struct redir_conn_t {

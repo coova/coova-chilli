@@ -157,7 +157,8 @@ int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
 #define VAL_IN_ADDR  1
 #define VAL_MAC_ADDR 2
 #define VAL_ULONG    3
-#define VAL_USHORT   4
+#define VAL_ULONG64  4
+#define VAL_USHORT   5
 
 int set_env(char *name, char type, void *value, int len) {
   char *v=0;
@@ -182,12 +183,17 @@ int set_env(char *name, char type, void *value, int len) {
     break;
 
   case VAL_ULONG:
-    snprintf(s, sizeof(s)-1, "%ld", *(unsigned long *)value);
+    snprintf(s, sizeof(s)-1, "%ld", (long int)*(uint32_t *)value);
+    v = s;
+    break;
+
+  case VAL_ULONG64:
+    snprintf(s, sizeof(s)-1, "%ld", (long int)*(uint64_t *)value);
     v = s;
     break;
 
   case VAL_USHORT:
-    snprintf(s, sizeof(s)-1, "%d", (int)(*(unsigned short *)value));
+    snprintf(s, sizeof(s)-1, "%d", (int)(*(uint16_t *)value));
     v = s;
     break;
 
@@ -247,8 +253,8 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("FILTER_ID", VAL_STRING, appconn->params.filteridbuf, 0);
   set_env("STATE", VAL_STRING, appconn->statebuf, appconn->statelen);
   set_env("CLASS", VAL_STRING, appconn->classbuf, appconn->classlen);
-  set_env("SESSION_TIMEOUT", VAL_ULONG, &appconn->params.sessiontimeout, 0);
-  set_env("IDLE_TIMEOUT", VAL_USHORT, &appconn->params.idletimeout, 0);
+  set_env("SESSION_TIMEOUT", VAL_ULONG64, &appconn->params.sessiontimeout, 0);
+  set_env("IDLE_TIMEOUT", VAL_ULONG, &appconn->params.idletimeout, 0);
   set_env("CALLING_STATION_ID", VAL_MAC_ADDR, appconn->hismac, 0);
   set_env("CALLED_STATION_ID", VAL_MAC_ADDR, appconn->ourmac, 0);
   set_env("NAS_ID", VAL_STRING, options.radiusnasid, 0);
@@ -260,9 +266,9 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("WISPR_BANDWIDTH_MAX_UP", VAL_ULONG, &appconn->params.bandwidthmaxup, 0);
   set_env("WISPR_BANDWIDTH_MAX_DOWN", VAL_ULONG, &appconn->params.bandwidthmaxdown, 0);
   /*set_env("WISPR-SESSION_TERMINATE_TIME", VAL_USHORT, &appconn->sessionterminatetime, 0);*/
-  set_env("CHILLISPOT_MAX_INPUT_OCTETS", VAL_ULONG, &appconn->params.maxinputoctets, 0);
-  set_env("CHILLISPOT_MAX_OUTPUT_OCTETS", VAL_ULONG, &appconn->params.maxoutputoctets, 0);
-  set_env("CHILLISPOT_MAX_TOTAL_OCTETS", VAL_ULONG, &appconn->params.maxtotaloctets, 0);
+  set_env("CHILLISPOT_MAX_INPUT_OCTETS", VAL_ULONG64, &appconn->params.maxinputoctets, 0);
+  set_env("CHILLISPOT_MAX_OUTPUT_OCTETS", VAL_ULONG64, &appconn->params.maxoutputoctets, 0);
+  set_env("CHILLISPOT_MAX_TOTAL_OCTETS", VAL_ULONG64, &appconn->params.maxtotaloctets, 0);
 
   if (execl(script, script, (char *) 0) != 0) {
       log_err(errno,
@@ -2051,7 +2057,7 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
       if (clen + nlen > sizeof(params->url)-1) 
 	nlen = sizeof(params->url)-clen-1;
 
-      strncpy(params->url + clen, url, nlen);
+      strncpy((char*)(params->url + clen), url, nlen);
       params->url[nlen+clen]=0;
       params->require_redirect = 1;
     }

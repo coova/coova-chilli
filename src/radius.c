@@ -572,8 +572,11 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
   a = (struct radius_attr_t *)((uint8_t*)pack + length);
 
   if (type == RADIUS_ATTR_USER_PASSWORD) {
-    radius_pwencode(this, (uint8_t*) passwd, RADIUS_PWSIZE, &pwlen, 
-		    data, dlen, pack->authenticator,
+    radius_pwencode(this, 
+		    (uint8_t*) passwd, RADIUS_PWSIZE, 
+		    &pwlen, 
+		    data, dlen, 
+		    pack->authenticator,
 		    this->secret, this->secretlen);
     data = (uint8_t*) passwd;
     dlen = pwlen;
@@ -641,9 +644,9 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     a->v.vv.l = vlen+2;
 
     if (data)
-      memcpy(((void*) a)+8, data, dlen); /* TODO */
+      memcpy(((char*) a)+8, data, dlen); /* TODO */
     else if (dlen)
-      memset(((void*) a)+8, 0, dlen); /* TODO */
+      memset(((char*) a)+8, 0, dlen); /* TODO */
     else
       a->v.vv.i = htonl(value);
   }
@@ -681,7 +684,7 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
   }
 
   while (offset < len) {
-      t = (struct radius_attr_t*) (((void*) &(pack->payload)) + offset);
+      t = (struct radius_attr_t*)(&pack->payload[offset]);
 
       if (0) {
 	printf("radius_getattr %d %d %d %.2x %.2x \n", t->t, t->l, 
@@ -730,7 +733,7 @@ radius_countattr(struct radius_packet_t *pack, uint8_t type) {
   /* Need to check pack -> length */
   
   do {
-    t = (struct radius_attr_t*) (((void*) &(pack->payload)) + offset);
+    t = (struct radius_attr_t*)(&pack->payload[offset]);
     if (t->t == type) {
       count++;
     }
@@ -963,12 +966,16 @@ int radius_pwdecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
  * radius_pwencode()
  * Encode a password using MD5.
  */
-int radius_pwencode(struct radius_t *this, uint8_t *dst, size_t dstsize,
-		    size_t *dstlen, uint8_t *src, size_t srclen, 
-		    uint8_t *authenticator, char *secret, size_t secretlen) {
-  int i, n;
-  MD5_CTX context;
+int radius_pwencode(struct radius_t *this, 
+		    uint8_t *dst, size_t dstsize,
+		    size_t *dstlen, 
+		    uint8_t *src, size_t srclen, 
+		    uint8_t *authenticator, 
+		    char *secret, size_t secretlen) {
+
   unsigned char output[RADIUS_MD5LEN];
+  MD5_CTX context;
+  size_t i, n;
 
   memset(dst, 0, dstsize);
 
@@ -985,7 +992,7 @@ int radius_pwencode(struct radius_t *this, uint8_t *dst, size_t dstsize,
   }
 
   /* Copy first 128 octets of src into dst */
-  if (srclen <= 128) 
+  if (srclen > 128) 
     memcpy(dst, src, 128);
   else
     memcpy(dst, src, srclen);
