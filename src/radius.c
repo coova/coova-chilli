@@ -569,7 +569,7 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
   size_t vlen;
   size_t pwlen;
 
-  a = (struct radius_attr_t *)((void*)pack + length);
+  a = (struct radius_attr_t *)((uint8_t*)pack + length);
 
   if (type == RADIUS_ATTR_USER_PASSWORD) {
     radius_pwencode(this, (uint8_t*) passwd, RADIUS_PWSIZE, &pwlen, 
