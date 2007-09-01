@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(chillispot, 1.0-coova.7, support@coova.org)
+AC_INIT(coova-chilli, 1.0.8, support@coova.org)
 AC_CONFIG_SRCDIR([src/cmdline.c])
 
 AM_INIT_AUTOMAKE
@@ -51,5 +51,5 @@ AC_CONFIG_FILES([Makefile
 		 src/Makefile 
 		 www/Makefile
                  conf/Makefile 
-		 chillispot.spec])
+		 coova-chilli.spec])
 AC_OUTPUT

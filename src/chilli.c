@@ -97,7 +97,7 @@ void static log_pid(char *pidfile) {
 
 #ifdef LEAKY_BUCKET
 /* Perform leaky bucket on up- and downlink traffic */
-int static leaky_bucket(struct app_conn_t *conn, int octetsup, int octetsdown) {
+int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t octetsdown) {
   
   time_t timenow = mainclock;
   time_t timediff; 
@@ -1386,7 +1386,6 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
 /* Handle an accounting request */
 int accounting_request(struct radius_packet_t *pack,
 		       struct sockaddr_in *peer) {
-  int n;
   struct radius_attr_t *hismacattr = NULL;
   struct radius_attr_t *typeattr = NULL;
   struct radius_attr_t *nasipattr = NULL;
@@ -1398,9 +1397,9 @@ int accounting_request(struct radius_packet_t *pack,
   char macstr[RADIUS_ATTR_VLEN];
   size_t macstrlen;
   unsigned int temp[DHCP_ETH_ALEN];
-  int	i;
   uint32_t nasip = 0;
   uint32_t nasport = 0;
+  int i, n;
 
 
   if (radius_default_pack(radius, &radius_pack, 
@@ -2039,7 +2038,7 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
       else if (len > strlen(uamallowed) && !memcmp(val, uamallowed, strlen(uamallowed))) {
 	val[len]=0;
 	pass_throughs_from_string(params->pass_throughs,
-				  REDIR_PASS_THROUGH_MAX,
+				  SESSION_PASS_THROUGH_MAX,
 				  &params->pass_through_count,
 				  val + strlen(uamallowed));
       }
@@ -2690,7 +2689,7 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
   return 0;
 }
 
-int cb_dhcp_getinfo(struct dhcp_conn_t *conn, char *b, int blen) {
+int cb_dhcp_getinfo(struct dhcp_conn_t *conn, char *b, size_t blen) {
   time_t timenow = mainclock;
   struct app_conn_t *appconn;
   uint32_t sessiontime = 0;
@@ -2839,7 +2838,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
 }
 
 /* Callback for receiving messages from eapol */
-int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, unsigned len) {
+int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
   struct dhcp_eap_t *eap = (struct dhcp_eap_t*) pack;
   struct app_conn_t *appconn = conn->peer;
   struct radius_packet_t radius_pack;

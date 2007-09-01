@@ -1,37 +1,35 @@
-Summary:   ChilliSpot is a Wireless LAN Access Point Controller
+Summary:   Coova-Chilli is a Wireless LAN Access Point Controller
 Name:      @PACKAGE@
-Version:   1.0
-Release:   coova.7
+Version:   1.0.8
+Release:   1
 URL:       http://coova.org/wiki/index.php/CoovaChilli
-Source0:   %{name}-%{version}-%{release}.tar.gz
+Source0:   %{name}-%{version}.tar.gz
 License:   GPL
 Group:     System Environment/Daemons
 BuildRoot: %{_tmppath}/%{name}-root
 
 %description 
 
-ChilliSpot is an open source captive portal or wireless LAN access point
-controller. It supports web based login which is today's standard for
-public HotSpots and it supports Wireless Protected Access (WPA) which
-is the standard of the future. Authentication, Authorization and 
-Accounting (AAA) is handled by your favorite radius server. Read more
-at http://coova.org/ and http://www.chillispot.org/.
-
-For more information on this Coova release of ChilliSpot, visit
-http://coova.org/
+Coova-Chilli is a fork of the ChilliSpot project - an open source captive
+portal or wireless LAN access point controller. It supports web based login
+(Universal Access Method, or UAM), standard for public HotSpots, and it
+supports Wireless Protected Access (WPA), the standard for secure roamable
+networks. Authentication, Authorization and Accounting (AAA) is handled by
+your favorite radius server. Read more at http://coova.org/ and
+http://www.chillispot.org/.
 
 %prep
-%setup -n chillispot-1.0-coova.7
+%setup 
 
 %build
 
-./configure --prefix=/usr --sysconfdir=/etc --enable-static-exec
+./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --enable-static-exec
 
 make
 
 %install
 
-make install prefix=$RPM_BUILD_ROOT/usr sysconfdir=$RPM_BUILD_ROOT/etc
+make install prefix=$RPM_BUILD_ROOT/usr sysconfdir=$RPM_BUILD_ROOT/etc localstatedir=$RPM_BUILD_ROOT/var 
 strip $RPM_BUILD_ROOT/usr/sbin/chilli
 strip $RPM_BUILD_ROOT/usr/sbin/chilli_response
 strip $RPM_BUILD_ROOT/usr/sbin/chilli_radconfig
@@ -75,6 +73,8 @@ make clean
 %attr(755, root, root) /etc/chilli/www/config.sh
 
 %changelog
+* Thu Sep 20 2007 <david@coova.com>
+- 1.0.8 release (renamed)
 * Thu Aug 20 2007 <david@coova.com>
 - 1.0-coova.7 release
 * Thu Jun 7 2007 <david@coova.com>

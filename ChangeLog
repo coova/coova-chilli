@@ -1,6 +1,9 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+* New option ''uamdomain'' whereby entire domains, one per use of option, can be white-listed.
+* Fix in 64-bit portability - thx ccesario for helping out
+	
 == ChangeLog (Coova Chilli v1.0.7 svn revision 95) ==
 
 * First version of JSON interface, see [[CoovaChilli/JSON]]

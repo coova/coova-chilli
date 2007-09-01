@@ -1,5 +1,4 @@
 /* 
- *
  * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU

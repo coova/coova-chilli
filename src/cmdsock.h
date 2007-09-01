@@ -7,6 +7,8 @@
 #define  CMDSOCK_SHOW           3
 #define  CMDSOCK_AUTHORIZE      4
 
+#include "session.h"
+
 struct cmdsock_request { 
   unsigned char type;
   union {

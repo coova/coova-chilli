@@ -152,18 +152,18 @@ struct app_conn_t {
   
   time_t start_time;
   time_t interim_time;
-  uint32_t input_packets;
-  uint32_t output_packets;
+  uint64_t input_packets;
+  uint64_t output_packets;
   uint64_t input_octets;
   uint64_t output_octets;
   uint32_t terminate_cause;
   uint32_t session_id;
 #ifdef LEAKY_BUCKET
   /* Leaky bucket */
-  uint32_t bucketup;
-  uint32_t bucketdown;
-  uint32_t bucketupsize;
-  uint32_t bucketdownsize;
+  uint64_t bucketup;
+  uint64_t bucketdown;
+  uint64_t bucketupsize;
+  uint64_t bucketdownsize;
 #endif
   time_t last_time; /* Last time a packet was received or sent */
   
