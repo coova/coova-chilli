@@ -2035,7 +2035,11 @@ int dhcp_sendACK(struct dhcp_conn_t *conn,
 
   /* IP header */
   packet.iph.tot_len = htons(udp_len + DHCP_IP_HLEN);
-  packet.iph.daddr = ~0; /* TODO: Always sending to broadcast address */
+  /* if relay client, send to it unicast; otherwise broadcast */
+  if (packet.dhcp.giaddr)
+    packet.iph.daddr = packet.dhcp.giaddr; 
+  else
+    packet.iph.daddr = ~0; 
   packet.iph.saddr = conn->ourip.s_addr;
 
   /* Work out checksums */
