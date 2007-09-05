@@ -5,6 +5,9 @@
 # chkconfig: 2345 65 35
 # description: ChilliSpot
 
+# Source function library.
+. /etc/rc.d/init.d/functions
+
 . /etc/sysconfig/network
 
 [ ${NETWORKING} = "no" ] && exit 0
@@ -35,7 +38,7 @@ case $1 in
         ) | crontab - 2>&-
 	
 	ifconfig $HS_LANIF 0.0.0.0
-        @SBINDIR@/chilli
+        daemon @SBINDIR@/chilli
         RETVAL=$?
 
         [ $RETVAL -eq 0 ] && touch /var/lock/subsys/chilli
@@ -71,7 +74,7 @@ case $1 in
 	    RETVAL=$
 	    [ $RETVAL = 0 ] && rm -f /var/lock/subsys/chilli @VARRUN@/chilli.pid
 	}
-	killall chilli
+	killproc chilli
         echo
 	;;
     

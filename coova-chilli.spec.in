@@ -23,18 +23,12 @@ http://www.chillispot.org/.
 
 %build
 
-./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --enable-static-exec
+%configure --enable-static-exec
 
 make
 
 %install
-
-make install prefix=$RPM_BUILD_ROOT/usr sysconfdir=$RPM_BUILD_ROOT/etc localstatedir=$RPM_BUILD_ROOT/var 
-strip $RPM_BUILD_ROOT/usr/sbin/chilli
-strip $RPM_BUILD_ROOT/usr/sbin/chilli_response
-strip $RPM_BUILD_ROOT/usr/sbin/chilli_radconfig
-strip $RPM_BUILD_ROOT/usr/sbin/chilli_query
-strip $RPM_BUILD_ROOT/usr/sbin/test_radius
+make install DESTDIR=$RPM_BUILD_ROOT
 
 rm -rf $RPM_BUILD_ROOT/usr/include/*
 rm -rf $RPM_BUILD_ROOT/usr/lib/*
@@ -44,33 +38,31 @@ rm -rf $RPM_BUILD_ROOT
 make clean
 
 %post
-/sbin/chkconfig --del chilli
 /sbin/chkconfig --add chilli
+
+%preun
+if [ $1 = 0 ]; then
+        /sbin/service chilli stop > /dev/null 2>&1
+        /sbin/chkconfig --del chilli
+fi
 
 %files
 %defattr(-,root,root)
-
-%attr(0644,root,root) /usr/man/man[158]/*
-
+%{_sbindir}/*
+%{_sysconfdir}/init.d/chilli
+%doc AUTHORS COPYING ChangeLog INSTALL README doc/*
+%config %{_sysconfdir}/chilli.conf
+%config(noreplace) %{_sysconfdir}/chilli/defaults
 %dir %{_sysconfdir}/chilli
 %dir %{_sysconfdir}/chilli/www
-
-%attr(755, root, root) /usr/sbin/*
-%attr(755, root, root) /etc/init.d/chilli
-
-%doc doc/hotspotlogin.cgi
-%doc doc/dictionary.chillispot
-%doc COPYING AUTHORS INSTALL README ChangeLog 
-
-%config /etc/chilli.conf
-%config /etc/chilli/functions
-%config /etc/chilli/defaults
-
-%attr(644,root,root) %{_sysconfdir}/chilli/www/*
-%attr(755, root, root) /etc/chilli/wwwsh
-%attr(755, root, root) /etc/chilli/functions
-%attr(755, root, root) /etc/chilli/*.sh
-%attr(755, root, root) /etc/chilli/www/config.sh
+%attr(755,root,root)%{_sysconfdir}/chilli/www/config.sh
+%{_sysconfdir}/chilli/www/*
+%{_sysconfdir}/chilli/wwwsh
+%{_sysconfdir}/chilli/functions
+%{_sysconfdir}/chilli/*.sh
+%{_mandir}/man1/*.1*
+%{_mandir}/man5/*.5*
+%{_mandir}/man8/*.8*
 
 %changelog
 * Thu Sep 20 2007 <david@coova.com>

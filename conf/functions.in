@@ -47,7 +47,7 @@ HS_OPENIDAUTH=${HS_OPENIDAUTH:-off}
 HS_WISPRLOGIN=${HS_WISPRLOGIN:-$HS_UAMSERVICE}
 HS_PAP_OK=${HS_PAP_OK:-on}
 HS_DNS1=${HS_DNS1:-$HS_DNS}
-HS_DNS1=${HS_DNS1:-$(grep '^nameserver' /etc/resolv.conf|awk '{print $2}')}
+HS_DNS1=${HS_DNS1:-$(grep '^nameserver' /etc/resolv.conf | head -n1 | awk '{print $2}')}
 
 bailout() { echo $1; exit; }
 
