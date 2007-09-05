@@ -2102,7 +2102,13 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn,
 
   /* IP header */
   packet.iph.tot_len = htons(udp_len + DHCP_IP_HLEN);
-  packet.iph.daddr = ~0; /* TODO: Always sending to broadcast address */
+
+  /* if relay client, send to it unicast; otherwise broadcast */
+  if (packet.dhcp.giaddr)
+    packet.iph.daddr = packet.dhcp.giaddr; 
+  else
+    packet.iph.daddr = ~0; 
+
   packet.iph.saddr = conn->ourip.s_addr;
 
   /* Work out checksums */
@@ -2117,8 +2123,7 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn,
   length = udp_len + DHCP_IP_HLEN + DHCP_ETH_HLEN;
 
   return dhcp_send(this, this->fd, DHCP_ETH_IP, 
-		   conn->hismac, this->ifindex, 
-		   &packet, length);
+		   conn->hismac, this->ifindex, &packet, length);
 }
 
 
@@ -2327,7 +2332,8 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
   if (((pack->iph.daddr == 0) ||
        (pack->iph.daddr == 0xffffffff) ||
        (pack->iph.daddr == ourip.s_addr)) &&
-      ((pack->iph.version_ihl == IP_VER_HLEN) && (pack->iph.protocol == DHCP_IP_UDP) &&
+      ((pack->iph.version_ihl == IP_VER_HLEN) && 
+       (pack->iph.protocol == DHCP_IP_UDP) &&
        (((struct dhcp_fullpacket_t*)pack)->udph.dst == htons(DHCP_BOOTPS)))) {
     
     dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
