@@ -605,6 +605,12 @@ specified.
 .RE
 
 .TP
+.BI uamdomain " domain"
+One domain prefix per use of the option; defines a list of domain names to
+automatically add to the walled garden. This is done by the inspecting of
+DNS packets being sent back to the subscriber. 
+
+.TP
 .BI uamlogoutip " ipaddress"
 Use this IP address to instantly logout a client accessing it (defaults to 1.1.1.1).
 
@@ -656,6 +662,11 @@ servers. This is convenient for clients which are configured to
 use a fixed set of DNS servers. For security reasons this option
 should be combined with a destination NAT firewall rule which forwards
 all DNS requests to a given DNS server.
+
+.TP
+.B dnsparanoia
+Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX
+records (to prevent dns tunnels; experimental). 
 
 .TP
 .B uamanyip

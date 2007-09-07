@@ -537,9 +537,9 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
       return -1;
     }
     
-    if (0) printf("MAC Address %.2x %.2x %.2x %.2x %.2x %.2x\n",
-		  macaddr[0], macaddr[1], macaddr[2],
-		  macaddr[3], macaddr[4], macaddr[5]);
+    if (0) log_dbg("MAC Address %.2x %.2x %.2x %.2x %.2x %.2x\n",
+		   macaddr[0], macaddr[1], macaddr[2],
+		   macaddr[3], macaddr[4], macaddr[5]);
     
     if (macaddr[0] & 0x01) {
       log_err(0, "Ethernet has broadcast or multicast address: %.16s", ifname);
@@ -756,10 +756,10 @@ int dhcp_validate(struct dhcp_t *this)
   if (this->numconn != (used + unused)) {
     log_err(0, "The number of free and unused connections does not match!");
     if (this->debug) {
-      printf("used %d unused %d\n", used, unused);
+      log_dbg("used %d unused %d\n", used, unused);
       conn = this->firstusedconn;
       while (conn) {
-	printf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", 
+	log_dbg("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", 
 	       conn->hismac[0], conn->hismac[1], conn->hismac[2],
 	       conn->hismac[3], conn->hismac[4], conn->hismac[5]);
 	conn = conn->next;
@@ -885,9 +885,9 @@ int dhcp_freeconn(struct dhcp_conn_t *conn)
     this->cb_disconnect(conn);
 
   if (this->debug)
-    printf("DHCP freeconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", 
-	   conn->hismac[0], conn->hismac[1], conn->hismac[2],
-	   conn->hismac[3], conn->hismac[4], conn->hismac[5]);
+    log_dbg("DHCP freeconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", 
+	    conn->hismac[0], conn->hismac[1], conn->hismac[2],
+	    conn->hismac[3], conn->hismac[4], conn->hismac[5]);
 
 
   /* Application specific code */
@@ -1448,14 +1448,14 @@ int dhcp_filterDNS(struct dhcp_conn_t *conn,
   int d = options.debug; /* XXX: debug */
   int i;
 
-  if (d) printf("DNS ID:    %d\n", id);
-  if (d) printf("DNS Flags: %d\n", flags);
+  if (d) log_dbg("DNS ID:    %d\n", id);
+  if (d) log_dbg("DNS Flags: %d\n", flags);
 
   /* it was a query? shouldn't be */
   if (((flags & 0x8000) >> 15) == 0) return 0;
 
 #define copyres(q,n)			        \
-  if (d) printf(#n ": %d\n", n ## count);       \
+  if (d) log_dbg(#n ": %d\n", n ## count);      \
   for (i=0; i < n ## count; i++)                \
     if (dns_copy_res(q, &p_pkt, &len,           \
 		     (uint8_t *)dnsp, olen))    \
@@ -1466,7 +1466,7 @@ int dhcp_filterDNS(struct dhcp_conn_t *conn,
   copyres(0,ns);
   copyres(0,ar);
 
-  if (d) printf("left (should be zero): %d\n", len);
+  if (d) log_dbg("left (should be zero): %d\n", len);
 
   /*
   dnsp->flags = htons(flags);
@@ -1502,16 +1502,16 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
   int n;
   int i;
 
-  printf("DNS ID: \n");
-  printf("DNS ID:    %d\n", ntohs(dnsp->id));
-  printf("DNS flags: %d\n", ntohs(dnsp->flags));
+  log_dbg("DNS ID: \n");
+  log_dbg("DNS ID:    %d\n", ntohs(dnsp->id));
+  log_dbg("DNS flags: %d\n", ntohs(dnsp->flags));
 
   if ((ntohs(dnsp->flags)   == 0x0100) &&
       (ntohs(dnsp->qdcount) == 0x0001) &&
       (ntohs(dnsp->ancount) == 0x0000) &&
       (ntohs(dnsp->nscount) == 0x0000) &&
       (ntohs(dnsp->arcount) == 0x0000)) {
-    printf("It was a query %s: \n", dnsp->records);
+    log_dbg("It was a query %s: \n", dnsp->records);
     p1 = dnsp->records + 1 + dnsp->records[0];
     p2 = dnsp->records;
     do {
@@ -1541,7 +1541,7 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
     if (!memcmp(p1, 
 		"\3key\12chillispot\3org", 
 		sizeof("\3key\12chillispot\3org"))) {
-      printf("It was a matching query %s: \n", dnsp->records);
+      log_dbg("It was a matching query %s: \n", dnsp->records);
       memcpy(&answer, pack, len); /* TODO */
       
       /* DNS Header */
@@ -2050,12 +2050,12 @@ int dhcp_getreq(struct dhcp_t *this,
   if (message_type->v[0] == DHCPREQUEST) {
     
     if (!conn->hisip.s_addr) {
-      if (this->debug) printf("hisip not set\n");
+      if (this->debug) log_dbg("hisip not set\n");
       return dhcp_sendNAK(conn, pack, len);
     }
 
     if (!memcmp(&conn->hisip.s_addr, &pack->dhcp.ciaddr, 4)) {
-      if (this->debug) printf("hisip match ciaddr\n");
+      if (this->debug) log_dbg("hisip match ciaddr\n");
       return dhcp_sendACK(conn, pack, len);
     }
 
@@ -2065,14 +2065,14 @@ int dhcp_getreq(struct dhcp_t *this,
 	return dhcp_sendACK(conn, pack, len);
     }
 
-    if (this->debug) printf("Sending NAK to client\n");
+    if (this->debug) log_dbg("Sending NAK to client\n");
     return dhcp_sendNAK(conn, pack, len);
   }
   
   /* 
    *  Unsupported DHCP message: Ignore 
    */
-  if (this->debug) printf("Unsupported DNS message ignored\n");
+  if (this->debug) log_dbg("Unsupported DNS message ignored\n");
   return 0;
 }
 
@@ -2523,7 +2523,7 @@ int dhcp_arp_ind(struct dhcp_t *this)  /* ARP Indication */
   /*struct dhcp_conn_t *conn;*/
   /*unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};*/
 
-  if (this->debug) printf("ARP Packet Received!\n");
+  if (this->debug) log_dbg("ARP Packet Received!\n");
 
   if ((length = recv(this->arp_fd, &packet, sizeof(packet), 0)) < 0) {
     log_err(errno, "recv(fd=%d, len=%d) failed",
@@ -2627,10 +2627,10 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
   
   /* Check to see if we know MAC address. */
   if (!dhcp_hashget(this, &conn, packet.ethh.src)) {
-    if (this->debug) printf("Address found\n");
+    if (this->debug) log_dbg("Address found\n");
   }
   else {
-    if (this->debug) printf("Address not found\n");
+    if (this->debug) log_dbg("Address not found\n");
   }
   
   /* Check that MAC address is our MAC, Broadcast or authentication MAC */
@@ -2639,9 +2639,10 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
       (memcmp(packet.ethh.dst, amac, DHCP_ETH_ALEN)))
     return 0;
   
-  if (this->debug) printf("IEEE 802.1x Packet: %.2x, %.2x %d\n",
-			  packet.dot1x.ver, packet.dot1x.type,
-			  ntohs(packet.dot1x.len));
+  if (this->debug) 
+    log_dbg("IEEE 802.1x Packet: %.2x, %.2x %d\n",
+	    packet.dot1x.ver, packet.dot1x.type,
+	    ntohs(packet.dot1x.len));
   
   if (packet.dot1x.type == 1) { /* Start */
     struct dhcp_dot1xpacket_t pack;

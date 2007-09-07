@@ -85,6 +85,13 @@ writeconfig() {
     addconfig1 ${HS_WWWDIR:+"wwwdir $HS_WWWDIR"}
     addconfig1 ${HS_WWWBIN:+"wwwbin $HS_WWWBIN"}
 
+    [ -n "$HS_UAMDOMAINS" ] && {
+	HS_UAMDOMAINS=$(echo $HS_UAMDOMAINS|sed 's/,/ /g')
+	for s in $HS_UAMDOMAINS; do
+	    addconfig1 "uamdomain $s"
+	done
+    }
+
     HS_MACALLOW=$(echo $HS_MACALLOW|sed 's/ /,/g')
     HS_MACALLOW=$(echo $HS_MACALLOW|sed 's/[:-]//g')
     addconfig1 ${HS_MACALLOW:+"macallowed $HS_MACALLOW"}
@@ -145,6 +152,7 @@ EOF
 	[ "$HS_MACAUTH" = "on" ] && addconfig2 "macauth"
 	[ "$HS_WPAGUESTS" = "on" ] && addconfig2 "wpaguests"
 	[ "$HS_OPENIDAUTH" = "on" ] && addconfig2 "openidauth"
+	[ "$HS_DNSPARANOIA" = "on" ] && addconfig2 "dnsparanoia"
 	[ -n "$HS_UAMSECRET" ] && addconfig2 "uamsecret $HS_UAMSECRET"
 	test ${HS_DEFSESSIONTIMEOUT:-0} -gt 0 && addconfig2 "defsessiontimeout $HS_DEFSESSIONTIMEOUT"
 	test ${HS_DEFIDLETIMEOUT:-0} -gt 0 && addconfig2 "defidletimeout $HS_DEFIDLETIMEOUT"

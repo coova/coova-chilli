@@ -1,9 +1,9 @@
 #!/bin/sh
 #
-# chilli      Chillispot init
+# chilli      CoovaChilli init
 #
 # chkconfig: 2345 65 35
-# description: ChilliSpot
+# description: CoovaChilli
 
 # Source function library.
 . /etc/rc.d/init.d/functions

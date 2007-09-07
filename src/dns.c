@@ -33,7 +33,7 @@ dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, 
 	log_dbg("bad value");
 	return 0;
       }
-      printf("skip[%d]\n",offset);
+      /*log_dbg("skip[%d]\n",offset);*/
       dns_fullname(d, dlen, opkt + (size_t)offset, opkt, olen, lvl+1);
       break;
     }
@@ -43,7 +43,7 @@ dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, 
       return 0;
     }
     
-    printf("part[%.*s]\n",l,res);
+    /*log_dbg("part[%.*s]\n",l,res);*/
     
     memcpy(d, res, l);
     d += l; dlen -= l;
@@ -107,7 +107,7 @@ add_A_to_garden(uint8_t *p) {
 
 int 
 dns_copy_res(int q, uint8_t **pktp, size_t *left, uint8_t *opkt, size_t olen) {
-#define return_error { if (debug) printf("%s:%d: failed here\n",__FILE__,__LINE__); return -1; }
+#define return_error { if (debug) log_dbg("%s:%d: failed here\n",__FILE__,__LINE__); return -1; }
 
   uint8_t *p_pkt = *pktp;
   size_t len = *left;
@@ -148,14 +148,14 @@ dns_copy_res(int q, uint8_t **pktp, size_t *left, uint8_t *opkt, size_t olen) {
   len -= 2;
   
   if (debug) 
-    printf("It was a dns response w type: %d class: %d \n", type, class);
+    log_dbg("It was a dns response w type: %d class: %d \n", type, class);
   
   if (q) {
     memset(question,0,sizeof(question));
     dns_fullname(question, sizeof(question)-1, *pktp, opkt, olen, 0);
     
     if (debug) 
-      printf("Q: %s\n", question);
+      log_dbg("Q: %s\n", question);
 
     *pktp = p_pkt;
     *left = len;
@@ -177,7 +177,7 @@ dns_copy_res(int q, uint8_t **pktp, size_t *left, uint8_t *opkt, size_t olen) {
   len -= 2;
   
   if (debug) 
-    printf("-> w ttl: %d rdlength: %d/%d\n", ttl, rdlen, len);
+    log_dbg("-> w ttl: %d rdlength: %d/%d\n", ttl, rdlen, len);
   
   if (len < rdlen)
     return_error;
@@ -189,7 +189,7 @@ dns_copy_res(int q, uint8_t **pktp, size_t *left, uint8_t *opkt, size_t olen) {
   switch (type) {
   case 1:/* A */
     if (debug)
-      printf("A record\n");
+      log_dbg("A record\n");
     if (options.uamdomains) {
       int id;
       for (id=0; options.uamdomains[id]; id++) {
@@ -208,27 +208,27 @@ dns_copy_res(int q, uint8_t **pktp, size_t *left, uint8_t *opkt, size_t olen) {
       char cname[256];
       memset(cname,0,sizeof(cname));
       dns_fullname(cname, sizeof(cname)-1, p_pkt, opkt, olen, 0);
-      if (debug) printf("CNAME record %s\n", cname);
+      if (debug) log_dbg("CNAME record %s\n", cname);
     }
     break;
   case 6:/* SOA */
-    if (debug) printf("SOA record\n");
+    if (debug) log_dbg("SOA record\n");
     break;
   case 12:
-    if (debug) printf("PTR record\n");
+    if (debug) log_dbg("PTR record\n");
     break;
   case 15:
-    if (debug) printf("MX record\n");
+    if (debug) log_dbg("MX record\n");
     break;
   case 16:
-    if (debug) printf("TXT record\n");
+    if (debug) log_dbg("TXT record\n");
     if (antidnstunnel) {
       log_warn(0, "dropping dns for anti-dnstunnel (TXT length %d)", rdlen);
       return -1;
     }
     break;
   default:
-    if (debug) printf("Record type %d\n", type);
+    if (debug) log_dbg("Record type %d\n", type);
     if (antidnstunnel) {
       log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, rdlen);
       return -1;

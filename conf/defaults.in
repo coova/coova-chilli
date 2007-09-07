@@ -37,6 +37,9 @@ HS_RADSECRET=coova-anonymous
 
 HS_UAMALLOWED=coova.org
 
+#   Put entire domains in the walled-garden with DNS inspection
+HS_UAMDOMAINS=".paypal.com,.paypalobjects.com"
+
 #   Optional initial redirect and RADIUS settings
 # HS_SSID=<ssid>	   # To send to the captive portal
 # HS_NASMAC=<mac address>  # To explicitly set Called-Station-Id
@@ -72,6 +75,9 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 # HS_OPENIDAUTH=on	   # To inform the RADIUS server to allow OpenID Auth
 #
 # HS_WPAGUESTS=on	   # To inform the RADIUS server to allow WPA Guests
+#
+# HS_DNSPARANOIA=on	   # To drop DNS packets containing something other
+#			   # than A, CNAME, SOA, or MX records
 #
 # HS_OPENIDAUTH=on	   # To inform the RADIUS server to allow OpenID Auth
 #			   # Will also configure the embedded login forms for OpenID
