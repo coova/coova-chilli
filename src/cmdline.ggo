@@ -115,6 +115,7 @@ option "vlan"	     - "VLAN of the session" string no
 # Command Socket Support
 option "cmdsocket"   - "path to the command unix socket" string no
 
+option "radiusoriginalurl" - "Turn on the sending of ChilliSpot-OriginalURL in Access-Request" flag off
 option "swapoctets"    - "Swap the meaning of input/output octets/packets" flag   off
 option "usestatusfile" - "Use the status file to keep track of sessions" flag   off
 option "localusers"    - "File keep 'Local' usernames and passwords" string no
@@ -122,7 +123,7 @@ option "postauthproxy" - "IP of an upstream transparent proxy" string no
 option "postauthproxyport" - "Port of an upstream transparent proxy" int default="0" no
 option "wpaguests"     - "Allow WPA 'Guest' access" flag off
 option "openidauth"    - "Allow OpenID authentication" flag off
-option "papalwaysok"   - "Always allow 'PAP' (password) style authentication" flag off
+option "papalwaysok"   - "Always allow 'PAP' authentication (depreciated; always on)" flag off
 option "chillixml"     - "Use ChilliSpot XML in WISPr blocks" flag   off
 option "acctupdate"    - "Allow updating of session attributes in Accounting-Response" flag off
 option "dnsparanoia"   - "Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX records (to prevent dns tunnels)" flag off

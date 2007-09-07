@@ -407,6 +407,11 @@ Value of NAS-Port-Type attribute. Defaults to 19
 (Wireless-IEEE-802.11).
 
 .TP
+.BI radiusoriginalurl
+Flag (defaults to off) to send the ChilliSpot-OriginalURL RADIUS VSA in
+Access-Request. 
+
+.TP
 .BI adminuser " username"
 User-name to use for Administrative-User authentication in order to pick up
 chilli configurations and establish a device 'system' session.

@@ -244,6 +244,8 @@ struct gengetopt_args_info
   char * cmdsocket_arg;	/* path to the command unix socket.  */
   char * cmdsocket_orig;	/* path to the command unix socket original value given at command line.  */
   const char *cmdsocket_help; /* path to the command unix socket help description.  */
+  int radiusoriginalurl_flag;	/* Turn on the sending of ChilliSpot-OriginalURL in Access-Request (default=off).  */
+  const char *radiusoriginalurl_help; /* Turn on the sending of ChilliSpot-OriginalURL in Access-Request help description.  */
   int swapoctets_flag;	/* Swap the meaning of input/output octets/packets (default=off).  */
   const char *swapoctets_help; /* Swap the meaning of input/output octets/packets help description.  */
   int usestatusfile_flag;	/* Use the status file to keep track of sessions (default=off).  */
@@ -261,8 +263,8 @@ struct gengetopt_args_info
   const char *wpaguests_help; /* Allow WPA 'Guest' access help description.  */
   int openidauth_flag;	/* Allow OpenID authentication (default=off).  */
   const char *openidauth_help; /* Allow OpenID authentication help description.  */
-  int papalwaysok_flag;	/* Always allow 'PAP' (password) style authentication (default=off).  */
-  const char *papalwaysok_help; /* Always allow 'PAP' (password) style authentication help description.  */
+  int papalwaysok_flag;	/* Always allow 'PAP' authentication (depreciated; always on) (default=off).  */
+  const char *papalwaysok_help; /* Always allow 'PAP' authentication (depreciated; always on) help description.  */
   int chillixml_flag;	/* Use ChilliSpot XML in WISPr blocks (default=off).  */
   const char *chillixml_help; /* Use ChilliSpot XML in WISPr blocks help description.  */
   int acctupdate_flag;	/* Allow updating of session attributes in Accounting-Response (default=off).  */
@@ -348,6 +350,7 @@ struct gengetopt_args_info
   int ssid_given ;	/* Whether ssid was given.  */
   int vlan_given ;	/* Whether vlan was given.  */
   int cmdsocket_given ;	/* Whether cmdsocket was given.  */
+  int radiusoriginalurl_given ;	/* Whether radiusoriginalurl was given.  */
   int swapoctets_given ;	/* Whether swapoctets was given.  */
   int usestatusfile_given ;	/* Whether usestatusfile was given.  */
   int localusers_given ;	/* Whether localusers was given.  */

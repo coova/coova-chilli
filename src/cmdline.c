@@ -102,6 +102,7 @@ const char *gengetopt_args_info_help[] = {
   "      --ssid=STRING             SSID of the session",
   "      --vlan=STRING             VLAN of the session",
   "      --cmdsocket=STRING        path to the command unix socket",
+  "      --radiusoriginalurl       Turn on the sending of ChilliSpot-OriginalURL \n                                  in Access-Request  (default=off)",
   "      --swapoctets              Swap the meaning of input/output octets/packets \n                                   (default=off)",
   "      --usestatusfile           Use the status file to keep track of sessions  \n                                  (default=off)",
   "      --localusers=STRING       File keep 'Local' usernames and passwords",
@@ -109,7 +110,7 @@ const char *gengetopt_args_info_help[] = {
   "      --postauthproxyport=INT   Port of an upstream transparent proxy  \n                                  (default=`0')",
   "      --wpaguests               Allow WPA 'Guest' access  (default=off)",
   "      --openidauth              Allow OpenID authentication  (default=off)",
-  "      --papalwaysok             Always allow 'PAP' (password) style \n                                  authentication  (default=off)",
+  "      --papalwaysok             Always allow 'PAP' authentication (depreciated; \n                                  always on)  (default=off)",
   "      --chillixml               Use ChilliSpot XML in WISPr blocks  \n                                  (default=off)",
   "      --acctupdate              Allow updating of session attributes in \n                                  Accounting-Response  (default=off)",
   "      --dnsparanoia             Inspect DNS packets and drop responses with any \n                                  non- A, CNAME, SOA, or MX records (to prevent \n                                  dns tunnels)  (default=off)",
@@ -241,6 +242,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->ssid_given = 0 ;
   args_info->vlan_given = 0 ;
   args_info->cmdsocket_given = 0 ;
+  args_info->radiusoriginalurl_given = 0 ;
   args_info->swapoctets_given = 0 ;
   args_info->usestatusfile_given = 0 ;
   args_info->localusers_given = 0 ;
@@ -396,6 +398,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->vlan_orig = NULL;
   args_info->cmdsocket_arg = NULL;
   args_info->cmdsocket_orig = NULL;
+  args_info->radiusoriginalurl_flag = 0;
   args_info->swapoctets_flag = 0;
   args_info->usestatusfile_flag = 0;
   args_info->localusers_arg = NULL;
@@ -499,18 +502,19 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->ssid_help = gengetopt_args_info_help[73] ;
   args_info->vlan_help = gengetopt_args_info_help[74] ;
   args_info->cmdsocket_help = gengetopt_args_info_help[75] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[76] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[77] ;
-  args_info->localusers_help = gengetopt_args_info_help[78] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[79] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[80] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[81] ;
-  args_info->openidauth_help = gengetopt_args_info_help[82] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[83] ;
-  args_info->chillixml_help = gengetopt_args_info_help[84] ;
-  args_info->acctupdate_help = gengetopt_args_info_help[85] ;
-  args_info->dnsparanoia_help = gengetopt_args_info_help[86] ;
-  args_info->usetap_help = gengetopt_args_info_help[87] ;
+  args_info->radiusoriginalurl_help = gengetopt_args_info_help[76] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[77] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[78] ;
+  args_info->localusers_help = gengetopt_args_info_help[79] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[80] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[81] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[82] ;
+  args_info->openidauth_help = gengetopt_args_info_help[83] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[84] ;
+  args_info->chillixml_help = gengetopt_args_info_help[85] ;
+  args_info->acctupdate_help = gengetopt_args_info_help[86] ;
+  args_info->dnsparanoia_help = gengetopt_args_info_help[87] ;
+  args_info->usetap_help = gengetopt_args_info_help[88] ;
   
 }
 
@@ -1679,6 +1683,9 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s\n", "cmdsocket");
     }
   }
+  if (args_info->radiusoriginalurl_given) {
+    fprintf(outfile, "%s\n", "radiusoriginalurl");
+  }
   if (args_info->swapoctets_given) {
     fprintf(outfile, "%s\n", "swapoctets");
   }
@@ -2056,6 +2063,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "ssid",	1, NULL, 0 },
         { "vlan",	1, NULL, 0 },
         { "cmdsocket",	1, NULL, 0 },
+        { "radiusoriginalurl",	0, NULL, 0 },
         { "swapoctets",	0, NULL, 0 },
         { "usestatusfile",	0, NULL, 0 },
         { "localusers",	1, NULL, 0 },
@@ -3498,6 +3506,20 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               free (args_info->cmdsocket_orig); /* free previous string */
             args_info->cmdsocket_orig = gengetopt_strdup (optarg);
           }
+          /* Turn on the sending of ChilliSpot-OriginalURL in Access-Request.  */
+          else if (strcmp (long_options[option_index].name, "radiusoriginalurl") == 0)
+          {
+            if (local_args_info.radiusoriginalurl_given)
+              {
+                fprintf (stderr, "%s: `--radiusoriginalurl' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->radiusoriginalurl_given && ! override)
+              continue;
+            local_args_info.radiusoriginalurl_given = 1;
+            args_info->radiusoriginalurl_given = 1;
+            args_info->radiusoriginalurl_flag = !(args_info->radiusoriginalurl_flag);
+          }
           /* Swap the meaning of input/output octets/packets.  */
           else if (strcmp (long_options[option_index].name, "swapoctets") == 0)
           {
@@ -3613,7 +3635,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             args_info->openidauth_given = 1;
             args_info->openidauth_flag = !(args_info->openidauth_flag);
           }
-          /* Always allow 'PAP' (password) style authentication.  */
+          /* Always allow 'PAP' authentication (depreciated; always on).  */
           else if (strcmp (long_options[option_index].name, "papalwaysok") == 0)
           {
             if (local_args_info.papalwaysok_given)

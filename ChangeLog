@@ -3,7 +3,9 @@
 
 * New option ''uamdomain'' whereby entire domains, one per use of option, can be white-listed.
 * New option ''dnsparanoia'' to drop DNS responses (pre-authentication) containing any non- A, CNAME, SOA, or MX records
+* New option ''radiusoriginalurl'' to send ChilliSpot VSA ChilliSpot-OriginalURL(9) in Access-Request containing the original URL 
 * Fix in 64-bit portability - thx ccesario for helping out
+* Fix for use with DHCP Relay clients
 	
 == ChangeLog (Coova Chilli v1.0.7 svn revision 95) ==
 
@@ -14,12 +16,11 @@
 * RADIUS Administrative-User accounting session giving device wide accounting
 * Added option ''acctupdate'' which will allow for session parameter updates with RADIUS Accounting-Response
 * New option ''tundev'' to explicitly set the TUN/TAP device, as in "tun1" or "tap3" (still be sure to use --usetap, if wanting TAP)
-* Depreceated option ''papalwaysok'' - it is considered always on
+* Depreciated option ''papalwaysok'' - it is considered always on
 * Better self determination of nasmac (Called-Station-Id) 
 * Sending ChilliSpot-Version attribute in access request
-* Added option ''wisprlogin'' to specificly set the WISPr LoginURL
+* Added option ''wisprlogin'' to specifically set the WISPr LoginURL
 
-	
 == ChangeLog (Coova Chilli v1.0.6 svn revision 66) ==
 
 * Updated hashing algorithm to lookup3 by Bob Jenkins

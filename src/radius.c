@@ -591,8 +591,8 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
     
     if (vlen > RADIUS_ATTR_VLEN) {
-      log_err(0, "Data too long!");
-      return -1;
+      vlen = RADIUS_ATTR_VLEN;
+      log_warn(0, "Trancating RADIUS attribute to %d [%s]", vlen, data);
     }
 
     if ((length+vlen+2) > RADIUS_PACKSIZE) {
@@ -622,9 +622,9 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
       vlen = 4; /* address, integer or time */
     }
 
-    if (vlen > RADIUS_ATTR_VLEN) {
-      log_err(0, "Data too long!");
-      return -1;
+    if (vlen > RADIUS_ATTR_VLEN-8) {
+      vlen = RADIUS_ATTR_VLEN-8;
+      log_warn(0, "Trancating RADIUS attribute to %d [%s]", vlen, data);
     }
 
     if ((length+vlen+2) > RADIUS_PACKSIZE) { 

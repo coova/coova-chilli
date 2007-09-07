@@ -39,7 +39,7 @@ struct options_t {
   char *pidfile;
   char *statedir;
 
-  int usetap;
+
 
   /* TUN parameters */
   struct in_addr net;            /* Network IP address */
@@ -47,18 +47,18 @@ struct options_t {
   struct in_addr mask;           /* Network mask */
   char maskc[IPADDRLEN];
 
-  char *tundev;
-  char *dynip;                   /* Dynamic IP address pool */
-  char *statip;                  /* Static IP address pool */
+  char * tundev;
+  char * dynip;                  /* Dynamic IP address pool */
+  char * statip;                 /* Static IP address pool */
   int allowdyn;                  /* Allow dynamic address allocation */
   int allowstat;                 /* Allow static address allocation */
   struct in_addr dns1;           /* Primary DNS server IP address */
   struct in_addr dns2;           /* Secondary DNS server IP address */
-  char *domain;                  /* Domain to use for DNS lookups */
-  char* ipup;                    /* Script to run after link-up */
-  char* ipdown;                  /* Script to run after link-down */
-  char* conup;                   /* Script to run after session/connection-up */
-  char* condown;                 /* Script to run after session/connection-down */
+  char * domain;                 /* Domain to use for DNS lookups */
+  char * ipup;                   /* Script to run after link-up */
+  char * ipdown;                 /* Script to run after link-down */
+  char * conup;                  /* Script to run after session/connection-up */
+  char * condown;                /* Script to run after session/connection-down */
   int txqlen;
 
   /* Radius parameters */
@@ -90,21 +90,12 @@ struct options_t {
   /* DHCP parameters */
   char* dhcpif;                 /* Interface: eth0 */
   unsigned char dhcpmac[DHCP_ETH_ALEN]; /* Interface MAC address */
-  int dhcpusemac;               /* Use given MAC or interface default */
+  int dhcpusemac;                /* Use given MAC or interface default */
   struct in_addr dhcplisten;     /* IP address to listen to */
   int lease;                     /* DHCP lease time */
   int dhcpstart;
   int dhcpend;
 
-  /* EAPOL parameters */
-  int eapolenable;               /* Use eapol */
-
-  int swapoctets;
-  int usestatusfile;
-  int chillixml;
-
-  int pap_always_ok;
-  int acct_update;
 
   /* UAM parameters */
   struct in_addr uamserver[UAMSERVER_MAX]; /* IP address of UAM server */
@@ -115,8 +106,6 @@ struct options_t {
   char* uamhomepage;             /* URL of redirection homepage */
   char* wisprlogin;              /* Specific WISPr login url */
   int uamhomepageport;		 /* Port of redirection homepage */
-  int no_uamsuccess;             /* Do not send redirect back to UAM on success */
-  int no_uamwispr;               /* Do not have ChilliSpot return WISPr blocks */
 
   struct in_addr uamlisten;      /* IP address of local authentication */
   int uamport;                   /* TCP port to listen to */
@@ -124,9 +113,26 @@ struct options_t {
 
   struct in_addr uamlogout;      /* IP address of HTTP auto-logout */
 
-  int uamanydns;                 /* Allow any dns server */
-  int uamanyip;                  /* Allow any ip address */
-  int dnsparanoia;               /* Filter DNS for questionable content (dns tunnels) */
+
+  /* booleans */
+  uint8_t usetap:1;
+  uint8_t eapolenable:1;            /* Use eapol */
+  uint8_t swapoctets:1;
+  uint8_t usestatusfile:1;
+  uint8_t chillixml:1;
+  uint8_t pap_always_ok:1;
+  uint8_t uamanydns:1;              /* Allow any dns server */
+  uint8_t uamanyip:1;               /* Allow any ip address */
+  uint8_t dnsparanoia:1;            /* Filter DNS for questionable content (dns tunnels) */
+  uint8_t no_uamsuccess:1;          /* Do not send redirect back to UAM on success */
+  uint8_t no_uamwispr:1;            /* Do not have ChilliSpot return WISPr blocks */
+  uint8_t acct_update:1;
+  uint8_t wpaguests:1;              /* Allow WPS "Guest" access */
+  uint8_t openidauth:1;             /* Allow OpenID authentication */
+  uint8_t macauth:1;                /* Use MAC authentication */
+  uint8_t macallowlocal:1;          /* Do not use RADIUS for authenticating the macallowed */
+  uint8_t radiusoriginalurl:1;      /* Send ChilliSpot-OriginalURL in AccessRequest */
+  /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
   size_t num_pass_throughs;
@@ -134,15 +140,10 @@ struct options_t {
   char** uamdomains;
 
   /* MAC Authentication */
-  int macauth;                   /* Use MAC authentication */
   unsigned char macok[MACOK_MAX][DHCP_ETH_ALEN]; /* Allowed MACs */
   int macoklen;                   /* Number of MAC addresses */
   char* macsuffix;               /* Suffix to add to MAC address */
   char* macpasswd;               /* Password to use for MAC authentication */  
-  int macallowlocal;             /* Do not use RADIUS for authenticating the macallowed */
-
-  int wpaguests; /* Allow WPS "Guest" access */
-  int openidauth; /* Allow OpenID authentication */
 
   unsigned long defsessiontimeout;
   unsigned int defidletimeout;

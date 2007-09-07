@@ -23,5 +23,6 @@
 #define	RADIUS_ATTR_CHILLISPOT_CONFIG                     6 /* string */
 #define RADIUS_ATTR_CHILLISPOT_LANG                       7 /* string */
 #define RADIUS_ATTR_CHILLISPOT_VERSION                    8 /* string */
+#define RADIUS_ATTR_CHILLISPOT_ORIGINALURL                9 /* string */
 
 #endif	/* !_RADIUS_CHILLISPOT_H */

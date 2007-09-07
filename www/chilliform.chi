@@ -1,14 +1,5 @@
-HTTP/1.0 200 OK
-Content-Type: text/javascript
-Cache: none
-
-var o = document.getElementById('logonForm');
-if (o != null) {
 <? 
-. ./config.sh
-
-chilliwww="http:\/\/$hs_uamlisten:$hs_uamport"
-echo "o.innerHTML='"$(cat json_html.tmpl|tr '\n' ' '|sed -e "s/'/\\'/"|sed -e "s/CHILLIWWW/$chilliwww/g")"';" 
-
+# if you have haserl, then this file is used. but, for those
+# without haserl, this page is also a pure shell script.
+   sh ./chilliform.chi.sh
 ?>
-}

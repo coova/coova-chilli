@@ -1559,6 +1559,11 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_LANG, 
 		   0, (uint8_t*) conn->lang, strlen(conn->lang));
 
+  if (options.radiusoriginalurl)
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC, 
+		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_ORIGINALURL, 
+		   0, (uint8_t*) conn->userurl, strlen(conn->userurl));
+
   if (redir->secret && *redir->secret) {
     fprintf(stderr,"SECRET: [%s]\n",redir->secret);
     /* Get MD5 hash on challenge and uamsecret */
