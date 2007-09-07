@@ -39,6 +39,7 @@
 #include "redir.h"
 #include "md5.h"
 #include "dhcp.h"
+#include "dns.h"
 #include "tun.h"
 #include "chilli.h"
 #include "options.h"
@@ -1159,7 +1160,8 @@ int check_garden(pass_through *ptlist, int ptcnt, struct dhcp_ippacket_t *pack, 
   for (i = 0; i < ptcnt; i++) {
     pt = &ptlist[i];
     if (pt->proto == 0 || pack->iph.protocol == pt->proto)
-      if (pt->host.s_addr == 0 || pt->host.s_addr == ((dst ? pack->iph.daddr : pack->iph.saddr) & pt->mask.s_addr))
+      if (pt->host.s_addr == 0 || 
+	  pt->host.s_addr == ((dst ? pack->iph.daddr : pack->iph.saddr) & pt->mask.s_addr))
 	if (pt->port == 0 || 
 	    (pack->iph.protocol == DHCP_IP_TCP && (dst ? tcph->dst : tcph->src) == htons(pt->port)) ||
 	    (pack->iph.protocol == DHCP_IP_UDP && (dst ? udph->dst : udph->src) == htons(pt->port)))
@@ -1344,9 +1346,19 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   if (((this->anydns) ||
        (pack->iph.saddr == conn->dns1.s_addr) ||
        (pack->iph.saddr == conn->dns2.s_addr)) &&
-      (pack->iph.protocol == DHCP_IP_UDP && udph->src == htons(DHCP_DNS)))
-    if (!options.uamdomains || dhcp_filterDNS(conn, pack, plen)) 
+      (pack->iph.protocol == DHCP_IP_UDP && udph->src == htons(DHCP_DNS))) {
+    if (options.uamdomains || options.dnsparanoia) {
+      /* filter dns for either uamdomains or dnsparanoia */
+	if (dhcp_filterDNS(conn, pack, plen)) 
+	  return 0;
+	else
+	  /* fail all else */
+	  return -1;
+    } else {
+      /* always let through dns when not filtering */
       return 0;
+    }
+  }
 
   if (pack->iph.protocol == DHCP_IP_ICMP) {
     /* Was it an ICMP reply from us? */
@@ -1369,6 +1381,8 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 	log_dbg("Forwarding ICMP to chilli client");
       return 0;
     }
+    /* fail all else */
+    return -1;
   }
 
   /* Was it a reply from redir server? */
@@ -1420,7 +1434,7 @@ int dhcp_filterDNS(struct dhcp_conn_t *conn,
   struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*)pack->payload;
   struct dhcp_dns_packet_t *dnsp = (struct dhcp_dns_packet_t*)(pack->payload + sizeof(struct dhcp_udphdr_t));
   size_t len = *plen - DHCP_DNS_HLEN - DHCP_UDP_HLEN - DHCP_IP_HLEN - DHCP_ETH_HLEN;
-  int olen = len;
+  size_t olen = len;
 
   uint16_t id = ntohs(dnsp->id);
   uint16_t flags = ntohs(dnsp->flags);
@@ -1431,190 +1445,8 @@ int dhcp_filterDNS(struct dhcp_conn_t *conn,
 
   uint8_t *p_pkt = (uint8_t *)dnsp->records;
 
-  uint8_t  records[DHCP_IP_PLEN];
-  int recordspos = 0;
-
-  uint8_t  name[DHCP_IP_PLEN];
-  int namelen = 0;
-
-  uint16_t type;
-  uint16_t class;
-  uint32_t ttl;
-  uint16_t rdlen;
-
-  uint32_t ul;
-  uint16_t us;
-
+  int d = options.debug; /* XXX: debug */
   int i;
-
-  int d = 1;
-
-#define return_error { if (d) printf("%s:%d: failed here\n",__FILE__,__LINE__); return -1; }
-
-  char question[256];
-
-  char *get_fullname(char *data, size_t dlen, uint8_t *res, int lvl) {
-    char *d = data;
-    unsigned short l;
-
-    if (lvl >= 15) 
-      return 0;
-
-    while ((l = *res++) != 0) {
-      if ((l & 0xC0) == 0xC0) {
-	unsigned short offset = ((l & ~0xC0) << 8) + *res;
-	if (offset > olen) {
-	  log_dbg("bad value");
-	  return 0;
-	}
-	/*printf("skip[%d]\n",offset);*/
-	get_fullname(d, dlen, (uint8_t *)dnsp + (size_t)offset, lvl+1);
-	break;
-      }
-
-      if (l >= dlen) {
-	log_dbg("bad value");
-	return 0;
-      }
-
-      /*printf("part[%.*s]\n",l,res);*/
-
-      memcpy(d, res, l);
-      d += l; dlen -= l;
-      res += l;
-
-      *d = '.';
-      d += 1; dlen -= 1;
-    }
-
-    if (!lvl && data[strlen((char*)data)-1]=='.')
-      data[strlen((char*)data)-1]=0;
-
-    return data;
-  }
-
-  int get_name() {
-    uint8_t l;
-
-    namelen = 0;
-    while (len-- && (l = name[namelen++] = *p_pkt++) != 0) {
-      if ((l & 0xC0) == 0xC0) {
-	name[namelen++] = *p_pkt++;
-	len--;
-	break;
-      }
-    }
-
-    if (!len) return_error;
-    return 0;
-  }
-
-  int copy_res(int q) {
-    char fullname[256];
-    uint8_t *p = p_pkt;;
-    if (get_name()) return_error;
-    if (len < 4) return_error;
-
-    memcpy(&us, p_pkt, sizeof(us));
-    type = ntohs(us);
-    p_pkt += 2;
-    len -= 2;
-
-    memcpy(&us, p_pkt, sizeof(us));
-    class = ntohs(us);
-    p_pkt += 2;
-    len -= 2;
-
-    if (d) printf("It was a dns response w type: %d class: %d \n", type, class);
-
-    if (q) {
-      memset(question,0,sizeof(question));
-      get_fullname(question, sizeof(question)-1, p, 0);
-
-      if (d) printf("Q: %s\n", question);
-      return 0;
-    }
-
-    if (len < 6) return_error;
-
-    memcpy(&ul, p_pkt, sizeof(ul));
-    ttl = ntohl(ul);
-    p_pkt += 4;
-    len -= 4;
-
-    memcpy(&us, p_pkt, sizeof(us));
-    rdlen = ntohs(us);
-    p_pkt += 2;
-    len -= 2;
-
-    if (d) printf("-> w ttl: %d rdlength: %d/%d\n", ttl, rdlen, len);
-
-    if (len < rdlen) return_error;
-
-    /*
-     *  dns records 
-     */
-
-    void add_A_to_garden(uint8_t *p) {
-      struct in_addr reqaddr;
-      pass_through pt;
-      memcpy(&reqaddr.s_addr, p, 4);
-      memset(&pt, 0, sizeof(pass_through));
-      pt.mask.s_addr = 0xffffffff;
-      if (conn->peer) {
-	struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-	pt.host = reqaddr;
-	if (pass_through_add(options.pass_throughs,
-			     MAX_PASS_THROUGHS,
-			     &options.num_pass_throughs,
-			     &pt))
-	  ;
-      }
-    }
-
-    switch (type) {
-    case 1:/* A */
-      if (d) printf("A record\n");
-      if (options.uamdomains) {
-	int id;
-	for (id=0; options.uamdomains[id]; id++) {
-	  if (strlen(question) >= strlen(options.uamdomains[id]) &&
-	      !strcmp(options.uamdomains[id],
-		      question + (strlen(question) - strlen(options.uamdomains[id])))) {
-	    size_t offset;
-	    for (offset=0; offset < rdlen; offset += 4)
-	      add_A_to_garden(p_pkt+offset);
-	  }
-	}
-      }
-      break;
-    case 5:/* CNAME */
-      {
-	char cname[256];
-	memset(cname,0,sizeof(cname));
-	get_fullname(cname, sizeof(cname)-1, p_pkt, 0);
-	if (d) printf("CNAME record %s\n", cname);
-      }
-      break;
-    case 6:/* SOA */
-      if (d) printf("SOA record\n");
-      break;
-    case 12:
-      if (d) printf("PTR record\n");
-      break;
-    case 15:
-      if (d) printf("MX record\n");
-      break;
-    case 16:
-      if (d) printf("TXT record\n");
-      break;
-    }
-    
-    p_pkt += rdlen;
-    len -= rdlen;
-
-    return 0;
-  }
 
   if (d) printf("DNS ID:    %d\n", id);
   if (d) printf("DNS Flags: %d\n", flags);
@@ -1622,25 +1454,27 @@ int dhcp_filterDNS(struct dhcp_conn_t *conn,
   /* it was a query? shouldn't be */
   if (((flags & 0x8000) >> 15) == 0) return 0;
 
-  if (d) printf("qd: %d\n", qdcount);
-  for (i=0; i < qdcount; i++) if (copy_res(1)) return 0;
+#define copyres(q,n)			        \
+  if (d) printf(#n ": %d\n", n ## count);       \
+  for (i=0; i < n ## count; i++)                \
+    if (dns_copy_res(q, &p_pkt, &len,           \
+		     (uint8_t *)dnsp, olen))    \
+      return 0;
 
-  if (d) printf("an: %d\n", ancount);
-  for (i=0; i < ancount; i++) if (copy_res(0)) return 0;
+  copyres(1,qd);
+  copyres(0,an);
+  copyres(0,ns);
+  copyres(0,ar);
 
-  if (d) printf("ns: %d\n", nscount);
-  for (i=0; i < nscount; i++) if (copy_res(0)) return 0;
+  if (d) printf("left (should be zero): %d\n", len);
 
-  if (d) printf("ar: %d\n", arcount);
-  for (i=0; i < arcount; i++) if (copy_res(0)) return 0;
-
-  if (d) printf("left: %d\n", len);
-
+  /*
   dnsp->flags = htons(flags);
   dnsp->qdcount = htons(qdcount);
   dnsp->ancount = htons(ancount);
   dnsp->nscount = htons(nscount);
   dnsp->arcount = htons(arcount);
+  */
 
   return 1;
 }
@@ -1752,7 +1586,7 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
       return dhcp_send(this, this->fd, DHCP_ETH_IP, conn->hismac, this->ifindex, &answer, length);
     }
   }
-  return -0; /* Something else */
+  return -1; /* Something else */
 }
 
 /**
@@ -1916,7 +1750,13 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn,
 
   /* IP header */
   packet.iph.tot_len = htons(udp_len + DHCP_IP_HLEN);
-  packet.iph.daddr = ~0; /* TODO: Always sending to broadcast address */
+
+  /* if relay client, send to it unicast; otherwise broadcast */
+  if (packet.dhcp.giaddr)
+    packet.iph.daddr = packet.dhcp.giaddr; 
+  else
+    packet.iph.daddr = ~0; 
+
   packet.iph.saddr = conn->ourip.s_addr;
 
   /* Work out checksums */
@@ -2035,11 +1875,13 @@ int dhcp_sendACK(struct dhcp_conn_t *conn,
 
   /* IP header */
   packet.iph.tot_len = htons(udp_len + DHCP_IP_HLEN);
+
   /* if relay client, send to it unicast; otherwise broadcast */
   if (packet.dhcp.giaddr)
     packet.iph.daddr = packet.dhcp.giaddr; 
   else
     packet.iph.daddr = ~0; 
+
   packet.iph.saddr = conn->ourip.s_addr;
 
   /* Work out checksums */
@@ -2132,15 +1974,15 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn,
 
 
 /**
- * dhcp_getreq()
- * Process a received DHCP request MESSAGE.
+ *  dhcp_getreq()
+ *  Process a received DHCP request and sends a response.
  **/
 int dhcp_getreq(struct dhcp_t *this, 
 		struct dhcp_fullpacket_t *pack, size_t len) {
-  struct dhcp_conn_t *conn;
-
+  uint8_t mac[DHCP_ETH_ALEN];
   struct dhcp_tag_t *message_type = 0;
   struct dhcp_tag_t *requested_ip = 0;
+  struct dhcp_conn_t *conn;
   struct in_addr addr;
 
   if (pack->udph.dst != htons(DHCP_BOOTPS)) 
@@ -2159,23 +2001,28 @@ int dhcp_getreq(struct dhcp_t *this,
       (message_type->v[0] != DHCPRELEASE)) {
     return 0; /* Unsupported message type */
   }
+
+  if (pack->dhcp.giaddr)
+    memcpy(mac, pack->dhcp.chaddr, DHCP_ETH_ALEN);
+  else
+    memcpy(mac, pack->ethh.src, DHCP_ETH_ALEN);
   
   /* Release message */
   /* If connection exists: Release it. No Reply to client is sent */
   if (message_type->v[0] == DHCPRELEASE) {
-    dhcp_release_mac(this, pack->ethh.src);
+    dhcp_release_mac(this, mac);
     return 0;
   }
 
   /* Check to see if we know MAC address. If not allocate new conn */
-  if (dhcp_hashget(this, &conn, pack->ethh.src)) {
+  if (dhcp_hashget(this, &conn, mac)) {
     
     /* Do we allow dynamic allocation of IP addresses? */
     if (!this->allowdyn) /* TODO: Should be deleted! */
       return 0; 
 
     /* Allocate new connection */
-    if (dhcp_newconn(this, &conn, pack->ethh.src)) /* TODO: Delete! */
+    if (dhcp_newconn(this, &conn, mac)) /* TODO: Delete! */
       return 0; /* Out of connections */
   }
 
@@ -2194,7 +2041,8 @@ int dhcp_getreq(struct dhcp_t *this,
   /* If an IP address was assigned offer it to the client */
   /* Otherwise ignore the request */
   if (message_type->v[0] == DHCPDISCOVER) {
-    if (conn->hisip.s_addr) (void)dhcp_sendOFFER(conn, pack, len);
+    if (conn->hisip.s_addr) 
+      dhcp_sendOFFER(conn, pack, len);
     return 0;
   }
   
@@ -2221,7 +2069,10 @@ int dhcp_getreq(struct dhcp_t *this,
     return dhcp_sendNAK(conn, pack, len);
   }
   
-  /* Unsupported DHCP message: Ignore */
+  /* 
+   *  Unsupported DHCP message: Ignore 
+   */
+  if (this->debug) printf("Unsupported DNS message ignored\n");
   return 0;
 }
 
@@ -2265,10 +2116,16 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
   struct in_addr ourip;
   struct in_addr addr;
 
+  /*
+   *  Received a packet from the dhcpif
+   */
+
   if (this->debug) 
     log_dbg("DHCP packet received\n");
   
-  /* Check that MAC address is our MAC or Broadcast */
+  /* 
+   *  Check that the destination MAC address is our MAC or Broadcast 
+   */
   if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
       (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
     if (this->debug) 
@@ -2276,7 +2133,23 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
     return 0;
   }
 
-  /* Check to see if we know MAC address. */
+  ourip.s_addr = this->ourip.s_addr;
+
+  /* 
+   *  DHCP (BOOTPS) packets for broadcast or us specifically
+   */
+  if (((pack->iph.daddr == 0) ||
+       (pack->iph.daddr == 0xffffffff) ||
+       (pack->iph.daddr == ourip.s_addr)) &&
+      ((pack->iph.version_ihl == IP_VER_HLEN) && 
+       (pack->iph.protocol == DHCP_IP_UDP) &&
+       (((struct dhcp_fullpacket_t*)pack)->udph.dst == htons(DHCP_BOOTPS)))) {
+    return dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
+  }
+
+  /* 
+   *  Check to see if we know MAC address
+   */
   if (!dhcp_hashget(this, &conn, pack->ethh.src)) {
     if (this->debug) log_dbg("Address found");
     ourip.s_addr = conn->ourip.s_addr;
@@ -2293,8 +2166,6 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
     /* Do we allow dynamic allocation of IP addresses? */
     if (!this->allowdyn && !options.uamanyip)
       return 0; 
-
-    ourip.s_addr = this->ourip.s_addr;
 
     /* Allocate new connection */
     if (dhcp_newconn(this, &conn, pack->ethh.src)) {
@@ -2317,7 +2188,9 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
     return 0;
   }
 
-  /* Request an IP address */
+  /* 
+   *  Request an IP address 
+   */
   if ((conn->authstate == DHCP_AUTH_NONE) && 
       (options.uamanyip || 
        ((pack->iph.daddr != 0) && 
@@ -2331,17 +2204,6 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
       }
   }
 
-  /* Check to see if it is a packet for us */
-  /* TODO: Handle IP packets with options. Currently these are just ignored */
-  if (((pack->iph.daddr == 0) ||
-       (pack->iph.daddr == 0xffffffff) ||
-       (pack->iph.daddr == ourip.s_addr)) &&
-      ((pack->iph.version_ihl == IP_VER_HLEN) && 
-       (pack->iph.protocol == DHCP_IP_UDP) &&
-       (((struct dhcp_fullpacket_t*)pack)->udph.dst == htons(DHCP_BOOTPS)))) {
-    
-    dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
-  }
 
   conn->lasttime = mainclock;
 
@@ -2402,6 +2264,8 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
       log_dbg("dropping packet; auth-drop");
     return 0;
   }
+
+  /*done:*/
 
   if (options.usetap) {
     struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;

@@ -1020,6 +1020,7 @@ int radius_pwencode(struct radius_t *this,
     for (i = 0; i < RADIUS_AUTHLEN; i++)
       dst[i + n + RADIUS_AUTHLEN] ^= output[i];
   }    
+
   return 0;
 }
 

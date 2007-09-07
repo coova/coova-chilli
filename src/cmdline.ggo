@@ -22,7 +22,7 @@ option  "interval"    - "Re-read configuration file at this interval"  int defau
 option  "pidfile"     - "Filename of process id file"   string no
 option  "statedir"    - "Directory of nonvolatile data" string no
 
-#TUN parameters
+# TUN parameters
 option "net"         n "Network"           string default="192.168.182.0/24" no
 option "dhcpstart"   - "Network DHCP Starting IP"      int default="10" no
 option "dhcpend"     - "Network DHCP Ending IP"        int default="254" no
@@ -125,5 +125,6 @@ option "openidauth"    - "Allow OpenID authentication" flag off
 option "papalwaysok"   - "Always allow 'PAP' (password) style authentication" flag off
 option "chillixml"     - "Use ChilliSpot XML in WISPr blocks" flag   off
 option "acctupdate"    - "Allow updating of session attributes in Accounting-Response" flag off
+option "dnsparanoia"   - "Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX records (to prevent dns tunnels)" flag off
 
 option "usetap"        - "Use a TAP instead of TUN (linux only)" flag   off

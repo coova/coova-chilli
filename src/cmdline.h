@@ -267,6 +267,8 @@ struct gengetopt_args_info
   const char *chillixml_help; /* Use ChilliSpot XML in WISPr blocks help description.  */
   int acctupdate_flag;	/* Allow updating of session attributes in Accounting-Response (default=off).  */
   const char *acctupdate_help; /* Allow updating of session attributes in Accounting-Response help description.  */
+  int dnsparanoia_flag;	/* Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX records (to prevent dns tunnels) (default=off).  */
+  const char *dnsparanoia_help; /* Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX records (to prevent dns tunnels) help description.  */
   int usetap_flag;	/* Use a TAP instead of TUN (linux only) (default=off).  */
   const char *usetap_help; /* Use a TAP instead of TUN (linux only) help description.  */
   
@@ -356,6 +358,7 @@ struct gengetopt_args_info
   int papalwaysok_given ;	/* Whether papalwaysok was given.  */
   int chillixml_given ;	/* Whether chillixml was given.  */
   int acctupdate_given ;	/* Whether acctupdate was given.  */
+  int dnsparanoia_given ;	/* Whether dnsparanoia was given.  */
   int usetap_given ;	/* Whether usetap was given.  */
 
 } ;

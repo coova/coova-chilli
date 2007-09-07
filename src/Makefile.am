@@ -11,7 +11,8 @@ AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fstrict-aliasing -ansi\
 chilli_SOURCES = \
 main.c chilli.c options.c tun.c tun.h cmdline.c cmdline.h ippool.c ippool.h radius.h radius.c \
 md5.c md5.h redir.h redir.c dhcp.c dhcp.h syserr.c syserr.h iphash.c iphash.h lookup3.c lookup.c lookup.h \
-system.h cmdsock.h radius_wispr.h radius_chillispot.h chilli.h options.h util.c garden.c garden.h
+system.h cmdsock.c cmdsock.h radius_wispr.h radius_chillispot.h chilli.h options.h util.c garden.c garden.h\
+dns.c
 
 chilli_LDFLAGS = 
 

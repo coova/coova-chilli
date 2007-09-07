@@ -23,7 +23,9 @@
 #include "cmdsock.h"
 
 static int usage(char *program) {
-  fprintf(stderr, "Usage: %s <unix-socket> <command> [<argument>]\n", program);
+  fprintf(stderr, "Usage: %s [ -s <socket> ] <command> [<argument>]\n", program);
+  fprintf(stderr, "  socket = full path to UNIX domain socket (e.g. /var/run/chilli.sock)\n");
+  fprintf(stderr, "           TCP socket port, or ip:port, to bind to (e.g. 1999)\n");
   return 1;
 }
 

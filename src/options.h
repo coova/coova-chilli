@@ -25,6 +25,9 @@
 
 #define UAMSERVER_MAX 8
 
+#define MACOK_MAX 16
+
+
 #include "garden.h"
 
 struct options_t {
@@ -123,6 +126,7 @@ struct options_t {
 
   int uamanydns;                 /* Allow any dns server */
   int uamanyip;                  /* Allow any ip address */
+  int dnsparanoia;               /* Filter DNS for questionable content (dns tunnels) */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
   size_t num_pass_throughs;

@@ -2562,8 +2562,8 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 /* In the case of WPA it is allready allocated,
  * for UAM address is allocated before authentication */
 int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
-  struct ippoolm_t *ipm;
   struct app_conn_t *appconn = conn->peer;
+  struct ippoolm_t *ipm;
 
   if (options.debug) 
     log_dbg("DHCP requested IP address");
@@ -3403,32 +3403,10 @@ int chilli_main(int argc, char **argv)
   }
 
   if (options.cmdsocket) {
-    struct sockaddr_un local;
-    size_t len;
-    
-    if ((cmdsock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-      log_err(errno, "could not allocate UNIX Socket!");
-    } else {
-      local.sun_family = AF_UNIX;
-      strcpy(local.sun_path, options.cmdsocket);
-      unlink(local.sun_path);
-      len = strlen(local.sun_path) + sizeof(local.sun_family);
-      if (bind(cmdsock, (struct sockaddr *)&local, len) == -1) {
-	log_err(errno, "could bind UNIX Socket!");
-	close(cmdsock);
-	cmdsock = -1;
-      } else {
-	if (listen(cmdsock, 5) == -1) {
-	  log_err(errno, "could listen to UNIX Socket!");
-	  close(cmdsock);
-	  cmdsock = -1;
-	}
-      }
-    }
+    cmdsock = cmdsock_init();
+    if (cmdsock > 0)
+      maxfd = cmdsock;
   }
-  
-  if (cmdsock > 0) maxfd = cmdsock;
-
 
   /* Set up signal handlers */
   memset(&act, 0, sizeof(act));

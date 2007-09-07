@@ -27,8 +27,6 @@
 #define APP_NUM_CONN 1024
 #define EAP_LEN 2048            /* TODO: Rather large */
 
-#define MACOK_MAX 16
-
 #define MACSTRLEN 17
 
 #define MS2SUCCSIZE 40	/* MS-CHAPv2 authenticator response as ASCII */
