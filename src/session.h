@@ -11,14 +11,14 @@
 #ifndef _SESSION_H
 #define _SESSION_H
 
+#include "limits.h"
 #include "garden.h"
-#include "radius.h"
 
 #define SESSION_PASS_THROUGH_MAX 4
 
 struct session_params {
   uint8_t url[REDIR_USERURLSIZE];
-  uint8_t filteridbuf[RADIUS_ATTR_VLEN+1];
+  uint8_t filteridbuf[256];
   uint8_t filteridlen;
   uint32_t bandwidthmaxup;
   uint32_t bandwidthmaxdown;

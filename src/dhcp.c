@@ -1444,6 +1444,7 @@ int dhcp_filterDNS(struct dhcp_conn_t *conn,
   uint16_t arcount = ntohs(dnsp->arcount);
 
   uint8_t *p_pkt = (uint8_t *)dnsp->records;
+  char q[256];
 
   int d = options.debug; /* XXX: debug */
   int i;
@@ -1454,11 +1455,14 @@ int dhcp_filterDNS(struct dhcp_conn_t *conn,
   /* it was a query? shouldn't be */
   if (((flags & 0x8000) >> 15) == 0) return 0;
 
-#define copyres(q,n)			        \
+  memset(q,0,sizeof(q));
+
+#define copyres(isq,n)			        \
   if (d) log_dbg(#n ": %d\n", n ## count);      \
   for (i=0; i < n ## count; i++)                \
-    if (dns_copy_res(q, &p_pkt, &len,           \
-		     (uint8_t *)dnsp, olen))    \
+    if (dns_copy_res(isq, &p_pkt, &len,         \
+		     (uint8_t *)dnsp, olen, 	\
+                     q, sizeof(q)))	        \
       return 0;
 
   copyres(1,qd);

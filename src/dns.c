@@ -106,7 +106,10 @@ add_A_to_garden(uint8_t *p) {
 }
 
 int 
-dns_copy_res(int q, uint8_t **pktp, size_t *left, uint8_t *opkt, size_t olen) {
+dns_copy_res(int q, 
+	     uint8_t **pktp, size_t *left, 
+	     uint8_t *opkt, size_t olen, 
+	     char *question, size_t qsize) {
 
 #define return_error \
 { if (debug) log_dbg("%s:%d: failed parsing DNS packet",__FILE__,__LINE__); return -1; }
@@ -115,7 +118,6 @@ dns_copy_res(int q, uint8_t **pktp, size_t *left, uint8_t *opkt, size_t olen) {
   size_t len = *left;
   
   char fullname[256];
-  char question[256];
 
   uint8_t name[DHCP_IP_PLEN];
   size_t namelen = 0;
@@ -153,8 +155,7 @@ dns_copy_res(int q, uint8_t **pktp, size_t *left, uint8_t *opkt, size_t olen) {
     log_dbg("It was a dns response w type: %d class: %d", type, class);
   
   if (q) {
-    memset(question,0,sizeof(question));
-    dns_fullname(question, sizeof(question)-1, *pktp, opkt, olen, 0);
+    dns_fullname(question, qsize, *pktp, opkt, olen, 0);
     
     if (debug) 
       log_dbg("Q: %s", question);
@@ -196,12 +197,20 @@ dns_copy_res(int q, uint8_t **pktp, size_t *left, uint8_t *opkt, size_t olen) {
     if (options.uamdomains) {
       int id;
       for (id=0; options.uamdomains[id]; id++) {
+
+	log_dbg("compairing %s and %s [%s]",
+		options.uamdomains[id], question + (strlen(question) - strlen(options.uamdomains[id])),
+		question);
+
 	if (strlen(question) >= strlen(options.uamdomains[id]) &&
 	    !strcmp(options.uamdomains[id],
 		    question + (strlen(question) - strlen(options.uamdomains[id])))) {
 	  size_t offset;
-	  for (offset=0; offset < rdlen; offset += 4)
+	  for (offset=0; offset < rdlen; offset += 4) {
 	    add_A_to_garden(p_pkt+offset);
+	  }
+
+	  break;
 	}
       }
     }

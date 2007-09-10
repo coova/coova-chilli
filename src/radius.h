@@ -1,5 +1,4 @@
 /* 
- *
  * Radius client functions.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (c) 2006-2007 David Bird <david@coova.com>
@@ -17,22 +16,8 @@
 #define RADIUS_NONETWORK   0x01
 #define RADIUS_NOBROADCAST 0x02
 
-#define RADIUS_SECRETSIZE 128    /* No secrets that long */
-#define RADIUS_MD5LEN  16        /* Length of MD5 hash */
-#define RADIUS_AUTHLEN 16        /* RFC 2865: Length of authenticator */
-#define RADIUS_PWSIZE  128       /* RFC 2865: Max 128 octets in password */
-#define RADIUS_QUEUESIZE 256     /* Same size as id address space */
-#define RADIUS_TIMEOUT 3000000   /* Time between requests in micro seconds */
-#define RADIUS_RETRY1 3          /* Number of times to retry primary */
-#define RADIUS_RETRY2 6          /* Total number of retries */
-
-#define RADIUS_ATTR_VLEN 253
 #define RADIUS_AUTHPORT 1812
 #define RADIUS_ACCTPORT 1813
-#define RADIUS_PACKSIZE 4096
-#define RADIUS_HDRSIZE 20
-#define RADIUS_PASSWORD_LEN 16
-#define RADIUS_MPPEKEYSSIZE 32   /* Length of MS_CHAP_MPPE_KEYS attribute */ 
 
 /* Radius packet types */
 #define RADIUS_CODE_ACCESS_REQUEST            1
@@ -180,7 +165,7 @@
 #define RADIUS_TERMINATE_CAUSE_USER_ERROR           17
 #define RADIUS_TERMINATE_CAUSE_HOST_REQUEST         18
 
-
+#include "limits.h"
 
 struct radius_packet_t {
   uint8_t code;

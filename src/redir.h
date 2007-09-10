@@ -15,15 +15,8 @@
 #ifndef _REDIR_H
 #define _REDIR_H
 
-#define REDIR_MAXLISTEN 3
-
-#define REDIR_MAXTIME 100  /* Seconds */
-
-#define REDIR_HTTP_MAX_TIME    10      /* Seconds */
-#define REDIR_HTTP_SELECT_TIME 500000  /* microseconds = 0.5 seconds */
-
-#define REDIR_RADIUS_MAX_TIME    60      /* Seconds */
-#define REDIR_RADIUS_SELECT_TIME 500000  /* microseconds = 0.5 seconds */
+#include "dhcp.h"
+#include "session.h"
 
 #define REDIR_TERM_INIT     0  /* Nothing done yet */
 #define REDIR_TERM_GETREQ   1  /* Before calling redir_getreq */
@@ -31,30 +24,6 @@
 #define REDIR_TERM_PROCESS  3  /* Started to process request */
 #define REDIR_TERM_RADIUS   4  /* Calling radius */
 #define REDIR_TERM_REPLY    5  /* Sending response to client */
-
-#define REDIR_CHALLEN 16
-#define REDIR_MD5LEN 16
-
-#define REDIR_MACSTRLEN 17
-
-/*#define REDIR_MAXCHAR 1024*/
-#define REDIR_MAXCHAR 64
-
-#define REDIR_MAXBUFFER 5125
-
-#define REDIR_USERNAMESIZE 256 /* Max length of username */
-#define REDIR_MAXQUERYSTRING 2048
-#define REDIR_USERURLSIZE    2048  /* Max length of URL requested by user */
-#define REDIR_USERAGENTSIZE 256
-#define REDIR_LANGSIZE 16
-#define REDIR_IDENTSIZE 16
-
-#define REDIR_MAXCONN 16
-
-#define REDIR_CHALLENGETIMEOUT1 300 /* Seconds */
-#define REDIR_CHALLENGETIMEOUT2 600 /* Seconds */
-
-#define REDIR_URL_LEN    2048
 
 #define REDIR_LOGIN      1
 #define REDIR_PRELOGIN   2
@@ -78,12 +47,6 @@
 #define REDIR_NOTYET     55 /* Reply to /prelogin or any GET request */
 #define REDIR_ABORT_ACK  56 /* Reply to /abortlogin */
 #define REDIR_ABORT_NAK  57 /* Reply to /abortlogin */
-
-#define REDIR_ETH_ALEN  6
-#define REDIR_SESSIONID_LEN 17
-
-#include "dhcp.h"
-#include "session.h"
 
 struct redir_conn_t {
   /* Parameters from HTTP request */

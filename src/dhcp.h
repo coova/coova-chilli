@@ -17,25 +17,7 @@
 #ifndef _DHCP_H
 #define _DHCP_H
 
-/* DHCP Ethernet frame types */
-
-/* Misc decl */
-#define DHCP_DEBUG        0      /* Print debug information */
-#define DHCP_MTU       1492      /* Maximum MTU size */
-
-#define DHCP_TAG_VLEN 255        /* Tag value always shorter than this */
-
-struct dhcp_tag_t {
-  uint8_t t:8;
-  uint8_t l:8;
-  uint8_t v[DHCP_TAG_VLEN];
-};
-
-
-extern const uint16_t DHCP_ETH_IP;
-extern const uint16_t DHCP_ETH_ARP;
-extern const uint16_t DHCP_ETH_EAPOL;
-extern const uint32_t DHCP_OPTION_MAGIC;
+#include "limits.h"
 
 /* Option constants */
 #define DHCP_OPTION_MAGIC_LEN       4
@@ -52,7 +34,6 @@ extern const uint32_t DHCP_OPTION_MAGIC;
 #define DHCP_OPTION_SERVER_ID      54
 #define DHCP_OPTION_END           255
 
-
 /* BOOTP Message Types */
 #define DHCP_BOOTREQUEST  1
 #define DHCP_BOOTREPLY    2
@@ -66,7 +47,6 @@ extern const uint32_t DHCP_OPTION_MAGIC;
 #define DHCPNAK           6
 #define DHCPRELEASE       7
 
-
 /* UDP Ports */
 #define DHCP_BOOTPS 67
 #define DHCP_BOOTPC 68
@@ -76,9 +56,16 @@ extern const uint32_t DHCP_OPTION_MAGIC;
 #define DHCP_HTTP   80
 #define DHCP_HTTPS 443
 
-/* Length constants for Ethernet packet */
-#define DHCP_ETH_ALEN  6
-#define DHCP_ETH_HLEN 14
+struct dhcp_tag_t {
+  uint8_t t:8;
+  uint8_t l:8;
+  uint8_t v[DHCP_TAG_VLEN];
+};
+
+extern const uint16_t DHCP_ETH_IP;
+extern const uint16_t DHCP_ETH_ARP;
+extern const uint16_t DHCP_ETH_EAPOL;
+extern const uint32_t DHCP_OPTION_MAGIC;
 
 struct dhcp_ethhdr_t
 {

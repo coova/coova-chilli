@@ -15,6 +15,10 @@
 #include "system.h"
 
 char * dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, int lvl);
-int dns_copy_res(int q, uint8_t **pktp, size_t *left, uint8_t *opkt, size_t olen);
+
+int dns_copy_res(int q, 
+		 uint8_t **pktp, size_t *left, 
+		 uint8_t *opkt, size_t olen,
+		 char *question, size_t qsize);
 
 #endif
