@@ -46,9 +46,6 @@
 #include "ippool.h"
 #include "lookup.h"
 
-const uint16_t DHCP_ETH_IP            =  0x0800;
-const uint16_t DHCP_ETH_ARP           =  0x0806;
-const uint16_t DHCP_ETH_EAPOL         =  0x888e;
 const uint32_t DHCP_OPTION_MAGIC      =  0x63825363;
 
 #ifdef NAIVE

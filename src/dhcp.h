@@ -62,10 +62,9 @@ struct dhcp_tag_t {
   uint8_t v[DHCP_TAG_VLEN];
 };
 
-extern const uint16_t DHCP_ETH_IP;
-extern const uint16_t DHCP_ETH_ARP;
-extern const uint16_t DHCP_ETH_EAPOL;
-extern const uint32_t DHCP_OPTION_MAGIC;
+#define DHCP_ETH_IP       0x0800
+#define DHCP_ETH_ARP      0x0806
+#define DHCP_ETH_EAPOL    0x888e
 
 struct dhcp_ethhdr_t
 {
