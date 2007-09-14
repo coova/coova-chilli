@@ -69,7 +69,7 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
-#elif defined (__FreeBSD__)  || defined (__APPLE__)
+#elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
 #include <net/if.h>
 #include <net/bpf.h>
 #include <net/if_dl.h>
@@ -152,5 +152,7 @@
 # define LITTLE_ENDIAN 0
 # define BIG_ENDIAN 0
 #endif
+
+#include "bstrlib.h"
 
 #endif
