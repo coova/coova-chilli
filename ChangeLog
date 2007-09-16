@@ -4,6 +4,8 @@
 * New option ''uamdomain'' whereby entire domains, one per use of option, can be white-listed.
 * New option ''dnsparanoia'' to drop DNS responses (pre-authentication) containing any non- A, CNAME, SOA, or MX records
 * New option ''radiusoriginalurl'' to send ChilliSpot VSA ChilliSpot-OriginalURL(9) in Access-Request containing the original URL 
+* Fix for when uamlisten is not always ''net'' + 1 (first IP in network range)
+* Fix for when ''proxysecret'' and ''radiussecret'' differ in generation of Message-Authenticator
 * Fix in 64-bit portability - thx ccesario for helping out
 * Fix for use with DHCP Relay clients
 	

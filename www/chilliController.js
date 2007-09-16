@@ -64,10 +64,16 @@ function updateUI (cmd ) {
 	chilliController.location = null;
     }
 
-    if ( chilliController.clientState == 0 ) showLogonPage();
+    if ( chilliController.clientState == 0 ) {
+        showLogonPage();
+    }
 
     if ( chilliController.clientState == 1 ) {
-	showStatusPage();
+        if ( chilliController.statusURL ) {
+	   chilliController.statusWindow = window.open(chilliController.statusURL, "");
+	} else {
+	   showStatusPage();
+        }
     }
 
     if (chilliController.redir.redirectionURL) {
@@ -128,8 +134,8 @@ function showStatusPage() {
     
     // Update session
     setElementValue("sessionId",
-		    chilliController.sessionId ?
-		    chilliController.sessionId :
+		    chilliController.session.sessionId ?
+		    chilliController.session.sessionId :
 		    "Not available");
 
     setElementValue("startTime",

@@ -1,6 +1,5 @@
 /* 
- *
- * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
+ * chilli - A Wireless LAN Access Point Controller
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
@@ -16,37 +15,6 @@
 
 #ifndef _CHILLI_H
 #define _CHILLI_H
-
-/* If the constants below are defined packets which have been dropped
-   by the traffic shaper will be counted towards accounting and
-   volume limitation */
-/* #define COUNT_DOWNLINK_DROP 1 */
-/* #define COUNT_UPLINK_DROP 1 */
-#define LEAKY_BUCKET 1
-
-#define APP_NUM_CONN 1024
-#define EAP_LEN 2048            /* TODO: Rather large */
-
-#define MACSTRLEN 17
-
-#define MS2SUCCSIZE 40	/* MS-CHAPv2 authenticator response as ASCII */
-
-#define DATA_LEN 1500    /* Max we allow */
-
-#define USERNAMESIZE 256 /* Max length of username */
-#define CHALLENGESIZE 24 /* From chap.h MAX_CHALLENGE_LENGTH */
-#define USERURLSIZE 256  /* Max length of URL requested by user */
-
-#define BUCKET_SIZE  300000 /* Size of leaky bucket (~200 packets) */
-
-/* Time length of leaky bucket in milliseconds */
-/* Bucket size = BUCKET_TIME * Bandwidth-Max radius attribute */
-/* Not used if BUCKET_SIZE is defined */
-#define BUCKET_TIME  5000  /* 5 seconds */
-#define BUCKET_SIZE_MIN  15000 /* Minimum size of leaky bucket (~10 packets) */
-
-#define CHECK_INTERVAL 3   /* Time between checking connections */
-
 
 /* Authtype defs */
 #define CHAP_DIGEST_MD5   0x05
@@ -82,15 +50,13 @@ struct app_conn_t {
   struct app_conn_t *next;    /* Next in linked list. 0: Last */
   struct app_conn_t *prev;    /* Previous in linked list. 0: First */
 
-  char username[REDIR_USERNAMESIZE];
-  char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
-
-  struct session_params params; /* Session parameters */
-
   /* Pointers to protocol handlers */
   void *uplink;                  /* Uplink network interface (Internet) */
   void *dnlink;                  /* Downlink network interface (Wireless) */
   int dnprot;                    /* Downlink protocol */
+
+  struct session_params params;        /* Session parameters */
+  struct session_state state;          /* Session state */
 
   /* Radius authentication stuff */
   /* Parameters are initialised whenever a reply to an access request
@@ -107,10 +73,6 @@ struct app_conn_t {
   uint32_t types;
   uint8_t ms2succ[MS2SUCCSIZE];
   size_t ms2succlen;
-  uint8_t statebuf[RADIUS_ATTR_VLEN+1];
-  size_t statelen;
-  uint8_t classbuf[RADIUS_ATTR_VLEN+1];
-  size_t classlen;
 
   /* Radius proxy stuff */
   /* Parameters are initialised whenever a radius proxy request is received */
@@ -120,19 +82,12 @@ struct app_conn_t {
   uint8_t radiusid;              /* ID to reply with */
   uint8_t authenticator[RADIUS_AUTHLEN];
   int authtype; /* TODO */
-  char proxyuser[USERNAMESIZE];     /* Unauthenticated user: */
-  uint8_t proxyuserlen;             /* Length of unauthenticated user */
-  uint32_t proxynasip;              /* Set by access request */
-  uint32_t proxynasport;            /* Set by access request */
-  uint8_t proxyhismac[DHCP_ETH_ALEN];    /* His MAC address */
-  uint8_t proxyourmac[DHCP_ETH_ALEN];    /* Our MAC address */
+
 
   /* Parameters for radius accounting */
   /* These parameters are set when an access accept is sent back to the
      NAS */
-  int authenticated;           /* 1 if user was authenticated */  
-  char user[USERNAMESIZE];     /* User: */
-  uint8_t userlen;             /* Length of user */
+
   uint32_t nasip;              /* Set by access request */
   uint32_t nasport;            /* Set by access request */
   uint8_t hismac[DHCP_ETH_ALEN];    /* His MAC address */
@@ -147,29 +102,8 @@ struct app_conn_t {
   struct in_addr mask;
   struct in_addr dns1;
   struct in_addr dns2;
-  
-  time_t start_time;
-  time_t interim_time;
-  uint64_t input_packets;
-  uint64_t output_packets;
-  uint64_t input_octets;
-  uint64_t output_octets;
-  uint32_t terminate_cause;
-  uint32_t session_id;
-#ifdef LEAKY_BUCKET
-  /* Leaky bucket */
-  uint64_t bucketup;
-  uint64_t bucketdown;
-  uint64_t bucketupsize;
-  uint64_t bucketdownsize;
-#endif
-  time_t last_time; /* Last time a packet was received or sent */
-  
+
   /* UAM information */
-  uint8_t uamchal[REDIR_MD5LEN];
-  int uamtime;
-  char userurl[USERURLSIZE];
-    
   char uamabort; /* should be bit options */
   char uamexit;
 };

@@ -6,11 +6,13 @@
 #define  CMDSOCK_LIST           2
 #define  CMDSOCK_SHOW           3
 #define  CMDSOCK_AUTHORIZE      4
+#define  CMDSOCK_OPT_JSON      (1)
 
 #include "session.h"
 
 struct cmdsock_request { 
   unsigned char type;
+  unsigned char options;
   union {
     unsigned char mac[DHCP_ETH_ALEN];
     struct cmdsock_session {

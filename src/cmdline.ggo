@@ -11,6 +11,7 @@
 # Jens Jakobsen <jj@chillispot.org>
 # 
 
+args "--no-handle-help --no-handle-version"
 
 option  "fg"            f "Run in foreground"             flag   off
 option  "debug"         d "Run in debug mode"             flag   off
@@ -24,8 +25,8 @@ option  "statedir"    - "Directory of nonvolatile data" string no
 
 # TUN parameters
 option "net"         n "Network"           string default="192.168.182.0/24" no
-option "dhcpstart"   - "Network DHCP Starting IP"      int default="10" no
-option "dhcpend"     - "Network DHCP Ending IP"        int default="254" no
+option "dhcpstart"   - "Network DHCP Starting IP"      int default="0" no
+option "dhcpend"     - "Network DHCP Ending IP"        int default="0" no
 option "dynip"       - "Dynamic IP address pool"       string no
 option "statip"      - "Static IP address pool"        string no
 option "dns1"        - "Primary DNS server IP address" string no

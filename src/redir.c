@@ -1,5 +1,4 @@
 /*
- *
  * HTTP redirection functions.
  * Copyright (C) 2004, 2005 Mondru AB.
  * Copyright (c) 2006-2007 David Bird <david@cova.com>
@@ -21,7 +20,6 @@
 #include "dhcp.h"
 #include "chilli.h"
 #include "options.h"
-#include "bstrlib.h"
 
 static int optionsdebug = 0; /* TODO: Should be changed to instance */
 
@@ -30,20 +28,20 @@ static int keep_going = 1;   /* OK as global variable for child process */
 static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
 
 char credits[] =
-"<H1>ChilliSpot " VERSION "</H1>"
+"<H1>CoovaChilli " VERSION "</H1>"
 "<p>Copyright 2002-2005 Mondru AB</p>"
-"<p>Copyright 2006-2007 <a href=\"http://coova.org/\">Coova Technologies Ltd</a></p>"
+"<p>Copyright 2006-2007 <a href=\"http://coova.org/\">Coova.org Members</a></p>"
 "ChilliSpot is an Open Source captive portal or wireless LAN access point "
-"controller developed by the community at "
-"<a href=\"http://coova.org\">coova.org</a> and "
-"<a href=\"http://www.chillispot.org\">www.chillispot.org</a>. It is licensed "
-"under the GPL.</p><p>ChilliSpot acknowledges all community members, "
+"controller developed by the community at <a href=\"http://coova.org\">coova.org</a> "
+"and <a href=\"http://www.chillispot.org\">www.chillispot.org</a>. It is licensed "
+"under the Gnu Public License (GPL).</p><p>ChilliSpot acknowledges all community members, "
 "especially those mentioned at "
 "<a href=\"http://www.chillispot.org/credits.html\">http://www.chillispot.org/credits.html</a>.";
 
 struct redir_socket{int fd[2];};
 static unsigned char redir_radius_id=0;
 static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst);
+extern time_t mainclock;
 
 /* Termination handler for clean shutdown */
 static void redir_termination(int signum) {
@@ -166,10 +164,7 @@ static int redir_urlencode(bstring src, bstring dst) {
 	('.' == src->data[n]) ||
 	('!' == src->data[n]) ||
 	('~' == src->data[n]) ||
-	('*' == src->data[n]) ||
-	('\'' == src->data[n]) ||
-	('(' == src->data[n]) ||
-	(')' == src->data[n])) {
+	('*' == src->data[n])) {
       bconchar(dst,src->data[n]);
     }
     else {
@@ -359,7 +354,7 @@ static int redir_xmlreply(struct redir_t *redir,
       bcatcstr(b, 
 	       "<AuthenticationPollReply>\r\n"
 	       "<MessageType>140</MessageType>\r\n");
-      if (conn->authenticated != 1) {
+      if (conn->state.authenticated != 1) {
 	bcatcstr(b, 
 		 "<ResponseCode>150</ResponseCode>\r\n"
 		 "<ReplyMessage>Not logged on</ReplyMessage>\r\n");
@@ -388,15 +383,15 @@ static int redir_xmlreply(struct redir_t *redir,
       bconcat(b, bt);
       break;
     case REDIR_STATUS:
-      if (conn->authenticated == 1) {
+      if (conn->state.authenticated == 1) {
         time_t timenow = time(0);
         uint32_t sessiontime;
 
-        sessiontime = timenow - conn->start_time;
+        sessiontime = timenow - conn->state.start_time;
 
         bcatcstr(b, "<State>1</State>\r\n");
 
-        bassignformat(bt, "<StartTime>%d</StartTime>\r\n" , conn->start_time);
+        bassignformat(bt, "<StartTime>%d</StartTime>\r\n" , conn->state.start_time);
 	bconcat(b, bt);
 
         bassignformat(bt, "<SessionTime>%d</SessionTime>\r\n", sessiontime);
@@ -410,10 +405,10 @@ static int redir_xmlreply(struct redir_t *redir,
         bassignformat(bt, "<Timeout>%d</Timeout>\r\n", conn->params.sessiontimeout);
 	bconcat(b, bt);
 
-        bassignformat(bt, "<InputOctets>%d</InputOctets>\r\n", conn->input_octets);
+        bassignformat(bt, "<InputOctets>%d</InputOctets>\r\n", conn->state.input_octets);
 	bconcat(b, bt);
 
-        bassignformat(bt, "<OutputOctets>%d</OutputOctets>\r\n", conn->output_octets);
+        bassignformat(bt, "<OutputOctets>%d</OutputOctets>\r\n", conn->state.output_octets);
 	bconcat(b, bt);
 	
         bassignformat(bt, "<MaxInputOctets>%d</MaxInputOctets>\r\n", conn->params.maxinputoctets);
@@ -492,7 +487,7 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
   }
   
   if (conn->type == REDIR_STATUS) {
-    int starttime = conn->start_time;
+    int starttime = conn->state.start_time;
     if (starttime) {
       int sessiontime;
       time_t timenow = time(0);
@@ -655,13 +650,12 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
 
   unsigned char flg = 0;
 #define FLG_cb     1
-#define FLG_acct   2
-#define FLG_chlg   4
-#define FLG_sess   8
-#define FLG_loc   16
-#define FLG_redir 32
+#define FLG_chlg   2
+#define FLG_sess   4
+#define FLG_loc    8
+#define FLG_redir 16
 
-  int auth = conn->authenticated;
+  int auth = conn->state.authenticated;
 
   redir_getparam(redir, qs, "callback", tmp);
 
@@ -673,20 +667,19 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   
   switch (res) {
   case REDIR_ALREADY:
-    flg |= FLG_acct;
+    flg |= FLG_sess;
     break;
   case REDIR_FAILED_REJECT:
   case REDIR_FAILED_OTHER:
     flg |= FLG_chlg;
     break;
   case REDIR_SUCCESS:
-    flg |= FLG_acct;
     flg |= FLG_sess;
     flg |= FLG_redir;
     auth = 1;
     break;
   case REDIR_LOGOFF:
-    flg |= FLG_acct | FLG_chlg;
+    flg |= FLG_sess | FLG_chlg;
     break;
   case REDIR_NOTYET:
     flg |= FLG_chlg;
@@ -700,8 +693,7 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   case REDIR_ABOUT:
     break;
   case REDIR_STATUS:
-    if (conn->authenticated == 1) {
-      flg |= FLG_acct;
+    if (auth) {
       flg |= FLG_sess;
     } else {
       flg |= FLG_chlg;
@@ -717,12 +709,6 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
 
   bassignformat(tmp, "%d", auth);
   bconcat(json, tmp);
-
-  if (auth == 1) {
-    bcatcstr(json,",\"sessionId\":\"");
-    bcatcstr(json,conn->sessionid);
-    bcatcstr(json,"\"");
-  }
 
   if (reply) {
     bcatcstr(json, ",\"message\":\"");
@@ -746,87 +732,12 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
     bcatcstr(json,"}");
   }
 
-  if (flg & FLG_redir) {
-    bcatcstr(json,",\"redir\":{\"originalURL\":\"");
-    bcatcstr(json, userurl?userurl:"");
-    bcatcstr(json,"\",\"redirectionURL\":\"");
-    bcatcstr(json, redirurl?redirurl:"");
-    bcatcstr(json,"\",\"macAddress\":\"");
-    if (hismac) {
-      char mac[REDIR_MACSTRLEN+2];
-      snprintf(mac, REDIR_MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	       hismac[0], hismac[1],
-	       hismac[2], hismac[3],
-	       hismac[4], hismac[5]);
-      bcatcstr(json, mac);
-    }
-    bcatcstr(json,"\"}");
-  }
+  if (flg & FLG_redir)
+    session_redir_json_fmt(json, userurl, redirurl, hismac);
 
-
-  if (flg & FLG_acct || flg & FLG_sess) {
-    time_t starttime = conn->start_time;
-    uint32_t inoctets = conn->input_octets;
-    uint32_t outoctets = conn->output_octets;
-    uint32_t ingigawords = (conn->input_octets >> 32);
-    uint32_t outgigawords = (conn->output_octets >> 32);
-    time_t timenow = time(0);
-    uint32_t sessiontime;
-    uint32_t idletime;
-
-    sessiontime = timenow - conn->start_time;
-    idletime    = timenow - conn->last_time;
-
-    switch (res) {
-    case REDIR_SUCCESS:
-      /* they haven't be set yet in conn */
-      starttime = time(0);
-      inoctets = outoctets = 0;
-      ingigawords = outgigawords = 0;
-      sessiontime=0; 
-      idletime=0;
-      break;
-    default:
-      {
-      }
-      break;
-    }
-
-    if (flg & FLG_sess) {
-      bcatcstr(json,",\"session\":{\"startTime\":");
-      bassignformat(tmp, "%ld", starttime);
-      bconcat(json, tmp);
-      bcatcstr(json,",\"sessionTimeout\":");
-      bassignformat(tmp, "%ld", conn->params.sessiontimeout);
-      bconcat(json, tmp);
-      bcatcstr(json,",\"idleTimeout\":");
-      bassignformat(tmp, "%ld", conn->params.idletimeout);
-      bconcat(json, tmp);
-      bcatcstr(json,"}");
-    }
-
-    if (flg & FLG_acct) {
-      bcatcstr(json,",\"accounting\":{\"sessionTime\":");
-      bassignformat(tmp, "%ld", sessiontime);
-      bconcat(json, tmp);
-      bcatcstr(json,",\"idleTime\":");
-      bassignformat(tmp, "%ld", idletime);
-      bconcat(json, tmp);
-      bcatcstr(json,",\"inputOctets\":");
-      bassignformat(tmp, "%ld", inoctets);
-      bconcat(json, tmp);
-      bcatcstr(json,",\"outputOctets\":");
-      bassignformat(tmp, "%ld", outoctets);
-      bconcat(json, tmp);
-      bcatcstr(json,",\"inputGigawords\":");
-      bassignformat(tmp, "%ld", ingigawords);
-      bconcat(json, tmp);
-      bcatcstr(json,",\"outputGigawords\":");
-      bassignformat(tmp, "%ld", outgigawords);
-      bconcat(json, tmp);
-      bcatcstr(json,"}");
-    }
-  }
+  if (flg & FLG_sess) 
+    session_json_fmt(&conn->state, &conn->params, 
+		     json, res == REDIR_SUCCESS);
 
   bcatcstr(json, "}");
 
@@ -894,7 +805,7 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
   case REDIR_ABOUT:
     break;
   case REDIR_STATUS:
-    resp = conn->authenticated == 1 ? "already" : "notyet";
+    resp = conn->state.authenticated == 1 ? "already" : "notyet";
     break;
   default:
     log_err(0, "Unknown res in switch");
@@ -1021,6 +932,7 @@ int redir_new(struct redir_t **redir,
       (*redir)->fd[n]=0;
       break;
     }
+
     while (bind((*redir)->fd[n], (struct sockaddr *)&address, sizeof(address))) {
       if ((EADDRINUSE == errno) && (10 > n++)) {
 	log_warn(0, "UAM port already in use. Waiting for retry.");
@@ -1037,6 +949,7 @@ int redir_new(struct redir_t **redir,
 	break;
       }
     }
+
     if (listen((*redir)->fd[n], REDIR_MAXLISTEN)) {
       log_err(errno, "listen() failed");
       close((*redir)->fd[n]);
@@ -1346,14 +1259,15 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	return -1;
       }
 
-      bstrtocstr(bt, conn->username, sizeof(conn->username));
+      bstrtocstr(bt, conn->state.redir.username, sizeof(conn->state.redir.username));
+      log_dbg("-->> Setting username=[%s]",conn->state.redir.username);
       
       if (!redir_getparam(redir, qs, "userurl", bt)) {
 	bstring bt2 = bfromcstr("");
 	redir_urldecode(bt, bt2);
-	bstrtocstr(bt2, conn->userurl, sizeof(conn->userurl));
+	bstrtocstr(bt2, conn->state.redir.userurl, sizeof(conn->state.redir.userurl));
 	if (optionsdebug) 
-	  log_dbg("-->> Setting userurl=[%s]",conn->userurl);
+	  log_dbg("-->> Setting userurl=[%s]",conn->state.redir.userurl);
 	bdestroy(bt2);
       }
       
@@ -1383,9 +1297,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       if (!redir_getparam(redir, qs, "userurl", bt)) {
 	bstring bt2 = bfromcstr("");
 	redir_urldecode(bt, bt2);
-	bstrtocstr(bt2, conn->userurl, sizeof(conn->userurl));
+	bstrtocstr(bt2, conn->state.redir.userurl, sizeof(conn->state.redir.userurl));
 	if (optionsdebug) 
-	  log_dbg("-->> Setting userurl=[%s]",conn->userurl);
+	  log_dbg("-->> Setting userurl=[%s]",conn->state.redir.userurl);
 	bdestroy(bt2);
       }
       bdestroy(bt);
@@ -1409,11 +1323,11 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
     {
       /* some basic checks for urls we don't care about */
       
-      snprintf(conn->userurl, sizeof(conn->userurl), "http://%s/%s%s%s", 
+      snprintf(conn->state.redir.userurl, sizeof(conn->state.redir.userurl), "http://%s/%s%s%s", 
 	       host, path, qs[0] ? "?" : "", qs[0] ? qs : "");
 
       if (optionsdebug) 
-	log_dbg("-->> Setting userurl=[%s]",conn->userurl);
+	log_dbg("-->> Setting userurl=[%s]",conn->state.redir.userurl);
     }
     break;
 
@@ -1470,11 +1384,11 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   
   /* Class */
   if (!radius_getattr(pack, &classattr, RADIUS_ATTR_CLASS, 0, 0, 0)) {
-    conn->classlen = classattr->l-2;
-    memcpy(conn->classbuf, classattr->v.t, classattr->l-2);
+    conn->state.redir.classlen = classattr->l-2;
+    memcpy(conn->state.redir.classbuf, classattr->v.t, classattr->l-2);
   }
   else {
-    conn->classlen = 0;
+    conn->state.redir.classlen = 0;
   }
 
   if (pack->code != RADIUS_CODE_ACCESS_ACCEPT) {
@@ -1487,14 +1401,13 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 
   /* State */
   if (!radius_getattr(pack, &stateattr, RADIUS_ATTR_STATE, 0, 0, 0)) {
-    conn->statelen = stateattr->l-2;
-    memcpy(conn->statebuf, stateattr->v.t, stateattr->l-2);
+    conn->state.redir.statelen = stateattr->l-2;
+    memcpy(conn->state.redir.statebuf, stateattr->v.t, stateattr->l-2);
   }
   else {
-    conn->statelen = 0;
+    conn->state.redir.statelen = 0;
   }
   
-
   if (conn->params.sessionterminatetime) {
     time_t timenow = time(0);
     if (timenow > conn->params.sessionterminatetime) {
@@ -1551,7 +1464,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 	    radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
-		 (uint8_t*) conn->username, strlen(conn->username));
+		 (uint8_t*) conn->state.redir.username, strlen(conn->state.redir.username));
 
   /* If lang on logon url, then send it with attribute ChilliSpot-Lang */
   if(conn->lang[0]) 
@@ -1562,18 +1475,18 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   if (options.radiusoriginalurl)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC, 
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_ORIGINALURL, 
-		   0, (uint8_t*) conn->userurl, strlen(conn->userurl));
+		   0, (uint8_t*) conn->state.redir.userurl, strlen(conn->state.redir.userurl));
 
   if (redir->secret && *redir->secret) {
     fprintf(stderr,"SECRET: [%s]\n",redir->secret);
     /* Get MD5 hash on challenge and uamsecret */
     MD5Init(&context);
-    MD5Update(&context, conn->uamchal, REDIR_MD5LEN);
+    MD5Update(&context, conn->state.redir.uamchal, REDIR_MD5LEN);
     MD5Update(&context, (uint8_t*) redir->secret, strlen(redir->secret));
     MD5Final(chap_challenge, &context);
   }
   else {
-    memcpy(chap_challenge, conn->uamchal, REDIR_MD5LEN);
+    memcpy(chap_challenge, conn->state.redir.uamchal, REDIR_MD5LEN);
   }
   
   if (conn->chap == 0) {
@@ -1619,12 +1532,12 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*) conn->sessionid, REDIR_SESSIONID_LEN-1);
+		 (uint8_t*) conn->state.sessionid, REDIR_SESSIONID_LEN-1);
 
-  if (conn->classlen) {
+  if (conn->state.redir.classlen) {
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
-		   conn->classbuf,
-		   conn->classlen);
+		   conn->state.redir.classbuf,
+		   conn->state.redir.classlen);
   }
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
@@ -1713,16 +1626,14 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   return 0;
 }
 
-int set_nonblocking(int fd)
-{
+int set_nonblocking(int fd) {
   int flags = fcntl(fd, F_GETFL);
   if (flags < 0) return -1;
   fcntl(fd, F_SETFL, flags | O_NONBLOCK);
   return 0;
 }
 
-int clear_nonblocking(int fd)
-{
+int clear_nonblocking(int fd) {
   int flags = fcntl(fd, F_GETFL);
   if (flags < 0) return -1;
   fcntl(fd, F_SETFL, flags & (~O_NONBLOCK));
@@ -1742,7 +1653,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 
   if (!options.localusers) return 0;
 
-  log_dbg("checking %s for user %s", options.localusers, conn->username);
+  log_dbg("checking %s for user %s", options.localusers, conn->state.redir.username);
 
   if (!(f = fopen(options.localusers, "r"))) {
     log_err(errno, "fopen() failed opening %s!", options.localusers);
@@ -1751,18 +1662,18 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 
   if (options.debug) {/*debug*/
     char buffer[64];
-    redir_chartohex(conn->uamchal, buffer);
+    redir_chartohex(conn->state.redir.uamchal, buffer);
     log_dbg("challenge: %s", buffer);
   }/**/
 
   if (redir->secret && *redir->secret) {
     MD5Init(&context);
-    MD5Update(&context, (uint8_t*)conn->uamchal, REDIR_MD5LEN);
+    MD5Update(&context, (uint8_t*)conn->state.redir.uamchal, REDIR_MD5LEN);
     MD5Update(&context, (uint8_t*)redir->secret, strlen(redir->secret));
     MD5Final(chap_challenge, &context);
   }
   else {
-    memcpy(chap_challenge, conn->uamchal, REDIR_MD5LEN);
+    memcpy(chap_challenge, conn->state.redir.uamchal, REDIR_MD5LEN);
   }
 
   if (options.debug) {/*debug*/
@@ -1782,7 +1693,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   
   user_password[REDIR_MD5LEN] = 0;
 	
-  log_dbg("looking for %s", conn->username);
+  log_dbg("looking for %s", conn->state.redir.username);
 
   line=(char*)malloc(sz);
   while ((len = getline(&line, &sz, f)) >= 0) {
@@ -1793,7 +1704,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
       while (*pl && *pl != ':' && *pl != '\n') *pp++ = *pl++;
       *pu = 0; *pp = 0;
 
-      if (!strcmp(conn->username, u)) {
+      if (!strcmp(conn->state.redir.username, u)) {
 
 	log_dbg("found %s, checking password", u);
 
@@ -1820,7 +1731,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
     }
   }
   
-  log_dbg("user %s %s", conn->username, match ? "found" : "not found");
+  log_dbg("user %s %s", conn->state.redir.username, match ? "found" : "not found");
 
   fclose(f);
   free(line);
@@ -1946,13 +1857,27 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     redir_challenge(challenge);
     (void)redir_chartohex(challenge, hexchal);
     msg.type = msg_type;
-    msg.addr = address->sin_addr;
-    memcpy(msg.uamchal, challenge, REDIR_MD5LEN);
+    memcpy(conn.state.redir.uamchal, challenge, REDIR_MD5LEN);
     if (options.debug) {
       log_dbg("---->>> resetting challenge: %s", hexchal);
     }
   }
 
+  void redir_msg_send(uint16_t opt) {
+    msg.opt = opt;
+    msg.addr = address->sin_addr;
+    memcpy(&msg.params, &conn.params, sizeof(msg.params));
+    memcpy(&msg.redir, &conn.state.redir, sizeof(msg.redir));
+    if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
+	       sizeof(struct redir_msg_t), 0) < 0) {
+      log_err(errno, "msgsnd() failed!");
+      redir_close();
+    }
+  }
+
+  /*
+   *  Initializations
+   */
   memset(&socket,0,sizeof(socket));
   memset(hexchal, 0, sizeof(hexchal));
   memset(qs, 0, sizeof(qs));
@@ -1986,11 +1911,24 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     log_err(errno, "setitimer() failed!");
   }
 
-  termstate = REDIR_TERM_GETREQ;
-
   if (optionsdebug) 
     log_dbg("Calling redir_getreq()\n");
 
+
+  /*
+   *  Fetch the state of the client
+   */
+
+  termstate = REDIR_TERM_GETSTATE;
+  if (!redir->cb_getstate) { log_err(0, "No cb_getstate() defined!"); redir_close(); }
+  state = redir->cb_getstate(redir, &address->sin_addr, &conn);
+
+
+  /*
+   *  Parse the request, updating the status
+   */
+
+  termstate = REDIR_TERM_GETREQ;
   if (redir_getreq(redir, &socket, &conn, &ispost, &clen, qs, sizeof(qs))) {
     log_dbg("Error calling get_req. Terminating\n");
     redir_close();
@@ -2118,18 +2056,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     redir_close();
   }
 
-
-  termstate = REDIR_TERM_GETSTATE;
-  /*log_dbg("Calling cb_getstate()\n");*/
-  if (!redir->cb_getstate) { log_err(0, "No cb_getstate() defined!"); redir_close(); }
-
-  state = redir->cb_getstate(redir, &address->sin_addr, &conn);
-
   termstate = REDIR_TERM_PROCESS;
   if (optionsdebug) log_dbg("Processing received request\n");
 
   /* default hexchal for use in replies */
-  redir_chartohex(conn.uamchal, hexchal);
+  redir_chartohex(conn.state.redir.uamchal, hexchal);
 
   switch (conn.type) {
 
@@ -2139,24 +2070,22 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     if (state == 1) {
       log_dbg("redir_accept: already logged on");
       redir_reply(redir, &socket, &conn, REDIR_ALREADY, NULL, 0, 
-		  NULL, NULL, conn.userurl, NULL,
+		  NULL, NULL, conn.state.redir.userurl, NULL,
 		  NULL, conn.hismac, &conn.hisip, qs);
       redir_close();
     }
 
     /* Did the challenge expire? */
-    if ((conn.uamtime + REDIR_CHALLENGETIMEOUT2) < time(NULL)) {
-      log_dbg("redir_accept: challenge expired: %d : %d", conn.uamtime, time(NULL));
+    if ((conn.state.uamtime + REDIR_CHALLENGETIMEOUT2) < time(NULL)) {
+      log_dbg("redir_accept: challenge expired: %d : %d", conn.state.uamtime, time(NULL));
+
       redir_memcopy(REDIR_CHALLENGE);      
-      if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
-		 sizeof(struct redir_msg_t), 0) < 0) {
-	log_err(errno, "msgsnd() failed!");
-	redir_close();
-      }
+      redir_msg_send(REDIR_MSG_OPT_REDIR);
 
       redir_reply(redir, &socket, &conn, REDIR_FAILED_OTHER, NULL, 
 		  0, hexchal, NULL, NULL, NULL, 
 		  NULL, conn.hismac, &conn.hisip, qs);
+
       redir_close();
     }
 
@@ -2183,92 +2112,63 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       conn.params.idletimeout = options.defidletimeout;
 
     if (conn.response == REDIR_SUCCESS) { /* Radius-Accept */
-      bstring besturl = bfromcstr(conn.params.url);
+      bstring besturl = bfromcstr((char*)conn.params.url);
       
+      msg.type = REDIR_LOGIN;
+
       if (! (besturl && besturl->slen)) 
-	bassigncstr(besturl, conn.userurl);
+	bassigncstr(besturl, conn.state.redir.userurl);
       
       if (redir->no_uamsuccess && besturl && besturl->slen)
 	redir_reply(redir, &socket, &conn, conn.response, besturl, conn.params.sessiontimeout,
-		    NULL, conn.username, conn.userurl, conn.reply,
-		    conn.params.url, conn.hismac, &conn.hisip, qs);
+		    NULL, conn.state.redir.username, conn.state.redir.userurl, conn.reply,
+		    (char *)conn.params.url, conn.hismac, &conn.hisip, qs);
       else 
 	redir_reply(redir, &socket, &conn, conn.response, NULL, conn.params.sessiontimeout,
-		    NULL, conn.username, conn.userurl, conn.reply, 
-		    conn.params.url, conn.hismac, &conn.hisip, qs);
+		    NULL, conn.state.redir.username, conn.state.redir.userurl, conn.reply, 
+		    (char *)conn.params.url, conn.hismac, &conn.hisip, qs);
       
       bdestroy(besturl);
-      
-      msg.type = REDIR_LOGIN;
-      strncpy(msg.username, conn.username, sizeof(msg.username));
-      msg.username[sizeof(msg.username)-1] = 0;
-      msg.statelen = conn.statelen;
-      memcpy(msg.statebuf, conn.statebuf, conn.statelen);
-      msg.classlen = conn.classlen;
-      memcpy(msg.classbuf, conn.classbuf, conn.classlen);
-      msg.addr = address->sin_addr;
-
-      memcpy(&msg.params, &conn.params, sizeof(msg.params));
-
-      if (conn.userurl && *conn.userurl) {
-	strncpy(msg.userurl, conn.userurl, sizeof(msg.userurl));
-	msg.userurl[sizeof(msg.userurl)-1] = 0;
-	if (optionsdebug) log_dbg("-->> Msg userurl=[%s]\n",conn.userurl);
-      }
-      
-      if (msgsnd(redir->msgid, (struct msgbuf*) &msg, sizeof(struct redir_msg_t), 0) < 0)
-	log_err(errno, "msgsnd() failed!");
     }
     else {
-      bstring besturl = bfromcstr(conn.params.url);
+      bstring besturl = bfromcstr((char *)conn.params.url);
       int hasnexturl = (besturl && besturl->slen > 5);
 
       if (!hasnexturl) {
 	redir_memcopy(REDIR_CHALLENGE);
       } else {
 	msg.type = REDIR_NOTYET;
-	msg.addr = address->sin_addr;
-	msg.classlen = conn.classlen;
-	memcpy(msg.classbuf, conn.classbuf, conn.classlen);
-	memcpy(&msg.params, &conn.params, sizeof(msg.params));
       }
 
-      if (msgsnd(redir->msgid, (struct msgbuf *)&msg, sizeof(struct redir_msg_t), 0) < 0) {
-	log_err(errno, "msgsnd() failed!");
-      } else {
-	redir_reply(redir, &socket, &conn, conn.response, 
-		    hasnexturl ? besturl : NULL, 
-		    0, hexchal, NULL, conn.userurl, conn.reply, 
-		    NULL, conn.hismac, &conn.hisip, qs);
-      }
-      
-      bdestroy(besturl);
+      redir_reply(redir, &socket, &conn, conn.response,
+		  hasnexturl ? besturl : NULL,
+		  0, hexchal, NULL, conn.state.redir.userurl, conn.reply,
+		  NULL, conn.hismac, &conn.hisip, qs);
     }    
+
+    if (optionsdebug) log_dbg("-->> Msg userurl=[%s]\n",conn.state.redir.userurl);
+    redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS);
     redir_close();
 
   case REDIR_LOGOUT:
     {
-      bstring besturl = bfromcstr(conn.params.url);
+      bstring besturl = bfromcstr((char *)conn.params.url);
 
       redir_memcopy(REDIR_LOGOUT); 
-      if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
-		 sizeof(struct redir_msg_t), 0) < 0) {
-	log_err(errno, "msgsnd() failed!");
-	redir_close();
-      }
+      redir_msg_send(REDIR_MSG_OPT_REDIR);
 
-      conn.authenticated=0;
+      conn.state.authenticated=0;
       
       if (! (besturl && besturl->slen)) 
-	bassigncstr(besturl, conn.userurl);
+	bassigncstr(besturl, conn.state.redir.userurl);
 
       if (redir->no_uamsuccess && besturl && besturl->slen)
 	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, besturl, 0, 
-		    hexchal, NULL, conn.userurl, NULL, 
+		    hexchal, NULL, conn.state.redir.userurl, NULL, 
 		    NULL, conn.hismac, &conn.hisip, qs);
       else 
 	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, NULL, 0, 
-		    hexchal, NULL, conn.userurl, NULL, 
+		    hexchal, NULL, conn.state.redir.userurl, NULL, 
 		    NULL, conn.hismac, &conn.hisip, qs);
       
       bdestroy(besturl);
@@ -2279,22 +2179,19 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   case REDIR_PRELOGIN:
 
     /* Did the challenge expire? */
-    if ((conn.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
+    if ((conn.state.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
       redir_memcopy(REDIR_CHALLENGE);
-      if (msgsnd(redir->msgid, (struct msgbuf*) &msg,  sizeof(msg), 0) < 0) {
-	log_err(errno, "msgsnd() failed!");
-	redir_close();
-      }
+      redir_msg_send(REDIR_MSG_OPT_REDIR);
     }
     
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ALREADY, 
-		  NULL, 0, NULL, NULL, conn.userurl, NULL,
+		  NULL, 0, NULL, NULL, conn.state.redir.userurl, NULL,
 		  NULL, conn.hismac, &conn.hisip, qs);
     }
     else {
       redir_reply(redir, &socket, &conn, REDIR_NOTYET, 
-		  NULL, 0, hexchal, NULL, conn.userurl, NULL, 
+		  NULL, 0, hexchal, NULL, conn.state.redir.userurl, NULL, 
 		  NULL, conn.hismac, &conn.hisip, qs);
     }
     redir_close();
@@ -2303,18 +2200,15 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ABORT_NAK, 
-		  NULL, 0, NULL, NULL, conn.userurl, NULL, 
+		  NULL, 0, NULL, NULL, conn.state.redir.userurl, NULL, 
 		  NULL, conn.hismac, &conn.hisip, qs);
     }
     else {
       redir_memcopy(REDIR_ABORT);
-      if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
-		 sizeof(struct redir_msg_t), 0) < 0) {
-	log_err(errno, "msgsnd() failed!");
-	redir_close();
-      }
+      redir_msg_send(0);
+
       redir_reply(redir, &socket, &conn, REDIR_ABORT_ACK, 
-		  NULL, 0, hexchal, NULL, conn.userurl, NULL, 
+		  NULL, 0, hexchal, NULL, conn.state.redir.userurl, NULL, 
 		  NULL, conn.hismac, &conn.hisip, qs);
     }
     redir_close();
@@ -2331,15 +2225,12 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       time_t timenow = time(0);
 
       /* Did the challenge expire? */
-      if ((conn.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
+      if ((conn.state.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
 	redir_memcopy(REDIR_CHALLENGE);
-	if (msgsnd(redir->msgid, (struct msgbuf*) &msg,  sizeof(msg), 0) < 0) {
-	  log_err(errno, "msgsnd() failed!");
-	  redir_close();
-	}
+	redir_msg_send(REDIR_MSG_OPT_REDIR);
       }
       
-      sessiontime = timenow - conn.start_time;
+      sessiontime = timenow - conn.state.start_time;
 
       if (conn.params.sessiontimeout)
 	timeleft = conn.params.sessiontimeout - sessiontime;
@@ -2347,8 +2238,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	timeleft = 0;
 
       redir_reply(redir, &socket, &conn, REDIR_STATUS, NULL, timeleft,
-		  hexchal, conn.username, conn.userurl, conn.reply, 
-		  conn.params.url, conn.hismac, &conn.hisip, qs);
+		  hexchal, conn.state.redir.username, conn.state.redir.userurl, conn.reply, 
+		  (char *)conn.params.url, conn.hismac, &conn.hisip, qs);
       
       redir_close();
     }
@@ -2365,29 +2256,16 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
 
   /* Did the challenge expire? */
-  if ((conn.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
+  if ((conn.state.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
     redir_memcopy(REDIR_CHALLENGE);
-    strncpy(msg.userurl, conn.userurl, sizeof(msg.userurl));
-    msg.userurl[sizeof(msg.userurl)-1] = 0;
-    if (optionsdebug) log_dbg("-->> Msg userurl=[%s]\n",msg.userurl);
-    if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
-	       sizeof(struct redir_msg_t), 0) < 0) {
-      log_err(errno, "msgsnd() failed!");
-      redir_close();
-    }
+    if (optionsdebug) log_dbg("-->> Msg userurl=[%s]\n",msg.redir.userurl);
+    redir_msg_send(REDIR_MSG_OPT_REDIR);
   }
   else {
-    redir_chartohex(conn.uamchal, hexchal);
+    redir_chartohex(conn.state.redir.uamchal, hexchal);
     /*
-    msg.type = REDIR_CHALLENGE;
-    msg.addr = address->sin_addr;
-    strncpy(msg.userurl, conn.userurl, sizeof(msg.userurl));
-    memcpy(msg.uamchal, conn.uamchal, REDIR_MD5LEN);
-    if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
-	       sizeof(struct redir_msg_t), 0) < 0) {
-      log_err(errno, "msgsnd() failed!");
-      redir_close();
-    }
+	redir_memcopy(REDIR_CHALLENGE);
+	redir_msg_send(REDIR_MSG_OPT_REDIR);
     */
   }
 
@@ -2396,7 +2274,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     bstring urlenc = bfromcstralloc(1024,"");
 
     if (redir_buildurl(&conn, url, redir, "notyet", 0, hexchal, NULL,
-		       conn.userurl, NULL, NULL, conn.hismac, &conn.hisip) == -1) {
+		       conn.state.redir.userurl, NULL, NULL, conn.hismac, &conn.hisip) == -1) {
       log_err(errno, "redir_buildurl failed!");
       redir_close();
     }
@@ -2408,20 +2286,20 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     bconcat(url, urlenc);
 
     redir_reply(redir, &socket, &conn, REDIR_NOTYET, url, 
-		0, hexchal, NULL, conn.userurl, NULL, 
+		0, hexchal, NULL, conn.state.redir.userurl, NULL, 
 		NULL, conn.hismac, &conn.hisip, qs);
   }
   else if (state == 1) {
     redir_reply(redir, &socket, &conn, REDIR_ALREADY, NULL, 0, 
-		NULL, NULL, conn.userurl, NULL,
+		NULL, NULL, conn.state.redir.userurl, NULL,
 		NULL, conn.hismac, &conn.hisip, qs);
   }
   else {
     redir_reply(redir, &socket, &conn, REDIR_NOTYET, NULL, 
-		0, hexchal, NULL, conn.userurl, NULL, 
+		0, hexchal, NULL, conn.state.redir.userurl, NULL, 
 		NULL, conn.hismac, &conn.hisip, qs);
   }
-
+  
   redir_close();
   return -1; /* never gets here */
 }

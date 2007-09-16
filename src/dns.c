@@ -18,6 +18,8 @@
 #define debug options.debug
 #define antidnstunnel options.dnsparanoia
 
+extern struct dhcp_t *dhcp;
+
 char *
 dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, int lvl) {
   char *d = data;
@@ -98,9 +100,9 @@ add_A_to_garden(uint8_t *p) {
   memset(&pt, 0, sizeof(pass_through));
   pt.mask.s_addr = 0xffffffff;
   pt.host = reqaddr;
-  if (pass_through_add(options.pass_throughs,
+  if (pass_through_add(dhcp->pass_throughs,
 		       MAX_PASS_THROUGHS,
-		       &options.num_pass_throughs,
+		       &dhcp->num_pass_throughs,
 		       &pt))
     ;
 }

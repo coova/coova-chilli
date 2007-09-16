@@ -57,31 +57,31 @@ int option_aton(struct in_addr *addr, struct in_addr *mask,
     break;
   case 5:
     if (m1 > 32) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Invalid mask");
+      log_err(0, "Invalid mask");
       return -1; /* Invalid mask */
     }
     mask->s_addr = htonl(0xffffffff << (32 - m1));
     break;
   case 8:
     if (m1 >= 256 ||  m2 >= 256 || m3 >= 256 || m4 >= 256) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Invalid mask");
+      log_err(0, "Invalid mask");
       return -1; /* Wrong mask format */
     }
     m = m1 * 0x1000000 + m2 * 0x10000 + m3 * 0x100 + m4;
     for (masklog = 0; ((1 << masklog) < ((~m)+1)); masklog++);
     if (((~m)+1) != (1 << masklog)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Invalid mask");
+      log_err(0, "Invalid mask");
       return -1; /* Wrong mask format (not all ones followed by all zeros)*/
     }
     mask->s_addr = htonl(m);
     break;
   default:
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Invalid mask");
+    log_err(0, "Invalid mask");
     return -1; /* Invalid mask */
   }
 
   if (a1 >= 256 ||  a2 >= 256 || a3 >= 256 || a4 >= 256) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Wrong IP address format");
+    log_err(0, "Wrong IP address format");
     return -1;
   }
   else
@@ -89,6 +89,40 @@ int option_aton(struct in_addr *addr, struct in_addr *mask,
 
   return 0;
 }
+
+static const char *description = 
+  "CoovaChilli - A Wireless LAN Access Point Controller.\n"
+  "  For more information on this project, visit: \n"
+  "  http://coova.org/wiki/index.php/CoovaChilli\n";
+
+static const char *copyright = 
+  "Copyright (c) 2003-2005 Mondru AB., 2006-2007 David Bird, and others.\n"
+  "Licensed under the Gnu Public License (GPL).\n";
+
+static const char *usage = \
+  "Usage: chilli [OPTIONS]...\n";
+
+extern const char *gengetopt_args_info_help[];
+
+static void
+options_print_version (void) {
+  printf ("%s %s\n", CMDLINE_PARSER_PACKAGE, CMDLINE_PARSER_VERSION);
+}
+
+static void
+options_print_help (void) {
+  int i = 0;
+  options_print_version();
+
+  printf("\n%s", description);
+  printf("\n%s\n", usage);
+
+  while (gengetopt_args_info_help[i])
+    printf("%s\n", gengetopt_args_info_help[i++]);
+
+  printf("\n%s\n", copyright);
+}
+
 
 /* Extract domain name and port from URL */
 int static get_namepart(char *src, char *host, int hostsize, int *port) {
@@ -112,8 +146,7 @@ int static get_namepart(char *src, char *host, int hostsize, int *port) {
   
   /* The host name must be initiated by "//" and terminated by /, :  or \0 */
   if (!(slashslash = strstr(src, "//"))) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "// not found in url: %s!", src);
+    log_err(0, "// not found in url: %s!", src);
     return -1;
   }
   slashslash+=2;
@@ -131,8 +164,7 @@ int static get_namepart(char *src, char *host, int hostsize, int *port) {
   else if (colon != NULL) {
     hostlen = colon - slashslash;
     if (1 != sscanf(colon+1, "%d", port)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	      "Not able to parse URL port: %s!", src);
+      log_err(0, "Not able to parse URL port: %s!", src);
       return -1;
     }
   }
@@ -141,8 +173,7 @@ int static get_namepart(char *src, char *host, int hostsize, int *port) {
   }
 
   if (hostlen > (hostsize-1)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "URL hostname larger than %d: %s!", hostsize-1, src);
+    log_err(0, "URL hostname larger than %d: %s!", hostsize-1, src);
     return -1;
   }
 
@@ -168,6 +199,16 @@ int process_options(int argc, char **argv, int minimal) {
   if (cmdline_parser(argc, argv, &args_info) != 0) {
     log_err(0, "Failed to parse command line options");
     goto end_processing;
+  }
+
+  if (args_info.version_given) {
+    options_print_version();
+    exit(0);
+  }
+
+  if (args_info.help_given) {
+    options_print_help();
+    exit(0);
   }
 
   if (cmdline_parser_configfile(args_info.conf_arg ? 
@@ -231,8 +272,7 @@ int process_options(int argc, char **argv, int minimal) {
   }
 
   if (!args_info.radiussecret_arg) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
-	    "radiussecret must be specified!");
+    log_err(0, "radiussecret must be specified!");
     goto end_processing;
   }
 
@@ -247,7 +287,7 @@ int process_options(int argc, char **argv, int minimal) {
     int	i;
 
     if ((macstrlen = strlen(args_info.dhcpmac_arg)) >= (RADIUS_ATTR_VLEN-1)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+      log_err(0,
 	      "MAC address too long");
       goto end_processing;
     }
@@ -262,7 +302,7 @@ int process_options(int argc, char **argv, int minimal) {
     if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x", 
 		&temp[0], &temp[1], &temp[2], 
 		&temp[3], &temp[4], &temp[5]) != 6) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, "MAC conversion failed!");
+      log_err(0, "MAC conversion failed!");
       return -1;
     }
     
@@ -293,13 +333,16 @@ int process_options(int argc, char **argv, int minimal) {
     }
   }
 
+  log_dbg("DHCP Listen: %s", inet_ntoa(options.dhcplisten));
+  log_dbg("UAM Listen: %s", inet_ntoa(options.uamlisten));
+
   if (!args_info.uamserver_arg && !minimal) {
     log_err(0, "WARNING: No uamserver defiend!");
   }
 
   if (args_info.uamserver_arg) {
     if (options.debug & DEBUG_CONF) {
-      printf ("Uamserver: %s\n", args_info.uamserver_arg);
+      log_dbg("Uamserver: %s\n", args_info.uamserver_arg);
     }
     memset(options.uamserver, 0, sizeof(options.uamserver));
     options.uamserverlen = 0;
@@ -310,7 +353,7 @@ int process_options(int argc, char **argv, int minimal) {
     }
   
     if (!(host = gethostbyname(hostname))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
+      log_err(0, 
 	      "Could not resolve IP address of uamserver: %s! [%s]", 
 	      args_info.uamserver_arg, strerror(errno));
       goto end_processing;
@@ -319,11 +362,11 @@ int process_options(int argc, char **argv, int minimal) {
       int j = 0;
       while (host->h_addr_list[j] != NULL) {
 	if (options.debug & DEBUG_CONF) {
-	  printf("Uamserver IP address #%d: %s\n", j,
+	  log_dbg("Uamserver IP address #%d: %s\n", j,
 		 inet_ntoa(*(struct in_addr*) host->h_addr_list[j]));
 	}
 	if (options.uamserverlen>=UAMSERVER_MAX) {
-	  sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+	  log_err(0,
 		  "Too many IPs in uamserver %s!",
 		  args_info.uamserver_arg);
 	  goto end_processing;
@@ -339,13 +382,13 @@ int process_options(int argc, char **argv, int minimal) {
   if (args_info.uamhomepage_arg) {
     if (get_namepart(args_info.uamhomepage_arg, hostname, USERURLSIZE, 
 		     &options.uamhomepageport)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+      log_err(0,
 	      "Failed to parse uamhomepage: %s!", args_info.uamhomepage_arg);
       goto end_processing;
     }
 
     if (!(host = gethostbyname(hostname))) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
+      log_err(0, 
 	      "Invalid uamhomepage: %s! [%s]", 
 	      args_info.uamhomepage_arg, strerror(errno));
       goto end_processing;
@@ -354,7 +397,7 @@ int process_options(int argc, char **argv, int minimal) {
       int j = 0;
       while (host->h_addr_list[j] != NULL) {
 	if (options.uamserverlen>=UAMSERVER_MAX) {
-	  sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+	  log_err(0,
 		  "Too many IPs in uamhomepage %s!",
 		  args_info.uamhomepage_arg);
 	  goto end_processing;
@@ -364,16 +407,6 @@ int process_options(int argc, char **argv, int minimal) {
 	    *((struct in_addr*) host->h_addr_list[j++]);
 	}
       }
-    }
-  }
-
-  if (!reconfiguring) {
-    if (!args_info.uamlisten_arg) {
-      options.uamlisten.s_addr = htonl(ntohl(options.net.s_addr)+1);
-    }
-    else if (!inet_aton(args_info.uamlisten_arg, &options.uamlisten)) {
-      log_err(0, "Invalid UAM IP address: %s!", args_info.uamlisten_arg);
-      goto end_processing;
     }
   }
 
@@ -416,7 +449,7 @@ int process_options(int argc, char **argv, int minimal) {
       struct in_addr mask;
       options.dynip = STRDUP(args_info.dynip_arg);
       if (option_aton(&addr, &mask, options.dynip, 0)) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+	log_err(0,
 		"Failed to parse dynamic IP address pool!");
 	goto end_processing;
       }
@@ -428,7 +461,7 @@ int process_options(int argc, char **argv, int minimal) {
       struct in_addr mask;
       options.statip = STRDUP(args_info.statip_arg);
       if (option_aton(&addr, &mask, options.statip, 0)) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+	log_err(0,
 		"Failed to parse static IP address pool!");
 	return -1;
       }
@@ -441,7 +474,7 @@ int process_options(int argc, char **argv, int minimal) {
 
   if (args_info.dns1_arg) {
     if (!inet_aton(args_info.dns1_arg, &options.dns1)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+      log_err(0,
 	      "Invalid primary DNS address: %s!", 
 	      args_info.dns1_arg);
       goto end_processing;
@@ -456,7 +489,7 @@ int process_options(int argc, char **argv, int minimal) {
 
   if (args_info.dns2_arg) {
     if (!inet_aton(args_info.dns2_arg, &options.dns2)) {
-      sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+      log_err(0,
 	      "Invalid secondary DNS address: %s!", 
 	      args_info.dns1_arg);
       goto end_processing;
@@ -521,7 +554,7 @@ int process_options(int argc, char **argv, int minimal) {
     }
   }
   else {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+    log_err(0,
 	    "No radiusserver1 address given!");
     goto end_processing;
   }
@@ -548,7 +581,7 @@ int process_options(int argc, char **argv, int minimal) {
   if (!reconfiguring) {
     if (args_info.proxylisten_arg) {
       if (!(host = gethostbyname(args_info.proxylisten_arg))) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
+	log_err(0, 
 		"Invalid listening address: %s! [%s]", 
 		args_info.proxylisten_arg, strerror(errno));
 	goto end_processing;
@@ -565,7 +598,7 @@ int process_options(int argc, char **argv, int minimal) {
     if (args_info.proxyclient_arg) {
       if(option_aton(&options.proxyaddr, &options.proxymask, 
 		     args_info.proxyclient_arg, 0)) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+	log_err(0,
 		"Invalid proxy client address: %s!", args_info.proxyclient_arg);
 	goto end_processing;
       }
@@ -581,7 +614,7 @@ int process_options(int argc, char **argv, int minimal) {
   options.macoklen = 0;
   for (numargs = 0; numargs < args_info.macallowed_given; ++numargs) {
     if (options.debug & DEBUG_CONF) {
-      printf ("Macallowed #%d: %s\n", numargs, 
+      log_dbg("Macallowed #%d: %s\n", numargs, 
 	      args_info.macallowed_arg[numargs]);
     }
     char *p1 = NULL;
@@ -595,7 +628,7 @@ int process_options(int argc, char **argv, int minimal) {
     }
     while (p1) {
       if (options.macoklen>=MACOK_MAX) {
-	sys_err(LOG_ERR, __FILE__, __LINE__, 0,
+	log_err(0,
 		"Too many addresses in macallowed %s!",
 		args_info.macallowed_arg);
       }
@@ -611,12 +644,11 @@ int process_options(int argc, char **argv, int minimal) {
 		    &options.macok[options.macoklen][3], 
 		    &options.macok[options.macoklen][4], 
 		    &options.macok[options.macoklen][5]) != 6) {
-	  sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-		  "Failed to convert macallowed option to MAC Address");
+	  log_err(0, "Failed to convert macallowed option to MAC Address");
 	}
 	else {
 	  if (options.debug & DEBUG_CONF) {
-	    printf("Macallowed address #%d: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X\n", 
+	    log_dbg("Macallowed address #%d: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X\n", 
 		   options.macoklen,
 		   options.macok[options.macoklen][0],
 		   options.macok[options.macoklen][1],

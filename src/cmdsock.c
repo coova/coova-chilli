@@ -18,7 +18,6 @@
 #include "options.h"
 #include "cmdsock.h"
 
-
 int
 cmdsock_init() {
   struct sockaddr_un local;

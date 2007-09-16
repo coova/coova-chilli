@@ -10,10 +10,10 @@
 #   Local Network Configurations
 # 
 
-HS_WANIF=eth0              # WAN Interface toward the Internet
+# HS_WANIF=eth0            # WAN Interface toward the Internet
 HS_LANIF=eth1		   # Subscriber Interface for client devices
 HS_NETWORK=10.1.0.0	   # HotSpot Network (must include HS_UAMLISTEN)
-HS_NETMASK=255.255.0.0	   # HotSpot Network Netmask
+HS_NETMASK=255.255.255.0   # HotSpot Network Netmask
 HS_UAMLISTEN=10.1.0.1	   # HotSpot IP Address (on subscriber network)
 HS_UAMPORT=3990		   # HotSpot Port (on subscriber network)
 
@@ -35,7 +35,7 @@ HS_RADIUS=rad01.coova.org
 HS_RADIUS2=rad01.coova.org
 HS_RADSECRET=coova-anonymous
 
-HS_UAMALLOWED=coova.org
+HS_UAMALLOW=coova.org
 
 #   Put entire domains in the walled-garden with DNS inspection
 HS_UAMDOMAINS=".paypal.com,.paypalobjects.com"

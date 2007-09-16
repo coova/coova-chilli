@@ -76,9 +76,9 @@ static void sighup_handler(int signum) {
 
 
 static void set_sessionid(struct app_conn_t *appconn) {
-  snprintf(appconn->sessionid, sizeof(appconn->sessionid), "%.8x%.8x",
-	   (int) mainclock, appconn->unit);
-  appconn->classlen = 0;
+  snprintf(appconn->state.sessionid, sizeof(appconn->state.sessionid), 
+	   "%.8x%.8x", (int) mainclock, appconn->unit);
+  appconn->state.redir.classlen = 0;
 }
 
 /* Used to write process ID to file. Assume someone else will delete */
@@ -104,48 +104,48 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
   int result = 0;
 
  
-  timediff = timenow - conn->last_time;
+  timediff = timenow - conn->state.last_time;
 
   /*  if (options.debug) log_dbg("Leaky bucket timediff: %lld, bucketup: %d, bucketdown: %d %d %d\n", 
-			    timediff, conn->bucketup, conn->bucketdown, 
+			    timediff, conn->state.bucketup, conn->state.bucketdown, 
 			    octetsup, octetsdown);*/
 
   if (conn->params.bandwidthmaxup) {
     /* Subtract what the leak since last time we visited */
-    if (conn->bucketup > ((timediff * conn->params.bandwidthmaxup)/8)) {
-      conn->bucketup -= (timediff * conn->params.bandwidthmaxup) / 8;
+    if (conn->state.bucketup > ((timediff * conn->params.bandwidthmaxup)/8)) {
+      conn->state.bucketup -= (timediff * conn->params.bandwidthmaxup) / 8;
     }
     else {
-      conn->bucketup = 0;
+      conn->state.bucketup = 0;
     }
     
-    if ((conn->bucketup + octetsup) > conn->bucketupsize) {
+    if ((conn->state.bucketup + octetsup) > conn->state.bucketupsize) {
       /*if (options.debug) log_dbg("Leaky bucket deleting uplink packet\n");*/
       result = -1;
     }
     else {
-      conn->bucketup += octetsup;
+      conn->state.bucketup += octetsup;
     }
   }
 
   if (conn->params.bandwidthmaxdown) {
-    if (conn->bucketdown > ((timediff * conn->params.bandwidthmaxdown)/8)) {
-      conn->bucketdown -= (timediff * conn->params.bandwidthmaxdown) / 8;
+    if (conn->state.bucketdown > ((timediff * conn->params.bandwidthmaxdown)/8)) {
+      conn->state.bucketdown -= (timediff * conn->params.bandwidthmaxdown) / 8;
     }
     else {
-      conn->bucketdown = 0;
+      conn->state.bucketdown = 0;
     }
     
-    if ((conn->bucketdown + octetsdown) > conn->bucketdownsize) {
+    if ((conn->state.bucketdown + octetsdown) > conn->state.bucketdownsize) {
       /*if (options.debug) log_dbg("Leaky bucket deleting downlink packet\n");*/
       result = -1;
     }
     else {
-      conn->bucketdown += octetsdown;
+      conn->state.bucketdown += octetsdown;
     }
   }
 
-  conn->last_time = timenow;
+  conn->state.last_time = timenow;
     
   return result;
 }
@@ -246,20 +246,20 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("NET", VAL_IN_ADDR, &appconn->net, 0);
   set_env("MASK", VAL_IN_ADDR, &appconn->mask, 0);
   set_env("ADDR", VAL_IN_ADDR, &appconn->ourip, 0);
-  set_env("USER_NAME", VAL_STRING, appconn->proxyuser, 0);
+  set_env("USER_NAME", VAL_STRING, appconn->state.redir.username, 0);
   set_env("NAS_IP_ADDRESS", VAL_IN_ADDR,&options.radiuslisten, 0);
   set_env("SERVICE_TYPE", VAL_STRING, "1", 0);
   set_env("FRAMED_IP_ADDRESS", VAL_IN_ADDR, &appconn->hisip, 0);
   set_env("FILTER_ID", VAL_STRING, appconn->params.filteridbuf, 0);
-  set_env("STATE", VAL_STRING, appconn->statebuf, appconn->statelen);
-  set_env("CLASS", VAL_STRING, appconn->classbuf, appconn->classlen);
+  set_env("STATE", VAL_STRING, appconn->state.redir.statebuf, appconn->state.redir.statelen);
+  set_env("CLASS", VAL_STRING, appconn->state.redir.classbuf, appconn->state.redir.classlen);
   set_env("SESSION_TIMEOUT", VAL_ULONG64, &appconn->params.sessiontimeout, 0);
   set_env("IDLE_TIMEOUT", VAL_ULONG, &appconn->params.idletimeout, 0);
   set_env("CALLING_STATION_ID", VAL_MAC_ADDR, appconn->hismac, 0);
   set_env("CALLED_STATION_ID", VAL_MAC_ADDR, appconn->ourmac, 0);
   set_env("NAS_ID", VAL_STRING, options.radiusnasid, 0);
   set_env("NAS_PORT_TYPE", VAL_STRING, "19", 0);
-  set_env("ACCT_SESSION_ID", VAL_STRING, appconn->sessionid, 0);
+  set_env("ACCT_SESSION_ID", VAL_STRING, appconn->state.sessionid, 0);
   set_env("ACCT_INTERIM_INTERVAL", VAL_USHORT, &appconn->params.interim_interval, 0);
   set_env("WISPR_LOCATION_ID", VAL_STRING, options.radiuslocationid, 0);
   set_env("WISPR_LOCATION_NAME", VAL_STRING, options.radiuslocationname, 0);
@@ -307,8 +307,7 @@ int static initconn()
   return 0;
 }
 
-int static newconn(struct app_conn_t **conn)
-{
+int static newconn(struct app_conn_t **conn) {
   int n;
   if (!firstfreeconn) {
     if (connections == APP_NUM_CONN) {
@@ -323,6 +322,7 @@ int static newconn(struct app_conn_t **conn)
   } else {
     *conn = firstfreeconn;
     n = (*conn)->unit;
+
     /* Remove from link of free */
     if (firstfreeconn->next) {
       firstfreeconn->next->prev = NULL;
@@ -354,8 +354,9 @@ int static newconn(struct app_conn_t **conn)
   return 0; /* Success */
 }
 
-int static freeconn(struct app_conn_t *conn)
-{
+int static freeconn(struct app_conn_t *conn) {
+  int n = conn->unit;
+
   /* Remove from link of used */
   if ((conn->next) && (conn->prev)) {
     conn->next->prev = conn->prev;
@@ -376,6 +377,7 @@ int static freeconn(struct app_conn_t *conn)
   
   /* Initialise structures */
   memset(conn, 0, sizeof(*conn));
+  conn->unit = n;
   
   /* Insert into link of free */
   if (firstfreeconn) {
@@ -391,8 +393,7 @@ int static freeconn(struct app_conn_t *conn)
   return 0;
 }
 
-int static getconn(struct app_conn_t **conn, uint32_t nasip, uint32_t nasport) 
-{
+int static getconn(struct app_conn_t **conn, uint32_t nasip, uint32_t nasport) {
   struct app_conn_t *appconn;
   
   /* Count the number of used connections */
@@ -407,11 +408,12 @@ int static getconn(struct app_conn_t **conn, uint32_t nasip, uint32_t nasport)
     }
     appconn = appconn->next;
   }
+
   return -1; /* Not found */
 }
 
 int static dnprot_terminate(struct app_conn_t *appconn) {
-  appconn->authenticated = 0;
+  appconn->state.authenticated = 0;
   printstatus(appconn);
   switch (appconn->dnprot) {
   case DNPROT_WPA:
@@ -453,9 +455,9 @@ void session_interval(struct app_conn_t *conn) {
   uint32_t idletime;
   uint32_t interimtime;
 
-  sessiontime = timenow - conn->start_time;
-  idletime    = timenow - conn->last_time;
-  interimtime = timenow - conn->interim_time;
+  sessiontime = timenow - conn->state.start_time;
+  idletime    = timenow - conn->state.last_time;
+  interimtime = timenow - conn->state.interim_time;
   
   if ((conn->params.sessiontimeout) &&
       (sessiontime > conn->params.sessiontimeout)) {
@@ -470,15 +472,15 @@ void session_interval(struct app_conn_t *conn) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_IDLE_TIMEOUT);
   }
   else if ((conn->params.maxinputoctets) &&
-	   (conn->input_octets > conn->params.maxinputoctets)) {
+	   (conn->state.input_octets > conn->params.maxinputoctets)) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->params.maxoutputoctets) &&
-	   (conn->output_octets > conn->params.maxoutputoctets)) {
+	   (conn->state.output_octets > conn->params.maxoutputoctets)) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->params.maxtotaloctets) &&
-	   ((conn->input_octets + conn->output_octets) > 
+	   ((conn->state.input_octets + conn->state.output_octets) > 
 	    conn->params.maxtotaloctets)) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
@@ -503,12 +505,12 @@ int static checkconn()
 
   checktime = timenow;
   
-  if (admin_session.authenticated) {
+  if (admin_session.state.authenticated) {
     session_interval(&admin_session);
   }
 
   for (conn = firstusedconn; conn; conn=conn->next) {
-    if ((conn->inuse != 0) && (conn->authenticated == 1)) {
+    if ((conn->inuse != 0) && (conn->state.authenticated == 1)) {
       if (!(dhcpconn = (struct dhcp_conn_t*) conn->dnlink)) {
 	log_err(0, "No downlink protocol");
 	return -1;
@@ -536,7 +538,7 @@ int static killconn()
   struct dhcp_conn_t* dhcpconn;
 
   for (conn = firstusedconn; conn; conn=conn->next) {
-    if ((conn->inuse != 0) && (conn->authenticated == 1)) {
+    if ((conn->inuse != 0) && (conn->state.authenticated == 1)) {
       if (!(dhcpconn = (struct dhcp_conn_t*) conn->dnlink)) {
 	log_err(0, "No downlink protocol");
 	return -1;
@@ -545,8 +547,8 @@ int static killconn()
     }
   }
 
-  if (admin_session.authenticated) {
-    admin_session.terminate_cause = RADIUS_TERMINATE_CAUSE_NAS_REBOOT;
+  if (admin_session.state.authenticated) {
+    admin_session.state.terminate_cause = RADIUS_TERMINATE_CAUSE_NAS_REBOOT;
     acct_req(&admin_session, RADIUS_STATUS_TYPE_STOP);
   }
 
@@ -582,62 +584,61 @@ int static macauth_radius(struct app_conn_t *appconn) {
 	   dhcpconn->hismac[2], dhcpconn->hismac[3],
 	   dhcpconn->hismac[4], dhcpconn->hismac[5]);
 
-  strncpy(appconn->proxyuser, mac, USERNAMESIZE);
-  appconn->proxyuser[USERNAMESIZE-1] = 0;
-  if (options.macsuffix) {
-    strncat(appconn->proxyuser, options.macsuffix, USERNAMESIZE);
-    appconn->proxyuser[USERNAMESIZE-1] = 0;
-  }
-  appconn->proxyuserlen = strlen(appconn->proxyuser);
+  strncpy(appconn->state.redir.username, mac, USERNAMESIZE);
 
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
-			(uint8_t*) appconn->proxyuser, appconn->proxyuserlen);
+  if (options.macsuffix)
+    strncat(appconn->state.redir.username, options.macsuffix, USERNAMESIZE);
 
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-			(uint8_t*) (options.macpasswd ? options.macpasswd : appconn->proxyuser), 
-			options.macpasswd ? strlen(options.macpasswd) : appconn->proxyuserlen);
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
+		 (uint8_t*) appconn->state.redir.username, 
+		 strlen(appconn->state.redir.username));
+  
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
+		 (uint8_t*) (options.macpasswd ? options.macpasswd : appconn->state.redir.username), 
+		 options.macpasswd ? strlen(options.macpasswd) : strlen(appconn->state.redir.username));
   
   appconn->authtype = PAP_PASSWORD;
-
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
+  
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
 		 (uint8_t*) mac, MACSTRLEN);
   
   radius_addcalledstation(radius, &radius_pack);
 
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
 		 appconn->unit, NULL, 0);
 
   radius_addnasip(radius, &radius_pack);
 
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
 		 RADIUS_SERVICE_TYPE_LOGIN, NULL, 0); /* WISPr_V1.0 */
   
   /* Include NAS-Identifier if given in configuration options */
   if (options.radiusnasid)
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
 		   (uint8_t*) options.radiusnasid, strlen(options.radiusnasid));
 
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*) appconn->sessionid, REDIR_SESSIONID_LEN-1);
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
+		 (uint8_t*) appconn->state.sessionid, REDIR_SESSIONID_LEN-1);
 
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-			options.radiusnasporttype, NULL, 0);
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
+		 options.radiusnasporttype, NULL, 0);
 
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
-		 0, 0, 0, NULL, RADIUS_MD5LEN);
 
   if (options.radiuslocationid)
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_ID, 0,
 		   (uint8_t*) options.radiuslocationid, 
 		   strlen(options.radiuslocationid));
 
   if (options.radiuslocationname)
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
 		   (uint8_t*) options.radiuslocationname, 
 		   strlen(options.radiuslocationname));
   
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+		 0, 0, 0, NULL, RADIUS_MD5LEN);
+
   return radius_req(radius, &radius_pack, appconn);
 }
 
@@ -681,6 +682,7 @@ int static radius_access_challenge(struct app_conn_t *conn) {
       eaplen = RADIUS_ATTR_VLEN;
     else
       eaplen = conn->challen - offset;
+
     if (radius_addattr(radius, &radius_pack, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
 		       conn->chal + offset, eaplen)) {
       log_err(0, "radius_default_pack() failed");
@@ -689,17 +691,16 @@ int static radius_access_challenge(struct app_conn_t *conn) {
     offset += eaplen;
   } while (offset < conn->challen);
   
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
-		 0, 0, 0, NULL, RADIUS_MD5LEN);
-  
-  if (conn->statelen) {
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_STATE, 0, 0, 0,
-		   conn->statebuf,
-		   conn->statelen);
+  if (conn->state.redir.statelen) {
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_STATE, 0, 0, 0,
+		   conn->state.redir.statebuf,
+		   conn->state.redir.statelen);
   }
   
-  (void) radius_resp(radius, &radius_pack, &conn->radiuspeer, conn->authenticator);
-
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+		 0, 0, 0, NULL, RADIUS_MD5LEN);
+  
+  radius_resp(radius, &radius_pack, &conn->radiuspeer, conn->authenticator);
   return 0;
 }
 
@@ -732,20 +733,15 @@ int static radius_access_accept(struct app_conn_t *conn) {
     offset += eaplen;
   }
 
-  /* Message Authenticator */
-  if (conn->challen)
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
-			  0, 0, 0, NULL, RADIUS_MD5LEN);
-
   if (conn->sendkey) {
     radius_keyencode(radius, mppekey, RADIUS_ATTR_VLEN,
 		     &mppelen, conn->sendkey,
 		     conn->sendlen, conn->authenticator,
 		     radius->proxysecret, radius->proxysecretlen);
 
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-			  RADIUS_VENDOR_MS, RADIUS_ATTR_MS_MPPE_SEND_KEY, 0,
-			  (uint8_t *) mppekey, mppelen);
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_MS, RADIUS_ATTR_MS_MPPE_SEND_KEY, 0,
+		   (uint8_t *) mppekey, mppelen);
   }
 
   if (conn->recvkey) {
@@ -754,12 +750,15 @@ int static radius_access_accept(struct app_conn_t *conn) {
 		     conn->recvlen, conn->authenticator,
 		     radius->proxysecret, radius->proxysecretlen);
     
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-			  RADIUS_VENDOR_MS, RADIUS_ATTR_MS_MPPE_RECV_KEY, 0,
-			  (uint8_t *)mppekey, mppelen);
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_MS, RADIUS_ATTR_MS_MPPE_RECV_KEY, 0,
+		   (uint8_t *)mppekey, mppelen);
   }
   
-  (void) radius_resp(radius, &radius_pack, &conn->radiuspeer, conn->authenticator);
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+		 0, 0, 0, NULL, RADIUS_MD5LEN);
+
+  radius_resp(radius, &radius_pack, &conn->radiuspeer, conn->authenticator);
   return 0;
 }
 
@@ -780,17 +779,17 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
   time_t timediff;
 
   if (RADIUS_STATUS_TYPE_START == status_type) {
-    conn->start_time = mainclock;
-    conn->interim_time = conn->start_time;
-    conn->last_time = conn->start_time;
-    conn->input_packets = 0;
-    conn->output_packets = 0;
-    conn->input_octets = 0;
-    conn->output_octets = 0;
+    conn->state.start_time = mainclock;
+    conn->state.interim_time = mainclock;
+    conn->state.last_time = mainclock;
+    conn->state.input_packets = 0;
+    conn->state.output_packets = 0;
+    conn->state.input_octets = 0;
+    conn->state.output_octets = 0;
   }
 
   if (RADIUS_STATUS_TYPE_INTERIM_UPDATE == status_type) {
-    conn->interim_time = mainclock;
+    conn->state.interim_time = mainclock;
   }
 
   if (radius_default_pack(radius, &radius_pack, 
@@ -806,12 +805,13 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
       RADIUS_STATUS_TYPE_ACCOUNTING_OFF != status_type) {
 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
-		   (uint8_t*) conn->user, conn->userlen);
+		   (uint8_t*) conn->state.redir.username, 
+		   strlen(conn->state.redir.username));
     
-    if (conn->classlen) {
+    if (conn->state.redir.classlen) {
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
-		     conn->classbuf,
-		     conn->classlen);
+		     conn->state.redir.classbuf,
+		     conn->state.redir.classlen);
     }
 
     if (conn->is_adminsession) {
@@ -842,7 +842,7 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
     }
     
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		   (uint8_t*) conn->sessionid, REDIR_SESSIONID_LEN-1);
+		   (uint8_t*) conn->state.sessionid, REDIR_SESSIONID_LEN-1);
     
   }
 
@@ -865,22 +865,22 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
       (status_type == RADIUS_STATUS_TYPE_INTERIM_UPDATE)) {
 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_OCTETS, 0, 0,
-		   (uint32_t) conn->input_octets, NULL, 0);
+		   (uint32_t) conn->state.input_octets, NULL, 0);
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_OCTETS, 0, 0,
-		   (uint32_t) conn->output_octets, NULL, 0);
+		   (uint32_t) conn->state.output_octets, NULL, 0);
 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_GIGAWORDS, 
-		   0, 0, (uint32_t) (conn->input_octets >> 32), NULL, 0);
+		   0, 0, (uint32_t) (conn->state.input_octets >> 32), NULL, 0);
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_GIGAWORDS, 
-		   0, 0, (uint32_t) (conn->output_octets >> 32), NULL, 0);
+		   0, 0, (uint32_t) (conn->state.output_octets >> 32), NULL, 0);
 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_INPUT_PACKETS, 0, 0,
-		   conn->input_packets, NULL, 0);
+		   conn->state.input_packets, NULL, 0);
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_PACKETS, 0, 0,
-		   conn->output_packets, NULL, 0);
+		   conn->state.output_packets, NULL, 0);
 
     timenow = mainclock;
-    timediff = timenow - conn->start_time;
+    timediff = timenow - conn->state.start_time;
 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_TIME, 0, 0,
 		   timediff, NULL, 0);  
@@ -903,7 +903,7 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
       status_type == RADIUS_STATUS_TYPE_ACCOUNTING_OFF) {
 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_TERMINATE_CAUSE, 
-		   0, 0, conn->terminate_cause, NULL, 0);
+		   0, 0, conn->state.terminate_cause, NULL, 0);
 
     if (status_type == RADIUS_STATUS_TYPE_STOP) {
       /* TODO: This probably belongs somewhere else */
@@ -966,8 +966,8 @@ int static dnprot_reject(struct app_conn_t *appconn) {
 
     appconn->hisip.s_addr = ipm->addr.s_addr;
     
-    /* TODO: Listening address is network address plus 1 */
-    appconn->ourip.s_addr = htonl((ntohl(options.net.s_addr)+1));
+    /* TODO: Too many "listen" and "our" addresses having around */
+    appconn->ourip.s_addr = options.dhcplisten.s_addr;
     
     appconn->uplink =  ipm;
     ipm->peer = appconn;
@@ -1038,14 +1038,6 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     /* This is the one and only place eapol authentication is accepted */
     dhcpconn->authstate = DHCP_AUTH_PASS;
 
-    /* Initialise parameters for accounting */
-    appconn->userlen = appconn->proxyuserlen; 
-    memcpy(appconn->user, appconn->proxyuser, appconn->userlen);
-    appconn->nasip = appconn->proxynasip; 
-    appconn->nasport = appconn->proxynasport; 
-    memcpy(appconn->hismac, appconn->proxyhismac, DHCP_ETH_ALEN);
-    memcpy(appconn->ourmac, appconn->proxyourmac, DHCP_ETH_ALEN);
-
     /* Tell client it was successful */
     (void) dhcp_sendEAP(dhcpconn, appconn->chal, appconn->challen);
 
@@ -1066,14 +1058,6 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     /* This is the one and only place UAM authentication is accepted */
     dhcpconn->authstate = DHCP_AUTH_PASS;
     appconn->params.require_uam_auth = 0;
-
-    /* Initialise parameters for accounting */
-    appconn->userlen = appconn->proxyuserlen; 
-    memcpy(appconn->user, appconn->proxyuser, appconn->userlen);
-    appconn->nasip = appconn->proxynasip; 
-    appconn->nasport = appconn->proxynasport; 
-    memcpy(appconn->hismac, appconn->proxyhismac, DHCP_ETH_ALEN);
-    memcpy(appconn->ourmac, appconn->proxyourmac, DHCP_ETH_ALEN);
     break;
 
   case DNPROT_WPA:
@@ -1095,15 +1079,6 @@ int static dnprot_accept(struct app_conn_t *appconn) {
       dhcpconn->authstate = DHCP_AUTH_PASS;
     }
     
-
-    /* Initialise parameters for accounting */
-    appconn->userlen = appconn->proxyuserlen; 
-    memcpy(appconn->user, appconn->proxyuser, appconn->userlen);
-    appconn->nasip = appconn->proxynasip; 
-    appconn->nasport = appconn->proxynasport; 
-    memcpy(appconn->hismac, appconn->proxyhismac, DHCP_ETH_ALEN);
-    memcpy(appconn->ourmac, appconn->proxyourmac, DHCP_ETH_ALEN);
-
     /* Tell access point it was successful */
     radius_access_accept(appconn);
 
@@ -1122,15 +1097,6 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     /* This is the one and only place MAC authentication is accepted */
     dhcpconn->authstate = DHCP_AUTH_PASS;
     appconn->params.require_uam_auth = 0;
-    
-    /* Initialise parameters for accounting */
-    appconn->userlen = appconn->proxyuserlen; 
-    memcpy(appconn->user, appconn->proxyuser, appconn->userlen);
-    appconn->nasip = appconn->proxynasip; 
-    appconn->nasport = appconn->proxynasport; 
-    memcpy(appconn->hismac, appconn->proxyhismac, DHCP_ETH_ALEN);
-    memcpy(appconn->ourmac, appconn->proxyourmac, DHCP_ETH_ALEN);
-
     break;
 
   default:
@@ -1140,7 +1106,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 
   if (!appconn->params.require_uam_auth) {
     /* This is the one and only place state is switched to authenticated */
-    appconn->authenticated = 1;
+    appconn->state.authenticated = 1;
     
     /* Run connection up script */
     if (options.conup) {
@@ -1265,10 +1231,10 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len) {
   if ( ! (iph->src  == options.uamlisten.s_addr && 
 	  (iph->psrc == htons(options.uamport) ||
 	   iph->psrc == htons(options.uamuiport)))) {
-    if (appconn->authenticated == 1) {
+    if (appconn->state.authenticated == 1) {
 
 #ifndef LEAKY_BUCKET
-      appconn->last_time = mainclock;
+      appconn->state.last_time = mainclock;
 #endif
 
 #ifdef LEAKY_BUCKET
@@ -1277,18 +1243,18 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len) {
 #endif
 #endif
     if (options.swapoctets) {
-      appconn->output_packets++;
-      appconn->output_octets += len;
-      if (admin_session.authenticated) {
-	admin_session.output_packets++;
-	admin_session.output_octets+=len;
+      appconn->state.output_packets++;
+      appconn->state.output_octets += len;
+      if (admin_session.state.authenticated) {
+	admin_session.state.output_packets++;
+	admin_session.state.output_octets+=len;
       }
     } else {
-      appconn->input_packets++;
-      appconn->input_octets += len;
-      if (admin_session.authenticated) {
-	admin_session.input_packets++;
-	admin_session.input_octets+=len;
+      appconn->state.input_packets++;
+      appconn->state.input_octets += len;
+      if (admin_session.state.authenticated) {
+	admin_session.state.input_packets++;
+	admin_session.state.input_octets+=len;
       }
     }
 #ifdef LEAKY_BUCKET
@@ -1338,42 +1304,19 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
   appconn = (struct app_conn_t*) ipm->peer;
   dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
   
-  conn->authenticated = appconn->authenticated;
-  memcpy(conn->uamchal, appconn->uamchal, REDIR_MD5LEN);
-  conn->uamtime = appconn->uamtime;
   conn->nasip = options.radiuslisten;
   conn->nasport = appconn->unit;
   memcpy(conn->hismac, dhcpconn->hismac, DHCP_ETH_ALEN);
   memcpy(conn->ourmac, dhcpconn->ourmac, DHCP_ETH_ALEN);
-  memcpy(conn->sessionid, appconn->sessionid, REDIR_SESSIONID_LEN);
-  memcpy(conn->classbuf, appconn->classbuf, sizeof(conn->classbuf));
-  conn->classlen = appconn->classlen;
   conn->ourip = appconn->ourip;
   conn->hisip = appconn->hisip;
 
   memcpy(&conn->params, &appconn->params, sizeof(appconn->params));
-
-  if (appconn->uamexit || 
-      ((!conn->userurl || !*conn->userurl) && 
-       (appconn->userurl && *appconn->userurl))) 
-  {
-    strncpy(conn->userurl, appconn->userurl, REDIR_MAXCHAR);
-    conn->userurl[REDIR_MAXCHAR-1] = 0;
-  }   
+  memcpy(&conn->state,  &appconn->state,  sizeof(appconn->state));
 
   /* reset state */
   appconn->uamexit=0;
-
-  /* Stuff needed for status */
-  conn->input_octets    = appconn->input_octets;
-  conn->output_octets   = appconn->output_octets;
-  conn->start_time      = appconn->start_time;
-  conn->last_time       = appconn->last_time;
- 
-  if (appconn->authenticated == 1)
-    return 1;
-  else 
-    return 0;
+  return conn->state.authenticated == 1;
 }
 
 
@@ -1443,9 +1386,7 @@ int accounting_request(struct radius_packet_t *pack,
   /* Calling Station ID (MAC Address) */
   if (!radius_getattr(pack, &hismacattr, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0)) {
     if (options.debug) {
-      log_dbg("Calling Station ID is: ");
-      for (n=0; n<hismacattr->l-2; n++) log_dbg("%c", hismacattr->v.t[n]);
-      log_dbg("\n");
+      log_dbg("Calling Station ID is: %.*s", hismacattr->l-2, hismacattr->v.t);
     }
     if ((macstrlen = hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
       log_err(0, "Wrong length of called station ID");
@@ -1564,18 +1505,20 @@ int access_request(struct radius_packet_t *pack,
   struct dhcp_conn_t *dhcpconn = NULL;
 
   uint8_t resp[EAP_LEN];         /* EAP response */
-  size_t resplen;                   /* Length of EAP response */
+  size_t resplen;                /* Length of EAP response */
 
   size_t offset = 0;
   size_t eaplen = 0;
   int instance = 0;
 
-  if (options.debug) log_dbg("Radius access request received!\n");
+  if (options.debug) 
+    log_dbg("RADIUS Access-Request received");
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REJECT)) {
     log_err(0, "radius_default_pack() failed");
     return -1;
   }
+
   radius_pack.id = pack->id;
 
   /* User is identified by either IP address OR MAC address */
@@ -1597,9 +1540,7 @@ int access_request(struct radius_packet_t *pack,
   /* Calling Station ID: MAC Address (Conditional) */
   if (!radius_getattr(pack, &hismacattr, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0)) {
     if (options.debug) {
-      log_dbg("Calling Station ID is: ");
-      for (n=0; n<hismacattr->l-2; n++) log_dbg("%c", hismacattr->v.t[n]);
-      log_dbg("\n");
+      log_dbg("Calling Station ID is: %.*s", hismacattr->l-2, hismacattr->v.t);
     }
     if ((macstrlen = hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
       log_err(0, "Wrong length of called station ID");
@@ -1730,9 +1671,9 @@ int access_request(struct radius_packet_t *pack,
   */
 
   /* Terminate previous session if trying to login with another username */
-  if ((appconn->authenticated == 1) && 
-      ((appconn->userlen != uidattr->l-2) ||
-       (memcmp(appconn->user, uidattr->v.t, uidattr->l-2)))) {
+  if ((appconn->state.authenticated == 1) && 
+      ((strlen(appconn->state.redir.username) != uidattr->l-2) ||
+       (memcmp(appconn->state.redir.username, uidattr->v.t, uidattr->l-2)))) {
     terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
     /* DWB: But, let's not reject someone who is trying to authenticate under
        a new (potentially) valid account - that is for the up-stream RADIUS to discern
@@ -1751,7 +1692,7 @@ int access_request(struct radius_packet_t *pack,
       log_err(0, "Wrong length of NAS IP address");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
-    appconn->proxynasip = nasipattr->v.i;
+    appconn->nasip = nasipattr->v.i;
   }
 
   /* NAS PORT */
@@ -1760,13 +1701,13 @@ int access_request(struct radius_packet_t *pack,
       log_err(0, "Wrong length of NAS port");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
-    appconn->proxynasport = nasportattr->v.i;
+    appconn->nasport = nasportattr->v.i;
   }
 
   /* Store parameters for later use */
   if (uidattr->l-2<=USERNAMESIZE) {
-    memcpy(appconn->proxyuser, uidattr->v.t, uidattr->l-2);
-    appconn->proxyuserlen = uidattr->l-2;
+    strncpy(appconn->state.redir.username, 
+	    (char *)uidattr->v.t, uidattr->l-2);
   }
 
   appconn->radiuswait = 1;
@@ -1779,22 +1720,22 @@ int access_request(struct radius_packet_t *pack,
 
   memcpy(&appconn->radiuspeer, peer, sizeof(*peer));
   memcpy(appconn->authenticator, pack->authenticator, RADIUS_AUTHLEN);
-  memcpy(appconn->proxyhismac, dhcpconn->hismac, DHCP_ETH_ALEN);
-  memcpy(appconn->proxyourmac, dhcpconn->ourmac, DHCP_ETH_ALEN);
+  memcpy(appconn->hismac, dhcpconn->hismac, DHCP_ETH_ALEN);
+  memcpy(appconn->ourmac, dhcpconn->ourmac, DHCP_ETH_ALEN);
 
   /* Build up radius request */
   radius_pack.code = RADIUS_CODE_ACCESS_REQUEST;
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
 		 uidattr->v.t, uidattr->l - 2);
 
-  if (appconn->statelen) {
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_STATE, 0, 0, 0,
-		   appconn->statebuf,
-		   appconn->statelen);
+  if (appconn->state.redir.statelen) {
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_STATE, 0, 0, 0,
+		   appconn->state.redir.statebuf,
+		   appconn->state.redir.statelen);
   }
 
   if (pwdattr)
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
 		   (uint8_t*) pwd, pwdlen);
 
   /* Include EAP (if present) */
@@ -1824,9 +1765,9 @@ int access_request(struct radius_packet_t *pack,
 
   /* Include his MAC address */
   (void) snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	   appconn->proxyhismac[0], appconn->proxyhismac[1],
-	   appconn->proxyhismac[2], appconn->proxyhismac[3],
-	   appconn->proxyhismac[4], appconn->proxyhismac[5]);
+	   appconn->hismac[0], appconn->hismac[1],
+	   appconn->hismac[2], appconn->hismac[3],
+	   appconn->hismac[4], appconn->hismac[5]);
   
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
 		 (uint8_t*) mac, MACSTRLEN);
@@ -1908,8 +1849,8 @@ int upprot_getip(struct app_conn_t *appconn,
 
     appconn->hisip.s_addr = ipm->addr.s_addr;
 
-    /* TODO: Listening address is network address plus 1 */
-    appconn->ourip.s_addr = htonl((ntohl(options.net.s_addr)+1));
+    /* TODO: Too many "listen" and "our" addresses having around */
+    appconn->ourip.s_addr = options.dhcplisten.s_addr;
     
     appconn->uplink = ipm;
     ipm->peer   = appconn; 
@@ -2154,8 +2095,8 @@ static int chilliauth_cb(struct radius_t *radius,
     printf("%s\n", value);
   }
 
-  if (!admin_session.authenticated) {
-    admin_session.authenticated = 1;
+  if (!admin_session.state.authenticated) {
+    admin_session.state.authenticated = 1;
     acct_req(&admin_session, RADIUS_STATUS_TYPE_START);
   }
 
@@ -2211,7 +2152,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
   }
 
   /* Initialise */
-  appconn->statelen = 0;
+  appconn->state.redir.statelen = 0;
   appconn->challen  = 0;
   appconn->sendlen  = 0;
   appconn->recvlen  = 0;
@@ -2240,14 +2181,12 @@ int cb_radius_auth_conf(struct radius_t *radius,
     appconn->challen = 0;
     do {
       eapattr=NULL;
-      if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
-			  instance++)) {
+      if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, instance++)) {
 	if ((appconn->challen + eapattr->l-2) > EAP_LEN) {
 	  log(LOG_INFO, "EAP message too long");
 	  return dnprot_reject(appconn);
 	}
-	memcpy(appconn->chal+appconn->challen, 
-	       eapattr->v.t, eapattr->l-2);
+	memcpy(appconn->chal+appconn->challen, eapattr->v.t, eapattr->l-2);
 	appconn->challen += eapattr->l-2;
       }
     } while (eapattr);
@@ -2259,8 +2198,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
     
     /* Get State */
     if (!radius_getattr(pack, &stateattr, RADIUS_ATTR_STATE, 0, 0, 0)) {
-      appconn->statelen = stateattr->l-2;
-      memcpy(appconn->statebuf, stateattr->v.t, stateattr->l-2);
+      appconn->state.redir.statelen = stateattr->l-2;
+      memcpy(appconn->state.redir.statebuf, stateattr->v.t, stateattr->l-2);
     }
 
     return dnprot_challenge(appconn);
@@ -2274,17 +2213,17 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   /* Get State */
   if (!radius_getattr(pack, &stateattr, RADIUS_ATTR_STATE, 0, 0, 0)) {
-    appconn->statelen = stateattr->l-2;
-    memcpy(appconn->statebuf, stateattr->v.t, stateattr->l-2);
+    appconn->state.redir.statelen = stateattr->l-2;
+    memcpy(appconn->state.redir.statebuf, stateattr->v.t, stateattr->l-2);
   }
 
   /* Class */
   if (!radius_getattr(pack, &classattr, RADIUS_ATTR_CLASS, 0, 0, 0)) {
-    appconn->classlen = classattr->l-2;
-    memcpy(appconn->classbuf, classattr->v.t, classattr->l-2);
+    appconn->state.redir.classlen = classattr->l-2;
+    memcpy(appconn->state.redir.classbuf, classattr->v.t, classattr->l-2);
   }
   else {
-    appconn->classlen = 0;
+    appconn->state.redir.classlen = 0;
   }
 
   /* Framed IP address (Optional) */
@@ -2313,11 +2252,11 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #ifdef LEAKY_BUCKET
   if (appconn->params.bandwidthmaxup) {
 #ifdef BUCKET_SIZE
-    appconn->bucketupsize = BUCKET_SIZE;
+    appconn->state.bucketupsize = BUCKET_SIZE;
 #else
-    appconn->bucketupsize = appconn->bandwidthmaxup / 8000 * BUCKET_TIME;
-    if (appconn->bucketupsize < BUCKET_SIZE_MIN) 
-      appconn->bucketupsize = BUCKET_SIZE_MIN;
+    appconn->state.bucketupsize = appconn->bandwidthmaxup / 8000 * BUCKET_TIME;
+    if (appconn->state.bucketupsize < BUCKET_SIZE_MIN) 
+      appconn->state.bucketupsize = BUCKET_SIZE_MIN;
 #endif
   }
 #endif
@@ -2325,11 +2264,11 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #ifdef LEAKY_BUCKET
   if (appconn->params.bandwidthmaxdown) {
 #ifdef BUCKET_SIZE
-    appconn->bucketdownsize = BUCKET_SIZE;
+    appconn->state.bucketdownsize = BUCKET_SIZE;
 #else
-    appconn->bucketdownsize = params->bandwidthmaxdown / 8000 * BUCKET_TIME;
-    if (appconn->bucketdownsize < BUCKET_SIZE_MIN) 
-      appconn->bucketdownsize = BUCKET_SIZE_MIN;
+    appconn->state.bucketdownsize = params->bandwidthmaxdown / 8000 * BUCKET_TIME;
+    if (appconn->state.bucketdownsize < BUCKET_SIZE_MIN) 
+      appconn->state.bucketdownsize = BUCKET_SIZE_MIN;
 #endif
   }
 #endif
@@ -2511,12 +2450,12 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
   for (appconn = firstusedconn; appconn; appconn = appconn->next) {
     if (!appconn->inuse) { log_err(0, "Connection with inuse == 0!"); }
 
-    if ((appconn->authenticated) && 
-	(appconn->userlen == uattr->l-2 && 
-	 !memcmp(appconn->user, uattr->v.t, uattr->l-2)) &&
+    if ((appconn->state.authenticated) && 
+	(strlen(appconn->state.redir.username) == uattr->l-2 && 
+	 !memcmp(appconn->state.redir.username, uattr->v.t, uattr->l-2)) &&
 	(!sattr || 
-	 (strlen(appconn->sessionid) == sattr->l-2 && 
-	  !strncasecmp(appconn->sessionid, (char*)sattr->v.t, sattr->l-2)))) {
+	 (strlen(appconn->state.sessionid) == sattr->l-2 && 
+	  !strncasecmp(appconn->state.sessionid, (char*)sattr->v.t, sattr->l-2)))) {
 
       if (options.debug)
 	log_dbg("Found session\n");
@@ -2621,8 +2560,8 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
 	conn->hismac[4], conn->hismac[5], 
 	inet_ntoa(appconn->hisip));
 
-    /* TODO: Listening address is network address plus 1 */
-    appconn->ourip.s_addr = htonl((ntohl(options.net.s_addr)+1));
+    /* TODO: Too many "listen" and "our" addresses having around */
+    appconn->ourip.s_addr = options.dhcplisten.s_addr;
     
     appconn->uplink =  ipm;
     ipm->peer   = appconn; 
@@ -2679,8 +2618,6 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
 
   memcpy(appconn->hismac, conn->hismac, DHCP_ETH_ALEN);
   memcpy(appconn->ourmac, conn->ourmac, DHCP_ETH_ALEN);
-  memcpy(appconn->proxyhismac, conn->hismac, DHCP_ETH_ALEN);
-  memcpy(appconn->proxyourmac, conn->ourmac, DHCP_ETH_ALEN);
   
   set_sessionid(appconn);
 
@@ -2689,38 +2626,50 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
   return 0;
 }
 
-int cb_dhcp_getinfo(struct dhcp_conn_t *conn, char *b, size_t blen) {
+int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
   time_t timenow = mainclock;
   struct app_conn_t *appconn;
   uint32_t sessiontime = 0;
   uint32_t idletime = 0;
 
-  b[0]='-'; b[1]=0; 
   if (!conn->peer) return 2;
   appconn = (struct app_conn_t*) conn->peer;
   if (!appconn->inuse) return 2;
 
-  if (appconn->authenticated) {
-    sessiontime = timenow - appconn->start_time;
-    idletime    = timenow - appconn->last_time;
+  if (appconn->state.authenticated) {
+    sessiontime = timenow - appconn->state.start_time;
+    idletime    = timenow - appconn->state.last_time;
   }
-  
-   return snprintf(b, blen, "%.*s %d %.*s %d/%d %d/%d %.*s", 
-		   appconn->sessionid[0] ? strlen(appconn->sessionid) : 1,
-		   appconn->sessionid[0] ? appconn->sessionid : "-",
-		   appconn->authenticated,
-		   appconn->userlen ? appconn->userlen : 1,
-		   appconn->userlen ? appconn->user : "-",
-		   sessiontime, (int)appconn->params.sessiontimeout,
-		   idletime, (int)appconn->params.idletimeout,
-		   appconn->userurl[0] ? strlen(appconn->userurl) : 1,
-		   appconn->userurl[0] ? appconn->userurl : "-");
+
+  switch(fmt) {
+  case LIST_JSON_FMT:
+    if (appconn->state.authenticated)
+      session_json_fmt(&appconn->state, &appconn->params, b, 0);
+    break;
+  default:
+    {
+      bstring tmp = bfromcstr("");
+      bassignformat(tmp, " %.*s %d %.*s %d/%d %d/%d %.*s", 
+		    appconn->state.sessionid[0] ? strlen(appconn->state.sessionid) : 1,
+		    appconn->state.sessionid[0] ? appconn->state.sessionid : "-",
+		    appconn->state.authenticated,
+		    appconn->state.redir.username[0] ? strlen(appconn->state.redir.username) : 1,
+		    appconn->state.redir.username[0] ? appconn->state.redir.username : "-",
+		    sessiontime, (int)appconn->params.sessiontimeout,
+		    idletime, (int)appconn->params.idletimeout,
+		    appconn->state.redir.userurl[0] ? strlen(appconn->state.redir.userurl) : 1,
+		    appconn->state.redir.userurl[0] ? appconn->state.redir.userurl : "-");
+      bconcat(b, tmp);
+      bdestroy(tmp);
+    }
+  }
+  return 0;
 }
 
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
-  if (appconn->authenticated == 1) { /* Only send accounting if logged in */
+  if (appconn->state.authenticated == 1) { /* Only send accounting if logged in */
     dnprot_terminate(appconn);
-    appconn->terminate_cause = terminate_cause;
+    appconn->state.terminate_cause = terminate_cause;
     acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
     set_sessionid(appconn);
   }
@@ -2768,7 +2717,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
     }
   }
   
-  (void) freeconn(appconn);
+  freeconn(appconn);
 
   return 0;
 }
@@ -2801,10 +2750,10 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
        iph->pdst == htons(options.uamuiport)))
     return tun_encaps(tun, pack, len);
   
-  if (appconn->authenticated == 1) {
+  if (appconn->state.authenticated == 1) {
 
 #ifndef LEAKY_BUCKET
-    appconn->last_time = mainclock;
+    appconn->state.last_time = mainclock;
 #endif
 
 #ifdef LEAKY_BUCKET
@@ -2813,18 +2762,18 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
 #endif
 #endif
     if (options.swapoctets) {
-      appconn->input_packets++;
-      appconn->input_octets +=len;
-      if (admin_session.authenticated) {
-	admin_session.input_packets++;
-	admin_session.input_octets+=len;
+      appconn->state.input_packets++;
+      appconn->state.input_octets +=len;
+      if (admin_session.state.authenticated) {
+	admin_session.state.input_packets++;
+	admin_session.state.input_octets+=len;
       }
     } else {
-      appconn->output_packets++;
-      appconn->output_octets +=len;
-      if (admin_session.authenticated) {
-	admin_session.output_packets++;
-	admin_session.output_octets+=len;
+      appconn->state.output_packets++;
+      appconn->state.output_octets +=len;
+      if (admin_session.state.authenticated) {
+	admin_session.state.output_packets++;
+	admin_session.state.output_octets+=len;
       }
     }
 #ifdef LEAKY_BUCKET
@@ -2853,8 +2802,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
 	(eap->type == 1) && /* Identity */
 	(len > 5) &&        /* Must be at least 5 octets */
 	((len - 5) <= USERNAMESIZE )) {
-      appconn->proxyuserlen = len -5;
-      memcpy(appconn->proxyuser, eap->payload, appconn->proxyuserlen); 
+      memcpy(appconn->state.redir.username, eap->payload, len - 5); 
       appconn->dnprot = DNPROT_EAPOL;
       appconn->authtype = EAP_MESSAGE;
     }
@@ -2875,39 +2823,42 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
     return -1;
   }
 
-
   /* Build up radius request */
   radius_pack.code = RADIUS_CODE_ACCESS_REQUEST;
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
-			(uint8_t*) appconn->proxyuser, appconn->proxyuserlen);
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
+			(uint8_t*) appconn->state.redir.username, 
+			strlen(appconn->state.redir.username));
 
-  if (appconn->statelen) {
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_STATE, 0, 0, 0,
-		   appconn->statebuf,
-		   appconn->statelen);
+  if (appconn->state.redir.statelen) {
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_STATE, 0, 0, 0,
+		   appconn->state.redir.statebuf,
+		   appconn->state.redir.statelen);
   }
   
   /* Include EAP (if present) */
   offset = 0;
   while (offset < len) {
     size_t eaplen;
+
     if ((len - offset) > RADIUS_ATTR_VLEN)
       eaplen = RADIUS_ATTR_VLEN;
     else
       eaplen = len - offset;
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
+
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
 		   pack + offset, eaplen);
+
     offset += eaplen;
   } 
   
   if (len)
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		   0, 0, 0, NULL, RADIUS_MD5LEN);
   
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
 		 options.radiusnasporttype, NULL, 0);
   
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
 		 appconn->unit, NULL, 0);
   
   radius_addnasip(radius, &radius_pack);
@@ -2948,100 +2899,78 @@ int static uam_msg(struct redir_msg_t *msg) {
   appconn = (struct app_conn_t*) ipm->peer;
   dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
 
+  if (msg->opt & REDIR_MSG_OPT_REDIR)
+    memcpy(&appconn->state.redir, &msg->redir, sizeof(msg->redir));
+
+  if (msg->opt & REDIR_MSG_OPT_PARAMS)
+    memcpy(&appconn->params, &msg->params, sizeof(msg->params));
+
   switch(msg->type) {
 
   case REDIR_LOGIN:
     if (appconn->uamabort) {
-      sys_err(LOG_NOTICE, __FILE__, __LINE__, 0,
-	      "UAM login from username=%s IP=%s was aborted!", 
-	      msg->username, inet_ntoa(appconn->hisip));
+      log_info("UAM login from username=%s IP=%s was aborted!", 
+	       msg->redir.username, inet_ntoa(appconn->hisip));
       appconn->uamabort = 0;
       return 0;
     }
 
-    sys_err(LOG_NOTICE, __FILE__, __LINE__, 0,
-	    "Successful UAM login from username=%s IP=%s", 
-	    msg->username, inet_ntoa(appconn->hisip));
+    log_info("Successful UAM login from username=%s IP=%s", 
+	     msg->redir.username, inet_ntoa(appconn->hisip));
     
     if (options.debug)
       log_dbg("Received login from UAM\n");
     
     /* Initialise */
-    appconn->statelen = 0;
+    appconn->state.redir.statelen = 0;
     appconn->challen  = 0;
     appconn->sendlen  = 0;
     appconn->recvlen  = 0;
     appconn->lmntlen  = 0;
     
-    /* Store user name for accounting records */
-    strncpy(appconn->user, msg->username, USERNAMESIZE);
-    appconn->userlen = strlen(msg->username);
-
-    strncpy(appconn->proxyuser, msg->username, USERNAMESIZE);
-    appconn->proxyuserlen = strlen(msg->username);
-
     memcpy(appconn->hismac, dhcpconn->hismac, DHCP_ETH_ALEN);
     memcpy(appconn->ourmac, dhcpconn->ourmac, DHCP_ETH_ALEN);
-    memcpy(appconn->proxyhismac, dhcpconn->hismac, DHCP_ETH_ALEN);
-    memcpy(appconn->proxyourmac, dhcpconn->ourmac, DHCP_ETH_ALEN);
     
     appconn->policy = 0; /* TODO */
 
-    appconn->statelen = msg->statelen;
-    memcpy(appconn->statebuf, msg->statebuf, msg->statelen);
-    appconn->classlen = msg->classlen;
-    memcpy(appconn->classbuf, msg->classbuf, msg->classlen);
-
-    memcpy(&appconn->params, &msg->params, sizeof(msg->params));
-
 #ifdef LEAKY_BUCKET
 #ifdef BUCKET_SIZE
-    appconn->bucketupsize = BUCKET_SIZE;
+    appconn->state.bucketupsize = BUCKET_SIZE;
 #else
-    appconn->bucketupsize = appconn->bandwidthmaxup / 8000 * BUCKET_TIME;
-    if (appconn->bucketupsize < BUCKET_SIZE_MIN) 
-      appconn->bucketupsize = BUCKET_SIZE_MIN;
+    appconn->state.bucketupsize = appconn->state.bandwidthmaxup / 8000 * BUCKET_TIME;
+    if (appconn->state.bucketupsize < BUCKET_SIZE_MIN) 
+      appconn->state.bucketupsize = BUCKET_SIZE_MIN;
 #endif
 #endif
 
 #ifdef LEAKY_BUCKET
 #ifdef BUCKET_SIZE
-    appconn->bucketdownsize = BUCKET_SIZE;
+    appconn->state.bucketdownsize = BUCKET_SIZE;
 #else
-    appconn->bucketdownsize = appconn->bandwidthmaxdown / 8000 * BUCKET_TIME;
-    if (appconn->bucketdownsize < BUCKET_SIZE_MIN) 
-      appconn->bucketdownsize = BUCKET_SIZE_MIN;
+    appconn->state.bucketdownsize = appconn->state.bandwidthmaxdown / 8000 * BUCKET_TIME;
+    if (appconn->state.bucketdownsize < BUCKET_SIZE_MIN) 
+      appconn->state.bucketdownsize = BUCKET_SIZE_MIN;
 #endif
 #endif
-
-    if (msg->userurl[0]) {
-      strncpy(appconn->userurl, msg->userurl, USERURLSIZE);
-      appconn->userurl[USERURLSIZE-1] = 0;
-    }
 
     return upprot_getip(appconn, NULL, 0);
 
   case REDIR_LOGOUT:
 
-    sys_err(LOG_NOTICE, __FILE__, __LINE__, 0,
-	    "Received UAM logoff from username=%s IP=%s",
-	    appconn->user, inet_ntoa(appconn->hisip));
+    log_info("Received UAM logoff from username=%s IP=%s",
+	     appconn->state.redir.username, inet_ntoa(appconn->hisip));
 
     if (options.debug)
       log_dbg("Received logoff from UAM\n");
 
-    if (appconn->authenticated == 1) {
+    if (appconn->state.authenticated == 1) {
       terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
-      appconn->uamtime = 0;
-      appconn->userurl[0] = 0;    
-      appconn->user[0] = 0;
-      appconn->userlen = 0;
+      appconn->state.uamtime = 0;
       appconn->params.sessiontimeout = 0;
       appconn->params.idletimeout = 0;
     }
 
-    memcpy(appconn->uamchal, msg->uamchal, REDIR_MD5LEN);
-    appconn->uamtime = mainclock;
+    appconn->state.uamtime = mainclock;
     appconn->uamabort = 0;
     dhcpconn->authstate = DHCP_AUTH_DNAT;
 
@@ -3049,11 +2978,10 @@ int static uam_msg(struct redir_msg_t *msg) {
 
   case REDIR_ABORT:
     
-    sys_err(LOG_NOTICE, __FILE__, __LINE__, 0,
-	    "Received UAM abort from IP=%s", inet_ntoa(appconn->hisip));
+    log_info("Received UAM abort from IP=%s", inet_ntoa(appconn->hisip));
 
     appconn->uamabort = 1; /* Next login will be aborted */
-    appconn->uamtime = 0;  /* Force generation of new challenge */
+    appconn->state.uamtime = 0;  /* Force generation of new challenge */
     dhcpconn->authstate = DHCP_AUTH_DNAT;
 
     terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
@@ -3061,19 +2989,11 @@ int static uam_msg(struct redir_msg_t *msg) {
     break;
 
   case REDIR_CHALLENGE:
-    memcpy(appconn->uamchal, msg->uamchal, REDIR_MD5LEN);
-    appconn->uamtime = mainclock;
+    appconn->state.uamtime = mainclock;
     appconn->uamabort = 0;
-    if (msg->userurl[0]) {
-      strncpy(appconn->userurl, msg->userurl, USERURLSIZE);
-      appconn->userurl[USERURLSIZE-1] = 0;
-    }
     break;
 
   case REDIR_NOTYET:
-    appconn->classlen = msg->classlen;
-    memcpy(appconn->classbuf, msg->classbuf, msg->classlen);
-    memcpy(&appconn->params, &msg->params, sizeof(msg->params));
     break;
   }
 
@@ -3106,7 +3026,9 @@ static int cmdsock_accept(int sock) {
   switch(req.type) {
 
   case CMDSOCK_DHCP_LIST:
-    if (dhcp) dhcp_list(dhcp, csock, 0);
+    if (dhcp) dhcp_list(dhcp, csock, 
+			req.options & CMDSOCK_OPT_JSON ? 
+			LIST_JSON_FMT : LIST_SHORT_FMT);
     break;
 
   case CMDSOCK_DHCP_RELEASE:
@@ -3114,7 +3036,9 @@ static int cmdsock_accept(int sock) {
     break;
 
   case CMDSOCK_LIST:
-    if (dhcp) dhcp_list(dhcp, csock, 1);
+    if (dhcp) dhcp_list(dhcp, csock, 
+			req.options & CMDSOCK_OPT_JSON ? 
+			LIST_JSON_FMT : LIST_LONG_FMT);
     break;
 
   case CMDSOCK_SHOW:
@@ -3129,16 +3053,13 @@ static int cmdsock_accept(int sock) {
 	if (dhcpconn->peer) {
 	  struct app_conn_t * appconn = (struct app_conn_t*) dhcpconn->peer;
 	  if (  (req.data.sess.ip.s_addr == 0    || appconn->hisip.s_addr == req.data.sess.ip.s_addr) &&
-		(req.data.sess.sessionid[0] == 0 || !strcmp(appconn->sessionid,req.data.sess.sessionid))
+		(req.data.sess.sessionid[0] == 0 || !strcmp(appconn->state.sessionid,req.data.sess.sessionid))
 		){
 	    char *uname = req.data.sess.username;
-	    log_dbg("remotely authorized session %s",appconn->sessionid);
+	    log_dbg("remotely authorized session %s",appconn->state.sessionid);
 	    memcpy(&appconn->params, &req.data.sess.params, sizeof(req.data.sess.params));
 	    if (!uname[0]) uname = "anonymous";
-	    strncpy(appconn->proxyuser, uname, USERNAMESIZE);
-	    appconn->proxyuserlen = strlen(uname);
-	    strncpy(appconn->user, uname, USERNAMESIZE);
-	    appconn->userlen = strlen(uname);
+	    strncpy(appconn->state.redir.username, uname, USERNAMESIZE);
 	    dnprot_accept(appconn);
 	    break;
 	  }
@@ -3154,8 +3075,9 @@ static int cmdsock_accept(int sock) {
     rval = -1;
   }
 
-  close(csock);
   shutdown(csock, 2);
+  close(csock);
+
   return rval;
 }
 
@@ -3203,16 +3125,16 @@ int printstatus(struct app_conn_t *appconn)
   apptemp = appconn;
   while(apptemp != NULL)
   {
-    if(apptemp->authenticated==1)
+    if(apptemp->state.authenticated==1)
     {
       fprintf(file, "%s, %s, %.2X-%.2X-%.2X-%.2X-%.2X-%.2X, %s, %d, %d, %d\n",
-	apptemp->user,
+	apptemp->state.redir.username,
 	inet_ntoa(apptemp->hisip),
 	apptemp->hismac[0], apptemp->hismac[1],
 	apptemp->hismac[2], apptemp->hismac[3],
 	apptemp->hismac[4], apptemp->hismac[5],
-	apptemp->sessionid,
-	apptemp->start_time,
+	apptemp->state.sessionid,
+	apptemp->state.start_time,
 	apptemp->params.sessiontimeout,
 	apptemp->params.sessionterminatetime);
     }
@@ -3221,16 +3143,16 @@ int printstatus(struct app_conn_t *appconn)
   apptemp = appconn->next;
   while(apptemp != NULL)
   {
-    if(apptemp->authenticated==1)
+    if(apptemp->state.authenticated==1)
     {
       fprintf(file, "%s, %s, %.2X-%.2X-%.2X-%.2X-%.2X-%.2X, %s, %d, %d, %d\n",
-	apptemp->user,
+	apptemp->state.redir.username,
 	inet_ntoa(apptemp->hisip),
 	apptemp->hismac[0], apptemp->hismac[1],
 	apptemp->hismac[2], apptemp->hismac[3],
 	apptemp->hismac[4], apptemp->hismac[5],
-	apptemp->sessionid,
-        apptemp->start_time,
+	apptemp->state.sessionid,
+        apptemp->state.start_time,
 	apptemp->params.sessiontimeout,
 	apptemp->params.sessionterminatetime);
     }
@@ -3240,10 +3162,9 @@ int printstatus(struct app_conn_t *appconn)
   return 0;
 }
 
-int chilli_main(int argc, char **argv)
-{
+int chilli_main(int argc, char **argv) {
   
-  int maxfd = 0;	                /* For select() */
+  int maxfd = 0;	        /* For select() */
   fd_set fds;			/* For select() */
   struct timeval idleTime;	/* How long to select() */
   int status;
@@ -3327,12 +3248,13 @@ int chilli_main(int argc, char **argv)
   if (dhcp->eapol_fd > maxfd)
     maxfd = dhcp->eapol_fd;
   
-  (void) dhcp_set_cb_request(dhcp, cb_dhcp_request);
-  (void) dhcp_set_cb_connect(dhcp, cb_dhcp_connect);
-  (void) dhcp_set_cb_disconnect(dhcp, cb_dhcp_disconnect);
-  (void) dhcp_set_cb_data_ind(dhcp, cb_dhcp_data_ind);
-  (void) dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
-  (void) dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
+  dhcp_set_cb_request(dhcp, cb_dhcp_request);
+  dhcp_set_cb_connect(dhcp, cb_dhcp_connect);
+  dhcp_set_cb_disconnect(dhcp, cb_dhcp_disconnect);
+  dhcp_set_cb_data_ind(dhcp, cb_dhcp_data_ind);
+  dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
+  dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
+
   if (dhcp_set(dhcp, (options.debug & DEBUG_DHCP))) {
     log_err(0, "Failed to set DHCP parameters");
     exit(1);
@@ -3391,13 +3313,12 @@ int chilli_main(int argc, char **argv)
 
   memset(&admin_session, 0, sizeof(admin_session));
   memcpy(admin_session.ourmac, dhcp->hwaddr, sizeof(dhcp->hwaddr));
-  memcpy(admin_session.proxyourmac, dhcp->hwaddr, sizeof(dhcp->hwaddr));
   acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
 
   if (options.adminuser) {
     admin_session.is_adminsession = 1;
-    strncpy(admin_session.user, options.adminuser, sizeof(admin_session.user));
-    admin_session.userlen = strlen(options.adminuser);
+    strncpy(admin_session.state.redir.username, 
+	    options.adminuser, sizeof(admin_session.state.redir.username));
     set_sessionid(&admin_session);
     chilliauth_radius(radius);
   }

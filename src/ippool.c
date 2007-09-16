@@ -116,6 +116,7 @@ int ippool_new(struct ippool_t **this,
   struct in_addr mask;
   struct in_addr stataddr;
   struct in_addr statmask;
+  struct in_addr naddr;
   unsigned int m;
   unsigned int listsize;
   unsigned int dynsize;
@@ -129,7 +130,51 @@ int ippool_new(struct ippool_t **this,
       log_err(0, "Failed to parse dynamic pool");
       return -1;
     }
-    dynsize = end - start;
+
+    m = ntohl(mask.s_addr);
+    dynsize = ((~m)+1); 
+
+    if (start > 0 && end > 0) {
+
+      if (end < start) {
+	log_err(0, "Bad arguments dhcpstart=%d and dhcpend=%d", start, end);
+	return -1;
+      }
+
+      if ((end - start) > dynsize) {
+	log_err(0, "Too many IPs between dhcpstart=%d and dhcpend=%d for network", start, end);
+	return -1;
+      }
+
+      dynsize = end - start;
+
+    } else {
+
+      if (start > 0) {
+
+	/*
+	 * if only dhcpstart is set, subtract that from count
+	 */
+	dynsize -= start;
+
+	dynsize--;/* no broadcast */
+
+      } else if (end > 0) {
+
+	/*
+	 * if only dhcpend is set, ensure only that many
+	 */
+	if (dynsize > end)
+	  dynsize = end;
+
+	dynsize--;/* no network */
+
+      } else {
+	dynsize-=2;/* no network, no broadcast */
+      }
+
+      dynsize--;/* no uamlisten */
+    }
   }
 
   if (!allowstat) {
@@ -145,7 +190,9 @@ int ippool_new(struct ippool_t **this,
 
     m = ntohl(statmask.s_addr);
     statsize = ((~m)+1);
-    if (statsize > IPPOOL_STATSIZE) statsize = IPPOOL_STATSIZE;
+
+    if (statsize > IPPOOL_STATSIZE)
+      statsize = IPPOOL_STATSIZE;
   }
 
   listsize = dynsize + statsize; /* Allocate space for static IP addresses */
@@ -181,11 +228,21 @@ int ippool_new(struct ippool_t **this,
     log_err(0, "Failed to allocate memory for hash members in ippool");
     return -1;
   }
+
+  if (start <= 0) /* adjust for skipping network */
+    start = 1; 
   
   (*this)->firstdyn = NULL;
   (*this)->lastdyn = NULL;
   for (i = 0; i<dynsize; i++) {
-    (*this)->member[i].addr.s_addr = htonl(ntohl(addr.s_addr) + i + start);
+
+    naddr.s_addr = htonl(ntohl(addr.s_addr) + i + start);
+    if (naddr.s_addr == options.uamlisten.s_addr) {
+      start++; /* skip the uamlisten address! */
+      naddr.s_addr = htonl(ntohl(addr.s_addr) + i + start);
+    }
+
+    (*this)->member[i].addr.s_addr = naddr.s_addr;
     (*this)->member[i].inuse = 0;
 
     /* Insert into list of unused */
@@ -220,7 +277,7 @@ int ippool_new(struct ippool_t **this,
     (*this)->member[i].next = NULL; /* Redundant */
   }
   
-  if (0) (void)ippool_printaddr(*this);
+  if (1) (void)ippool_printaddr(*this);
   return 0;
 }
 

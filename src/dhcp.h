@@ -17,7 +17,7 @@
 #ifndef _DHCP_H
 #define _DHCP_H
 
-#include "limits.h"
+#include "garden.h"
 
 /* Option constants */
 #define DHCP_OPTION_MAGIC_LEN       4
@@ -282,7 +282,6 @@ struct dhcp_eapol_tag_t {
   uint8_t v[DHCP_EAPOL_TAG_VLEN];
 };
 
-
 struct dhcp_dot1xhdr_t {
   uint8_t  ver:8;
   uint8_t  type:8;
@@ -298,8 +297,6 @@ struct dhcp_eap_t {
   uint8_t  type:8;
   uint8_t payload[DHCP_EAP_PLEN];
 } __attribute__((packed));
-
-
 
 struct dhcp_dot1xpacket_t {
   struct dhcp_ethhdr_t ethh;
@@ -363,13 +360,16 @@ struct dhcp_t {
   int hashmask;                 /* Bitmask for calculating hash */
   struct dhcp_conn_t **hash;    /* Hashsize array of pointer to member */
 
+  pass_through pass_throughs[MAX_PASS_THROUGHS];
+  size_t num_pass_throughs;
+
   /* Call back functions */
   int (*cb_data_ind) (struct dhcp_conn_t *conn, void *pack, size_t len);
   int (*cb_eap_ind)  (struct dhcp_conn_t *conn, void *pack, size_t len);
   int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr);
   int (*cb_connect) (struct dhcp_conn_t *conn);
   int (*cb_disconnect) (struct dhcp_conn_t *conn);
-  int (*cb_getinfo) (struct dhcp_conn_t *conn, char *b, size_t blen);
+  int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt);
 };
 
 
@@ -439,7 +439,7 @@ dhcp_set_cb_eap_ind(struct dhcp_t *this,
 
 extern int 
 dhcp_set_cb_getinfo(struct dhcp_t *this, 
-  int (*cb_getinfo) (struct dhcp_conn_t *conn, char *b, size_t blen));
+  int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt));
 
 extern int 
 dhcp_hashget(struct dhcp_t *this, struct dhcp_conn_t **conn,
@@ -464,8 +464,12 @@ extern int dhcp_eapol_ind(struct dhcp_t *this);
 
 void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr);
 
-void dhcp_list(struct dhcp_t *this, int sock, int withinfo);
+#define LIST_SHORT_FMT 0
+#define LIST_LONG_FMT  1
+#define LIST_JSON_FMT  2
 
-void dhcp_print(struct dhcp_t *this, int sock, int withinfo, struct dhcp_conn_t *conn);
+void dhcp_list(struct dhcp_t *this, int sock, int listfmt);
+
+void dhcp_print(struct dhcp_t *this, int sock, int listfmt, struct dhcp_conn_t *conn);
 
 #endif	/* !_DHCP_H */

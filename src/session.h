@@ -1,4 +1,6 @@
 /* 
+ * chilli - A Wireless LAN Access Point Controller
+ * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (c) 2006-2007 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
@@ -36,5 +38,57 @@ struct session_params {
   uint32_t pass_through_count;
 } __attribute__((packed));
 
+
+struct redir_state {
+
+  char username[REDIR_USERNAMESIZE];
+  char userurl[REDIR_USERURLSIZE];
+
+  uint8_t uamchal[REDIR_MD5LEN];
+
+  uint8_t classbuf[RADIUS_ATTR_VLEN];
+  size_t classlen;
+
+  uint8_t statebuf[RADIUS_ATTR_VLEN];
+  unsigned char statelen;
+
+} __attribute__((packed));
+
+struct session_state {
+  struct redir_state redir;
+
+  int authenticated;           /* 1 if user was authenticated */  
+
+  char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
+
+  time_t start_time;
+  time_t interim_time;
+
+  time_t last_time; /* Last time a packet was received or sent */
+  time_t uamtime;
+
+  uint64_t input_packets;
+  uint64_t output_packets;
+  uint64_t input_octets;
+  uint64_t output_octets;
+  uint32_t terminate_cause;
+  uint32_t session_id;
+
+#ifdef LEAKY_BUCKET
+  /* Leaky bucket */
+  uint64_t bucketup;
+  uint64_t bucketdown;
+  uint64_t bucketupsize;
+  uint64_t bucketdownsize;
+#endif
+
+} __attribute__((packed));
+
+
+int session_json_fmt(struct session_state *state, 
+		     struct session_params *params,
+		     bstring json, int init);
+
+int session_redir_json_fmt(bstring json, char *userurl, char *redirurl, uint8_t *hismac);
 
 #endif

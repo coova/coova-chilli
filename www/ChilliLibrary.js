@@ -312,12 +312,6 @@ chilliController.logoff = function () {
  */
 chilliController.processReply = function ( resp ) {
 
-	/* Log sessionId if any */
-	if ( resp.sessionId ) {
-		log('chilliController.processReply:  sessionId =  ' + resp.sessionId );
-	}
-
-
 	if ( typeof (resp.message)  == 'string' ) {
 
 		/* The following trick will replace HTML entities with the corresponding
@@ -327,10 +321,6 @@ chilliController.processReply = function ( resp ) {
 		var fakediv = document.createElement('div');
 		fakediv.innerHTML = resp.message ;
 		chilliController.message = fakediv.innerHTML  ;
-	}
-
-	if ( typeof (resp.sessionId) == 'string' ) {
-		chilliController.sessionId = resp.sessionId ;
 	}
 
 	if ( typeof (resp.challenge) == 'string' ) {

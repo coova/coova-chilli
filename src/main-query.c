@@ -25,7 +25,7 @@
 static int usage(char *program) {
   fprintf(stderr, "Usage: %s [ -s <socket> ] <command> [<argument>]\n", program);
   fprintf(stderr, "  socket = full path to UNIX domain socket (e.g. /var/run/chilli.sock)\n");
-  fprintf(stderr, "           TCP socket port, or ip:port, to bind to (e.g. 1999)\n");
+  /*  fprintf(stderr, "           TCP socket port, or ip:port, to bind to (e.g. 1999)\n"); */
   return 1;
 }
 
@@ -64,13 +64,22 @@ int main(int argc, char **argv) {
     /* for backward support, ignore a unix-socket given as first arg */
     if (argc < 3) return usage(argv[0]);
     cmdsock = argv[argidx++];
-  } else if (!strcmp(argv[argidx], "-s")) {
-    if (argc < 4) return usage(argv[0]);
-    argidx++;
-    cmdsock = argv[argidx++];
+  } 
+  
+  memset(&request,0,sizeof(request));
+
+  while (argidx < argc && *argv[argidx] == '-') {
+    if (!strcmp(argv[argidx], "-s")) {
+      argidx++;
+      if (argidx >= argc) return usage(argv[0]);
+      cmdsock = argv[argidx++];
+    } else if (!strcmp(argv[argidx], "-json")) {
+      request.options |= CMDSOCK_OPT_JSON;
+      argidx++;
+    }
   }
 
-  memset(&request,0,sizeof(request));
+  if (argidx >= argc) return usage(argv[0]);
 
   cmd = argv[argidx++];
   for (s = 0; commands[s].command; s++) {
@@ -214,6 +223,7 @@ int main(int argc, char **argv) {
       break;
     }
   }
+
   if (!commands[s].command) {
     fprintf(stderr,"unknown command: %s\n",cmd);
     exit(1);
@@ -240,7 +250,11 @@ int main(int argc, char **argv) {
   while((len = read(s, line, sizeof(line)-1)) > 0) 
     write(1, line, len);
 
-  if (len < 0) perror("read");
+  if (len < 0) 
+    perror("read");
+  else
+    write(1, "\n",1);
+
   shutdown(s,2);
   close(s);
   

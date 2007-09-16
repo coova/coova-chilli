@@ -15,22 +15,45 @@
  * extracted from various .h files, needs some cleanup.
  */
 
+/* chilli */
+#define LEAKY_BUCKET 1
+/* If the constants below are defined packets which have been dropped
+   by the traffic shaper will be counted towards accounting and
+   volume limitation */
+/* #define COUNT_DOWNLINK_DROP 1 */
+/* #define COUNT_UPLINK_DROP 1 */
+
+#define BUCKET_SIZE                   300000 /* Size of leaky bucket (~200 packets) */
+/* Time length of leaky bucket in milliseconds */
+/* Bucket size = BUCKET_TIME * Bandwidth-Max radius attribute */
+/* Not used if BUCKET_SIZE is defined */
+#define BUCKET_TIME                     5000  /* 5 seconds */
+#define BUCKET_SIZE_MIN                15000 /* Minimum size of leaky bucket (~10 packets) */
+#define CHECK_INTERVAL                     3 /* Time between checking connections */
+
+/* options */
+#define OPT_IPADDRLEN                    256
+#define OPT_IDLETIME                      10 /* Options idletime between each select */
+#define MAX_PASS_THROUGHS                128 /* Max number of allowed UAM pass-throughs */
+#define UAMSERVER_MAX                      8
+#define MACOK_MAX                         16
+
 /* redir */
 #define REDIR_MAXLISTEN                    3
-#define REDIR_MAXTIME                    100  /* Seconds */
-#define REDIR_HTTP_MAX_TIME               10  /* Seconds */
-#define REDIR_HTTP_SELECT_TIME        500000  /* microseconds = 0.5 seconds */
-#define REDIR_RADIUS_MAX_TIME             60  /* Seconds */
-#define REDIR_RADIUS_SELECT_TIME      500000  /* microseconds = 0.5 seconds */
+#define REDIR_MAXTIME                    100 /* Seconds */
+#define REDIR_HTTP_MAX_TIME               10 /* Seconds */
+#define REDIR_HTTP_SELECT_TIME        500000 /* microseconds = 0.5 seconds */
+#define REDIR_RADIUS_MAX_TIME             60 /* Seconds */
+#define REDIR_RADIUS_SELECT_TIME      500000 /* microseconds = 0.5 seconds */
 #define REDIR_CHALLEN                     16
 #define REDIR_MD5LEN                      16
 #define REDIR_MACSTRLEN                   17
-#define REDIR_MAXCHAR                     64  /* 1024 */
+#define REDIR_MAXCHAR                     64 /* 1024 */
 #define REDIR_MAXBUFFER                 5125
 
 #define REDIR_USERNAMESIZE               256 /* Max length of username */
 #define REDIR_MAXQUERYSTRING            2048
-#define REDIR_USERURLSIZE               2048  /* Max length of URL requested by user */
+#define REDIR_USERURLSIZE               2048 /* Max length of URL requested by user */
 #define REDIR_USERAGENTSIZE              256
 #define REDIR_LANGSIZE                    16
 #define REDIR_IDENTSIZE                   16

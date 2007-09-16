@@ -69,7 +69,7 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
-#elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
+#elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__) 
 #include <net/if.h>
 #include <net/bpf.h>
 #include <net/if_dl.h>

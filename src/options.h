@@ -18,16 +18,6 @@
 #ifndef _OPTIONS_H
 #define _OPTIONS_H
 
-#define IPADDRLEN 256
-#define IDLETIME  10  /* Idletime between each select */
-
-#define MAX_PASS_THROUGHS 256 /* Max number of allowed UAM pass-throughs */
-
-#define UAMSERVER_MAX 8
-
-#define MACOK_MAX 16
-
-
 #include "garden.h"
 
 struct options_t {
@@ -39,13 +29,11 @@ struct options_t {
   char *pidfile;
   char *statedir;
 
-
-
   /* TUN parameters */
   struct in_addr net;            /* Network IP address */
-  char netc[IPADDRLEN];
+  char netc[OPT_IPADDRLEN];
   struct in_addr mask;           /* Network mask */
-  char maskc[IPADDRLEN];
+  char maskc[OPT_IPADDRLEN];
 
   char * tundev;
   char * dynip;                  /* Dynamic IP address pool */

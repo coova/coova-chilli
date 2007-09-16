@@ -378,5 +378,7 @@ extern int radius_timeleft(struct radius_t *this, struct timeval *timeout);
 extern void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack);
 extern void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pack);
 
+int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack, 
+		    char *secret, int secretlen, uint8_t *dst);
 
 #endif	/* !_RADIUS_H */

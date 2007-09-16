@@ -92,36 +92,76 @@ char *dhcp_state2name(int authstate) {
   }
 }
 
-void dhcp_list(struct dhcp_t *this, int sock, int withinfo)
-{
+void dhcp_list(struct dhcp_t *this, int sock, int listfmt) {
   struct dhcp_conn_t *conn = this->firstusedconn;
+  if (listfmt == LIST_JSON_FMT) {
+    char *s = "{ \"sessions\":[";
+    write(sock,s,strlen(s));
+  }
   while (conn) {
-    dhcp_print(this,sock,withinfo,conn);
+    dhcp_print(this, sock, listfmt, conn);
     conn = conn->next;
   }
-}
-
-void dhcp_print(struct dhcp_t *this, int sock, int withinfo, struct dhcp_conn_t *conn)
-{
-  char line[2048];
-  char info[1024];
-  int ilen = 0;
-
-  if (conn && conn->inuse) {
-    if (withinfo && this->cb_getinfo)
-      ilen = this->cb_getinfo(conn, info, sizeof(info));
-    write(sock, line, 
-	  snprintf(line, sizeof(line)-1, 
-		   "%.2X:%.2X:%.2X:%.2X:%.2X:%.2X %s %s %.*s\n",
-		   conn->hismac[0], conn->hismac[1], conn->hismac[2],
-		   conn->hismac[3], conn->hismac[4], conn->hismac[5],
-		   inet_ntoa(conn->hisip), dhcp_state2name(conn->authstate), 
-		   ilen, info));
+  if (listfmt == LIST_JSON_FMT) {
+    char *s = "]}";
+    write(sock,s,strlen(s));
   }
 }
 
-void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr)
-{
+void dhcp_print(struct dhcp_t *this, int sock, int listfmt, struct dhcp_conn_t *conn) {
+  struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+  bstring b = bfromcstr("");
+  bstring tmp = bfromcstr("");
+
+  if (conn && conn->inuse) {
+
+    if (listfmt == LIST_JSON_FMT) {
+
+      if (conn != this->firstusedconn)
+	bcatcstr(b, ",");
+
+      bcatcstr(b, "{");
+
+      if (appconn) {
+	bcatcstr(b, "\"nasPort\":");
+	bassignformat(tmp, "%d", appconn->unit);
+	bconcat(b, tmp);
+	bcatcstr(b, ",\"clientState\":");
+	bassignformat(tmp, "%d", appconn->state.authenticated);
+	bconcat(b, tmp);
+	bcatcstr(b, ",\"macAddress\":\"");
+	bassignformat(tmp, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+		      conn->hismac[0], conn->hismac[1], conn->hismac[2],
+		      conn->hismac[3], conn->hismac[4], conn->hismac[5]);
+	bconcat(b, tmp);
+	bcatcstr(b, "\",\"ipAddress\":\"");
+	bcatcstr(b, inet_ntoa(conn->hisip));
+	bcatcstr(b, "\"");
+      }
+
+    } else {
+
+      bassignformat(b, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %s",
+		    conn->hismac[0], conn->hismac[1], conn->hismac[2],
+		    conn->hismac[3], conn->hismac[4], conn->hismac[5],
+		    inet_ntoa(conn->hisip), dhcp_state2name(conn->authstate));
+
+    }
+    
+    if (listfmt && this->cb_getinfo)
+      this->cb_getinfo(conn, b, listfmt);
+
+    if (listfmt == LIST_JSON_FMT)
+      bcatcstr(b, "}");
+
+    write(sock, b->data, b->slen);
+  }
+
+  bdestroy(b);
+  bdestroy(tmp);
+}
+
+void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr) {
   struct dhcp_conn_t *conn;
   if (!dhcp_hashget(this, &conn, hwaddr)) {
     dhcp_freeconn(conn);
@@ -534,7 +574,7 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
       return -1;
     }
     
-    if (0) log_dbg("MAC Address %.2x %.2x %.2x %.2x %.2x %.2x\n",
+    if (0) log_dbg("MAC Address %.2x %.2x %.2x %.2x %.2x %.2x",
 		   macaddr[0], macaddr[1], macaddr[2],
 		   macaddr[3], macaddr[4], macaddr[5]);
     
@@ -577,9 +617,8 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
 
 #endif
 
-int dhcp_send(struct dhcp_t *this, int fd, uint16_t protocol, unsigned char *hismac, int ifindex,
-	      void *packet, int length)
-{
+int dhcp_send(struct dhcp_t *this, int fd, uint16_t protocol, unsigned char *hismac, 
+	      int ifindex, void *packet, int length) {
 #if defined(__linux__)
   struct sockaddr_ll dest;
 
@@ -678,8 +717,7 @@ int dhcp_hashdel(struct dhcp_t *this, struct dhcp_conn_t *conn) {
   }
 
   if ((paranoid) && (p!= conn)) {
-    log_err(0,
-	    "Tried to delete connection not in hash table");
+    log_err(0, "Tried to delete connection not in hash table");
   }
 
   if (!p_prev)
@@ -753,10 +791,10 @@ int dhcp_validate(struct dhcp_t *this)
   if (this->numconn != (used + unused)) {
     log_err(0, "The number of free and unused connections does not match!");
     if (this->debug) {
-      log_dbg("used %d unused %d\n", used, unused);
+      log_dbg("used %d unused %d", used, unused);
       conn = this->firstusedconn;
       while (conn) {
-	log_dbg("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", 
+	log_dbg("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
 	       conn->hismac[0], conn->hismac[1], conn->hismac[2],
 	       conn->hismac[3], conn->hismac[4], conn->hismac[5]);
 	conn = conn->next;
@@ -811,7 +849,7 @@ int dhcp_newconn(struct dhcp_t *this,
 {
 
   if (this->debug) 
-    log_dbg("DHCP newconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", 
+    log_dbg("DHCP newconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
 	    hwaddr[0], hwaddr[1], hwaddr[2],
 	    hwaddr[3], hwaddr[4], hwaddr[5]);
 
@@ -882,7 +920,7 @@ int dhcp_freeconn(struct dhcp_conn_t *conn)
     this->cb_disconnect(conn);
 
   if (this->debug)
-    log_dbg("DHCP freeconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", 
+    log_dbg("DHCP freeconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
 	    conn->hismac[0], conn->hismac[1], conn->hismac[2],
 	    conn->hismac[3], conn->hismac[4], conn->hismac[5]);
 
@@ -1215,6 +1253,8 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
   /* Was it a request for a pass-through entry? */
   if (check_garden(options.pass_throughs, options.num_pass_throughs, pack, 1))
     return 0;
+  if (check_garden(this->pass_throughs, this->num_pass_throughs, pack, 1))
+    return 0;
 
   /* Check appconn session specific pass-throughs */
   if (conn->peer) {
@@ -1243,12 +1283,15 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
       conn->dnatport[conn->nextdnat] = tcph->src;
       conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
     }
+
     if (options.usetap) 
       memcpy(pack->ethh.dst, tun->tap_hwaddr, DHCP_ETH_ALEN); 
+
     pack->iph.daddr = this->uamlisten.s_addr;
     tcph->dst = htons(this->uamport);
-    (void)dhcp_tcp_check(pack, len);
-    (void)dhcp_ip_check((struct dhcp_ippacket_t*) pack);
+
+    dhcp_tcp_check(pack, len);
+    dhcp_ip_check((struct dhcp_ippacket_t*) pack);
     return 0;
   }
 
@@ -1413,6 +1456,8 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   /* Was it a reply for a pass-through entry? */
   if (check_garden(options.pass_throughs, options.num_pass_throughs, pack, 0))
     return 0;
+  if (check_garden(this->pass_throughs, this->num_pass_throughs, pack, 0))
+    return 0;
 
   /* Check appconn session specific pass-throughs */
   if (conn->peer) {
@@ -1455,7 +1500,7 @@ int dhcp_filterDNS(struct dhcp_conn_t *conn,
   memset(q,0,sizeof(q));
 
 #define copyres(isq,n)			        \
-  if (d) log_dbg(#n ": %d\n", n ## count);      \
+  if (d) log_dbg(#n ": %d", n ## count);        \
   for (i=0; i < n ## count; i++)                \
     if (dns_copy_res(isq, &p_pkt, &len,         \
 		     (uint8_t *)dnsp, olen, 	\
@@ -1467,7 +1512,7 @@ int dhcp_filterDNS(struct dhcp_conn_t *conn,
   copyres(0,ns);
   copyres(0,ar);
 
-  if (d) log_dbg("left (should be zero): %d\n", len);
+  if (d) log_dbg("left (should be zero): %d", len);
 
   /*
   dnsp->flags = htons(flags);
@@ -1595,8 +1640,7 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
  * Fill in a DHCP packet with most essential values
  **/
 int
-dhcp_getdefault(struct dhcp_fullpacket_t *pack)
-{
+dhcp_getdefault(struct dhcp_fullpacket_t *pack) {
 
   /* Initialise reply packet with request */
   memset(pack, 0, sizeof(struct dhcp_fullpacket_t));
@@ -1761,8 +1805,8 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn,
   packet.iph.saddr = conn->ourip.s_addr;
 
   /* Work out checksums */
-  (void)dhcp_udp_check(&packet);
-  (void)dhcp_ip_check((struct dhcp_ippacket_t*) &packet); 
+  dhcp_udp_check(&packet);
+  dhcp_ip_check((struct dhcp_ippacket_t*) &packet); 
 
   /* Ethernet header */
   memcpy(packet.ethh.dst, conn->hismac, DHCP_ETH_ALEN);
@@ -2051,12 +2095,12 @@ int dhcp_getreq(struct dhcp_t *this,
   if (message_type->v[0] == DHCPREQUEST) {
     
     if (!conn->hisip.s_addr) {
-      if (this->debug) log_dbg("hisip not set\n");
+      if (this->debug) log_dbg("hisip not set");
       return dhcp_sendNAK(conn, pack, len);
     }
 
     if (!memcmp(&conn->hisip.s_addr, &pack->dhcp.ciaddr, 4)) {
-      if (this->debug) log_dbg("hisip match ciaddr\n");
+      if (this->debug) log_dbg("hisip match ciaddr");
       return dhcp_sendACK(conn, pack, len);
     }
 
@@ -2066,14 +2110,14 @@ int dhcp_getreq(struct dhcp_t *this,
 	return dhcp_sendACK(conn, pack, len);
     }
 
-    if (this->debug) log_dbg("Sending NAK to client\n");
+    if (this->debug) log_dbg("Sending NAK to client");
     return dhcp_sendNAK(conn, pack, len);
   }
   
   /* 
    *  Unsupported DHCP message: Ignore 
    */
-  if (this->debug) log_dbg("Unsupported DNS message ignored\n");
+  if (this->debug) log_dbg("Unsupported DNS message ignored");
   return 0;
 }
 
@@ -2122,7 +2166,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
    */
 
   if (this->debug) 
-    log_dbg("DHCP packet received\n");
+    log_dbg("DHCP packet received");
   
   /* 
    *  Check that the destination MAC address is our MAC or Broadcast 
@@ -2162,7 +2206,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
     memcpy(&reqaddr.s_addr, &pack->iph.saddr, DHCP_IP_ALEN);
 
     if (options.debug) 
-      log_dbg("Address not found (%s)\n", inet_ntoa(reqaddr)); 
+      log_dbg("Address not found (%s)", inet_ntoa(reqaddr)); 
 
     /* Do we allow dynamic allocation of IP addresses? */
     if (!this->allowdyn && !options.uamanyip)
@@ -2222,7 +2266,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
       (tcph->dst == htons(DHCP_HTTP))) {
     if (conn->peer) {
       struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-      if (appconn->authenticated) {
+      if (appconn->state.authenticated) {
 	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
 	if (options.debug)
 	  log_dbg("Dropping session due to request for auto-logout ip");
@@ -2413,7 +2457,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
   /* Check that this is ARP request */
   if (pack->arp.op != htons(DHCP_ARP_REQUEST)) {
     if (this->debug)
-      log_dbg("Received other ARP than request!\n");
+      log_dbg("Received other ARP than request!");
     return 0;
   }
 
@@ -2421,7 +2465,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
   if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
       (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN))) {
     if (this->debug) 
-      log_dbg("Received ARP request for other destination!\n");
+      log_dbg("Received ARP request for other destination!");
     return 0;
   }
 
@@ -2436,7 +2480,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
   if (dhcp_hashget(this, &conn, pack->ethh.src)) {
 
     if (options.debug) 
-      log_dbg("Address not found: %s\n", inet_ntoa(reqaddr));
+      log_dbg("Address not found: %s", inet_ntoa(reqaddr));
 
     /* Do we allow dynamic allocation of IP addresses? */
     if (!this->allowdyn && !options.uamanyip)
@@ -2452,7 +2496,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
     /* XXX: lookup in ippool to see if we really do know who has this */
     /* XXX: it should also ack if *we* are that ip */
     if (this->debug) 
-      log_dbg("ARP: Ignoring self-discovery: %s\n", inet_ntoa(taraddr));
+      log_dbg("ARP: Ignoring self-discovery: %s", inet_ntoa(taraddr));
     return 0; 
   }
 
@@ -2465,13 +2509,13 @@ int dhcp_receive_arp(struct dhcp_t *this,
     } 
 
     if (this->debug)
-      log_dbg("ARP: gratuitous arp %s!\n", inet_ntoa(taraddr));
+      log_dbg("ARP: gratuitous arp %s!", inet_ntoa(taraddr));
     return 0;
   }
 
   if (!conn->hisip.s_addr && !options.uamanyip) {
     if (this->debug)
-      log_dbg("ARP: request did not come from known client!\n");
+      log_dbg("ARP: request did not come from known client!");
     return 0; /* Only reply if he was allocated an address */
   }
 
@@ -2479,7 +2523,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
   /* Is ARP request for clients own address: Ignore */
   if (conn->hisip.s_addr == taraddr.s_addr) {
     if (this->debug)
-      log_dbg("ARP: hisip equals target ip: %s!\n",
+      log_dbg("ARP: hisip equals target ip: %s!",
 	      inet_ntoa(conn->hisip));
     return 0;
   }
@@ -2490,7 +2534,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
 	(conn->hisip.s_addr & conn->hismask.s_addr) !=
 	(reqaddr.s_addr & conn->hismask.s_addr)) {
       if (this->debug) 
-	log_dbg("ARP: request not in our subnet\n");
+	log_dbg("ARP: request not in our subnet");
       return 0;
     }
   
@@ -2524,7 +2568,7 @@ int dhcp_arp_ind(struct dhcp_t *this)  /* ARP Indication */
   /*struct dhcp_conn_t *conn;*/
   /*unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};*/
 
-  if (this->debug) log_dbg("ARP Packet Received!\n");
+  if (this->debug) log_dbg("ARP Packet Received!");
 
   if ((length = recv(this->arp_fd, &packet, sizeof(packet), 0)) < 0) {
     log_err(errno, "recv(fd=%d, len=%d) failed",
@@ -2628,10 +2672,10 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
   
   /* Check to see if we know MAC address. */
   if (!dhcp_hashget(this, &conn, packet.ethh.src)) {
-    if (this->debug) log_dbg("Address found\n");
+    if (this->debug) log_dbg("Address found");
   }
   else {
-    if (this->debug) log_dbg("Address not found\n");
+    if (this->debug) log_dbg("Address not found");
   }
   
   /* Check that MAC address is our MAC, Broadcast or authentication MAC */
@@ -2641,7 +2685,7 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
     return 0;
   
   if (this->debug) 
-    log_dbg("IEEE 802.1x Packet: %.2x, %.2x %d\n",
+    log_dbg("IEEE 802.1x Packet: %.2x, %.2x %d",
 	    packet.dot1x.ver, packet.dot1x.type,
 	    ntohs(packet.dot1x.len));
   
@@ -2753,7 +2797,7 @@ int dhcp_set_cb_disconnect(struct dhcp_t *this,
 }
 
 int dhcp_set_cb_getinfo(struct dhcp_t *this, 
-  int (*cb_getinfo) (struct dhcp_conn_t *conn, char *b, size_t blen))
+  int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt))
 {
   this ->cb_getinfo = cb_getinfo;
   return 0;

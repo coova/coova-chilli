@@ -78,8 +78,8 @@ int radius_printqueue(struct radius_t *this) {
  * radius_hmac_md5()
  * Calculate HMAC MD5 on a radius packet. 
  */
-int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack,
-		uint8_t *dst) {
+int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack, 
+		    char *secret, int secretlen, uint8_t *dst) {
   unsigned char digest[RADIUS_MD5LEN];
   size_t length;
 
@@ -93,18 +93,17 @@ int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack,
   unsigned char tk[RADIUS_MD5LEN];
   int i;
 
-  if (this->secretlen > 64) { /* TODO: If Microsoft truncate to 64 instead */
+  if (secretlen > 64) { /* TODO: If Microsoft truncate to 64 instead */
     MD5Init(&context);
-    MD5Update(&context, (uint8_t*) this->secret, this->secretlen);
+    MD5Update(&context, (uint8_t*)secret, secretlen);
     MD5Final(tk, &context);
     key = tk;
     key_len = 16;
   }
   else {
-    key = (uint8_t*) this->secret;
-    key_len = this->secretlen;
+    key = (uint8_t*)secret;
+    key_len = secretlen;
   }
-  
 
   length = ntohs(pack->length);
 
@@ -210,7 +209,7 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
 
   /* If packet contains message authenticator: Calculate it! */
   if (!radius_getattr(pack, &ma, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 0,0,0)) {
-    radius_hmac_md5(this, pack, ma->v.t);
+    radius_hmac_md5(this, pack, this->secret, this->secretlen, ma->v.t);
   }
   
   /* If accounting request: Calculate authenticator */
@@ -1033,13 +1032,9 @@ int radius_new(struct radius_t **this,
 	       struct in_addr *listen, uint16_t port, int coanocheck,
 	       struct in_addr *proxylisten, uint16_t proxyport,
 	       struct in_addr *proxyaddr, struct in_addr *proxymask,
-	       char* proxysecret)
-{
+	       char* proxysecret) {
   struct sockaddr_in addr;
   struct radius_t *new_radius;
-
-  /* sys_err(LOG_INFO, __FILE__, __LINE__, 0,
-     "Radius client started"); */
 
   /* Allocate storage for instance */
   if (!(new_radius = calloc(sizeof(struct radius_t), 1))) {
@@ -1054,7 +1049,7 @@ int radius_new(struct radius_t **this,
   new_radius->ourport = port;
 
   /* Proxy parameters */
-  if (proxysecret) {
+  if (proxylisten && proxyport && proxysecret) {
     new_radius->proxylisten.s_addr = proxylisten->s_addr;
     new_radius->proxyport = proxyport;
     
@@ -1106,7 +1101,7 @@ int radius_new(struct radius_t **this,
   }
 
   /* Initialise proxy socket */
-  if (proxysecret) {
+  if (proxylisten && proxyport && proxysecret) {
     if ((new_radius->proxyfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
       log_err(errno, "socket() failed for proxyfd!");
       fclose(new_radius->urandom_fp);
@@ -1306,11 +1301,12 @@ int radius_resp(struct radius_t *this,
 
   /* If packet contains message authenticator: Calculate it! */
   if (!radius_getattr(pack, &ma, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 0,0,0)) {
-    radius_hmac_md5(this, pack, ma->v.t);
+    radius_hmac_md5(this, pack, this->proxysecret, this->proxysecretlen, ma->v.t);
   }
 
-  radius_authresp_authenticator(this, pack, req_auth, this->proxysecret,
-			       this->proxysecretlen);
+  radius_authresp_authenticator(this, pack, req_auth, 
+				this->proxysecret,
+				this->proxysecretlen);
   
   if (sendto(this->proxyfd, pack, len, 0,
 	     (struct sockaddr *) peer, sizeof(struct sockaddr_in)) < 0) {
@@ -1338,10 +1334,11 @@ int radius_coaresp(struct radius_t *this,
 
   /* If packet contains message authenticator: Calculate it! */
   if (!radius_getattr(pack, &ma, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 0,0,0)) {
-    radius_hmac_md5(this, pack, ma->v.t);
+    radius_hmac_md5(this, pack, this->secret, this->secretlen, ma->v.t);
   }
 
-  radius_authresp_authenticator(this, pack, req_auth, this->secret,
+  radius_authresp_authenticator(this, pack, req_auth,
+				this->secret,
 				this->secretlen);
   
   if (sendto(this->fd, pack, len, 0,
@@ -1658,12 +1655,12 @@ int chilliauth_radius(struct radius_t *radius) {
 		   strlen(options.radiuslocationname));
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*)admin_session.sessionid, REDIR_SESSIONID_LEN-1);
+		 (uint8_t*)admin_session.state.sessionid, REDIR_SESSIONID_LEN-1);
 
-  if (admin_session.classlen) {
+  if (admin_session.state.redir.classlen) {
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
-		   admin_session.classbuf,
-		   admin_session.classlen);
+		   admin_session.state.redir.classbuf,
+		   admin_session.state.redir.classlen);
   }
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
