@@ -12,11 +12,10 @@ Conflicts: chillispot
 Provides: chillispot
 Depends: ${shlibs:Depends}
 Description: Wireless LAN Access Point Controller (captive portal).
- Coova-ChilliSpot is an open source captive portal or wireless LAN access point
+ Coova-Chilli is an open source captive portal or wireless LAN access point
  controller, forked from chillispot (http://www.chillispot.org).
- .
  It supports web based login which is today's standard for
  public HotSpots and it supports Wireless Protected Access (WPA) which
  is the standard of the future. Authentication, Authorization and
  Accounting (AAA) is handled by your favorite radius server. Read more
- on http://www.coova.org
+ on http://www.coova.org/

@@ -16,7 +16,7 @@
 #include "limits.h"
 #include "garden.h"
 
-#define SESSION_PASS_THROUGH_MAX 4
+#define SESSION_PASS_THROUGH_MAX 8
 
 struct session_params {
   uint8_t url[REDIR_USERURLSIZE];
