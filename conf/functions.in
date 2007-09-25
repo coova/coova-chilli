@@ -85,6 +85,7 @@ writeconfig() {
     addconfig1 ${HS_WISPRLOGIN:+"wisprlogin $HS_WISPRLOGIN"}
     addconfig1 ${HS_WWWDIR:+"wwwdir $HS_WWWDIR"}
     addconfig1 ${HS_WWWBIN:+"wwwbin $HS_WWWBIN"}
+    addconfig1 ${HS_UAMUIPORT:+"uamuiport $HS_UAMUIPORT"}
 
     [ -n "$HS_UAMDOMAINS" ] && {
 	HS_UAMDOMAINS=$(echo $HS_UAMDOMAINS|sed 's/,/ /g')

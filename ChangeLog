@@ -6,6 +6,7 @@
 * New option ''radiusoriginalurl'' to send ChilliSpot VSA ChilliSpot-OriginalURL(9) in Access-Request containing the original URL 
 * Fix for when uamlisten is not always ''net'' + 1 (first IP in network range)
 * Fix for when ''proxysecret'' and ''radiussecret'' differ in generation of Message-Authenticator
+* Will install and use libchilli and libbstring shared libraries
 * Fix in 64-bit portability - thx ccesario for helping out
 * Fix for use with DHCP Relay clients
 	

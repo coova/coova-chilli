@@ -277,7 +277,7 @@ int ippool_new(struct ippool_t **this,
     (*this)->member[i].next = NULL; /* Redundant */
   }
   
-  if (1) (void)ippool_printaddr(*this);
+  if (0) (void)ippool_printaddr(*this);
   return 0;
 }
 
@@ -340,7 +340,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
   /* First check to see if this type of address is allowed */
   if ((addr) && (addr->s_addr) && statip && !options.uamanyip) { /* IP address given */
     if (!this->allowstat) {
-      log_err(0, "Static IP address not allowed");
+      log_dbg("Static IP address not allowed");
       return -1;
     }
     if ((addr->s_addr & this->statmask.s_addr) != this->stataddr.s_addr) {
