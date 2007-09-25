@@ -1,3 +1,12 @@
+coova-chilli (1.0.8-1) unstable; urgency=low
+
+  * New upstream release
+  * add dh_makeshlibs call to rules to call ldconfig in postinstall script
+  * add updated glibc dependencies to force use of update library ( fix a
+    compilation bug )
+
+ -- Unixmedia S.r.l. (Medianix Devel) <devel@unixmedia.it>  Tue, 25 Sep 2007 17:25:13 +0200
+
 coova-chilli (1.0.7-1) unstable; urgency=low
 
   * First debian packaging for Coova version of coova-chilli
