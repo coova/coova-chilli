@@ -1645,7 +1645,8 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   unsigned char chap_challenge[REDIR_MD5LEN];
   unsigned char tmp[REDIR_MD5LEN+1];
   char u[256]; char p[256];
-  size_t len, sz=1024;
+  size_t usernamelen, sz=1024;
+  ssize_t len;
   int match=0;
   char *line=0;
   MD5_CTX context;
@@ -1694,17 +1695,33 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   user_password[REDIR_MD5LEN] = 0;
 	
   log_dbg("looking for %s", conn->state.redir.username);
+  usernamelen = strlen(conn->state.redir.username);
 
   line=(char*)malloc(sz);
-  while ((len = getline(&line, &sz, f)) >= 0) {
+  while ((len = getline(&line, &sz, f)) > 0) {
     if (len > 3 && len < sizeof(u) && line[0] != '#') {
-      char *pl=line, *pu=u, *pp=p;
-      while (*pl && *pl != ':') *pu++ = *pl++;
-      if (*pl == ':') pl++;
-      while (*pl && *pl != ':' && *pl != '\n') *pp++ = *pl++;
-      *pu = 0; *pp = 0;
+      char *pl=line,  /* pointer to current line */
+	   *pu=u,     /* pointer to username     */
+  	   *pp=p;     /* pointer to password     */
 
-      if (!strcmp(conn->state.redir.username, u)) {
+      /* username until the first ':' */
+      while (*pl && *pl != ':')	*pu++ = *pl++;
+
+      /* skip over ':' otherwise error */
+      if (*pl == ':') pl++;
+      else {
+	log_warn(0, "not a valid localusers line: %s", line);
+	continue;
+      }
+
+      /* password until the next ':' */
+      while (*pl && *pl != ':' && *pl != '\n') *pp++ = *pl++;
+
+      *pu = 0; /* null terminate */
+      *pp = 0;
+
+      if (usernamelen == strlen(u) &&
+	  !strncmp(conn->state.redir.username, u, usernamelen)) {
 
 	log_dbg("found %s, checking password", u);
 
