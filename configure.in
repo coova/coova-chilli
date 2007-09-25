@@ -51,5 +51,6 @@ AC_CONFIG_FILES([Makefile
 		 src/Makefile 
 		 www/Makefile
                  conf/Makefile 
+                 debian/Makefile 
 		 coova-chilli.spec])
 AC_OUTPUT
