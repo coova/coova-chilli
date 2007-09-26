@@ -1,11 +1,14 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+== ChangeLog (Coova Chilli v1.0.8 svn revision 1XX) ==
+
 * New option ''uamdomain'' whereby entire domains, one per use of option, can be white-listed.
 * New option ''dnsparanoia'' to drop DNS responses (pre-authentication) containing any non- A, CNAME, SOA, or MX records
 * New option ''radiusoriginalurl'' to send ChilliSpot VSA ChilliSpot-OriginalURL(9) in Access-Request containing the original URL 
 * Fix for when uamlisten is not always ''net'' + 1 (first IP in network range)
 * Fix for when ''proxysecret'' and ''radiussecret'' differ in generation of Message-Authenticator
+* Added option ''definteriminterval'' to define a interim-interval (for accounting) when not otherwise set by RADIUS
 * Will install and use libchilli and libbstring shared libraries
 * Fix in 64-bit portability - thx ccesario for helping out
 * Fix for use with DHCP Relay clients

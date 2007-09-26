@@ -255,6 +255,7 @@ int process_options(int argc, char **argv, int minimal) {
   options.wpaguests = args_info.wpaguests_flag;
   options.openidauth = args_info.openidauth_flag;
   options.defsessiontimeout = args_info.defsessiontimeout_arg;
+  options.definteriminterval = args_info.definteriminterval_arg;
   options.defidletimeout = args_info.defidletimeout_arg;
   options.radiusnasporttype = args_info.radiusnasporttype_arg;
   options.radiusauthport = args_info.radiusauthport_arg;

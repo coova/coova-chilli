@@ -205,6 +205,9 @@ struct gengetopt_args_info
   int defidletimeout_arg;	/**< @brief Default idle-timeout if not returned by RADIUS (default='0').  */
   char * defidletimeout_orig;	/**< @brief Default idle-timeout if not returned by RADIUS original value given at command line.  */
   const char *defidletimeout_help; /**< @brief Default idle-timeout if not returned by RADIUS help description.  */
+  int definteriminterval_arg;	/**< @brief Default interim-interval for accounting if not returned by RADIUS (default='300').  */
+  char * definteriminterval_orig;	/**< @brief Default interim-interval for accounting if not returned by RADIUS original value given at command line.  */
+  const char *definteriminterval_help; /**< @brief Default interim-interval for accounting if not returned by RADIUS help description.  */
   int macauth_flag;	/**< @brief Authenticate based on MAC address (default=off).  */
   const char *macauth_help; /**< @brief Authenticate based on MAC address help description.  */
   char ** macallowed_arg;	/**< @brief List of allowed MAC addresses.  */
@@ -341,6 +344,7 @@ struct gengetopt_args_info
   int uamlogoutip_given ;	/**< @brief Whether uamlogoutip was given.  */
   int defsessiontimeout_given ;	/**< @brief Whether defsessiontimeout was given.  */
   int defidletimeout_given ;	/**< @brief Whether defidletimeout was given.  */
+  int definteriminterval_given ;	/**< @brief Whether definteriminterval was given.  */
   int macauth_given ;	/**< @brief Whether macauth was given.  */
   unsigned int macallowed_given ;	/**< @brief Whether macallowed was given.  */
   int macsuffix_given ;	/**< @brief Whether macsuffix was given.  */

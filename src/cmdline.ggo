@@ -90,6 +90,7 @@ option "uamlogoutip"  - "HTTP Auto-Logout IP Address" string default="1.1.1.1" n
 
 option "defsessiontimeout" - "Default session-timeout if not returned by RADIUS" long default="0" no
 option "defidletimeout" - "Default idle-timeout if not returned by RADIUS" int default="0" no
+option "definteriminterval" - "Default interim-interval for accounting if not returned by RADIUS" int default="300" no
 
 # MAC authentication
 option "macauth"     - "Authenticate based on MAC address" flag   off

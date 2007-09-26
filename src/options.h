@@ -135,6 +135,7 @@ struct options_t {
 
   unsigned long defsessiontimeout;
   unsigned int defidletimeout;
+  unsigned short definteriminterval;
 
   /* local content */
   char *wwwdir;

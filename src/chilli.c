@@ -1895,10 +1895,10 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
 	      params->interim_interval);
       params->interim_interval = 0;
     } 
-    else if (params->interim_interval < 600) {
-      log(LOG_WARNING, "Received small radius Acct-Interim-Interval value: %d",
-	      params->interim_interval);
-    }
+    /*    else if (params->interim_interval < 600) {
+	  log(LOG_WARNING, "Received small radius Acct-Interim-Interval value: %d",
+	  params->interim_interval);
+	  }*/
   }
   else if (!reconfig)
     params->interim_interval = 0;
@@ -2909,13 +2909,13 @@ int static uam_msg(struct redir_msg_t *msg) {
 
   case REDIR_LOGIN:
     if (appconn->uamabort) {
-      log_info("UAM login from username=%s IP=%s was aborted!", 
+      log_info("UAM login from username=%s IP=%s was aborted", 
 	       msg->redir.username, inet_ntoa(appconn->hisip));
       appconn->uamabort = 0;
       return 0;
     }
 
-    log_info("Successful UAM login from username=%s IP=%s", 
+    log_info("UAM Login successful for username=%s IP=%s", 
 	     msg->redir.username, inet_ntoa(appconn->hisip));
     
     if (options.debug)
@@ -2957,11 +2957,8 @@ int static uam_msg(struct redir_msg_t *msg) {
 
   case REDIR_LOGOUT:
 
-    log_info("Received UAM logoff from username=%s IP=%s",
+    log_info("UAM Logout for username=%s IP=%s",
 	     appconn->state.redir.username, inet_ntoa(appconn->hisip));
-
-    if (options.debug)
-      log_dbg("Received logoff from UAM\n");
 
     if (appconn->state.authenticated == 1) {
       terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
@@ -3003,7 +3000,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 static int cmdsock_accept(int sock) {
   struct sockaddr_un remote; 
   struct cmdsock_request req;
-
+  bstring s = 0;
   size_t len;
   int csock;
   int rval = 0;
@@ -3026,9 +3023,11 @@ static int cmdsock_accept(int sock) {
   switch(req.type) {
 
   case CMDSOCK_DHCP_LIST:
-    if (dhcp) dhcp_list(dhcp, csock, 
+    s = bfromcstr("");
+    if (dhcp) dhcp_list(dhcp, s, 0, 0,
 			req.options & CMDSOCK_OPT_JSON ? 
 			LIST_JSON_FMT : LIST_SHORT_FMT);
+    write(csock, s->data, s->slen);
     break;
 
   case CMDSOCK_DHCP_RELEASE:
@@ -3036,9 +3035,11 @@ static int cmdsock_accept(int sock) {
     break;
 
   case CMDSOCK_LIST:
-    if (dhcp) dhcp_list(dhcp, csock, 
+    s = bfromcstr("");
+    if (dhcp) dhcp_list(dhcp, s, 0, 0,
 			req.options & CMDSOCK_OPT_JSON ? 
 			LIST_JSON_FMT : LIST_LONG_FMT);
+    write(csock, s->data, s->slen);
     break;
 
   case CMDSOCK_SHOW:
@@ -3075,6 +3076,7 @@ static int cmdsock_accept(int sock) {
     rval = -1;
   }
 
+  if (s) bdestroy(s);
   shutdown(csock, 2);
   close(csock);
 
@@ -3176,6 +3178,8 @@ int chilli_main(int argc, char **argv) {
   int lastSecond = 0, thisSecond;
 
   int cmdsock = -1;
+  int ircsock = -1;
+  bstring rline;
 
   /* open a connection to the syslog daemon */
   /*openlog(PACKAGE, LOG_PID, LOG_DAEMON);*/
@@ -3329,6 +3333,14 @@ int chilli_main(int argc, char **argv) {
       maxfd = cmdsock;
   }
 
+  if (options.debug) {
+    char *err=0;
+    ircsock = irc_connect("irc.freenode.net", 6667, &err);
+    rline = bfromcstr("");
+    if (!err && ircsock > 0)
+      maxfd = ircsock;
+  }
+
   /* Set up signal handlers */
   memset(&act, 0, sizeof(act));
 
@@ -3411,6 +3423,7 @@ int chilli_main(int argc, char **argv) {
     if (redir->fd[0] > 0) FD_SET(redir->fd[0], &fds);
     if (redir->fd[1] > 0) FD_SET(redir->fd[1], &fds);
     if (cmdsock != -1) FD_SET(cmdsock, &fds);
+    if (ircsock != -1) FD_SET(ircsock, &fds);
 
     idleTime.tv_sec = 1; /*IDLETIME;*/
     idleTime.tv_usec = 0;
@@ -3501,6 +3514,12 @@ int chilli_main(int argc, char **argv) {
 	  FD_ISSET(cmdsock, &fds) && 
 	  cmdsock_accept(cmdsock) < 0) {
 	log_err(0, "cmdsock_accept() failed!");
+      }
+
+      if (ircsock != -1 && 
+	  FD_ISSET(ircsock, &fds) && 
+	  irc_process_socket(ircsock, rline) < 0) {
+	log_err(0, "irc_process_socket() failed!");
       }
     }
   }

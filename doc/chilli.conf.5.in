@@ -630,6 +630,11 @@ Default idle timeout (max idle time) unless otherwise set by RADIUS
 (defaults to 0, meaning unlimited).
 
 .TP
+.BI definteriminterval " seconds"
+Default interim-interval for RADIUS accounting unless otherwise set by RADIUS
+(defaults to 0, meaning unlimited).
+
+.TP
 .B acctupdate
 Allow updating of session parameters with RADIUS attributes sent in
 Accounting-Response. 

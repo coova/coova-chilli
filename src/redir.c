@@ -2128,6 +2128,9 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     if (options.defidletimeout && !conn.params.idletimeout)
       conn.params.idletimeout = options.defidletimeout;
 
+    if (options.definteriminterval && !conn.params.interim_interval)
+      conn.params.interim_interval = options.definteriminterval;
+
     if (conn.response == REDIR_SUCCESS) { /* Radius-Accept */
       bstring besturl = bfromcstr((char*)conn.params.url);
       
