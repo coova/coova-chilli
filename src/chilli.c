@@ -3178,7 +3178,6 @@ int chilli_main(int argc, char **argv) {
   int lastSecond = 0, thisSecond;
 
   int cmdsock = -1;
-  int ircsock = -1;
   bstring rline;
 
   /* open a connection to the syslog daemon */
@@ -3333,14 +3332,6 @@ int chilli_main(int argc, char **argv) {
       maxfd = cmdsock;
   }
 
-  if (options.debug) {
-    char *err=0;
-    ircsock = irc_connect("irc.freenode.net", 6667, &err);
-    rline = bfromcstr("");
-    if (!err && ircsock > 0)
-      maxfd = ircsock;
-  }
-
   /* Set up signal handlers */
   memset(&act, 0, sizeof(act));
 
@@ -3423,7 +3414,6 @@ int chilli_main(int argc, char **argv) {
     if (redir->fd[0] > 0) FD_SET(redir->fd[0], &fds);
     if (redir->fd[1] > 0) FD_SET(redir->fd[1], &fds);
     if (cmdsock != -1) FD_SET(cmdsock, &fds);
-    if (ircsock != -1) FD_SET(ircsock, &fds);
 
     idleTime.tv_sec = 1; /*IDLETIME;*/
     idleTime.tv_usec = 0;
@@ -3514,12 +3504,6 @@ int chilli_main(int argc, char **argv) {
 	  FD_ISSET(cmdsock, &fds) && 
 	  cmdsock_accept(cmdsock) < 0) {
 	log_err(0, "cmdsock_accept() failed!");
-      }
-
-      if (ircsock != -1 && 
-	  FD_ISSET(ircsock, &fds) && 
-	  irc_process_socket(ircsock, rline) < 0) {
-	log_err(0, "irc_process_socket() failed!");
       }
     }
   }
