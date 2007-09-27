@@ -45,13 +45,13 @@ void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pa
   uint8_t *mac= (uint8_t*)"";
 
   if (options.nasmac)
-    mac = (uint8_t*)options.nasmac;
+    mac = (uint8_t *)options.nasmac;
   else 
     sprintf((char*)(mac=b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
 	    radius->nas_hwaddr[0],radius->nas_hwaddr[1],radius->nas_hwaddr[2],
 	    radius->nas_hwaddr[3],radius->nas_hwaddr[4],radius->nas_hwaddr[5]);
 
-  radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen(mac)); 
+  radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen((char*)mac)); 
 }
 
 int radius_printqueue(struct radius_t *this) {
@@ -761,17 +761,19 @@ radius_cmpattr(struct radius_attr_t *t1, struct radius_attr_t *t2) {
  * radius_keydecode()
  * Decode an MPPE key using MD5.
  */
-int radius_keydecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
-		     size_t *dstlen, uint8_t *src, size_t srclen,
-		     uint8_t *authenticator, char *secret, size_t secretlen) {
-  int i, n;
+int radius_keydecode(struct radius_t *this, 
+		     uint8_t *dst, size_t dstsize, size_t *dstlen, 
+		     uint8_t *src, size_t srclen,
+		     uint8_t *authenticator, 
+		     char *secret, size_t secretlen) {
   MD5_CTX context;
   unsigned char b[RADIUS_MD5LEN];
-  size_t blocks;
+  int blocks;
+  int i, n;
 
-  blocks = (srclen - 2) / RADIUS_MD5LEN;
+  blocks = ((int)srclen - 2) / RADIUS_MD5LEN;
 
-  if ((blocks * RADIUS_MD5LEN +2) != srclen) {
+  if ((blocks * RADIUS_MD5LEN + 2) != (int)srclen) {
     log_err(0, "radius_keydecode: srclen must be 2 plus n*16");
     return -1;
   }
@@ -783,7 +785,7 @@ int radius_keydecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
 
   /* Get MD5 hash on secret + authenticator (First 16 octets) */
   MD5Init(&context);
-  MD5Update(&context, (uint8_t*) secret, secretlen);
+  MD5Update(&context, (uint8_t *)secret, secretlen);
   MD5Update(&context, authenticator, RADIUS_AUTHLEN);
   MD5Update(&context, src, 2);
   MD5Final(b, &context);
@@ -794,52 +796,53 @@ int radius_keydecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
   }
 
   if ((src[2] ^ b[0]) > (srclen - 3)) {
-    log_err(0,"radius_keydecode dstlen > srclen -3");
+    log_err(0,"radius_keydecode dstlen > srclen - 3");
     return -1; 
   }
 
-  *dstlen = src[2] ^ b[0];
+  *dstlen = (size_t)(src[2] ^ b[0]);
 
   for (i = 1; i < RADIUS_MD5LEN; i++)
-    if ((i-1) < *dstlen)
+    if ((i-1) < (int)*dstlen)
       dst[i-1] = src[i+2] ^ b[i];
 
   /* Next blocks of 16 octets */
-  for (n=1; n<blocks; n++) {
+  for (n=1; n < blocks; n++) {
     MD5Init(&context);
-    MD5Update(&context, (uint8_t*) secret, secretlen);
-    MD5Update(&context, src + 2 + ((n-1) * RADIUS_MD5LEN), RADIUS_MD5LEN);
+    MD5Update(&context, (uint8_t *)secret, secretlen);
+    MD5Update(&context, &src[2 + ((n-1) * RADIUS_MD5LEN)], RADIUS_MD5LEN);
     MD5Final(b, &context);
     for (i = 0; i < RADIUS_MD5LEN; i++)
-      if ((i-1+n*RADIUS_MD5LEN) < *dstlen)
+      if ((i-1+n*RADIUS_MD5LEN) < (int)*dstlen)
 	dst[i-1+n*RADIUS_MD5LEN] = src[i+2+n*RADIUS_MD5LEN] ^ b[i];
   }
 
   return 0;
-
 }
 
 /* 
  * radius_keyencode()
  * Encode an MPPE key using MD5.
  */
-int radius_keyencode(struct radius_t *this, uint8_t *dst, size_t dstsize,
-		     size_t *dstlen, uint8_t *src, size_t srclen,
-		     uint8_t *authenticator, char *secret, size_t secretlen) {
-  int i, n;
+int radius_keyencode(struct radius_t *this, 
+		     uint8_t *dst, size_t dstsize, size_t *dstlen, 
+		     uint8_t *src, size_t srclen,
+		     uint8_t *authenticator, 
+		     char *secret, size_t secretlen) {
   MD5_CTX context;
   unsigned char b[RADIUS_MD5LEN];
-  size_t blocks;
+  int blocks;
+  int i, n;
 
-  blocks = (srclen + 1) / RADIUS_MD5LEN;
-  if ((blocks * RADIUS_MD5LEN) < (srclen +1)) blocks++;
+  blocks = ((int)srclen + 1) / RADIUS_MD5LEN;
+  if ((blocks * RADIUS_MD5LEN) < ((int)srclen + 1)) blocks++;
   
-  if (((blocks * RADIUS_MD5LEN) +2 ) > dstsize) {
+  if (((blocks * RADIUS_MD5LEN) + 2) > (int)dstsize) {
     log_err(0, "radius_keyencode dstsize too small");
     return -1;
   }
 
-  *dstlen = (blocks * RADIUS_MD5LEN) + 2;
+  *dstlen = (size_t)((blocks * RADIUS_MD5LEN) + 2);
 
   /* Read two salt octets */
   if (fread(dst, 1, 2, this->urandom_fp) != 2) {
@@ -849,25 +852,25 @@ int radius_keyencode(struct radius_t *this, uint8_t *dst, size_t dstsize,
 
   /* Get MD5 hash on secret + authenticator (First 16 octets) */
   MD5Init(&context);
-  MD5Update(&context, (uint8_t*) secret, secretlen);
+  MD5Update(&context, (uint8_t *)secret, secretlen);
   MD5Update(&context, authenticator, RADIUS_AUTHLEN);
   MD5Update(&context, dst, 2);
   MD5Final(b, &context);
-  dst[2] = (uint8_t) srclen ^ b[0]; /* Length of key */
+  dst[2] = (uint8_t)srclen ^ b[0]; /* Length of key */
   for (i = 1; i < RADIUS_MD5LEN; i++)
-    if ((i-1) < srclen)
+    if ((i-1) < (int)srclen)
       dst[i+2] = src[i-1] ^ b[i];
     else
       dst[i+2] = b[i];
 
   /* Get MD5 hash on secret + c(n-1) (Next j 16 octets) */
-  for (n=1; n<blocks; n++) {
+  for (n=1; n < blocks; n++) {
     MD5Init(&context);
-    MD5Update(&context, (uint8_t*) secret, secretlen);
-    MD5Update(&context, dst+2+((n-1) * RADIUS_MD5LEN), RADIUS_MD5LEN);
+    MD5Update(&context, (uint8_t *)secret, secretlen);
+    MD5Update(&context, &dst[2 + ((n-1) * RADIUS_MD5LEN)], RADIUS_MD5LEN);
     MD5Final(b, &context);
     for (i = 0; i < RADIUS_MD5LEN; i++)
-      if ((i-1) < srclen)
+      if ((i-1) < (int)srclen)
 	dst[i+2+n*RADIUS_MD5LEN] = src[i-1+n*RADIUS_MD5LEN] ^ b[i];
       else
 	dst[i+2+n*RADIUS_MD5LEN] = b[i];
@@ -881,9 +884,11 @@ int radius_keyencode(struct radius_t *this, uint8_t *dst, size_t dstsize,
  * radius_pwdecode()
  * Decode a password using MD5. Also used for MSCHAPv1 MPPE keys.
  */
-int radius_pwdecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
-		    size_t *dstlen, uint8_t *src, size_t srclen, 
-		    uint8_t *authenticator, char *secret, size_t secretlen) {
+int radius_pwdecode(struct radius_t *this, 
+		    uint8_t *dst, size_t dstsize, size_t *dstlen, 
+		    uint8_t *src, size_t srclen, 
+		    uint8_t *authenticator, 
+		    char *secret, size_t secretlen) {
   int i, n;
   MD5_CTX context;
   unsigned char output[RADIUS_MD5LEN];
@@ -897,7 +902,6 @@ int radius_pwdecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
     log_err(0, "radius_pwdecode srclen is not multiple of 16 octets");
     return -1;
   }
-
 
   *dstlen = srclen;
 

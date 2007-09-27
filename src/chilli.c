@@ -710,6 +710,7 @@ int static radius_access_accept(struct app_conn_t *conn) {
   struct radius_packet_t radius_pack;
   size_t offset = 0;
   size_t eaplen = 0;
+
   uint8_t mppekey[RADIUS_ATTR_VLEN];
   size_t mppelen;
 
@@ -733,7 +734,7 @@ int static radius_access_accept(struct app_conn_t *conn) {
     offset += eaplen;
   }
 
-  if (conn->sendkey) {
+  if (conn->sendlen) {
     radius_keyencode(radius, mppekey, RADIUS_ATTR_VLEN,
 		     &mppelen, conn->sendkey,
 		     conn->sendlen, conn->authenticator,
@@ -741,10 +742,10 @@ int static radius_access_accept(struct app_conn_t *conn) {
 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_MS, RADIUS_ATTR_MS_MPPE_SEND_KEY, 0,
-		   (uint8_t *) mppekey, mppelen);
+		   (uint8_t *)mppekey, mppelen);
   }
 
-  if (conn->recvkey) {
+  if (conn->recvlen) {
     radius_keyencode(radius, mppekey, RADIUS_ATTR_VLEN,
 		     &mppelen, conn->recvkey,
 		     conn->recvlen, conn->authenticator,
@@ -1895,10 +1896,6 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
 	      params->interim_interval);
       params->interim_interval = 0;
     } 
-    else if (params->interim_interval < 600) {
-      log(LOG_WARNING, "Received small radius Acct-Interim-Interval value: %d",
-	      params->interim_interval);
-    }
   }
   else if (!reconfig)
     params->interim_interval = 0;
@@ -2293,11 +2290,11 @@ int cb_radius_auth_conf(struct radius_t *radius,
   if (!radius_getattr(pack, &sendattr, RADIUS_ATTR_VENDOR_SPECIFIC,
 		      RADIUS_VENDOR_MS,
 		      RADIUS_ATTR_MS_MPPE_SEND_KEY, 0)) {
-    if (radius_keydecode(radius, appconn->sendkey, RADIUS_ATTR_VLEN, 
-			 &appconn->sendlen, (uint8_t*) &sendattr->v.t,
-			 sendattr->l-2, pack_req->authenticator,
+    if (radius_keydecode(radius, appconn->sendkey, RADIUS_ATTR_VLEN, &appconn->sendlen, 
+			 (uint8_t *)&sendattr->v.t, sendattr->l-2, 
+			 pack_req->authenticator,
 			 radius->secret, radius->secretlen)) {
-      log(LOG_INFO, "radius_keydecode() failed!");
+      log_err(0, "radius_keydecode() failed!");
       return dnprot_reject(appconn);
     }
   }
@@ -2306,11 +2303,11 @@ int cb_radius_auth_conf(struct radius_t *radius,
   if (!radius_getattr(pack, &recvattr, RADIUS_ATTR_VENDOR_SPECIFIC,
 		      RADIUS_VENDOR_MS,
 		      RADIUS_ATTR_MS_MPPE_RECV_KEY, 0)) {
-    if (radius_keydecode(radius, appconn->recvkey, RADIUS_ATTR_VLEN,
-			 &appconn->recvlen, (uint8_t*) &recvattr->v.t,
-			 recvattr->l-2, pack_req->authenticator,
+    if (radius_keydecode(radius, appconn->recvkey, RADIUS_ATTR_VLEN, &appconn->recvlen, 
+			 (uint8_t *)&recvattr->v.t, recvattr->l-2, 
+			 pack_req->authenticator,
 			 radius->secret, radius->secretlen) ) {
-      log(LOG_INFO, "radius_keydecode() failed!");
+      log_err(0, "radius_keydecode() failed!");
       return dnprot_reject(appconn);
     }
   }
@@ -2322,7 +2319,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
     /* TODO: Check length of vendor attributes */
     if (radius_pwdecode(radius, appconn->lmntkeys, RADIUS_MPPEKEYSSIZE,
-			&appconn->lmntlen, (uint8_t*) &lmntattr->v.t,
+			&appconn->lmntlen, (uint8_t *)&lmntattr->v.t,
 			lmntattr->l-2, pack_req->authenticator,
 			radius->secret, radius->secretlen)) {
       log_err(0, "radius_pwdecode() failed");
