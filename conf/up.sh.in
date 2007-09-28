@@ -45,7 +45,7 @@ ipt_in() {
     ipt -I FORWARD -i $IF -j ACCEPT
     ipt -I FORWARD -o $IF -j ACCEPT
 
-    [ "$HS_LAN_ACCESS" != "on" -a "$HS_LAN_ACCESS" != "1" ] && \
+    [ "$HS_LAN_ACCESS" != "on" -a "$HS_LAN_ACCESS" != "allow" ] && \
 	ipt -I FORWARD -i $IF -o \! $HS_WANIF -j DROP
 
     [ "$HS_LOCAL_DNS" = "on" ] && \
