@@ -1,7 +1,7 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
-== ChangeLog (Coova Chilli v1.0.8 svn revision 1XX) ==
+== ChangeLog (Coova Chilli v1.0.8 svn revision 124) ==
 
 * New option ''uamdomain'' whereby entire domains, one per use of option, can be white-listed.
 * New option ''dnsparanoia'' to drop DNS responses (pre-authentication) containing any non- A, CNAME, SOA, or MX records

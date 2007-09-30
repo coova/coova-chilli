@@ -31,7 +31,8 @@ make
 make install DESTDIR=$RPM_BUILD_ROOT
 
 rm -rf $RPM_BUILD_ROOT/usr/include/*
-rm -rf $RPM_BUILD_ROOT/usr/lib/*
+rm -rf $RPM_BUILD_ROOT/usr/lib/*.la
+rm -rf $RPM_BUILD_ROOT/usr/lib/*.a
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -49,8 +50,9 @@ fi
 %files
 %defattr(-,root,root)
 %{_sbindir}/*
+%{_libdir}/*.so*
 %{_sysconfdir}/init.d/chilli
-%doc AUTHORS COPYING ChangeLog INSTALL README doc/*
+%doc AUTHORS COPYING ChangeLog INSTALL README doc/dictionary.chillispot doc/hotspotlogin.cgi
 %config %{_sysconfdir}/chilli.conf
 %config(noreplace) %{_sysconfdir}/chilli/defaults
 %dir %{_sysconfdir}/chilli
@@ -65,8 +67,8 @@ fi
 %{_mandir}/man8/*.8*
 
 %changelog
-* Thu Sep 20 2007 <david@coova.com>
-- 1.0.8 release (renamed)
+* Thu Sep 30 2007 <david@coova.com>
+- 1.0.8 release 
 * Thu Aug 20 2007 <david@coova.com>
 - 1.0-coova.7 release
 * Thu Jun 7 2007 <david@coova.com>
