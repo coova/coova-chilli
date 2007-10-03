@@ -100,15 +100,15 @@ void static log_pid(char *pidfile) {
 int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t octetsdown) {
   
   time_t timenow = mainclock;
-  time_t timediff; 
+  uint64_t timediff; 
   int result = 0;
 
  
   timediff = timenow - conn->state.last_time;
 
-  /*  if (options.debug) log_dbg("Leaky bucket timediff: %lld, bucketup: %d, bucketdown: %d %d %d\n", 
-			    timediff, conn->state.bucketup, conn->state.bucketdown, 
-			    octetsup, octetsdown);*/
+  if (options.debug) log_dbg("Leaky bucket timediff: %lld, bucketup: %lld, bucketdown: %lld, up: %lld, down: %lld", 
+			     timediff, conn->state.bucketup, conn->state.bucketdown, 
+			     octetsup, octetsdown);
 
   if (conn->params.bandwidthmaxup) {
     /* Subtract what the leak since last time we visited */
@@ -120,7 +120,7 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
     }
     
     if ((conn->state.bucketup + octetsup) > conn->state.bucketupsize) {
-      /*if (options.debug) log_dbg("Leaky bucket deleting uplink packet\n");*/
+      if (options.debug) log_dbg("Leaky bucket deleting uplink packet");
       result = -1;
     }
     else {
@@ -137,7 +137,7 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
     }
     
     if ((conn->state.bucketdown + octetsdown) > conn->state.bucketdownsize) {
-      /*if (options.debug) log_dbg("Leaky bucket deleting downlink packet\n");*/
+      if (options.debug) log_dbg("Leaky bucket deleting downlink packet");
       result = -1;
     }
     else {
