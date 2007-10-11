@@ -9,6 +9,14 @@ if (!window.queryObj) {
 
 chilliController.queryObj = window.queryObj;
 
+function ie_getElementsByTagName(str) {
+  if (str=="*") return document.all;
+  else return document.all.tags(str);
+}
+
+if (document.all) 
+  document.getElementsByTagName = ie_getElementsByTagName;
+
 function hidePage(page) { 
     var e = document.getElementById(page);
     if (e != null) e.style.display='none';

@@ -112,7 +112,7 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
 
   if (conn->params.bandwidthmaxup) {
     /* Subtract what the leak since last time we visited */
-    if (conn->state.bucketup > ((timediff * conn->params.bandwidthmaxup)/8)) {
+    if (conn->state.bucketup > ((timediff * conn->params.bandwidthmaxup) / 8)) {
       conn->state.bucketup -= (timediff * conn->params.bandwidthmaxup) / 8;
     }
     else {
@@ -129,7 +129,7 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
   }
 
   if (conn->params.bandwidthmaxdown) {
-    if (conn->state.bucketdown > ((timediff * conn->params.bandwidthmaxdown)/8)) {
+    if (conn->state.bucketdown > ((timediff * conn->params.bandwidthmaxdown) / 8)) {
       conn->state.bucketdown -= (timediff * conn->params.bandwidthmaxdown) / 8;
     }
     else {
@@ -777,7 +777,7 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
   char mac[MACSTRLEN+1];
   char portid[16+1];
   time_t timenow;
-  time_t timediff;
+  uint32_t timediff;
 
   if (RADIUS_STATUS_TYPE_START == status_type) {
     conn->state.start_time = mainclock;
@@ -2251,7 +2251,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #ifdef BUCKET_SIZE
     appconn->state.bucketupsize = BUCKET_SIZE;
 #else
-    appconn->state.bucketupsize = appconn->bandwidthmaxup / 8000 * BUCKET_TIME;
+    appconn->state.bucketupsize = appconn->params.bandwidthmaxup / 8000 * BUCKET_TIME;
     if (appconn->state.bucketupsize < BUCKET_SIZE_MIN) 
       appconn->state.bucketupsize = BUCKET_SIZE_MIN;
 #endif
@@ -2263,7 +2263,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #ifdef BUCKET_SIZE
     appconn->state.bucketdownsize = BUCKET_SIZE;
 #else
-    appconn->state.bucketdownsize = params->bandwidthmaxdown / 8000 * BUCKET_TIME;
+    appconn->state.bucketdownsize = appconn->params.bandwidthmaxdown / 8000 * BUCKET_TIME;
     if (appconn->state.bucketdownsize < BUCKET_SIZE_MIN) 
       appconn->state.bucketdownsize = BUCKET_SIZE_MIN;
 #endif
@@ -2934,7 +2934,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 #ifdef BUCKET_SIZE
     appconn->state.bucketupsize = BUCKET_SIZE;
 #else
-    appconn->state.bucketupsize = appconn->state.bandwidthmaxup / 8000 * BUCKET_TIME;
+    appconn->state.bucketupsize = appconn->params.bandwidthmaxup / 8000 * BUCKET_TIME;
     if (appconn->state.bucketupsize < BUCKET_SIZE_MIN) 
       appconn->state.bucketupsize = BUCKET_SIZE_MIN;
 #endif
@@ -2944,7 +2944,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 #ifdef BUCKET_SIZE
     appconn->state.bucketdownsize = BUCKET_SIZE;
 #else
-    appconn->state.bucketdownsize = appconn->state.bandwidthmaxdown / 8000 * BUCKET_TIME;
+    appconn->state.bucketdownsize = appconn->params.bandwidthmaxdown / 8000 * BUCKET_TIME;
     if (appconn->state.bucketdownsize < BUCKET_SIZE_MIN) 
       appconn->state.bucketdownsize = BUCKET_SIZE_MIN;
 #endif

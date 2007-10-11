@@ -153,6 +153,8 @@ void dhcp_print(struct dhcp_t *this, int sock, int listfmt, struct dhcp_conn_t *
 
     if (listfmt == LIST_JSON_FMT)
       bcatcstr(b, "}");
+    else
+      bcatcstr(b, "\n");
 
     write(sock, b->data, b->slen);
   }

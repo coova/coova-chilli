@@ -13,3 +13,5 @@ EOF
 chilliwww="http:\/\/$hs_uamlisten:$hs_uamport"
 echo "o.innerHTML='"$(cat json_html.tmpl|tr '\n' ' '|sed -e "s/'/\\'/"|sed -e "s/CHILLIWWW/$chilliwww/g")"';" 
 echo "}"
+
+echo "setTimeout('chilliController.refresh()', 0);"

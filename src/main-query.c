@@ -252,8 +252,6 @@ int main(int argc, char **argv) {
 
   if (len < 0) 
     perror("read");
-  else
-    write(1, "\n",1);
 
   shutdown(s,2);
   close(s);
