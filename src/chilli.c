@@ -106,9 +106,10 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
  
   timediff = timenow - conn->state.last_time;
 
-  if (options.debug) log_dbg("Leaky bucket timediff: %lld, bucketup: %lld, bucketdown: %lld, up: %lld, down: %lld", 
-			     timediff, conn->state.bucketup, conn->state.bucketdown, 
-			     octetsup, octetsdown);
+  if (options.debug && (conn->params.bandwidthmaxup || conn->params.bandwidthmaxdown))
+    log_dbg("Leaky bucket timediff: %lld, bucketup: %lld, bucketdown: %lld, up: %lld, down: %lld", 
+	    timediff, conn->state.bucketup, conn->state.bucketdown, 
+	    octetsup, octetsdown);
 
   if (conn->params.bandwidthmaxup) {
     /* Subtract what the leak since last time we visited */
@@ -1463,7 +1464,7 @@ int accounting_request(struct radius_packet_t *pack,
       return 0;
     }
     /* Connection is simply deleted */
-    dhcp_freeconn(dhcpconn);
+    dhcp_freeconn(dhcpconn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
     break;
   default:
     log_err(0,"Unknown downlink protocol");
@@ -1765,28 +1766,28 @@ int access_request(struct radius_packet_t *pack,
   }
 
   /* Include his MAC address */
-  (void) snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+  snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 	   appconn->hismac[0], appconn->hismac[1],
 	   appconn->hismac[2], appconn->hismac[3],
 	   appconn->hismac[4], appconn->hismac[5]);
   
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
 		 (uint8_t*) mac, MACSTRLEN);
   
   radius_addcalledstation(radius, &radius_pack);
-
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
+  
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
 		 options.radiusnasporttype, NULL, 0);
-
-  (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
+  
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
 		 appconn->unit, NULL, 0);
-
+  
   radius_addnasip(radius, &radius_pack);
   
   /* Include NAS-Identifier if given in configuration options */
   if (options.radiusnasid)
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-			  (uint8_t*) options.radiusnasid, strlen(options.radiusnasid));
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
+		   (uint8_t*) options.radiusnasid, strlen(options.radiusnasid));
   
   return radius_req(radius, &radius_pack, appconn);
 }
@@ -2674,7 +2675,7 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
 }
 
 /* Callback when a dhcp connection is deleted */
-int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
+int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
   struct app_conn_t *appconn;
 
   log(LOG_INFO, "DHCP addr released by MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X IP=%s", 
@@ -2696,7 +2697,11 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn) {
     return 0; /* DNPROT_WPA and DNPROT_EAPOL are unaffected by dhcp release? */
   }
 
-  terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
+  terminate_appconn(appconn, 
+		    term_cause ? term_cause : 
+		    appconn->state.terminate_cause ? 
+		    appconn->state.terminate_cause :
+		    RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
 
   /* ALPAPAD */
   if (appconn->uplink) {
@@ -2788,6 +2793,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
   struct dhcp_eap_t *eap = (struct dhcp_eap_t*) pack;
   struct app_conn_t *appconn = conn->peer;
   struct radius_packet_t radius_pack;
+  char mac[MACSTRLEN+1];
   size_t offset;
 
   if (options.debug) log_dbg("EAP Packet received");
@@ -2822,6 +2828,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
 
   /* Build up radius request */
   radius_pack.code = RADIUS_CODE_ACCESS_REQUEST;
+
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
 			(uint8_t*) appconn->state.redir.username, 
 			strlen(appconn->state.redir.username));
@@ -2859,10 +2866,20 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
 		 appconn->unit, NULL, 0);
   
   radius_addnasip(radius, &radius_pack);
+
+  snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	   appconn->hismac[0], appconn->hismac[1],
+	   appconn->hismac[2], appconn->hismac[3],
+	   appconn->hismac[4], appconn->hismac[5]);
+  
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
+		 (uint8_t*) mac, MACSTRLEN);
+  
+  radius_addcalledstation(radius, &radius_pack);
   
   /* Include NAS-Identifier if given in configuration options */
   if (options.radiusnasid)
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
 		   (uint8_t*) options.radiusnasid,
 		   strlen(options.radiusnasid));
   
@@ -3029,7 +3046,7 @@ static int cmdsock_accept(int sock) {
     break;
 
   case CMDSOCK_DHCP_RELEASE:
-    if (dhcp) dhcp_release_mac(dhcp, req.data.mac);
+    if (dhcp) dhcp_release_mac(dhcp, req.data.mac, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
     break;
 
   case CMDSOCK_LIST:
@@ -3158,6 +3175,7 @@ int printstatus(struct app_conn_t *appconn)
   fclose(file);
   return 0;
 }
+
 
 int chilli_main(int argc, char **argv) {
   

@@ -163,10 +163,10 @@ void dhcp_print(struct dhcp_t *this, int sock, int listfmt, struct dhcp_conn_t *
   bdestroy(tmp);
 }
 
-void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr) {
+void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause) {
   struct dhcp_conn_t *conn;
   if (!dhcp_hashget(this, &conn, hwaddr)) {
-    dhcp_freeconn(conn);
+    dhcp_freeconn(conn, term_cause);
   }
 }
 
@@ -911,7 +911,7 @@ int dhcp_newconn(struct dhcp_t *this,
  * dhcp_freeconn()
  * Returns a connection to the pool. 
  **/
-int dhcp_freeconn(struct dhcp_conn_t *conn)
+int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause)
 {
   /* TODO: Always returns success? */
 
@@ -919,7 +919,7 @@ int dhcp_freeconn(struct dhcp_conn_t *conn)
 
   /* Tell application that we disconnected */
   if (this->cb_disconnect)
-    this->cb_disconnect(conn);
+    this->cb_disconnect(conn, term_cause);
 
   if (this->debug)
     log_dbg("DHCP freeconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
@@ -984,7 +984,7 @@ int dhcp_checkconn(struct dhcp_t *this)
     if (now > conn->lasttime) {
       if (this->debug) 
 	log_dbg("DHCP timeout: Removing connection");
-      dhcp_freeconn(conn);
+      dhcp_freeconn(conn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
       return 0; /* Returning after first deletion */
     }
     conn = conn->next;
@@ -1314,7 +1314,8 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct dhcp_ippacket_t *pack, si
 	int n;
 	for (n=0; n<DHCP_DNAT_MAX; n++) {
 	  if (tcph->dst == conn->dnatport[n]) {
-	    memcpy(pack->ethh.src, conn->dnatmac[n], DHCP_ETH_ALEN); 
+	    if (options.usetap) 
+	      memcpy(pack->ethh.src, conn->dnatmac[n], DHCP_ETH_ALEN); 
 	    pack->iph.saddr = conn->dnatip[n];
 	    tcph->src = htons(DHCP_HTTP);
 	    (void)dhcp_tcp_check(pack, len);
@@ -1345,7 +1346,8 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct dhcp_ippacket_t *pack, si
 	}
 	
 	if (pos==-1) { /* Save for undoing */
-	  memcpy(conn->dnatmac[conn->nextdnat], pack->ethh.dst, DHCP_ETH_ALEN); 
+	  if (options.usetap) 
+	    memcpy(conn->dnatmac[conn->nextdnat], pack->ethh.dst, DHCP_ETH_ALEN); 
 	  conn->dnatip[conn->nextdnat] = pack->iph.daddr; 
 	  conn->dnatport[conn->nextdnat] = tcph->src;
 	  conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
@@ -1434,7 +1436,8 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
     int n;
     for (n=0; n<DHCP_DNAT_MAX; n++) {
       if (tcph->dst == conn->dnatport[n]) {
-	memcpy(pack->ethh.src, conn->dnatmac[n], DHCP_ETH_ALEN); 
+	if (options.usetap) 
+	  memcpy(pack->ethh.src, conn->dnatmac[n], DHCP_ETH_ALEN); 
 	pack->iph.saddr = conn->dnatip[n];
 	tcph->src = htons(DHCP_HTTP);
 	(void)dhcp_tcp_check(pack, len);
@@ -2057,7 +2060,7 @@ int dhcp_getreq(struct dhcp_t *this,
   /* Release message */
   /* If connection exists: Release it. No Reply to client is sent */
   if (message_type->v[0] == DHCPRELEASE) {
-    dhcp_release_mac(this, mac);
+    dhcp_release_mac(this, mac, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
     return 0;
   }
 
@@ -2792,7 +2795,7 @@ int dhcp_set_cb_connect(struct dhcp_t *this,
  * Set callback function which is called when a connection is deleted
  **/
 int dhcp_set_cb_disconnect(struct dhcp_t *this, 
-  int (*cb_disconnect) (struct dhcp_conn_t *conn))
+  int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause))
 {
   this ->cb_disconnect = cb_disconnect;
   return 0;

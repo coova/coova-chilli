@@ -368,7 +368,7 @@ struct dhcp_t {
   int (*cb_eap_ind)  (struct dhcp_conn_t *conn, void *pack, size_t len);
   int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr);
   int (*cb_connect) (struct dhcp_conn_t *conn);
-  int (*cb_disconnect) (struct dhcp_conn_t *conn);
+  int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause);
   int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt);
 };
 
@@ -427,7 +427,7 @@ dhcp_set_cb_request(struct dhcp_t *this,
 
 extern int 
 dhcp_set_cb_disconnect(struct dhcp_t *this, 
-  int (*cb_disconnect) (struct dhcp_conn_t *conn));
+  int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause));
 
 extern int 
 dhcp_set_cb_connect(struct dhcp_t *this, 
@@ -450,7 +450,7 @@ dhcp_newconn(struct dhcp_t *this, struct dhcp_conn_t **conn,
 	     uint8_t *hwaddr);
 
 extern 
-int dhcp_freeconn(struct dhcp_conn_t *conn);
+int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause);
 
 
 extern int 
@@ -462,7 +462,7 @@ extern int dhcp_sendEAPreject(struct dhcp_conn_t *conn, void *pack, size_t len);
 
 extern int dhcp_eapol_ind(struct dhcp_t *this);
 
-void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr);
+void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause);
 
 #define LIST_SHORT_FMT 0
 #define LIST_LONG_FMT  1
