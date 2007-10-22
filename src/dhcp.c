@@ -2170,7 +2170,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
    *  Received a packet from the dhcpif
    */
 
-  if (this->debug) 
+  if (this->debug)
     log_dbg("DHCP packet received");
   
   /* 
@@ -2324,6 +2324,9 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
 
   if ((conn->hisip.s_addr) && (this->cb_data_ind)) {
     this->cb_data_ind(conn, pack, len);
+  } else {
+    if (this->debug) 
+      log_dbg("no hisip; packet-drop");
   }
   
   return 0;
@@ -2340,9 +2343,6 @@ int dhcp_decaps(struct dhcp_t *this)  /* DHCP Indication */
   struct dhcp_ippacket_t packet;
   size_t length;
   
-  if (this->debug)
-    log_dbg("DHCP packet received");
-
   if ((length = recv(this->fd, &packet, sizeof(packet), 0)) < 0) {
     log_err(errno, "recv(fd=%d, len=%d) failed", this->fd, sizeof(packet));
     return -1;
@@ -2651,6 +2651,77 @@ int dhcp_sendEAPreject(struct dhcp_conn_t *conn, void *pack, size_t len) {
 
 }
 
+int dhcp_receive_eapol(struct dhcp_t *this, struct dhcp_dot1xpacket_t *pack) {
+  struct dhcp_conn_t *conn = NULL;
+  unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+  unsigned char const amac[DHCP_ETH_ALEN] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
+
+  /* Check to see if we know MAC address. */
+  if (!dhcp_hashget(this, &conn, pack->ethh.src)) {
+    if (this->debug) log_dbg("Address found");
+  }
+  else {
+    if (this->debug) log_dbg("Address not found");
+  }
+  
+  if (this->debug) 
+    log_dbg("IEEE 802.1x Packet: %.2x, %.2x %d",
+	    pack->dot1x.ver, pack->dot1x.type,
+	    ntohs(pack->dot1x.len));
+  
+  /* Check that MAC address is our MAC, Broadcast or authentication MAC */
+  if ((memcmp(pack->ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
+      (memcmp(pack->ethh.dst, bmac, DHCP_ETH_ALEN)) && 
+      (memcmp(pack->ethh.dst, amac, DHCP_ETH_ALEN)))
+    return 0;
+  
+  if (pack->dot1x.type == 1) { /* Start */
+    struct dhcp_dot1xpacket_t p;
+    memset(&p, 0, sizeof(p));
+    
+    /* Allocate new connection */
+    if (conn == NULL) {
+      if (dhcp_newconn(this, &conn, pack->ethh.src))
+	return 0; /* Out of connections */
+    }
+
+    /* Ethernet header */
+    memcpy(p.ethh.dst, pack->ethh.src, DHCP_ETH_ALEN);
+    memcpy(p.ethh.src, this->hwaddr, DHCP_ETH_ALEN);
+    p.ethh.prot = htons(DHCP_ETH_EAPOL);
+
+    /* 802.1x header */
+    p.dot1x.ver  = 1;
+    p.dot1x.type = 0; /* EAP */
+    p.dot1x.len =  ntohs(5);
+    
+    /* EAP Packet */
+    p.eap.code      =  1;
+    p.eap.id        =  1;
+    p.eap.length    =  ntohs(5);
+    p.eap.type      =  1; /* Identity */
+    (void)dhcp_senddot1x(conn, &p, DHCP_ETH_HLEN + 4 + 5);
+    return 0;
+  }
+  else if (pack->dot1x.type == 0) { /* EAP */
+
+    /* TODO: Currently we only support authentications starting with a
+       client sending a EAPOL start message. Need to also support
+       authenticator initiated communications. */
+    if (!conn)
+      return 0;
+
+    conn->lasttime = mainclock;
+    
+    if (this ->cb_eap_ind)
+      this ->cb_eap_ind(conn, &pack->eap, ntohs(pack->eap.length));
+
+    return 0;
+  }
+  else { /* Check for logoff */
+    return 0;
+  }
+}
 
 /**
  * dhcp_eapol_ind()
@@ -2662,10 +2733,6 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
   struct dhcp_dot1xpacket_t packet;
   size_t length;
   
-  struct dhcp_conn_t *conn = NULL;
-  unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-  unsigned char const amac[DHCP_ETH_ALEN] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
-
   if (this->debug) 
     log_dbg("EAPOL packet received");
   
@@ -2674,71 +2741,8 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
 	    this->fd, sizeof(packet));
     return -1;
   }
-  
-  /* Check to see if we know MAC address. */
-  if (!dhcp_hashget(this, &conn, packet.ethh.src)) {
-    if (this->debug) log_dbg("Address found");
-  }
-  else {
-    if (this->debug) log_dbg("Address not found");
-  }
-  
-  /* Check that MAC address is our MAC, Broadcast or authentication MAC */
-  if ((memcmp(packet.ethh.dst, this->hwaddr, DHCP_ETH_ALEN)) && 
-      (memcmp(packet.ethh.dst, bmac, DHCP_ETH_ALEN)) && 
-      (memcmp(packet.ethh.dst, amac, DHCP_ETH_ALEN)))
-    return 0;
-  
-  if (this->debug) 
-    log_dbg("IEEE 802.1x Packet: %.2x, %.2x %d",
-	    packet.dot1x.ver, packet.dot1x.type,
-	    ntohs(packet.dot1x.len));
-  
-  if (packet.dot1x.type == 1) { /* Start */
-    struct dhcp_dot1xpacket_t pack;
-    memset(&pack, 0, sizeof(pack));
-    
-    /* Allocate new connection */
-    if (conn == NULL) {
-      if (dhcp_newconn(this, &conn, packet.ethh.src))
-	return 0; /* Out of connections */
-    }
 
-    /* Ethernet header */
-    memcpy(pack.ethh.dst, packet.ethh.src, DHCP_ETH_ALEN);
-    memcpy(pack.ethh.src, this->hwaddr, DHCP_ETH_ALEN);
-    pack.ethh.prot = htons(DHCP_ETH_EAPOL);
-
-    /* 802.1x header */
-    pack.dot1x.ver  = 1;
-    pack.dot1x.type = 0; /* EAP */
-    pack.dot1x.len =  ntohs(5);
-    
-    /* EAP Packet */
-    pack.eap.code      =  1;
-    pack.eap.id        =  1;
-    pack.eap.length    =  ntohs(5);
-    pack.eap.type      =  1; /* Identity */
-    (void)dhcp_senddot1x(conn, &pack, DHCP_ETH_HLEN + 4 + 5);
-    return 0;
-  }
-  else if (packet.dot1x.type == 0) { /* EAP */
-
-    /* TODO: Currently we only support authentications starting with a
-       client sending a EAPOL start message. Need to also support
-       authenticator initiated communications. */
-    if (!conn)
-      return 0;
-
-    conn->lasttime = mainclock;
-    
-    if (this ->cb_eap_ind)
-      this ->cb_eap_ind(conn, &packet.eap, ntohs(packet.eap.length));
-    return 0;
-  }
-  else { /* Check for logoff */
-    return 0;
-  }
+  return dhcp_receive_eapol(this, &packet);
 }
 
 
@@ -2861,6 +2865,9 @@ int dhcp_receive(struct dhcp_t *this) {
 		      hdrp->bh_caplen);
       break;
     case DHCP_ETH_EAPOL:
+      dhcp_receive_eapol(this, (struct dhcp_dot1xpacket_t*) ethhdr);
+      break;
+
     default:
       break;
     }

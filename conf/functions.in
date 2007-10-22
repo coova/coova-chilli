@@ -69,7 +69,6 @@ $*"; }
 writeconfig() {
     [ "$HS_ANYIP" = "on" ] && {
 	addconfig1 "uamanyip"
-	HS_STATIP=${HS_STATIP:-"192.168.0.0"}
     }
 
     addconfig1 ${HS_DYNIP:+"dynip $HS_DYNIP/${HS_DYNIP_MASK:-255.255.255.0}"}

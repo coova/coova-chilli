@@ -1043,8 +1043,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     /* Tell client it was successful */
     (void) dhcp_sendEAP(dhcpconn, appconn->chal, appconn->challen);
 
-    sys_err(LOG_WARNING, __FILE__, __LINE__, 0, 
-	    "Do not know how to set encryption keys on this platform!");
+    log_warn(0, "Do not know how to set encryption keys on this platform!");
     break;
 
   case DNPROT_UAM:
@@ -1211,8 +1210,8 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len) {
     iph = (struct tun_packet_t*)pack;
   }
 
-  /*  if (options.debug) 
-      log_dbg("cb_tun_ind. Packet received: Forwarding to link layer\n");*/
+  /*if (options.debug) 
+    log_dbg("cb_tun_ind. Packet received: Forwarding to link layer");*/
 
   dst.s_addr = iph->dst;
 
@@ -1271,6 +1270,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len) {
   case DNPROT_UAM:
   case DNPROT_WPA:
   case DNPROT_MAC:
+  case DNPROT_EAPOL:
     (void) dhcp_data_req((struct dhcp_conn_t *) appconn->dnlink, pack, len);
     break;
   default:
@@ -2817,7 +2817,8 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
 
   /* Return if not EAPOL */
   if (appconn->dnprot != DNPROT_EAPOL) {
-    log_err(0, "Received EAP message when not authenticating using EAP!");
+    log_warn(0, "Received EAP message, processing for authentication");
+    appconn->dnprot = DNPROT_EAPOL;
     return 0;
   }
   

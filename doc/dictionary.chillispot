@@ -1,23 +1,38 @@
 #
-# ChilliSpot dictionary.
+#	ChilliSpot (and CoovaChilli) captive portal
+#	http://www.chillispot.org
+#	http://coova.org/wiki/index.php/CoovaChilli
 #
-#               Enable by putting the line "$INCLUDE dictionary.chillispot" 
-#               into the main dictionary file.
-#
+#	$Id: dictionary.chillispot,v 1.3 2007/09/24 16:16:22 dwbird Exp $
 #
 
 VENDOR          ChilliSpot                   14559
 
-#
-#       ChilliSpot Vendor Specific Extensions
-#
-#
-ATTRIBUTE       ChilliSpot-Max-Input-Octets        1       integer ChilliSpot
-ATTRIBUTE       ChilliSpot-Max-Output-Octets       2       integer ChilliSpot
-ATTRIBUTE       ChilliSpot-Max-Total-Octets        3       integer ChilliSpot
-ATTRIBUTE       ChilliSpot-Bandwidth-Max-Up        4       integer ChilliSpot
-ATTRIBUTE       ChilliSpot-Bandwidth-Max-Down      5       integer ChilliSpot
-ATTRIBUTE       ChilliSpot-Config                  6       string  ChilliSpot
-ATTRIBUTE       ChilliSpot-Lang                    7       string  ChilliSpot
-ATTRIBUTE       ChilliSpot-Version                 8       string  ChilliSpot
-ATTRIBUTE       ChilliSpot-OriginalURL             9       string  ChilliSpot
+BEGIN-VENDOR	ChilliSpot
+
+ATTRIBUTE	ChilliSpot-Max-Input-Octets		1	integer
+ATTRIBUTE	ChilliSpot-Max-Output-Octets		2	integer
+ATTRIBUTE	ChilliSpot-Max-Total-Octets		3	integer
+ATTRIBUTE       ChilliSpot-Bandwidth-Max-Up        	4       integer
+ATTRIBUTE       ChilliSpot-Bandwidth-Max-Down      	5       integer
+ATTRIBUTE       ChilliSpot-Config                  	6       string
+ATTRIBUTE       ChilliSpot-Lang                    	7       string
+ATTRIBUTE       ChilliSpot-Version                 	8       string
+ATTRIBUTE       ChilliSpot-OriginalURL             	9       string
+ATTRIBUTE       ChilliSpot-Acct-View-Point             10	integer
+
+VALUE	ChilliSpot-Acct-View-Point ChilliSpot-NAS-View-Point	1
+VALUE	ChilliSpot-Acct-View-Point ChilliSpot-Client-View-Point 2
+
+# Configuration management parameters (ChilliSpot Only)
+ATTRIBUTE	ChilliSpot-UAM-Allowed			100	string
+ATTRIBUTE	ChilliSpot-MAC-Allowed			101	string
+ATTRIBUTE	ChilliSpot-Interval			102	integer
+
+# Inline with RFC 2882 use of VSE-Authorize-Only for remote config
+# Note that 14559 = 0x38df is used as prefix for the VSE.
+# This is recognized as the best (but bad) way of doing VSEs.
+# (ChilliSpot Only - CoovaChilli uses Service-Type = Administrative-User)
+VALUE	Service-Type			ChilliSpot-Authorize-Only 0x38df0001
+
+END-VENDOR	ChilliSpot
