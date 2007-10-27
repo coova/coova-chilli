@@ -53,7 +53,7 @@ case "$1" in
    (crontab -l 2>&- | grep -v $0
       test ${HS_ADMINTERVAL:-0} -gt 0 && echo "*/$HS_ADMINTERVAL * * * * $0 radconfig"
       echo "*/10 * * * * $0 checkrunning"
-      echo "*/2  * * * * $0 arping"
+      #echo "*/2  * * * * $0 arping"
    ) | crontab - 2>&-
 
    ifconfig $HS_LANIF 0.0.0.0
