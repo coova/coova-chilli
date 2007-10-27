@@ -1,3 +1,11 @@
+coova-chilli (1.0.9-1) unstable; urgency=low
+
+  * Fix wrong localstatedir declaration
+  * Changing build dependencies version for libc6-dev
+  * upgrading to latest version
+
+ -- Unixmedia S.r.l. (Medianix Devel) <devel@unixmedia.it>  Sat, 27 Oct 2007 14:07:19 +0200
+
 coova-chilli (1.0.8-1) unstable; urgency=low
 
   * New upstream release
