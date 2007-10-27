@@ -316,8 +316,9 @@ static int redir_xmlreply(struct redir_t *redir,
 	bconcat(b, bt);
       }
       
-      bassignformat(bt, "<LoginURL>%s?res=smartclient&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
+      bassignformat(bt, "<LoginURL>%s%cres=smartclient&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
 		    options.wisprlogin ? options.wisprlogin : redir->url, 
+		    strchr(options.wisprlogin ? options.wisprlogin : redir->url, '?') ? '&' : '?',
 		    inet_ntoa(redir->addr), redir->port, hexchal); 
       bconcat(b, bt);
       
@@ -477,8 +478,9 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
   bstring bt = bfromcstr("");
   bstring bt2 = bfromcstr("");
 
-  bassignformat(str, "%s?res=%s&uamip=%s&uamport=%d", 
-		redir->url, resp, inet_ntoa(redir->addr), redir->port);
+  bassignformat(str, "%s%cres=%s&uamip=%s&uamport=%d", 
+		redir->url, strchr(redir->url, '?') ? '&' : '?',
+		resp, inet_ntoa(redir->addr), redir->port);
 
   if (hexchal) {
     bassignformat(bt, "&challenge=%s", hexchal);
@@ -557,7 +559,7 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
     bassigncstr(bt, redir->nasmac);
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
-  }
+  } 
 
   if (redir->radiusnasid) {
     bcatcstr(str, "&nasid=");
@@ -1962,18 +1964,13 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       /* check filename */
       { char *p;
 	for (p=filename; *p; p++) {
-	  if (*p >= 'a' && *p <= 'z') 
-	    continue;
-	  switch(*p) {
-	  case '.':
-	  case '_':
-	  case '-':
-	    break;
-	  default:
-	    /* invalid file name! */
-	    log_err(0, "invalid www request [%s]!", filename);
-	    redir_close();
-	  }
+	  if (*p >= 'a' && *p <= 'z') continue;
+	  if (*p >= 'A' && *p <= 'Z') continue;
+	  if (*p >= '0' && *p <= '9') continue;
+	  if (*p == '.' || *p == '_') continue;
+	  /* invalid file name! */
+	  log_err(0, "invalid www request [%s]!", filename);
+	  redir_close();
 	}
       }
       

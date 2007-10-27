@@ -3,8 +3,12 @@
 
 * Bug fix whereby the mac address of packets from the chilli redirect are overwritten	
 * Bug fix for 'leaky bucket' timediff calculations
+* Bug fix for ''uamserver'' URLs already with a query string
+* Bug fix for initial redirect url ''called'' parameter when ''nasmac'' is not configured
 * Better Terminate-Cause for administrative reset (logout)
 * Fewer defaults set in 'defaults' script - assume chilli defaults instead
+* Fixes for native EAP over LAN (EAPOL) support
+* Local web content filenames served by chilli now able to have mixed capitalization
 * chilliController support for older IE browsers
 
 == ChangeLog (Coova Chilli v1.0.8 svn revision 124) ==

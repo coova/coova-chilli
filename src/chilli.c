@@ -3177,6 +3177,21 @@ int printstatus(struct app_conn_t *appconn)
   return 0;
 }
 
+static void fixup_options() {
+  /*
+   * If we have no nasmac configured, lets default it here, after creating the dhcp
+   */
+  if (!options.nasmac) {
+    char mac[24];
+
+    sprintf(mac, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+	    dhcp->hwaddr[0],dhcp->hwaddr[1],dhcp->hwaddr[2],
+	    dhcp->hwaddr[3],dhcp->hwaddr[4],dhcp->hwaddr[5]);
+    
+    options.nasmac = strdup(mac);
+  }
+
+}
 
 int chilli_main(int argc, char **argv) {
   
@@ -3276,6 +3291,7 @@ int chilli_main(int argc, char **argv) {
     exit(1);
   }
 
+  fixup_options();
 
   /* Create an instance of radius */
   if (radius_new(&radius,
@@ -3386,6 +3402,8 @@ int chilli_main(int argc, char **argv) {
 
     if (do_sighup) {
       reprocess_options(argc, argv);
+      fixup_options();
+
       do_sighup = 0;
 
       /* Reinit DHCP parameters */
