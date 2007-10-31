@@ -64,6 +64,9 @@ struct options_t {
   uint16_t coaport;              /* UDP port to listen to */
   int coanoipcheck;              /* Allow disconnect from any IP */
   int logfacility;
+  int radiustimeout;             /* Retry timeout in milli seconds */
+  int radiusretry;               /* Total amount of retries */
+  int radiusretrysec;            /* Amount of retries after we switch to secondary */
 
   /* Radius proxy parameters */
   struct in_addr proxylisten;    /* IP address to listen to */

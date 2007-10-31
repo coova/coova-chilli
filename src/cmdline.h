@@ -114,6 +114,15 @@ struct gengetopt_args_info
   char * radiussecret_arg;	/**< @brief Radius shared secret (default='coova-anonymous').  */
   char * radiussecret_orig;	/**< @brief Radius shared secret original value given at command line.  */
   const char *radiussecret_help; /**< @brief Radius shared secret help description.  */
+  int radiustimeout_arg;	/**< @brief Retry timeout in milli seconds (default='3000').  */
+  char * radiustimeout_orig;	/**< @brief Retry timeout in milli seconds original value given at command line.  */
+  const char *radiustimeout_help; /**< @brief Retry timeout in milli seconds help description.  */
+  int radiusretry_arg;	/**< @brief Total number of retries (default='6').  */
+  char * radiusretry_orig;	/**< @brief Total number of retries original value given at command line.  */
+  const char *radiusretry_help; /**< @brief Total number of retries help description.  */
+  int radiusretrysec_arg;	/**< @brief Number of retries before using secondary (default='3').  */
+  char * radiusretrysec_orig;	/**< @brief Number of retries before using secondary original value given at command line.  */
+  const char *radiusretrysec_help; /**< @brief Number of retries before using secondary help description.  */
   char * radiusnasid_arg;	/**< @brief Radius NAS-Identifier (default='nas01').  */
   char * radiusnasid_orig;	/**< @brief Radius NAS-Identifier original value given at command line.  */
   const char *radiusnasid_help; /**< @brief Radius NAS-Identifier help description.  */
@@ -313,6 +322,9 @@ struct gengetopt_args_info
   int radiusauthport_given ;	/**< @brief Whether radiusauthport was given.  */
   int radiusacctport_given ;	/**< @brief Whether radiusacctport was given.  */
   int radiussecret_given ;	/**< @brief Whether radiussecret was given.  */
+  int radiustimeout_given ;	/**< @brief Whether radiustimeout was given.  */
+  int radiusretry_given ;	/**< @brief Whether radiusretry was given.  */
+  int radiusretrysec_given ;	/**< @brief Whether radiusretrysec was given.  */
   int radiusnasid_given ;	/**< @brief Whether radiusnasid was given.  */
   int radiuslocationid_given ;	/**< @brief Whether radiuslocationid was given.  */
   int radiuslocationname_given ;	/**< @brief Whether radiuslocationname was given.  */

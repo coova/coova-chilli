@@ -262,6 +262,9 @@ int process_options(int argc, char **argv, int minimal) {
   options.radiusacctport = args_info.radiusacctport_arg;
   options.coaport = args_info.coaport_arg;
   options.coanoipcheck = args_info.coanoipcheck_flag;
+  options.radiustimeout = args_info.radiustimeout_arg;
+  options.radiusretry = args_info.radiusretry_arg;
+  options.radiusretrysec = args_info.radiusretrysec_arg;
   options.proxyport = args_info.proxyport_arg;
   options.txqlen = args_info.txqlen_arg;
   options.postauth_proxyport = args_info.postauthproxyport_arg;

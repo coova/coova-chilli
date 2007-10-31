@@ -221,7 +221,7 @@ chilliController.logonStep2 = function ( resp ) {
 		log ('chilliController.logonStep2: Logon using uamService (external MD5 CHAP)');
 
 		// Build command URL
-		var url = chilliController.uamService + '?username=' + username +'&password=' + password +'&challenge=' + challenge ;
+		var url = chilliController.uamService + '?username=' + escape(username) +'&password=' + escape(password) +'&challenge=' + challenge ;
 
 		if (chilliController.queryObj && chilliController.queryObj['userurl'] ) {
 		    url += '&userurl='+chilliController.queryObj['userurl'] ;
@@ -250,7 +250,7 @@ chilliController.logonStep2 = function ( resp ) {
 		chilliController.clientState = chilliController.stateCodes.AUTH_PENDING ; 
 	
 		/* Build /logon command URL */
-		var logonUrl = chilliController.urlRoot() + 'logon?username=' + username + '&response='  + chappassword;
+		var logonUrl = chilliController.urlRoot() + 'logon?username=' + escape(username) + '&response='  + chappassword;
 		if (chilliController.queryObj && chilliController.queryObj['userurl'] ) {
 		    logonUrl += '&userurl='+chilliController.queryObj['userurl'] ;
 		}
@@ -274,7 +274,7 @@ chilliController.logonStep3 = function ( resp ) {
 		chilliController.clientState = chilliController.stateCodes.AUTH_PENDING ; 
 	
 		/* Build /logon command URL */
-		var logonUrl = chilliController.urlRoot() + 'logon?username=' + username + '&response='  + resp.response;
+		var logonUrl = chilliController.urlRoot() + 'logon?username=' + escape(username) + '&response='  + resp.response;
 		if (chilliController.queryObj && chilliController.queryObj['userurl'] ) {
 		    logonUrl += '&userurl='+chilliController.queryObj['userurl'] ;
 		}

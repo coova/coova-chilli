@@ -220,11 +220,13 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
   this->queue[this->next].state = 1;
   this->queue[this->next].cbp = cbp;
   this->queue[this->next].retrans = 0;
+
   tv = &this->queue[this->next].timeout;
   gettimeofday(tv, NULL);
-  tv->tv_usec += RADIUS_TIMEOUT;
-  tv->tv_sec  += tv->tv_usec / 1000000;
-  tv->tv_usec = tv->tv_usec % 1000000;
+
+  tv->tv_usec += options.radiustimeout;
+  tv->tv_sec  += tv->tv_usec / 1000;
+  tv->tv_usec = tv->tv_usec % 1000;
   this->queue[this->next].lastsent = this->lastreply;
 
   /* Insert in linked list for handling timeouts */
@@ -313,11 +315,13 @@ int radius_queue_reschedule(struct radius_t *this, int id) {
   }
 
   this->queue[id].retrans++;
+
   tv = &this->queue[id].timeout;
   gettimeofday(tv, NULL);
-  tv->tv_usec += RADIUS_TIMEOUT;
-  tv->tv_sec  += tv->tv_usec / 1000000;
-  tv->tv_usec = tv->tv_usec % 1000000;
+
+  tv->tv_usec += options.radiustimeout;
+  tv->tv_sec  += tv->tv_usec / 1000;
+  tv->tv_usec = tv->tv_usec % 1000;
 
   /* Remove from linked list */
   if (this->queue[id].next == -1) /* Are we the last in queue? */
@@ -480,11 +484,11 @@ int radius_timeout(struct radius_t *this) {
   while ((this->first!=-1) && 
 	 (radius_cmptv(&now, &this->queue[this->first].timeout) >= 0)) {
     
-    if (this->queue[this->first].retrans < RADIUS_RETRY2) {
+    if (this->queue[this->first].retrans < options.radiusretry) {
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = AF_INET;
       
-      if (this->queue[this->first].retrans == (RADIUS_RETRY1-1)) {
+      if (this->queue[this->first].retrans == (options.radiusretrysec-1)) {
 	/* Use the other server for next retransmission */
 	if (this->queue[this->first].lastsent) {
 	  addr.sin_addr = this->hisaddr0;
