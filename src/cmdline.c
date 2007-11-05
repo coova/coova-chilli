@@ -58,7 +58,7 @@ const char *gengetopt_args_info_help[] = {
   "      --radiusauthport=INT      Authentication UDP port of radius server  \n                                  (default=`1812')",
   "      --radiusacctport=INT      Accounting UDP port of radius server  \n                                  (default=`1813')",
   "      --radiussecret=STRING     Radius shared secret  \n                                  (default=`coova-anonymous')",
-  "      --radiustimeout=INT       Retry timeout in milli seconds  \n                                  (default=`3000')",
+  "      --radiustimeout=INT       Retry timeout in milli seconds  \n                                  (default=`5000')",
   "      --radiusretry=INT         Total number of retries  (default=`6')",
   "      --radiusretrysec=INT      Number of retries before using secondary  \n                                  (default=`3')",
   "      --radiusnasid=STRING      Radius NAS-Identifier  (default=`nas01')",
@@ -325,7 +325,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->radiusacctport_orig = NULL;
   args_info->radiussecret_arg = gengetopt_strdup ("coova-anonymous");
   args_info->radiussecret_orig = NULL;
-  args_info->radiustimeout_arg = 3000;
+  args_info->radiustimeout_arg = 5000;
   args_info->radiustimeout_orig = NULL;
   args_info->radiusretry_arg = 6;
   args_info->radiusretry_orig = NULL;
