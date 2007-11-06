@@ -1056,7 +1056,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
   fd_set fds;
   struct timeval idleTime;
   int status;
-  size_t recvlen = 0;
+  ssize_t recvlen = 0;
   size_t buflen = 0;
   char buffer[REDIR_MAXBUFFER];
   char host[256];
