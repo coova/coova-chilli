@@ -568,8 +568,8 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
 	       uint32_t value, uint8_t *data, uint16_t dlen) {
   struct radius_attr_t *a;
   char passwd[RADIUS_PWSIZE];
-  size_t length = ntohs(pack->length);
-  size_t vlen;
+  uint16_t length = ntohs(pack->length);
+  uint16_t vlen;
   size_t pwlen;
 
   a = (struct radius_attr_t *)((uint8_t*)pack + length);
@@ -581,8 +581,8 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
 		    data, dlen, 
 		    pack->authenticator,
 		    this->secret, this->secretlen);
-    data = (uint8_t*) passwd;
-    dlen = pwlen;
+    data = (uint8_t *)passwd;
+    dlen = (uint16_t)pwlen;
   }
 
   if (type != RADIUS_ATTR_VENDOR_SPECIFIC) {
@@ -594,8 +594,9 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
     
     if (vlen > RADIUS_ATTR_VLEN) {
+      log_warn(0, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d bytes [%s]", 
+	       type, vendor_id, vendor_type, vlen, RADIUS_ATTR_VLEN, data);
       vlen = RADIUS_ATTR_VLEN;
-      log_warn(0, "Trancating RADIUS attribute to %d [%s]", vlen, data);
     }
 
     if ((length+vlen+2) > RADIUS_PACKSIZE) {
@@ -605,7 +606,7 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
 
     length += vlen + 2;
 
-    pack->length = htons((uint16_t)length);
+    pack->length = htons(length);
 
     a->t = type;
     a->l = vlen+2;
@@ -626,8 +627,9 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
 
     if (vlen > RADIUS_ATTR_VLEN-8) {
+      log_warn(0, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d [%s]", 
+	       type, vendor_id, vendor_type, vlen, RADIUS_ATTR_VLEN-8, data);
       vlen = RADIUS_ATTR_VLEN-8;
-      log_warn(0, "Trancating RADIUS attribute to %d [%s]", vlen, data);
     }
 
     if ((length+vlen+2) > RADIUS_PACKSIZE) { 

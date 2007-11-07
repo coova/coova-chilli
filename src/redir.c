@@ -860,14 +860,6 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
     return -1;
   }
 
-  /*XXX:FLASH    
-  if (strstr(conn->useragent, "Flash")) {
-    char *c = "";
-    if (tcp_write(sock, c, 1) < 0) {
-      log_err(errno, "tcp_write() failed!");
-    }
-    }*/
-  
   bdestroy(buffer);
   return 0;
 }
@@ -889,24 +881,15 @@ int redir_new(struct redir_t **redir,
   (*redir)->uiport = uiport;
   (*redir)->starttime = 0;
   
-  if (((*redir)->fd[0] = socket(AF_INET ,SOCK_STREAM ,0)) < 0) {
+  if (((*redir)->fd[0] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     log_err(errno, "socket() failed");
     return -1;
   }
 
-  if (uiport && ((*redir)->fd[1] = socket(AF_INET ,SOCK_STREAM ,0)) < 0) {
+  if (uiport && ((*redir)->fd[1] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     log_err(errno, "socket() failed");
     return -1;
   }
-
-  /* TODO: FreeBSD
-  if (setsockopt((*redir)->fd, SOL_SOCKET, SO_REUSEPORT,
-		 &optval, sizeof(optval))) {
-    log_err(errno, "setsockopt() failed");
-    close((*redir)->fd);
-    return -1;
-  }
-  */
 
   /* Set up address */
   address.sin_family = AF_INET;
@@ -934,6 +917,14 @@ int redir_new(struct redir_t **redir,
       (*redir)->fd[n]=0;
       break;
     }
+
+    /* TODO: FreeBSD?
+       if (setsockopt((*redir)->fd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))) {
+       log_err(errno, "setsockopt() failed");
+       close((*redir)->fd);
+       return -1;
+       }
+    */
 
     while (bind((*redir)->fd[n], (struct sockaddr *)&address, sizeof(address))) {
       if ((EADDRINUSE == errno) && (10 > n++)) {
@@ -1784,9 +1775,9 @@ int redir_accept(struct redir_t *redir, int idx) {
   int status;
   int new_socket;
   struct sockaddr_in address;
-  socklen_t addrlen = sizeof(address);
+  socklen_t addrlen;
 
-
+  addrlen = sizeof(struct sockaddr_in);
   if ((new_socket = accept(redir->fd[idx], (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
     if (errno != ECONNABORTED)
       log_err(errno, "accept() failed!");
@@ -1824,7 +1815,7 @@ int redir_accept(struct redir_t *redir, int idx) {
     
   if (idx == 1 && options.uamui) {
     char *binqqargs[2] = { options.uamui, 0 } ;
-    char buffer[56];
+    char buffer[128];
 
     snprintf(buffer,sizeof(buffer)-1,"%s",inet_ntoa(address.sin_addr));
     setenv("TCPREMOTEIP",buffer,1);
