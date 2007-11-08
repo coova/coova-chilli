@@ -1081,6 +1081,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
         log_err(errno, "Too much data in http request!");
         return -1;
       }
+
       /* if post is allowed, we do not buffer on the read (to not eat post data) */
       if ((recvlen = recv(fd, buffer + buflen, (*ispost) ? 1 : sizeof(buffer) - 1 - buflen, 0)) < 0) {
 	if (errno != ECONNRESET)
@@ -1419,7 +1420,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 			struct redir_conn_t *conn) {
   unsigned char chap_password[REDIR_MD5LEN + 2];
   unsigned char chap_challenge[REDIR_MD5LEN];
-  unsigned char user_password[REDIR_MD5LEN+1];
+  unsigned char user_password[REDIR_MD5LEN + 1];
   struct radius_packet_t radius_pack;
   struct radius_t *radius;      /* Radius client instance */
   struct timeval idleTime;	/* How long to select() */
@@ -1483,17 +1484,19 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   }
   
   if (conn->chap == 0) {
-    for (n=0; n<REDIR_MD5LEN; n++) 
+    for (n=0; n < REDIR_MD5LEN; n++) 
       user_password[n] = conn->password[n] ^ chap_challenge[n];
-    user_password[REDIR_MD5LEN] = 0;
+
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		   (uint8_t*)user_password, strlen((char*)user_password));
+		   (uint8_t*)user_password, REDIR_MD5LEN);
   }
   else if (conn->chap == 1) {
     chap_password[0] = conn->chap_ident; /* Chap ident found on logon url */
     memcpy(chap_password+1, conn->chappassword, REDIR_MD5LEN);
+
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CHAP_CHALLENGE, 0, 0, 0,
 		   chap_challenge, REDIR_MD5LEN);
+
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CHAP_PASSWORD, 0, 0, 0,
 		   chap_password, REDIR_MD5LEN+1);
   }
@@ -1826,7 +1829,9 @@ int redir_accept(struct redir_t *redir, int idx) {
 
     execv(*binqqargs, binqqargs);
 
-  } else return redir_main(redir, 0, 1, &address, idx);
+  } else 
+    return redir_main(redir, 0, 1, &address, idx);
+
   return 0;
 }
 
@@ -1837,7 +1842,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   char buffer[bufsize+1];
   char qs[REDIR_USERURLSIZE];
   struct redir_msg_t msg;
-  size_t buflen;
+  ssize_t buflen;
   int state = 0;
 
   struct redir_conn_t conn;

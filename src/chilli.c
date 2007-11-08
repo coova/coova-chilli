@@ -377,7 +377,7 @@ int static freeconn(struct app_conn_t *conn) {
   }
   
   /* Initialise structures */
-  memset(conn, 0, sizeof(*conn));
+  memset(conn, 0, sizeof(struct app_conn_t));
   conn->unit = n;
   
   /* Insert into link of free */

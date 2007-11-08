@@ -612,9 +612,9 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     a->l = vlen+2;
 
     if (data)
-      memcpy(&a->v, data, dlen);
+      memcpy(a->v.t, data, vlen);
     else if (dlen)
-      memset(&a->v, 0, dlen);
+      memset(a->v.t, 0, vlen);
     else
       a->v.i = htonl(value);
   }
@@ -649,11 +649,11 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     a->v.vv.l = vlen+2;
 
     if (data)
-      memcpy(((char*) a)+8, data, dlen); /* TODO */
+      memcpy(a->v.vv.v.t, data, vlen);
     else if (dlen)
-      memset(((char*) a)+8, 0, dlen); /* TODO */
+      memset(a->v.vv.v.t, 0, vlen); 
     else
-      a->v.vv.i = htonl(value);
+      a->v.vv.v.i = htonl(value);
   }
 
   return 0;
@@ -689,39 +689,39 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
   }
 
   while (offset < len) {
-      t = (struct radius_attr_t*)(&pack->payload[offset]);
+    t = (struct radius_attr_t *)(&pack->payload[offset]);
 
-      if (0) {
-	printf("radius_getattr %d %d %d %.2x %.2x \n", t->t, t->l, 
-	       ntohl(t->v.vv.i), (int) t->v.vv.t, (int) t->v.vv.l);
-      }
+    if (0) {
+      printf("radius_getattr %d %d %d %.2x %.2x \n", t->t, t->l, 
+	     ntohl(t->v.vv.i), (int) t->v.vv.t, (int) t->v.vv.l);
+    }
 
-      offset +=  t->l;
-
+    offset +=  t->l;
+    
     if (t->t != type) 
       continue;
-
+    
     if (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && 
 	(ntohl(t->v.vv.i) != vendor_id || t->v.vv.t != vendor_type))
       continue;
-
-	if (count == instance) {
+    
+    if (count == instance) {
       
       if (type == RADIUS_ATTR_VENDOR_SPECIFIC)
 	*attr = (struct radius_attr_t *) &t->v.vv.t;
       else
-	  *attr = t;
+	*attr = t;
       
       if (0) printf("Found\n");
-
+      
       *roffset = offset;
-	  return 0;
-	}
-	else {
-	  count++;
-	}
-      }
-
+      return 0;
+    }
+    else {
+      count++;
+    }
+  }
+  
   return -1; /* Not found */
 }
 
@@ -756,7 +756,7 @@ radius_countattr(struct radius_packet_t *pack, uint8_t type) {
  */
 int 
 radius_cmpattr(struct radius_attr_t *t1, struct radius_attr_t *t2) {
-  if (t1->t != t2->t  ) return -1;
+  if (t1->t != t2->t) return -1;
   if (t1->l != t2->l) return -1;
   if (memcmp(t1->v.t, t2->v.t, t1->l)) return -1; /* Also int/time/addr */
   return 0;
