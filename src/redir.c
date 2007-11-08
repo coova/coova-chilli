@@ -1089,30 +1089,24 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	return -1;
       }
 
-      /* TODO: Hack to make Flash work 
-      for (i = 0; i < recvlen; i++) 
-	if (buffer[buflen+i] == 0) 
-	  buffer[buflen+i] = 0x0a; 
-      */
-
       buflen += recvlen;
       buffer[buflen] = 0;
     }
 
-    if (buflen <= 0) {
+    if (buflen == 0) {
       if (optionsdebug) 
 	log_dbg("No HTTP request received!");
       return -1;
     }
 
     while ((eol = strstr(buffer, "\r\n"))) {
-      int linelen = eol - buffer;
+      size_t linelen = eol - buffer;
       *eol = 0;
 
       if (lines++ == 0) { /* first line */
+	size_t dstlen = 0;
 	char *p1 = buffer;
 	char *p2;
-	size_t dstlen = 0;
 
 	if (optionsdebug)
 	  log_dbg("http-request: %s", buffer);
@@ -1141,6 +1135,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	  dstlen = sizeof(path)-1;
 
 	strncpy(path, p1, dstlen);
+
 	if (optionsdebug)
 	  log_dbg("The path: %s", path); 
 
@@ -1148,10 +1143,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
 	if (!strncmp(path, "json/", 5) && strlen(path) > 6) {
 	  int i, last=strlen(path)-5;
+
 	  conn->format = REDIR_FMT_JSON;
+
 	  for (i=0; i < last; i++)
 	    path[i] = path[i+5];
+
 	  path[last]=0;
+
 	  log_dbg("The (json format) path: %s", path); 
 	}
 
@@ -1173,11 +1172,15 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	if (*p2 == '?') {
 	  p1 = p2 + 1;
 	  p2 = strchr(p1, ' ');
+
 	  if (p2) {
 	    dstlen = p2 - p1;
+
 	    if (dstlen >= qslen-1) 
 	      dstlen = qslen-1;
+
 	    strncpy(qs, p1, dstlen);
+
 	    if (optionsdebug)
 	      log_dbg("Query string: %s", qs); 
 	  }
@@ -1226,8 +1229,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
       /* shift buffer */
       linelen += 2;
-      for (i=0; i < buflen - linelen; i++)
-	buffer[i] = buffer[linelen+i];
+      for (i = 0; i < (int)(buflen - linelen); i++)
+	buffer[i] = buffer[(int)linelen+i];
+
       buflen -= linelen;
     }
   }
@@ -1883,7 +1887,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     msg.addr = address->sin_addr;
     memcpy(&msg.params, &conn.params, sizeof(msg.params));
     memcpy(&msg.redir, &conn.state.redir, sizeof(msg.redir));
-    if (msgsnd(redir->msgid, (struct msgbuf*) &msg, 
+    if (msgsnd(redir->msgid, (struct msgbuf *)&msg, 
 	       sizeof(struct redir_msg_t), 0) < 0) {
       log_err(errno, "msgsnd() failed!");
       redir_close();
@@ -1927,8 +1931,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   }
 
   if (optionsdebug) 
-    log_dbg("Calling redir_getreq()\n");
-
+    log_dbg("Calling redir_getstate()");
 
   /*
    *  Fetch the state of the client
@@ -1942,12 +1945,17 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   /*
    *  Parse the request, updating the status
    */
+  if (optionsdebug) 
+    log_dbg("Get HTTP Request");
 
   termstate = REDIR_TERM_GETREQ;
   if (redir_getreq(redir, &socket, &conn, &ispost, &clen, qs, sizeof(qs))) {
     log_dbg("Error calling get_req. Terminating\n");
     redir_close();
   }
+
+  if (optionsdebug) 
+    log_dbg("Process HTTP Request");
 
   if (conn.type == REDIR_WWW) {
     int fd = -1;

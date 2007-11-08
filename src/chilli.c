@@ -1298,13 +1298,11 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
     return -1;
   }
   
-  if (!((ipm->peer) || ((struct app_conn_t*) ipm->peer)->dnlink)) {
-    log_err(0, "No peer protocol defined");
+  if ( (appconn  = (struct app_conn_t *)ipm->peer)        == NULL || 
+       (dhcpconn = (struct dhcp_conn_t *)appconn->dnlink) == NULL ) {
+    log_warn(0, "No peer protocol defined");
     return -1;
   }
-  
-  appconn = (struct app_conn_t*) ipm->peer;
-  dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
   
   conn->nasip = options.radiuslisten;
   conn->nasport = appconn->unit;
