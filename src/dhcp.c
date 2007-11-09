@@ -190,7 +190,7 @@ int dhcp_ip_check(struct dhcp_ippacket_t *pack) {
  * Generates an UDP header checksum.
  **/
 int dhcp_udp_check(struct dhcp_fullpacket_t *pack) {
-  size_t len = ntohs(pack->udph.len);
+  size_t len = (size_t)ntohs(pack->udph.len);
   int sum = 0;
 
   pack->udph.check = 0;
@@ -208,7 +208,7 @@ int dhcp_udp_check(struct dhcp_fullpacket_t *pack) {
  **/
 int dhcp_tcp_check(struct dhcp_ippacket_t *pack, int length) {
   struct dhcp_tcphdr_t *tcph;
-  size_t len = ntohs(pack->iph.tot_len);
+  size_t len = (size_t)ntohs(pack->iph.tot_len);
   int sum = 0;
 
   if (len > (length - DHCP_ETH_HLEN))
@@ -620,7 +620,7 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
 #endif
 
 int dhcp_send(struct dhcp_t *this, int fd, uint16_t protocol, unsigned char *hismac, 
-	      int ifindex, void *packet, int length) {
+	      int ifindex, void *packet, size_t length) {
 #if defined(__linux__)
   struct sockaddr_ll dest;
 
@@ -631,7 +631,7 @@ int dhcp_send(struct dhcp_t *this, int fd, uint16_t protocol, unsigned char *his
   dest.sll_halen = DHCP_ETH_ALEN;
   memcpy (dest.sll_addr, hismac, DHCP_ETH_ALEN);
 
-  if (sendto(fd, packet, length, 0, (struct sockaddr *)&dest ,sizeof(dest)) < 0) {
+  if (sendto(fd, packet, length, 0, (struct sockaddr *)&dest, sizeof(dest)) < 0) {
     log_err(errno, "sendto(fd=%d, len=%d) failed", fd, length);
     return -1;
   }
@@ -1318,8 +1318,10 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct dhcp_ippacket_t *pack, si
 	      memcpy(pack->ethh.src, conn->dnatmac[n], DHCP_ETH_ALEN); 
 	    pack->iph.saddr = conn->dnatip[n];
 	    tcph->src = htons(DHCP_HTTP);
-	    (void)dhcp_tcp_check(pack, len);
-	    (void)dhcp_ip_check((struct dhcp_ippacket_t*) pack);
+
+	    dhcp_tcp_check(pack, len);
+	    dhcp_ip_check((struct dhcp_ippacket_t*) pack);
+
 	    return 0; /* It was a DNAT reply */
 	  }
 	}
@@ -1359,8 +1361,10 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct dhcp_ippacket_t *pack, si
 	
 	pack->iph.daddr = options.postauth_proxyip.s_addr;
 	tcph->dst = htons(options.postauth_proxyport);
-	(void)dhcp_tcp_check(pack, len);
-	(void)dhcp_ip_check((struct dhcp_ippacket_t*) pack);
+
+	dhcp_tcp_check(pack, len);
+	dhcp_ip_check((struct dhcp_ippacket_t*) pack);
+
 	return 0;
       }
     }
@@ -1440,8 +1444,10 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 	  memcpy(pack->ethh.src, conn->dnatmac[n], DHCP_ETH_ALEN); 
 	pack->iph.saddr = conn->dnatip[n];
 	tcph->src = htons(DHCP_HTTP);
-	(void)dhcp_tcp_check(pack, len);
-	(void)dhcp_ip_check((struct dhcp_ippacket_t*) pack);
+
+	dhcp_tcp_check(pack, len);
+	dhcp_ip_check((struct dhcp_ippacket_t*) pack);
+
 	return 0; /* It was a DNAT reply */
       }
     }
@@ -1478,7 +1484,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 int dhcp_filterDNS(struct dhcp_conn_t *conn, 
 		   struct dhcp_ippacket_t *pack, 
 		   size_t *plen) {
-  struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*)pack->payload;
+  /*struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*)pack->payload;*/
   struct dhcp_dns_packet_t *dnsp = (struct dhcp_dns_packet_t*)(pack->payload + sizeof(struct dhcp_udphdr_t));
   size_t len = *plen - DHCP_DNS_HLEN - DHCP_UDP_HLEN - DHCP_IP_HLEN - DHCP_ETH_HLEN;
   size_t olen = len;
@@ -1551,24 +1557,26 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
   uint8_t query[256];
   size_t query_len = 0;
   int n;
-  int i;
 
-  log_dbg("DNS ID: \n");
-  log_dbg("DNS ID:    %d\n", ntohs(dnsp->id));
-  log_dbg("DNS flags: %d\n", ntohs(dnsp->flags));
+  log_dbg("DNS ID:    %d", ntohs(dnsp->id));
+  log_dbg("DNS flags: %d", ntohs(dnsp->flags));
 
   if ((ntohs(dnsp->flags)   == 0x0100) &&
       (ntohs(dnsp->qdcount) == 0x0001) &&
       (ntohs(dnsp->ancount) == 0x0000) &&
       (ntohs(dnsp->nscount) == 0x0000) &&
       (ntohs(dnsp->arcount) == 0x0000)) {
-    log_dbg("It was a query %s: \n", dnsp->records);
+
+    log_dbg("It was a query %s", dnsp->records);
+
     p1 = dnsp->records + 1 + dnsp->records[0];
     p2 = dnsp->records;
+
     do {
       if (query_len < 256)
 	query[query_len++] = *p2;
-    } while (*p2++!=0); /* TODO */
+    } while (*p2++ != 0); /* TODO */
+
     for (n=0; n<4; n++) {
       if (query_len < 256)
 	query[query_len++] = *p2++;
@@ -1694,7 +1702,7 @@ int dhcp_gettag(struct dhcp_packet_t *pack, size_t length,
   while ((offset + 2) < length) {
     t = (struct dhcp_tag_t*) (((void*) pack) + offset);
     if (t->t == tagtype) {
-      if ((offset +  2 + t->l) > length)
+      if ((offset +  2 + (size_t)(t->l)) > length)
 	return -1; /* Tag length too long */
       *tag = t;
       return 0;
@@ -2341,7 +2349,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct dhcp_ippacket_t *pack, size_t le
 int dhcp_decaps(struct dhcp_t *this)  /* DHCP Indication */
 {
   struct dhcp_ippacket_t packet;
-  size_t length;
+  ssize_t length;
   
   if ((length = recv(this->fd, &packet, sizeof(packet), 0)) < 0) {
     log_err(errno, "recv(fd=%d, len=%d) failed", this->fd, sizeof(packet));
@@ -2401,8 +2409,6 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, size_t len)
 		   conn->hismac, this->ifindex, 
 		   &packet, length);
 }
-
-
 
 
 /**
@@ -2568,7 +2574,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
 int dhcp_arp_ind(struct dhcp_t *this)  /* ARP Indication */
 {
   struct dhcp_arp_fullpacket_t packet;
-  size_t length;
+  ssize_t length;
   
   /*struct dhcp_conn_t *conn;*/
   /*unsigned char const bmac[DHCP_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};*/
@@ -2620,7 +2626,7 @@ int dhcp_sendEAP(struct dhcp_conn_t *conn, void *pack, size_t len) {
   /* 802.1x header */
   packet.dot1x.ver  = 1;
   packet.dot1x.type = 0; /* EAP */
-  packet.dot1x.len =  ntohs(len);
+  packet.dot1x.len =  htons((uint16_t)len);
 
   memcpy(&packet.eap, pack, len);
   
@@ -2642,7 +2648,7 @@ int dhcp_sendEAPreject(struct dhcp_conn_t *conn, void *pack, size_t len) {
     memset(&packet, 0, sizeof(packet));
     packet.code      =  4;
     packet.id        =  1; /* TODO ??? */
-    packet.length    =  ntohs(4);
+    packet.length    =  htons(4);
   
     dhcp_sendEAP(conn, &packet, 4);
   }
@@ -2693,12 +2699,12 @@ int dhcp_receive_eapol(struct dhcp_t *this, struct dhcp_dot1xpacket_t *pack) {
     /* 802.1x header */
     p.dot1x.ver  = 1;
     p.dot1x.type = 0; /* EAP */
-    p.dot1x.len =  ntohs(5);
+    p.dot1x.len =  htons(5);
     
     /* EAP Packet */
     p.eap.code      =  1;
     p.eap.id        =  1;
-    p.eap.length    =  ntohs(5);
+    p.eap.length    =  htons(5);
     p.eap.type      =  1; /* Identity */
     (void)dhcp_senddot1x(conn, &p, DHCP_ETH_HLEN + 4 + 5);
     return 0;
@@ -2713,8 +2719,8 @@ int dhcp_receive_eapol(struct dhcp_t *this, struct dhcp_dot1xpacket_t *pack) {
 
     conn->lasttime = mainclock;
     
-    if (this ->cb_eap_ind)
-      this ->cb_eap_ind(conn, &pack->eap, ntohs(pack->eap.length));
+    if (this->cb_eap_ind)
+      this->cb_eap_ind(conn, &pack->eap, ntohs(pack->eap.length));
 
     return 0;
   }
@@ -2731,7 +2737,7 @@ int dhcp_receive_eapol(struct dhcp_t *this, struct dhcp_dot1xpacket_t *pack) {
 int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
 {
   struct dhcp_dot1xpacket_t packet;
-  size_t length;
+  ssize_t length;
   
   if (this->debug) 
     log_dbg("EAPOL packet received");
@@ -2754,7 +2760,7 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
 int dhcp_set_cb_eap_ind(struct dhcp_t *this, 
   int (*cb_eap_ind) (struct dhcp_conn_t *conn, void *pack, size_t len))
 {
-  this ->cb_eap_ind = cb_eap_ind;
+  this->cb_eap_ind = cb_eap_ind;
   return 0;
 }
 
@@ -2766,7 +2772,7 @@ int dhcp_set_cb_eap_ind(struct dhcp_t *this,
 int dhcp_set_cb_data_ind(struct dhcp_t *this, 
   int (*cb_data_ind) (struct dhcp_conn_t *conn, void *pack, size_t len))
 {
-  this ->cb_data_ind = cb_data_ind;
+  this->cb_data_ind = cb_data_ind;
   return 0;
 }
 
@@ -2778,7 +2784,7 @@ int dhcp_set_cb_data_ind(struct dhcp_t *this,
 int dhcp_set_cb_request(struct dhcp_t *this, 
   int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr))
 {
-  this ->cb_request = cb_request;
+  this->cb_request = cb_request;
   return 0;
 }
 
@@ -2790,7 +2796,7 @@ int dhcp_set_cb_request(struct dhcp_t *this,
 int dhcp_set_cb_connect(struct dhcp_t *this, 
              int (*cb_connect) (struct dhcp_conn_t *conn))
 {
-  this ->cb_connect = cb_connect;
+  this->cb_connect = cb_connect;
   return 0;
 }
 
@@ -2801,14 +2807,14 @@ int dhcp_set_cb_connect(struct dhcp_t *this,
 int dhcp_set_cb_disconnect(struct dhcp_t *this, 
   int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause))
 {
-  this ->cb_disconnect = cb_disconnect;
+  this->cb_disconnect = cb_disconnect;
   return 0;
 }
 
 int dhcp_set_cb_getinfo(struct dhcp_t *this, 
   int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt))
 {
-  this ->cb_getinfo = cb_getinfo;
+  this->cb_getinfo = cb_getinfo;
   return 0;
 }
 
@@ -2821,14 +2827,17 @@ int dhcp_receive(struct dhcp_t *this) {
 	       struct interface_info *interface, unsigned char *buf,
 	       size_t len, struct sockaddr_in *from, struct hardware *hfrom)
 {*/
-  size_t length = 0, offset = 0;
+  ssize_t length = 0;
+  size_t offset = 0;
   struct bpf_hdr *hdrp;
   struct dhcp_ethhdr_t *ethhdr;
   
   if (this->rbuf_offset == this->rbuf_len) {
     length = read(this->fd, this->rbuf, this->rbuf_max);
+
     if (length <= 0)
-      return (length);
+      return length;
+
     this->rbuf_offset = 0;
     this->rbuf_len = length;
   }
@@ -2861,8 +2870,7 @@ int dhcp_receive(struct dhcp_t *this) {
       dhcp_receive_ip(this, (struct dhcp_ippacket_t*) ethhdr, hdrp->bh_caplen);
       break;
     case DHCP_ETH_ARP:
-      dhcp_receive_arp(this, (struct dhcp_arp_fullpacket_t*) ethhdr, 
-		      hdrp->bh_caplen);
+      dhcp_receive_arp(this, (struct dhcp_arp_fullpacket_t*) ethhdr, hdrp->bh_caplen);
       break;
     case DHCP_ETH_EAPOL:
       dhcp_receive_eapol(this, (struct dhcp_dot1xpacket_t*) ethhdr);

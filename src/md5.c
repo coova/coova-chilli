@@ -27,10 +27,10 @@ void byteReverse(unsigned char *buf, size_t longs)
 {
     uint32_t t;
     do {
-	t = (uint32_t) ((unsigned) buf[3] << 8 | buf[2]) << 16 |
-	    ((unsigned) buf[1] << 8 | buf[0]);
-	*(uint32_t *) buf = t;
-	buf += 4;
+      t = (uint32_t)((uint16_t)(buf[3] << 8 | buf[2])) << 16 |
+	            ((uint16_t)(buf[1] << 8 | buf[0]));
+      *(uint32_t *) buf = t;
+      buf += 4;
     } while (--longs);
 }
 

@@ -1,6 +1,6 @@
 Summary:   Coova-Chilli is a Wireless LAN Access Point Controller
 Name:      @PACKAGE@
-Version:   1.0.9
+Version:   1.0.10
 Release:   1
 URL:       http://coova.org/wiki/index.php/CoovaChilli
 Source0:   %{name}-%{version}.tar.gz

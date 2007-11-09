@@ -849,7 +849,7 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
   } else {
     bassigncstr(buffer, 
 		"HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n"
-		"<HTML><HEAD><TITLE>(Coova-)ChilliSpot</TITLE></HEAD><BODY>");
+		"<HTML><HEAD><TITLE>CoovaChilli</TITLE></HEAD><BODY>");
     bcatcstr(buffer, credits);
     bcatcstr(buffer, "</BODY></HTML>\r\n");
   }
@@ -2075,7 +2075,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   }
 
   termstate = REDIR_TERM_PROCESS;
-  if (optionsdebug) log_dbg("Processing received request\n");
+  if (optionsdebug) log_dbg("Processing received request");
 
   /* default hexchal for use in replies */
   redir_chartohex(conn.state.redir.uamchal, hexchal);
@@ -2279,7 +2279,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   /* Did the challenge expire? */
   if ((conn.state.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
     redir_memcopy(REDIR_CHALLENGE);
-    if (optionsdebug) log_dbg("-->> Msg userurl=[%s]\n",msg.redir.userurl);
     redir_msg_send(REDIR_MSG_OPT_REDIR);
   }
   else {

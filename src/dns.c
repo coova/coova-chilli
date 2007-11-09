@@ -200,9 +200,7 @@ dns_copy_res(int q,
       int id;
       for (id=0; options.uamdomains[id]; id++) {
 
-	log_dbg("compairing %s and %s [%s]",
-		options.uamdomains[id], question + (strlen(question) - strlen(options.uamdomains[id])),
-		question);
+	log_dbg("checking %s [%s]", options.uamdomains[id], question);
 
 	if (strlen(question) >= strlen(options.uamdomains[id]) &&
 	    !strcmp(options.uamdomains[id],

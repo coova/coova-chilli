@@ -670,11 +670,14 @@ int static radius_access_challenge(struct app_conn_t *conn) {
   struct radius_packet_t radius_pack;
   size_t offset = 0;
   size_t eaplen = 0;
+
   conn->radiuswait = 0;
+
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_CHALLENGE)){
     log_err(0, "radius_default_pack() failed");
     return -1;
   }
+
   radius_pack.id = conn->radiusid;
 
   /* Include EAP */
@@ -716,12 +719,13 @@ int static radius_access_accept(struct app_conn_t *conn) {
   size_t mppelen;
 
   conn->radiuswait = 0;
+
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_ACCEPT)) {
     log_err(0, "radius_default_pack() failed");
     return -1;
   }
-  radius_pack.id = conn->radiusid;
 
+  radius_pack.id = conn->radiusid;
 
   /* Include EAP (if present) */
   offset = 0;
@@ -730,8 +734,10 @@ int static radius_access_accept(struct app_conn_t *conn) {
       eaplen = RADIUS_ATTR_VLEN;
     else
       eaplen = conn->challen - offset;
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
-			  conn->chal + offset, eaplen);
+
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
+		   conn->chal + offset, eaplen);
+
     offset += eaplen;
   }
 
@@ -1388,11 +1394,11 @@ int accounting_request(struct radius_packet_t *pack,
     if (options.debug) {
       log_dbg("Calling Station ID is: %.*s", hismacattr->l-2, hismacattr->v.t);
     }
-    if ((macstrlen = hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
+    if ((macstrlen = (size_t)hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
       log_err(0, "Wrong length of called station ID");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
-    memcpy(macstr,hismacattr->v.t, macstrlen);
+    memcpy(macstr, hismacattr->v.t, macstrlen);
     macstr[macstrlen] = 0;
     
     /* Replace anything but hex with space */
@@ -1542,11 +1548,11 @@ int access_request(struct radius_packet_t *pack,
     if (options.debug) {
       log_dbg("Calling Station ID is: %.*s", hismacattr->l-2, hismacattr->v.t);
     }
-    if ((macstrlen = hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
+    if ((macstrlen = (size_t)hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
       log_err(0, "Wrong length of called station ID");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
-    memcpy(macstr,hismacattr->v.t, macstrlen);
+    memcpy(macstr, hismacattr->v.t, macstrlen);
     macstr[macstrlen] = 0;
 
     /* Replace anything but hex with space */
@@ -1639,13 +1645,12 @@ int access_request(struct radius_packet_t *pack,
     eapattr=NULL;
     if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
 			instance++)) {
-      if ((resplen + eapattr->l-2) > EAP_LEN) {
+      if ((resplen + (size_t)eapattr->l-2) > EAP_LEN) {
 	log(LOG_INFO, "EAP message too long");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
-      memcpy(resp+resplen, 
-	     eapattr->v.t, eapattr->l-2);
-      resplen += eapattr->l-2;
+      memcpy(resp + resplen, eapattr->v.t, (size_t)eapattr->l-2);
+      resplen += (size_t)eapattr->l-2;
     }
   } while (eapattr);
   
@@ -1966,7 +1971,7 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
     while (!radius_getnextattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
 			       RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
 			       0, &offset)) { 
-      size_t len = attr->l-2;
+      size_t len = (size_t)attr->l-2;
       char *val = (char*)attr->v.t;
 
       if (options.wpaguests && len == strlen(uamauth) && !memcmp(val, uamauth, len)) {
@@ -1986,7 +1991,7 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
     while (!radius_getnextattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
 			       RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_REDIRECTION_URL, 
 			       0, &offset)) { 
-      size_t clen, nlen = attr->l-2;
+      size_t clen, nlen = (size_t)attr->l-2;
       char *url = (char*)attr->v.t;
       clen = strlen(params->url);
 
@@ -2012,11 +2017,14 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
 
     memcpy(attrs, attr->v.t, attr->l-2);
     attrs[attr->l-2] = 0;
+
     memset(&stt, 0, sizeof(stt));
+
     result = sscanf(attrs, "%d-%d-%dT%d:%d:%d %d:%d",
 		    &stt.tm_year, &stt.tm_mon, &stt.tm_mday,
 		    &stt.tm_hour, &stt.tm_min, &stt.tm_sec,
 		    &tzhour, &tzmin);
+
     if (result == 8) { /* Timezone */
       /* tzhour and tzmin is hours and minutes east of GMT */
       /* timezone is defined as seconds west of GMT. Excludes DST */
@@ -2031,9 +2039,9 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
       tzset();
       params->sessionterminatetime = mktime(&stt);
       if (tz) 
-			setenv("TZ", tz, 1); 
+	setenv("TZ", tz, 1); 
       else
-			unsetenv("TZ");
+	unsetenv("TZ");
       tzset();
     }
     else if (result >= 6) { /* Local time */

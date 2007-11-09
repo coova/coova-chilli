@@ -1439,7 +1439,7 @@ int radius_acctcheck(struct radius_t *this, struct radius_packet_t *pack)
  * Read and process a received radius packet.
  */
 int radius_decaps(struct radius_t *this) {
-  int status;
+  ssize_t status;
   struct radius_packet_t pack;
   struct radius_packet_t pack_req;
   void *cbp;
@@ -1462,7 +1462,7 @@ int radius_decaps(struct radius_t *this) {
     return -1;
   }
 
-  if (ntohs(pack.length) != status) {
+  if (ntohs(pack.length) != (uint16_t)status) {
     log_warn(errno, "Received radius packet with wrong length field %d != %d!",
 	     ntohs(pack.length), status);
     return -1;
@@ -1571,7 +1571,7 @@ int radius_decaps(struct radius_t *this) {
  * Read and process a received radius packet.
  */
 int radius_proxy_ind(struct radius_t *this) {
-  int status;
+  ssize_t status;
   struct radius_packet_t pack;
   struct sockaddr_in addr;
   socklen_t fromlen = sizeof(addr);
@@ -1591,7 +1591,7 @@ int radius_proxy_ind(struct radius_t *this) {
     return -1;
   }
 
-  if (ntohs(pack.length) != status) {
+  if (ntohs(pack.length) != (uint16_t)status) {
     log_err(0, "Received radius packet with wrong length field %d != %d!",
 	    ntohs(pack.length), status);
     return -1;

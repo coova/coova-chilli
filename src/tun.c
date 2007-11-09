@@ -829,7 +829,7 @@ int tun_decaps(struct tun_t *this)
 #if defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 
   unsigned char buffer[PACKET_MAX];
-  int status;
+  ssize_t status;
   
   if ((status = read(this->fd, buffer, sizeof(buffer))) <= 0) {
     log_err(errno, "read() failed");

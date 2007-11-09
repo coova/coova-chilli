@@ -245,7 +245,7 @@ struct dhcp_t; /* Forward declaration */
 
 #define DHCP_DOMAIN_LEN      30
 
-#define DHCP_DNAT_MAX 56
+#define DHCP_DNAT_MAX 64
 
 struct dhcp_conn_t {
   int inuse;                    /* Free = 0; Inuse = 1 */

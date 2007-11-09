@@ -21,17 +21,18 @@
 int
 cmdsock_init() {
   struct sockaddr_un local;
-  size_t len;
   int cmdsock;
   
   if ((cmdsock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     log_err(errno, "could not allocate UNIX Socket!");
   } else {
     local.sun_family = AF_UNIX;
+
     strcpy(local.sun_path, options.cmdsocket);
     unlink(local.sun_path);
-    len = strlen(local.sun_path) + sizeof(local.sun_family);
-    if (bind(cmdsock, (struct sockaddr *)&local, len) == -1) {
+
+    if (bind(cmdsock, (struct sockaddr *)&local, 
+	     sizeof(struct sockaddr_un)) == -1) {
       log_err(errno, "could bind UNIX Socket!");
       close(cmdsock);
       cmdsock = -1;
@@ -43,5 +44,6 @@ cmdsock_init() {
       }
     }
   }
+
   return cmdsock;
 }
