@@ -310,17 +310,23 @@ int static initconn()
 
 int static newconn(struct app_conn_t **conn) {
   int n;
+
   if (!firstfreeconn) {
+
     if (connections == APP_NUM_CONN) {
       log_err(0, "reached max connections!");
       return -1;
     }
+
     n = ++connections;
+
     if (!(*conn = calloc(1, sizeof(struct app_conn_t)))) {
       log_err(0, "Out of memory!");
       return -1;
     }
+
   } else {
+
     *conn = firstfreeconn;
     n = (*conn)->unit;
 

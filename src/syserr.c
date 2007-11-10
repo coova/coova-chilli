@@ -22,11 +22,12 @@
 #include "bstrlib.h"
 
 void sys_err(int pri, char *fn, int ln, int en, const char *fmt, ...) {
-  bstring bt = bfromcstralloc(128,"");
+  bstring bt;
   int sz;
 
   if (pri==LOG_DEBUG && !options.debug) return;
 
+  bt = bfromcstralloc(128,"");
   bvformata(sz, bt, fmt, fmt);
 
   if (options.foreground && options.debug) {

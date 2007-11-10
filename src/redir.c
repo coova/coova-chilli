@@ -1800,6 +1800,7 @@ int redir_accept(struct redir_t *redir, int idx) {
   
   if ((status = fork()) < 0) {
     log_err(errno, "fork() returned -1!");
+    close(new_socket);
     return 0;
   }
 
