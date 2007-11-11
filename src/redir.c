@@ -1797,7 +1797,7 @@ int redir_accept(struct redir_t *redir, int idx) {
      care */
 
   redir_radius_id++;
-  
+
   if ((status = fork()) < 0) {
     log_err(errno, "fork() returned -1!");
     close(new_socket);
@@ -1808,6 +1808,7 @@ int redir_accept(struct redir_t *redir, int idx) {
     close(new_socket);
     return 0; 
   }
+
 
 #if defined(F_DUPFD)
   if (fcntl(new_socket,F_GETFL,0) == -1) return -1;
@@ -1875,7 +1876,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   
   void redir_memcopy(int msg_type) {
     redir_challenge(challenge);
-    (void)redir_chartohex(challenge, hexchal);
+    redir_chartohex(challenge, hexchal);
     msg.type = msg_type;
     memcpy(conn.state.redir.uamchal, challenge, REDIR_MD5LEN);
     if (options.debug) {
@@ -1900,10 +1901,10 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
    */
   memset(&socket,0,sizeof(socket));
   memset(hexchal, 0, sizeof(hexchal));
-  memset(qs, 0, sizeof(qs));
   memset(&conn, 0, sizeof(conn));
   memset(&msg, 0, sizeof(msg));
   memset(&act, 0, sizeof(act));
+  memset(qs, 0, sizeof(qs));
 
   socket.fd[0] = infd;
   socket.fd[1] = outfd;

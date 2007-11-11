@@ -22,24 +22,24 @@
 #include "bstrlib.h"
 
 void sys_err(int pri, char *fn, int ln, int en, const char *fmt, ...) {
-  bstring bt;
-  int sz;
-
   if (pri==LOG_DEBUG && !options.debug) return;
-
-  bt = bfromcstralloc(128,"");
-  bvformata(sz, bt, fmt, fmt);
-
-  if (options.foreground && options.debug) {
-    fprintf(stderr, "%s: %d: %d (%s) %s\n", fn, ln, en, en ? strerror(en) : "Debug", bt->data);
-  } else {
-    if (en)
-      syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
-    else
-      syslog(pri, "%s: %d: %s", fn, ln, bt->data);
+  {
+    bstring bt = bfromcstralloc(128,"");
+    int sz;
+    
+    bvformata(sz, bt, fmt, fmt);
+    
+    if (options.foreground && options.debug) {
+      fprintf(stderr, "%s: %d: %d (%s) %s\n", fn, ln, en, en ? strerror(en) : "Debug", bt->data);
+    } else {
+      if (en)
+	syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
+      else
+	syslog(pri, "%s: %d: %s", fn, ln, bt->data);
+    }
+    
+    bdestroy(bt);
   }
-
-  bdestroy(bt);
 }
 
 void sys_errpack(int pri, char *fn, int ln, int en, struct sockaddr_in *peer,

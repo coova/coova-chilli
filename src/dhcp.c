@@ -1663,10 +1663,6 @@ dhcp_getdefault(struct dhcp_fullpacket_t *pack) {
   pack->dhcp.htype  = DHCP_HTYPE_ETH;
   pack->dhcp.hlen   = DHCP_ETH_ALEN;
 
-  /* UDP header */
-  pack->udph.src = htons(DHCP_BOOTPS);
-  pack->udph.dst = htons(DHCP_BOOTPC);
-
   /* IP header */
   pack->iph.version_ihl = IP_VER_HLEN;
   pack->iph.tos = 0;
@@ -1681,6 +1677,83 @@ dhcp_getdefault(struct dhcp_fullpacket_t *pack) {
   pack->ethh.prot = htons(DHCP_ETH_IP);
 
   return 0;
+}
+
+/**
+ * dhcp_create_pkt()
+ * Create a new typed DHCP packet
+ */
+int
+dhcp_create_pkt(uint8_t type, struct dhcp_fullpacket_t *pack, struct dhcp_fullpacket_t *req, struct dhcp_conn_t *conn) {
+  int pos = 0;
+
+  dhcp_getdefault(pack);
+
+  pack->dhcp.xid    = req->dhcp.xid;
+  pack->dhcp.flags  = req->dhcp.flags;
+  pack->dhcp.giaddr = req->dhcp.giaddr;
+
+  memcpy(&pack->dhcp.chaddr, &req->dhcp.chaddr, DHCP_CHADDR_LEN);
+
+  switch(type) {
+  case DHCPOFFER:
+    pack->dhcp.yiaddr = conn->hisip.s_addr;
+    break;
+  case DHCPACK:
+    pack->dhcp.xid    = req->dhcp.xid;
+    pack->dhcp.ciaddr = req->dhcp.ciaddr;
+    pack->dhcp.yiaddr = conn->hisip.s_addr;
+    break;
+  case DHCPNAK:
+    break;
+  }
+
+  /* UDP and IP Headers */
+  pack->udph.src = htons(DHCP_BOOTPS);
+  pack->iph.saddr = conn->ourip.s_addr;
+
+  /** http://www.faqs.org/rfcs/rfc1542.html
+      BOOTREQUEST fields     BOOTREPLY values for UDP, IP, link-layer
+   +-----------------------+-----------------------------------------+
+   | 'ciaddr'  'giaddr'  B | UDP dest     IP destination   link dest |
+   +-----------------------+-----------------------------------------+
+   | non-zero     X      X | BOOTPC (68)  'ciaddr'         normal    |
+   | 0.0.0.0   non-zero  X | BOOTPS (67)  'giaddr'         normal    |
+   | 0.0.0.0   0.0.0.0   0 | BOOTPC (68)  'yiaddr'         'chaddr'  |
+   | 0.0.0.0   0.0.0.0   1 | BOOTPC (68)  255.255.255.255  broadcast |
+   +-----------------------+-----------------------------------------+
+
+        B = BROADCAST flag
+
+        X = Don't care
+
+   normal = determine from the given IP destination using normal
+            IP routing mechanisms and/or ARP as for any other
+            normal datagram
+  **/
+
+  if (req->dhcp.ciaddr) {
+    pack->iph.daddr = req->dhcp.ciaddr; 
+    pack->udph.dst = htons(DHCP_BOOTPC);
+  } else if (req->dhcp.giaddr) {
+    pack->iph.daddr = req->dhcp.giaddr; 
+    pack->udph.dst = htons(DHCP_BOOTPS);
+  } else {
+    pack->iph.daddr = ~0; 
+    pack->udph.dst = htons(DHCP_BOOTPC);
+  }
+
+  /* Magic cookie */
+  pack->dhcp.options[pos++] = 0x63;
+  pack->dhcp.options[pos++] = 0x82;
+  pack->dhcp.options[pos++] = 0x53;
+  pack->dhcp.options[pos++] = 0x63;
+
+  pack->dhcp.options[pos++] = DHCP_OPTION_MESSAGE_TYPE;
+  pack->dhcp.options[pos++] = 1;
+  pack->dhcp.options[pos++] = type;
+
+  return pos;
 }
 
 
@@ -1728,24 +1801,9 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn,
   size_t pos = 0;
 
   /* Get packet default values */
-  dhcp_getdefault(&packet);
+  pos = dhcp_create_pkt(DHCPOFFER, &packet, pack, conn);
   
   /* DHCP Payload */
-  packet.dhcp.xid    = pack->dhcp.xid;
-  packet.dhcp.yiaddr = conn->hisip.s_addr;
-  packet.dhcp.flags  = pack->dhcp.flags;
-  packet.dhcp.giaddr = pack->dhcp.giaddr;
-  memcpy(&packet.dhcp.chaddr, &pack->dhcp.chaddr, DHCP_CHADDR_LEN);
-
-  /* Magic cookie */
-  packet.dhcp.options[pos++] = 0x63;
-  packet.dhcp.options[pos++] = 0x82;
-  packet.dhcp.options[pos++] = 0x53;
-  packet.dhcp.options[pos++] = 0x63;
-
-  packet.dhcp.options[pos++] = DHCP_OPTION_MESSAGE_TYPE;
-  packet.dhcp.options[pos++] = 1;
-  packet.dhcp.options[pos++] = DHCPOFFER;
 
   packet.dhcp.options[pos++] = DHCP_OPTION_SUBNET_MASK;
   packet.dhcp.options[pos++] = 4;
@@ -1809,14 +1867,6 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn,
   /* IP header */
   packet.iph.tot_len = htons(udp_len + DHCP_IP_HLEN);
 
-  /* if relay client, send to it unicast; otherwise broadcast */
-  if (packet.dhcp.giaddr)
-    packet.iph.daddr = packet.dhcp.giaddr; 
-  else
-    packet.iph.daddr = ~0; 
-
-  packet.iph.saddr = conn->ourip.s_addr;
-
   /* Work out checksums */
   dhcp_udp_check(&packet);
   dhcp_ip_check((struct dhcp_ippacket_t*) &packet); 
@@ -1845,25 +1895,9 @@ int dhcp_sendACK(struct dhcp_conn_t *conn,
   size_t pos = 0;
 
   /* Get packet default values */
-  dhcp_getdefault(&packet);
+  pos = dhcp_create_pkt(DHCPACK, &packet, pack, conn);
   
   /* DHCP Payload */
-  packet.dhcp.xid    = pack->dhcp.xid;
-  packet.dhcp.ciaddr = pack->dhcp.ciaddr;
-  packet.dhcp.yiaddr = conn->hisip.s_addr;
-  packet.dhcp.flags  = pack->dhcp.flags;
-  packet.dhcp.giaddr = pack->dhcp.giaddr;
-  memcpy(&packet.dhcp.chaddr, &pack->dhcp.chaddr, DHCP_CHADDR_LEN);
-
-  /* Magic cookie */
-  packet.dhcp.options[pos++] = 0x63;
-  packet.dhcp.options[pos++] = 0x82;
-  packet.dhcp.options[pos++] = 0x53;
-  packet.dhcp.options[pos++] = 0x63;
-
-  packet.dhcp.options[pos++] = DHCP_OPTION_MESSAGE_TYPE;
-  packet.dhcp.options[pos++] = 1;
-  packet.dhcp.options[pos++] = DHCPACK;
 
   packet.dhcp.options[pos++] = DHCP_OPTION_SUBNET_MASK;
   packet.dhcp.options[pos++] = 4;
@@ -1934,17 +1968,9 @@ int dhcp_sendACK(struct dhcp_conn_t *conn,
   /* IP header */
   packet.iph.tot_len = htons(udp_len + DHCP_IP_HLEN);
 
-  /* if relay client, send to it unicast; otherwise broadcast */
-  if (packet.dhcp.giaddr)
-    packet.iph.daddr = packet.dhcp.giaddr; 
-  else
-    packet.iph.daddr = ~0; 
-
-  packet.iph.saddr = conn->ourip.s_addr;
-
   /* Work out checksums */
-  (void)dhcp_udp_check(&packet);
-  (void)dhcp_ip_check((struct dhcp_ippacket_t*) &packet); 
+  dhcp_udp_check(&packet);
+  dhcp_ip_check((struct dhcp_ippacket_t*) &packet); 
 
   /* Ethernet header */
   memcpy(packet.ethh.dst, conn->hismac, DHCP_ETH_ALEN);
@@ -1973,24 +1999,9 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn,
   size_t pos = 0;
 
   /* Get packet default values */
-  dhcp_getdefault(&packet);
+  pos = dhcp_create_pkt(DHCPNAK, &packet, pack, conn);
 
-  
   /* DHCP Payload */
-  packet.dhcp.xid    = pack->dhcp.xid;
-  packet.dhcp.flags  = pack->dhcp.flags;
-  packet.dhcp.giaddr = pack->dhcp.giaddr;
-  memcpy(&packet.dhcp.chaddr, &pack->dhcp.chaddr, DHCP_CHADDR_LEN);
-
-  /* Magic cookie */
-  packet.dhcp.options[pos++] = 0x63;
-  packet.dhcp.options[pos++] = 0x82;
-  packet.dhcp.options[pos++] = 0x53;
-  packet.dhcp.options[pos++] = 0x63;
-
-  packet.dhcp.options[pos++] = DHCP_OPTION_MESSAGE_TYPE;
-  packet.dhcp.options[pos++] = 1;
-  packet.dhcp.options[pos++] = DHCPNAK;
 
   /* Must be listening address */
   packet.dhcp.options[pos++] = DHCP_OPTION_SERVER_ID;
@@ -2007,17 +2018,9 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn,
   /* IP header */
   packet.iph.tot_len = htons(udp_len + DHCP_IP_HLEN);
 
-  /* if relay client, send to it unicast; otherwise broadcast */
-  if (packet.dhcp.giaddr)
-    packet.iph.daddr = packet.dhcp.giaddr; 
-  else
-    packet.iph.daddr = ~0; 
-
-  packet.iph.saddr = conn->ourip.s_addr;
-
   /* Work out checksums */
-  (void)dhcp_udp_check(&packet);
-  (void)dhcp_ip_check((struct dhcp_ippacket_t*) &packet); 
+  dhcp_udp_check(&packet);
+  dhcp_ip_check((struct dhcp_ippacket_t*) &packet); 
 
   /* Ethernet header */
   memcpy(packet.ethh.dst, conn->hismac, DHCP_ETH_ALEN);
