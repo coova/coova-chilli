@@ -89,10 +89,9 @@ void static log_pid(char *pidfile) {
   oldmask = umask(022);
   file = fopen(pidfile, "w");
   umask(oldmask);
-  if(!file)
-    return;
+  if(!file) return;
   fprintf(file, "%d\n", getpid());
-  (void) fclose(file);
+  fclose(file);
 }
 
 #ifdef LEAKY_BUCKET
@@ -103,7 +102,6 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
   uint64_t timediff; 
   int result = 0;
 
- 
   timediff = timenow - conn->state.last_time;
 
   if (options.debug && (conn->params.bandwidthmaxup || conn->params.bandwidthmaxdown))
@@ -518,7 +516,7 @@ int static checkconn()
 
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->state.authenticated == 1)) {
-      if (!(dhcpconn = (struct dhcp_conn_t*) conn->dnlink)) {
+      if (!(dhcpconn = (struct dhcp_conn_t *)conn->dnlink)) {
 	log_err(0, "No downlink protocol");
 	return -1;
       }
@@ -546,7 +544,7 @@ int static killconn()
 
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->state.authenticated == 1)) {
-      if (!(dhcpconn = (struct dhcp_conn_t*) conn->dnlink)) {
+      if (!(dhcpconn = (struct dhcp_conn_t *)conn->dnlink)) {
 	log_err(0, "No downlink protocol");
 	return -1;
       }
@@ -568,7 +566,7 @@ int static killconn()
 int static maccmp(unsigned char *mac) {
   int i;
   for (i=0; i<options.macoklen; i++) {
-    if (!memcmp(mac, options.macok[i], DHCP_ETH_ALEN)) {
+    if (!memcmp(mac, options.macok[i], PKT_ETH_ALEN)) {
       return 0;
     }
   }
@@ -576,8 +574,8 @@ int static maccmp(unsigned char *mac) {
 }
 
 int static macauth_radius(struct app_conn_t *appconn) {
+  struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
   struct radius_packet_t radius_pack;
-  struct dhcp_conn_t* dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
   char mac[MACSTRLEN+1];
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
@@ -660,14 +658,16 @@ int static macauth_radius(struct app_conn_t *appconn) {
 /* Reply with an access reject */
 int static radius_access_reject(struct app_conn_t *conn) {
   struct radius_packet_t radius_pack;
+
   conn->radiuswait = 0;
+
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REJECT)) {
     log_err(0, "radius_default_pack() failed");
     return -1;
   }
 
   radius_pack.id = conn->radiusid;
-  (void) radius_resp(radius, &radius_pack, &conn->radiuspeer, conn->authenticator);
+  radius_resp(radius, &radius_pack, &conn->radiuspeer, conn->authenticator);
   return 0;
 }
 
@@ -966,7 +966,7 @@ int static dnprot_reject(struct app_conn_t *appconn) {
     return radius_access_reject(appconn);
 
   case DNPROT_MAC:
-    if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
+    if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
       log_err(0, "No downlink protocol");
       return 0;
     }
@@ -1006,7 +1006,7 @@ int static dnprot_challenge(struct app_conn_t *appconn) {
   switch (appconn->dnprot) {
 
   case DNPROT_EAPOL:
-    if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
+    if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
       log_err(0, "No downlink protocol");
       return 0;
     }
@@ -1040,33 +1040,33 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 
   switch (appconn->dnprot) {
   case DNPROT_EAPOL:
-    if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
+    if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
       log_err(0, "No downlink protocol");
       return 0;
     }
 
-    (void) dhcp_set_addrs(dhcpconn, &appconn->hisip, &appconn->mask,
-			  &appconn->ourip, &appconn->dns1, &appconn->dns2,
-			  options.domain);
+    dhcp_set_addrs(dhcpconn, &appconn->hisip, &appconn->mask,
+		   &appconn->ourip, &appconn->dns1, &appconn->dns2,
+		   options.domain);
     
     /* This is the one and only place eapol authentication is accepted */
     dhcpconn->authstate = DHCP_AUTH_PASS;
 
     /* Tell client it was successful */
-    (void) dhcp_sendEAP(dhcpconn, appconn->chal, appconn->challen);
+    dhcp_sendEAP(dhcpconn, appconn->chal, appconn->challen);
 
     log_warn(0, "Do not know how to set encryption keys on this platform!");
     break;
 
   case DNPROT_UAM:
-    if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
+    if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
       log_err(0, "No downlink protocol");
       return 0;
     }
 
-    (void) dhcp_set_addrs(dhcpconn, &appconn->hisip, &appconn->mask, 
-			  &appconn->ourip, &appconn->dns1, &appconn->dns2,
-			  options.domain);
+    dhcp_set_addrs(dhcpconn, &appconn->hisip, &appconn->mask, 
+		   &appconn->ourip, &appconn->dns1, &appconn->dns2,
+		   options.domain);
     
     /* This is the one and only place UAM authentication is accepted */
     dhcpconn->authstate = DHCP_AUTH_PASS;
@@ -1074,14 +1074,14 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     break;
 
   case DNPROT_WPA:
-    if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
+    if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
       log_err(0, "No downlink protocol");
       return 0;
     }
 
-    (void) dhcp_set_addrs(dhcpconn, &appconn->hisip, &appconn->mask, 
-			  &appconn->ourip, &appconn->dns1, &appconn->dns2,
-			  options.domain);
+    dhcp_set_addrs(dhcpconn, &appconn->hisip, &appconn->mask, 
+		   &appconn->ourip, &appconn->dns1, &appconn->dns2,
+		   options.domain);
     
     /* This is the one and only place WPA authentication is accepted */
     if (appconn->params.require_uam_auth) {
@@ -1098,14 +1098,14 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     break;
 
   case DNPROT_MAC:
-    if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
+    if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
       log_err(0, "No downlink protocol");
       return 0;
     }
     
-    (void) dhcp_set_addrs(dhcpconn, &appconn->hisip, &appconn->mask, 
-			  &appconn->ourip, &appconn->dns1, &appconn->dns2,
-			  options.domain);
+    dhcp_set_addrs(dhcpconn, &appconn->hisip, &appconn->mask, 
+		   &appconn->ourip, &appconn->dns1, &appconn->dns2,
+		   options.domain);
     
     /* This is the one and only place MAC authentication is accepted */
     dhcpconn->authstate = DHCP_AUTH_PASS;
@@ -1137,33 +1137,29 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 
 
 /*********************************************************
- *
  * Tun callbacks
  *
  * Called from the tun_decaps function. This method is passed either
  * a TAP Ethernet frame or a TUN IP packet. 
  */
-
-
 int cb_tun_ind(struct tun_t *tun, void *pack, size_t len) {
   struct in_addr dst;
   struct ippoolm_t *ipm;
   struct app_conn_t *appconn;
-  struct tun_packet_t *iph;
+  struct pkt_ipphdr_t *ipph;
 
   if (options.usetap) {
-    struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
+    struct pkt_ethhdr_t *ethh = (struct pkt_ethhdr_t *)pack;
     uint16_t prot = ntohs(ethh->prot);
 
-    iph = (struct tun_packet_t*)(pack + DHCP_ETH_HLEN);
+    ipph = (struct pkt_ipphdr_t *)((char *)pack + PKT_ETH_HLEN);
 
-    if (prot == DHCP_ETH_ARP) {
+    if (prot == PKT_ETH_PROTO_ARP) {
       /*
        * send arp reply with us being target
        */
-      
-      struct dhcp_arp_fullpacket_t *p = (struct dhcp_arp_fullpacket_t *)pack;
-      struct dhcp_arp_fullpacket_t packet;
+      struct arp_fullpacket_t *p = (struct arp_fullpacket_t *)pack;
+      struct arp_fullpacket_t packet;
       struct in_addr reqaddr;
       size_t length = sizeof(packet);
       
@@ -1173,7 +1169,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len) {
 	      ntohs(ethh->prot));
       
       /* Get local copy */
-      memcpy(&reqaddr.s_addr, p->arp.tpa, DHCP_IP_ALEN);
+      memcpy(&reqaddr.s_addr, p->arp.tpa, PKT_IP_ALEN);
       
       if (ippool_getip(ippool, &ipm, &reqaddr)) {
 	if (options.debug) 
@@ -1181,51 +1177,50 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len) {
 	return 0;
       }
       
-      if (!((ipm->peer) || ((struct app_conn_t*) ipm->peer)->dnlink)) {
+      if ((appconn  = (struct app_conn_t *)ipm->peer) == NULL ||
+	  (appconn->dnlink) == NULL) {
 	log_err(0, "No peer protocol defined for ARP request");
 	return 0;
       }
-      
-      appconn = (struct app_conn_t*) ipm->peer;
       
       /* Get packet default values */
       memset(&packet, 0, sizeof(packet));
       
       /* ARP Payload */
       packet.arp.hrd = htons(DHCP_HTYPE_ETH);
-      packet.arp.pro = htons(DHCP_ETH_IP);
-      packet.arp.hln = DHCP_ETH_ALEN;
-      packet.arp.pln = DHCP_IP_ALEN;
+      packet.arp.pro = htons(PKT_ETH_PROTO_IP);
+      packet.arp.hln = PKT_ETH_ALEN;
+      packet.arp.pln = PKT_IP_ALEN;
       packet.arp.op  = htons(DHCP_ARP_REPLY);
       
       /* Source address */
-      /*memcpy(packet.arp.sha, dhcp->arp_hwaddr, DHCP_ETH_ALEN);
-	memcpy(packet.arp.spa, &dhcp->ourip.s_addr, DHCP_IP_ALEN);*/
-      /*memcpy(packet.arp.sha, appconn->hismac, DHCP_ETH_ALEN);*/
-      memcpy(packet.arp.sha, tun->tap_hwaddr, DHCP_ETH_ALEN);
-      memcpy(packet.arp.spa, &appconn->hisip.s_addr, DHCP_IP_ALEN);
+      /*memcpy(packet.arp.sha, dhcp->arp_hwaddr, PKT_ETH_ALEN);
+	memcpy(packet.arp.spa, &dhcp->ourip.s_addr, PKT_IP_ALEN);*/
+      /*memcpy(packet.arp.sha, appconn->hismac, PKT_ETH_ALEN);*/
+      memcpy(packet.arp.sha, tun->tap_hwaddr, PKT_ETH_ALEN);
+      memcpy(packet.arp.spa, &appconn->hisip.s_addr, PKT_IP_ALEN);
 	
       /* Target address */
-      /*memcpy(packet.arp.tha, &appconn->hismac, DHCP_ETH_ALEN);
-	memcpy(packet.arp.tpa, &appconn->hisip.s_addr, DHCP_IP_ALEN); */
-      memcpy(packet.arp.tha, p->arp.sha, DHCP_ETH_ALEN);
-      memcpy(packet.arp.tpa, p->arp.spa, DHCP_IP_ALEN);
+      /*memcpy(packet.arp.tha, &appconn->hismac, PKT_ETH_ALEN);
+	memcpy(packet.arp.tpa, &appconn->hisip.s_addr, PKT_IP_ALEN); */
+      memcpy(packet.arp.tha, p->arp.sha, PKT_ETH_ALEN);
+      memcpy(packet.arp.tpa, p->arp.spa, PKT_IP_ALEN);
       
       /* Ethernet header */
-      memcpy(packet.ethh.dst, p->ethh.src, DHCP_ETH_ALEN);
-      memcpy(packet.ethh.src, dhcp->hwaddr, DHCP_ETH_ALEN);
-      packet.ethh.prot = htons(DHCP_ETH_ARP);
+      memcpy(packet.ethh.dst, p->ethh.src, PKT_ETH_ALEN);
+      memcpy(packet.ethh.src, dhcp->hwaddr, PKT_ETH_ALEN);
+      packet.ethh.prot = htons(PKT_ETH_PROTO_ARP);
       
       return tun_encaps(tun, &packet, length);
     }
   } else {
-    iph = (struct tun_packet_t*)pack;
+    ipph = (struct pkt_ipphdr_t *)pack;
   }
 
   /*if (options.debug) 
     log_dbg("cb_tun_ind. Packet received: Forwarding to link layer");*/
 
-  dst.s_addr = iph->dst;
+  dst.s_addr = ipph->daddr;
 
   if (ippool_getip(ippool, &ipm, &dst)) {
     if (options.debug) 
@@ -1233,17 +1228,16 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len) {
     return 0;
   }
 
-  if (!((ipm->peer) || ((struct app_conn_t*) ipm->peer)->dnlink)) {
+  if ((appconn  = (struct app_conn_t *)ipm->peer) == NULL ||
+      (appconn->dnlink) == NULL) {
     log_err(0, "No peer protocol defined");
     return 0;
   }
-
-  appconn = (struct app_conn_t*) ipm->peer;
-
+  
   /* If the ip src is uamlisten and psrc is uamport we won't call leaky_bucket */
-  if ( ! (iph->src  == options.uamlisten.s_addr && 
-	  (iph->psrc == htons(options.uamport) ||
-	   iph->psrc == htons(options.uamuiport)))) {
+  if ( ! (ipph->saddr  == options.uamlisten.s_addr && 
+	  (ipph->sport == htons(options.uamport) ||
+	   ipph->sport == htons(options.uamuiport)))) {
     if (appconn->state.authenticated == 1) {
 
 #ifndef LEAKY_BUCKET
@@ -1283,7 +1277,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len) {
   case DNPROT_WPA:
   case DNPROT_MAC:
   case DNPROT_EAPOL:
-    (void) dhcp_data_req((struct dhcp_conn_t *) appconn->dnlink, pack, len);
+    dhcp_data_req((struct dhcp_conn_t *)appconn->dnlink, pack, len);
     break;
   default:
     log_err(0, "Unknown downlink protocol: %d", appconn->dnprot);
@@ -1318,8 +1312,8 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
   
   conn->nasip = options.radiuslisten;
   conn->nasport = appconn->unit;
-  memcpy(conn->hismac, dhcpconn->hismac, DHCP_ETH_ALEN);
-  memcpy(conn->ourmac, dhcpconn->ourmac, DHCP_ETH_ALEN);
+  memcpy(conn->hismac, dhcpconn->hismac, PKT_ETH_ALEN);
+  memcpy(conn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);
   conn->ourip = appconn->ourip;
   conn->hisip = appconn->hisip;
 
@@ -1348,13 +1342,13 @@ int accounting_request(struct radius_packet_t *pack,
   struct radius_packet_t radius_pack;
   struct app_conn_t *appconn = NULL;
   struct dhcp_conn_t *dhcpconn = NULL;
-  uint8_t hismac[DHCP_ETH_ALEN];
+  uint8_t hismac[PKT_ETH_ALEN];
   char macstr[RADIUS_ATTR_VLEN];
   size_t macstrlen;
-  unsigned int temp[DHCP_ETH_ALEN];
+  unsigned int temp[PKT_ETH_ALEN];
   uint32_t nasip = 0;
   uint32_t nasport = 0;
-  int i, n;
+  int i;
 
 
   if (radius_default_pack(radius, &radius_pack, 
@@ -1367,12 +1361,12 @@ int accounting_request(struct radius_packet_t *pack,
   /* Status type */
   if (radius_getattr(pack, &typeattr, RADIUS_ATTR_ACCT_STATUS_TYPE, 0, 0, 0)) {
     log_err(0, "Status type is missing from radius request");
-    (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
+    radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
   }
 
   if (typeattr->v.i != htonl(RADIUS_STATUS_TYPE_STOP)) {
-    (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
+    radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
   }
 
@@ -1419,17 +1413,17 @@ int accounting_request(struct radius_packet_t *pack,
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     
-    for(i = 0; i < DHCP_ETH_ALEN; i++) 
+    for(i = 0; i < PKT_ETH_ALEN; i++) 
       hismac[i] = temp[i];
   }
 
   if (hismacattr) { /* Look for mac address.*/
     if (dhcp_hashget(dhcp, &dhcpconn, hismac)) {
       log_err(0, "Unknown connection");
-      (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
+      radius_resp(radius, &radius_pack, peer, pack->authenticator);
       return 0;
     }
-    if (!(dhcpconn->peer) || (!((struct app_conn_t*) dhcpconn->peer)->uplink)) {
+    if (!(dhcpconn->peer) || !((struct app_conn_t *)dhcpconn->peer)->uplink) {
       log_err(0,"No peer protocol defined");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
@@ -1438,14 +1432,14 @@ int accounting_request(struct radius_packet_t *pack,
   else if (nasipattr && nasportattr) { /* Look for NAS IP / Port */
     if (getconn(&appconn, nasip, nasport)) {
       log_err(0, "Unknown connection");
-      (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
+      radius_resp(radius, &radius_pack, peer, pack->authenticator);
       return 0;
     }
   }
   else {
     log_err(0,
 	    "Calling Station ID or NAS IP/Port is missing from radius request");
-    (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
+    radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
   }
   
@@ -1478,11 +1472,11 @@ int accounting_request(struct radius_packet_t *pack,
     break;
   default:
     log_err(0,"Unknown downlink protocol");
-    (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
+    radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
   }
 
-  (void) radius_resp(radius, &radius_pack, peer, pack->authenticator);
+  radius_resp(radius, &radius_pack, peer, pack->authenticator);
 
   return 0;
 }
@@ -1506,12 +1500,12 @@ int access_request(struct radius_packet_t *pack,
   struct in_addr hisip;
   char pwd[RADIUS_ATTR_VLEN];
   size_t pwdlen;
-  uint8_t hismac[DHCP_ETH_ALEN];
+  uint8_t hismac[PKT_ETH_ALEN];
   char macstr[RADIUS_ATTR_VLEN];
   size_t macstrlen;
-  unsigned int temp[DHCP_ETH_ALEN];
-  int	i;
+  unsigned int temp[PKT_ETH_ALEN];
   char mac[MACSTRLEN+1];
+  int i;
 
   struct app_conn_t *appconn = NULL;
   struct dhcp_conn_t *dhcpconn = NULL;
@@ -1572,7 +1566,7 @@ int access_request(struct radius_packet_t *pack,
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     
-    for(i = 0; i < DHCP_ETH_ALEN; i++) 
+    for(i = 0; i < PKT_ETH_ALEN; i++) 
       hismac[i] = temp[i];
   }
 
@@ -1594,12 +1588,11 @@ int access_request(struct radius_packet_t *pack,
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     
-    if (!(ipm->peer) || (!((struct app_conn_t*) ipm->peer)->dnlink)) {
+    if ((appconn  = (struct app_conn_t *)ipm->peer)        == NULL || 
+	(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink) == NULL) {
       log_err(0, "RADIUS-Request: No peer protocol defined");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
-    appconn = (struct app_conn_t*) ipm->peer;
-    dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
   }
   else if (hismacattr) { /* Look for mac address. If not found allocate new */
     if (dhcp_hashget(dhcp, &dhcpconn, hismac)) {
@@ -1612,7 +1605,7 @@ int access_request(struct radius_packet_t *pack,
       log_err(0, "No peer protocol defined");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
-    appconn = (struct app_conn_t*) dhcpconn->peer;
+    appconn = (struct app_conn_t *)dhcpconn->peer;
     /*if (appconn->dnprot == DNPROT_DHCP_NONE)
     appconn->dnprot = DNPROT_WPA;*/
   }
@@ -1731,8 +1724,8 @@ int access_request(struct radius_packet_t *pack,
 
   memcpy(&appconn->radiuspeer, peer, sizeof(*peer));
   memcpy(appconn->authenticator, pack->authenticator, RADIUS_AUTHLEN);
-  memcpy(appconn->hismac, dhcpconn->hismac, DHCP_ETH_ALEN);
-  memcpy(appconn->ourmac, dhcpconn->ourmac, DHCP_ETH_ALEN);
+  memcpy(appconn->hismac, dhcpconn->hismac, PKT_ETH_ALEN);
+  memcpy(appconn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);
 
   /* Build up radius request */
   radius_pack.code = RADIUS_CODE_ACCESS_REQUEST;
@@ -1837,7 +1830,7 @@ int upprot_getip(struct app_conn_t *appconn,
   /* This should only happen for UAM */
   /* TODO */
   if (appconn->uplink) {
-    ipm = (struct ippoolm_t*) appconn->uplink;
+    ipm = (struct ippoolm_t *)appconn->uplink;
   }
   else {
     /* Allocate static or dynamic IP address */
@@ -1999,7 +1992,7 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
 			       0, &offset)) { 
       size_t clen, nlen = (size_t)attr->l-2;
       char *url = (char*)attr->v.t;
-      clen = strlen(params->url);
+      clen = strlen((char*)params->url);
 
       if (clen + nlen > sizeof(params->url)-1) 
 	nlen = sizeof(params->url)-clen-1;
@@ -2626,8 +2619,8 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
   appconn->dns1.s_addr = options.dns1.s_addr;
   appconn->dns2.s_addr = options.dns2.s_addr;
 
-  memcpy(appconn->hismac, conn->hismac, DHCP_ETH_ALEN);
-  memcpy(appconn->ourmac, conn->ourmac, DHCP_ETH_ALEN);
+  memcpy(appconn->hismac, conn->hismac, PKT_ETH_ALEN);
+  memcpy(appconn->ourmac, conn->ourmac, PKT_ETH_ALEN);
   
   set_sessionid(appconn);
 
@@ -2741,13 +2734,13 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
   struct app_conn_t *appconn = conn->peer;
   /*struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;*/
-  struct tun_packet_t *iph = (struct tun_packet_t*)(pack + DHCP_ETH_HLEN);
+  struct pkt_ipphdr_t *ipph = (struct pkt_ipphdr_t *)((char*)pack + PKT_ETH_HLEN);
 
   /*if (options.debug)
     log_dbg("cb_dhcp_data_ind. Packet received. DHCP authstate: %d\n", 
     conn->authstate);*/
 
-  if (iph->src != conn->hisip.s_addr) {
+  if (ipph->saddr != conn->hisip.s_addr) {
     if (options.debug) 
       log_dbg("Received packet with spoofed source!");
     return 0;
@@ -2759,9 +2752,9 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
   }
 
   /* If the ip dst is uamlisten and pdst is uamport we won't call leaky_bucket */
-  if (iph->dst  == options.uamlisten.s_addr && 
-      (iph->pdst == htons(options.uamport) ||
-       iph->pdst == htons(options.uamuiport)))
+  if (ipph->daddr  == options.uamlisten.s_addr && 
+      (ipph->dport == htons(options.uamport) ||
+       ipph->dport == htons(options.uamuiport)))
     return tun_encaps(tun, pack, len);
   
   if (appconn->state.authenticated == 1) {
@@ -2802,7 +2795,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
 
 /* Callback for receiving messages from eapol */
 int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
-  struct dhcp_eap_t *eap = (struct dhcp_eap_t*) pack;
+  struct eap_packet_t *eap = (struct eap_packet_t *)pack;
   struct app_conn_t *appconn = conn->peer;
   struct radius_packet_t radius_pack;
   char mac[MACSTRLEN+1];
@@ -2918,13 +2911,11 @@ int static uam_msg(struct redir_msg_t *msg) {
     return 0;
   }
 
-  if (!((ipm->peer) || ((struct app_conn_t*) ipm->peer)->dnlink)) {
+  if ((appconn  = (struct app_conn_t *)ipm->peer)        == NULL || 
+      (dhcpconn = (struct dhcp_conn_t *)appconn->dnlink) == NULL) {
     log_err(0, "No peer protocol defined");
     return 0;
   }
-
-  appconn = (struct app_conn_t*) ipm->peer;
-  dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
 
   if (msg->opt & REDIR_MSG_OPT_REDIR)
     memcpy(&appconn->state.redir, &msg->redir, sizeof(msg->redir));
@@ -2955,8 +2946,8 @@ int static uam_msg(struct redir_msg_t *msg) {
     appconn->recvlen  = 0;
     appconn->lmntlen  = 0;
     
-    memcpy(appconn->hismac, dhcpconn->hismac, DHCP_ETH_ALEN);
-    memcpy(appconn->ourmac, dhcpconn->ourmac, DHCP_ETH_ALEN);
+    memcpy(appconn->hismac, dhcpconn->hismac, PKT_ETH_ALEN);
+    memcpy(appconn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);
     
     appconn->policy = 0; /* TODO */
 
@@ -3458,8 +3449,8 @@ int chilli_main(int argc, char **argv) {
     if (redir->fd[1] > 0) FD_SET(redir->fd[1], &fds);
     if (cmdsock != -1) FD_SET(cmdsock, &fds);
 
-    idleTime.tv_sec = 1; /*IDLETIME;*/
-    idleTime.tv_usec = 0;
+    idleTime.tv_sec = 0; /*IDLETIME;*/
+    idleTime.tv_usec = 500;
     /*radius_timeleft(radius, &idleTime);
       if (dhcp) dhcp_timeleft(dhcp, &idleTime);*/
     switch (status = select(maxfd + 1, &fds, NULL, NULL, &idleTime /* NULL */)) {
@@ -3475,13 +3466,15 @@ int chilli_main(int argc, char **argv) {
 
     mainclock = time(0);
 
-    if ((msgresult = msgrcv(redir->msgid, (struct msgbuf*) &msg, sizeof(msg), 
-			   0, IPC_NOWAIT)) < 0) {
+    if ((msgresult = msgrcv(redir->msgid, 
+			    (struct msgbuf *)&msg, sizeof(msg), 
+			    0, IPC_NOWAIT)) < 0) {
       if ((errno != EAGAIN) && (errno != ENOMSG))
 	log_err(errno, "msgrcv() failed!");
     }
 
-    if (msgresult > 0) (void) uam_msg(&msg);
+    if (msgresult > 0) 
+      uam_msg(&msg);
     
     if (status > 0) {
 

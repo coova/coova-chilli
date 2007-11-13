@@ -685,7 +685,7 @@ int tun_new(struct tun_t **tun, int txqlen)
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
 	log_err(errno, "ioctl(d=%d, request=%d) failed", fd, SIOCGIFHWADDR);
       }
-      memcpy((*tun)->tap_hwaddr, ifr.ifr_hwaddr.sa_data, DHCP_ETH_ALEN);
+      memcpy((*tun)->tap_hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
       log_dbg("tap-mac: %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X", ifr.ifr_name,
 	      (*tun)->tap_hwaddr[0],(*tun)->tap_hwaddr[1],(*tun)->tap_hwaddr[2],
 	      (*tun)->tap_hwaddr[3],(*tun)->tap_hwaddr[4],(*tun)->tap_hwaddr[5]);
@@ -875,14 +875,14 @@ int tun_decaps(struct tun_t *this)
 int tun_encaps(struct tun_t *tun, void *pack, size_t len)
 {
   if (options.usetap) {
-    struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;
-    memcpy(ethh->src, tun->tap_hwaddr, DHCP_ETH_ALEN);
+    struct pkt_ethhdr_t *ethh = (struct pkt_ethhdr_t *)pack;
+    memcpy(ethh->src, tun->tap_hwaddr, PKT_ETH_ALEN);
     log_dbg("writing to tun/tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
 	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
 	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5]);
   } else {
-    pack += DHCP_ETH_HLEN;
-    len -= DHCP_ETH_HLEN;
+    pack += PKT_ETH_HLEN;
+    len  -= PKT_ETH_HLEN;
   }
 
   if (tun->debug) 
@@ -893,7 +893,7 @@ int tun_encaps(struct tun_t *tun, void *pack, size_t len)
   unsigned char buffer[PACKET_MAX+4];
 
   /* Can we user writev here to be more efficient??? */
-  *((long*)(&buffer))=htonl(AF_INET);
+  *((uint32_t *)(&buffer))=htonl(AF_INET);
   memcpy(&buffer[4], pack, PACKET_MAX);
 
   return write(tun->fd, buffer, len+4);

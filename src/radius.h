@@ -381,4 +381,6 @@ extern void radius_addcalledstation(struct radius_t *radius, struct radius_packe
 int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack, 
 		    char *secret, int secretlen, uint8_t *dst);
 
+int chilliauth_radius(struct radius_t *radius);
+
 #endif	/* !_RADIUS_H */

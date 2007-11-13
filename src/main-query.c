@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
 	break;
       case CMDSOCK_DHCP_RELEASE:
 	{
-	  unsigned int temp[DHCP_ETH_ALEN];
+	  unsigned int temp[PKT_ETH_ALEN];
 	  char macstr[RADIUS_ATTR_VLEN];
 	  int macstrlen;
 	  int i;
@@ -213,7 +213,7 @@ int main(int argc, char **argv) {
 	    return -1;
 	  }
 
-	  for (i = 0; i < DHCP_ETH_ALEN; i++) 
+	  for (i = 0; i < PKT_ETH_ALEN; i++) 
 	    request.data.mac[i] = temp[i];
 
 	  /* do another switch to pick up param configs for authorize */

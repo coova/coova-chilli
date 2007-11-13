@@ -18,6 +18,7 @@
 #ifndef _OPTIONS_H
 #define _OPTIONS_H
 
+#include "pkt.h"
 #include "garden.h"
 
 struct options_t {
@@ -80,7 +81,7 @@ struct options_t {
 
   /* DHCP parameters */
   char* dhcpif;                 /* Interface: eth0 */
-  unsigned char dhcpmac[DHCP_ETH_ALEN]; /* Interface MAC address */
+  unsigned char dhcpmac[PKT_ETH_ALEN]; /* Interface MAC address */
   int dhcpusemac;                /* Use given MAC or interface default */
   struct in_addr dhcplisten;     /* IP address to listen to */
   int lease;                     /* DHCP lease time */
@@ -131,7 +132,7 @@ struct options_t {
   char** uamdomains;
 
   /* MAC Authentication */
-  unsigned char macok[MACOK_MAX][DHCP_ETH_ALEN]; /* Allowed MACs */
+  unsigned char macok[MACOK_MAX][PKT_ETH_ALEN]; /* Allowed MACs */
   int macoklen;                   /* Number of MAC addresses */
   char* macsuffix;               /* Suffix to add to MAC address */
   char* macpasswd;               /* Password to use for MAC authentication */  

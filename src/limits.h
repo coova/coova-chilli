@@ -64,7 +64,6 @@
 #define REDIR_CHALLENGETIMEOUT2          600 /* Seconds */
 
 #define REDIR_URL_LEN                   2048
-#define REDIR_ETH_ALEN                     6
 #define REDIR_SESSIONID_LEN               17
 
 /* chilli */
@@ -78,11 +77,8 @@
 #define USERURLSIZE                      256 /* Max length of URL requested by user */
 
 /* dhcp */
-#define DHCP_ETH_ALEN                      6
-#define DHCP_ETH_HLEN                     14
 #define DHCP_DEBUG                         0 /* Print debug information */
 #define DHCP_MTU                        1492 /* Maximum MTU size */
-#define DHCP_TAG_VLEN                    255 /* Tag value always shorter than this */
 
 /* radius */
 #define RADIUS_SECRETSIZE                128 /* No secrets that long */

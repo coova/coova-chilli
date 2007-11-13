@@ -73,8 +73,8 @@ struct redir_conn_t {
    */
   struct in_addr nasip;
   uint32_t nasport;
-  uint8_t hismac[REDIR_ETH_ALEN];    /* His MAC address */
-  uint8_t ourmac[REDIR_ETH_ALEN];    /* Our MAC address */
+  uint8_t hismac[PKT_ETH_ALEN];/* His MAC address */
+  uint8_t ourmac[PKT_ETH_ALEN];/* Our MAC address */
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
 

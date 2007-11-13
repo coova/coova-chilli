@@ -12,6 +12,7 @@
 #include "system.h"
 #include "redir.h"
 #include "syserr.h"
+#include "radius.h"
 #include "dhcp.h"
 #include "chilli.h"
 #include "cmdline.h"

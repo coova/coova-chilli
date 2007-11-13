@@ -1381,12 +1381,11 @@ radius_default_pack(struct radius_t *this,
     return -1;
   }
 
-  /* always add the chillispot version to access requests */
-  if (code == RADIUS_CODE_ACCESS_REQUEST)
-    radius_addattr(this, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VERSION, 
-		   0, (uint8_t*)VERSION, strlen(VERSION));
-
+  /* always add the chillispot version to requests */
+  radius_addattr(this, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VERSION, 
+		 0, (uint8_t*)VERSION, strlen(VERSION));
+  
   return 0;
 }
 
@@ -1402,11 +1401,11 @@ int radius_authcheck(struct radius_t *this, struct radius_packet_t *pack,
   MD5_CTX context;
 
   MD5Init(&context);
-  MD5Update(&context, (void*) pack, RADIUS_HDRSIZE-RADIUS_AUTHLEN);
+  MD5Update(&context, (uint8_t *) pack, RADIUS_HDRSIZE-RADIUS_AUTHLEN);
   MD5Update(&context, pack_req->authenticator, RADIUS_AUTHLEN);
-  MD5Update(&context, ((void*) pack) + RADIUS_HDRSIZE, 
+  MD5Update(&context, ((uint8_t *) pack) + RADIUS_HDRSIZE, 
 	    ntohs(pack->length) - RADIUS_HDRSIZE);
-  MD5Update(&context, (uint8_t*) this->secret, this->secretlen);
+  MD5Update(&context, (uint8_t *)this->secret, this->secretlen);
   MD5Final(auth, &context);
   
   return memcmp(pack->authenticator, auth, RADIUS_AUTHLEN);
@@ -1423,11 +1422,11 @@ int radius_acctcheck(struct radius_t *this, struct radius_packet_t *pack)
   MD5_CTX context;
   
   MD5Init(&context);
-  MD5Update(&context, (void*) pack, RADIUS_HDRSIZE-RADIUS_AUTHLEN);
-  MD5Update(&context, (uint8_t*) padd, RADIUS_AUTHLEN);
-  MD5Update(&context, ((void*) pack) + RADIUS_HDRSIZE, 
+  MD5Update(&context, (uint8_t *)pack, RADIUS_HDRSIZE-RADIUS_AUTHLEN);
+  MD5Update(&context, (uint8_t *)padd, RADIUS_AUTHLEN);
+  MD5Update(&context, ((uint8_t *)pack) + RADIUS_HDRSIZE, 
 	    ntohs(pack->length) - RADIUS_HDRSIZE);
-  MD5Update(&context, (uint8_t*) this->secret, this->secretlen);
+  MD5Update(&context, (uint8_t *)this->secret, this->secretlen);
   MD5Final(auth, &context);
   
   return memcmp(pack->authenticator, auth, RADIUS_AUTHLEN);

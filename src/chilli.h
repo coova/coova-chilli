@@ -90,8 +90,8 @@ struct app_conn_t {
 
   uint32_t nasip;              /* Set by access request */
   uint32_t nasport;            /* Set by access request */
-  uint8_t hismac[DHCP_ETH_ALEN];    /* His MAC address */
-  uint8_t ourmac[DHCP_ETH_ALEN];    /* Our MAC address */
+  uint8_t hismac[PKT_ETH_ALEN];/* His MAC address */
+  uint8_t ourmac[PKT_ETH_ALEN];/* Our MAC address */
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
   struct in_addr reqip;        /* IP requested by client */
@@ -120,5 +120,6 @@ extern struct tun_t *tun;                /* TUN/TAP instance */
 int printstatus(struct app_conn_t *appconn);
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause);
 void config_radius_session(struct session_params *params, struct radius_packet_t *pack, int reconfig);
+int cmdsock_init();
 
 #endif /*_CHILLI_H */

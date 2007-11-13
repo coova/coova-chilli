@@ -119,9 +119,7 @@ dns_copy_res(int q,
   uint8_t *p_pkt = *pktp;
   size_t len = *left;
   
-  char fullname[256];
-
-  uint8_t name[DHCP_IP_PLEN];
+  uint8_t name[PKT_IP_PLEN];
   size_t namelen = 0;
 
   uint16_t type;
@@ -132,7 +130,7 @@ dns_copy_res(int q,
   uint32_t ul;
   uint16_t us;
 
-  if (dns_getname(&p_pkt, &len, name, sizeof(name), &namelen)) 
+  if (dns_getname(&p_pkt, &len, (char *)name, sizeof(name), &namelen)) 
     return_error;
 
   if (antidnstunnel && namelen > 128) {

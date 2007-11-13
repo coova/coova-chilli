@@ -606,8 +606,8 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
   return 0;
 }
 
-int 
-tcp_write_timeout(int timeout, struct redir_socket *sock, char *buf, int len) {
+ssize_t
+tcp_write_timeout(int timeout, struct redir_socket *sock, char *buf, size_t len) {
   fd_set fdset;
   struct timeval tv;
   int fd = sock->fd[1];
@@ -633,15 +633,16 @@ tcp_write_timeout(int timeout, struct redir_socket *sock, char *buf, int len) {
 
 static int timeout = 10;
 
-int
-tcp_write(struct redir_socket *sock, char *buf, int len) {
-  int c, r = 0;
+ssize_t
+tcp_write(struct redir_socket *sock, char *buf, size_t len) {
+  ssize_t c;
+  size_t r = 0;
   while (r < len) {
-    c = tcp_write_timeout(timeout,sock,buf+r,len-r);
-    if (c <= 0) return r;
-    r += c;
+    c = tcp_write_timeout(timeout, sock, buf+r, len-r);
+    if (c <= 0) return (ssize_t)r;
+    r += (size_t)c;
   }
-  return r;
+  return (ssize_t)r;
 }
 
 static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t *conn,  
@@ -1428,7 +1429,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   struct radius_packet_t radius_pack;
   struct radius_t *radius;      /* Radius client instance */
   struct timeval idleTime;	/* How long to select() */
-  int endtime, now;             /* for radius wait */
+  time_t endtime, now;          /* for radius wait */
   int maxfd = 0;	        /* For select() */
   fd_set fds;			/* For select() */
   int status;
@@ -2056,12 +2057,12 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	  buflen = snprintf(buffer, bufsize,
 			    "HTTP/1.0 200 OK\r\nContent-type: %s\r\n\r\n", ctype);
 	  
-	  if (tcp_write(&socket, buffer, buflen) < 0) {
+	  if (tcp_write(&socket, buffer, (size_t) buflen) < 0) {
 	    log_err(errno, "tcp_write() failed!");
 	  }
 	  
 	  while ((buflen = read(fd, buffer, bufsize)) > 0)
-	    if (tcp_write(&socket, buffer, buflen) < 0)
+	    if (tcp_write(&socket, buffer, (size_t) buflen) < 0)
 	      log_err(errno, "tcp_write() failed!");
 	  
 	  close(fd);
@@ -2167,10 +2168,13 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 		  hasnexturl ? besturl : NULL,
 		  0, hexchal, NULL, conn.state.redir.userurl, conn.reply,
 		  NULL, conn.hismac, &conn.hisip, qs);
+
+      bdestroy(besturl);
     }    
 
     if (optionsdebug) log_dbg("-->> Msg userurl=[%s]\n",conn.state.redir.userurl);
     redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS);
+
     redir_close();
 
   case REDIR_LOGOUT:

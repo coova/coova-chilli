@@ -92,17 +92,15 @@ int ippool_hashdel(struct ippool_t *this, struct ippoolm_t *member) {
   return 0;
 }
 
-
-unsigned long int ippool_hash4(struct in_addr *addr) {
-  return lookup((unsigned char*) &addr->s_addr, sizeof(addr->s_addr), 0);
+uint32_t ippool_hash4(struct in_addr *addr) {
+  return lookup((unsigned char *)&addr->s_addr, sizeof(addr->s_addr), 0);
 }
 
 #ifndef IPPOOL_NOIP6
-unsigned long int ippool_hash6(struct in6_addr *addr) {
-  return lookup((unsigned char*) addr->u6_addr8, sizeof(addr->u6_addr8), 0);
+uint32_t ippool_hash6(struct in6_addr *addr) {
+  return lookup((unsigned char *)addr->u6_addr8, sizeof(addr->u6_addr8), 0);
 }
 #endif
-
 
 /* Create new address pool */
 int ippool_new(struct ippool_t **this, 
@@ -447,7 +445,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
 
 int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
   
-  if (0) (void)ippool_printaddr(this);
+  if (0) ippool_printaddr(this);
 
   if (!member->inuse) {
     log_err(0, "Address not in use");
@@ -509,7 +507,7 @@ int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
 
 
 #ifndef IPPOOL_NOIP6
-extern unsigned long int ippool_hash6(struct in6_addr *addr);
+extern uint32_t ippool_hash6(struct in6_addr *addr);
 extern int ippool_getip6(struct ippool_t *this, struct in6_addr *addr);
 extern int ippool_returnip6(struct ippool_t *this, struct in6_addr *addr);
 #endif

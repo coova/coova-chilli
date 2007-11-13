@@ -95,7 +95,7 @@ int static chilliauth() {
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
 	log_err(errno, "ioctl(d=%d, request=%d) failed", fd, SIOCGIFHWADDR);
       }
-      memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, DHCP_ETH_ALEN);
+      memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
       close(fd);
     }
   }

@@ -66,7 +66,7 @@ struct ippoolm_t {
    bytes for each address. */
 
 /* Hash an IP address using code based on Bob Jenkins lookupa */
-extern unsigned long int ippool_hash4(struct in_addr *addr);
+extern uint32_t ippool_hash4(struct in_addr *addr);
 
 /* Create new address pool */
 extern int ippool_new(struct ippool_t **this, 
@@ -95,7 +95,7 @@ extern int ippool_aton(struct in_addr *addr, struct in_addr *mask,
 int ippool_hashadd(struct ippool_t *this, struct ippoolm_t *member);
 
 #ifndef IPPOOL_NOIP6
-extern unsigned long int ippool_hash6(struct in6_addr *addr);
+extern uint32_t ippool_hash6(struct in6_addr *addr);
 extern int ippool_getip6(struct ippool_t *this, struct in6_addr *addr);
 extern int ippool_returnip6(struct ippool_t *this, struct in6_addr *addr);
 #endif

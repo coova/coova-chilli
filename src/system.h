@@ -16,11 +16,14 @@
 #undef __STRICT_ANSI__
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
 #include <stdarg.h>
+
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
 
 #ifdef HAVE_SYSLOG_H
 #include <syslog.h>

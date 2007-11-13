@@ -22,6 +22,7 @@
 
 #ifndef _LOOKUP_H
 #define _LOOKUP_H
-unsigned long int lookup( unsigned char *k, unsigned long int length, unsigned long int level);
+
+uint32_t lookup(uint8_t *k, size_t length, uint32_t level);
 
 #endif	/* !_LOOKUP_H */

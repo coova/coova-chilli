@@ -281,11 +281,11 @@ int process_options(int argc, char **argv, int minimal) {
   }
 
   if (!args_info.dhcpmac_arg) {
-    memset(options.dhcpmac, 0, DHCP_ETH_ALEN);
+    memset(options.dhcpmac, 0, PKT_ETH_ALEN);
     options.dhcpusemac  = 0;
   }
   else {
-    unsigned int temp[DHCP_ETH_ALEN];
+    unsigned int temp[PKT_ETH_ALEN];
     char macstr[RADIUS_ATTR_VLEN];
     int macstrlen;
     int	i;
@@ -310,7 +310,7 @@ int process_options(int argc, char **argv, int minimal) {
       return -1;
     }
     
-    for(i = 0; i < DHCP_ETH_ALEN; i++) 
+    for(i = 0; i < PKT_ETH_ALEN; i++) 
       options.dhcpmac[i] = temp[i];
 
     options.dhcpusemac  = 1;
