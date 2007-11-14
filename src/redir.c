@@ -1875,10 +1875,10 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     exit(0);
   }
   
-  void redir_memcopy(int msg_type) {
+  void redir_memcopy(long msg_type) {
     redir_challenge(challenge);
     redir_chartohex(challenge, hexchal);
-    msg.type = msg_type;
+    msg.mtype = msg_type;
     memcpy(conn.state.redir.uamchal, challenge, REDIR_MD5LEN);
     if (options.debug) {
       log_dbg("---->>> resetting challenge: %s", hexchal);
@@ -1886,12 +1886,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   }
 
   void redir_msg_send(uint16_t opt) {
-    msg.opt = opt;
-    msg.addr = address->sin_addr;
-    memcpy(&msg.params, &conn.params, sizeof(msg.params));
-    memcpy(&msg.redir, &conn.state.redir, sizeof(msg.redir));
-    if (msgsnd(redir->msgid, (struct msgbuf *)&msg, 
-	       sizeof(struct redir_msg_t), 0) < 0) {
+    msg.mdata.opt = opt;
+    msg.mdata.addr = address->sin_addr;
+    memcpy(&msg.mdata.params, &conn.params, sizeof(msg.mdata.params));
+    memcpy(&msg.mdata.redir, &conn.state.redir, sizeof(msg.mdata.redir));
+    if (msgsnd(redir->msgid, (struct msgbuf *)&msg, sizeof(msg.mdata), 0) < 0) {
       log_err(errno, "msgsnd() failed!");
       redir_close();
     }
@@ -2138,7 +2137,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     if (conn.response == REDIR_SUCCESS) { /* Radius-Accept */
       bstring besturl = bfromcstr((char*)conn.params.url);
       
-      msg.type = REDIR_LOGIN;
+      msg.mtype = REDIR_LOGIN;
 
       if (! (besturl && besturl->slen)) 
 	bassigncstr(besturl, conn.state.redir.userurl);
@@ -2161,7 +2160,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       if (!hasnexturl) {
 	redir_memcopy(REDIR_CHALLENGE);
       } else {
-	msg.type = REDIR_NOTYET;
+	msg.mtype = REDIR_NOTYET;
       }
 
       redir_reply(redir, &socket, &conn, conn.response,

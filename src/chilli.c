@@ -2905,9 +2905,9 @@ int static uam_msg(struct redir_msg_t *msg) {
   struct app_conn_t *appconn = NULL;
   struct dhcp_conn_t* dhcpconn;
 
-  if (ippool_getip(ippool, &ipm, &msg->addr)) {
+  if (ippool_getip(ippool, &ipm, &msg->mdata.addr)) {
     if (options.debug) 
-      log_dbg("UAM login with unknown IP address: %s", inet_ntoa(msg->addr));
+      log_dbg("UAM login with unknown IP address: %s", inet_ntoa(msg->mdata.addr));
     return 0;
   }
 
@@ -2917,24 +2917,24 @@ int static uam_msg(struct redir_msg_t *msg) {
     return 0;
   }
 
-  if (msg->opt & REDIR_MSG_OPT_REDIR)
-    memcpy(&appconn->state.redir, &msg->redir, sizeof(msg->redir));
+  if (msg->mdata.opt & REDIR_MSG_OPT_REDIR)
+    memcpy(&appconn->state.redir, &msg->mdata.redir, sizeof(msg->mdata.redir));
 
-  if (msg->opt & REDIR_MSG_OPT_PARAMS)
-    memcpy(&appconn->params, &msg->params, sizeof(msg->params));
+  if (msg->mdata.opt & REDIR_MSG_OPT_PARAMS)
+    memcpy(&appconn->params, &msg->mdata.params, sizeof(msg->mdata.params));
 
-  switch(msg->type) {
+  switch(msg->mtype) {
 
   case REDIR_LOGIN:
     if (appconn->uamabort) {
       log_info("UAM login from username=%s IP=%s was aborted!", 
-	       msg->redir.username, inet_ntoa(appconn->hisip));
+	       msg->mdata.redir.username, inet_ntoa(appconn->hisip));
       appconn->uamabort = 0;
       return 0;
     }
 
     log_info("Successful UAM login from username=%s IP=%s", 
-	     msg->redir.username, inet_ntoa(appconn->hisip));
+	     msg->mdata.redir.username, inet_ntoa(appconn->hisip));
     
     if (options.debug)
       log_dbg("Received login from UAM\n");
@@ -3466,8 +3466,7 @@ int chilli_main(int argc, char **argv) {
 
     mainclock = time(0);
 
-    if ((msgresult = msgrcv(redir->msgid, 
-			    (struct msgbuf *)&msg, sizeof(msg), 
+    if ((msgresult = msgrcv(redir->msgid, (struct msgbuf *)&msg, sizeof(msg.mdata), 
 			    0, IPC_NOWAIT)) < 0) {
       if ((errno != EAGAIN) && (errno != ENOMSG))
 	log_err(errno, "msgrcv() failed!");

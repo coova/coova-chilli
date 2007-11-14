@@ -25,6 +25,9 @@ AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h \
 		  stdint.h stdlib.h string.h \
 		  sys/ioctl.h sys/socket.h \
 		  sys/param.h sys/time.h \
+		  sys/ipc.h sys/msg.h \
+		  sys/wait.h sys/un.h \
+		  sys/stat.h sys/types.h \
 		  syslog.h resolv.h \
 		  unistd.h endian.h \
 		  net/route.h net/if.h \

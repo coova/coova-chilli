@@ -1755,7 +1755,7 @@ int dhcp_gettag(struct dhcp_packet_t *pack, size_t length,
   } */
   
   while ((offset + 2) < length) {
-    t = (struct dhcp_tag_t*) (((void*) pack) + offset);
+    t = (struct dhcp_tag_t *)(((void *)pack) + offset);
     if (t->t == tagtype) {
       if ((offset +  2 + (size_t)(t->l)) > length)
 	return -1; /* Tag length too long */
@@ -2611,7 +2611,7 @@ int dhcp_sendEAPreject(struct dhcp_conn_t *conn, void *pack, size_t len) {
   struct eap_packet_t packet;
 
   if (pack) {
-    (void)dhcp_sendEAP(conn, pack, len);
+    dhcp_sendEAP(conn, pack, len);
   }
   else {
     memset(&packet, 0, sizeof(packet));

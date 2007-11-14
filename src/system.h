@@ -49,19 +49,41 @@
 #include <arpa/inet.h>
 #endif
 
+#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
+
+#ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
+#endif
+
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
 
+#ifdef HAVE_SYS_IPC_H
 #include <sys/ipc.h>
+#endif
+
+#ifdef HAVE_SYS_MSG_H
 #include <sys/msg.h>
+#endif
+
+#ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
+#endif
+
+#ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
+#endif
 
 #if defined(__linux__)
 #include <asm/types.h>

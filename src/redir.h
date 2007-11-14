@@ -124,12 +124,14 @@ struct redir_t {
 };
 
 struct redir_msg_t {
-  uint16_t type;
-  uint16_t opt;
-  struct in_addr addr;
-  struct redir_state redir;
-  struct session_params params;
-} __attribute__((packed));
+  long mtype;
+  struct redir_msg_data {
+    uint16_t opt;
+    struct in_addr addr;
+    struct redir_state redir;
+    struct session_params params;
+  } mdata;
+};
 
 
 int redir_new(struct redir_t **redir, struct in_addr *addr, int port, int uiport);

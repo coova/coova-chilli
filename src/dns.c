@@ -110,7 +110,7 @@ add_A_to_garden(uint8_t *p) {
 int 
 dns_copy_res(int q, 
 	     uint8_t **pktp, size_t *left, 
-	     uint8_t *opkt, size_t olen, 
+	     uint8_t *opkt,  size_t olen, 
 	     char *question, size_t qsize) {
 
 #define return_error \
