@@ -1,6 +1,8 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+== ChangeLog (Coova Chilli v1.0.10 svn revision 144) ==
+
 * Renamed packed network stack structures and put them in pkt.h
 * Bug fix for DHCP relay (RFC 1542)
 * Bug fix in IPC handling

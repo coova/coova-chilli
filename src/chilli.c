@@ -2063,25 +2063,23 @@ static int chilliauth_cb(struct radius_t *radius,
 			 struct radius_packet_t *pack,
 			 struct radius_packet_t *pack_req, void *cbp) {
   struct radius_attr_t *attr = NULL;
-  /*char attrs[RADIUS_ATTR_VLEN+1];*/
   size_t offset = 0;
 
   if (!pack) { 
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Radius request timed out");
+    log_err(0, "Radius request timed out");
     return 0;
   }
 
   if ((pack->code != RADIUS_CODE_ACCESS_REJECT) && 
       (pack->code != RADIUS_CODE_ACCESS_CHALLENGE) &&
       (pack->code != RADIUS_CODE_ACCESS_ACCEPT)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
-	    "Unknown radius access reply code %d", pack->code);
+    log_err(0, "Unknown radius access reply code %d", pack->code);
     return 0;
   }
 
   /* ACCESS-ACCEPT */
   if (pack->code != RADIUS_CODE_ACCESS_ACCEPT) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Administrative-User Login Failed");
+    log_err(0, "Administrative-User Login Failed");
     return 0;
   }
 
@@ -2519,33 +2517,37 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr) {
 
   /* If IP address is allready allocated: Fill it in */
   if (appconn->uplink) {
+
     ipm = (struct ippoolm_t*) appconn->uplink;
-  }
-  else if (appconn->dnprot == DNPROT_MAC) {
-    log_dbg("Protocol MAC, returning.\n");
-    return -1;
-  }
-  else if ((options.macauth) && 
-	   (appconn->dnprot == DNPROT_DHCP_NONE) ){
+
+  } else if ((options.macauth) && 
+	     (appconn->dnprot == DNPROT_DHCP_NONE) ){
+    
     appconn->dnprot = DNPROT_MAC;
+
     macauth_radius(appconn);
+
     return -1;
-  }
-  else if ((options.macoklen) && 
-	   (appconn->dnprot == DNPROT_DHCP_NONE) &&
-	   !maccmp(conn->hismac)) {
+
+  } else if ((options.macoklen) && 
+	     (appconn->dnprot == DNPROT_DHCP_NONE) &&
+	     !maccmp(conn->hismac)) {
+    
     appconn->dnprot = DNPROT_MAC;
+
     if (options.macallowlocal) {
       upprot_getip(appconn, &appconn->reqip, 0);/**/
       dnprot_accept(appconn);
     } else {
       macauth_radius(appconn);    
     }
+
     return -1;
-  }
-  else {
+
+  } else {
+
     if (appconn->dnprot != DNPROT_DHCP_NONE) {
-      log_err(0, "Requested IP address when allready allocated");
+      log_warn(0, "Requested IP address when allready allocated");
     }
     
     /* Allocate dynamic IP address */

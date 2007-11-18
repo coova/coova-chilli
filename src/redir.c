@@ -1079,7 +1079,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
     if ((status > 0) && FD_ISSET(fd, &fds)) {
       if (buflen + 2 >= sizeof(buffer)) { /* ensure space for a least one more byte + null */
-        log_err(errno, "Too much data in http request!");
+        log_err(0, "Too much data in http request!");
         return -1;
       }
 

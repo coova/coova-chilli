@@ -54,9 +54,6 @@ bailout() { echo $1; exit; }
 
 check_required() {
     [ -z "$HS_MODE" ]  && bailout "HS_MODE is required"
-    [ -z "$HS_NASID" ] && bailout "HS_NASID is required"
-    [ -z "$HS_NETWORK" -o -z "$HS_NETMASK"   ] && bailout "HS_NETWORK and HS_NETMASK are required"
-    [ -z "$HS_UAMLISTEN" ] && bailout "HS_UAMLISTEN is required"
 }
     
 configs1=

@@ -70,7 +70,7 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 #
 # HS_ANYIP=on		   # Allow any IP address on subscriber LAN
 #
-# HS_MACUATH=on		   # To turn on MAC Authentication
+# HS_MACAUTH=on		   # To turn on MAC Authentication
 #
 # HS_MACAUTHMODE=local	   # To allow MAC Authentication based on macallowed, not RADIUS
 #
