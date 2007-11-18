@@ -1,3 +1,12 @@
+coova-chilli (1.0.10-1) unstable; urgency=low
+
+  * Renamed packed network stack structures and put them in pkt.h
+  * Bug fix for DHCP relay (RFC 1542)
+  * Bug fix in IPC handling
+  * Memory leak fix in logging
+
+ -- Unixmedia S.r.l. (Medianix Devel) <devel@unixmedia.it>  Sat, 27 Oct 2007 14:07:19 +0200
+
 coova-chilli (1.0.9-1) unstable; urgency=low
 
   * Fix wrong localstatedir declaration
