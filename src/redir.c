@@ -1786,7 +1786,8 @@ int redir_accept(struct redir_t *redir, int idx) {
   socklen_t addrlen;
 
   addrlen = sizeof(struct sockaddr_in);
-  if ((new_socket = accept(redir->fd[idx], (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
+
+  if ((new_socket = accept(redir->fd[idx], (struct sockaddr *)&address, &addrlen)) < 0) {
     if (errno != ECONNABORTED)
       log_err(errno, "accept() failed!");
     return 0;
