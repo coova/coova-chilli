@@ -1,6 +1,10 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+== ChangeLog (Coova Chilli v1.0.11 svn revision 147) ==
+
+* Bug fix for RADIUS VSAs being sent
+
 == ChangeLog (Coova Chilli v1.0.10 svn revision 144) ==
 
 * Renamed packed network stack structures and put them in pkt.h
