@@ -112,11 +112,6 @@ chilliController.onError = function ( str ) {
 };
 
 
-/* Some formating functions */
-chilliController.formatBytes = function ( bytes ) {
-    return bytes + ' bytes';
-};
-
 chilliController.formatTime = function ( t , zeroReturn ) {
 
     if ( typeof(t) == 'undefined' ) {
@@ -146,6 +141,30 @@ chilliController.formatTime = function ( t , zeroReturn ) {
     else if ( t < 3600 ) { return m_str + 'm' + s_str + 's' ; }
     else                 { return h_str + 'h' + m_str + 'm' + s_str + 's'; }
 
+};
+
+chilliController.formatBytes = function ( b , zeroReturn ) {
+
+    if ( typeof(b) == 'undefined' ) {
+        b = 0;
+    } else {
+        b = parseInt ( b , 10 ) ;
+    }
+
+    if ( (typeof (zeroReturn) !='undefined') && ( b === 0 ) ) {
+	return zeroReturn;
+    }
+
+    var kb = Math.round(b  / 10) / 100;
+    if (kb < 1) return b  + ' Bytes';
+
+    var mb = Math.round(kb / 10) / 100;
+    if (mb < 1)  return kb + ' Kilobytes';
+
+    var gb = Math.round(mb / 10) / 100;
+    if (gb < 1)  return mb + ' Megabytes';
+
+    return gb + ' Gigabytes';
 };
 
 

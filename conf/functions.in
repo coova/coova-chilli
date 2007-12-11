@@ -155,6 +155,7 @@ EOF
 	test ${HS_DEFSESSIONTIMEOUT:-0} -gt 0 && addconfig2 "defsessiontimeout $HS_DEFSESSIONTIMEOUT"
 	test ${HS_DEFIDLETIMEOUT:-0} -gt 0 && addconfig2 "defidletimeout $HS_DEFIDLETIMEOUT"
 	test ${HS_DEFINTERIMINTERVAL:-0} -gt 0 && addconfig2 "definteriminterval $HS_DEFINTERIMINTERVAL"
+	test ${HS_COAPORT:-0} -gt 0 && addconfig2 "coaport $HS_COAPORT"
 	[ -n "$HS_POSTAUTH_PROXY" -a -n "$HS_POSTAUTH_PROXYPORT" ] && {
 	    addconfig2 "postauthproxy $HS_POSTAUTH_PROXY"
 	    addconfig2 "postauthproxyport $HS_POSTAUTH_PROXYPORT"

@@ -1064,6 +1064,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
   while (!done && (redir->starttime + REDIR_HTTP_MAX_TIME) > time(NULL)) {
     FD_ZERO(&fds);
     FD_SET(fd, &fds);
+
     idleTime.tv_sec = 0;
     idleTime.tv_usec = REDIR_HTTP_SELECT_TIME;
 
@@ -1072,7 +1073,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       log_err(errno,"select() returned -1!");
       return -1;
     case 0:
-      break; 
+      log_dbg("HTTP request timeout!");
+      return -1;
     default:
       break;
     }
@@ -1095,8 +1097,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
     }
 
     if (buflen == 0) {
-      if (optionsdebug) 
-	log_dbg("No HTTP request received!");
+      log_dbg("No data in HTTP request!");
       return -1;
     }
 
@@ -1837,8 +1838,9 @@ int redir_accept(struct redir_t *redir, int idx) {
 
     execv(*binqqargs, binqqargs);
 
-  } else 
+  } else {
     return redir_main(redir, 0, 1, &address, idx);
+  }
 
   return 0;
 }

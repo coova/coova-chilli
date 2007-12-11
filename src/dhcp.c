@@ -30,7 +30,7 @@ const uint32_t DHCP_OPTION_MAGIC      =  0x63825363;
 #ifdef NAIVE
 const static int paranoid = 0; /* Trust that the program has no bugs */
 #else
-const static int paranoid = 1; /* Check for errors which cannot happen */
+const static int paranoid = 0; /* Check for errors which cannot happen */
 #endif
 
 extern time_t mainclock;
@@ -746,13 +746,17 @@ int dhcp_validate(struct dhcp_t *this)
   /* Count the number of used connections */
   conn = this->firstusedconn;
   while (conn) {
+
     if (!conn->inuse) {
       log_err(0, "Connection with inuse == 0!");
     }
-    (void)dhcp_hashget(this, &hash_conn, conn->hismac);
+    
+    dhcp_hashget(this, &hash_conn, conn->hismac);
+
     if (conn != hash_conn) {
       log_err(0, "Connection could not be found by hashget!");
     }
+
     used ++;
     conn = conn->next;
   }
@@ -1366,7 +1370,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   /* Allow localhost through network... */
   if (pack->iph.saddr == INADDR_LOOPBACK)
     return 0;
-  
+
   /* Was it a DNS reply? */
   if (((this->anydns) ||
        (pack->iph.saddr == conn->dns1.s_addr) ||
@@ -1712,6 +1716,26 @@ dhcp_create_pkt(uint8_t type, struct dhcp_fullpacket_t *pack, struct dhcp_fullpa
    normal = determine from the given IP destination using normal
             IP routing mechanisms and/or ARP as for any other
             normal datagram
+
+   If the 'giaddr' field in a DHCP message from a client is non-zero,
+   the server sends any return messages to the 'DHCP server' port on the
+   BOOTP relay agent whose address appears in 'giaddr'. 
+
+   If the 'giaddr' field is zero and the 'ciaddr' field is nonzero, then the
+   server unicasts DHCPOFFER and DHCPACK messages to the address in
+   'ciaddr'.  
+
+   If 'giaddr' is zero and 'ciaddr' is zero, and the broadcast bit is set,
+   then the server broadcasts DHCPOFFER and DHCPACK messages to
+   0xffffffff. 
+
+   If the broadcast bit is not set and 'giaddr' is zero and 'ciaddr' is
+   zero, then the server unicasts DHCPOFFER and DHCPACK messages to the
+   client's hardware address and 'yiaddr' address.  
+
+   In all cases, when 'giaddr' is zero, the server broadcasts any DHCPNAK
+   messages to 0xffffffff.
+
   **/
 
   if (req->dhcp.ciaddr) {
@@ -1720,8 +1744,12 @@ dhcp_create_pkt(uint8_t type, struct dhcp_fullpacket_t *pack, struct dhcp_fullpa
   } else if (req->dhcp.giaddr) {
     pack->iph.daddr = req->dhcp.giaddr; 
     pack->udph.dst = htons(DHCP_BOOTPS);
-  } else {
+  } else if (type == DHCPNAK || ntohs(req->dhcp.flags) & (1<<15)) {
     pack->iph.daddr = ~0; 
+    pack->udph.dst = htons(DHCP_BOOTPC);
+    pack->dhcp.flags = htons(1<<15);
+  } else {
+    pack->iph.daddr = pack->dhcp.yiaddr; 
     pack->udph.dst = htons(DHCP_BOOTPC);
   }
 
@@ -2270,13 +2298,13 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
   case DHCP_AUTH_UNAUTH_TOS:
     /* Set TOS to specified value (unauthenticated) */
     pack->iph.tos = conn->unauth_cp;
-    (void)dhcp_ip_check(pack);
+    dhcp_ip_check(pack);
     break;
 
   case DHCP_AUTH_AUTH_TOS:
     /* Set TOS to specified value (authenticated) */
     pack->iph.tos = conn->auth_cp;
-    (void)dhcp_ip_check(pack);
+    dhcp_ip_check(pack);
     break;
 
   case DHCP_AUTH_DNAT:

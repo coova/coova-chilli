@@ -215,7 +215,7 @@ int ippool_new(struct ippool_t **this,
        ((1 << (*this)->hashlog) < listsize);
        (*this)->hashlog++);
 
-  /*   printf ("Hashlog %d %d %d\n", (*this)->hashlog, listsize, (1 << (*this)->hashlog)); */
+  log_dbg("Hashlog %d %d %d\n", (*this)->hashlog, listsize, (1 << (*this)->hashlog));
 
   /* Determine hashsize */
   (*this)->hashsize = 1 << (*this)->hashlog; /* Fails if mask=0: All Internet*/
@@ -254,7 +254,7 @@ int ippool_new(struct ippool_t **this,
     (*this)->lastdyn = &((*this)->member[i]);
     (*this)->member[i].next = NULL; /* Redundant */
 
-    ( void)ippool_hashadd(*this, &(*this)->member[i]);
+    ippool_hashadd(*this, &(*this)->member[i]);
   }
 
   (*this)->firststat = NULL;
@@ -275,7 +275,7 @@ int ippool_new(struct ippool_t **this,
     (*this)->member[i].next = NULL; /* Redundant */
   }
   
-  if (0) (void)ippool_printaddr(*this);
+  if (0) ippool_printaddr(*this);
   return 0;
 }
 
@@ -391,6 +391,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
       p2->prev->next = p2->next;
     else
       this->firstdyn = p2->next;
+
     if (p2->next) 
       p2->next->prev = p2->prev;
     else

@@ -1,3 +1,9 @@
+coova-chilli (1.0.12-1) unstable; urgency=low
+
+ * 
+
+ -- Unixmedia S.r.l. (Medianix Devel) <devel@unixmedia.it>  Sat, 27 Oct 2007 14:07:19 +0200
+
 coova-chilli (1.0.11-1) unstable; urgency=low
 
   * Bug fix for RADIUS VSAs being sent

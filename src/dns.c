@@ -15,7 +15,6 @@
 #include "dhcp.h"
 #include "options.h"
 
-#define debug options.debug
 #define antidnstunnel options.dnsparanoia
 
 extern struct dhcp_t *dhcp;
@@ -114,7 +113,7 @@ dns_copy_res(int q,
 	     char *question, size_t qsize) {
 
 #define return_error \
-{ if (debug) log_dbg("%s:%d: failed parsing DNS packet",__FILE__,__LINE__); return -1; }
+{ log_dbg("%s:%d: failed parsing DNS packet",__FILE__,__LINE__); return -1; }
 
   uint8_t *p_pkt = *pktp;
   size_t len = *left;
@@ -151,14 +150,12 @@ dns_copy_res(int q,
   p_pkt += 2;
   len -= 2;
   
-  if (debug) 
-    log_dbg("It was a dns response w type: %d class: %d", type, class);
+  log_dbg("It was a dns response w type: %d class: %d", type, class);
   
   if (q) {
     dns_fullname(question, qsize, *pktp, opkt, olen, 0);
     
-    if (debug) 
-      log_dbg("Q: %s", question);
+    log_dbg("Q: %s", question);
 
     *pktp = p_pkt;
     *left = len;
@@ -179,8 +176,7 @@ dns_copy_res(int q,
   p_pkt += 2;
   len -= 2;
   
-  if (debug) 
-    log_dbg("-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);
+  log_dbg("-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);
   
   if (len < rdlen)
     return_error;
@@ -192,8 +188,7 @@ dns_copy_res(int q,
   switch (type) {
 
   case 1:/* A */
-    if (debug)
-      log_dbg("A record");
+    log_dbg("A record");
     if (options.uamdomains) {
       int id;
       for (id=0; options.uamdomains[id]; id++) {
@@ -219,13 +214,13 @@ dns_copy_res(int q,
       char cname[256];
       memset(cname,0,sizeof(cname));
       dns_fullname(cname, sizeof(cname)-1, p_pkt, opkt, olen, 0);
-      if (debug) log_dbg("CNAME record %s", cname);
+      log_dbg("CNAME record %s", cname);
     }
     break;
 
   default:
 
-    if (debug) switch(type) {
+    if (options.debug) switch(type) {
     case 6:
       log_dbg("SOA record");
       break;

@@ -157,6 +157,13 @@ function showStatusPage() {
     setElementValue("idleTimeout",
 		    chilliController.formatTime(chilliController.session.idleTimeout, 'unlimited'));
 
+    setElementValue("maxInputOctets",
+		    chilliController.formatBytes(chilliController.session.maxInputOctets));
+    setElementValue("maxOutputOctets",
+		    chilliController.formatBytes(chilliController.session.maxOutputOctets));
+    setElementValue("maxTotalOctets",
+		    chilliController.formatBytes(chilliController.session.maxTotalOctets));
+
     // Update accounting
     setElementValue("sessionTime",
 		    chilliController.formatTime(chilliController.accounting.sessionTime));

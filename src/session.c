@@ -62,6 +62,21 @@ int session_json_fmt(struct session_state *state,
   bcatcstr(json,",\"idleTimeout\":");
   bassignformat(tmp, "%ld", params->idletimeout);
   bconcat(json, tmp);
+  if (params->maxinputoctets) {
+    bcatcstr(json,",\"maxInputOctets\":");
+    bassignformat(tmp, "%ld", params->maxinputoctets);
+    bconcat(json, tmp);
+  }
+  if (params->maxoutputoctets) {
+    bcatcstr(json,",\"maxOutputOctets\":");
+    bassignformat(tmp, "%ld", params->maxoutputoctets);
+    bconcat(json, tmp);
+  }
+  if (params->maxtotaloctets) {
+    bcatcstr(json,",\"maxTotalOctets\":");
+    bassignformat(tmp, "%ld", params->maxtotaloctets);
+    bconcat(json, tmp);
+  }
   bcatcstr(json,"}");
 
   bcatcstr(json,",\"accounting\":{\"sessionTime\":");

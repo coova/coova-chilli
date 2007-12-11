@@ -66,6 +66,8 @@ struct gengetopt_args_info
   char * dynip_arg;	/**< @brief Dynamic IP address pool.  */
   char * dynip_orig;	/**< @brief Dynamic IP address pool original value given at command line.  */
   const char *dynip_help; /**< @brief Dynamic IP address pool help description.  */
+  int nodynip_flag;	/**< @brief No Dynamic IP assignment (default=off).  */
+  const char *nodynip_help; /**< @brief No Dynamic IP assignment help description.  */
   char * statip_arg;	/**< @brief Static IP address pool.  */
   char * statip_orig;	/**< @brief Static IP address pool original value given at command line.  */
   const char *statip_help; /**< @brief Static IP address pool help description.  */
@@ -306,6 +308,7 @@ struct gengetopt_args_info
   int dhcpstart_given ;	/**< @brief Whether dhcpstart was given.  */
   int dhcpend_given ;	/**< @brief Whether dhcpend was given.  */
   int dynip_given ;	/**< @brief Whether dynip was given.  */
+  int nodynip_given ;	/**< @brief Whether nodynip was given.  */
   int statip_given ;	/**< @brief Whether statip was given.  */
   int dns1_given ;	/**< @brief Whether dns1 was given.  */
   int dns2_given ;	/**< @brief Whether dns2 was given.  */

@@ -2991,8 +2991,8 @@ int static uam_msg(struct redir_msg_t *msg) {
     }
 
     appconn->state.uamtime = mainclock;
-    appconn->uamabort = 0;
     dhcpconn->authstate = DHCP_AUTH_DNAT;
+    appconn->uamabort = 0;
 
     break;
 
@@ -3277,6 +3277,7 @@ int chilli_main(int argc, char **argv) {
     log_err(0, "Failed to create dhcp");
     exit(1);
   }
+
   if (dhcp->fd > maxfd)
     maxfd = dhcp->fd;
   if (dhcp->arp_fd > maxfd)

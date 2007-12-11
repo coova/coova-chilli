@@ -28,6 +28,7 @@ option "net"         n "Network"           string default="192.168.182.0/24" no
 option "dhcpstart"   - "Network DHCP Starting IP"      int default="0" no
 option "dhcpend"     - "Network DHCP Ending IP"        int default="0" no
 option "dynip"       - "Dynamic IP address pool"       string no
+option "nodynip"     - "No Dynamic IP assignment"      flag off
 option "statip"      - "Static IP address pool"        string no
 option "dns1"        - "Primary DNS server IP address" string no
 option "dns2"        - "Secondary DNS server IP address" string no

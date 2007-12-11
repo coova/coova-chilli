@@ -445,17 +445,21 @@ int process_options(int argc, char **argv, int minimal) {
 
   if (!reconfiguring) {
     options.allowdyn = 1;
-    if (!args_info.dynip_arg) {
-      options.dynip = STRDUP(args_info.net_arg);
-    }
-    else {
-      struct in_addr addr;
-      struct in_addr mask;
-      options.dynip = STRDUP(args_info.dynip_arg);
-      if (option_aton(&addr, &mask, options.dynip, 0)) {
-	log_err(0,
-		"Failed to parse dynamic IP address pool!");
-	goto end_processing;
+
+    if (args_info.nodynip_flag) {
+      options.allowdyn = 0;
+    } else {
+      if (!args_info.dynip_arg) {
+	options.dynip = STRDUP(args_info.net_arg);
+      }
+      else {
+	struct in_addr addr;
+	struct in_addr mask;
+	options.dynip = STRDUP(args_info.dynip_arg);
+	if (option_aton(&addr, &mask, options.dynip, 0)) {
+	  log_err(0, "Failed to parse dynamic IP address pool!");
+	  goto end_processing;
+	}
       }
     }
     
@@ -465,13 +469,11 @@ int process_options(int argc, char **argv, int minimal) {
       struct in_addr mask;
       options.statip = STRDUP(args_info.statip_arg);
       if (option_aton(&addr, &mask, options.statip, 0)) {
-	log_err(0,
-		"Failed to parse static IP address pool!");
+	log_err(0, "Failed to parse static IP address pool!");
 	return -1;
       }
       options.allowstat = 1;
-    }
-    else {
+    } else {
       options.allowstat = 0;
     }
   }

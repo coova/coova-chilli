@@ -21,7 +21,8 @@ void sys_errpack(int pri, char *fn, int ln, int en, struct sockaddr_in *peer,
 		 void *pack, unsigned len, char *fmt, ...);
 
 #define log(p,fmt,args...)      sys_err(p,           __FILE__,__LINE__,0,fmt,## args)
-#define log_dbg(fmt,args...)    sys_err(LOG_DEBUG,   __FILE__,__LINE__,0,fmt,## args)
+#define log_dbg(fmt,args...)    if (options.debug) { \
+                                sys_err(LOG_DEBUG,   __FILE__,__LINE__,0,fmt,## args); }
 #define log_warn(e,fmt,args...) sys_err(LOG_WARNING, __FILE__,__LINE__,e,fmt,## args)
 #define log_info(fmt,args...)   sys_err(LOG_NOTICE,  __FILE__,__LINE__,0,fmt,## args)
 #define log_err(e,fmt,args...)  sys_err(LOG_ERR,     __FILE__,__LINE__,e,fmt,## args)
