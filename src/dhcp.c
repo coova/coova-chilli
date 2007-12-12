@@ -1671,9 +1671,10 @@ dhcp_create_pkt(uint8_t type, struct dhcp_fullpacket_t *pack, struct dhcp_fullpa
 
   dhcp_getdefault(pack);
 
-  pack->dhcp.xid    = req->dhcp.xid;
-  pack->dhcp.flags  = req->dhcp.flags;
-  pack->dhcp.giaddr = req->dhcp.giaddr;
+  pack->dhcp.xid      = req->dhcp.xid;
+  pack->dhcp.flags[0] = req->dhcp.flags[0];
+  pack->dhcp.flags[1] = req->dhcp.flags[1];
+  pack->dhcp.giaddr   = req->dhcp.giaddr;
 
   memcpy(&pack->dhcp.chaddr, &req->dhcp.chaddr, DHCP_CHADDR_LEN);
 
@@ -1744,10 +1745,10 @@ dhcp_create_pkt(uint8_t type, struct dhcp_fullpacket_t *pack, struct dhcp_fullpa
   } else if (req->dhcp.giaddr) {
     pack->iph.daddr = req->dhcp.giaddr; 
     pack->udph.dst = htons(DHCP_BOOTPS);
-  } else if (type == DHCPNAK || ntohs(req->dhcp.flags) & (1<<15)) {
+  } else if (type == DHCPNAK || req->dhcp.flags[0] & 0x80) {
     pack->iph.daddr = ~0; 
     pack->udph.dst = htons(DHCP_BOOTPC);
-    pack->dhcp.flags = htons(1<<15);
+    pack->dhcp.flags[0] = 0x80;
   } else {
     pack->iph.daddr = pack->dhcp.yiaddr; 
     pack->udph.dst = htons(DHCP_BOOTPC);

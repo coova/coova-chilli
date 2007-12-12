@@ -208,7 +208,7 @@ struct dhcp_packet_t { /* From RFC 2131 */
   uint16_t secs;   /* 2 Filled in by client, seconds elapsed since
 			  client began address acquisition or renewal
 			  process.*/
-  uint16_t flags;  /* 2  Flags (see figure 2).*/
+  uint8_t flags[2];  /* 2  Flags (see figure 2).*/
   uint32_t ciaddr; /* 4 Client IP address; only filled in if
 			  client is in BOUND, RENEW or REBINDING state
 			  and can respond to ARP requests.*/
