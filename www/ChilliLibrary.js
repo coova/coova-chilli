@@ -547,10 +547,16 @@ chilliClock.stop = function () {
 };
 
 
-/* Some global functions used for debugging   */ 
+function getel(e) {
+	if (document.getElementById) {
+		return document.getElementById(e);
+	} else if (document.all){
+		return document.all[e];
+	}
+}
 
 function log( msg , messageLevel ) {
-
+	if (!chilliController.debug) return;
 	if ( typeof(trace)=="function") {
 		// ActionScript trace
 		trace ( msg );
@@ -560,15 +566,11 @@ function log( msg , messageLevel ) {
 		console.debug ( msg );
 	}
 
-	if ( document.getElementById('debugarea') ) {
-		var e = document.getElementById('debugarea') ;
+	if ( getel('debugarea') ) {
+		var e = getel('debugarea') ;
 		e.value = e.value + '\n' + msg;
-
 		e.scrollTop = e.scrollHeight - e.clientHeight;
-
 	}
-
-
 }
 
 /* Transform an object to a text representation */

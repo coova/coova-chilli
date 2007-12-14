@@ -675,6 +675,7 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   case REDIR_FAILED_REJECT:
   case REDIR_FAILED_OTHER:
     flg |= FLG_chlg;
+    flg |= FLG_redir;
     break;
   case REDIR_SUCCESS:
     flg |= FLG_sess;
@@ -2169,7 +2170,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       redir_reply(redir, &socket, &conn, conn.response,
 		  hasnexturl ? besturl : NULL,
 		  0, hexchal, NULL, conn.state.redir.userurl, conn.reply,
-		  NULL, conn.hismac, &conn.hisip, qs);
+		  (char *)conn.params.url, conn.hismac, &conn.hisip, qs);
 
       bdestroy(besturl);
     }    
