@@ -598,30 +598,60 @@ int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
 
 #endif
 
-int dhcp_send(struct dhcp_t *this, int fd, uint16_t protocol, unsigned char *hismac, 
-	      int ifindex, void *packet, size_t length) {
+int dhcp_send(struct dhcp_t *this, struct _net_interface *netif, 
+	      unsigned char *hismac, void *packet, size_t length) {
 #if defined(__linux__)
   struct sockaddr_ll dest;
 
-  memset(&dest, '\0', sizeof(dest));
+  memset(&dest, 0, sizeof(dest));
   dest.sll_family = AF_PACKET;
-  dest.sll_protocol = htons(protocol);
-  dest.sll_ifindex = ifindex;
+  dest.sll_protocol = htons(netif->protocol);
+  dest.sll_ifindex = netif->ifindex;
   dest.sll_halen = PKT_ETH_ALEN;
-  memcpy (dest.sll_addr, hismac, PKT_ETH_ALEN);
+  memcpy(dest.sll_addr, hismac, PKT_ETH_ALEN);
 
-  if (sendto(fd, packet, length, 0, (struct sockaddr *)&dest, sizeof(dest)) < 0) {
-    log_err(errno, "sendto(fd=%d, len=%d) failed", fd, length);
+  if (sendto(netif->fd, packet, length, 0, (struct sockaddr *)&dest, sizeof(dest)) < 0) {
+#ifdef ENETDOWN
+    if (errno == ENETDOWN) {
+      close(netif->fd);
+      dhcp_open_net(netif);
+    }
+#endif
+#ifdef ENXIO
+    if (errno == ENXIO) {
+      close(netif->fd);
+      dhcp_open_net(netif);
+    }
+#endif
+    log_err(errno, "sendto(fd=%d, len=%d) failed", netif->fd, length);
     return -1;
   }
 #elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
-  if (write(fd, packet, length) < 0) {
+  if (write(netif->fd, packet, length) < 0) {
     log_err(errno, "write() failed");
     return -1;
   }
 #endif
   return 0;
 }
+
+ssize_t dhcp_recv(struct _net_interface *netif, void *pkt, size_t sz) {
+  ssize_t length;
+  
+  if ((length = recv(netif->fd, pkt, sz, 0)) < 0) {
+#ifdef ENETDOWN
+    if (errno == ENETDOWN) {
+      close(netif->fd);
+      dhcp_open_net(netif);
+    }
+#endif
+    log_err(errno, "recv(fd=%d, len=%d) failed", netif->fd, sz);
+    return -1;
+  }
+
+  return length;
+}
+
 
 
 /**
@@ -873,7 +903,7 @@ int dhcp_newconn(struct dhcp_t *this,
 
   /* Application specific initialisations */
   memcpy((*conn)->hismac, hwaddr, PKT_ETH_ALEN);
-  memcpy((*conn)->ourmac, this->hwaddr, PKT_ETH_ALEN);
+  memcpy((*conn)->ourmac, this->ipif.hwaddr, PKT_ETH_ALEN);
   (*conn)->lasttime = mainclock;
   
   dhcp_hashadd(this, *conn);
@@ -985,6 +1015,47 @@ const char* dhcp_version()
   return VERSION;
 }
 
+int dhcp_open_net(struct _net_interface *netif) {
+  if (netif->fd) close(netif->fd);
+
+  /* Bring network interface UP and RUNNING if currently down */
+  dhcp_gifflags(netif->devname, &netif->devflags);
+  if (!(netif->devflags & IFF_UP) || !(netif->devflags & IFF_RUNNING)) {
+    struct in_addr noaddr;
+    dhcp_sifflags(netif->devname, netif->devflags | IFF_NOARP);
+    memset(&noaddr, 0, sizeof(noaddr));
+    dhcp_setaddr(netif->devname, &noaddr, NULL, NULL);
+  }
+
+  if ((netif->fd = dhcp_open_eth(netif->devname, 
+				 netif->protocol, 
+				 netif->promisc, 
+				 netif->usemac,
+				 netif->hwaddr,
+				 &netif->ifindex)) < 0) {
+    netif->fd = 0;
+    return -1; /* Error reporting done in dhcp_open_eth */
+  }
+  
+  return netif->fd;
+}
+
+int dhcp_init_net(struct _net_interface *netif,
+		  const char *ifname, uint16_t protocol, int promisc,
+		  unsigned char *mac) {
+  strncpy(netif->devname, ifname, IFNAMSIZ);
+  netif->devname[IFNAMSIZ] = 0;
+  netif->protocol = protocol;
+  netif->promisc = promisc;
+
+  if (mac) {
+    netif->usemac = 1;
+    memcpy(netif->hwaddr, mac, PKT_ETH_ALEN);
+  }
+
+  return dhcp_open_net(netif);
+}
+
 
 /**
  * dhcp_new()
@@ -996,7 +1067,6 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 	 int usemac, uint8_t *mac, int promisc, 
 	 struct in_addr *listen, int lease, int allowdyn,
 	 struct in_addr *uamlisten, uint16_t uamport, int useeapol) {
-  struct in_addr noaddr;
   
   if (!(*dhcp = calloc(sizeof(struct dhcp_t), 1))) {
     log_err(0, "calloc() failed");
@@ -1013,65 +1083,42 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 
   dhcp_initconn(*dhcp);
 
-  strncpy((*dhcp)->devname, interface, IFNAMSIZ);
-  (*dhcp)->devname[IFNAMSIZ] = 0;
-
-  /* Bring network interface UP and RUNNING if currently down */
-  (void)dhcp_gifflags((*dhcp)->devname, &(*dhcp)->devflags);
-  if (!((*dhcp)->devflags & IFF_UP) || !((*dhcp)->devflags & IFF_RUNNING)) {
-    (void)dhcp_sifflags((*dhcp)->devname, (*dhcp)->devflags | IFF_NOARP);
-    memset(&noaddr, 0, sizeof(noaddr));
-    (void)dhcp_setaddr((*dhcp)->devname, &noaddr, NULL, NULL);
-  }
-  
-  if (usemac) memcpy(((*dhcp)->hwaddr), mac, PKT_ETH_ALEN);
-
-  if (((*dhcp)->fd = 
-       dhcp_open_eth(interface, PKT_ETH_PROTO_IP, promisc, usemac,
-		     ((*dhcp)->hwaddr),
-		     &((*dhcp)->ifindex))) < 0) {
+  if (dhcp_init_net(&(*dhcp)->ipif, interface, 
+		    PKT_ETH_PROTO_IP, promisc, usemac ? mac : 0) < 0) {
     free((*dhcp)->conn);
     free(*dhcp);
     return -1; /* Error reporting done in dhcp_open_eth */
   }
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
-  { int blen=0;
-  if (ioctl((*dhcp)->fd, BIOCGBLEN, &blen) < 0) {
-    log_err(errno,"ioctl() failed!");
-  }
-  (*dhcp)->rbuf_max = blen;
-  if (!((*dhcp)->rbuf = malloc((*dhcp)->rbuf_max))) {
-    /* TODO: Free malloc */
-    log_err(errno, "malloc() failed");
-  }
-  (*dhcp)->rbuf_offset = 0;
-  (*dhcp)->rbuf_len = 0;
+  { 
+    int blen=0;
+    if (ioctl((*dhcp)->ipif.fd, BIOCGBLEN, &blen) < 0) {
+      log_err(errno,"ioctl() failed!");
+    }
+    (*dhcp)->rbuf_max = blen;
+    if (!((*dhcp)->rbuf = malloc((*dhcp)->rbuf_max))) {
+      /* TODO: Free malloc */
+      log_err(errno, "malloc() failed");
+    }
+    (*dhcp)->rbuf_offset = 0;
+    (*dhcp)->rbuf_len = 0;
   }
 #endif
-
-  if (usemac) memcpy(((*dhcp)->arp_hwaddr), mac, PKT_ETH_ALEN);
-  if (((*dhcp)->arp_fd = 
-       dhcp_open_eth(interface, PKT_ETH_PROTO_ARP, promisc, usemac,
-		     ((*dhcp)->arp_hwaddr),
-		     &((*dhcp)->arp_ifindex))) < 0) 
-    {
-      close((*dhcp)->fd);
+  
+  if (dhcp_init_net(&(*dhcp)->arpif, interface, 
+		    PKT_ETH_PROTO_ARP, promisc, usemac ? mac : 0) < 0) {
+      close((*dhcp)->ipif.fd);
       free((*dhcp)->conn);
       free(*dhcp);
       return -1; /* Error reporting done in dhcp_open_eth */
     }
 
-  if (!useeapol) {
-    (*dhcp)->eapol_fd = 0;
-  }
-  else {
-    if (usemac) memcpy(((*dhcp)->eapol_hwaddr), mac, PKT_ETH_ALEN);
-    if (((*dhcp)->eapol_fd = 
-	 dhcp_open_eth(interface, PKT_ETH_PROTO_EAPOL, promisc, usemac,
-		       ((*dhcp)->eapol_hwaddr), &((*dhcp)->eapol_ifindex))) < 0) {
-      close((*dhcp)->fd);
-      close((*dhcp)->arp_fd);
+  if (useeapol) {
+    if (dhcp_init_net(&(*dhcp)->eapif, interface, 
+		      PKT_ETH_PROTO_EAPOL, promisc, usemac ? mac : 0) < 0) {
+      close((*dhcp)->ipif.fd);
+      close((*dhcp)->arpif.fd);
       free((*dhcp)->conn);
       free(*dhcp);
       return -1; /* Error reporting done in eapol_open_eth */
@@ -1084,8 +1131,6 @@ dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
   /* Initialise various variables */
   (*dhcp)->ourip.s_addr = listen->s_addr;
   (*dhcp)->lease = lease;
-  (*dhcp)->promisc = promisc;
-  (*dhcp)->usemac = usemac;
   (*dhcp)->allowdyn = allowdyn;
   (*dhcp)->uamlisten.s_addr = uamlisten->s_addr;
   (*dhcp)->uamport = uamport;
@@ -1132,10 +1177,10 @@ int dhcp_free(struct dhcp_t *dhcp) {
 
   if (dhcp->hash) free(dhcp->hash);
   if (dhcp->authip) free(dhcp->authip);
-  (void)dhcp_sifflags(dhcp->devname, dhcp->devflags);
-  close(dhcp->fd);
-  close(dhcp->arp_fd);
-  if (dhcp->eapol_fd) close(dhcp->eapol_fd);
+  dhcp_sifflags(dhcp->ipif.devname, dhcp->ipif.devflags);
+  close(dhcp->ipif.fd);
+  close(dhcp->arpif.fd);
+  if (dhcp->eapif.fd) close(dhcp->eapif.fd);
   free(dhcp->conn);
   free(dhcp);
   return 0;
@@ -1623,7 +1668,7 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
       /* Calculate total length */
       length = udp_len + PKT_IP_HLEN + PKT_ETH_HLEN;
       
-      return dhcp_send(this, this->fd, PKT_ETH_PROTO_IP, conn->hismac, this->ifindex, &answer, length);
+      return dhcp_send(this, &this->ipif, conn->hismac, &answer, length);
     }
   }
   return -1; /* Something else */
@@ -1665,7 +1710,8 @@ dhcp_getdefault(struct dhcp_fullpacket_t *pack) {
  * Create a new typed DHCP packet
  */
 int
-dhcp_create_pkt(uint8_t type, struct dhcp_fullpacket_t *pack, struct dhcp_fullpacket_t *req, struct dhcp_conn_t *conn) {
+dhcp_create_pkt(uint8_t type, struct dhcp_fullpacket_t *pack, 
+		struct dhcp_fullpacket_t *req, struct dhcp_conn_t *conn) {
   struct dhcp_t *this = conn->parent;
   int pos = 0;
 
@@ -1693,7 +1739,7 @@ dhcp_create_pkt(uint8_t type, struct dhcp_fullpacket_t *pack, struct dhcp_fullpa
 
   /* Ethernet Header */
   memcpy(pack->ethh.dst, conn->hismac, PKT_ETH_ALEN);
-  memcpy(pack->ethh.src, this->hwaddr, PKT_ETH_ALEN);
+  memcpy(pack->ethh.src, this->ipif.hwaddr, PKT_ETH_ALEN);
 
   /* UDP and IP Headers */
   pack->udph.src = htons(DHCP_BOOTPS);
@@ -1885,7 +1931,7 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn,
   /* Calculate total length */
   length = udp_len + PKT_IP_HLEN + PKT_ETH_HLEN;
 
-  return dhcp_send(this, this->fd, PKT_ETH_PROTO_IP, conn->hismac, this->ifindex, &packet, length);
+  return dhcp_send(this, &this->ipif, conn->hismac, &packet, length);
 }
 
 /**
@@ -1981,8 +2027,7 @@ int dhcp_sendACK(struct dhcp_conn_t *conn,
   /* Calculate total length */
   length = udp_len + PKT_IP_HLEN + PKT_ETH_HLEN;
 
-  return dhcp_send(this, this->fd, PKT_ETH_PROTO_IP, conn->hismac, this->ifindex,
-		   &packet, length);
+  return dhcp_send(this, &this->ipif, conn->hismac, &packet, length);
 }
 
 /**
@@ -2027,8 +2072,7 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn,
   /* Calculate total length */
   length = udp_len + PKT_IP_HLEN + PKT_ETH_HLEN;
 
-  return dhcp_send(this, this->fd, PKT_ETH_PROTO_IP, 
-		   conn->hismac, this->ifindex, &packet, length);
+  return dhcp_send(this, &this->ipif, conn->hismac, &packet, length);
 }
 
 
@@ -2185,7 +2229,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
   /* 
    *  Check that the destination MAC address is our MAC or Broadcast 
    */
-  if ((memcmp(pack->ethh.dst, this->hwaddr, PKT_ETH_ALEN)) && 
+  if ((memcmp(pack->ethh.dst, this->ipif.hwaddr, PKT_ETH_ALEN)) && 
       (memcmp(pack->ethh.dst, bmac, PKT_ETH_ALEN))) {
     if (this->debug) 
       log_dbg("dropping packet; not for our MAC or broadcast");
@@ -2341,7 +2385,6 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
   return 0;
 }
 
-
 /**
  * dhcp_decaps()
  * Call this function when a new IP packet has arrived. This function
@@ -2352,10 +2395,8 @@ int dhcp_decaps(struct dhcp_t *this)  /* DHCP Indication */
   struct pkt_ippacket_t packet;
   ssize_t length;
   
-  if ((length = recv(this->fd, &packet, sizeof(packet), 0)) < 0) {
-    log_err(errno, "recv(fd=%d, len=%d) failed", this->fd, sizeof(packet));
+  if ((length = dhcp_recv(&this->ipif, &packet, sizeof(packet))) < 0) 
     return -1;
-  }
 
   return dhcp_receive_ip(this, &packet, length);
 }
@@ -2382,7 +2423,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, size_t len)
 
   /* Ethernet header */
   memcpy(packet.ethh.dst, conn->hismac, PKT_ETH_ALEN);
-  memcpy(packet.ethh.src, this->hwaddr, PKT_ETH_ALEN);
+  memcpy(packet.ethh.src, this->ipif.hwaddr, PKT_ETH_ALEN);
   packet.ethh.prot = htons(PKT_ETH_PROTO_IP);
   
   switch (conn->authstate) {
@@ -2406,9 +2447,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, size_t len)
     return 0;
   }
 
-  return dhcp_send(this, this->fd, PKT_ETH_PROTO_IP, 
-		   conn->hismac, this->ifindex, 
-		   &packet, length);
+  return dhcp_send(this, &this->ipif, conn->hismac, &packet, length);
 }
 
 
@@ -2440,7 +2479,7 @@ dhcp_sendARP(struct dhcp_conn_t *conn, struct arp_fullpacket_t *pack, size_t len
   packet.arp.op  = htons(DHCP_ARP_REPLY);
 
   /* Source address */
-  memcpy(packet.arp.sha, this->arp_hwaddr, PKT_ETH_ALEN);
+  memcpy(packet.arp.sha, this->arpif.hwaddr, PKT_ETH_ALEN);
   memcpy(packet.arp.spa, &reqaddr.s_addr, PKT_IP_ALEN);
 
   /* Target address */
@@ -2449,12 +2488,10 @@ dhcp_sendARP(struct dhcp_conn_t *conn, struct arp_fullpacket_t *pack, size_t len
 
   /* Ethernet header */
   memcpy(packet.ethh.dst, conn->hismac, PKT_ETH_ALEN);
-  memcpy(packet.ethh.src, this->hwaddr, PKT_ETH_ALEN);
+  memcpy(packet.ethh.src, this->ipif.hwaddr, PKT_ETH_ALEN);
   packet.ethh.prot = htons(PKT_ETH_PROTO_ARP);
 
-  return dhcp_send(this, this->arp_fd, PKT_ETH_PROTO_ARP, 
-		   conn->hismac, this->arp_ifindex, 
-		   &packet, length);
+  return dhcp_send(this, &this->arpif, conn->hismac, &packet, length);
 }
 
 
@@ -2474,7 +2511,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
   }
 
   /* Check that MAC address is our MAC or Broadcast */
-  if ((memcmp(pack->ethh.dst, this->hwaddr, PKT_ETH_ALEN)) && 
+  if ((memcmp(pack->ethh.dst, this->ipif.hwaddr, PKT_ETH_ALEN)) && 
       (memcmp(pack->ethh.dst, bmac, PKT_ETH_ALEN))) {
     if (this->debug) 
       log_dbg("Received ARP request for other destination!");
@@ -2582,11 +2619,8 @@ int dhcp_arp_ind(struct dhcp_t *this)  /* ARP Indication */
 
   if (this->debug) log_dbg("ARP Packet Received!");
 
-  if ((length = recv(this->arp_fd, &packet, sizeof(packet), 0)) < 0) {
-    log_err(errno, "recv(fd=%d, len=%d) failed",
-	    this->arp_fd, sizeof(packet));
+  if ((length = dhcp_recv(&this->arpif, &packet, sizeof(packet))) < 0) 
     return -1;
-  }
 
   dhcp_receive_arp(this, &packet, length);
 
@@ -2603,7 +2637,7 @@ int dhcp_arp_ind(struct dhcp_t *this)  /* ARP Indication */
 int dhcp_senddot1x(struct dhcp_conn_t *conn,  
 		   struct dot1xpacket_t *pack, size_t len) {
   struct dhcp_t *this = conn->parent;
-  return dhcp_send(this, this->fd, PKT_ETH_PROTO_EAPOL, conn->hismac, this->ifindex, pack, len);
+  return dhcp_send(this, &this->eapif, conn->hismac, pack, len);
 }
 
 /**
@@ -2619,7 +2653,7 @@ int dhcp_sendEAP(struct dhcp_conn_t *conn, void *pack, size_t len) {
 
   /* Ethernet header */
   memcpy(packet.ethh.dst, conn->hismac, PKT_ETH_ALEN);
-  memcpy(packet.ethh.src, this->hwaddr, PKT_ETH_ALEN);
+  memcpy(packet.ethh.src, this->ipif.hwaddr, PKT_ETH_ALEN);
   packet.ethh.prot = htons(PKT_ETH_PROTO_EAPOL);
   
   /* 802.1x header */
@@ -2629,8 +2663,7 @@ int dhcp_sendEAP(struct dhcp_conn_t *conn, void *pack, size_t len) {
 
   memcpy(&packet.eap, pack, len);
   
-  return dhcp_send(this, this->fd, PKT_ETH_PROTO_EAPOL, conn->hismac, this->ifindex,
-		   &packet, (PKT_ETH_HLEN + 4 + len));
+  return dhcp_send(this, &this->eapif, conn->hismac, &packet, (PKT_ETH_HLEN + 4 + len));
 }
 
 int dhcp_sendEAPreject(struct dhcp_conn_t *conn, void *pack, size_t len) {
@@ -2674,7 +2707,7 @@ int dhcp_receive_eapol(struct dhcp_t *this, struct dot1xpacket_t *pack) {
 	    ntohs(pack->dot1x.len));
   
   /* Check that MAC address is our MAC, Broadcast or authentication MAC */
-  if ((memcmp(pack->ethh.dst, this->hwaddr, PKT_ETH_ALEN)) && 
+  if ((memcmp(pack->ethh.dst, this->ipif.hwaddr, PKT_ETH_ALEN)) && 
       (memcmp(pack->ethh.dst, bmac, PKT_ETH_ALEN)) && 
       (memcmp(pack->ethh.dst, amac, PKT_ETH_ALEN)))
     return 0;
@@ -2691,7 +2724,7 @@ int dhcp_receive_eapol(struct dhcp_t *this, struct dot1xpacket_t *pack) {
 
     /* Ethernet header */
     memcpy(p.ethh.dst, pack->ethh.src, PKT_ETH_ALEN);
-    memcpy(p.ethh.src, this->hwaddr, PKT_ETH_ALEN);
+    memcpy(p.ethh.src, this->ipif.hwaddr, PKT_ETH_ALEN);
     p.ethh.prot = htons(PKT_ETH_PROTO_EAPOL);
 
     /* 802.1x header */
@@ -2741,11 +2774,8 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
   if (this->debug) 
     log_dbg("EAPOL packet received");
   
-  if ((length = recv(this->eapol_fd, &packet, sizeof(packet), 0)) < 0) {
-    log_err(errno, "recv(fd=%d, len=%d) failed",
-	    this->fd, sizeof(packet));
+  if ((length = dhcp_recv(&this->eapif, &packet, sizeof(packet))) < 0) 
     return -1;
-  }
 
   return dhcp_receive_eapol(this, &packet);
 }
@@ -2828,7 +2858,7 @@ int dhcp_receive(struct dhcp_t *this) {
   struct dhcp_ethhdr_t *ethhdr;
   
   if (this->rbuf_offset == this->rbuf_len) {
-    length = read(this->fd, this->rbuf, this->rbuf_max);
+    length = read(this->ipif.fd, this->rbuf, this->rbuf_max);
 
     if (length <= 0)
       return length;

@@ -1454,7 +1454,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   if (radius->fd > maxfd)
     maxfd = radius->fd;
 
-  radius_set(radius, dhcp ? dhcp->hwaddr : 0, (options.debug & DEBUG_RADIUS));
+  radius_set(radius, dhcp ? dhcp->ipif.hwaddr : 0, (options.debug & DEBUG_RADIUS));
   
   radius_set_cb_auth_conf(radius, redir_cb_radius_auth_conf);
 

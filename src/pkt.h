@@ -49,12 +49,12 @@
 #define DHCP_MIN_LEN   28+16+64+128 /* Length of packet excluding options */
 #define DHCP_LEN  DHCP_MIN_LEN + DHCP_OPTIONS_LEN
 
+
 struct pkt_ethhdr_t {
   uint8_t  dst[PKT_ETH_ALEN];
   uint8_t  src[PKT_ETH_ALEN];
   uint16_t prot;
 } __attribute__((packed));
-
 
 
 struct pkt_iphdr_t {
@@ -192,41 +192,24 @@ struct pkt_tcphdr_t {
 
 struct dhcp_packet_t { /* From RFC 2131 */
   uint8_t op;       /* 1 Message op code / message type.  1 = BOOTREQUEST, 2 = BOOTREPLY */
-  uint8_t htype;    /* 1 Hardware address type, see ARP section
-			  in "Assigned Numbers" RFC; e.g., '1' =
-			  10mb ethernet.*/
-  uint8_t hlen;     /* 1 Hardware address length (e.g.  '6' for
-			  10mb ethernet).*/
-  uint8_t hops;     /* 1 Client sets to zero, optionally used
-			  by relay agents when booting via a
-			  relay agent.*/
-  uint32_t xid;    /* 4 Transaction ID, a random number chosen
-			  by the client, used by the client and
-			  server to associate messages and
-			  responses between a client and a
-			  server.*/
-  uint16_t secs;   /* 2 Filled in by client, seconds elapsed since
-			  client began address acquisition or renewal
-			  process.*/
-  uint8_t flags[2];  /* 2  Flags (see figure 2).*/
-  uint32_t ciaddr; /* 4 Client IP address; only filled in if
-			  client is in BOUND, RENEW or REBINDING state
-			  and can respond to ARP requests.*/
-  uint32_t yiaddr; /* 4 'your' (client) IP address.*/
-  uint32_t siaddr; /* 4 IP address of next server to use in
-			  bootstrap; returned in DHCPOFFER,
-			  DHCPACK by server.*/
-  uint32_t giaddr; /* 4 Relay agent IP address, used in booting via a relay agent.*/
-  uint8_t  chaddr[DHCP_CHADDR_LEN]; /* 16 Client hardware address.*/
-  uint8_t sname[DHCP_SNAME_LEN]; /* 64 Optional server host name,
-			  null terminated string.*/
-  uint8_t file[DHCP_FILE_LEN]; /* 128 Boot file name, null terminated
-                          string; "generic" name or null in
-                          DHCPDISCOVER, fully qualified directory-path
-                          name in DHCPOFFER.*/
-  uint8_t options[DHCP_OPTIONS_LEN]; /* var Optional parameters
-                          field.  See the options documents for a list
-                          of defined options.*/
+  uint8_t htype;    /* 1 Hardware address type, see ARP section in "Assigned Numbers" RFC */
+  uint8_t hlen;     /* 1 Hardware address length (e.g. '6' for 10mb ethernet).*/
+  uint8_t hops;     /* 1 Client sets to zero, optionally used by relay agents when booting via a relay agent.*/
+  uint32_t xid;     /* 4 Transaction ID, a random number chosen by the client, used by the client and
+		       server to associate messages and responses between a client and a server. */
+  uint16_t secs;    /* 2 Filled in by client, seconds elapsed since client began address acquisition or renewal process.*/
+  uint8_t flags[2]; /* 2  Flags (see figure 2).*/
+  uint32_t ciaddr;  /* 4 Client IP address; only filled in if client is in BOUND, RENEW or REBINDING state
+		       and can respond to ARP requests.*/
+  uint32_t yiaddr;  /* 4 'your' (client) IP address.*/
+  uint32_t siaddr;  /* 4 IP address of next server to use in bootstrap; returned in DHCPOFFER, DHCPACK by server.*/
+  uint32_t giaddr;  /* 4 Relay agent IP address, used in booting via a relay agent.*/
+  uint8_t chaddr[DHCP_CHADDR_LEN];   /* 16 Client hardware address.*/
+  uint8_t sname[DHCP_SNAME_LEN];     /* 64 Optional server host name, null terminated string.*/
+  uint8_t file[DHCP_FILE_LEN];       /* 128 Boot file name, null terminated string; "generic" name or null in
+					DHCPDISCOVER, fully qualified directory-path name in DHCPOFFER.*/
+  uint8_t options[DHCP_OPTIONS_LEN]; /* var Optional parameters field.  See the options documents for a list
+					of defined options.*/
 } __attribute__((packed));
 
 

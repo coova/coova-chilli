@@ -115,24 +115,25 @@ struct dhcp_conn_t {
 struct dhcp_t {
   /* Parameters related to the network interface */
 
+  struct _net_interface {
+    uint16_t protocol;                 /* Device protocol */
+    uint8_t hwaddr[PKT_ETH_ALEN];      /* Hardware address of interface */
+    char devname[IFNAMSIZ+1];          /* Name of the network interface */
+    int devflags;                      /* Original flags of network interface */
+    int fd;                            /* File descriptor to network interface */
+    int ifindex;                       /* Hardware address of interface */
+    int promisc;
+    int usemac;
+  } ipif, arpif, eapif; 
+
   int numconn;          /* Maximum number of connections */
-  int fd;               /* File descriptor to network interface */
-  char devname[IFNAMSIZ];/* Name of the network interface */
-  int devflags;         /* Original flags of network interface */
-  unsigned char hwaddr[PKT_ETH_ALEN]; /* Hardware address of interface */
-  int ifindex;  /* Hardware address of interface */
 #if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
   char *rbuf;
   size_t rbuf_max;
   size_t rbuf_offset;
   size_t rbuf_len;
 #endif
-  int arp_fd;           /* File descriptor to network interface */
-  unsigned char arp_hwaddr[PKT_ETH_ALEN]; /* Hardware address of interface */
-  int arp_ifindex;      /* Hardware address of interface */
-  int eapol_fd;         /* File descriptor to network interface */
-  unsigned char eapol_hwaddr[PKT_ETH_ALEN]; /* Hardware address of interface */
-  int eapol_ifindex;    /* Hardware address of interface */
+
   int debug;            /* Set to print debug messages */
   struct in_addr ourip; /* IP address to listen to */
   int mtu;              /* Maximum transfer unit */

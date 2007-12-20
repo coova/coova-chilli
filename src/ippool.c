@@ -321,6 +321,8 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
   struct ippoolm_t *p2 = NULL;
   uint32_t hash;
 
+  log_dbg("Requesting new ip: %s", inet_ntoa(*addr));
+
   /* If static:
    *   Look in dynaddr. 
    *     If found remove from firstdyn/lastdyn linked list.
@@ -363,6 +365,13 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
 	break;
       }
     }
+  }
+
+  /* if anyip is set and statip return the same ip */
+  if (statip && options.uamanyip && p2 && p2->inuse == 2) {
+    log_dbg("Found already allocated static ip");
+    *member = p2;
+    return 0;
   }
 
   /* If IP was already allocated we can not use it */
@@ -433,6 +442,8 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
     p2->inuse = 2; /* Static address in use */
     memcpy(&p2->addr, addr, sizeof(addr));
     *member = p2;
+
+    log_dbg("Assigned a static ip to: %s", inet_ntoa(*addr));
 
     ippool_hashadd(this, *member);
 

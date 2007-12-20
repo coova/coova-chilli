@@ -578,6 +578,8 @@ int static macauth_radius(struct app_conn_t *appconn) {
   struct radius_packet_t radius_pack;
   char mac[MACSTRLEN+1];
 
+  log_dbg("Starting mac radius authentication");
+
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
     log_err(0, "radius_default_pack() failed");
     return -1;
@@ -945,7 +947,7 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 
 int static dnprot_reject(struct app_conn_t *appconn) {
   struct dhcp_conn_t* dhcpconn = NULL;
-  struct ippoolm_t *ipm;
+  /*struct ippoolm_t *ipm;*/
 
   switch (appconn->dnprot) {
 
@@ -966,32 +968,17 @@ int static dnprot_reject(struct app_conn_t *appconn) {
     return radius_access_reject(appconn);
 
   case DNPROT_MAC:
+    /* remove the username since we're not logged in */
+    if (!appconn->state.authenticated)
+      strncpy(appconn->state.redir.username, "-", USERNAMESIZE);
+
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
       log_err(0, "No downlink protocol");
       return 0;
     }
-    
-    /* Allocate dynamic IP address */
-    /*XXX    if (ippool_newip(ippool, &ipm, &appconn->reqip, 0)) {*/
-    if (newip(&ipm, &appconn->reqip)) {
-      log_err(0, "Failed allocate dynamic IP address");
-      return 0;
-    }
 
-    appconn->hisip.s_addr = ipm->addr.s_addr;
-    
-    /* TODO: Too many "listen" and "our" addresses having around */
-    appconn->ourip.s_addr = options.dhcplisten.s_addr;
-    
-    appconn->uplink =  ipm;
-    ipm->peer = appconn;
-    
-    dhcp_set_addrs(dhcpconn, &ipm->addr, &options.mask, &appconn->ourip,
-		   &options.dns1, &options.dns2, options.domain);
-    
-    dhcpconn->authstate = DHCP_AUTH_DNAT;
+    dhcpconn->authstate = DHCP_AUTH_NONE;
     appconn->dnprot = DNPROT_UAM;
-    
     return 0;    
 
   default:
@@ -1102,7 +1089,18 @@ int static dnprot_accept(struct app_conn_t *appconn) {
       log_err(0, "No downlink protocol");
       return 0;
     }
-    
+
+
+    if (options.uamanyip) {
+      struct ippoolm_t *ipm;
+      ipm = appconn->uplink;
+      if(ipm->inuse == 2) {
+	struct in_addr mask;
+	mask.s_addr = 0xffffffff;
+	log_dbg("Adding route: %d\n", tun_addroute(tun,&appconn->hisip,&appconn->ourip,&mask));
+      }
+    }
+   
     dhcp_set_addrs(dhcpconn, &appconn->hisip, &appconn->mask, 
 		   &appconn->ourip, &appconn->dns1, &appconn->dns2,
 		   options.domain);
@@ -1208,7 +1206,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len) {
       
       /* Ethernet header */
       memcpy(packet.ethh.dst, p->ethh.src, PKT_ETH_ALEN);
-      memcpy(packet.ethh.src, dhcp->hwaddr, PKT_ETH_ALEN);
+      memcpy(packet.ethh.src, dhcp->ipif.hwaddr, PKT_ETH_ALEN);
       packet.ethh.prot = htons(PKT_ETH_PROTO_ARP);
       
       return tun_encaps(tun, &packet, length);
@@ -1850,6 +1848,14 @@ int upprot_getip(struct app_conn_t *appconn,
       }
     }
     */
+
+    if (options.uamanyip) {
+      if(ipm->inuse == 2) {
+	struct in_addr mask;
+	mask.s_addr = 0xffffffff;
+	log_dbg("Adding route: %d\n", tun_addroute(tun,&ipm->addr,&appconn->ourip,&mask));
+      }
+    }
 
     appconn->hisip.s_addr = ipm->addr.s_addr;
 
@@ -3190,8 +3196,8 @@ static void fixup_options() {
     char mac[24];
 
     sprintf(mac, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
-	    dhcp->hwaddr[0],dhcp->hwaddr[1],dhcp->hwaddr[2],
-	    dhcp->hwaddr[3],dhcp->hwaddr[4],dhcp->hwaddr[5]);
+	    dhcp->ipif.hwaddr[0],dhcp->ipif.hwaddr[1],dhcp->ipif.hwaddr[2],
+	    dhcp->ipif.hwaddr[3],dhcp->ipif.hwaddr[4],dhcp->ipif.hwaddr[5]);
     
     options.nasmac = strdup(mac);
   }
@@ -3278,12 +3284,12 @@ int chilli_main(int argc, char **argv) {
     exit(1);
   }
 
-  if (dhcp->fd > maxfd)
-    maxfd = dhcp->fd;
-  if (dhcp->arp_fd > maxfd)
-    maxfd = dhcp->arp_fd;
-  if (dhcp->eapol_fd > maxfd)
-    maxfd = dhcp->eapol_fd;
+  if (dhcp->ipif.fd > maxfd)
+    maxfd = dhcp->ipif.fd;
+  if (dhcp->arpif.fd > maxfd)
+    maxfd = dhcp->arpif.fd;
+  if (dhcp->eapif.fd > maxfd)
+    maxfd = dhcp->eapif.fd;
   
   dhcp_set_cb_request(dhcp, cb_dhcp_request);
   dhcp_set_cb_connect(dhcp, cb_dhcp_connect);
@@ -3315,7 +3321,7 @@ int chilli_main(int argc, char **argv) {
   if ((radius->proxyfd != -1) && (radius->proxyfd > maxfd))
     maxfd = radius->proxyfd;
   
-  radius_set(radius, dhcp ? dhcp->hwaddr : 0, (options.debug & DEBUG_RADIUS));
+  radius_set(radius, dhcp ? dhcp->ipif.hwaddr : 0, (options.debug & DEBUG_RADIUS));
   radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
   radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
   radius_set_cb_ind(radius, cb_radius_ind);
@@ -3350,7 +3356,7 @@ int chilli_main(int argc, char **argv) {
   redir_set_cb_getstate(redir, cb_redir_getstate);
 
   memset(&admin_session, 0, sizeof(admin_session));
-  memcpy(admin_session.ourmac, dhcp->hwaddr, sizeof(dhcp->hwaddr));
+  memcpy(admin_session.ourmac, dhcp->ipif.hwaddr, sizeof(dhcp->ipif.hwaddr));
   acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
 
   if (options.adminuser) {
@@ -3417,7 +3423,7 @@ int chilli_main(int argc, char **argv) {
 	dhcp_set(dhcp, (options.debug & DEBUG_DHCP));
       
       /* Reinit RADIUS parameters */
-      radius_set(radius, dhcp ? dhcp->hwaddr : 0, (options.debug & DEBUG_RADIUS));
+      radius_set(radius, dhcp ? dhcp->ipif.hwaddr : 0, (options.debug & DEBUG_RADIUS));
       
       /* Reinit Redir parameters */
       redir_set(redir, options.debug);
@@ -3440,10 +3446,10 @@ int chilli_main(int argc, char **argv) {
     FD_ZERO(&fds);
     if (tun && tun->fd != -1) FD_SET(tun->fd, &fds);
     if (dhcp) {
-      FD_SET(dhcp->fd, &fds);
+      FD_SET(dhcp->ipif.fd, &fds);
 #if defined(__linux__)
-      if (dhcp->arp_fd) FD_SET(dhcp->arp_fd, &fds);
-      if (dhcp->eapol_fd) FD_SET(dhcp->eapol_fd, &fds);
+      if (dhcp->arpif.fd) FD_SET(dhcp->arpif.fd, &fds);
+      if (dhcp->eapif.fd) FD_SET(dhcp->eapif.fd, &fds);
 #endif
     }
     if (radius->fd != -1) FD_SET(radius->fd, &fds);
@@ -3490,24 +3496,24 @@ int chilli_main(int argc, char **argv) {
       if (dhcp) {
 #if defined(__linux__)
 
-	if (FD_ISSET(dhcp->fd, &fds) && 
+	if (FD_ISSET(dhcp->ipif.fd, &fds) && 
 	    dhcp_decaps(dhcp) < 0) {
 	  log_err(0, "dhcp_decaps() failed!");
 	}
       
-	if (FD_ISSET(dhcp->arp_fd, &fds) && 
+	if (FD_ISSET(dhcp->arpif.fd, &fds) && 
 	    dhcp_arp_ind(dhcp) < 0) {
 	  log_err(0, "dhcp_arpind() failed!");
 	}
 	
-	if (dhcp->eapol_fd && 
-	    FD_ISSET(dhcp->eapol_fd, &fds) && 
+	if (dhcp->eapif.fd && 
+	    FD_ISSET(dhcp->eapif.fd, &fds) && 
 	    dhcp_eapol_ind(dhcp) < 0) {
 	  log_err(0, "dhcp_eapol_ind() failed!");
 	}
 
 #elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
-	if (FD_ISSET(dhcp->fd, &fds) && 
+	if (FD_ISSET(dhcp->ipif.fd, &fds) && 
 	    dhcp_receive(dhcp) < 0) {
 	  log_err(0, "dhcp_decaps() failed!");
 	}
