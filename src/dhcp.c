@@ -2855,7 +2855,7 @@ int dhcp_receive(struct dhcp_t *this) {
   ssize_t length = 0;
   size_t offset = 0;
   struct bpf_hdr *hdrp;
-  struct dhcp_ethhdr_t *ethhdr;
+  struct pkt_ethhdr_t *ethhdr;
   
   if (this->rbuf_offset == this->rbuf_len) {
     length = read(this->ipif.fd, this->rbuf, this->rbuf_max);
@@ -2887,7 +2887,7 @@ int dhcp_receive(struct dhcp_t *this) {
       continue;
     }
 
-    ethhdr = (struct dhcp_ethhdr_t *) 
+    ethhdr = (struct pkt_ethhdr_t *) 
       (this->rbuf + this->rbuf_offset + hdrp->bh_hdrlen);
 
     switch (ntohs(ethhdr->prot)) {

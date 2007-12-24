@@ -30,6 +30,8 @@
 
 #define IPPOOL_NOIP6
 
+#include "system.h"
+
 struct ippoolm_t;                /* Forward declaration */
 
 struct ippool_t {
