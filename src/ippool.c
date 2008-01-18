@@ -262,7 +262,7 @@ int ippool_new(struct ippool_t **this,
   for (i = dynsize; i<listsize; i++) {
     (*this)->member[i].addr.s_addr = 0;
     (*this)->member[i].inuse = 0;
-    
+
     /* Insert into list of unused */
     (*this)->member[i].prev = (*this)->laststat;
     if ((*this)->laststat) {
@@ -275,7 +275,7 @@ int ippool_new(struct ippool_t **this,
     (*this)->member[i].next = NULL; /* Redundant */
   }
   
-  if (0) ippool_printaddr(*this);
+  if (options.debug) ippool_printaddr(*this);
   return 0;
 }
 
@@ -321,7 +321,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
   struct ippoolm_t *p2 = NULL;
   uint32_t hash;
 
-  log_dbg("Requesting new ip: %s", inet_ntoa(*addr));
+  log_dbg("Requesting new %s ip: %s", statip ? "static" : "dynamic", inet_ntoa(*addr));
 
   /* If static:
    *   Look in dynaddr. 
@@ -338,14 +338,16 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
   /*if(0)(void)ippool_printaddr(this);*/
 
   /* First check to see if this type of address is allowed */
-  if ((addr) && (addr->s_addr) && statip && !options.uamanyip) { /* IP address given */
-    if (!this->allowstat) {
-      log_dbg("Static IP address not allowed");
-      return -1;
-    }
-    if ((addr->s_addr & this->statmask.s_addr) != this->stataddr.s_addr) {
-      log_err(0, "Static out of range");
-      return -1;
+  if ((addr) && (addr->s_addr) && statip) { /* IP address given */
+    if (!options.uamanyip) {
+      if (!this->allowstat) {
+	log_dbg("Static IP address not allowed");
+	return -1;
+      }
+      if ((addr->s_addr & this->statmask.s_addr) != this->stataddr.s_addr) {
+	log_err(0, "Static out of range");
+	return -1;
+      }
     }
   }
   else {

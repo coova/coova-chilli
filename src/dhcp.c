@@ -2532,12 +2532,17 @@ int dhcp_receive_arp(struct dhcp_t *this,
       log_dbg("Address not found: %s", inet_ntoa(reqaddr));
 
     /* Do we allow dynamic allocation of IP addresses? */
-    if (!this->allowdyn && !options.uamanyip)
+    if (!this->allowdyn && !options.uamanyip) {
+      if (this->debug) 
+	log_dbg("ARP: Unknown client and no dynip: %s", inet_ntoa(taraddr));
       return 0; 
+    }
     
     /* Allocate new connection */
-    if (dhcp_newconn(this, &conn, pack->ethh.src))
+    if (dhcp_newconn(this, &conn, pack->ethh.src)) {
+      log_warn(0, "ARP: out of connections");
       return 0; /* Out of connections */
+    }
   }
   
   /* if no sender ip, then client is checking their own ip */
@@ -2546,7 +2551,11 @@ int dhcp_receive_arp(struct dhcp_t *this,
     /* XXX: it should also ack if *we* are that ip */
     if (this->debug) 
       log_dbg("ARP: Ignoring self-discovery: %s", inet_ntoa(taraddr));
-    return 0; 
+
+    /* If a static ip address... */
+    this->cb_request(conn, &taraddr);
+
+    return 0;
   }
 
   if (!memcmp(&reqaddr.s_addr, &taraddr.s_addr, 4)) { 
@@ -2559,6 +2568,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
 
     if (this->debug)
       log_dbg("ARP: gratuitous arp %s!", inet_ntoa(taraddr));
+
     return 0;
   }
 
@@ -2568,7 +2578,6 @@ int dhcp_receive_arp(struct dhcp_t *this,
     return 0; /* Only reply if he was allocated an address */
   }
 
-  
   /* Is ARP request for clients own address: Ignore */
   if (conn->hisip.s_addr == taraddr.s_addr) {
     if (this->debug)
@@ -2576,7 +2585,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
 	      inet_ntoa(conn->hisip));
     return 0;
   }
-
+  
   if (!options.uamanyip) {
     /* If ARP request outside of mask: Ignore */
     if (reqaddr.s_addr &&
@@ -2586,7 +2595,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
 	log_dbg("ARP: request not in our subnet");
       return 0;
     }
-  
+    
     if (memcmp(&conn->ourip.s_addr, &taraddr.s_addr, 4)) { /* if ourip differs from target ip */
       if (options.debug) {
 	log_dbg("ARP: Did not ask for router address: %s", inet_ntoa(conn->ourip));
@@ -2595,7 +2604,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
       return 0; /* Only reply if he asked for his router address */
     }
   }
-  
+
   conn->lasttime = mainclock;
 
   dhcp_sendARP(conn, pack, len);

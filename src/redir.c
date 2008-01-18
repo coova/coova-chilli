@@ -1093,6 +1093,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	return -1;
       }
 
+      if (recvlen == 0) done=1;
       buflen += recvlen;
       buffer[buflen] = 0;
     }
