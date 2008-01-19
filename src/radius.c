@@ -224,9 +224,8 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
   tv = &this->queue[this->next].timeout;
   gettimeofday(tv, NULL);
 
-  tv->tv_usec += options.radiustimeout;
-  tv->tv_sec  += tv->tv_usec / 1000;
-  tv->tv_usec = tv->tv_usec % 1000;
+  tv->tv_sec += options.radiustimeout;
+
   this->queue[this->next].lastsent = this->lastreply;
 
   /* Insert in linked list for handling timeouts */
@@ -319,9 +318,7 @@ int radius_queue_reschedule(struct radius_t *this, int id) {
   tv = &this->queue[id].timeout;
   gettimeofday(tv, NULL);
 
-  tv->tv_usec += options.radiustimeout;
-  tv->tv_sec  += tv->tv_usec / 1000;
-  tv->tv_usec = tv->tv_usec % 1000;
+  tv->tv_sec += options.radiustimeout;
 
   /* Remove from linked list */
   if (this->queue[id].next == -1) /* Are we the last in queue? */

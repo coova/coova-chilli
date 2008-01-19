@@ -1,6 +1,8 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+* Bug fix in RADIUS timeout, note that option ''radiustimeout'' is in '''seconds'''!	
+	
 == ChangeLog (Coova Chilli v1.0.11 svn revision 147) ==
 
 * Bug fix for RADIUS VSAs being sent

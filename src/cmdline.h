@@ -116,9 +116,9 @@ struct gengetopt_args_info
   char * radiussecret_arg;	/**< @brief Radius shared secret (default='coova-anonymous').  */
   char * radiussecret_orig;	/**< @brief Radius shared secret original value given at command line.  */
   const char *radiussecret_help; /**< @brief Radius shared secret help description.  */
-  int radiustimeout_arg;	/**< @brief Retry timeout in milli seconds (default='5000').  */
-  char * radiustimeout_orig;	/**< @brief Retry timeout in milli seconds original value given at command line.  */
-  const char *radiustimeout_help; /**< @brief Retry timeout in milli seconds help description.  */
+  int radiustimeout_arg;	/**< @brief Retry timeout in seconds (default='30').  */
+  char * radiustimeout_orig;	/**< @brief Retry timeout in seconds original value given at command line.  */
+  const char *radiustimeout_help; /**< @brief Retry timeout in seconds help description.  */
   int radiusretry_arg;	/**< @brief Total number of retries (default='6').  */
   char * radiusretry_orig;	/**< @brief Total number of retries original value given at command line.  */
   const char *radiusretry_help; /**< @brief Total number of retries help description.  */

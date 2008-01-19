@@ -59,7 +59,7 @@ const char *gengetopt_args_info_help[] = {
   "      --radiusauthport=INT      Authentication UDP port of radius server  \n                                  (default=`1812')",
   "      --radiusacctport=INT      Accounting UDP port of radius server  \n                                  (default=`1813')",
   "      --radiussecret=STRING     Radius shared secret  \n                                  (default=`coova-anonymous')",
-  "      --radiustimeout=INT       Retry timeout in milli seconds  \n                                  (default=`5000')",
+  "      --radiustimeout=INT       Retry timeout in seconds  (default=`30')",
   "      --radiusretry=INT         Total number of retries  (default=`6')",
   "      --radiusretrysec=INT      Number of retries before using secondary  \n                                  (default=`3')",
   "      --radiusnasid=STRING      Radius NAS-Identifier  (default=`nas01')",
@@ -328,7 +328,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->radiusacctport_orig = NULL;
   args_info->radiussecret_arg = gengetopt_strdup ("coova-anonymous");
   args_info->radiussecret_orig = NULL;
-  args_info->radiustimeout_arg = 5000;
+  args_info->radiustimeout_arg = 30;
   args_info->radiustimeout_orig = NULL;
   args_info->radiusretry_arg = 6;
   args_info->radiusretry_orig = NULL;
@@ -2801,7 +2801,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               free (args_info->radiussecret_orig); /* free previous string */
             args_info->radiussecret_orig = gengetopt_strdup (optarg);
           }
-          /* Retry timeout in milli seconds.  */
+          /* Retry timeout in seconds.  */
           else if (strcmp (long_options[option_index].name, "radiustimeout") == 0)
           {
             if (local_args_info.radiustimeout_given || (check_ambiguity && args_info->radiustimeout_given))
