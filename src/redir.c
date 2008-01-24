@@ -568,6 +568,13 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
     bconcat(str, bt2);
   }
 
+  if (conn->lang[0]) {
+    bcatcstr(str, "&lang=");
+    bassigncstr(bt, conn->lang);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
+  }
+
   if (redirurl) {
     bcatcstr(str, "&redirurl=");
     bassigncstr(bt, redirurl);
