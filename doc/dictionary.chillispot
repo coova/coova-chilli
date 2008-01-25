@@ -1,6 +1,5 @@
 #
 #	ChilliSpot (and CoovaChilli) captive portal
-#	http://www.chillispot.org
 #	http://coova.org/wiki/index.php/CoovaChilli
 #
 #	$Id: dictionary.chillispot,v 1.3 2007/09/24 16:16:22 dwbird Exp $
@@ -20,6 +19,17 @@ ATTRIBUTE       ChilliSpot-Lang                    	7       string
 ATTRIBUTE       ChilliSpot-Version                 	8       string
 ATTRIBUTE       ChilliSpot-OriginalURL             	9       string
 ATTRIBUTE       ChilliSpot-Acct-View-Point             10	integer
+ATTRIBUTE       ChilliSpot-Require-UAM		       11	string
+ATTRIBUTE       ChilliSpot-Require-Splash	       12	string
+
+ATTRIBUTE       ChilliSpot-DHCP-Vendor-Class-Id	       20	string
+ATTRIBUTE       ChilliSpot-DHCP-Client-Id	       21	string
+ATTRIBUTE       ChilliSpot-DHCP-Options		       22	string
+ATTRIBUTE       ChilliSpot-DHCP-Filename	       23	string
+ATTRIBUTE       ChilliSpot-DHCP-Hostname	       24	string
+ATTRIBUTE       ChilliSpot-DHCP-Server-Name	       25	string
+ATTRIBUTE       ChilliSpot-DHCP-Client-FQDN	       26	string
+ATTRIBUTE       ChilliSpot-DHCP-Parameter-Request-List 27	string
 
 VALUE	ChilliSpot-Acct-View-Point ChilliSpot-NAS-View-Point	1
 VALUE	ChilliSpot-Acct-View-Point ChilliSpot-Client-View-Point 2
