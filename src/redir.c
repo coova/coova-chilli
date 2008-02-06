@@ -814,6 +814,7 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
     resp = "already";
     break;
   case REDIR_ABOUT:
+  case REDIR_ABORT:
     break;
   case REDIR_STATUS:
     resp = conn->state.authenticated == 1 ? "already" : "notyet";
@@ -1375,6 +1376,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
       (pack->code != RADIUS_CODE_ACCESS_CHALLENGE) &&
       (pack->code != RADIUS_CODE_ACCESS_ACCEPT)) {
     log_err(0, "Unknown radius access reply code %d", pack->code);
+    conn->response = REDIR_FAILED_OTHER;
     return 0;
   }
 
@@ -1422,12 +1424,12 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     if (timenow > conn->params.sessionterminatetime) {
       conn->response = REDIR_FAILED_OTHER;
       log_warn(0, "WISPr-Session-Terminate-Time in the past received: %s", attrs);
+      return 0;
     }
   }
   
   conn->response = REDIR_SUCCESS;
   return 0;
-  
 }
 
 /* Send radius Access-Request and wait for answer */
@@ -2155,11 +2157,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	bassigncstr(besturl, conn.state.redir.userurl);
       
       if (redir->no_uamsuccess && besturl && besturl->slen)
-	redir_reply(redir, &socket, &conn, conn.response, besturl, conn.params.sessiontimeout,
+	redir_reply(redir, &socket, &conn, REDIR_SUCCESS, besturl, conn.params.sessiontimeout,
 		    NULL, conn.state.redir.username, conn.state.redir.userurl, conn.reply,
 		    (char *)conn.params.url, conn.hismac, &conn.hisip, qs);
       else 
-	redir_reply(redir, &socket, &conn, conn.response, NULL, conn.params.sessiontimeout,
+	redir_reply(redir, &socket, &conn, REDIR_SUCCESS, NULL, conn.params.sessiontimeout,
 		    NULL, conn.state.redir.username, conn.state.redir.userurl, conn.reply, 
 		    (char *)conn.params.url, conn.hismac, &conn.hisip, qs);
       
@@ -2175,7 +2177,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	msg.mtype = REDIR_NOTYET;
       }
 
-      redir_reply(redir, &socket, &conn, conn.response,
+      redir_reply(redir, &socket, &conn, REDIR_FAILED_REJECT,
 		  hasnexturl ? besturl : NULL,
 		  0, hexchal, NULL, conn.state.redir.userurl, conn.reply,
 		  (char *)conn.params.url, conn.hismac, &conn.hisip, qs);
