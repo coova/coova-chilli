@@ -154,6 +154,8 @@ EOF
 	[ -n "$HS_UAMSECRET" ] && addconfig2 "uamsecret $HS_UAMSECRET"
 	test ${HS_DEFSESSIONTIMEOUT:-0} -gt 0 && addconfig2 "defsessiontimeout $HS_DEFSESSIONTIMEOUT"
 	test ${HS_DEFIDLETIMEOUT:-0} -gt 0 && addconfig2 "defidletimeout $HS_DEFIDLETIMEOUT"
+	test ${HS_DEFBANDWIDTHMAXDOWN:-0} -gt 0 && addconfig2 "defbandwidthmaxdown $HS_DEFBANDWIDTHMAXDOWN"
+	test ${HS_DEFBANDWIDTHMAXUP:-0} -gt 0 && addconfig2 "ddefbandwidthmaxup $HS_DEFBANDWIDTHMAXUP"
 	test ${HS_DEFINTERIMINTERVAL:-0} -gt 0 && addconfig2 "definteriminterval $HS_DEFINTERIMINTERVAL"
 	test ${HS_COAPORT:-0} -gt 0 && addconfig2 "coaport $HS_COAPORT"
 	[ -n "$HS_POSTAUTH_PROXY" -a -n "$HS_POSTAUTH_PROXYPORT" ] && {

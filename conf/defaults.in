@@ -97,7 +97,10 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 # HS_DEFSESSIONTIMEOUT=0   # Default session-timeout if not defined by RADIUS (0 for unlimited)
 #
 # HS_DEFIDLETIMEOUT=0	   # Default idle-timeout if not defined by RADIUS (0 for unlimited)
-
+#
+# HS_DEFBANDWIDTHMAXDOWN=0   # Default WISPr-Bandwidth-Max-Down if not defined by RADIUS (0 for unlimited)
+#
+# HS_DEFBANDWIDTHMAXUP=0	   # Default WISPr-Bandwidth-Max-Up if not defined by RADIUS (0 for unlimited)
 
 ###
 # Centralized configuration options examples

@@ -2144,6 +2144,12 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
     if (options.defidletimeout && !conn.params.idletimeout)
       conn.params.idletimeout = options.defidletimeout;
+      
+    if (options.defbandwidthmaxdown && !conn.params.bandwidthmaxdown)
+      conn.params.bandwidthmaxdown = options.defbandwidthmaxdown;
+      
+    if (options.defbandwidthmaxup && !conn.params.bandwidthmaxup)
+      conn.params.bandwidthmaxup = options.defbandwidthmaxup;
 
     if (options.definteriminterval && !conn.params.interim_interval)
       conn.params.interim_interval = options.definteriminterval;

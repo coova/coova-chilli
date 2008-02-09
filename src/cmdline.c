@@ -93,6 +93,8 @@ const char *gengetopt_args_info_help[] = {
   "      --uamlogoutip=STRING      HTTP Auto-Logout IP Address  \n                                  (default=`1.1.1.1')",
   "      --defsessiontimeout=LONG  Default session-timeout if not returned by \n                                  RADIUS  (default=`0')",
   "      --defidletimeout=INT      Default idle-timeout if not returned by RADIUS  \n                                  (default=`0')",
+  "      --defbandwidthmaxdown=INT  Default WISPr-Bandwidth-Max-Down if not \n                                  returned by RADIUS  (default=`0')",
+  "      --defbandwidthmaxup=INT  Default WISPr-Bandwidth-Max-Up if not returned by \n                                  RADIUS  (default=`0')",
   "      --definteriminterval=INT  Default interim-interval for accounting if not \n                                  returned by RADIUS  (default=`300')",
   "      --macauth                 Authenticate based on MAC address  \n                                  (default=off)",
   "      --macallowed=STRING       List of allowed MAC addresses",
@@ -239,6 +241,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamlogoutip_given = 0 ;
   args_info->defsessiontimeout_given = 0 ;
   args_info->defidletimeout_given = 0 ;
+  args_info->defbandwidthmaxdown_given = 0 ;
+  args_info->defbandwidthmaxup_given = 0 ;
   args_info->definteriminterval_given = 0 ;
   args_info->macauth_given = 0 ;
   args_info->macallowed_given = 0 ;
@@ -390,6 +394,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->defsessiontimeout_orig = NULL;
   args_info->defidletimeout_arg = 0;
   args_info->defidletimeout_orig = NULL;
+  args_info->defbandwidthmaxdown_arg = 0;
+  args_info->defbandwidthmaxdown_orig = NULL;
+  args_info->defbandwidthmaxup_arg = 0;
+  args_info->defbandwidthmaxup_orig = NULL;
   args_info->definteriminterval_arg = 300;
   args_info->definteriminterval_orig = NULL;
   args_info->macauth_flag = 0;
@@ -542,6 +550,8 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->acctupdate_help = gengetopt_args_info_help[91] ;
   args_info->dnsparanoia_help = gengetopt_args_info_help[92] ;
   args_info->usetap_help = gengetopt_args_info_help[93] ;
+  args_info->defbandwidthmaxdown_help = gengetopt_args_info_help[94] ;
+  args_info->defbandwidthmaxup_help = gengetopt_args_info_help[95] ;
   
 }
 
@@ -1067,6 +1077,16 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
     {
       free (args_info->defidletimeout_orig); /* free previous argument */
       args_info->defidletimeout_orig = 0;
+    }
+  if (args_info->defbandwidthmaxdown_orig)
+    {
+      free (args_info->defbandwidthmaxdown_orig); /* free previous argument */
+      args_info->defbandwidthmaxdown_orig = 0;
+    }
+  if (args_info->defbandwidthmaxup_orig)
+    {
+      free (args_info->defbandwidthmaxup_orig); /* free previous argument */
+      args_info->defbandwidthmaxup_orig = 0;
     }
   if (args_info->definteriminterval_orig)
     {
@@ -1675,6 +1695,20 @@ cmdline_parser_file_save(const char *filename, struct gengetopt_args_info *args_
       fprintf(outfile, "%s\n", "defidletimeout");
     }
   }
+  if (args_info->defbandwidthmaxdown_given) {
+    if (args_info->defbandwidthmaxdown_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "defbandwidthmaxdown", args_info->defbandwidthmaxdown_orig);
+    } else {
+      fprintf(outfile, "%s\n", "defbandwidthmaxdown");
+    }
+  }
+  if (args_info->defbandwidthmaxup_given) {
+    if (args_info->defbandwidthmaxup_orig) {
+      fprintf(outfile, "%s=\"%s\"\n", "defbandwidthmaxup", args_info->defbandwidthmaxup_orig);
+    } else {
+      fprintf(outfile, "%s\n", "defbandwidthmaxup");
+    }
+  }
   if (args_info->definteriminterval_given) {
     if (args_info->definteriminterval_orig) {
       fprintf(outfile, "%s=\"%s\"\n", "definteriminterval", args_info->definteriminterval_orig);
@@ -2185,6 +2219,8 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "nouamwispr",	0, NULL, 0 },
         { "uamlogoutip",	1, NULL, 0 },
         { "defsessiontimeout",	1, NULL, 0 },
+        { "defbandwidthmaxdown",	1, NULL, 0 },
+        { "defbandwidthmaxup",	1, NULL, 0 },
         { "defidletimeout",	1, NULL, 0 },
         { "definteriminterval",	1, NULL, 0 },
         { "macauth",	0, NULL, 0 },
@@ -3433,6 +3469,48 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             if (args_info->defsessiontimeout_orig)
               free (args_info->defsessiontimeout_orig); /* free previous string */
             args_info->defsessiontimeout_orig = gengetopt_strdup (optarg);
+          }
+          /* Default WISPr-Bandwidth-Max-Down if not returned by RADIUS.  */
+          else if (strcmp (long_options[option_index].name, "defbandwidthmaxdown") == 0)
+          {
+            if (local_args_info.defbandwidthmaxdown_given || (check_ambiguity && args_info->defbandwidthmaxdown_given))
+              {
+                fprintf (stderr, "%s: `--defbandwidthmaxdown' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->defbandwidthmaxdown_given && ! override)
+              continue;
+            local_args_info.defbandwidthmaxdown_given = 1;
+            args_info->defbandwidthmaxdown_given = 1;
+            args_info->defbandwidthmaxdown_arg = strtol (optarg, &stop_char, 0);
+            if (!(stop_char && *stop_char == '\0')) {
+              fprintf(stderr, "%s: invalid numeric value: %s\n", argv[0], optarg);
+              goto failure;
+            }
+            if (args_info->defbandwidthmaxdown_orig)
+              free (args_info->defbandwidthmaxdown_orig); /* free previous string */
+            args_info->defbandwidthmaxdown_orig = gengetopt_strdup (optarg);
+          }
+          /* Default WISPr-Bandwidth-Max-Up if not returned by RADIUS.  */
+          else if (strcmp (long_options[option_index].name, "defbandwidthmaxup") == 0)
+          {
+            if (local_args_info.defbandwidthmaxup_given || (check_ambiguity && args_info->defbandwidthmaxup_given))
+              {
+                fprintf (stderr, "%s: `--defbandwidthmaxup' option given more than once%s\n", argv[0], (additional_error ? additional_error : ""));
+                goto failure;
+              }
+            if (args_info->defbandwidthmaxup_given && ! override)
+              continue;
+            local_args_info.defbandwidthmaxup_given = 1;
+            args_info->defbandwidthmaxup_given = 1;
+            args_info->defbandwidthmaxup_arg = strtol (optarg, &stop_char, 0);
+            if (!(stop_char && *stop_char == '\0')) {
+              fprintf(stderr, "%s: invalid numeric value: %s\n", argv[0], optarg);
+              goto failure;
+            }
+            if (args_info->defbandwidthmaxup_orig)
+              free (args_info->defbandwidthmaxup_orig); /* free previous string */
+            args_info->defbandwidthmaxup_orig = gengetopt_strdup (optarg);
           }
           /* Default idle-timeout if not returned by RADIUS.  */
           else if (strcmp (long_options[option_index].name, "defidletimeout") == 0)

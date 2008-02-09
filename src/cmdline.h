@@ -216,6 +216,12 @@ struct gengetopt_args_info
   int defidletimeout_arg;	/**< @brief Default idle-timeout if not returned by RADIUS (default='0').  */
   char * defidletimeout_orig;	/**< @brief Default idle-timeout if not returned by RADIUS original value given at command line.  */
   const char *defidletimeout_help; /**< @brief Default idle-timeout if not returned by RADIUS help description.  */
+  int defbandwidthmaxdown_arg;	/**< @brief Default WISPr-Bandwidth-Max-Down if not returned by RADIUS (default='0').  */
+  char * defbandwidthmaxdown_orig;	/**< @brief Default WISPr-Bandwidth-Max-Down if not returned by RADIUS original value given at command line.  */
+  const char *defbandwidthmaxdown_help; /**< @brief Default WISPr-Bandwidth-Max-Down if not returned by RADIUS help description.  */
+  int defbandwidthmaxup_arg;	/**< @brief Default WISPr-Bandwidth-Max-Up if not returned by RADIUS (default='0').  */
+  char * defbandwidthmaxup_orig;	/**< @brief Default WISPr-Bandwidth-Max-Up if not returned by RADIUS original value given at command line.  */
+  const char *defbandwidthmaxup_help; /**< @brief Default WISPr-Bandwidth-Max-Up if not returned by RADIUS help description.  */
   int definteriminterval_arg;	/**< @brief Default interim-interval for accounting if not returned by RADIUS (default='300').  */
   char * definteriminterval_orig;	/**< @brief Default interim-interval for accounting if not returned by RADIUS original value given at command line.  */
   const char *definteriminterval_help; /**< @brief Default interim-interval for accounting if not returned by RADIUS help description.  */
@@ -359,6 +365,8 @@ struct gengetopt_args_info
   int uamlogoutip_given ;	/**< @brief Whether uamlogoutip was given.  */
   int defsessiontimeout_given ;	/**< @brief Whether defsessiontimeout was given.  */
   int defidletimeout_given ;	/**< @brief Whether defidletimeout was given.  */
+  int defbandwidthmaxdown_given ;	/**< @brief Whether defbandwidthmaxdown was given.  */
+  int defbandwidthmaxup_given ;	/**< @brief Whether defbandwidthmaxup was given.  */
   int definteriminterval_given ;	/**< @brief Whether definteriminterval was given.  */
   int macauth_given ;	/**< @brief Whether macauth was given.  */
   unsigned int macallowed_given ;	/**< @brief Whether macallowed was given.  */

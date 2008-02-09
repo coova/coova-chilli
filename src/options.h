@@ -138,6 +138,8 @@ struct options_t {
   char* macpasswd;               /* Password to use for MAC authentication */  
 
   unsigned long defsessiontimeout;
+  unsigned int defbandwidthmaxdown;
+  unsigned int defbandwidthmaxup;
   unsigned int defidletimeout;
   unsigned short definteriminterval;
 
