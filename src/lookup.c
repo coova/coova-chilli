@@ -19,15 +19,19 @@
 #include "system.h"
 #include <assert.h>
 
-extern uint32_t hashlittle(const void *key, size_t length, uint32_t initval);
-extern uint32_t hashbig(const void *key, size_t length, uint32_t initval);
+/* comment out to use Jenkins hash function */
+#define SFHASH 1
 
 uint32_t lookup(uint8_t *k,  uint32_t length,  uint32_t initval)
 {
-#if LITTLE_ENDIAN
+#if SFHASH
+  extern uint32_t SuperFastHash(const char * data, int len, uint32_t hash);
+  return SuperFastHash(k, length, initval);
+#elif LITTLE_ENDIAN
+  extern uint32_t hashlittle(const void *key, size_t length, uint32_t initval);
   return hashlittle(k, length, initval);
-#endif 
-#if BIG_ENDIAN
+#elif BIG_ENDIAN
+  extern uint32_t hashbig(const void *key, size_t length, uint32_t initval);
   return hashbig(k, length, initval);
 #endif
 }
