@@ -1,7 +1,7 @@
 /*
  * DHCP library functions.
  * Copyright (C) 2003, 2004, 2005, 2006 Mondru AB.
- * Copyright (c) 2006-2007 David Bird <david@coova.com>
+ * Copyright (c) 2006-2008 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -34,30 +34,6 @@ const static int paranoid = 0; /* Check for errors which cannot happen */
 #endif
 
 extern time_t mainclock;
-
-#define cksum_wrap(c) (c=(c>>16)+(c&0xffff),(~(c+(c>>16))&0xffff))
-
-int
-in_cksum(uint16_t *addr, size_t len)
-{
-  size_t      nleft = len;
-  uint32_t    sum = 0;
-  uint16_t  * w = addr;
-  
-  while (nleft > 1)  {
-    sum += *w++;
-    nleft -= 2;
-  }
-  
-  if (nleft == 1) {
-    uint16_t ans = 0;
-    *(unsigned char *)(&ans) = *(unsigned char *)w ;
-    sum += ans;
-  }
-  
-  return(sum);
-}
-
 
 char *dhcp_state2name(int authstate) {
   switch(authstate) {
@@ -148,65 +124,6 @@ void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause) {
     dhcp_freeconn(conn, term_cause);
   }
 }
-
-
-/**
- * dhcp_ip_check()
- * Generates an IPv4 header checksum.
- **/
-int dhcp_ip_check(struct pkt_ippacket_t *pack) {
-  size_t hlen = (pack->iph.version_ihl & 0x0f) << 2;
-  int sum;
-
-  pack->iph.check = 0;
-  sum = in_cksum((uint16_t *)&pack->iph, hlen);
-  pack->iph.check = cksum_wrap(sum);
-  return 0;
-}
-
-/**
- * dhcp_udp_check()
- * Generates an UDP header checksum.
- **/
-int dhcp_udp_check(struct dhcp_fullpacket_t *pack) {
-  size_t len = (size_t)ntohs(pack->udph.len);
-  int sum = 0;
-
-  pack->udph.check = 0;
-  sum = in_cksum(((uint16_t *)&pack->iph)+6/*saddr*/, 8);
-  sum += ntohs(IPPROTO_UDP + len);
-  sum += in_cksum((uint16_t *)&pack->udph, len);
-  pack->udph.check = cksum_wrap(sum);
-  return 0;
-}
-
-
-/**
- * dhcp_tcp_check()
- * Generates an TCP header checksum.
- **/
-int dhcp_tcp_check(struct pkt_ippacket_t *pack, int length) {
-  struct pkt_tcphdr_t *tcph;
-  size_t len = (size_t)ntohs(pack->iph.tot_len);
-  int sum = 0;
-
-  if (len > (length - PKT_ETH_HLEN))
-    return -1; /* Wrong length of packet */
-
-  len -= (pack->iph.version_ihl & 0x0f) << 2;
-
-  if (len < 20) return -1;  /* Packet too short */
-
-  tcph = (struct pkt_tcphdr_t *)pack->payload;
-  tcph->check = 0;
-
-  sum = in_cksum(((uint16_t *)&pack->iph)+6/*saddr*/, 8);
-  sum += ntohs(IPPROTO_TCP + len);
-  sum += in_cksum((uint16_t *)tcph, len);
-  tcph->check = cksum_wrap(sum);
-  return 0;
-}
-
 
 int dhcp_sifflags(char const *devname, int flags) {
   struct ifreq ifr;
@@ -1234,6 +1151,143 @@ int check_garden(pass_through *ptlist, int ptcnt, struct pkt_ippacket_t *pack, i
   return 0;
 }
 
+static
+int dhcp_nakDNS(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t len) {
+  struct dhcp_t *this = conn->parent;
+  struct pkt_udphdr_t *udph = (struct pkt_udphdr_t *)pack->payload;
+  struct dns_packet_t *dnsp = (struct dns_packet_t *)((char*)pack->payload + sizeof(struct pkt_udphdr_t));
+  struct dns_fullpacket_t answer;
+
+  memcpy(&answer, pack, len); 
+    
+  /* DNS */
+  answer.dns.flags   = htons(0x8583);
+  
+  /* UDP */
+  answer.udph.src = udph->dst;
+  answer.udph.dst = udph->src;
+  
+  /* IP */
+  answer.iph.check = 0; /* Calculate at end of packet */      
+  memcpy(&answer.iph.daddr, &pack->iph.saddr, PKT_IP_ALEN);
+  memcpy(&answer.iph.saddr, &pack->iph.daddr, PKT_IP_ALEN);
+  
+  /* Ethernet */
+  memcpy(&answer.ethh.dst, &pack->ethh.src, PKT_ETH_ALEN);
+  memcpy(&answer.ethh.src, &pack->ethh.dst, PKT_ETH_ALEN);
+  answer.ethh.prot = htons(PKT_ETH_PROTO_IP);
+    
+  /* checksums */
+  chksum(&answer.iph);
+  
+  dhcp_send(this, &this->ipif, conn->hismac, &answer, len);
+
+  return 0;
+}
+
+static 
+int _filterDNSreq(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t plen) {
+  /*struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*)pack->payload;*/
+  struct dns_packet_t *dnsp = (struct dns_packet_t *)((char*)pack->payload + sizeof(struct pkt_udphdr_t));
+  size_t len = plen - DHCP_DNS_HLEN - PKT_UDP_HLEN - PKT_IP_HLEN - PKT_ETH_HLEN;
+  size_t olen = len;
+
+  uint16_t id = ntohs(dnsp->id);
+  uint16_t flags = ntohs(dnsp->flags);
+  uint16_t qdcount = ntohs(dnsp->qdcount);
+  uint16_t ancount = ntohs(dnsp->ancount);
+  uint16_t nscount = ntohs(dnsp->nscount);
+  uint16_t arcount = ntohs(dnsp->arcount);
+
+  uint8_t *p_pkt = (uint8_t *)dnsp->records;
+  char q[256];
+
+  int d = options.debug; /* XXX: debug */
+  int i;
+
+  if (d) log_dbg("DNS ID:    %d", id);
+  if (d) log_dbg("DNS Flags: %d", flags);
+
+  /* it was a response? shouldn't be */
+  /*if (((flags & 0x8000) >> 15) == 1) return 0;*/
+
+  memset(q,0,sizeof(q));
+
+#undef  copyres
+#define copyres(isq,n)			        \
+  if (d) log_dbg(#n ": %d", n ## count);        \
+  for (i=0; i < n ## count; i++)                \
+    if (dns_copy_res(isq, &p_pkt, &len,         \
+		     (uint8_t *)dnsp, olen, 	\
+                     q, sizeof(q)))	        \
+      return dhcp_nakDNS(conn,pack,plen)
+
+  copyres(1,qd);
+  copyres(0,an);
+  copyres(0,ns);
+  copyres(0,ar);
+
+  if (d) log_dbg("left (should be zero): %d", len);
+
+  return 1;
+}
+
+static
+int _filterDNSresp(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t *plen) {
+  /*struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*)pack->payload;*/
+  struct dns_packet_t *dnsp = (struct dns_packet_t *)((char*)pack->payload + sizeof(struct pkt_udphdr_t));
+  size_t len = *plen - DHCP_DNS_HLEN - PKT_UDP_HLEN - PKT_IP_HLEN - PKT_ETH_HLEN;
+  size_t olen = len;
+
+  uint16_t id = ntohs(dnsp->id);
+  uint16_t flags = ntohs(dnsp->flags);
+  uint16_t qdcount = ntohs(dnsp->qdcount);
+  uint16_t ancount = ntohs(dnsp->ancount);
+  uint16_t nscount = ntohs(dnsp->nscount);
+  uint16_t arcount = ntohs(dnsp->arcount);
+
+  uint8_t *p_pkt = (uint8_t *)dnsp->records;
+  char q[256];
+
+  int d = options.debug; /* XXX: debug */
+  int i;
+
+  return 1;
+
+  if (d) log_dbg("DNS ID:    %d", id);
+  if (d) log_dbg("DNS Flags: %d", flags);
+
+  /* it was a query? shouldn't be */
+  if (((flags & 0x8000) >> 15) == 0) return 0;
+
+  memset(q,0,sizeof(q));
+
+#undef  copyres
+#define copyres(isq,n)			        \
+  if (d) log_dbg(#n ": %d", n ## count);        \
+  for (i=0; i < n ## count; i++)                \
+    dns_copy_res(isq, &p_pkt, &len,             \
+		     (uint8_t *)dnsp, olen, 	\
+                     q, sizeof(q))
+
+  copyres(1,qd);
+  copyres(0,an);
+  copyres(0,ns);
+  copyres(0,ar);
+
+  if (d) log_dbg("left (should be zero): %d", len);
+
+  /*
+  dnsp->flags = htons(flags);
+  dnsp->qdcount = htons(qdcount);
+  dnsp->ancount = htons(ancount);
+  dnsp->nscount = htons(nscount);
+  dnsp->arcount = htons(arcount);
+  */
+
+  return 1;
+}
+
 
 /**
  * dhcp_doDNAT()
@@ -1259,8 +1313,14 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
   if (((this->anydns) ||
        (pack->iph.daddr == conn->dns1.s_addr) ||
        (pack->iph.daddr == conn->dns2.s_addr)) &&
-      (pack->iph.protocol == PKT_IP_PROTO_UDP && udph->dst == htons(DHCP_DNS)))
-    return 0; 
+      (pack->iph.protocol == PKT_IP_PROTO_UDP && udph->dst == htons(DHCP_DNS))) {
+    if (options.dnsparanoia) {
+      if (_filterDNSreq(conn, pack, len)) 
+	return 0;
+      else
+	return -1;
+    }
+  }
 
   /* Was it a http or https request for authentication server? */
   /* Was it a request for authentication server? */
@@ -1318,8 +1378,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
     pack->iph.daddr = this->uamlisten.s_addr;
     tcph->dst = htons(this->uamport);
 
-    dhcp_tcp_check(pack, len);
-    dhcp_ip_check(pack);
+    chksum(&pack->iph);
     return 0;
   }
 
@@ -1345,8 +1404,7 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, siz
 	    pack->iph.saddr = conn->dnatip[n];
 	    tcph->src = htons(DHCP_HTTP);
 
-	    dhcp_tcp_check(pack, len);
-	    dhcp_ip_check(pack);
+	    chksum(&pack->iph);
 
 	    return 0; /* It was a DNAT reply */
 	  }
@@ -1388,8 +1446,7 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, siz
 	pack->iph.daddr = options.postauth_proxyip.s_addr;
 	tcph->dst = htons(options.postauth_proxyport);
 
-	dhcp_tcp_check(pack, len);
-	dhcp_ip_check(pack);
+	chksum(&pack->iph);
 
 	return 0;
       }
@@ -1421,15 +1478,12 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
        (pack->iph.saddr == conn->dns1.s_addr) ||
        (pack->iph.saddr == conn->dns2.s_addr)) &&
       (pack->iph.protocol == PKT_IP_PROTO_UDP && udph->src == htons(DHCP_DNS))) {
-    if (options.uamdomains || options.dnsparanoia) {
-      /* filter dns for either uamdomains or dnsparanoia */
-	if (dhcp_filterDNS(conn, pack, plen)) 
+    if (options.uamdomains) {
+	if (_filterDNSresp(conn, pack, plen)) 
 	  return 0;
 	else
-	  /* fail all else */
-	  return -1;
-    } else {
-      /* always let through dns when not filtering */
+	  return -1; /* drop */
+    } else {   /* always let through dns when not filtering */
       return 0;
     }
   }
@@ -1471,8 +1525,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 	pack->iph.saddr = conn->dnatip[n];
 	tcph->src = htons(DHCP_HTTP);
 
-	dhcp_tcp_check(pack, len);
-	dhcp_ip_check(pack);
+	chksum(&pack->iph);
 
 	return 0; /* It was a DNAT reply */
       }
@@ -1504,62 +1557,6 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   }
 
   return -1; /* Something else */
-}
-
-
-int dhcp_filterDNS(struct dhcp_conn_t *conn, 
-		   struct pkt_ippacket_t *pack, 
-		   size_t *plen) {
-  /*struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*)pack->payload;*/
-  struct dns_packet_t *dnsp = (struct dns_packet_t *)((char*)pack->payload + sizeof(struct pkt_udphdr_t));
-  size_t len = *plen - DHCP_DNS_HLEN - PKT_UDP_HLEN - PKT_IP_HLEN - PKT_ETH_HLEN;
-  size_t olen = len;
-
-  uint16_t id = ntohs(dnsp->id);
-  uint16_t flags = ntohs(dnsp->flags);
-  uint16_t qdcount = ntohs(dnsp->qdcount);
-  uint16_t ancount = ntohs(dnsp->ancount);
-  uint16_t nscount = ntohs(dnsp->nscount);
-  uint16_t arcount = ntohs(dnsp->arcount);
-
-  uint8_t *p_pkt = (uint8_t *)dnsp->records;
-  char q[256];
-
-  int d = options.debug; /* XXX: debug */
-  int i;
-
-  if (d) log_dbg("DNS ID:    %d", id);
-  if (d) log_dbg("DNS Flags: %d", flags);
-
-  /* it was a query? shouldn't be */
-  if (((flags & 0x8000) >> 15) == 0) return 0;
-
-  memset(q,0,sizeof(q));
-
-#define copyres(isq,n)			        \
-  if (d) log_dbg(#n ": %d", n ## count);        \
-  for (i=0; i < n ## count; i++)                \
-    if (dns_copy_res(isq, &p_pkt, &len,         \
-		     (uint8_t *)dnsp, olen, 	\
-                     q, sizeof(q)))	        \
-      return 0;
-
-  copyres(1,qd);
-  copyres(0,an);
-  copyres(0,ns);
-  copyres(0,ar);
-
-  if (d) log_dbg("left (should be zero): %d", len);
-
-  /*
-  dnsp->flags = htons(flags);
-  dnsp->qdcount = htons(qdcount);
-  dnsp->ancount = htons(ancount);
-  dnsp->nscount = htons(nscount);
-  dnsp->arcount = htons(arcount);
-  */
-
-  return 1;
 }
 
 /**
@@ -1662,8 +1659,7 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
       answer.ethh.prot = htons(PKT_ETH_PROTO_IP);
 
       /* Work out checksums */
-      dhcp_udp_check((struct dhcp_fullpacket_t *)&answer);
-      dhcp_ip_check((struct pkt_ippacket_t *)&answer);
+      chksum(&pack->iph);
 
       /* Calculate total length */
       length = udp_len + PKT_IP_HLEN + PKT_ETH_HLEN;
@@ -1925,8 +1921,7 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn,
   packet.iph.tot_len = htons(udp_len + PKT_IP_HLEN);
 
   /* Work out checksums */
-  dhcp_udp_check(&packet);
-  dhcp_ip_check((struct pkt_ippacket_t *)&packet); 
+  chksum(&packet.iph);
 
   /* Calculate total length */
   length = udp_len + PKT_IP_HLEN + PKT_ETH_HLEN;
@@ -2021,8 +2016,7 @@ int dhcp_sendACK(struct dhcp_conn_t *conn,
   packet.iph.tot_len = htons(udp_len + PKT_IP_HLEN);
 
   /* Work out checksums */
-  dhcp_udp_check(&packet);
-  dhcp_ip_check((struct pkt_ippacket_t *)&packet); 
+  chksum(&packet.iph);
 
   /* Calculate total length */
   length = udp_len + PKT_IP_HLEN + PKT_ETH_HLEN;
@@ -2066,8 +2060,7 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn,
   packet.iph.tot_len = htons(udp_len + PKT_IP_HLEN);
 
   /* Work out checksums */
-  dhcp_udp_check(&packet);
-  dhcp_ip_check((struct pkt_ippacket_t *)&packet); 
+  chksum(&packet.iph);
 
   /* Calculate total length */
   length = udp_len + PKT_IP_HLEN + PKT_ETH_HLEN;
@@ -2343,13 +2336,13 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
   case DHCP_AUTH_UNAUTH_TOS:
     /* Set TOS to specified value (unauthenticated) */
     pack->iph.tos = conn->unauth_cp;
-    dhcp_ip_check(pack);
+    chksum(&pack->iph);
     break;
 
   case DHCP_AUTH_AUTH_TOS:
     /* Set TOS to specified value (authenticated) */
     pack->iph.tos = conn->auth_cp;
-    dhcp_ip_check(pack);
+    chksum(&pack->iph);
     break;
 
   case DHCP_AUTH_DNAT:

@@ -1,6 +1,6 @@
 /*
  * DNS library functions
- * Copyright (c) 2006-2007 David Bird <david@coova.com>
+ * Copyright (c) 2006-2008 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -150,8 +150,32 @@ dns_copy_res(int q,
   p_pkt += 2;
   len -= 2;
   
-  log_dbg("It was a dns response w type: %d class: %d", type, class);
-  
+  log_dbg("It was a dns record type: %d class: %d", type, class);
+
+
+  /* if dnsparanoia, checks here */
+
+  if (antidnstunnel) {
+    switch (type) {
+    case 1:/* A */ 
+      log_dbg("A record");
+      break;
+    case 5:/* CNAME */ 
+      log_dbg("CNAME record");
+      break;
+    default:
+      if (options.debug) switch(type) {
+      case 6:  log_dbg("SOA record"); break;
+      case 12: log_dbg("PTR record"); break;
+      case 15: log_dbg("MX record");  break;
+      case 16: log_dbg("TXT record"); break;
+      default: log_dbg("Record type %d", type); break;
+      }
+      log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, rdlen);
+      return -1;
+    }
+  }
+
   if (q) {
     dns_fullname(question, qsize, *pktp, opkt, olen, 0);
     
@@ -161,8 +185,8 @@ dns_copy_res(int q,
     *left = len;
 
     return 0;
-  }
-  
+  } 
+
   if (len < 6) 
     return_error;
   
@@ -176,7 +200,7 @@ dns_copy_res(int q,
   p_pkt += 2;
   len -= 2;
   
-  log_dbg("-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);
+  /*log_dbg("-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);*/
   
   if (len < rdlen)
     return_error;
@@ -186,7 +210,7 @@ dns_copy_res(int q,
    */  
   
   switch (type) {
-
+    
   case 1:/* A */
     log_dbg("A record");
     if (options.uamdomains) {
@@ -221,21 +245,11 @@ dns_copy_res(int q,
   default:
 
     if (options.debug) switch(type) {
-    case 6:
-      log_dbg("SOA record");
-      break;
-    case 12:
-      log_dbg("PTR record");
-      break;
-    case 15:
-      log_dbg("MX record");
-      break;
-    case 16:
-      log_dbg("TXT record");
-      break;
-    default:
-      log_dbg("Record type %d", type);
-      break;
+    case 6:  log_dbg("SOA record"); break;
+    case 12: log_dbg("PTR record"); break;
+    case 15: log_dbg("MX record");  break;
+    case 16: log_dbg("TXT record"); break;
+    default: log_dbg("Record type %d", type); break;
     }
 
     if (antidnstunnel) {
