@@ -1233,10 +1233,10 @@ int _filterDNSreq(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t 
 }
 
 static
-int _filterDNSresp(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t *plen) {
+int _filterDNSresp(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t plen) {
   /*struct dhcp_udphdr_t *udph = (struct dhcp_udphdr_t*)pack->payload;*/
   struct dns_packet_t *dnsp = (struct dns_packet_t *)((char*)pack->payload + sizeof(struct pkt_udphdr_t));
-  size_t len = *plen - DHCP_DNS_HLEN - PKT_UDP_HLEN - PKT_IP_HLEN - PKT_ETH_HLEN;
+  size_t len = plen - DHCP_DNS_HLEN - PKT_UDP_HLEN - PKT_IP_HLEN - PKT_ETH_HLEN;
   size_t olen = len;
 
   uint16_t id = ntohs(dnsp->id);
@@ -1251,8 +1251,6 @@ int _filterDNSresp(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t
 
   int d = options.debug; /* XXX: debug */
   int i;
-
-  return 1;
 
   if (d) log_dbg("DNS ID:    %d", id);
   if (d) log_dbg("DNS Flags: %d", flags);
@@ -1479,7 +1477,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
        (pack->iph.saddr == conn->dns2.s_addr)) &&
       (pack->iph.protocol == PKT_IP_PROTO_UDP && udph->src == htons(DHCP_DNS))) {
     if (options.uamdomains) {
-	if (_filterDNSresp(conn, pack, plen)) 
+	if (_filterDNSresp(conn, pack, *plen)) 
 	  return 0;
 	else
 	  return -1; /* drop */
