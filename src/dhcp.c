@@ -40,9 +40,8 @@ char *dhcp_state2name(int authstate) {
   case DHCP_AUTH_NONE: return "none";
   case DHCP_AUTH_DROP: return "drop";
   case DHCP_AUTH_PASS: return "pass";
-  case DHCP_AUTH_UNAUTH_TOS: return "unauth-tos";
-  case DHCP_AUTH_AUTH_TOS: return "auth-tos";
   case DHCP_AUTH_DNAT: return "dnat";
+  case DHCP_AUTH_SPLASH: return "splash";
   default: return "unknown";
   }
 }
@@ -82,7 +81,7 @@ void dhcp_print(struct dhcp_t *this, int sock, int listfmt, struct dhcp_conn_t *
 	bassignformat(tmp, "%d", appconn->unit);
 	bconcat(b, tmp);
 	bcatcstr(b, ",\"clientState\":");
-	bassignformat(tmp, "%d", appconn->state.authenticated);
+	bassignformat(tmp, "%d", appconn->s_state.authenticated);
 	bconcat(b, tmp);
 	bcatcstr(b, ",\"macAddress\":\"");
 	bassignformat(tmp, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
@@ -125,396 +124,6 @@ void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause) {
   }
 }
 
-int dhcp_sifflags(char const *devname, int flags) {
-  struct ifreq ifr;
-  int fd;
-  
-  memset(&ifr, '\0', sizeof(ifr));
-  ifr.ifr_flags = flags;
-  strncpy(ifr.ifr_name, devname, IFNAMSIZ);
-  ifr.ifr_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
-  if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    log_err(errno,"socket() failed");
-  }
-  if (ioctl(fd, SIOCSIFFLAGS, &ifr)) {
-    log_err(errno,"ioctl(SIOCSIFFLAGS) failed");
-    close(fd);
-    return -1;
-  }
-  close(fd);
-  return 0;
-}
-
-int dhcp_gifflags(char const *devname, int *flags) {
-  struct ifreq ifr;
-  int fd;
-  
-  memset (&ifr, '\0', sizeof (ifr));
-  strncpy(ifr.ifr_name, devname, IFNAMSIZ);
-  ifr.ifr_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
-  if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    log_err(errno, "socket() failed");
-  }
-  if (ioctl(fd, SIOCGIFFLAGS, &ifr)) {
-    log_err(errno, "ioctl(SIOCSIFFLAGS) failed");
-    close(fd);
-    return -1;
-  }
-  close(fd);
-  *flags = ifr.ifr_flags;
-
-  return 0;
-}
-
-int dhcp_setaddr(char const *devname,
-		 struct in_addr *addr,
-		 struct in_addr *dstaddr,
-		 struct in_addr *netmask) {
-
-  struct ifreq ifr;
-  int fd;
-
-  memset (&ifr, '\0', sizeof (ifr));
-  ifr.ifr_addr.sa_family = AF_INET;
-  ifr.ifr_dstaddr.sa_family = AF_INET;
-
-#if defined(__linux__)
-  ifr.ifr_netmask.sa_family = AF_INET;
-
-#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
-  ((struct sockaddr_in *) &ifr.ifr_addr)->sin_len = 
-    sizeof (struct sockaddr_in);
-  ((struct sockaddr_in *) &ifr.ifr_dstaddr)->sin_len = 
-    sizeof (struct sockaddr_in);
-#endif
-
-  strncpy(ifr.ifr_name, devname, IFNAMSIZ);
-  ifr.ifr_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
-
-  /* Create a channel to the NET kernel. */
-  if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    log_err(errno, "socket() failed");
-    return -1;
-  }
-
-  if (addr) { /* Set the interface address */
-    ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr = addr->s_addr;
-    if (ioctl(fd, SIOCSIFADDR, (void *) &ifr) < 0) {
-      if (errno != EEXIST) {
-	log_err(errno, "ioctl(SIOCSIFADDR) failed");
-      }
-      else {
-	log_warn(errno, "ioctl(SIOCSIFADDR): Address already exists");
-      }
-      close(fd);
-      return -1;
-    }
-  }
-
-  if (dstaddr) { /* Set the destination address */
-    ((struct sockaddr_in *) &ifr.ifr_dstaddr)->sin_addr.s_addr = 
-      dstaddr->s_addr;
-    if (ioctl(fd, SIOCSIFDSTADDR, (caddr_t) &ifr) < 0) {
-      log_err(errno, "ioctl(SIOCSIFDSTADDR) failed");
-      close(fd);
-      return -1; 
-    }
-  }
-
-  if (netmask) { /* Set the netmask */
-#if defined(__linux__)
-    ((struct sockaddr_in *) &ifr.ifr_netmask)->sin_addr.s_addr = 
-      netmask->s_addr;
-
-#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
-    ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr = 
-      netmask->s_addr;
-
-#elif defined(__sun__)
-    ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr = 
-      netmask->s_addr;
-#else
-#error  "Unknown platform!" 
-#endif
-
-    if (ioctl(fd, SIOCSIFNETMASK, (void *) &ifr) < 0) {
-      log_err(errno, "ioctl(SIOCSIFNETMASK) failed");
-      close(fd);
-      return -1;
-    }
-  }
-  
-  close(fd);
-  
-  /* On linux the route to the interface is set automatically
-     on FreeBSD we have to do this manually */
-
-  /* TODO: How does it work on Solaris? */
-
-#if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
-  (void)dhcp_sifflags(devname, IFF_UP | IFF_RUNNING);  /* TODO */
-  /*return tun_addroute(this, addr, addr, netmask);*/
-#else
-  return dhcp_sifflags(devname, IFF_UP | IFF_RUNNING); 
-#endif
-
-}
-
-#if defined(__linux__)
-
-/**
- * dhcp_open_eth()
- * Opens an Ethernet interface. As an option the interface can be set in
- * promisc mode. If not null macaddr and ifindex are filled with the
- * interface mac address and index
- **/
-int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
-		  int usemac, unsigned char *macaddr, int *ifindex) {
-  int fd;
-  int option=1;
-  struct ifreq ifr;
-  struct packet_mreq mr;
-  struct sockaddr_ll sa;
-
-  memset(&ifr, 0, sizeof(ifr));
-
-  /* Create socket */
-  if ((fd = socket(PF_PACKET, SOCK_RAW, htons(protocol))) < 0) {
-    if (errno == EPERM) {
-      log_err(errno, "Cannot create raw socket. Must be root.");
-    }
-    log_err(errno, "socket(domain=%d, protocol=%lx, protocol=%d) failed",
-	    PF_PACKET, SOCK_RAW, protocol);
-  }
-
-
-  /* Enable reception and transmission of broadcast frames */
-  if (setsockopt(fd, SOL_SOCKET, SO_BROADCAST, &option, sizeof(option)) < 0) {
-    log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
-	    fd, SOL_SOCKET, SO_BROADCAST, sizeof(option));
-  }
-  
-
-  /* Get the MAC address of our interface */
-  if ((!usemac) && (macaddr)) {
-    strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-    if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
-      log_err(errno, "ioctl(d=%d, request=%d) failed",
-	      fd, SIOCGIFHWADDR);
-    }
-    memcpy(macaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
-    if (ifr.ifr_hwaddr.sa_family != ARPHRD_ETHER) {
-      log_err(0, "Not Ethernet: %.16s", ifname);
-    }
-    
-    if (macaddr[0] & 0x01) {
-      log_err(0, "Ethernet has broadcast or multicast address: %.16s", ifname);
-    }
-  }
-
-  /* Verify that MTU = ETH_DATA_LEN */
-  strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-  if (ioctl(fd, SIOCGIFMTU, &ifr) < 0) {
-    log_err(errno, "ioctl(d=%d, request=%d) failed",
-	    fd, SIOCGIFMTU);
-  }
-  if (ifr.ifr_mtu != ETH_DATA_LEN) {
-    log_err(0, "MTU does not match EHT_DATA_LEN: %d %d", 
-	    ifr.ifr_mtu, ETH_DATA_LEN);
-  }
-
-  /* Get ifindex */
-  strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-  if (ioctl(fd, SIOCGIFINDEX, &ifr) < 0) {
-    log_err(errno, "ioctl(SIOCFIGINDEX) failed");
-  }
-  if (ifindex)
-    *ifindex = ifr.ifr_ifindex;
-  
-  /* Set interface in promisc mode */
-  if (promisc) {
-    memset(&mr,0,sizeof(mr));
-    mr.mr_ifindex = ifr.ifr_ifindex;
-    mr.mr_type =  PACKET_MR_PROMISC;
-    if(setsockopt(fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
-		  (char *)&mr, sizeof(mr)) < 0) {
-      log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
-	      fd, SOL_SOCKET, PACKET_ADD_MEMBERSHIP, sizeof(mr));
-    }
-  }
-
-  /* Bind to particular interface */
-  memset(&sa, 0, sizeof(sa));
-  sa.sll_family = AF_PACKET;
-  sa.sll_protocol = htons(protocol);
-  sa.sll_ifindex = ifr.ifr_ifindex;
-  if (bind(fd, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
-    log_err(errno, "bind(sockfd=%d) failed", fd);
-  }
-  return fd;
-}
-
-#elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
-
-int dhcp_getmac(const char *ifname, char *macaddr) {
-
-  struct ifaddrs *ifap, *ifa;
-  struct sockaddr_dl *sdl;
-
-  if (getifaddrs(&ifap)) {
-    log_err(errno, "getifaddrs() failed!");
-    return -1;
-  }
-
-  ifa = ifap;
-  while (ifa) {
-    if ((strcmp(ifa->ifa_name, ifname) == 0) &&
-	(ifa->ifa_addr->sa_family == AF_LINK)) {
-      sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-      switch(sdl->sdl_type) {
-      case IFT_ETHER:
-#ifdef IFT_IEEE80211
-      case IFT_IEEE80211:
-#endif
-	break;
-      default:
-	continue;
-      }
-      if (sdl->sdl_alen != PKT_ETH_ALEN) {
-	log_err(errno, "Wrong sdl_alen!");
-	freeifaddrs(ifap);
-	return -1;
-      }
-      memcpy(macaddr, LLADDR(sdl), PKT_ETH_ALEN);
-      freeifaddrs(ifap);
-      return 0;
-    }
-    ifa = ifa->ifa_next;
-  }  
-  freeifaddrs(ifap);
-  return -1;
-}
-
-/**
- * dhcp_open_eth()
- * Opens an Ethernet interface. As an option the interface can be set in
- * promisc mode. If not null macaddr and ifindex are filled with the
- * interface mac address and index
- **/
-
-/* Relevant IOCTLs
-FIONREAD Get the number of bytes in input buffer
-SIOCGIFADDR Get interface address (IP)
-BIOCGBLEN, BIOCSBLEN Get and set required buffer length
-BIOCGDLT Type of underlying data interface
-BIOCPROMISC Set in promisc mode
-BIOCFLUSH Flushes the buffer of incoming packets
-BIOCGETIF, BIOCSETIF Set hardware interface. Uses ift_name
-BIOCSRTIMEOUT, BIOCGRTIMEOUT Set and get timeout for reads
-BIOCGSTATS Return stats for the interface
-BIOCIMMEDIATE Return immediately from reads as soon as packet arrives.
-BIOCSETF Set filter
-BIOCVERSION Return the version of BPF
-BIOCSHDRCMPLT BIOCGHDRCMPLT Set flag of wheather to fill in MAC address
-BIOCSSEESENT BIOCGSEESENT Return locally generated packets */
-
-int dhcp_open_eth(char const *ifname, uint16_t protocol, int promisc,
-		  int usemac, unsigned char *macaddr, int *ifindex) {
-
-  char devname[IFNAMSIZ+5]; /* "/dev/" + ifname */
-  int devnum;
-  struct ifreq ifr;
-  struct ifaliasreq areq;
-  int fd;
-  int local_fd;
-  struct bpf_version bv;
-
-  u_int32_t ipaddr;
-  struct sockaddr_dl hwaddr;
-  unsigned int value;
-
-  /* Find suitable device */
-  for (devnum = 0; devnum < 255; devnum++) { /* TODO 255 */ 
-    snprintf(devname, sizeof(devname), "/dev/bpf%d", devnum);
-    devname[sizeof(devname)] = 0;
-    if ((fd = open(devname, O_RDWR)) >= 0) break;
-    if (errno != EBUSY) break;
-  } 
-  if (fd < 0) {
-    log_err(errno, "Can't find bpf device");
-    return -1;
-  }
-
-  /* Set the interface */
-  memset(&ifr, 0, sizeof(ifr));
-  strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-  if (ioctl(fd, BIOCSETIF, &ifr) < 0) {
-    log_err(errno,"ioctl() failed");
-    return -1;
-  }
-
-  /* Get and validate BPF version */
-  if (ioctl(fd, BIOCVERSION, &bv) < 0) {
-    log_err(errno,"ioctl() failed!");
-    return -1;
-  }  
-  if (bv.bv_major != BPF_MAJOR_VERSION ||
-      bv.bv_minor < BPF_MINOR_VERSION) {
-    log_err(errno,"wrong BPF version!");
-    return -1;
-  }
-
-  /* Get the MAC address of our interface */
-  if ((!usemac) && (macaddr)) {
-
-    if (dhcp_getmac(ifname, macaddr)) {
-      log_err(0,"Did not find MAC address!");
-      return -1;
-    }
-    
-    if (0) log_dbg("MAC Address %.2x %.2x %.2x %.2x %.2x %.2x",
-		   macaddr[0], macaddr[1], macaddr[2],
-		   macaddr[3], macaddr[4], macaddr[5]);
-    
-    if (macaddr[0] & 0x01) {
-      log_err(0, "Ethernet has broadcast or multicast address: %.16s", ifname);
-      return -1;
-    }
-  }
-
-  /* Set interface in promisc mode */
-  if (promisc) {
-    value = 1;
-    if (ioctl(fd, BIOCPROMISC, NULL) < 0) {
-      log_err(errno,"ioctl() failed!");
-      return -1;
-    }  
-    value = 1;
-    if (ioctl(fd, BIOCSHDRCMPLT, &value) < 0) {
-      log_err(errno,"ioctl() failed!");
-      return -1;
-    }  
-  }
-  else {
-    value = 0;
-    if (ioctl(fd, BIOCSHDRCMPLT, &value) < 0) {
-      log_err(errno,"ioctl() failed!");
-      return -1;
-    }  
-  }
-
-  /* Make sure reads return as soon as packet has been received */
-  value = 1;
-  if (ioctl(fd, BIOCIMMEDIATE, &value) < 0) {
-    log_err(errno,"ioctl() failed!");
-    return -1;
-  }  
-
-  return fd;
-}
-
-#endif
-
 int dhcp_send(struct dhcp_t *this, struct _net_interface *netif, 
 	      unsigned char *hismac, void *packet, size_t length) {
 #if defined(__linux__)
@@ -530,14 +139,12 @@ int dhcp_send(struct dhcp_t *this, struct _net_interface *netif,
   if (sendto(netif->fd, packet, length, 0, (struct sockaddr *)&dest, sizeof(dest)) < 0) {
 #ifdef ENETDOWN
     if (errno == ENETDOWN) {
-      close(netif->fd);
-      dhcp_open_net(netif);
+      net_reopen(netif);
     }
 #endif
 #ifdef ENXIO
     if (errno == ENXIO) {
-      close(netif->fd);
-      dhcp_open_net(netif);
+      net_reopen(netif);
     }
 #endif
     log_err(errno, "sendto(fd=%d, len=%d) failed", netif->fd, length);
@@ -551,24 +158,6 @@ int dhcp_send(struct dhcp_t *this, struct _net_interface *netif,
 #endif
   return 0;
 }
-
-ssize_t dhcp_recv(struct _net_interface *netif, void *pkt, size_t sz) {
-  ssize_t length;
-  
-  if ((length = recv(netif->fd, pkt, sz, 0)) < 0) {
-#ifdef ENETDOWN
-    if (errno == ENETDOWN) {
-      close(netif->fd);
-      dhcp_open_net(netif);
-    }
-#endif
-    log_err(errno, "recv(fd=%d, len=%d) failed", netif->fd, sz);
-    return -1;
-  }
-
-  return length;
-}
-
 
 
 /**
@@ -920,144 +509,117 @@ int dhcp_checkconn(struct dhcp_t *this)
   return 0;
 }
 
-
-/* API Functions */
-
-/**
- * dhcp_version()
- * Returns the current version of the program
- **/
-const char* dhcp_version()
-{
-  return VERSION;
-}
-
-int dhcp_open_net(struct _net_interface *netif) {
-  if (netif->fd) close(netif->fd);
-
-  /* Bring network interface UP and RUNNING if currently down */
-  dhcp_gifflags(netif->devname, &netif->devflags);
-  if (!(netif->devflags & IFF_UP) || !(netif->devflags & IFF_RUNNING)) {
-    struct in_addr noaddr;
-    dhcp_sifflags(netif->devname, netif->devflags | IFF_NOARP);
-    memset(&noaddr, 0, sizeof(noaddr));
-    dhcp_setaddr(netif->devname, &noaddr, NULL, NULL);
-  }
-
-  if ((netif->fd = dhcp_open_eth(netif->devname, 
-				 netif->protocol, 
-				 netif->promisc, 
-				 netif->usemac,
-				 netif->hwaddr,
-				 &netif->ifindex)) < 0) {
-    netif->fd = 0;
-    return -1; /* Error reporting done in dhcp_open_eth */
-  }
-  
-  return netif->fd;
-}
-
-int dhcp_init_net(struct _net_interface *netif,
-		  const char *ifname, uint16_t protocol, int promisc,
-		  unsigned char *mac) {
-  strncpy(netif->devname, ifname, IFNAMSIZ);
-  netif->devname[IFNAMSIZ] = 0;
-  netif->protocol = protocol;
-  netif->promisc = promisc;
-
-  if (mac) {
-    netif->usemac = 1;
-    memcpy(netif->hwaddr, mac, PKT_ETH_ALEN);
-  }
-
-  return dhcp_open_net(netif);
-}
-
-
 /**
  * dhcp_new()
  * Allocates a new instance of the library
  **/
 
 int
-dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
+dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
 	 int usemac, uint8_t *mac, int promisc, 
 	 struct in_addr *listen, int lease, int allowdyn,
 	 struct in_addr *uamlisten, uint16_t uamport, int useeapol) {
+  struct dhcp_t *dhcp;
   
-  if (!(*dhcp = calloc(sizeof(struct dhcp_t), 1))) {
+  if (!(dhcp = *pdhcp = calloc(sizeof(struct dhcp_t), 1))) {
     log_err(0, "calloc() failed");
     return -1;
   }
 
-  (*dhcp)->numconn = numconn;
+  dhcp->numconn = numconn;
 
-  if (!((*dhcp)->conn = calloc(sizeof(struct dhcp_conn_t), numconn))) {
+  if (!(dhcp->conn = calloc(sizeof(struct dhcp_conn_t), numconn))) {
     log_err(0, "calloc() failed");
-    free(*dhcp);
+    free(dhcp);
     return -1;
   }
 
-  dhcp_initconn(*dhcp);
+  dhcp_initconn(dhcp);
 
-  if (dhcp_init_net(&(*dhcp)->ipif, interface, 
-		    PKT_ETH_PROTO_IP, promisc, usemac ? mac : 0) < 0) {
-    free((*dhcp)->conn);
-    free(*dhcp);
-    return -1; /* Error reporting done in dhcp_open_eth */
+  if (net_init(&dhcp->ipif, interface, PKT_ETH_PROTO_IP, promisc, usemac ? mac : 0) < 0) {
+    free(dhcp->conn);
+    free(dhcp);
+    return -1; 
   }
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
   { 
     int blen=0;
-    if (ioctl((*dhcp)->ipif.fd, BIOCGBLEN, &blen) < 0) {
+    if (ioctl(dhcp->ipif.fd, BIOCGBLEN, &blen) < 0) {
       log_err(errno,"ioctl() failed!");
     }
-    (*dhcp)->rbuf_max = blen;
-    if (!((*dhcp)->rbuf = malloc((*dhcp)->rbuf_max))) {
+    dhcp->rbuf_max = blen;
+    if (!(dhcp->rbuf = calloc(dhcp->rbuf_max, 1))) {
       /* TODO: Free malloc */
       log_err(errno, "malloc() failed");
     }
-    (*dhcp)->rbuf_offset = 0;
-    (*dhcp)->rbuf_len = 0;
+    dhcp->rbuf_offset = 0;
+    dhcp->rbuf_len = 0;
   }
 #endif
   
-  if (dhcp_init_net(&(*dhcp)->arpif, interface, 
-		    PKT_ETH_PROTO_ARP, promisc, usemac ? mac : 0) < 0) {
-      close((*dhcp)->ipif.fd);
-      free((*dhcp)->conn);
-      free(*dhcp);
+  if (net_init(&dhcp->arpif, interface, PKT_ETH_PROTO_ARP, promisc, usemac ? mac : 0) < 0) {
+      close(dhcp->ipif.fd);
+      free(dhcp->conn);
+      free(dhcp);
       return -1; /* Error reporting done in dhcp_open_eth */
     }
 
   if (useeapol) {
-    if (dhcp_init_net(&(*dhcp)->eapif, interface, 
-		      PKT_ETH_PROTO_EAPOL, promisc, usemac ? mac : 0) < 0) {
-      close((*dhcp)->ipif.fd);
-      close((*dhcp)->arpif.fd);
-      free((*dhcp)->conn);
-      free(*dhcp);
+    if (net_init(&dhcp->eapif, interface, PKT_ETH_PROTO_EAPOL, promisc, usemac ? mac : 0) < 0) {
+      close(dhcp->ipif.fd);
+      close(dhcp->arpif.fd);
+      free(dhcp->conn);
+      free(dhcp);
       return -1; /* Error reporting done in eapol_open_eth */
     }
   }
 
-  if (dhcp_hashinit(*dhcp, (*dhcp)->numconn))
+  if (options.dhcpgwip.s_addr != 0) {
+    int fd;
+    struct sockaddr_in addr;
+    int on = 1;
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(68);
+    
+    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ||
+	bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+      log_err(errno, "socket or bind failed for dhcp relay!");
+      close(dhcp->ipif.fd);
+      close(dhcp->arpif.fd);
+      close(dhcp->eapif.fd);
+      free(dhcp->conn);
+      free(dhcp);
+      close(fd);
+      return -1;
+    }
+
+    if (setsockopt(dhcp->relayfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+      log_err(errno, "Can't set reuse option");
+    }
+
+    dhcp->relayfd = fd;
+  }
+
+  if (dhcp_hashinit(dhcp, dhcp->numconn))
     return -1; /* Failed to allocate hash tables */
 
   /* Initialise various variables */
-  (*dhcp)->ourip.s_addr = listen->s_addr;
-  (*dhcp)->lease = lease;
-  (*dhcp)->allowdyn = allowdyn;
-  (*dhcp)->uamlisten.s_addr = uamlisten->s_addr;
-  (*dhcp)->uamport = uamport;
+  dhcp->ourip.s_addr = listen->s_addr;
+  dhcp->lease = lease;
+  dhcp->allowdyn = allowdyn;
+  dhcp->uamlisten.s_addr = uamlisten->s_addr;
+  dhcp->uamport = uamport;
 
   /* Initialise call back functions */
-  (*dhcp)->cb_data_ind = 0;
-  (*dhcp)->cb_eap_ind = 0;
-  (*dhcp)->cb_request = 0;
-  (*dhcp)->cb_disconnect = 0;
-  (*dhcp)->cb_connect = 0;
+  dhcp->cb_data_ind = 0;
+  dhcp->cb_eap_ind = 0;
+  dhcp->cb_request = 0;
+  dhcp->cb_disconnect = 0;
+  dhcp->cb_connect = 0;
   
   return 0;
 }
@@ -1072,7 +634,7 @@ dhcp_set(struct dhcp_t *dhcp, int debug) {
   dhcp->anydns = options.uamanydns;
 
   /* Copy list of uamserver IP addresses */
-  if ((dhcp)->authip) free((dhcp)->authip);
+  if (dhcp->authip) free(dhcp->authip);
   dhcp->authiplen = options.uamserverlen;
 
   if (!(dhcp->authip = calloc(sizeof(struct in_addr), options.uamserverlen))) {
@@ -1080,7 +642,7 @@ dhcp_set(struct dhcp_t *dhcp, int debug) {
     dhcp->authip = 0;
     return -1;
   }
-
+  
   memcpy(dhcp->authip, &options.uamserver, sizeof(struct in_addr) * options.uamserverlen);
 
   return 0;
@@ -1091,13 +653,12 @@ dhcp_set(struct dhcp_t *dhcp, int debug) {
  * Releases ressources allocated to the instance of the library
  **/
 int dhcp_free(struct dhcp_t *dhcp) {
-
   if (dhcp->hash) free(dhcp->hash);
   if (dhcp->authip) free(dhcp->authip);
-  dhcp_sifflags(dhcp->ipif.devname, dhcp->ipif.devflags);
-  close(dhcp->ipif.fd);
-  close(dhcp->arpif.fd);
-  if (dhcp->eapif.fd) close(dhcp->eapif.fd);
+  dev_set_flags(dhcp->ipif.devname, dhcp->ipif.devflags);
+  net_close(&dhcp->ipif);
+  net_close(&dhcp->arpif);
+  net_close(&dhcp->eapif);
   free(dhcp->conn);
   free(dhcp);
   return 0;
@@ -1124,10 +685,7 @@ dhcp_timeout(struct dhcp_t *this)
  * If service is needed after the value given by tvp then tvp
  * is left unchanged.
  **/
-struct timeval*
-
-dhcp_timeleft(struct dhcp_t *this, struct timeval *tvp)
-{
+struct timeval* dhcp_timeleft(struct dhcp_t *this, struct timeval *tvp) {
   return tvp;
 }
 
@@ -1160,8 +718,8 @@ int dhcp_nakDNS(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t le
 
   memcpy(&answer, pack, len); 
     
-  /* DNS */
-  answer.dns.flags   = htons(0x8583);
+  /* DNS response, with no host error code */
+  answer.dns.flags = htons(0x8583); 
   
   /* UDP */
   answer.udph.src = udph->dst;
@@ -1320,7 +878,6 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
     }
   }
 
-  /* Was it a http or https request for authentication server? */
   /* Was it a request for authentication server? */
   for (i = 0; i<this->authiplen; i++) {
     if ((pack->iph.daddr == this->authip[i].s_addr) /* &&
@@ -1345,7 +902,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
   /* Check appconn session specific pass-throughs */
   if (conn->peer) {
     struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-    if (check_garden(appconn->params.pass_throughs, appconn->params.pass_through_count, pack, 1))
+    if (check_garden(appconn->s_params.pass_throughs, appconn->s_params.pass_through_count, pack, 1))
       return 0;
   }
   
@@ -1355,6 +912,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
       (tcph->dst == htons(DHCP_HTTP))) {
     int n;
     int pos=-1;
+
     for (n=0; n<DHCP_DNAT_MAX; n++) {
       if ((conn->dnatip[n] == pack->iph.daddr) && 
 	  (conn->dnatport[n] == tcph->src)) {
@@ -1371,7 +929,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
     }
 
     if (options.usetap) 
-      memcpy(pack->ethh.dst, tun->tap_hwaddr, PKT_ETH_ALEN); 
+      memcpy(pack->ethh.dst, tuntap(tun).hwaddr, PKT_ETH_ALEN); 
 
     pack->iph.daddr = this->uamlisten.s_addr;
     tcph->dst = htons(this->uamport);
@@ -1458,9 +1016,7 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, siz
  * dhcp_undoDNAT()
  * Change source address back to original server
  **/
-int dhcp_undoDNAT(struct dhcp_conn_t *conn, 
-		  struct pkt_ippacket_t *pack, 
-		  size_t *plen) {
+int dhcp_undoDNAT(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t *plen) {
   struct dhcp_t *this = conn->parent;
   struct pkt_tcphdr_t *tcph = (struct pkt_tcphdr_t *)pack->payload;
   struct pkt_udphdr_t *udph = (struct pkt_udphdr_t *)pack->payload;
@@ -1511,15 +1067,23 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
     return -1;
   }
 
+  /*
+12:46:20.767600 IP 10.1.0.1.49335 > 68.142.197.198.80: S 1442428713:1442428713(0) win 65535 <mss 1460,sackOK,eol>
+12:46:20.768234 IP 10.1.0.10.3990 > 10.1.0.1.49335: S 746818639:746818639(0) ack 1442428714 win 5840 <mss 1460,nop,nop,sackOK>
+  */
+
   /* Was it a reply from redir server? */
   if ((pack->iph.saddr == this->uamlisten.s_addr) &&
       (pack->iph.protocol == PKT_IP_PROTO_TCP) &&
       (tcph->src == htons(this->uamport))) {
     int n;
+
     for (n=0; n<DHCP_DNAT_MAX; n++) {
       if (tcph->dst == conn->dnatport[n]) {
+
 	if (options.usetap) 
 	  memcpy(pack->ethh.src, conn->dnatmac[n], PKT_ETH_ALEN); 
+
 	pack->iph.saddr = conn->dnatip[n];
 	tcph->src = htons(DHCP_HTTP);
 
@@ -1550,7 +1114,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   /* Check appconn session specific pass-throughs */
   if (conn->peer) {
     struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-    if (check_garden(appconn->params.pass_throughs, appconn->params.pass_through_count, pack, 0))
+    if (check_garden(appconn->s_params.pass_throughs, appconn->s_params.pass_through_count, pack, 0))
       return 0;
   }
 
@@ -1657,7 +1221,7 @@ int dhcp_checkDNS(struct dhcp_conn_t *conn,
       answer.ethh.prot = htons(PKT_ETH_PROTO_IP);
 
       /* Work out checksums */
-      chksum(&pack->iph);
+      chksum(&answer.iph);
 
       /* Calculate total length */
       length = udp_len + PKT_IP_HLEN + PKT_ETH_HLEN;
@@ -1717,6 +1281,10 @@ dhcp_create_pkt(uint8_t type, struct dhcp_fullpacket_t *pack,
   pack->dhcp.giaddr   = req->dhcp.giaddr;
 
   memcpy(&pack->dhcp.chaddr, &req->dhcp.chaddr, DHCP_CHADDR_LEN);
+  memcpy(&pack->dhcp.sname, conn->dhcp_opts.sname, DHCP_SNAME_LEN);
+  memcpy(&pack->dhcp.file, conn->dhcp_opts.file, DHCP_FILE_LEN);
+
+  log_dbg("!!! dhcp server : %s !!!", pack->dhcp.sname);
 
   switch(type) {
   case DHCPOFFER:
@@ -1803,6 +1371,9 @@ dhcp_create_pkt(uint8_t type, struct dhcp_fullpacket_t *pack,
   pack->dhcp.options[pos++] = DHCP_OPTION_MESSAGE_TYPE;
   pack->dhcp.options[pos++] = 1;
   pack->dhcp.options[pos++] = type;
+
+  memcpy(&pack->dhcp.options[pos], conn->dhcp_opts.options, DHCP_OPTIONS_LEN-pos);
+  pos += conn->dhcp_opts.option_length;
 
   return pos;
 }
@@ -2071,8 +1642,7 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn,
  *  dhcp_getreq()
  *  Process a received DHCP request and sends a response.
  **/
-int dhcp_getreq(struct dhcp_t *this, 
-		struct dhcp_fullpacket_t *pack, size_t len) {
+int dhcp_getreq(struct dhcp_t *this, struct dhcp_fullpacket_t *pack, size_t len) {
   uint8_t mac[PKT_ETH_ALEN];
   struct dhcp_tag_t *message_type = 0;
   struct dhcp_tag_t *requested_ip = 0;
@@ -2090,21 +1660,51 @@ int dhcp_getreq(struct dhcp_t *this,
   if (message_type->l != 1)
     return -1; /* Wrong length of message type */
 
-  if ((message_type->v[0] != DHCPDISCOVER) && 
-      (message_type->v[0] != DHCPREQUEST) &&
-      (message_type->v[0] != DHCPRELEASE)) {
-    return 0; /* Unsupported message type */
-  }
-
   if (pack->dhcp.giaddr)
     memcpy(mac, pack->dhcp.chaddr, PKT_ETH_ALEN);
   else
     memcpy(mac, pack->ethh.src, PKT_ETH_ALEN);
-  
-  /* Release message */
-  /* If connection exists: Release it. No Reply to client is sent */
-  if (message_type->v[0] == DHCPRELEASE) {
+
+  switch(message_type->v[0]) {
+
+  case DHCPRELEASE:
     dhcp_release_mac(this, mac, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
+
+  case DHCPDISCOVER:
+  case DHCPREQUEST:
+  case DHCPINFORM:
+    break;
+
+  default:
+    return 0; /* Unsupported message type */
+  }
+
+  if (this->relayfd > 0) {
+    /** Relay the DHCP request **/
+    struct sockaddr_in addr;
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = options.dhcpgwip.s_addr;
+    addr.sin_port = htons(options.dhcpgwport);
+
+    if (options.dhcprelayip.s_addr)
+      pack->dhcp.giaddr = options.dhcprelayip.s_addr;
+    else
+      pack->dhcp.giaddr = options.uamlisten.s_addr;
+
+    /* if we can't send, lets do dhcp ourselves */
+    if (sendto(this->relayfd, &pack->dhcp, ntohs(pack->udph.len) - PKT_UDP_HLEN, 0, 
+	       (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+      log_err(errno, "could not relay DHCP request!");
+    }
+    else {
+      return 0;
+    }
+  }
+
+  if (message_type->v[0] == DHCPRELEASE) {
+    /* No Reply to client is sent */
     return 0;
   }
 
@@ -2124,7 +1724,7 @@ int dhcp_getreq(struct dhcp_t *this,
   if (conn->authstate == DHCP_AUTH_NONE) {
     addr.s_addr = pack->dhcp.ciaddr;
     if (this->cb_request)
-      if (this->cb_request(conn, &addr)) {
+      if (this->cb_request(conn, &addr, pack, len)) {
 	return 0; /* Ignore request if IP address was not allocated */
       }
   }
@@ -2166,7 +1766,7 @@ int dhcp_getreq(struct dhcp_t *this,
   /* 
    *  Unsupported DHCP message: Ignore 
    */
-  if (this->debug) log_dbg("Unsupported DNS message ignored");
+  if (this->debug) log_dbg("Unsupported DHCP message ignored");
   return 0;
 }
 
@@ -2175,13 +1775,10 @@ int dhcp_getreq(struct dhcp_t *this,
  * dhcp_set_addrs()
  * Set various IP addresses of a connection.
  **/
-int dhcp_set_addrs(struct dhcp_conn_t *conn,
-		   struct in_addr *hisip,
-		   struct in_addr *hismask,
-		   struct in_addr *ourip,
-		   struct in_addr *dns1,
-		   struct in_addr *dns2,
-		   char *domain) {
+int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
+		   struct in_addr *hismask, struct in_addr *ourip,
+		   struct in_addr *ourmask, struct in_addr *dns1,
+		   struct in_addr *dns2, char *domain) {
 
   conn->hisip.s_addr = hisip->s_addr;
   conn->hismask.s_addr = hismask->s_addr;
@@ -2196,14 +1793,31 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
   else {
     conn->domain[0] = 0;
   }
-  
+
+  if (options.uamanyip && 
+      (hisip->s_addr & ourmask->s_addr) != (ourip->s_addr & ourmask->s_addr)) {
+    /**
+     *  We have enabled ''uamanyip'' and the address we are setting does
+     *  not fit in ourip's network. In this case, add a route entry. 
+     */
+    struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+    if (appconn) {
+      struct ippoolm_t *ipm = (struct ippoolm_t*)appconn->uplink;
+      if (ipm && ipm->inuse == 2) {
+	struct in_addr mask;
+	mask.s_addr = 0xffffffff;
+	log_dbg("Adding route for %s %d", inet_ntoa(*hisip), 
+		net_add_route(hisip, ourip, &mask));
+      }
+    }
+  }
+
   return 0;
 }
 
+static unsigned char const bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
-int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len)
-{
-  unsigned char const bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len) {
   struct pkt_tcphdr_t *tcph = (struct pkt_tcphdr_t*) pack->payload;
   /*struct pkt_udphdr_t *udph = (struct pkt_udphdr_t*) pack->payload;*/
   struct dhcp_conn_t *conn;
@@ -2222,8 +1836,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
    */
   if ((memcmp(pack->ethh.dst, this->ipif.hwaddr, PKT_ETH_ALEN)) && 
       (memcmp(pack->ethh.dst, bmac, PKT_ETH_ALEN))) {
-    if (this->debug) 
-      log_dbg("dropping packet; not for our MAC or broadcast");
+    log_dbg("dropping packet; not for our MAC or broadcast");
     return 0;
   }
 
@@ -2238,6 +1851,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
       ((pack->iph.version_ihl == PKT_IP_VER_HLEN) && 
        (pack->iph.protocol == PKT_IP_PROTO_UDP) &&
        (((struct dhcp_fullpacket_t*)pack)->udph.dst == htons(DHCP_BOOTPS)))) {
+    log_dbg("dhcp/bootps request being processed");
     return dhcp_getreq(this, (struct dhcp_fullpacket_t*) pack, len);
   }
 
@@ -2291,7 +1905,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
 	(pack->iph.daddr != 0xffffffff)))) {
     addr.s_addr = pack->iph.saddr;
     if (this->cb_request)
-      if (this->cb_request(conn, &addr)) {
+      if (this->cb_request(conn, &addr, 0, 0)) {
 	if (this->debug) 
 	  log_dbg("dropping packet; ip not known");
 	return 0; /* Ignore request if IP address was not allocated */
@@ -2315,7 +1929,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
       (tcph->dst == htons(DHCP_HTTP))) {
     if (conn->peer) {
       struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-      if (appconn->state.authenticated) {
+      if (appconn->s_state.authenticated) {
 	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
 	if (options.debug)
 	  log_dbg("Dropping session due to request for auto-logout ip");
@@ -2325,7 +1939,6 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
   }
 
   switch (conn->authstate) {
-
   case DHCP_AUTH_PASS:
     /* Check for post-auth proxy, otherwise pass packets unmodified */
     dhcp_postauthDNAT(conn, pack, len, 0);
@@ -2343,11 +1956,14 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
     chksum(&pack->iph);
     break;
 
+  case DHCP_AUTH_SPLASH:
+    dhcp_doDNAT(conn, pack, len);
+    break;
+
   case DHCP_AUTH_DNAT:
     /* Destination NAT if request to unknown web server */
     if (dhcp_doDNAT(conn, pack, len)) {
-      if (this->debug) 
-	log_dbg("dropping packet; not nat'ed");
+      if (this->debug) log_dbg("dropping packet; not nat'ed");
       return 0; /* Drop is not http or dns */
     }
     break;
@@ -2363,7 +1979,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
 
   if (options.usetap) {
     struct pkt_ethhdr_t *ethh = (struct pkt_ethhdr_t *)pack;
-    memcpy(ethh->dst,tun->tap_hwaddr,PKT_ETH_ALEN);
+    memcpy(ethh->dst,tuntap(tun).hwaddr,PKT_ETH_ALEN);
   }
 
   if ((conn->hisip.s_addr) && (this->cb_data_ind)) {
@@ -2377,37 +1993,142 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
 }
 
 /**
- * dhcp_decaps()
  * Call this function when a new IP packet has arrived. This function
  * should be part of a select() loop in the application.
  **/
-int dhcp_decaps(struct dhcp_t *this)  /* DHCP Indication */
-{
+int dhcp_decaps(struct dhcp_t *this) {
   struct pkt_ippacket_t packet;
   ssize_t length;
   
-  if ((length = dhcp_recv(&this->ipif, &packet, sizeof(packet))) < 0) 
+  if ((length = net_read(&this->ipif, &packet, sizeof(packet))) < 0) 
     return -1;
 
+  if (this->debug) {
+    struct pkt_ethhdr_t *ethh = &packet.ethh;
+    log_dbg("dhcp_decaps: dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x",
+	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
+	    ntohs(ethh->prot));
+  }
+
   return dhcp_receive_ip(this, &packet, length);
+}
+
+int dhcp_relay_decaps(struct dhcp_t *this) {
+  struct dhcp_tag_t *message_type = 0;
+  struct dhcp_fullpacket_t fullpack;
+  struct dhcp_conn_t *conn;
+  struct dhcp_packet_t packet;
+  struct sockaddr_in addr;
+  socklen_t fromlen = sizeof(addr);
+  ssize_t length;
+
+
+  if ((length = recvfrom(this->relayfd, &packet, sizeof(packet), 0,
+                         (struct sockaddr *) &addr, &fromlen)) <= 0) {
+    log_err(errno, "recvfrom() failed");
+    return -1;
+  }
+
+  log_dbg("DHCP relay response of length %d received", length);
+
+  if (addr.sin_addr.s_addr != options.dhcpgwip.s_addr) {
+    log_err(0, "received DHCP response from host other than our gateway");
+    return -1;
+  }
+
+  if (addr.sin_port != htons(options.dhcpgwport)) {
+    log_err(0, "received DHCP response from port other than our gateway");
+    return -1;
+  }
+
+  if (dhcp_gettag(&packet, length, &message_type, DHCP_OPTION_MESSAGE_TYPE)) {
+    log_err(0, "no message type");
+    return -1;
+  }
+  
+  if (message_type->l != 1) {
+    log_err(0, "wrong message type length");
+    return -1; /* Wrong length of message type */
+  }
+  
+  if (dhcp_hashget(this, &conn, packet.chaddr)) {
+
+    /* Allocate new connection */
+    if (dhcp_newconn(this, &conn, packet.chaddr)) {
+      log_err(0, "out of connections");
+      return 0; /* Out of connections */
+    }
+
+    this->cb_request(conn, (struct in_addr *)&packet.yiaddr, 0, 0);
+  }
+
+  packet.giaddr = 0;
+
+  memset(&fullpack, 0, sizeof(fullpack));
+
+  memcpy(fullpack.ethh.dst, conn->hismac, PKT_ETH_ALEN);
+  memcpy(fullpack.ethh.src, this->ipif.hwaddr, PKT_ETH_ALEN);
+  fullpack.ethh.prot = htons(PKT_ETH_PROTO_IP);
+
+  fullpack.iph.version_ihl = PKT_IP_VER_HLEN;
+  fullpack.iph.tot_len = htons(length + PKT_UDP_HLEN + PKT_IP_HLEN);
+  fullpack.iph.ttl = 0x10;
+  fullpack.iph.protocol = 0x11;
+
+  fullpack.iph.saddr = conn->ourip.s_addr;
+  fullpack.udph.src = htons(DHCP_BOOTPS);
+  fullpack.udph.len = htons(length + PKT_UDP_HLEN);
+
+  /*if (fullpack.dhcp.ciaddr) {
+    fullpack.udph.daddr = req->dhcp.ciaddr; 
+    fullpack.udph.dst = htons(DHCP_BOOTPC);
+  } else if (req->dhcp.giaddr) {
+    fullpack.iph.daddr = req->dhcp.giaddr; 
+    fullpack.udph.dst = htons(DHCP_BOOTPS);
+    } else */
+
+  if (message_type->v[0] == DHCPNAK || packet.flags[0] & 0x80) {
+    fullpack.iph.daddr = ~0; 
+    fullpack.udph.dst = htons(DHCP_BOOTPC);
+    fullpack.dhcp.flags[0] = 0x80;
+  } if (packet.ciaddr) {
+    fullpack.iph.daddr = packet.ciaddr; 
+    fullpack.udph.dst = htons(DHCP_BOOTPC);
+  } else {
+    fullpack.iph.daddr = packet.yiaddr; 
+    fullpack.udph.dst = htons(DHCP_BOOTPC);
+  }
+
+  memcpy(&fullpack.dhcp, &packet, sizeof(packet));
+
+  { /* rewrite the server-id, otherwise will not get subsequent requests */
+    struct dhcp_tag_t *tag = 0;
+    if (!dhcp_gettag(&fullpack.dhcp, length, &tag, DHCP_OPTION_SERVER_ID)) {
+      memcpy(tag->v, &conn->ourip.s_addr, 4);
+    }
+  }
+
+  chksum(&fullpack.iph);
+
+  return dhcp_send(this, &this->ipif, conn->hismac, &fullpack, 
+		   length + PKT_UDP_HLEN + PKT_IP_HLEN + PKT_ETH_HLEN);
 }
 
 /**
  * dhcp_data_req()
  * Call this function to send an IP packet to the peer.
  * Called from the tun_ind function. This method is passed either
- * a TAP Ethernet frame or a TUN IP packet. 
+ * an Ethernet frame or an IP packet. 
  **/
-int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, size_t len)
-{
+int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, size_t len, int ethhdr) {
   struct dhcp_t *this = conn->parent;
   struct pkt_ippacket_t packet;
   size_t length = len;
 
-  /* IP Packet */
-  if (options.usetap) {
+  if (ethhdr) { /* Ethernet frame */
     memcpy(&packet, pack, len);
-  } else {
+  } else {      /* IP packet */
     memcpy(&packet.iph, pack, len);
     length += PKT_ETH_HLEN;
   }
@@ -2418,24 +2139,27 @@ int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, size_t len)
   packet.ethh.prot = htons(PKT_ETH_PROTO_IP);
   
   switch (conn->authstate) {
+
   case DHCP_AUTH_PASS:
+  case DHCP_AUTH_AUTH_TOS:
     dhcp_postauthDNAT(conn, &packet, length, 1);
     break;
+
+  case DHCP_AUTH_SPLASH:
   case DHCP_AUTH_UNAUTH_TOS:
-  case DHCP_AUTH_AUTH_TOS:
-    /* Pass packets unmodified */
-    break; 
+    dhcp_undoDNAT(conn, &packet, &length);
+    break;
+
   case DHCP_AUTH_DNAT:
-    /* Undo destination NAT */
+    /* undo destination NAT */
     if (dhcp_undoDNAT(conn, &packet, &length)) {
-      if (this->debug) 
-	log_dbg("dhcp_undoDNAT() returns true");
+      if (this->debug) log_dbg("dhcp_undoDNAT() returns true");
       return 0;
     }
     break;
+
   case DHCP_AUTH_DROP: 
-  default:
-    return 0;
+  default: return 0;
   }
 
   return dhcp_send(this, &this->ipif, conn->hismac, &packet, length);
@@ -2544,7 +2268,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
       log_dbg("ARP: Ignoring self-discovery: %s", inet_ntoa(taraddr));
 
     /* If a static ip address... */
-    this->cb_request(conn, &taraddr);
+    this->cb_request(conn, &taraddr, 0, 0);
 
     return 0;
   }
@@ -2554,7 +2278,7 @@ int dhcp_receive_arp(struct dhcp_t *this,
     /* Request an IP address */
     if (options.uamanyip /*or static ip*/ &&
 	conn->authstate == DHCP_AUTH_NONE) {
-      this->cb_request(conn, &reqaddr);
+      this->cb_request(conn, &reqaddr, 0, 0);
     } 
 
     if (this->debug)
@@ -2614,13 +2338,16 @@ int dhcp_arp_ind(struct dhcp_t *this)  /* ARP Indication */
   struct arp_fullpacket_t packet;
   ssize_t length;
   
-  /*struct dhcp_conn_t *conn;*/
-  /*unsigned char const bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};*/
-
-  if (this->debug) log_dbg("ARP Packet Received!");
-
-  if ((length = dhcp_recv(&this->arpif, &packet, sizeof(packet))) < 0) 
+  if ((length = net_read(&this->arpif, &packet, sizeof(packet))) < 0) 
     return -1;
+
+  if (options.debug) {
+    struct pkt_ethhdr_t *ethh = &packet.ethh;
+    log_dbg("arp_decaps: dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x",
+	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
+	    ntohs(ethh->prot));
+  }
 
   dhcp_receive_arp(this, &packet, length);
 
@@ -2766,16 +2493,20 @@ int dhcp_receive_eapol(struct dhcp_t *this, struct dot1xpacket_t *pack) {
  * Call this function when a new EAPOL packet has arrived. This function
  * should be part of a select() loop in the application.
  **/
-int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
-{
+int dhcp_eapol_ind(struct dhcp_t *this) {
   struct dot1xpacket_t packet;
   ssize_t length;
   
-  if (this->debug) 
-    log_dbg("EAPOL packet received");
-  
-  if ((length = dhcp_recv(&this->eapif, &packet, sizeof(packet))) < 0) 
+  if ((length = net_read(&this->eapif, &packet, sizeof(packet))) < 0) 
     return -1;
+
+  if (options.debug) {
+    struct pkt_ethhdr_t *ethh = &packet.ethh;
+    log_dbg("eapol_decaps: dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x",
+	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
+	    ntohs(ethh->prot));
+  }
 
   return dhcp_receive_eapol(this, &packet);
 }
@@ -2787,8 +2518,7 @@ int dhcp_eapol_ind(struct dhcp_t *this)  /* EAPOL Indication */
  * Used for eap packets
  **/
 int dhcp_set_cb_eap_ind(struct dhcp_t *this, 
-  int (*cb_eap_ind) (struct dhcp_conn_t *conn, void *pack, size_t len))
-{
+  int (*cb_eap_ind) (struct dhcp_conn_t *conn, void *pack, size_t len)) {
   this->cb_eap_ind = cb_eap_ind;
   return 0;
 }
@@ -2799,8 +2529,7 @@ int dhcp_set_cb_eap_ind(struct dhcp_t *this,
  * Set callback function which is called when packet has arrived
  **/
 int dhcp_set_cb_data_ind(struct dhcp_t *this, 
-  int (*cb_data_ind) (struct dhcp_conn_t *conn, void *pack, size_t len))
-{
+  int (*cb_data_ind) (struct dhcp_conn_t *conn, void *pack, size_t len)) {
   this->cb_data_ind = cb_data_ind;
   return 0;
 }
@@ -2811,8 +2540,7 @@ int dhcp_set_cb_data_ind(struct dhcp_t *this,
  * Set callback function which is called when a dhcp request is received
  **/
 int dhcp_set_cb_request(struct dhcp_t *this, 
-  int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr))
-{
+  int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr, struct dhcp_fullpacket_t *pack, size_t len)) {
   this->cb_request = cb_request;
   return 0;
 }
@@ -2823,8 +2551,7 @@ int dhcp_set_cb_request(struct dhcp_t *this,
  * Set callback function which is called when a connection is created
  **/
 int dhcp_set_cb_connect(struct dhcp_t *this, 
-             int (*cb_connect) (struct dhcp_conn_t *conn))
-{
+             int (*cb_connect) (struct dhcp_conn_t *conn)) {
   this->cb_connect = cb_connect;
   return 0;
 }
@@ -2834,19 +2561,16 @@ int dhcp_set_cb_connect(struct dhcp_t *this,
  * Set callback function which is called when a connection is deleted
  **/
 int dhcp_set_cb_disconnect(struct dhcp_t *this, 
-  int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause))
-{
+  int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause)) {
   this->cb_disconnect = cb_disconnect;
   return 0;
 }
 
 int dhcp_set_cb_getinfo(struct dhcp_t *this, 
-  int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt))
-{
+  int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt)) {
   this->cb_getinfo = cb_getinfo;
   return 0;
 }
-
 
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)

@@ -37,11 +37,14 @@ typedef struct _cmd_info {
 
 static cmd_info commands[] = {
   { CMDSOCK_LIST,          "list",          NULL },
+  { CMDSOCK_ROUTE,         "route",         NULL },
   { CMDSOCK_DHCP_LIST,     "dhcp-list",     NULL },
   { CMDSOCK_DHCP_RELEASE,  "dhcp-release",  NULL },
   { CMDSOCK_AUTHORIZE,     "authorize",     NULL },
   { CMDSOCK_DHCP_RELEASE,  "logout",        NULL },
   { CMDSOCK_DHCP_RELEASE,  "logoff",        NULL },
+  { CMDSOCK_DHCP_DROP,     "drop",          NULL },
+  { CMDSOCK_DHCP_DROP,     "block",         NULL },
   { 0, NULL, NULL }
 };
 
@@ -85,44 +88,55 @@ int main(int argc, char **argv) {
   for (s = 0; commands[s].command; s++) {
     if (!strcmp(cmd, commands[s].command)) {
       request.type = commands[s].type;
-      switch(commands[s].type) {
+      switch(request.type) {
       case CMDSOCK_AUTHORIZE:
 	{
 	  struct arguments {
 	    char *name;
-	    int type;    /* 0=string, 1=long, 2=short, 3=ip */
+	    int type;    /* 0=string, 1=integer, 2=ip */
 	    int length;
 	    void *field;
 	    char *desc;
+	    char *flag;
+	    char flagbit;
 	  } args[] = {
-	    { "ip", 3, 
+	    { "ip", 2, 
 	      sizeof(request.data.sess.ip),
 	      &request.data.sess.ip,
-	      "IP of client to authorize" },
+	      "IP of client to authorize",0,0 },
 	    { "sessionid", 0, 
 	      sizeof(request.data.sess.sessionid),
 	      request.data.sess.sessionid,
-	      "Session-id to authorize" },
+	      "Session-id to authorize",0,0 },
 	    { "username", 0, 
 	      sizeof(request.data.sess.username),
 	      request.data.sess.username,
-	      "Username to use in RADIUS Accounting" },
+	      "Username to use in RADIUS Accounting",0,0 },
 	    { "sessiontimeout", 1, 
 	      sizeof(request.data.sess.params.sessiontimeout),
 	      &request.data.sess.params.sessiontimeout,
-	      "Max session time (in seconds)" },
+	      "Max session time (in seconds)",0,0 },
 	    { "maxoctets", 1, 
 	      sizeof(request.data.sess.params.maxtotaloctets),
 	      &request.data.sess.params.maxtotaloctets,
-	      "Max up/down octets (bytes)" },
+	      "Max up/down octets (bytes)",0,0 },
 	    { "maxbwup", 1, 
 	      sizeof(request.data.sess.params.bandwidthmaxup),
 	      &request.data.sess.params.bandwidthmaxup,
-	      "Max bandwidth up" },
+	      "Max bandwidth up",0,0 },
 	    { "maxbwdown", 1, 
 	      sizeof(request.data.sess.params.bandwidthmaxdown),
 	      &request.data.sess.params.bandwidthmaxdown,
-	      "Max bandwidth down" },
+	      "Max bandwidth down",0,0 },
+	    { "splash", 0, 
+	      sizeof(request.data.sess.params.url),
+	      &request.data.sess.params.url,
+	      "Set splash page",
+	      &request.data.sess.params.flags, REQUIRE_UAM_SPLASH },
+	    { "routeidx", 1, 
+	      sizeof(request.data.sess.params.routeidx),
+	      &request.data.sess.params.routeidx,
+	      "Route interface index",  0, 0 },
 	    /* more... */
 	  };
 	  int count = sizeof(args)/sizeof(struct arguments);
@@ -140,17 +154,28 @@ int main(int argc, char **argv) {
 		  return usage(argv[0]);
 		}
 	  
+		if (args[i].flag) {
+		  *(args[i].flag) |=args[i].flagbit;
+		}
+
 		switch(args[i].type) {
 		case 0:
 		  strncpy(((char *)args[i].field), argv[pos+1], args[i].length-1);
 		  break;
 		case 1:
-		  *((unsigned long *)args[i].field) = atoi(argv[pos+1]);
+		  switch(args[i].length) {
+		  case 1:
+		    *((uint8_t *)args[i].field) = (uint8_t)atoi(argv[pos+1]);
+		    break;
+		  case 2:
+		    *((uint16_t *)args[i].field) = (uint16_t)atoi(argv[pos+1]);
+		    break;
+		  case 4:
+		    *((uint32_t *)args[i].field) = (uint32_t)atoi(argv[pos+1]);
+		    break;
+		  }
 		  break;
 		case 2:
-		  *((unsigned short *)args[i].field) = atoi(argv[pos+1]);
-		  break;
-		case 3:
 		  if (!inet_aton(argv[pos+1], ((struct in_addr *)args[i].field))) {
 		    fprintf(stderr, "Invalid IP Address: %s\n", argv[pos+1]);
 		    return usage(argv[0]);
@@ -182,6 +207,7 @@ int main(int argc, char **argv) {
 	  }
 	}
 	break;
+      case CMDSOCK_DHCP_DROP:
       case CMDSOCK_DHCP_RELEASE:
 	{
 	  unsigned int temp[PKT_ETH_ALEN];
@@ -215,6 +241,48 @@ int main(int argc, char **argv) {
 
 	  for (i = 0; i < PKT_ETH_ALEN; i++) 
 	    request.data.mac[i] = temp[i];
+
+	  /* do another switch to pick up param configs for authorize */
+	}
+	break;
+      case CMDSOCK_ROUTE:
+	{
+	  unsigned int temp[PKT_ETH_ALEN];
+	  char macstr[RADIUS_ATTR_VLEN];
+	  int macstrlen;
+	  int routeidx;
+	  int i;
+
+	  if (argc < argidx + 2) {
+	    break;
+	  }
+	  
+	  if ((macstrlen = strlen(argv[argidx])) >= (RADIUS_ATTR_VLEN-1)) {
+	    fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
+	    break;
+	  }
+
+	  memcpy(macstr, argv[argidx], macstrlen);
+	  macstr[macstrlen] = 0;
+
+	  for (i=0; i<macstrlen; i++) 
+	    if (!isxdigit(macstr[i])) 
+	      macstr[i] = 0x20;
+
+	  if (sscanf(macstr, "%2x %2x %2x %2x %2x %2x", 
+		     &temp[0], &temp[1], &temp[2], 
+		     &temp[3], &temp[4], &temp[5]) != 6) {
+	    fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
+	    break;
+	  }
+
+	  for (i = 0; i < PKT_ETH_ALEN; i++) 
+	    request.data.mac[i] = temp[i];
+
+	  argidx++;
+	  request.data.sess.params.routeidx = atoi(argv[argidx]);
+
+	  request.type = CMDSOCK_ROUTE_SET;
 
 	  /* do another switch to pick up param configs for authorize */
 	}

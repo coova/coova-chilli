@@ -302,5 +302,6 @@ struct eapol_tag_t {
   uint8_t v[EAPOL_TAG_VLEN];
 } __attribute__((packed));
 
+int chksum(struct pkt_iphdr_t *iph);
 
 #endif

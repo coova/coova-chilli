@@ -70,6 +70,10 @@ option "proxysecret"   - "Radius proxy shared secret"    string no
 # DHCP parameters
 option "dhcpif"      - "Local Ethernet interface"    string no
 option "dhcpmac"     - "Interface MAC address"       string no
+option "dhcpradius"  - "Map certain DHCP options to RADIUS attributes" flag off
+option "dhcpgateway" - "DHCP gateway addresss for relay" string no
+option "dhcpgatewayport" - "DHCP gateway port for relay" int default="67" no
+option "dhcprelayagent" - "DHCP relay agent IP addresss (default uamlisten)" string no
 option "lease"       - "Lease time to allocate to clients" int default="600" no
 
 
@@ -100,6 +104,7 @@ option "definteriminterval" - "Default interim-interval for accounting if not re
 
 # MAC authentication
 option "macauth"     - "Authenticate based on MAC address" flag   off
+option "macauthdeny" - "Deny access (even UAM) to MAC addresses given Access-Reject" flag   off
 option "macallowed"  - "List of allowed MAC addresses" string no multiple
 option "macsuffix"   - "Suffix to add to the MAC address" string no
 option "macpasswd"   - "Password used when performing MAC authentication" string no
@@ -137,3 +142,4 @@ option "acctupdate"    - "Allow updating of session attributes in Accounting-Res
 option "dnsparanoia"   - "Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX records (to prevent dns tunnels)" flag off
 
 option "usetap"        - "Use a TAP instead of TUN (linux only)" flag   off
+option "routeif"       - "Interface to use as default route; turns on 'manual' routing" string no

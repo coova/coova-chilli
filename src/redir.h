@@ -31,6 +31,7 @@
 #define REDIR_ABORT           5
 #define REDIR_ABOUT           6
 #define REDIR_STATUS          7
+#define REDIR_SPLASH          8
 #define REDIR_WWW            20
 #define REDIR_MSDOWNLOAD     25
 #define REDIR_ADMIN_CONN     30
@@ -87,8 +88,8 @@ struct redir_conn_t {
   /*
    *  Chilli Session parameters and status
    */
-  struct session_params params;
-  struct session_state state;
+  struct session_params s_params;
+  struct session_state s_state;
 };
 
 struct redir_t {

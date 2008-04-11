@@ -27,6 +27,7 @@
 #define NT_KEYSIZE    16
 
 
+#define DNPROT_NULL       1
 #define DNPROT_DHCP_NONE  2
 #define DNPROT_UAM        3
 #define DNPROT_WPA        4
@@ -55,8 +56,17 @@ struct app_conn_t {
   void *dnlink;                  /* Downlink network interface (Wireless) */
   int dnprot;                    /* Downlink protocol */
 
-  struct session_params params;        /* Session parameters */
-  struct session_state state;          /* Session state */
+#if(0)
+#define s_params  params[0]
+#define ss_params params[1]
+#define s_state   state[0]
+#define ss_state  state[1]
+  struct session_params params[2];        /* Session parameters */
+  struct session_state  state[2];         /* Session state */
+  char has_subsession;
+#endif
+  struct session_params s_params;         /* Session parameters */
+  struct session_state  s_state;          /* Session state */
 
   /* Radius authentication stuff */
   /* Parameters are initialised whenever a reply to an access request

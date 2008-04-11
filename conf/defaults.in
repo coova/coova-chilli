@@ -51,7 +51,7 @@ HS_UAMSERVER=coova.org
 #   Shell variable replacement takes place when evaluated, so here
 #   HS_UAMSERVER is escaped and later replaced by the pre-defined 
 #   HS_UAMSERVER to form the actual "--uamserver" option in chilli.
-HS_UAMFORMAT=http://\$HS_UAMSERVER/uam/
+HS_UAMFORMAT=https://\$HS_UAMSERVER/app/uam/chilli
 
 #   Same principal goes for HS_UAMHOMEPAGE.
 HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
@@ -60,7 +60,7 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 #   as provide "uamService" to the ChilliController. The UAM Service is
 #   described in: http://coova.org/wiki/index.php/CoovaChilli/UAMService
 #
-# HS_UAMSERVICE=https://coova.org/app/uam/auth
+HS_UAMSERVICE=https://coova.org/app/uam/auth
 
 
 ###
@@ -71,6 +71,8 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 # HS_ANYIP=on		   # Allow any IP address on subscriber LAN
 #
 # HS_MACAUTH=on		   # To turn on MAC Authentication
+#
+# HS_MACAUTHDENY=on	   # Put client in 'drop' state on MAC Auth Access-Reject
 #
 # HS_MACAUTHMODE=local	   # To allow MAC Authentication based on macallowed, not RADIUS
 #

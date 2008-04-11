@@ -32,7 +32,6 @@ int session_redir_json_fmt(bstring json, char *userurl, char *redirurl, uint8_t 
   return 0;
 }
 
-
 int session_json_fmt(struct session_state *state, 
 		     struct session_params *params,
 		     bstring json, int init) {

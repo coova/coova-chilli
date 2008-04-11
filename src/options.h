@@ -80,13 +80,18 @@ struct options_t {
   int postauth_proxyport;           /* TCP port to proxy to */
 
   /* DHCP parameters */
-  char* dhcpif;                 /* Interface: eth0 */
+  char *dhcpif;                 /* Interface: eth1 */
+  char *routeif;                /* Interface: eth0 (optional) */
   unsigned char dhcpmac[PKT_ETH_ALEN]; /* Interface MAC address */
   int dhcpusemac;                /* Use given MAC or interface default */
   struct in_addr dhcplisten;     /* IP address to listen to */
   int lease;                     /* DHCP lease time */
   int dhcpstart;
   int dhcpend;
+
+  struct in_addr dhcprelayip;    /* IP address of DHCP relay header (default to uamlisten) */
+  struct in_addr dhcpgwip;       /* IP address of DHCP gateway to relay to */
+  uint16_t dhcpgwport;           /* Port of DHCP gateway to relay to */
 
 
   /* UAM parameters */
@@ -122,8 +127,10 @@ struct options_t {
   uint8_t wpaguests:1;              /* Allow WPS "Guest" access */
   uint8_t openidauth:1;             /* Allow OpenID authentication */
   uint8_t macauth:1;                /* Use MAC authentication */
+  uint8_t macauthdeny:1;            /* Deny any access to those given Access-Reject */
   uint8_t macallowlocal:1;          /* Do not use RADIUS for authenticating the macallowed */
   uint8_t radiusoriginalurl:1;      /* Send ChilliSpot-OriginalURL in AccessRequest */
+  uint8_t dhcpradius:1;             /* Send certain DHCP options in RADIUS attributes */
   /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];

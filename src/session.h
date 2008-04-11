@@ -22,6 +22,7 @@ struct session_params {
   uint8_t url[REDIR_USERURLSIZE];
   uint8_t filteridbuf[256];
   uint8_t filteridlen;
+  uint8_t routeidx;
   uint32_t bandwidthmaxup;
   uint32_t bandwidthmaxdown;
   uint64_t maxinputoctets;
@@ -31,8 +32,12 @@ struct session_params {
   uint32_t idletimeout;
   uint16_t interim_interval;     /* Seconds. 0 = No interim accounting */
   time_t sessionterminatetime;
-  char require_uam_auth;
-  char require_redirect;
+
+#define REQUIRE_UAM_AUTH   (1<<0)
+#define REQUIRE_UAM_SPLASH (1<<1)
+#define REQUIRE_REDIRECT   (1<<2)
+#define IS_UAM_REAUTH      (1<<3)
+  uint8_t flags;
 
   pass_through pass_throughs[SESSION_PASS_THROUGH_MAX];
   uint32_t pass_through_count;

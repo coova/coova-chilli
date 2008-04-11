@@ -366,7 +366,6 @@ radius_cmptv(struct timeval *tv1, struct timeval *tv2)
 	   (int) tv2->tv_sec, (int) tv2->tv_usec);
   }
   
-
   /* First take the difference with |usec| < 1000000 */
   diff.tv_sec = (tv1->tv_usec  - tv2->tv_usec) / 1000000 +
                 (tv1->tv_sec   - tv2->tv_sec);
@@ -468,15 +467,14 @@ int radius_timeout(struct radius_t *this) {
   struct radius_packet_t pack_req;
   void *cbp;
 
-  /*printf("Retrans: New beginning %d\n", (int) now);*/
-
   gettimeofday(&now, NULL);
 
+#if(1)
   if (this->debug) {
-    printf("radius_timeout %8d %8d\n", 
-	   (int) now.tv_sec, (int) now.tv_usec);
+    log_dbg("radius_timeout %8d %8d", (int)now.tv_sec, (int)now.tv_usec);
     radius_printqueue(this);
   }
+#endif
 
   while ((this->first!=-1) && 
 	 (radius_cmptv(&now, &this->queue[this->first].timeout) >= 0)) {
@@ -520,6 +518,7 @@ int radius_timeout(struct radius_t *this) {
 	radius_queue_reschedule(this, this->first);
 	return -1;
       }
+
       radius_queue_reschedule(this, this->first);
     }
     else { /* Finished retrans */
@@ -1662,12 +1661,12 @@ int chilliauth_radius(struct radius_t *radius) {
 		   strlen(options.radiuslocationname));
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*)admin_session.state.sessionid, REDIR_SESSIONID_LEN-1);
+		 (uint8_t*)admin_session.s_state.sessionid, REDIR_SESSIONID_LEN-1);
 
-  if (admin_session.state.redir.classlen) {
+  if (admin_session.s_state.redir.classlen) {
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
-		   admin_session.state.redir.classbuf,
-		   admin_session.state.redir.classlen);
+		   admin_session.s_state.redir.classbuf,
+		   admin_session.s_state.redir.classlen);
   }
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 

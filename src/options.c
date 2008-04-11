@@ -247,6 +247,7 @@ int process_options(int argc, char **argv, int minimal) {
   options.logfacility = args_info.logfacility_arg;
   options.chillixml = args_info.chillixml_flag;
   options.macauth = args_info.macauth_flag;
+  options.macauthdeny = args_info.macauthdeny_flag;
   options.uamport = args_info.uamport_arg;
   options.uamuiport = args_info.uamuiport_arg;
   options.macallowlocal = args_info.macallowlocal_flag;
@@ -272,6 +273,20 @@ int process_options(int argc, char **argv, int minimal) {
   options.postauth_proxyport = args_info.postauthproxyport_arg;
   options.pap_always_ok = args_info.papalwaysok_flag;
   options.acct_update = args_info.acctupdate_flag;
+  options.dhcpradius = args_info.dhcpradius_flag;
+  options.dhcpgwport = args_info.dhcpgatewayport_arg;
+
+  if (args_info.dhcpgateway_arg &&
+      !inet_aton(args_info.dhcpgateway_arg, &options.dhcpgwip)) {
+    log_err(0, "Invalid DHCP gateway IP address: %s!", args_info.dhcpgateway_arg);
+    goto end_processing;
+  }
+
+  if (args_info.dhcprelayagent_arg &&
+      !inet_aton(args_info.dhcprelayagent_arg, &options.dhcprelayip)) {
+    log_err(0, "Invalid DHCP gateway relay IP address: %s!", args_info.dhcprelayagent_arg);
+    goto end_processing;
+  }
 
   if (!reconfiguring) {
     options.dhcpif = STRDUP(args_info.dhcpif_arg);
@@ -465,7 +480,7 @@ int process_options(int argc, char **argv, int minimal) {
       }
     }
     
-    /* statip                                                        */
+    /* statip */
     if (args_info.statip_arg) {
       struct in_addr addr;
       struct in_addr mask;
@@ -683,6 +698,9 @@ int process_options(int argc, char **argv, int minimal) {
   }
 
   /** string parameters **/
+  if (options.routeif) free(options.routeif);
+  options.routeif = STRDUP(args_info.routeif_arg);
+
   if (options.wwwdir) free(options.wwwdir);
   options.wwwdir = STRDUP(args_info.wwwdir_arg);
 

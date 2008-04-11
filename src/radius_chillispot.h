@@ -24,5 +24,18 @@
 #define RADIUS_ATTR_CHILLISPOT_LANG                       7 /* string */
 #define RADIUS_ATTR_CHILLISPOT_VERSION                    8 /* string */
 #define RADIUS_ATTR_CHILLISPOT_ORIGINALURL                9 /* string */
+#define RADIUS_ATTR_CHILLISPOT_ACCT_VIEW_POINT           10 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_REQUIRE_UAM               11 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_REQUIRE_SPLASH            12 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_ROUTE_TO_INTERFACE        13 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_VENDOR_CLASS_ID      50 /* string */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_ID            51 /* string */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_OPTION               52 /* string */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_FILENAME             53 /* string */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_HOSTNAME             54 /* string */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_SERVER_NAME          55 /* string */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_FQDN          56 /* string */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_PARAMETER_REQUEST_LIST 57 /* string */
+
 
 #endif	/* !_RADIUS_CHILLISPOT_H */

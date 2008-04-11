@@ -178,6 +178,19 @@
 # define BIG_ENDIAN 0
 #endif
 
+#include <unistd.h>
+#include <errno.h>
+
+#ifndef TEMP_FAILURE_RETRY
+#define TEMP_FAILURE_RETRY(expression) \
+    ({ \
+        long int _result; \
+        do _result = (long int) (expression); \
+        while (_result == -1L && errno == EINTR); \
+        _result; \
+    })
+#endif
+
 #include "bstrlib.h"
 
 #endif

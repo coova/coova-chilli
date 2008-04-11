@@ -275,7 +275,7 @@ int ippool_new(struct ippool_t **this,
     (*this)->member[i].next = NULL; /* Redundant */
   }
   
-  if (options.debug) ippool_printaddr(*this);
+  if (0) ippool_printaddr(*this);
   return 0;
 }
 
