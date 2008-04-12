@@ -480,7 +480,7 @@ BIOCVERSION Return the version of BPF
 BIOCSHDRCMPLT BIOCGHDRCMPLT Set flag of wheather to fill in MAC address
 BIOCSSEESENT BIOCGSEESENT Return locally generated packets */
 
-int net_open_eth(network_interface *netif) {
+int net_open_eth(net_interface *netif) {
   char devname[IFNAMSIZ+5]; /* "/dev/" + ifname */
   int devnum;
   struct ifreq ifr;
@@ -532,7 +532,7 @@ int net_open_eth(network_interface *netif) {
   }
   
   if (netif->hwaddr[0] & 0x01) {
-    log_err(0, "Ethernet has broadcast or multicast address: %.16s", ifname);
+    log_err(0, "Ethernet has broadcast or multicast address: %.16s", netif->devname);
     return -1;
   }
 

@@ -88,6 +88,7 @@ int tun_discover(struct tun_t *this) {
 
 
     /* hardware address */
+#ifdef SIOCGIFHWADDR
     if (-1 < ioctl(fd, SIOCGIFHWADDR, (caddr_t)ifr)) {
       switch (ifr->ifr_hwaddr.sa_family) {
       case  ARPHRD_NETROM:  
@@ -106,6 +107,20 @@ int tun_discover(struct tun_t *this) {
 	break;
       }
     } else log_err(errno, "ioctl(SIOCGIFHWADDR)");
+#else
+#ifdef SIOCGENADDR
+    if (-1 < ioctl(fd, SIOCGENADDR, (caddr_t)ifr)) {
+      unsigned char *u = (unsigned char *)&ifr->ifr_enaddr;
+
+      memcpy(netif.hwaddr, u, 6);
+
+      log_dbg("\tHW Address:\t%2.2X-%2.2X-%2.2X-%2.2X-%2.2X-%2.2x",
+		  u[0], u[1], u[2], u[3], u[4], u[5]);
+    } else log_err(errno, "ioctl(SIOCGENADDR)");
+#else
+#warning Don't know how to find interface hardware address
+#endif /* SIOCGENADDR */
+#endif /* SIOCGIFHWADDR */
 
 
     /* flags */
