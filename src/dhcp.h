@@ -257,9 +257,9 @@ void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause);
 #define LIST_LONG_FMT  1
 #define LIST_JSON_FMT  2
 
-void dhcp_list(struct dhcp_t *this, int sock, int listfmt);
+void dhcp_list(struct dhcp_t *this, bstring s, bstring pre, bstring post, int listfmt);
 
-void dhcp_print(struct dhcp_t *this, int sock, int listfmt, struct dhcp_conn_t *conn);
+void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t *conn);
 
 int dhcp_filterDNS(struct dhcp_conn_t *conn, 
 		   struct pkt_ippacket_t *pack, 

@@ -34,15 +34,15 @@ int pass_through_add(pass_through *ptlist, size_t ptlen, size_t *ptcnt, pass_thr
   for (i=0; i < cnt; i++) {
     if (!memcmp(&ptlist[i],pt,sizeof(pass_through))) {
       if (options.debug) 
-	log_dbg("Uamallowed already exists #%d:%d: proto=%d host=%s port=%d", i, ptlen,
-		pt->proto, inet_ntoa(pt->host), pt->port);
+	log_info("Uamallowed already exists #%d:%d: proto=%d host=%s port=%d", i, ptlen,
+		 pt->proto, inet_ntoa(pt->host), pt->port);
       return 0;
     }
   }
 
   if (options.debug) 
-    log_dbg("Uamallowed IP address #%d:%d: proto=%d host=%s port=%d", cnt, ptlen,
-	    pt->proto, inet_ntoa(pt->host), pt->port);
+    log_info("Uamallowed IP address #%d:%d: proto=%d host=%s port=%d", cnt, ptlen,
+	     pt->proto, inet_ntoa(pt->host), pt->port);
 
   memcpy(&ptlist[cnt], pt, sizeof(pass_through));
   *ptcnt = cnt + 1;

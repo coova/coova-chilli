@@ -46,23 +46,24 @@ char *dhcp_state2name(int authstate) {
   }
 }
 
-void dhcp_list(struct dhcp_t *this, int sock, int listfmt) {
+void dhcp_list(struct dhcp_t *this, bstring s, bstring pre, bstring post, int listfmt) {
   struct dhcp_conn_t *conn = this->firstusedconn;
   if (listfmt == LIST_JSON_FMT) {
-    char *s = "{ \"sessions\":[";
-    write(sock,s,strlen(s));
+    bcatcstr(s, "{ \"sessions\":[");
   }
   while (conn) {
-    dhcp_print(this, sock, listfmt, conn);
+    if (pre) bconcat(s, pre);
+    dhcp_print(this, s, listfmt, conn);
+    if (post) bconcat(s, post);
+    else if (listfmt != LIST_JSON_FMT) bcatcstr(s,"\n");
     conn = conn->next;
   }
   if (listfmt == LIST_JSON_FMT) {
-    char *s = "]}";
-    write(sock,s,strlen(s));
+    bcatcstr(s, "]}");
   }
 }
 
-void dhcp_print(struct dhcp_t *this, int sock, int listfmt, struct dhcp_conn_t *conn) {
+void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t *conn) {
   struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
   bstring b = bfromcstr("");
   bstring tmp = bfromcstr("");
@@ -110,7 +111,7 @@ void dhcp_print(struct dhcp_t *this, int sock, int listfmt, struct dhcp_conn_t *
     else
       bcatcstr(b, "\n");
 
-    write(sock, b->data, b->slen);
+    bconcat(s, b);
   }
 
   bdestroy(b);
@@ -873,8 +874,10 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
     if (options.dnsparanoia) {
       if (_filterDNSreq(conn, pack, len)) 
 	return 0;
-      else
+      else /* drop */
 	return -1;
+    } else { /* allow */
+      return 0;
     }
   }
 
@@ -896,6 +899,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
   /* Was it a request for a pass-through entry? */
   if (check_garden(options.pass_throughs, options.num_pass_throughs, pack, 1))
     return 0;
+  /* Check uamdomain driven walled garden */
   if (check_garden(this->pass_throughs, this->num_pass_throughs, pack, 1))
     return 0;
 

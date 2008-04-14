@@ -62,7 +62,7 @@ option "coanoipcheck"       - "Allow radius disconnect from any IP" flag   off
 
 # Radius proxy parameters
 option "proxylisten"   - "IP address to listen to"       string no
-option "proxyport"     - "UDP port to listen to"         int default="0" no
+option "proxyport"     - "UDP port to listen to"         int default="1812" no
 option "proxyclient"   - "IP address of proxy client(s)" string no
 option "proxysecret"   - "Radius proxy shared secret"    string no
 

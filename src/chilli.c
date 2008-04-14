@@ -3104,6 +3104,7 @@ static int cmdsock_accept(int sock) {
   struct sockaddr_un remote; 
   struct cmdsock_request req;
 
+  bstring s = 0;
   size_t len;
   int csock;
   int rval = 0;
@@ -3126,20 +3127,24 @@ static int cmdsock_accept(int sock) {
   switch(req.type) {
 
   case CMDSOCK_DHCP_LIST:
-    if (dhcp) dhcp_list(dhcp, csock, 
+    s = bfromcstr("");
+    if (dhcp) dhcp_list(dhcp, s, 0, 0,
 			req.options & CMDSOCK_OPT_JSON ? 
 			LIST_JSON_FMT : LIST_SHORT_FMT);
+    write(csock, s->data, s->slen);
     break;
-
+    
   case CMDSOCK_DHCP_DROP:
   case CMDSOCK_DHCP_RELEASE:
     if (dhcp) dhcp_release_mac(dhcp, req.data.mac, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
     break;
 
   case CMDSOCK_LIST:
-    if (dhcp) dhcp_list(dhcp, csock, 
+    s = bfromcstr("");
+    if (dhcp) dhcp_list(dhcp, csock, 0, 0,
 			req.options & CMDSOCK_OPT_JSON ? 
 			LIST_JSON_FMT : LIST_LONG_FMT);
+    write(csock, s->data, s->slen);
     break;
 
   case CMDSOCK_SHOW:
@@ -3223,6 +3228,7 @@ static int cmdsock_accept(int sock) {
     rval = -1;
   }
 
+  if (s) bdestroy(s);
   shutdown(csock, 2);
   close(csock);
 
