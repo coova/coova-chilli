@@ -3141,7 +3141,7 @@ static int cmdsock_accept(int sock) {
 
   case CMDSOCK_LIST:
     s = bfromcstr("");
-    if (dhcp) dhcp_list(dhcp, csock, 0, 0,
+    if (dhcp) dhcp_list(dhcp, s, 0, 0,
 			req.options & CMDSOCK_OPT_JSON ? 
 			LIST_JSON_FMT : LIST_LONG_FMT);
     write(csock, s->data, s->slen);
