@@ -217,6 +217,7 @@ struct radius_t {
   unsigned char nas_hwaddr[6];   /* Hardware address of NAS */
 
   int debug;                     /* Print debug messages */
+
   struct radius_queue_t queue[RADIUS_QUEUESIZE]; /* Outstanding replies */
   uint8_t next;                  /* Next location in queue to use */
   int first;                     /* First packet in queue (oldest timeout) */

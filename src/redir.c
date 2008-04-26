@@ -670,7 +670,7 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
 #define FLG_redir 16
 
   int state = conn->s_state.authenticated;
-  int splash = !!(conn->s_params.flags & REQUIRE_UAM_SPLASH);
+  int splash = (conn->s_params.flags & REQUIRE_UAM_SPLASH) == REQUIRE_UAM_SPLASH;
 
   redir_getparam(redir, qs, "callback", tmp);
 
@@ -1996,7 +1996,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   /* get_state returns 0 for unauth'ed and 1 for auth'ed */
   state = redir->cb_getstate(redir, &address->sin_addr, &conn);
-  splash = !!(conn.s_params.flags & REQUIRE_UAM_SPLASH);
+  if (state == -1) {
+    redir_close(infd, outfd); 
+  }
+
+  splash = (conn.s_params.flags & REQUIRE_UAM_SPLASH) == REQUIRE_UAM_SPLASH;
 
 
   /*

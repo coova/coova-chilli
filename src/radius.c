@@ -2,7 +2,7 @@
  *
  * Radius client functions.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (c) 2006-2007 David Bird <david@coova.com>
+ * Copyright (c) 2006-2008 David Bird <david@coova.com>
  * 
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -300,6 +300,12 @@ int radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
 int radius_queue_reschedule(struct radius_t *this, int id) {
   struct timeval *tv;
 
+  /* sanity check */
+  if (id < 0 || id >= RADIUS_QUEUESIZE) {
+    log_err(0, "bad id (%d)", id);
+    return -1;
+  }
+
   if (this->debug) 
     log_dbg("radius_queue_reschedule");
 
@@ -337,6 +343,7 @@ int radius_queue_reschedule(struct radius_t *this, int id) {
 
   if (this->last != -1)
     this->queue[this->last].next=id; /* If not empty: link previous to us */
+
   this->last = id;                   /* End of queue */
 
   if (this->first == -1)
@@ -476,8 +483,8 @@ int radius_timeout(struct radius_t *this) {
   }
 #endif
 
-  while ((this->first!=-1) && 
-	 (radius_cmptv(&now, &this->queue[this->first].timeout) >= 0)) {
+  while (this->first != -1 && 
+	 radius_cmptv(&now, &this->queue[this->first].timeout) >= 0) {
     
     if (this->queue[this->first].retrans < options.radiusretry) {
       memset(&addr, 0, sizeof(addr));

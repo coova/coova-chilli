@@ -426,22 +426,15 @@ int static dnprot_terminate(struct app_conn_t *appconn) {
   switch (appconn->dnprot) {
   case DNPROT_WPA:
   case DNPROT_EAPOL:
-    if (!appconn->dnlink) {
-      log_err(0, "No downlink protocol");
-      return 0;
-    }
-    ((struct dhcp_conn_t*) appconn->dnlink)->authstate = DHCP_AUTH_NONE;
+    if (appconn->dnlink)
+      ((struct dhcp_conn_t*) appconn->dnlink)->authstate = DHCP_AUTH_NONE;
     return 0;
   case DNPROT_MAC:
   case DNPROT_UAM:
-    if (!appconn->dnlink) {
-      log_err(0, "No downlink protocol");
-      return 0;
-    }
-    ((struct dhcp_conn_t*) appconn->dnlink)->authstate = DHCP_AUTH_DNAT;
-    return 0;
   case DNPROT_DHCP_NONE:
   case DNPROT_NULL:
+    if (appconn->dnlink)
+      ((struct dhcp_conn_t*) appconn->dnlink)->authstate = DHCP_AUTH_DNAT;
     return 0;
   default: 
     log_err(0, "Unknown downlink protocol"); 
@@ -544,14 +537,9 @@ int static checkconn()
 int static killconn()
 {
   struct app_conn_t *conn;
-  struct dhcp_conn_t* dhcpconn;
 
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->s_state.authenticated == 1)) {
-      if (!(dhcpconn = (struct dhcp_conn_t *)conn->dnlink)) {
-	log_err(0, "No downlink protocol");
-	return -1;
-      }
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_NAS_REBOOT);
     }
   }
@@ -568,12 +556,12 @@ int static killconn()
 
 /* Compare a MAC address to the addresses given in the macallowed option */
 int static maccmp(unsigned char *mac) {
-  int i;
-  for (i=0; i<options.macoklen; i++) {
-    if (!memcmp(mac, options.macok[i], PKT_ETH_ALEN)) {
+  int i; 
+
+  for (i=0; i<options.macoklen; i++)
+    if (!memcmp(mac, options.macok[i], PKT_ETH_ALEN))
       return 0;
-    }
-  }
+
   return -1;
 }
 
@@ -655,12 +643,15 @@ int static macauth_radius(struct app_conn_t *appconn,
     if (!dhcp_gettag(&dhcp_pkt->dhcp, ntohs(dhcp_pkt->udph.len)-PKT_UDP_HLEN, &tag, OPT)) { \
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC, \
 		     RADIUS_VENDOR_CHILLISPOT, VSA, 0, (uint8_t *) tag->v, tag->l); } 
-
-    maptag(DHCP_OPTION_PARAMETER_REQUEST_LIST, RADIUS_ATTR_CHILLISPOT_DHCP_PARAMETER_REQUEST_LIST);
-    maptag(DHCP_OPTION_VENDOR_CLASS_IDENTIFIER, RADIUS_ATTR_CHILLISPOT_DHCP_VENDOR_CLASS_ID);
-    maptag(DHCP_OPTION_CLIENT_IDENTIFIER, RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_ID);
-    maptag(DHCP_OPTION_CLIENT_FQDN, RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_FQDN);
-    maptag(DHCP_OPTION_HOSTNAME, RADIUS_ATTR_CHILLISPOT_DHCP_HOSTNAME);
+    /*
+     *  Mapping of DHCP options to RADIUS Vendor Specific Attributes
+     */
+    maptag( DHCP_OPTION_PARAMETER_REQUEST_LIST,  RADIUS_ATTR_CHILLISPOT_DHCP_PARAMETER_REQUEST_LIST );
+    maptag( DHCP_OPTION_VENDOR_CLASS_IDENTIFIER, RADIUS_ATTR_CHILLISPOT_DHCP_VENDOR_CLASS_ID );
+    maptag( DHCP_OPTION_CLIENT_IDENTIFIER,       RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_ID );
+    maptag( DHCP_OPTION_CLIENT_FQDN,             RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_FQDN );
+    maptag( DHCP_OPTION_HOSTNAME,                RADIUS_ATTR_CHILLISPOT_DHCP_HOSTNAME );
+#undef maptag
   }
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
@@ -1365,6 +1356,7 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
 
   /* reset state */
   appconn->uamexit=0;
+
   return conn->s_state.authenticated == 1;
 }
 
@@ -2646,7 +2638,9 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 		 &options.dns1, &options.dns2, 
 		 options.domain);
 
-  conn->authstate = DHCP_AUTH_DNAT;
+  /* if not already authenticated, ensure DNAT authstate */
+  if (appconn->s_state.authenticated)
+    conn->authstate = DHCP_AUTH_DNAT;
 
   /* If IP was requested before authentication it was UAM */
   if (appconn->dnprot == DNPROT_DHCP_NONE)

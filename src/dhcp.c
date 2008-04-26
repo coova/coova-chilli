@@ -55,7 +55,6 @@ void dhcp_list(struct dhcp_t *this, bstring s, bstring pre, bstring post, int li
     if (pre) bconcat(s, pre);
     dhcp_print(this, s, listfmt, conn);
     if (post) bconcat(s, post);
-    else if (listfmt != LIST_JSON_FMT) bcatcstr(s,"\n");
     conn = conn->next;
   }
   if (listfmt == LIST_JSON_FMT) {
