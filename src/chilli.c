@@ -2639,7 +2639,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 		 options.domain);
 
   /* if not already authenticated, ensure DNAT authstate */
-  if (appconn->s_state.authenticated)
+  if (!appconn->s_state.authenticated)
     conn->authstate = DHCP_AUTH_DNAT;
 
   /* If IP was requested before authentication it was UAM */
