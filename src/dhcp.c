@@ -2322,6 +2322,13 @@ int dhcp_receive_arp(struct dhcp_t *this,
       return 0; /* Only reply if he asked for his router address */
     }
   }
+  else if ((taraddr.s_addr != options.dhcplisten.s_addr) &&
+          ((taraddr.s_addr & options.mask.s_addr) == options.net.s_addr)) {
+    /* when uamanyip is on we should ignore arp requests that ARE within our subnet except of course the ones for ourselves */
+    if (options.debug)
+      log_dbg("ARP: request for IP=%s other than us within our subnet(uamanyip on), ignoring", inet_ntoa(taraddr));
+    return 0;
+  }
 
   conn->lasttime = mainclock;
 
