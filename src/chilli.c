@@ -49,6 +49,10 @@ static int keep_going = 1;
 /*static int do_timeouts = 1;*/
 static int do_sighup = 0;
 
+/* some IPv4LL/APIPA(rfc 3927) specific stuff for uamanyip */
+struct in_addr ipv4ll_ip;
+struct in_addr ipv4ll_mask;
+
 /* Forward declarations */
 static int acct_req(struct app_conn_t *conn, uint8_t status_type);
 
@@ -2573,6 +2577,16 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     return -1;
   }
 
+  /* if uamanyip is on we have to filter out which ip's are allowed */
+  if (options.uamanyip && addr && addr->s_addr) {
+    if ((addr->s_addr & ipv4ll_mask.s_addr) == ipv4ll_ip.s_addr) {
+      /* clients with an IPv4LL ip normally have no default gw assigned, rendering uamanyip useless
+      They must rather get a proper dynamic ip via dhcp */
+      log_dbg("IPv4LL/APIPA address requested, ignoring");
+      return -1;
+    }
+  }
+
   appconn->reqip.s_addr = addr->s_addr; /* Save for MAC auth later */
 
   /* If IP address is allready allocated: Fill it in */
@@ -2598,6 +2612,11 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     if (options.macallowlocal) {
       upprot_getip(appconn, &appconn->reqip, 0);/**/
       dnprot_accept(appconn);
+      log_info("Granted MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X with IP=%s access without radius auth" ,
+                    conn->hismac[0], conn->hismac[1],
+                    conn->hismac[2], conn->hismac[3],
+                    conn->hismac[4], conn->hismac[5],
+                    inet_ntoa(appconn->hisip));
     } else {
       macauth_radius(appconn, dhcp_pkt, dhcp_len);
     }
@@ -3520,6 +3539,10 @@ int chilli_main(int argc, char **argv) {
     log_err(errno, "setitimer() failed!");
   }
   */
+
+  /* setup IPv4LL/APIPA network ip and mask for uamanyip exception */
+  inet_aton("169.254.0.0", &ipv4ll_ip);
+  inet_aton("255.255.0.0", &ipv4ll_mask);
 
   if (options.debug) 
     log_dbg("Waiting for client request...");
