@@ -3,7 +3,7 @@
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (c) 2007 David Bird <david@coova.com>
+ * Copyright (c) 2007-2008 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -2589,27 +2589,27 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 
   appconn->reqip.s_addr = addr->s_addr; /* Save for MAC auth later */
 
-  /* If IP address is allready allocated: Fill it in */
   if (appconn->uplink) {
 
+    /*
+     *  IP Address is already known and allocated.
+     */
     ipm = (struct ippoolm_t*) appconn->uplink;
-
-  } else if ((options.macauth) && 
-	     (appconn->dnprot == DNPROT_DHCP_NONE)) {
-    
-    appconn->dnprot = DNPROT_MAC;
-
-    macauth_radius(appconn, dhcp_pkt, dhcp_len);
-
-    return -1;
 
   } else if ((options.macoklen) && 
 	     (appconn->dnprot == DNPROT_DHCP_NONE) &&
 	     !maccmp(conn->hismac)) {
     
+    /*
+     *  When using macallowed option, and hismac matches.
+     */
     appconn->dnprot = DNPROT_MAC;
 
     if (options.macallowlocal) {
+
+      /*
+       *  Local MAC allowed list, authenticate without RADIUS.
+       */
       upprot_getip(appconn, &appconn->reqip, 0);/**/
       dnprot_accept(appconn);
       log_info("Granted MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X with IP=%s access without radius auth" ,
@@ -2618,8 +2618,24 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
                     conn->hismac[4], conn->hismac[5],
                     inet_ntoa(appconn->hisip));
     } else {
+
+      /*
+       *  Otherwise, authenticate with RADIUS.
+       */
       macauth_radius(appconn, dhcp_pkt, dhcp_len);
     }
+
+    return -1;
+
+  } else if ((options.macauth) && 
+	     (appconn->dnprot == DNPROT_DHCP_NONE)) {
+    
+    /*
+     *  Using macauth option to authenticate via RADIUS.
+     */
+    appconn->dnprot = DNPROT_MAC;
+
+    macauth_radius(appconn, dhcp_pkt, dhcp_len);
 
     return -1;
 
