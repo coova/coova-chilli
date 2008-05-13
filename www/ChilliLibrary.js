@@ -81,7 +81,7 @@ var chilliLibrary = { revision:'85' , apiVersion:'2.0' } ;
 var chilliController = { interval:30 , host:"192.168.182.1" , port:3990 , ident:'00' , ssl:false , uamService: '' };
 
 /* Define clientState numerical code constants  */
-chilliController.stateCodes = { UNKNOWN:-1 , NOT_AUTH:0 , AUTH:1 , AUTH_PENDING:2 } ;
+chilliController.stateCodes = { UNKNOWN:-1 , NOT_AUTH:0 , AUTH:1 , AUTH_PENDING:2 , AUTH_SPLASH:3 } ;
 
 /* Initializing session and accounting members, objet properties */
 chilliController.session     = {} ;
@@ -375,6 +375,7 @@ chilliController.processReply = function ( resp ) {
 	/* Update clientState */
 	if (  ( resp.clientState === chilliController.stateCodes.NOT_AUTH     ) ||
               ( resp.clientState === chilliController.stateCodes.AUTH         ) ||
+              ( resp.clientState === chilliController.stateCodes.AUTH_SPLASH  ) ||
 	      ( resp.clientState === chilliController.stateCodes.AUTH_PENDING ) ) {
 
 		chilliController.clientState = resp.clientState ;

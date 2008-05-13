@@ -87,19 +87,40 @@ address (gotten from a list command).
 
 .SH EXAMPLES
 
-.I # chilli_query list
+# chilli_query list
 .RE
 00:0D:XX:XX:XX:XX 10.1.0.3 dnat 46c83f70000 0 - 0/0 0/0 http://url.com
 
-.I # chilli_query authorize ip 10.1.0.3 sessiontimeout 60 username N
+# chilli_query authorize ip 10.1.0.3 sessiontimeout 60 username me
 .RE
 
-.I # chilli_query list
+# chilli_query list
 .RE
-00:0D:XX:XX:XX:XX 10.1.0.3 pass 46c83f70000 1 N 2/60 2/0 http://url.com
+00:0D:XX:XX:XX:XX 10.1.0.3 pass 46c83f70000 1 me 2/0 2/0 http://url.com
 
-.I # chilli_query logout 00:0D:XX:XX:XX:XX
+# chilli_query logout 00:0D:XX:XX:XX:XX
 .RE
+
+# chilli_query list | awk \(aq{
+    if ($5 == 1) {
+      print "User " i++
+      print " MAC:             " $1
+      print " IP Address:      " $2 
+      print " Session ID:      " $4 
+      print " User URL:        " $6 
+      print " Duration / Max:  " $7 
+      print " Idle / Max:      " $8 
+    }
+  }\(aq
+.RE
+User 1
+ MAC:             00-11-XX-XX-XX-XX
+ IP Address:      10.1.0.2
+ Session ID:      46fd423c00000001
+ User URL:        http://www.yahoo.com/
+ Duration / Max:  219/0
+ Idle / Max:      3/0
+
 
 .SH FILES
 .I @VARRUN@/chilli.sock

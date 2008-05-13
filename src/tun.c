@@ -118,7 +118,7 @@ int tun_discover(struct tun_t *this) {
 		  u[0], u[1], u[2], u[3], u[4], u[5]);
     } else log_err(errno, "ioctl(SIOCGENADDR)");
 #else
-#warning Don't know how to find interface hardware address
+#warning Do not know how to find interface hardware address
 #endif /* SIOCGENADDR */
 #endif /* SIOCGIFHWADDR */
 
