@@ -2,7 +2,7 @@
 
 # chilli - ChilliSpot.org. A Wireless LAN Access Point Controller
 # Copyright (C) 2003, 2004 Mondru AB.
-# Copyright (C) 2006-2007 David Bird <david@coova.com>
+# Copyright (C) 2006-2008 David Bird <david@coova.com>
 #
 # The contents of this file may be used under the terms of the GNU
 # General Public License Version 2, provided that the above copyright
@@ -25,7 +25,7 @@
 
 # Shared secret used to encrypt challenge with. Prevents dictionary attacks.
 # You should change this to your own shared secret.
-#$uamsecret = "ht2eb8ej6s4et3rg1ulp";
+$uamsecret = "ht2eb8ej6s4et3rg1ulp";
 
 # Uncomment the following line if you want to use ordinary user-password
 # for radius authentication. Must be used together with $uamsecret.
