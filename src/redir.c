@@ -479,7 +479,7 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
 
   if ((conn->s_params.flags & REQUIRE_UAM_SPLASH) && 
       conn->s_params.url[0]) {
-    redir_url = conn->s_params.url;
+    redir_url = (char *)conn->s_params.url;
   }
 
   bassignformat(str, "%s%cres=%s&uamip=%s&uamport=%d", 

@@ -713,7 +713,7 @@ static
 int dhcp_nakDNS(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t len) {
   struct dhcp_t *this = conn->parent;
   struct pkt_udphdr_t *udph = (struct pkt_udphdr_t *)pack->payload;
-  struct dns_packet_t *dnsp = (struct dns_packet_t *)((char*)pack->payload + sizeof(struct pkt_udphdr_t));
+  /*struct dns_packet_t *dnsp = (struct dns_packet_t *)((char*)pack->payload + sizeof(struct pkt_udphdr_t));*/
   struct dns_fullpacket_t answer;
 
   memcpy(&answer, pack, len); 
@@ -1023,7 +1023,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t 
   struct dhcp_t *this = conn->parent;
   struct pkt_tcphdr_t *tcph = (struct pkt_tcphdr_t *)pack->payload;
   struct pkt_udphdr_t *udph = (struct pkt_udphdr_t *)pack->payload;
-  size_t len = *plen;
+  /*size_t len = *plen;*/
   int i;
 
   /* Allow localhost through network... */
