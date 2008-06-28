@@ -304,7 +304,13 @@ int main(int argc, char **argv) {
 
   remote.sun_family = AF_UNIX;
   strcpy(remote.sun_path, cmdsock);
-  len = strlen(remote.sun_path) + sizeof(remote.sun_family);
+
+#if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
+  remote.sun_len = strlen(remote.sun_path) + 1;
+#endif
+
+  len = offsetof(struct sockaddr_un, sun_path) + strlen(remote.sun_path);
+
   if (connect(s, (struct sockaddr *)&remote, len) == -1) {
     perror("connect");
     exit(1);

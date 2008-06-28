@@ -191,6 +191,8 @@
     })
 #endif
 
+#define offsetof(TYPE, MEMBER) ((int)&((TYPE *)0)->MEMBER)
+
 #include "bstrlib.h"
 
 #endif
