@@ -1939,8 +1939,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   msg.mdata.addr = address->sin_addr; \
   memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
-  if (msgsnd(redir->msgid, (struct msgbuf *)&msg, sizeof(msg.mdata), 0) < 0) { \
-    log_err(errno, "msgsnd() failed!"); \
+  if (msgsnd(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0) < 0) { \
+    log_err(errno, "msgsnd() failed! msgid=%d type=%d len=%d", redir->msgid, msg.mtype, sizeof(msg.mdata)); \
     redir_close(infd, outfd); \
   } 
 
