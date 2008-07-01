@@ -576,32 +576,37 @@ dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
   }
 
   if (options.dhcpgwip.s_addr != 0) {
-    int fd;
     struct sockaddr_in addr;
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
     int on = 1;
-
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(68);
     
-    if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ||
-	bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-      log_err(errno, "socket or bind failed for dhcp relay!");
+    if (fd > 0) {
+      memset(&addr, 0, sizeof(addr));
+      addr.sin_family = AF_INET;
+      addr.sin_addr.s_addr = dhcp->uamlisten.s_addr;
+      addr.sin_port = htons(68);
+      
+      if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+	log_err(errno, "Can't set reuse option");
+      }
+      
+      if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+	log_err(errno, "socket or bind failed for dhcp relay!");
+	close(fd);
+	fd = -1;
+      }
+    }
+      
+    if (fd > 0) {
+      dhcp->relayfd = fd;
+    } else {
       close(dhcp->ipif.fd);
       close(dhcp->arpif.fd);
       close(dhcp->eapif.fd);
       free(dhcp->conn);
       free(dhcp);
-      close(fd);
       return -1;
     }
-
-    if (setsockopt(dhcp->relayfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
-      log_err(errno, "Can't set reuse option");
-    }
-
-    dhcp->relayfd = fd;
   }
 
   if (dhcp_hashinit(dhcp, dhcp->numconn))
