@@ -1,6 +1,18 @@
+coova-chilli (1.0.12-2) unstable; urgency=low
+
+   * Fix changelog on Debian builds
+
 coova-chilli (1.0.12-1) unstable; urgency=low
 
-  * Release
+   * Bug fix in RADIUS timeout, note that option radiustimeout is in seconds!
+   * Fix for dnsparanoia whereby chilli will reply with a host not found error instead of dropping the packet suggest by nextime
+   * New option macauthdeny which will result in the black-listing of devices given an Access-Reject during MAC address authentication
+   * New internal state called splash in which clients are given Internet access, but enforcing the port 80 http redirect
+   * new option dhcpradius for mapping of some DHCP options into RADIUS attributes and visa versa during MAC authentication
+   * new options dhcpgateway and dhcpgatewayport to specific a DHCP gateway (relay) host IP Address and port
+   * New option (in development) routeif to specify which WAN interface to use for the default - this also enables the use of internal routing instead of everything defaulting to the tun/tap
+   * Anyip fixes by Gunther, thanks.
+   * Code cleanups 
 
  -- Unixmedia S.r.l. (Medianix Devel) <devel@unixmedia.it>  Sat, 27 Oct 2007 14:07:19 +0200
 
