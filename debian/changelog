@@ -1,7 +1,9 @@
 coova-chilli (1.0.12-2) unstable; urgency=low
 
-   * Fix changelog on Debian builds
+   * Fix debian/changelog on Debian builds (make it buildable by dpkg-buildpackage -rfakeroot) - no changes to code
 
+ -- Per Wilhelmsen <per.wilhelmsen@vcon.no>  Sat, 5 Jul 2008 22:25:00 +0200
+ 
 coova-chilli (1.0.12-1) unstable; urgency=low
 
    * Bug fix in RADIUS timeout, note that option radiustimeout is in seconds!
