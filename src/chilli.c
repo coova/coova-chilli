@@ -2809,9 +2809,10 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
       struct ippoolm_t *member = (struct ippoolm_t *) appconn->uplink;
       if (member->inuse  == 2) {
 	struct in_addr mask;
+	int res;
 	mask.s_addr = 0xffffffff;
-	log_dbg("Removing route: %s %d\n", inet_ntoa(member->addr),
-		net_del_route(&member->addr, &appconn->ourip, &mask));
+	res = net_del_route(&member->addr, &appconn->ourip, &mask);
+	log_dbg("Removing route: %s %d\n", inet_ntoa(member->addr), res);
       }
     }
     if (ippool_freeip(ippool, (struct ippoolm_t *) appconn->uplink)) {

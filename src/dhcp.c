@@ -1813,9 +1813,10 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
       struct ippoolm_t *ipm = (struct ippoolm_t*)appconn->uplink;
       if (ipm && ipm->inuse == 2) {
 	struct in_addr mask;
+	int res;
 	mask.s_addr = 0xffffffff;
-	log_dbg("Adding route for %s %d", inet_ntoa(*hisip), 
-		net_add_route(hisip, ourip, &mask));
+	res = net_add_route(hisip, ourip, &mask);
+	log_dbg("Adding route for %s %d", inet_ntoa(*hisip), res);
       }
     }
   }
