@@ -39,6 +39,7 @@ option "conup"       - "Script to run after user logon"  string no
 option "condown"     - "Script to run after user logoff" string no
 option "txqlen"      - "TX Queue length for tun interface (linux only)"  int default="100" no
 option "tundev"      - "TUN/TAP Device, as in tun0 or tap1" string no
+option "mtu"         - "MTU given in DHCP" int default="1500" no
 
 
 # Radius parameters
@@ -61,8 +62,8 @@ option "coanoipcheck"       - "Allow radius disconnect from any IP" flag   off
 
 
 # Radius proxy parameters
-option "proxylisten"   - "IP address to listen to"       string no
-option "proxyport"     - "UDP port to listen to"         int default="1812" no
+option "proxylisten"   - "Proxy IP address to listen on"       string no
+option "proxyport"     - "Proxy UDP port to listen on (0 is off)" int default="0" no
 option "proxyclient"   - "IP address of proxy client(s)" string no
 option "proxysecret"   - "Radius proxy shared secret"    string no
 

@@ -235,6 +235,7 @@ int process_options(int argc, char **argv, int minimal) {
     options.debug = 0;
 
   /** simple configuration parameters **/
+  options.mtu = args_info.mtu_arg;
   options.usetap = args_info.usetap_flag;
   options.foreground = args_info.fg_flag;
   options.interval = args_info.interval_arg;

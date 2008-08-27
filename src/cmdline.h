@@ -100,6 +100,9 @@ struct gengetopt_args_info
   char * tundev_arg;	/**< @brief TUN/TAP Device, as in tun0 or tap1.  */
   char * tundev_orig;	/**< @brief TUN/TAP Device, as in tun0 or tap1 original value given at command line.  */
   const char *tundev_help; /**< @brief TUN/TAP Device, as in tun0 or tap1 help description.  */
+  int mtu_arg;	/**< @brief MTU given in DHCP (default='1500').  */
+  char * mtu_orig;	/**< @brief MTU given in DHCP original value given at command line.  */
+  const char *mtu_help; /**< @brief MTU given in DHCP help description.  */
   char * radiuslisten_arg;	/**< @brief IP address to send from.  */
   char * radiuslisten_orig;	/**< @brief IP address to send from original value given at command line.  */
   const char *radiuslisten_help; /**< @brief IP address to send from help description.  */
@@ -147,12 +150,12 @@ struct gengetopt_args_info
   const char *coaport_help; /**< @brief Radius disconnect port to listen to help description.  */
   int coanoipcheck_flag;	/**< @brief Allow radius disconnect from any IP (default=off).  */
   const char *coanoipcheck_help; /**< @brief Allow radius disconnect from any IP help description.  */
-  char * proxylisten_arg;	/**< @brief IP address to listen to.  */
-  char * proxylisten_orig;	/**< @brief IP address to listen to original value given at command line.  */
-  const char *proxylisten_help; /**< @brief IP address to listen to help description.  */
-  int proxyport_arg;	/**< @brief UDP port to listen to (default='0').  */
-  char * proxyport_orig;	/**< @brief UDP port to listen to original value given at command line.  */
-  const char *proxyport_help; /**< @brief UDP port to listen to help description.  */
+  char * proxylisten_arg;	/**< @brief Proxy IP address to listen on.  */
+  char * proxylisten_orig;	/**< @brief Proxy IP address to listen on original value given at command line.  */
+  const char *proxylisten_help; /**< @brief Proxy IP address to listen on help description.  */
+  int proxyport_arg;	/**< @brief Proxy UDP port to listen on (0 is off) (default='0').  */
+  char * proxyport_orig;	/**< @brief Proxy UDP port to listen on (0 is off) original value given at command line.  */
+  const char *proxyport_help; /**< @brief Proxy UDP port to listen on (0 is off) help description.  */
   char * proxyclient_arg;	/**< @brief IP address of proxy client(s).  */
   char * proxyclient_orig;	/**< @brief IP address of proxy client(s) original value given at command line.  */
   const char *proxyclient_help; /**< @brief IP address of proxy client(s) help description.  */
@@ -343,6 +346,7 @@ struct gengetopt_args_info
   unsigned int condown_given ;	/**< @brief Whether condown was given.  */
   unsigned int txqlen_given ;	/**< @brief Whether txqlen was given.  */
   unsigned int tundev_given ;	/**< @brief Whether tundev was given.  */
+  unsigned int mtu_given ;	/**< @brief Whether mtu was given.  */
   unsigned int radiuslisten_given ;	/**< @brief Whether radiuslisten was given.  */
   unsigned int radiusserver1_given ;	/**< @brief Whether radiusserver1 was given.  */
   unsigned int radiusserver2_given ;	/**< @brief Whether radiusserver2 was given.  */

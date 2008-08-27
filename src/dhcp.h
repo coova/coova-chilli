@@ -114,7 +114,7 @@ struct dhcp_conn_t {
   uint32_t dnatip[DHCP_DNAT_MAX]; /* Destination NAT destination IP address */
   uint16_t dnatport[DHCP_DNAT_MAX]; /* Destination NAT source port */
   uint8_t dnatmac[DHCP_DNAT_MAX][PKT_ETH_ALEN]; /* Destination NAT source mac */
-/*  uint16_t mtu;                 Maximum transfer unit */
+  uint16_t mtu;                /* Maximum transfer unit */
 
   /*XXX: optional*/
   struct {

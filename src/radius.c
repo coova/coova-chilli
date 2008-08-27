@@ -1289,7 +1289,7 @@ int radius_req(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,
 	     (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-    log_err(errno, "sendto() failed!");
+    log_err(errno, "sendto(%s) failed!", inet_ntoa(addr.sin_addr));
     return -1;
   } 
     

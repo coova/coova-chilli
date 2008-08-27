@@ -496,7 +496,7 @@ void session_interval(struct app_conn_t *conn) {
   }
 }
 
-int static checkconn()
+static int checkconn()
 {
   time_t timenow = mainclock;
   struct app_conn_t *conn;
@@ -518,8 +518,8 @@ int static checkconn()
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->s_state.authenticated == 1)) {
       if (!(dhcpconn = (struct dhcp_conn_t *)conn->dnlink)) {
-	log_err(0, "No downlink protocol");
-	return -1;
+	log_warn(0, "No downlink protocol");
+	continue;
       }
       session_interval(conn);
     }

@@ -16,6 +16,7 @@ MAIN_CONF=$CHILLI/main.conf
 LOCAL_CONF=$CHILLI/local.conf
 HS_CONF=$CHILLI/hs.conf
 HS_TEMP=/tmp/hs.conf
+MAIN_TEMP=/tmp/main.conf
 CMDSOCK=$RUN_D/chilli.sock
 PIDFILE=$RUN_D/chilli.pid
 
@@ -143,10 +144,12 @@ uamallowed	coova.org,$HS_UAMSERVER,$HS_RADIUS$webadmin$uamallow
 uamanydns
 $configs1
 EOF
-    ) > $MAIN_CONF 
-    if [ "x$HS_RADCONF" != "xon" -a "x$HS_RADCONF" != "xurl" ]; then 
-	rm -f $HS_CONF 2>/dev/null
+    ) > $MAIN_TEMP
 
+    update_new_file $MAIN_TEMP $MAIN_CONF
+
+    # Not using auto-config, so set hs.conf settings directly
+    if [ "x$HS_RADCONF" != "xon" -a "x$HS_RADCONF" != "xurl" ]; then 
 	[ "$HS_PAP_OK" = "on" ] && addconfig2 "papalwaysok"
 	[ "$HS_MACAUTH" = "on" ] && addconfig2 "macauth"
 	[ "$HS_MACAUTHDENY" = "on" ] && addconfig2 "macauthdeny"
@@ -180,25 +183,54 @@ uamserver	$(eval echo $HS_UAMFORMAT)
 radiusnasid	${HS_NASID:-nas01}
 $configs2
 EOF
-	) >> $MAIN_CONF 
+	) > $HS_TEMP
+
+	update_new_file $HS_TEMP $HS_CONF
     fi
+}
+
+files_equal() {
+    [ -x /usr/bin/cmp ] && {
+	cmp -s $1 $2 || return 0;
+	return 1;
+    }
+    [ -x /bin/md5sum ] && {
+	[ "$(md5sum $1 | cut -f1 -d' ')" = "$(md5sum $2 | cut -f1 -d' ')" ] && return 0;
+	return 1;
+    }
+    return 1;
+}
+
+update_new_file() {
+    files_equal $1 $2 || {
+	echo "updating $2"
+	cp -f $1 $2
+	return 0;
+    }
+    return 1;
+}
+
+checkforoutage() {
+    rm -f $RUN_D/chilli.failsafe
+    [ -s $HS_TEMP ] || {
+	[ -n "$HS_RADCONF_FAILSAFE" ] && {
+	    echo "updating $HS_TEMP with $HS_RADCONF_FAILSAFE"
+	    touch $RUN_D/chilli.failsafe
+	    cp -f $HS_RADCONF_FAILSAFE $HS_TEMP
+	}
+    }
 }
 
 checkfornew() {
-    if [ -x /usr/bin/cmp ]; then
-	cmp -s $HS_TEMP $HS_CONF || (
-	    mv $HS_TEMP $HS_CONF
-	    killall -HUP chilli 2>/dev/null >/dev/null
-	)
-    else
-        # no diff, so lets copy and let chilli
-        # refresh on its own (interval option)
-	mv $HS_TEMP $HS_CONF
-    fi
+    update_new_file $HS_TEMP $HS_CONF && {
+	echo "reconfiguring chilli"
+	killall -HUP chilli 2>/dev/null >/dev/null
+    }
 }
 
 radiusconfig() {
-    touch $LOCAL_CONF $HS_CONF 
+    [ -e $LOCAL_CONF ] || touch $LOCAL_CONF 
+    [ -e $HS_CONF ] || touch $HS_CONF 
     if [ "x$HS_RADCONF" = "xurl" ]; then 
 	for s in $HS_RADCONF_URL $HS_RADCONF_URLS; do
 	    sep='?'
@@ -206,11 +238,14 @@ radiusconfig() {
 	    qs="config=chilli&mac=$HS_NASMAC&nasid=$HS_NASID&nasip=$HS_NASIP&ssid=$HS_SSID"
 	    [ "$s" = "$(echo $s|awk -F'?' '{ print $1 }')" ] || sep='&'
 	    [ "$HS_RADCONF_USER" = "" ] || opt="-u '$HS_RADCONF_USER:$HS_RADCONF_PWD'"
-	    curl -k -A CoovaAP $opt "$s$sep$qs" 2>/dev/null > $HS_TEMP && { checkfornew; break; }
+	    curl -k -A CoovaAP $opt "$s$sep$qs" 2>/dev/null > $HS_TEMP && break;
 	done
     elif [ "x$HS_RADCONF" = "xon" ]; then 
 	for s in $HS_RADCONF_SERVER $HS_RADCONF_SERVERS; do
 	    $SBIN/chilli_radconfig \
+		--radiustimeout=30 \
+		--radiusretry=3 \
+		--radiusretrysec=3 \
 		--radiusserver1="$s" \
 		--radiussecret="$HS_RADCONF_SECRET" \
 		--radiusauthport="$HS_RADCONF_AUTHPORT" \
@@ -219,10 +254,12 @@ radiusconfig() {
 		--nasmac="$HS_NASMAC" \
 		--adminuser="$HS_RADCONF_USER" \
 		--adminpasswd="$HS_RADCONF_PWD" \
-		> $HS_TEMP && {	checkfornew; break; }
+		> $HS_TEMP && break;
 	done
 #    elif [ "x$HS_LOCAL" != "xon" ]; then 
 #	$SBIN/chilli_radconfig > $HS_TEMP && { checkfornew; break; }
     fi
+    checkforoutage
+    checkfornew
 }
 

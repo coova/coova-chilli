@@ -89,6 +89,8 @@ struct options_t {
   int dhcpstart;
   int dhcpend;
 
+  uint16_t mtu;                  /* Max MTU */
+
   struct in_addr dhcprelayip;    /* IP address of DHCP relay header (default to uamlisten) */
   struct in_addr dhcpgwip;       /* IP address of DHCP gateway to relay to */
   uint16_t dhcpgwport;           /* Port of DHCP gateway to relay to */

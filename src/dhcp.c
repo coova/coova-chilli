@@ -406,6 +406,7 @@ int dhcp_newconn(struct dhcp_t *this,
 
   (*conn)->inuse = 1;
   (*conn)->parent = this;
+  (*conn)->mtu = this->mtu;
 
   /* Application specific initialisations */
   memcpy((*conn)->hismac, hwaddr, PKT_ETH_ALEN);
@@ -618,6 +619,7 @@ dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
   dhcp->allowdyn = allowdyn;
   dhcp->uamlisten.s_addr = uamlisten->s_addr;
   dhcp->uamport = uamport;
+  dhcp->mtu = options.mtu;
 
   /* Initialise call back functions */
   dhcp->cb_data_ind = 0;
@@ -1570,12 +1572,10 @@ int dhcp_sendACK(struct dhcp_conn_t *conn,
   packet.dhcp.options[pos++] = (this->lease >>  8) & 0xFF;
   packet.dhcp.options[pos++] = (this->lease >>  0) & 0xFF;
 
-  /*
   packet.dhcp.options[pos++] = DHCP_OPTION_INTERFACE_MTU;
   packet.dhcp.options[pos++] = 2;
   packet.dhcp.options[pos++] = (conn->mtu >> 8) & 0xFF;
   packet.dhcp.options[pos++] = (conn->mtu >> 0) & 0xFF;
-  */
 
   /* Must be listening address */
   packet.dhcp.options[pos++] = DHCP_OPTION_SERVER_ID;
