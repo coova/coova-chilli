@@ -129,7 +129,7 @@ struct redir_msg_data {
   struct in_addr addr;
   struct redir_state redir;
   struct session_params params;
-} __attribute__((packed));
+};
 
 struct redir_msg_t {
   long mtype;

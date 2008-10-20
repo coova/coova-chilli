@@ -112,14 +112,17 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
 
   if (options.debug && (conn->s_params.bandwidthmaxup || 
 			conn->s_params.bandwidthmaxdown))
-    log_dbg("Leaky bucket timediff: %lld, bucketup: %lld, bucketdown: %lld, up: %lld, down: %lld", 
-	    timediff, conn->s_state.bucketup, conn->s_state.bucketdown, 
+    log_dbg("Leaky bucket timediff: %lld, bucketup: %lld/%lld, bucketdown: %lld/%lld, up: %lld, down: %lld", 
+	    timediff, 
+	    conn->s_state.bucketup, conn->s_state.bucketupsize,
+	    conn->s_state.bucketdown, conn->s_state.bucketdownsize,
 	    octetsup, octetsdown);
 
   if (conn->s_params.bandwidthmaxup) {
-    /* Subtract what the leak since last time we visited */
-    if (conn->s_state.bucketup > ((timediff * conn->s_params.bandwidthmaxup) / 8)) {
-      conn->s_state.bucketup -= (timediff * conn->s_params.bandwidthmaxup) / 8;
+    /* subtract what the leak since last time we visited */
+    uint64_t bytes = (timediff * conn->s_params.bandwidthmaxup) / 8;
+    if (conn->s_state.bucketup > bytes) {
+      conn->s_state.bucketup -= bytes;
     }
     else {
       conn->s_state.bucketup = 0;
@@ -135,8 +138,9 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
   }
 
   if (conn->s_params.bandwidthmaxdown) {
-    if (conn->s_state.bucketdown > ((timediff * conn->s_params.bandwidthmaxdown) / 8)) {
-      conn->s_state.bucketdown -= (timediff * conn->s_params.bandwidthmaxdown) / 8;
+    uint64_t bytes = (timediff * conn->s_params.bandwidthmaxdown) / 8;
+    if (conn->s_state.bucketdown > bytes) {
+      conn->s_state.bucketdown -= bytes;
     }
     else {
       conn->s_state.bucketdown = 0;
@@ -2744,17 +2748,58 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
   default:
     {
       bstring tmp = bfromcstr("");
-      bassignformat(tmp, " %.*s %d %.*s %d/%d %d/%d %.*s", 
+
+      /* adding: session-id auth-state user-name */
+      bassignformat(tmp, " %.*s %d %.*s",
 		    appconn->s_state.sessionid[0] ? strlen(appconn->s_state.sessionid) : 1,
 		    appconn->s_state.sessionid[0] ? appconn->s_state.sessionid : "-",
 		    appconn->s_state.authenticated,
 		    appconn->s_state.redir.username[0] ? strlen(appconn->s_state.redir.username) : 1,
-		    appconn->s_state.redir.username[0] ? appconn->s_state.redir.username : "-",
-		    sessiontime, (int)appconn->s_params.sessiontimeout,
-		    idletime, (int)appconn->s_params.idletimeout,
-		    appconn->s_state.redir.userurl[0] ? strlen(appconn->s_state.redir.userurl) : 1,
-		    appconn->s_state.redir.userurl[0] ? appconn->s_state.redir.userurl : "-");
+		    appconn->s_state.redir.username[0] ? appconn->s_state.redir.username : "-");
       bconcat(b, tmp);
+
+      /* adding: session-time/session-timeout idle-time/idle-timeout */
+      bassignformat(tmp, " %d/%d %d/%d",
+		    sessiontime, (int)appconn->s_params.sessiontimeout,
+		    idletime, (int)appconn->s_params.idletimeout);
+      bconcat(b, tmp);
+
+      /* adding: input-octets/max-input-octets */
+      bassignformat(tmp, " %lld/%lld",
+		    appconn->s_state.input_octets, appconn->s_params.maxinputoctets);
+      bconcat(b, tmp);
+
+      /* adding: output-octets/max-output-octets */
+      bassignformat(tmp, " %lld/%lld",
+		    appconn->s_state.output_octets, appconn->s_params.maxoutputoctets);
+      bconcat(b, tmp);
+
+      /* adding: max-total-octets option-swapoctets */
+      bassignformat(tmp, " %lld %d", 
+		    appconn->s_params.maxtotaloctets, options.swapoctets);
+      bconcat(b, tmp);
+
+      /* adding: max-bandwidth-up max-bandwidth-down */
+      if (appconn->s_state.bucketupsize) {
+	bassignformat(tmp, " %d/%lld", 
+		      (int) (appconn->s_state.bucketup * 100 / appconn->s_state.bucketupsize),
+		      appconn->s_params.bandwidthmaxup);
+	bconcat(b, tmp);
+      } else bcatcstr(b, " 0/0");
+
+      if (appconn->s_state.bucketdownsize) {
+	bassignformat(tmp, " %d/%lld ", 
+		      (int) (appconn->s_state.bucketdown * 100 / appconn->s_state.bucketdownsize),
+		      appconn->s_params.bandwidthmaxdown);
+	bconcat(b, tmp);
+      } else bcatcstr(b, " 0/0 ");
+
+      /* adding: original url */
+      if (appconn->s_state.redir.userurl[0])
+	bcatcstr(b, appconn->s_state.redir.userurl);
+      else
+	bcatcstr(b, "-");
+      
       bdestroy(tmp);
     }
   }
@@ -3204,8 +3249,20 @@ static int cmdsock_accept(int sock) {
       bstring b = bfromcstr("routes:\n");
       write(csock, b->data, b->slen);
       for (i=0; i<tun->_interface_count; i++) {
-	bassignformat(b, "idx: %d dev: %s%s\n", 
+	bassignformat(b, "idx: %d dev: %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %.2X-%.2X-%.2X-%.2X-%.2X-%.2X%s\n", 
 		      i, tun->_interfaces[i].devname,
+		      tun->_interfaces[i].hwaddr[0],
+		      tun->_interfaces[i].hwaddr[1],
+		      tun->_interfaces[i].hwaddr[2],
+		      tun->_interfaces[i].hwaddr[3],
+		      tun->_interfaces[i].hwaddr[4],
+		      tun->_interfaces[i].hwaddr[5],
+		      tun->_interfaces[i].gwaddr[0],
+		      tun->_interfaces[i].gwaddr[1],
+		      tun->_interfaces[i].gwaddr[2],
+		      tun->_interfaces[i].gwaddr[3],
+		      tun->_interfaces[i].gwaddr[4],
+		      tun->_interfaces[i].gwaddr[5],
 		      i == 0 ? " (tun/tap)":"");
 	write(csock, b->data, b->slen);
       }

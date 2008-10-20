@@ -8,7 +8,7 @@ AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fstrict-aliasing -ansi\
  -DDEFPIDFILE='"$(localstatedir)/run/chilli.pid"'\
  -DDEFSTATEDIR='"$(localstatedir)/run"'\
  -DDEFCMDSOCK='"$(localstatedir)/run/chilli.sock"'\
- -DSBINDIR='"$(sbindir)"' -I$(top_builddir)/bstring
+ -DSBINDIR='"$(sbindir)"' -I$(top_builddir)/bstring 
 
 
 libchilli_la_SOURCES = \

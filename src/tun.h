@@ -20,7 +20,7 @@
 #define TUN_SCRIPTSIZE   512
 #define TUN_ADDRSIZE     128
 #define TUN_NLBUFSIZE   1024
-#define TUN_MAX_INTERFACES 4
+#define TUN_MAX_INTERFACES 16
 
 /* ***********************************************************
  * Information storage for each tun instance
@@ -35,6 +35,8 @@ struct tun_t {
 
   int _interface_count;
   struct _net_interface _interfaces[TUN_MAX_INTERFACES];
+
+  void *table;
 };
 
 #define tun(x,i) ((x)->_interfaces[(i)])

@@ -30,8 +30,8 @@ HS_RADIUS=${HS_RADIUS:-$HS_UAMSERVER}
 HS_RADSECRET=${HS_RADSECRET:-$HS_UAMSECRET}
 HS_RADAUTH=${HS_RADAUTH:-1812}
 HS_RADACCT=${HS_RADACCT=1813}
-HS_ADMUSR=${HS_ADMUSR:-chillispot}
-HS_ADMPWD=${HS_ADMPWD:-chillispot}
+#HS_ADMUSR=${HS_ADMUSR:-chillispot}
+#HS_ADMPWD=${HS_ADMPWD:-chillispot}
 HS_ADMINTERVAL=${HS_ADMINTERVAL:-60}
 HS_RADCONF=${HS_RADCONF:-off}
 HS_RADCONF_SERVER=${HS_RADCONF_SERVER:-rad01.coova.org}
@@ -84,6 +84,8 @@ writeconfig() {
     addconfig1 ${HS_WWWDIR:+"wwwdir $HS_WWWDIR"}
     addconfig1 ${HS_WWWBIN:+"wwwbin $HS_WWWBIN"}
     addconfig1 ${HS_UAMUIPORT:+"uamuiport $HS_UAMUIPORT"}
+    addconfig1 ${HS_ADMUSR:+"adminuser \"$HS_ADMUSR\""}
+    addconfig1 ${HS_ADMPWD:+"adminpasswd \"$HS_ADMPWD\""}
 
     [ -n "$HS_UAMDOMAINS" ] && {
 	HS_UAMDOMAINS=$(echo $HS_UAMDOMAINS|sed 's/,/ /g')
@@ -138,9 +140,7 @@ net		$HS_NETWORK/$HS_NETMASK
 uamlisten	$HS_UAMLISTEN
 uamport         $HS_UAMPORT
 dhcpif		$HS_LANIF
-adminuser       $HS_ADMUSR
-adminpasswd     $HS_ADMPWD
-uamallowed	coova.org,$HS_UAMSERVER,$HS_RADIUS$webadmin$uamallow
+uamallowed	"coova.org,$HS_UAMSERVER,$HS_RADIUS$webadmin$uamallow"
 uamanydns
 $configs1
 EOF

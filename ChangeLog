@@ -1,6 +1,10 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+* Expanded the output of ''chilli_query'' to include the input/output octets, the max input/output and total octets, and bandwidth limitation information for each session.
+* Added iptables rules to ''etc/chilli/up.sh'' for improved VPN pass-through and PPPoE/Mesh MTU issues.
+* More parameters sent to the WISPr login URL.
+	
 == ChangeLog (Coova Chilli v1.0.12 svn revision 171) ==
 
 * Bug fix in RADIUS timeout, note that option ''radiustimeout'' is in '''seconds'''!	

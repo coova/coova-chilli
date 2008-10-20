@@ -69,7 +69,6 @@ int tun_discover(struct tun_t *this) {
     struct ifreq *ifr = (struct ifreq *)&ic.ifc_req[i];
     memset(&netif, 0, sizeof(netif));
 
-
     /* device name and address */
     strncpy(netif.devname, ifr->ifr_name, sizeof(netif.devname));
     netif.address = inaddr(ifr_addr);
@@ -171,9 +170,33 @@ int tun_discover(struct tun_t *this) {
 
     else {
       net_interface *newif = tun_nextif(tun);
+
       if (newif) {
+	int idx = newif->idx;
 	memcpy(newif, &netif, sizeof(netif));
+	newif->idx = idx;
+
 	net_open(newif);
+
+
+      switch(newif->idx) {
+      case 0:
+	newif->gwaddr[0]=0x00;
+	newif->gwaddr[1]=0x1F;
+	newif->gwaddr[2]=0x3b;
+	newif->gwaddr[3]=0x98;
+	newif->gwaddr[4]=0xd5;
+	newif->gwaddr[5]=0x01;
+	break;
+      case 4:
+	newif->gwaddr[0]=0x00;
+	newif->gwaddr[1]=0xFF;
+	newif->gwaddr[2]=0xC3;
+	newif->gwaddr[3]=0x2B;
+	newif->gwaddr[4]=0x14;
+	newif->gwaddr[5]=0xCA;
+	break;
+      }
 
 	if (!strcmp(options.routeif, netif.devname))
 	  tun->routeidx = newif->idx;
@@ -442,6 +465,17 @@ int tuntap_interface(struct _net_interface *netif) {
 #else
 #error  "Unknown platform!"
 #endif
+
+
+
+  memset(netif, 0, sizeof(*netif));
+  netif->gwaddr[0]=0x00;
+  netif->gwaddr[1]=0x1F;
+  netif->gwaddr[2]=0x3b;
+  netif->gwaddr[3]=0x98;
+  netif->gwaddr[4]=0xd5;
+  netif->gwaddr[5]=0x01;
+
 
 #if defined(__linux__)
   /* Open the actual tun device */
@@ -713,28 +747,20 @@ int tun_encaps(struct tun_t *tun, void *pack, size_t len, int idx) {
   if (tun(tun, idx).flags & NET_ETHHDR) {
 
     struct pkt_ethhdr_t *ethh = (struct pkt_ethhdr_t *)pack;
-    /*memcpy(ethh->src, tun->tap_hwaddr, PKT_ETH_ALEN); */
-
-    /** XXX **/
-    if (1) {
-      ethh->src[0]=0x00;
-      ethh->src[1]=0x17;
-      ethh->src[2]=0x3f;
-      ethh->src[3]=0x99;
-      ethh->src[4]=0xf4;
-      ethh->src[5]=0x46;
-
-      ethh->dst[0]=0x00;
-      ethh->dst[1]=0x14;
-      ethh->dst[2]=0xBF;
-      ethh->dst[3]=0xE2;
-      ethh->dst[4]=0xC1;
-      ethh->dst[5]=0x75;
-    }
+    /* memcpy(ethh->src, tun(tun, idx).hwaddr, PKT_ETH_ALEN); /**/
+    memcpy(ethh->dst, tun(tun, idx).gwaddr, PKT_ETH_ALEN);
 
     log_dbg("writing to tun/tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
 	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
 	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5]);
+
+    if (0) { /* if we wanted to do nat'ing we could do it here */
+      struct _net_interface *netif = &tun(tun, idx);
+      struct pkt_iphdr_t *iph = (struct pkt_iphdr_t *)(pack + PKT_ETH_HLEN);
+      iph->saddr = netif->address.s_addr;
+      chksum(iph);
+    }
+
   } else {
     pack += PKT_ETH_HLEN;
     len  -= PKT_ETH_HLEN;
@@ -742,6 +768,7 @@ int tun_encaps(struct tun_t *tun, void *pack, size_t len, int idx) {
 
   if (tun->debug) 
     log_dbg("tun_encaps(%d) %s",len,tun(tun,idx).devname);
+
 
 #if defined (__OpenBSD__)
 
@@ -754,14 +781,6 @@ int tun_encaps(struct tun_t *tun, void *pack, size_t len, int idx) {
   return net_write(&tun(tun, idx), buffer, len+4);
 
 #elif defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__) || defined (__NetBSD__)
-
-  if (0) { /* if we wanted to do nat'ing we could do it here */
-    struct in_addr a;
-    struct pkt_iphdr_t *iph = (struct pkt_iphdr_t *)pack;
-    inet_aton("172.30.97.2", &a);
-    iph->saddr = a.s_addr;
-    chksum(iph);
-  }
 
   return net_write(&tun(tun, idx), pack, len);
 

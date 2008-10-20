@@ -35,11 +35,13 @@ Commands:
 
 .TP
 .BI list
-To list all connected clients (subscribers) providing the MAC Address, IP
-Address, internal chilli state (dnat, pass, etc), the session id (used in
-Acct-Session-ID), authenticated status (1 authorized, 0 not), user-name used
-during login, duration / max duration, idle time / max idle time, and the
-original URL.
+To list all connected clients (subscribers) providing the MAC Address,
+IP Address, internal chilli state (dnat, pass, etc), the session id
+(used in Acct-Session-ID), authenticated status (1 authorized, 0 not),
+user-name used during login, duration / max duration, idle time / max
+idle time, input octets / max input octets, output octets / max output
+octets, max total octets, status of option swapoctets, bandwidth
+limitation information, and the original URL.
 
 .TP
 .BI authorize " <parameters>"
@@ -102,14 +104,21 @@ address (gotten from a list command).
 .RE
 
 # chilli_query list | awk \(aq{
-    if ($5 == 1) {
+    ($5 == 1) {
       print "User " i++
-      print " MAC:             " $1
-      print " IP Address:      " $2 
-      print " Session ID:      " $4 
-      print " User URL:        " $6 
-      print " Duration / Max:  " $7 
-      print " Idle / Max:      " $8 
+      print " MAC:                    " $1
+      print " IP Address:             " $2 
+      print " Session ID:             " $4 
+      print " Username:               " $6 
+      print " Duration / Max:         " $7 
+      print " Idle / Max:             " $8 
+      print " Input Octets / Max:     " $9 
+      print " Output Octets / Max:    " $10 
+      print " Max Total Octets:       " $11
+      print " Using swapoctets:       " $12
+      print " % / Max Up Bandwidth:   " $13
+      print " % / Max Down Bandwidth: " $14
+      print " Original URL:           " $15
     }
   }\(aq
 .RE

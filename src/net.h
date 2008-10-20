@@ -36,6 +36,9 @@ typedef struct _net_interface {
   /* socket/descriptor */
   int fd;
 
+  /* routing */
+  uint8_t gwaddr[PKT_ETH_ALEN];
+
   uint8_t flags;
 #define NET_PROMISC (1<<0)
 #define NET_USEMAC  (1<<1)
