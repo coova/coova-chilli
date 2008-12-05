@@ -28,6 +28,9 @@
 #define RADIUS_ATTR_CHILLISPOT_REQUIRE_UAM               11 /* integer */
 #define RADIUS_ATTR_CHILLISPOT_REQUIRE_SPLASH            12 /* integer */
 #define RADIUS_ATTR_CHILLISPOT_ROUTE_TO_INTERFACE        13 /* integer */
+#define	RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS       21 /* integer */
+#define	RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS      22 /* integer */
+#define	RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS       23 /* integer */
 #define RADIUS_ATTR_CHILLISPOT_DHCP_VENDOR_CLASS_ID      50 /* string */
 #define RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_ID            51 /* string */
 #define RADIUS_ATTR_CHILLISPOT_DHCP_OPTION               52 /* string */

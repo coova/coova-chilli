@@ -1563,6 +1563,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   radius_addnasip(radius, &radius_pack);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
+		 options.framedservice ? RADIUS_SERVICE_TYPE_FRAMED :
 		 RADIUS_SERVICE_TYPE_LOGIN, NULL, 0); /* WISPr_V1.0 */
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,

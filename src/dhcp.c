@@ -133,8 +133,10 @@ int dhcp_send(struct dhcp_t *this, struct _net_interface *netif,
   dest.sll_family = AF_PACKET;
   dest.sll_protocol = htons(netif->protocol);
   dest.sll_ifindex = netif->ifindex;
-  dest.sll_halen = PKT_ETH_ALEN;
-  memcpy(dest.sll_addr, hismac, PKT_ETH_ALEN);
+  if (hismac) {
+    dest.sll_halen = PKT_ETH_ALEN;
+    memcpy(dest.sll_addr, hismac, PKT_ETH_ALEN);
+  }
 
   if (sendto(netif->fd, packet, length, 0, (struct sockaddr *)&dest, sizeof(dest)) < 0) {
 #ifdef ENETDOWN

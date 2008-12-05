@@ -1,7 +1,7 @@
 /* 
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (c) 2006-2007 David Bird <david@coova.com>
+ * Copyright (c) 2006-2008 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -116,10 +116,22 @@ int main(int argc, char **argv) {
 	      sizeof(request.data.sess.params.sessiontimeout),
 	      &request.data.sess.params.sessiontimeout,
 	      "Max session time (in seconds)",0,0 },
+	    { "idletimeout", 1, 
+	      sizeof(request.data.sess.params.idletimeout),
+	      &request.data.sess.params.idletimeout,
+	      "Max idle time (in seconds)",0,0 },
 	    { "maxoctets", 1, 
 	      sizeof(request.data.sess.params.maxtotaloctets),
 	      &request.data.sess.params.maxtotaloctets,
-	      "Max up/down octets (bytes)",0,0 },
+	      "Max input + output octets (bytes)",0,0 },
+	    { "maxinputoctets", 1, 
+	      sizeof(request.data.sess.params.maxinputoctets),
+	      &request.data.sess.params.maxinputoctets,
+	      "Max input octets (bytes)",0,0 },
+	    { "maxoutputoctets", 1, 
+	      sizeof(request.data.sess.params.maxoutputoctets),
+	      &request.data.sess.params.maxoutputoctets,
+	      "Max output octets (bytes)",0,0 },
 	    { "maxbwup", 1, 
 	      sizeof(request.data.sess.params.bandwidthmaxup),
 	      &request.data.sess.params.bandwidthmaxup,
@@ -171,7 +183,10 @@ int main(int argc, char **argv) {
 		    *((uint16_t *)args[i].field) = (uint16_t)atoi(argv[pos+1]);
 		    break;
 		  case 4:
-		    *((uint32_t *)args[i].field) = (uint32_t)atoi(argv[pos+1]);
+		    *((uint32_t *)args[i].field) = (uint32_t)atol(argv[pos+1]);
+		    break;
+		  case 8:
+		    *((uint64_t *)args[i].field) = (uint64_t)atol(argv[pos+1]);
 		    break;
 		  }
 		  break;

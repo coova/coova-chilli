@@ -10,7 +10,7 @@
 .\" IP indented paragraph
 .\" TP hanging label
 
-.TH chilli_query 1 "August 2007"
+.TH chilli_query 1 "November 2008"
 .SH NAME
 chilli_query \-  Interface into the chilli server
 
@@ -69,8 +69,20 @@ Sets the username of the session.
 Sets the max session time of the session.
 
 .TP
+.BI idletimeout " <seconds>"
+Sets the max idle time of the session.
+
+.TP
 .BI maxoctets " <number-of-bytes>"
-Sets the max data limit of the session.
+Sets the max data (input + output) limit of the session.
+
+.TP
+.BI maxinputoctets " <number-of-bytes>"
+Sets the max input data limit of the session.
+
+.TP
+.BI maxoutputoctets " <number-of-bytes>"
+Sets the max output data limit of the session.
 
 .TP
 .BI maxbwup " <bandwidth>"

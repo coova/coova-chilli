@@ -320,6 +320,8 @@ struct gengetopt_args_info
   char * routeif_arg;	/**< @brief Interface to use as default route; turns on 'manual' routing.  */
   char * routeif_orig;	/**< @brief Interface to use as default route; turns on 'manual' routing original value given at command line.  */
   const char *routeif_help; /**< @brief Interface to use as default route; turns on 'manual' routing help description.  */
+  int framedservice_flag;	/**< @brief Use Service-Type = Framed instead of Login (default=off).  */
+  const char *framedservice_help; /**< @brief Use Service-Type = Framed instead of Login help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -424,6 +426,7 @@ struct gengetopt_args_info
   unsigned int dnsparanoia_given ;	/**< @brief Whether dnsparanoia was given.  */
   unsigned int usetap_given ;	/**< @brief Whether usetap was given.  */
   unsigned int routeif_given ;	/**< @brief Whether routeif was given.  */
+  unsigned int framedservice_given ;	/**< @brief Whether framedservice was given.  */
 
 } ;
 

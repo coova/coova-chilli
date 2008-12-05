@@ -134,6 +134,7 @@
 
 
 #define RADIUS_SERVICE_TYPE_LOGIN             1
+#define RADIUS_SERVICE_TYPE_FRAMED            2
 #define RADIUS_SERVICE_TYPE_ADMIN_USER        6
 
 #define RADIUS_STATUS_TYPE_START              1

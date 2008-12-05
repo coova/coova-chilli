@@ -114,6 +114,7 @@ struct options_t {
 
 
   /* booleans */
+  uint8_t framedservice:1;
   uint8_t usetap:1;
   uint8_t eapolenable:1;            /* Use eapol */
   uint8_t swapoctets:1;

@@ -618,7 +618,7 @@ int static macauth_radius(struct app_conn_t *appconn,
   radius_addnasip(radius, &radius_pack);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
-		 RADIUS_SERVICE_TYPE_LOGIN, NULL, 0); /* WISPr_V1.0 */
+		 RADIUS_SERVICE_TYPE_FRAMED, NULL, 0); 
   
   /* Include NAS-Identifier if given in configuration options */
   if (options.radiusnasid)
@@ -1987,6 +1987,26 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
     params->maxtotaloctets = ntohl(attr->v.i);
   else if (!reconfig)
     params->maxtotaloctets = 0;
+
+
+  /* Max input gigawords */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_CHILLISPOT, 
+		      RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS, 0))
+    params->maxinputoctets |= ((uint64_t)ntohl(attr->v.i) & 0xffffffff) << 32;
+
+  /* Max output gigawords */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_CHILLISPOT, 
+		      RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS, 0))
+    params->maxoutputoctets |= ((uint64_t)ntohl(attr->v.i) & 0xffffffff) << 32;
+
+  /* Max total octets */
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_CHILLISPOT, 
+		      RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS, 0))
+    params->maxtotaloctets |= ((uint64_t)ntohl(attr->v.i) & 0xffffffff) << 32;
+
 
   /* Route Index, look-up by interface name */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, 
