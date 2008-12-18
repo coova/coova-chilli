@@ -76,7 +76,7 @@ HS_UAMSERVICE=https://coova.org/app/uam/auth
 #
 # HS_MACAUTHMODE=local	   # To allow MAC Authentication based on macallowed, not RADIUS
 #
-# HS_MACALLOWED="..."      # List of MAC addresses to authenticate (comma seperated)
+# HS_MACALLOW="..."      # List of MAC addresses to authenticate (comma seperated)
 #
 # HS_USELOCALUSERS=on      # To use the @ETCCHILLI@/localusers file
 #
