@@ -94,7 +94,7 @@ static int redir_hextochar(unsigned char *src, unsigned char * dst) {
 static int redir_chartohex(unsigned char *src, char *dst) {
   char x[3];
   int n;
-  
+ 
   for (n=0; n<REDIR_MD5LEN; n++) {
     snprintf(x, 3, "%.2x", src[n]);
     dst[n*2+0] = x[0];

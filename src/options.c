@@ -645,6 +645,9 @@ int process_options(int argc, char **argv, int minimal) {
     char *p2 = NULL;
     char *p3 = malloc(strlen(args_info.macallowed_arg[numargs])+1);
     int i;
+
+    unsigned int mac[6];
+
     strcpy(p3, args_info.macallowed_arg[numargs]);
     p1 = p3;
     if ((p2 = strchr(p1, ','))) {
@@ -662,25 +665,20 @@ int process_options(int argc, char **argv, int minimal) {
 	  if (!isxdigit(p1[i])) p1[i] = 0x20;
       
 	if (sscanf (p1, "%2x %2x %2x %2x %2x %2x",
-		    &options.macok[options.macoklen][0], 
-		    &options.macok[options.macoklen][1], 
-		    &options.macok[options.macoklen][2], 
-		    &options.macok[options.macoklen][3], 
-		    &options.macok[options.macoklen][4], 
-		    &options.macok[options.macoklen][5]) != 6) {
+		    &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) != 6) {
 	  log_err(0, "Failed to convert macallowed option to MAC Address");
 	}
 	else {
+
 	  if (options.debug & DEBUG_CONF) {
 	    log_dbg("Macallowed address #%d: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X\n", 
 		   options.macoklen,
-		   options.macok[options.macoklen][0],
-		   options.macok[options.macoklen][1],
-		   options.macok[options.macoklen][2],
-		   options.macok[options.macoklen][3],
-		   options.macok[options.macoklen][4],
-		   options.macok[options.macoklen][5]);
+		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	  }
+
+	  if (i = 0, i < 6, i++)
+	    options.macok[options.macoklen][i] = (unsigned char) mac[i]; 
+
 	  options.macoklen++;
 	}
       }

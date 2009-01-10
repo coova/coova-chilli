@@ -23,9 +23,9 @@ int session_redir_json_fmt(bstring json, char *userurl, char *redirurl, uint8_t 
   if (hismac) {
     char mac[REDIR_MACSTRLEN+2];
     snprintf(mac, REDIR_MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	     hismac[0], hismac[1],
-	     hismac[2], hismac[3],
-	     hismac[4], hismac[5]);
+	     (unsigned int)hismac[0], (unsigned int)hismac[1],
+	     (unsigned int)hismac[2], (unsigned int)hismac[3],
+	     (unsigned int)hismac[4], (unsigned int)hismac[5]);
     bcatcstr(json, mac);
   }
   bcatcstr(json,"\"}");
@@ -56,24 +56,24 @@ int session_json_fmt(struct session_state *state,
   bassignformat(tmp, "%ld", init ? mainclock : starttime);
   bconcat(json, tmp);
   bcatcstr(json,",\"sessionTimeout\":");
-  bassignformat(tmp, "%ld", params->sessiontimeout);
+  bassignformat(tmp, "%lld", params->sessiontimeout);
   bconcat(json, tmp);
   bcatcstr(json,",\"idleTimeout\":");
   bassignformat(tmp, "%ld", params->idletimeout);
   bconcat(json, tmp);
   if (params->maxinputoctets) {
     bcatcstr(json,",\"maxInputOctets\":");
-    bassignformat(tmp, "%ld", params->maxinputoctets);
+    bassignformat(tmp, "%lld", params->maxinputoctets);
     bconcat(json, tmp);
   }
   if (params->maxoutputoctets) {
     bcatcstr(json,",\"maxOutputOctets\":");
-    bassignformat(tmp, "%ld", params->maxoutputoctets);
+    bassignformat(tmp, "%lld", params->maxoutputoctets);
     bconcat(json, tmp);
   }
   if (params->maxtotaloctets) {
     bcatcstr(json,",\"maxTotalOctets\":");
-    bassignformat(tmp, "%ld", params->maxtotaloctets);
+    bassignformat(tmp, "%lld", params->maxtotaloctets);
     bconcat(json, tmp);
   }
   bcatcstr(json,"}");
