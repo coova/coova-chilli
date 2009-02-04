@@ -1,7 +1,7 @@
 /*
  * HTTP redirection functions.
  * Copyright (C) 2004, 2005 Mondru AB.
- * Copyright (c) 2006-2007 David Bird <david@cova.com>
+ * Copyright (c) 2006-2009 David Bird <david@cova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -1006,6 +1006,21 @@ int redir_new(struct redir_t **redir,
     log_err(0, "Most likely your computer does not have System V IPC installed");
     return -1;
   }
+
+  if (options.uid) {
+    struct msqid_ds ds = {0};
+    if (msgctl((*redir)->msgid, IPC_STAT, &ds) < 0) {
+      log_err(errno, "msgctl(stat) failed");
+      return -1;
+    }
+    ds.msg_perm.uid = options.uid;
+    if (options.gid) ds.msg_perm.gid = options.gid;
+    ds.msg_perm.mode = (ds.msg_perm.mode & ~0777) | 0600;
+    if (msgctl((*redir)->msgid, IPC_SET, &ds) < 0) {
+      log_err(errno, "msgctl(set) failed");
+      return -1;
+    }
+  }
   
   return 0;
 }
@@ -1218,6 +1233,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	  { conn->type = REDIR_MSDOWNLOAD; return 0; }
 	else if (!strcmp(path, "prelogin"))
 	  { conn->type = REDIR_PRELOGIN; return 0; }
+	else if (!strcmp(path, "macreauth"))
+	  { conn->type = REDIR_MACREAUTH; return 0; }
 	else if (!strcmp(path, "abort"))
 	  { conn->type = REDIR_ABORT; return 0; }
 
@@ -1340,8 +1357,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
     }
     break;
 
-  case REDIR_LOGOUT:
   case REDIR_PRELOGIN:
+  case REDIR_LOGOUT:
     {
       bstring bt = bfromcstr("");
       if (!redir_getparam(redir, qs, "userurl", bt)) {
@@ -1431,7 +1448,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     conn->reply = NULL;
   }
 
-  config_radius_session(&conn->s_params, pack, 0);
+  config_radius_session(&conn->s_params, pack, 0, 0);
   
   /* Class */
   if (!radius_getattr(pack, &classattr, RADIUS_ATTR_CLASS, 0, 0, 0)) {
@@ -2240,7 +2257,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       }
 
       msg.mtype = REDIR_LOGIN;
-
       if (! (besturl && besturl->slen)) 
 	bassigncstr(besturl, conn.s_state.redir.userurl);
       
@@ -2305,8 +2321,14 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       redir_close(infd, outfd);    
     }
     
-  case REDIR_PRELOGIN:
+  case REDIR_MACREAUTH:
+    if (options.macauth) {
+      msg.mtype = REDIR_MACREAUTH;
+      redir_msg_send(0);
+    }
+    /* drop down */
 
+  case REDIR_PRELOGIN:
     /* Did the challenge expire? */
     if ((conn.s_state.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
       redir_memcopy(REDIR_CHALLENGE);
@@ -2326,7 +2348,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     redir_close(infd, outfd);
 
   case REDIR_ABORT:
-
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ABORT_NAK, 
 		  NULL, 0, NULL, NULL, conn.s_state.redir.userurl, NULL, 
@@ -2377,6 +2398,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     buflen = snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
     tcp_write(&socket, buffer, buflen);
     redir_close(infd, outfd);
+
   }
 
   /* It was not a request for a known path. It must be an original request */
@@ -2395,6 +2417,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	redir_memcopy(REDIR_CHALLENGE);
 	redir_msg_send(REDIR_MSG_OPT_REDIR);
     */
+  }
+
+  if (options.macreauth) {
+    msg.mtype = REDIR_MACREAUTH;
+    redir_msg_send(0);
   }
 
   if (redir->homepage) {

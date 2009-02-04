@@ -31,6 +31,7 @@
 #define DHCP_OPTION_HOSTNAME       12
 #define DHCP_OPTION_DOMAIN_NAME    15
 #define DHCP_OPTION_INTERFACE_MTU  26
+#define DHCP_OPTION_STATIC_ROUTES  33
 #define DHCP_OPTION_REQUESTED_IP   50
 #define DHCP_OPTION_LEASE_TIME     51
 #define DHCP_OPTION_MESSAGE_TYPE   53
@@ -115,6 +116,7 @@ struct dhcp_conn_t {
   uint16_t dnatport[DHCP_DNAT_MAX]; /* Destination NAT source port */
   uint8_t dnatmac[DHCP_DNAT_MAX][PKT_ETH_ALEN]; /* Destination NAT source mac */
   uint16_t mtu;                /* Maximum transfer unit */
+  uint8_t noc2c;               /* Prevent client to client access using /32 subnets */
 
   /*XXX: optional*/
   struct {
@@ -159,6 +161,7 @@ struct dhcp_t {
   struct in_addr *authip; /* IP address of authentication server */
   int authiplen;        /* Number of authentication server IP addresses */
   int anydns;           /* Allow any dns server */
+  int noc2c;            /* Prevent client to client access using /32 subnets */
 
   int relayfd;          /* DHCP relay socket, 0 if not relaying */
 
@@ -194,7 +197,7 @@ int dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 	 int usemac, uint8_t *mac, int promisc, 
 	 struct in_addr *listen, int lease, int allowdyn,
 	 struct in_addr *uamlisten, uint16_t uamport, 
-	 int useeapol);
+	 int useeapol, int noc2c);
 
 int dhcp_set(struct dhcp_t *dhcp, int debug);
 

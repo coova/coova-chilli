@@ -1,7 +1,7 @@
 /* 
  * chilli - A Wireless LAN Access Point Controller
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (c) 2006-2007 David Bird <david@coova.com>
+ * Copyright (c) 2006-2009 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -129,7 +129,10 @@ extern struct tun_t *tun;                /* TUN/TAP instance */
 
 int printstatus(struct app_conn_t *appconn);
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause);
-void config_radius_session(struct session_params *params, struct radius_packet_t *pack, int reconfig);
+void config_radius_session(struct session_params *params, 
+			   struct radius_packet_t *pack, 
+			   struct dhcp_conn_t *dhcpconn,
+			   int reconfig);
 int cmdsock_init();
 
 #endif /*_CHILLI_H */

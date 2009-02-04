@@ -1,8 +1,19 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+== ChangeLog (Coova Chilli v1.0.13 svn revision 185) ==
+
+* Added options ''uid'' and ''gid'' to set the process user and group after being started by root (experimental)
+* Added option ''noc2c'' to have clients configured with /32 networks - http://coova.org/lists/?0::558
 * Expanded the output of ''chilli_query'' to include the input/output octets, the max input/output and total octets, and bandwidth limitation information for each session.
 * Added iptables rules to ''etc/chilli/up.sh'' for improved VPN pass-through and PPPoE/Mesh MTU issues.
+* Added VSA Attributes ''ChilliSpot-Max-Input-Gigawords'', ''ChilliSpot-Max-Output-Gigawords'', and ''ChilliSpot-Max-Total-Gigawords'' which hold the upper 32 bits of 64bit unsigned integer values for the corresponding ''ChilliSpot-Max-*-Octets'' attributes
+* Service-Type for MAC authentication changed to Framed instead of Login
+* Added option ''framedservice'' which changes the Service-Type from Login to Framed during normal (non MAC-auth) authentication
+* Added support for a ChilliSpot-Config = ''admin-reset'' option in RADIUS responses which will have chilli release the DHCP lease for the session
+* Added ''macreauth'' option to have chilli always re-attempt a MAC authentication when it does an initial redirection
+* Added the special ''/macreauth'' URL which will do a MAC re-auth if the ''macauth'' option is true (does not check the ''macreauth'' option which controls the re-auth for initial redirects)
+* Added ''mtu'' option which sets the MTU returned by DHCP
 * More parameters sent to the WISPr login URL.
 	
 == ChangeLog (Coova Chilli v1.0.12 svn revision 171) ==

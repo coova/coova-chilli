@@ -409,6 +409,7 @@ int dhcp_newconn(struct dhcp_t *this,
   (*conn)->inuse = 1;
   (*conn)->parent = this;
   (*conn)->mtu = this->mtu;
+  (*conn)->noc2c = this->noc2c;
 
   /* Application specific initialisations */
   memcpy((*conn)->hismac, hwaddr, PKT_ETH_ALEN);
@@ -521,7 +522,8 @@ int
 dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
 	 int usemac, uint8_t *mac, int promisc, 
 	 struct in_addr *listen, int lease, int allowdyn,
-	 struct in_addr *uamlisten, uint16_t uamport, int useeapol) {
+	 struct in_addr *uamlisten, uint16_t uamport, int useeapol,
+	 int noc2c) {
   struct dhcp_t *dhcp;
   
   if (!(dhcp = *pdhcp = calloc(sizeof(struct dhcp_t), 1))) {
@@ -622,6 +624,7 @@ dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
   dhcp->uamlisten.s_addr = uamlisten->s_addr;
   dhcp->uamport = uamport;
   dhcp->mtu = options.mtu;
+  dhcp->noc2c = noc2c;
 
   /* Initialise call back functions */
   dhcp->cb_data_ind = 0;
@@ -1441,8 +1444,20 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn,
 
   packet.dhcp.options[pos++] = DHCP_OPTION_SUBNET_MASK;
   packet.dhcp.options[pos++] = 4;
-  memcpy(&packet.dhcp.options[pos], &conn->hismask.s_addr, 4);
+  if (conn->noc2c)
+    memset(&packet.dhcp.options[pos], 0xff, 4);
+  else
+    memcpy(&packet.dhcp.options[pos], &conn->hismask.s_addr, 4);
   pos += 4;
+
+  if (conn->noc2c) {
+    packet.dhcp.options[pos++] = DHCP_OPTION_STATIC_ROUTES;
+    packet.dhcp.options[pos++] = 8;
+    memcpy(&packet.dhcp.options[pos], &conn->ourip.s_addr, 4);
+    pos += 4;
+    memcpy(&packet.dhcp.options[pos], &conn->hisip.s_addr, 4);
+    pos += 4;
+  }
 
   packet.dhcp.options[pos++] = DHCP_OPTION_ROUTER_OPTION;
   packet.dhcp.options[pos++] = 4;
@@ -1529,8 +1544,20 @@ int dhcp_sendACK(struct dhcp_conn_t *conn,
   /* DHCP Payload */
   packet.dhcp.options[pos++] = DHCP_OPTION_SUBNET_MASK;
   packet.dhcp.options[pos++] = 4;
-  memcpy(&packet.dhcp.options[pos], &conn->hismask.s_addr, 4);
+  if (conn->noc2c)
+    memset(&packet.dhcp.options[pos], 0xff, 4);
+  else
+    memcpy(&packet.dhcp.options[pos], &conn->hismask.s_addr, 4);
   pos += 4;
+
+  if (conn->noc2c) {
+    packet.dhcp.options[pos++] = DHCP_OPTION_STATIC_ROUTES;
+    packet.dhcp.options[pos++] = 8;
+    memcpy(&packet.dhcp.options[pos], &conn->ourip.s_addr, 4);
+    pos += 4;
+    memcpy(&packet.dhcp.options[pos], &conn->hisip.s_addr, 4);
+    pos += 4;
+  }
 
   packet.dhcp.options[pos++] = DHCP_OPTION_ROUTER_OPTION;
   packet.dhcp.options[pos++] = 4;

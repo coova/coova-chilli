@@ -1,6 +1,6 @@
 # chilli - ChilliSpot.org. A Wireless LAN Access Point Controller
 # Copyright (C) 2003, 2004, 2005 Mondru AB.
-# Copyright (c) 2006-2007 David Bird <david@coova.com>
+# Copyright (c) 2006-2009 David Bird <david@coova.com>
 #
 # The contents of this file may be used under the terms of the GNU
 # General Public License Version 2, provided that the above copyright
@@ -22,6 +22,8 @@ option  "conf"        c "Read configuration file"       string no
 option  "interval"    - "Re-read configuration file at this interval"  int default="3600" no
 option  "pidfile"     - "Filename of process id file"   string no
 option  "statedir"    - "Directory of nonvolatile data" string no
+option  "uid"         - "UID to run as, after being started as root" int default="0" no
+option  "gid"         - "GID to run as, after being started as root" int default="0" no
 
 # TUN parameters
 option "net"         n "Network"           string default="192.168.182.0/24" no
@@ -40,6 +42,7 @@ option "condown"     - "Script to run after user logoff" string no
 option "txqlen"      - "TX Queue length for tun interface (linux only)"  int default="100" no
 option "tundev"      - "TUN/TAP Device, as in tun0 or tap1" string no
 option "mtu"         - "MTU given in DHCP" int default="1500" no
+option "autostatip"  - "Auto- static ip assignment" int default="0" no
 
 
 # Radius parameters
@@ -76,7 +79,7 @@ option "dhcpgateway" - "DHCP gateway addresss for relay" string no
 option "dhcpgatewayport" - "DHCP gateway port for relay" int default="67" no
 option "dhcprelayagent" - "DHCP relay agent IP addresss (default uamlisten)" string no
 option "lease"       - "Lease time to allocate to clients" int default="600" no
-
+option "noc2c" - "Setup clients for /32 network" flag   off
 
 # EAPOL parameters
 option "eapolenable" - "Enable IEEE 802.1x authentication" flag   off
@@ -105,6 +108,7 @@ option "definteriminterval" - "Default interim-interval for accounting if not re
 
 # MAC authentication
 option "macauth"     - "Authenticate based on MAC address" flag   off
+option "macreauth"   - "Re-Authenticate based on MAC address for every initial URL redirection" flag off
 option "macauthdeny" - "Deny access (even UAM) to MAC addresses given Access-Reject" flag   off
 option "macallowed"  - "List of allowed MAC addresses" string no multiple
 option "macsuffix"   - "Suffix to add to the MAC address" string no

@@ -1,7 +1,7 @@
 /* 
  * HTTP redirection functions.
  * Copyright (C) 2004, 2005 Mondru AB.
- * Copyright (c) 2006-2007 David Bird <david@coova.com>
+ * Copyright (c) 2006-2009 David Bird <david@coova.com>
  * 
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -32,6 +32,7 @@
 #define REDIR_ABOUT           6
 #define REDIR_STATUS          7
 #define REDIR_SPLASH          8
+#define REDIR_MACREAUTH       9
 #define REDIR_WWW            20
 #define REDIR_MSDOWNLOAD     25
 #define REDIR_ADMIN_CONN     30

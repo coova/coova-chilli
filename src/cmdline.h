@@ -56,6 +56,12 @@ struct gengetopt_args_info
   char * statedir_arg;	/**< @brief Directory of nonvolatile data.  */
   char * statedir_orig;	/**< @brief Directory of nonvolatile data original value given at command line.  */
   const char *statedir_help; /**< @brief Directory of nonvolatile data help description.  */
+  int uid_arg;	/**< @brief UID to run as, after being started as root (default='0').  */
+  char * uid_orig;	/**< @brief UID to run as, after being started as root original value given at command line.  */
+  const char *uid_help; /**< @brief UID to run as, after being started as root help description.  */
+  int gid_arg;	/**< @brief GID to run as, after being started as root (default='0').  */
+  char * gid_orig;	/**< @brief GID to run as, after being started as root original value given at command line.  */
+  const char *gid_help; /**< @brief GID to run as, after being started as root help description.  */
   char * net_arg;	/**< @brief Network (default='192.168.182.0/24').  */
   char * net_orig;	/**< @brief Network original value given at command line.  */
   const char *net_help; /**< @brief Network help description.  */
@@ -103,6 +109,9 @@ struct gengetopt_args_info
   int mtu_arg;	/**< @brief MTU given in DHCP (default='1500').  */
   char * mtu_orig;	/**< @brief MTU given in DHCP original value given at command line.  */
   const char *mtu_help; /**< @brief MTU given in DHCP help description.  */
+  int autostatip_arg;	/**< @brief Auto- static ip assignment (default='0').  */
+  char * autostatip_orig;	/**< @brief Auto- static ip assignment original value given at command line.  */
+  const char *autostatip_help; /**< @brief Auto- static ip assignment help description.  */
   char * radiuslisten_arg;	/**< @brief IP address to send from.  */
   char * radiuslisten_orig;	/**< @brief IP address to send from original value given at command line.  */
   const char *radiuslisten_help; /**< @brief IP address to send from help description.  */
@@ -182,6 +191,8 @@ struct gengetopt_args_info
   int lease_arg;	/**< @brief Lease time to allocate to clients (default='600').  */
   char * lease_orig;	/**< @brief Lease time to allocate to clients original value given at command line.  */
   const char *lease_help; /**< @brief Lease time to allocate to clients help description.  */
+  int noc2c_flag;	/**< @brief Setup clients for /32 network (default=off).  */
+  const char *noc2c_help; /**< @brief Setup clients for /32 network help description.  */
   int eapolenable_flag;	/**< @brief Enable IEEE 802.1x authentication (default=off).  */
   const char *eapolenable_help; /**< @brief Enable IEEE 802.1x authentication help description.  */
   char * uamserver_arg;	/**< @brief URL of authentication web server.  */
@@ -243,6 +254,8 @@ struct gengetopt_args_info
   const char *definteriminterval_help; /**< @brief Default interim-interval for accounting if not returned by RADIUS help description.  */
   int macauth_flag;	/**< @brief Authenticate based on MAC address (default=off).  */
   const char *macauth_help; /**< @brief Authenticate based on MAC address help description.  */
+  int macreauth_flag;	/**< @brief Re-Authenticate based on MAC address for every initial URL redirection (default=off).  */
+  const char *macreauth_help; /**< @brief Re-Authenticate based on MAC address for every initial URL redirection help description.  */
   int macauthdeny_flag;	/**< @brief Deny access (even UAM) to MAC addresses given Access-Reject (default=off).  */
   const char *macauthdeny_help; /**< @brief Deny access (even UAM) to MAC addresses given Access-Reject help description.  */
   char ** macallowed_arg;	/**< @brief List of allowed MAC addresses.  */
@@ -333,6 +346,8 @@ struct gengetopt_args_info
   unsigned int interval_given ;	/**< @brief Whether interval was given.  */
   unsigned int pidfile_given ;	/**< @brief Whether pidfile was given.  */
   unsigned int statedir_given ;	/**< @brief Whether statedir was given.  */
+  unsigned int uid_given ;	/**< @brief Whether uid was given.  */
+  unsigned int gid_given ;	/**< @brief Whether gid was given.  */
   unsigned int net_given ;	/**< @brief Whether net was given.  */
   unsigned int dhcpstart_given ;	/**< @brief Whether dhcpstart was given.  */
   unsigned int dhcpend_given ;	/**< @brief Whether dhcpend was given.  */
@@ -349,6 +364,7 @@ struct gengetopt_args_info
   unsigned int txqlen_given ;	/**< @brief Whether txqlen was given.  */
   unsigned int tundev_given ;	/**< @brief Whether tundev was given.  */
   unsigned int mtu_given ;	/**< @brief Whether mtu was given.  */
+  unsigned int autostatip_given ;	/**< @brief Whether autostatip was given.  */
   unsigned int radiuslisten_given ;	/**< @brief Whether radiuslisten was given.  */
   unsigned int radiusserver1_given ;	/**< @brief Whether radiusserver1 was given.  */
   unsigned int radiusserver2_given ;	/**< @brief Whether radiusserver2 was given.  */
@@ -376,6 +392,7 @@ struct gengetopt_args_info
   unsigned int dhcpgatewayport_given ;	/**< @brief Whether dhcpgatewayport was given.  */
   unsigned int dhcprelayagent_given ;	/**< @brief Whether dhcprelayagent was given.  */
   unsigned int lease_given ;	/**< @brief Whether lease was given.  */
+  unsigned int noc2c_given ;	/**< @brief Whether noc2c was given.  */
   unsigned int eapolenable_given ;	/**< @brief Whether eapolenable was given.  */
   unsigned int uamserver_given ;	/**< @brief Whether uamserver was given.  */
   unsigned int uamhomepage_given ;	/**< @brief Whether uamhomepage was given.  */
@@ -397,6 +414,7 @@ struct gengetopt_args_info
   unsigned int defbandwidthmaxup_given ;	/**< @brief Whether defbandwidthmaxup was given.  */
   unsigned int definteriminterval_given ;	/**< @brief Whether definteriminterval was given.  */
   unsigned int macauth_given ;	/**< @brief Whether macauth was given.  */
+  unsigned int macreauth_given ;	/**< @brief Whether macreauth was given.  */
   unsigned int macauthdeny_given ;	/**< @brief Whether macauthdeny was given.  */
   unsigned int macallowed_given ;	/**< @brief Whether macallowed was given.  */
   unsigned int macsuffix_given ;	/**< @brief Whether macsuffix was given.  */

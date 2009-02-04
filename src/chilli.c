@@ -1,9 +1,9 @@
 /* 
- *
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
+ *
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (c) 2007-2008 David Bird <david@coova.com>
+ * Copyright (C) 2007-2009 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -296,7 +296,17 @@ int runscript(struct app_conn_t *appconn, char* script) {
  *
  ***********************************************************/
 
-static int newip(struct ippoolm_t **ipm, struct in_addr *hisip) {
+static int newip(struct ippoolm_t **ipm, struct in_addr *hisip, uint8_t *hismac) {
+  struct in_addr tmpip;
+
+  if (options.autostatip && hismac) {
+    if (!hisip) hisip = &tmpip;
+    hisip->s_addr = htonl((options.autostatip % 255) * 0x1000000 + 
+			  hismac[3] * 0x10000 + 
+			  hismac[4] * 0x100 + 
+			  hismac[5]);
+  }
+
   if (ippool_newip(ippool, ipm, hisip, 1)) {
     if (ippool_newip(ippool, ipm, hisip, 0)) {
       log_err(0, "Failed to allocate either static or dynamic IP address");
@@ -813,7 +823,8 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
   time_t timenow;
   uint32_t timediff;
 
-  if (RADIUS_STATUS_TYPE_START == status_type) {
+  if (RADIUS_STATUS_TYPE_START == status_type ||
+      RADIUS_STATUS_TYPE_ACCOUNTING_ON == status_type) {
     conn->s_state.start_time = mainclock;
     conn->s_state.interim_time = mainclock;
     conn->s_state.last_time = mainclock;
@@ -967,6 +978,8 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 int static dnprot_reject(struct app_conn_t *appconn) {
   struct dhcp_conn_t* dhcpconn = NULL;
   /*struct ippoolm_t *ipm;*/
+
+  if (appconn->is_adminsession) return 0;
 
   switch (appconn->dnprot) {
 
@@ -1260,9 +1273,12 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
   dst.s_addr = ipph->daddr;
 
   if (ippool_getip(ippool, &ipm, &dst)) {
-    if (options.debug) 
-      log_dbg("dropping packet with unknown destination: %s", inet_ntoa(dst));
-    return 0;
+    if (ippool_newip(ippool, &ipm, &dst, 1)) {
+      if (options.debug) 
+	log_dbg("dropping packet with unknown destination: %s", inet_ntoa(dst));
+
+      return 0;
+    }
   }
   
   if ((appconn = (struct app_conn_t *)ipm->peer) == NULL ||
@@ -1878,7 +1894,9 @@ int upprot_getip(struct app_conn_t *appconn,
   else {
     /* Allocate static or dynamic IP address */
 
-    if (newip(&ipm, hisip))
+    struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
+
+    if (newip(&ipm, hisip, dhcpconn ? dhcpconn->hismac : 0))
       return dnprot_reject(appconn);
 
     appconn->hisip.s_addr = ipm->addr.s_addr;
@@ -1894,7 +1912,10 @@ int upprot_getip(struct app_conn_t *appconn,
 
 }
 
-void config_radius_session(struct session_params *params, struct radius_packet_t *pack, int reconfig) {
+void config_radius_session(struct session_params *params, 
+			   struct radius_packet_t *pack, 
+			   struct dhcp_conn_t *dhcpconn,
+			   int reconfig) {
   struct radius_attr_t *attr = NULL;
 
   /* Session timeout */
@@ -2025,6 +2046,8 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
     const char *uamauth = "require-uam-auth";
     const char *uamallowed = "uamallowed=";
     const char *splash = "splash";
+    const char *adminreset = "admin-reset";
+
     size_t offset = 0;
     int is_splash = 0;
 
@@ -2052,6 +2075,9 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
 				  SESSION_PASS_THROUGH_MAX,
 				  &params->pass_through_count,
 				  val + strlen(uamallowed));
+      }
+      else if (dhcpconn && len >= strlen(adminreset) && !memcmp(val, adminreset, strlen(adminreset))) {
+	dhcp_release_mac(dhcp, dhcpconn->hismac, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
       }
     }
 
@@ -2130,11 +2156,15 @@ void config_radius_session(struct session_params *params, struct radius_packet_t
     params->sessionterminatetime = 0;
 }
 
+static int extra_argc;
+static char **extra_argv;
+
 static int chilliauth_cb(struct radius_t *radius,
 			 struct radius_packet_t *pack,
 			 struct radius_packet_t *pack_req, void *cbp) {
   struct radius_attr_t *attr = NULL;
   size_t offset = 0;
+  int cnt = 0;
 
   if (!pack) { 
     log_err(0, "Radius request timed out");
@@ -2159,12 +2189,33 @@ static int chilliauth_cb(struct radius_t *radius,
 			     RADIUS_VENDOR_CHILLISPOT,
 			     RADIUS_ATTR_CHILLISPOT_CONFIG, 
 			     0, &offset)) {
-    char value[RADIUS_ATTR_VLEN+1] = "";
-    strncpy(value, (const char *)attr->v.t, attr->l - 2);
+    cnt++;
+  }
 
-    /* build the command line argv here and pass to config parser! */
-    /* XXX */
-    printf("%s\n", value);
+  if (cnt) {
+    int i;
+
+    if (extra_argv && extra_argv) {
+      for (i=0; i<cnt; i++)
+	free(extra_argv[i]);
+      free(extra_argv);
+    }
+
+    extra_argc = cnt;
+    extra_argv = (char **)calloc(cnt, sizeof(char *));
+
+    i=0;
+    offset=0;
+    while (!radius_getnextattr(pack, &attr, 
+			       RADIUS_ATTR_VENDOR_SPECIFIC,
+			       RADIUS_VENDOR_CHILLISPOT,
+			       RADIUS_ATTR_CHILLISPOT_CONFIG, 
+			       0, &offset)) {
+      extra_argv[i] = (char *)calloc(1, attr->l - 1);
+      strncpy(extra_argv[i], (const char *)attr->v.t, attr->l - 2);
+      printf("%s\n", extra_argv[i]);
+      i++;
+    }
   }
 
   if (!admin_session.s_state.authenticated) {
@@ -2183,7 +2234,7 @@ int cb_radius_acct_conf(struct radius_t *radius,
     log_err(0,"No peer protocol defined");
     return 0;
   }
-  config_radius_session(&appconn->s_params, pack, 1); /*XXX*/
+  config_radius_session(&appconn->s_params, pack, (struct dhcp_conn_t *)appconn->dnlink, 1);
   return 0;
 }
 
@@ -2215,6 +2266,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   struct app_conn_t *appconn = (struct app_conn_t*) cbp;
 
+  struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
+
   if (options.debug)
     log_dbg("Received access request confirmation from radius server\n");
   
@@ -2240,7 +2293,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
   if (pack->code == RADIUS_CODE_ACCESS_REJECT) {
     if (options.debug)
       log_dbg("Received access reject from radius server");
-    config_radius_session(&appconn->s_params, pack, 0); /*XXX*/
+    config_radius_session(&appconn->s_params, pack, dhcpconn, 0); /*XXX*/
     return dnprot_reject(appconn);
   }
 
@@ -2307,10 +2360,14 @@ int cb_radius_auth_conf(struct radius_t *radius,
     hisip = (struct in_addr*) &appconn->reqip.s_addr;
   }
 
-  config_radius_session(&appconn->s_params, pack, 0);
+  /* for the admin session */
+  if (appconn->is_adminsession) {
+    return chilliauth_cb(radius, pack, pack_req, cbp);
+  }
+
+  config_radius_session(&appconn->s_params, pack, dhcpconn, 0);
 
   if (options.dhcpradius) {
-    struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
     struct radius_attr_t *attr = NULL;
     if (dhcpconn) {
       if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
@@ -2444,11 +2501,6 @@ int cb_radius_auth_conf(struct radius_t *radius,
     memcpy(appconn->ms2succ, ((void*)&succattr->v.t)+3, MS2SUCCSIZE);
   }
 
-  /* for the admin session */
-  if (appconn->is_adminsession) {
-    return chilliauth_cb(radius, pack, pack_req, cbp);
-  }
-
   switch(appconn->authtype) {
 
   case PAP_PASSWORD:
@@ -2549,7 +2601,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 	log_dbg("Found session\n");
 
       if (iscoa)
-	config_radius_session(&appconn->s_params, pack, 0);
+	config_radius_session(&appconn->s_params, pack, 0, 0);
       else
 	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
 
@@ -2657,6 +2709,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     /*
      *  Using macauth option to authenticate via RADIUS.
      */
+    /** TODO: only if not being strict */
     appconn->dnprot = DNPROT_MAC;
 
     macauth_radius(appconn, dhcp_pkt, dhcp_len);
@@ -2671,7 +2724,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     
     /* Allocate dynamic IP address */
     /*XXX    if (ippool_newip(ippool, &ipm, &appconn->reqip, 0)) {*/
-    if (newip(&ipm, &appconn->reqip)) {
+    if (newip(&ipm, &appconn->reqip, conn->hismac)) {
       log_err(0, "Failed allocate dynamic IP address");
       return -1;
     }
@@ -3188,6 +3241,10 @@ int static uam_msg(struct redir_msg_t *msg) {
     appconn->uamabort = 0;
     break;
 
+  case REDIR_MACREAUTH:
+    macauth_radius(appconn, 0, 0);
+    break;
+
   case REDIR_NOTYET:
     break;
   }
@@ -3512,7 +3569,7 @@ int chilli_main(int argc, char **argv) {
 	       options.dhcpusemac, options.dhcpmac, options.dhcpusemac, 
 	       &options.dhcplisten, options.lease, 1, 
 	       &options.uamlisten, options.uamport, 
-	       options.eapolenable)) {
+	       options.eapolenable, options.noc2c)) {
     log_err(0, "Failed to create dhcp");
     exit(1);
   }
@@ -3644,6 +3701,14 @@ int chilli_main(int argc, char **argv) {
   /******************************************************************/
   /* Main select loop                                               */
   /******************************************************************/
+
+  if (options.uid && setuid(options.uid)) {
+    log_err(errno, "setuid(%d) failed while running with uid = %d\n", options.uid, getuid());
+  }
+
+  if (options.gid && setgid(options.gid)) {
+    log_err(errno, "setgid(%d) failed while running with gid = %d\n", options.gid, getgid());
+  }
 
   mainclock = time(0);
   while (keep_going) {

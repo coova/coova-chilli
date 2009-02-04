@@ -1,9 +1,8 @@
 /* 
- *
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (c) 2006-2007 David Bird <david@coova.com>
+ * Copyright (c) 2006-2009 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -235,6 +234,8 @@ int process_options(int argc, char **argv, int minimal) {
     options.debug = 0;
 
   /** simple configuration parameters **/
+  options.uid = args_info.uid_arg;
+  options.gid = args_info.gid_arg;
   options.mtu = args_info.mtu_arg;
   options.usetap = args_info.usetap_flag;
   options.foreground = args_info.fg_flag;
@@ -248,6 +249,7 @@ int process_options(int argc, char **argv, int minimal) {
   options.logfacility = args_info.logfacility_arg;
   options.chillixml = args_info.chillixml_flag;
   options.macauth = args_info.macauth_flag;
+  options.macreauth = args_info.macreauth_flag;
   options.macauthdeny = args_info.macauthdeny_flag;
   options.uamport = args_info.uamport_arg;
   options.uamuiport = args_info.uamuiport_arg;
@@ -276,6 +278,7 @@ int process_options(int argc, char **argv, int minimal) {
   options.acct_update = args_info.acctupdate_flag;
   options.dhcpradius = args_info.dhcpradius_flag;
   options.dhcpgwport = args_info.dhcpgatewayport_arg;
+  options.noc2c = args_info.noc2c_flag;
 
   if (args_info.dhcpgateway_arg &&
       !inet_aton(args_info.dhcpgateway_arg, &options.dhcpgwip)) {
@@ -309,8 +312,7 @@ int process_options(int argc, char **argv, int minimal) {
     int	i;
 
     if ((macstrlen = strlen(args_info.dhcpmac_arg)) >= (RADIUS_ATTR_VLEN-1)) {
-      log_err(0,
-	      "MAC address too long");
+      log_err(0, "MAC address too long");
       goto end_processing;
     }
 
@@ -463,6 +465,10 @@ int process_options(int argc, char **argv, int minimal) {
 
   if (!reconfiguring) {
     options.allowdyn = 1;
+
+    options.autostatip = args_info.autostatip_arg;
+    if (options.autostatip)
+      options.uamanyip = 1;
 
     if (args_info.nodynip_flag) {
       options.allowdyn = 0;

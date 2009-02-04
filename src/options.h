@@ -1,9 +1,8 @@
 /* 
- *
  * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (c) 2006-2007 David Bird <david@coova.com>
+ * Copyright (c) 2006-2009 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -26,6 +25,8 @@ struct options_t {
   int foreground;
   int debug;
   /* conf */
+  uid_t uid;
+  gid_t gid;
   int interval;
   char *pidfile;
   char *statedir;
@@ -39,6 +40,7 @@ struct options_t {
   char * tundev;
   char * dynip;                  /* Dynamic IP address pool */
   char * statip;                 /* Static IP address pool */
+  int autostatip;                /* Automatically assign "Static" IP addresses */
   int allowdyn;                  /* Allow dynamic address allocation */
   int allowstat;                 /* Allow static address allocation */
   struct in_addr dns1;           /* Primary DNS server IP address */
@@ -114,6 +116,7 @@ struct options_t {
 
 
   /* booleans */
+  uint8_t noc2c:1;
   uint8_t framedservice:1;
   uint8_t usetap:1;
   uint8_t eapolenable:1;            /* Use eapol */
@@ -130,6 +133,7 @@ struct options_t {
   uint8_t wpaguests:1;              /* Allow WPS "Guest" access */
   uint8_t openidauth:1;             /* Allow OpenID authentication */
   uint8_t macauth:1;                /* Use MAC authentication */
+  uint8_t macreauth:1;              /* Use MAC re-authentication on /prelogin */
   uint8_t macauthdeny:1;            /* Deny any access to those given Access-Reject */
   uint8_t macallowlocal:1;          /* Do not use RADIUS for authenticating the macallowed */
   uint8_t radiusoriginalurl:1;      /* Send ChilliSpot-OriginalURL in AccessRequest */
@@ -170,6 +174,9 @@ struct options_t {
 
   /* Command-Socket */
   char *cmdsocket;
+  
+  char **extra_argv;
+  int extra_argc;
 };
 
 extern struct options_t options;

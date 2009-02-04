@@ -239,8 +239,16 @@ chilliController.logonStep2 = function ( resp ) {
 
 		log ('chilliController.logonStep2: Logon using uamService (external MD5 CHAP)');
 
+		var c ;
+		if ( chilliController.uamService.indexOf('?') === -1 ) { 
+			c = '?' ;
+		}
+		else {
+			c = '&' ;
+		}
+
 		// Build command URL
-		var url = chilliController.uamService + '?username=' + escape(username) +'&password=' + escape(password) +'&challenge=' + challenge ;
+		var url = chilliController.uamService + c + 'username=' + escape(username) +'&password=' + escape(password) +'&challenge=' + challenge ;
 
 		if (chilliController.queryObj && chilliController.queryObj['userurl'] ) {
 		    url += '&userurl='+chilliController.queryObj['userurl'] ;
