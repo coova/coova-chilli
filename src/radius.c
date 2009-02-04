@@ -490,7 +490,7 @@ int radius_timeout(struct radius_t *this) {
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = AF_INET;
       
-      if (this->queue[this->first].retrans == (options.radiusretrysec-1)) {
+      if (this->queue[this->first].retrans == (options.radiusretrysec - 1)) {
 	/* Use the other server for next retransmission */
 	if (this->queue[this->first].lastsent) {
 	  addr.sin_addr = this->hisaddr0;

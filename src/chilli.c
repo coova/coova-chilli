@@ -2234,6 +2234,10 @@ int cb_radius_acct_conf(struct radius_t *radius,
     log_err(0,"No peer protocol defined");
     return 0;
   }
+
+  if (!pack) /* Timeout */
+    return 0;
+
   config_radius_session(&appconn->s_params, pack, (struct dhcp_conn_t *)appconn->dnlink, 1);
   return 0;
 }
@@ -2283,7 +2287,6 @@ int cb_radius_auth_conf(struct radius_t *radius,
   appconn->recvlen  = 0;
   appconn->lmntlen  = 0;
   
-
   if (!pack) { /* Timeout */
     log_err(0, "Radius request timed out");
     return dnprot_reject(appconn);
