@@ -2247,7 +2247,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     if (options.definteriminterval && !conn.s_params.interim_interval)
       conn.s_params.interim_interval = options.definteriminterval;
 
-    if (conn.response == REDIR_SUCCESS) { /* Radius-Accept */
+    if (conn.response == REDIR_SUCCESS) { /* Accept-Accept */
       bstring besturl = bfromcstr((char*)conn.s_params.url);
       
       conn.s_params.flags &= ~REQUIRE_UAM_SPLASH;
@@ -2270,8 +2270,12 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 		    (char *)conn.s_params.url, conn.hismac, &conn.hisip, qs);
       
       bdestroy(besturl);
-    }
-    else {
+
+      /* set params and redir data */
+      redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS);
+
+    } else { /* Access-Reject */
+
       bstring besturl = bfromcstr((char *)conn.s_params.url);
       int hasnexturl = (besturl && besturl->slen > 5);
 
@@ -2287,11 +2291,12 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, qs);
 
       bdestroy(besturl);
+
+      /* set params, redir data, and reset session-id */
+      redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS | REDIR_MSG_NSESSIONID);
     }    
 
     if (optionsdebug) log_dbg("-->> Msg userurl=[%s]\n",conn.s_state.redir.userurl);
-    redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS);
-
     redir_close(infd, outfd);
   }
 

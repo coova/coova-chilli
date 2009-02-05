@@ -3158,6 +3158,9 @@ int static uam_msg(struct redir_msg_t *msg) {
   if (msg->mdata.opt & REDIR_MSG_OPT_PARAMS)
     memcpy(&appconn->s_params, &msg->mdata.params, sizeof(msg->mdata.params));
 
+  if (msg->mdata.opt & REDIR_MSG_NSESSIONID)
+    set_sessionid(appconn);
+
   switch(msg->mtype) {
 
   case REDIR_LOGIN:

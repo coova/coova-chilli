@@ -48,8 +48,10 @@
 #define REDIR_FMT_DEFAULT     0
 #define REDIR_FMT_JSON        1
 
+/* bit masks */
 #define REDIR_MSG_OPT_REDIR   1
 #define REDIR_MSG_OPT_PARAMS  2
+#define REDIR_MSG_NSESSIONID  4
 
 struct redir_conn_t {
   /* 
