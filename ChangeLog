@@ -13,6 +13,7 @@
 * Added support for a ChilliSpot-Config = ''admin-reset'' option in RADIUS responses which will have chilli release the DHCP lease for the session
 * Added ''macreauth'' option to have chilli always re-attempt a MAC authentication when it does an initial redirection
 * Added the special ''/macreauth'' URL which will do a MAC re-auth if the ''macauth'' option is true (does not check the ''macreauth'' option which controls the re-auth for initial redirects)
+* Added option ''adminupdatefile'' which optionally defines a file to write ChilliSpot-Config administrative user session attributes to - when the file changes, chilli will reread it's configs
 * Crashing bug fix for when using ''acctupate'' and there is a RADIUS timeout
 * Fix to have Acct-Session-Id reset upon Reject from UAM authentication
 * Added ''mtu'' option which sets the MTU returned by DHCP

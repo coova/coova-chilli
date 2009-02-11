@@ -750,6 +750,9 @@ int process_options(int argc, char **argv, int minimal) {
   if (options.adminpasswd) free(options.adminpasswd);
   options.adminpasswd = STRDUP(args_info.adminpasswd_arg);
 
+  if (options.adminupdatefile) free(options.adminupdatefile);
+  options.adminupdatefile = STRDUP(args_info.adminupdatefile_arg);
+
   if (options.ssid) free(options.ssid);
   options.ssid = STRDUP(args_info.ssid_arg);
 

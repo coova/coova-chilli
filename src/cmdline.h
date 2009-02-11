@@ -280,12 +280,15 @@ struct gengetopt_args_info
   char * uamui_arg;	/**< @brief Program in inetd style to handle all uam requests.  */
   char * uamui_orig;	/**< @brief Program in inetd style to handle all uam requests original value given at command line.  */
   const char *uamui_help; /**< @brief Program in inetd style to handle all uam requests help description.  */
-  char * adminuser_arg;	/**< @brief RADIUS administrative user login username (default='chillispot').  */
+  char * adminuser_arg;	/**< @brief RADIUS administrative user login username.  */
   char * adminuser_orig;	/**< @brief RADIUS administrative user login username original value given at command line.  */
   const char *adminuser_help; /**< @brief RADIUS administrative user login username help description.  */
-  char * adminpasswd_arg;	/**< @brief RADIUS administrative user login password (default='chillispot').  */
+  char * adminpasswd_arg;	/**< @brief RADIUS administrative user login password.  */
   char * adminpasswd_orig;	/**< @brief RADIUS administrative user login password original value given at command line.  */
   const char *adminpasswd_help; /**< @brief RADIUS administrative user login password help description.  */
+  char * adminupdatefile_arg;	/**< @brief File for administrative user ChilliSpot-Config settings.  */
+  char * adminupdatefile_orig;	/**< @brief File for administrative user ChilliSpot-Config settings original value given at command line.  */
+  const char *adminupdatefile_help; /**< @brief File for administrative user ChilliSpot-Config settings help description.  */
   char * nasmac_arg;	/**< @brief Unique MAC address of the NAS (called-station-id).  */
   char * nasmac_orig;	/**< @brief Unique MAC address of the NAS (called-station-id) original value given at command line.  */
   const char *nasmac_help; /**< @brief Unique MAC address of the NAS (called-station-id) help description.  */
@@ -425,6 +428,7 @@ struct gengetopt_args_info
   unsigned int uamui_given ;	/**< @brief Whether uamui was given.  */
   unsigned int adminuser_given ;	/**< @brief Whether adminuser was given.  */
   unsigned int adminpasswd_given ;	/**< @brief Whether adminpasswd was given.  */
+  unsigned int adminupdatefile_given ;	/**< @brief Whether adminupdatefile was given.  */
   unsigned int nasmac_given ;	/**< @brief Whether nasmac was given.  */
   unsigned int nasip_given ;	/**< @brief Whether nasip was given.  */
   unsigned int ssid_given ;	/**< @brief Whether ssid was given.  */

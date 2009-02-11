@@ -2156,15 +2156,11 @@ void config_radius_session(struct session_params *params,
     params->sessionterminatetime = 0;
 }
 
-static int extra_argc;
-static char **extra_argv;
-
 static int chilliauth_cb(struct radius_t *radius,
 			 struct radius_packet_t *pack,
 			 struct radius_packet_t *pack_req, void *cbp) {
   struct radius_attr_t *attr = NULL;
   size_t offset = 0;
-  int cnt = 0;
 
   if (!pack) { 
     log_err(0, "Radius request timed out");
@@ -2184,37 +2180,83 @@ static int chilliauth_cb(struct radius_t *radius,
     return 0;
   }
 
-  while (!radius_getnextattr(pack, &attr, 
-			     RADIUS_ATTR_VENDOR_SPECIFIC,
-			     RADIUS_VENDOR_CHILLISPOT,
-			     RADIUS_ATTR_CHILLISPOT_CONFIG, 
-			     0, &offset)) {
-    cnt++;
-  }
+  if (options.adminupdatefile) {
+    if (!radius_getnextattr(pack, &attr, 
+			    RADIUS_ATTR_VENDOR_SPECIFIC,
+			    RADIUS_VENDOR_CHILLISPOT,
+			    RADIUS_ATTR_CHILLISPOT_CONFIG, 
+			    0, &offset)) {
 
-  if (cnt) {
-    int i;
+      char * hs_conf = options.adminupdatefile;
+      char * hs_temp = "/tmp/hs.conf";
+      
+      /* 
+       *  We have configurations in the administrative-user session.
+       *  Save to a temporary file.
+       */
+      
+      int fd = open(hs_temp, O_RDWR | O_TRUNC);
 
-    if (extra_argv && extra_argv) {
-      for (i=0; i<cnt; i++)
-	free(extra_argv[i]);
-      free(extra_argv);
-    }
+      if (fd > 0) {
 
-    extra_argc = cnt;
-    extra_argv = (char **)calloc(cnt, sizeof(char *));
-
-    i=0;
-    offset=0;
-    while (!radius_getnextattr(pack, &attr, 
-			       RADIUS_ATTR_VENDOR_SPECIFIC,
-			       RADIUS_VENDOR_CHILLISPOT,
-			       RADIUS_ATTR_CHILLISPOT_CONFIG, 
-			       0, &offset)) {
-      extra_argv[i] = (char *)calloc(1, attr->l - 1);
-      strncpy(extra_argv[i], (const char *)attr->v.t, attr->l - 2);
-      printf("%s\n", extra_argv[i]);
-      i++;
+	do {
+	  
+	  write(fd, (char *)attr->v.t, attr->l-2);
+	  write(fd, "\n", 1);
+	
+	} 
+	while (!radius_getnextattr(pack, &attr, 
+				   RADIUS_ATTR_VENDOR_SPECIFIC,
+				   RADIUS_VENDOR_CHILLISPOT,
+				   RADIUS_ATTR_CHILLISPOT_CONFIG, 
+				   0, &offset));
+	close(fd);
+      }
+      
+      /* 
+       *  Check to see if this file is different from the chilli/hs.conf
+       */
+      {
+	int newfd = open(hs_temp, O_RDONLY);
+	int oldfd = open(hs_conf, O_RDONLY);
+	
+	if (newfd > 0 && oldfd > 0) {
+	  int differ = 0;
+	  char b1[100], b2[100];
+	  ssize_t r1, r2;
+	  
+	  do {
+	    r1 = read(newfd, b1, sizeof(b1));
+	    r2 = read(oldfd, b2, sizeof(b2));
+	    
+	    if (r1 != r2 || strncmp(b1, b2, r1)) 
+	      differ = 1;
+	  } 
+	  while (!differ && r1 > 0 && r2 > 0);
+	  
+	  close(newfd); newfd=0;
+	  close(oldfd); oldfd=0;
+	  
+	  
+	  if (differ) {
+	    log_dbg("Writing out new hs.conf file with administraive-user settings");
+	    
+	    newfd = open(hs_temp, O_RDONLY);
+	    oldfd = open(hs_conf, O_RDWR | O_TRUNC);
+	    
+	    if (newfd > 0 && oldfd > 0) {
+	      while ((r1 = read(newfd, b1, sizeof(b1))) > 0)
+		write(oldfd, b1, r1);
+	      
+	      close(newfd); newfd=0;
+	      close(oldfd); oldfd=0;
+	      do_sighup = 1;
+	    }
+	  }
+	}
+	if (newfd > 0) close(newfd);
+	if (oldfd > 0) close(oldfd);
+      }
     }
   }
 

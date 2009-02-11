@@ -121,8 +121,9 @@ option "wwwbin"      - "Script binary (such as haserl) for simple web programmin
 option "uamui"       - "Program in inetd style to handle all uam requests" string no
 
 # Centralized Configuration
-option "adminuser"   - "RADIUS administrative user login username" string default="chillispot" no
-option "adminpasswd" - "RADIUS administrative user login password" string default="chillispot" no
+option "adminuser"   - "RADIUS administrative user login username" string no
+option "adminpasswd" - "RADIUS administrative user login password" string no
+option "adminupdatefile" - "File for administrative user ChilliSpot-Config settings" string no
 
 # "Location-Aware"
 option "nasmac"	     - "Unique MAC address of the NAS (called-station-id)" string no

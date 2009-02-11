@@ -166,6 +166,7 @@ struct options_t {
   /* Admin RADIUS Authentication & Configuration */
   char *adminuser;
   char *adminpasswd;
+  char *adminupdatefile;
 
   /* Location-awareness */
   char *ssid;

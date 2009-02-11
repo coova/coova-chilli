@@ -115,8 +115,9 @@ const char *gengetopt_args_info_help[] = {
   "      --wwwdir=STRING           Local content served by chilli (for splash \n                                  page, etc)",
   "      --wwwbin=STRING           Script binary (such as haserl) for simple web \n                                  programming",
   "      --uamui=STRING            Program in inetd style to handle all uam \n                                  requests",
-  "      --adminuser=STRING        RADIUS administrative user login username  \n                                  (default=`chillispot')",
-  "      --adminpasswd=STRING      RADIUS administrative user login password  \n                                  (default=`chillispot')",
+  "      --adminuser=STRING        RADIUS administrative user login username",
+  "      --adminpasswd=STRING      RADIUS administrative user login password",
+  "      --adminupdatefile=STRING  File for administrative user ChilliSpot-Config \n                                  settings",
   "      --nasmac=STRING           Unique MAC address of the NAS \n                                  (called-station-id)",
   "      --nasip=STRING            Unique IP address of the NAS (nas-ip-address)",
   "      --ssid=STRING             SSID of the session",
@@ -278,6 +279,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamui_given = 0 ;
   args_info->adminuser_given = 0 ;
   args_info->adminpasswd_given = 0 ;
+  args_info->adminupdatefile_given = 0 ;
   args_info->nasmac_given = 0 ;
   args_info->nasip_given = 0 ;
   args_info->ssid_given = 0 ;
@@ -458,10 +460,12 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->wwwbin_orig = NULL;
   args_info->uamui_arg = NULL;
   args_info->uamui_orig = NULL;
-  args_info->adminuser_arg = gengetopt_strdup ("chillispot");
+  args_info->adminuser_arg = NULL;
   args_info->adminuser_orig = NULL;
-  args_info->adminpasswd_arg = gengetopt_strdup ("chillispot");
+  args_info->adminpasswd_arg = NULL;
   args_info->adminpasswd_orig = NULL;
+  args_info->adminupdatefile_arg = NULL;
+  args_info->adminupdatefile_orig = NULL;
   args_info->nasmac_arg = NULL;
   args_info->nasmac_orig = NULL;
   args_info->nasip_arg = NULL;
@@ -594,26 +598,27 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->uamui_help = gengetopt_args_info_help[86] ;
   args_info->adminuser_help = gengetopt_args_info_help[87] ;
   args_info->adminpasswd_help = gengetopt_args_info_help[88] ;
-  args_info->nasmac_help = gengetopt_args_info_help[89] ;
-  args_info->nasip_help = gengetopt_args_info_help[90] ;
-  args_info->ssid_help = gengetopt_args_info_help[91] ;
-  args_info->vlan_help = gengetopt_args_info_help[92] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[93] ;
-  args_info->radiusoriginalurl_help = gengetopt_args_info_help[94] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[95] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[96] ;
-  args_info->localusers_help = gengetopt_args_info_help[97] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[98] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[99] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[100] ;
-  args_info->openidauth_help = gengetopt_args_info_help[101] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[102] ;
-  args_info->chillixml_help = gengetopt_args_info_help[103] ;
-  args_info->acctupdate_help = gengetopt_args_info_help[104] ;
-  args_info->dnsparanoia_help = gengetopt_args_info_help[105] ;
-  args_info->usetap_help = gengetopt_args_info_help[106] ;
-  args_info->routeif_help = gengetopt_args_info_help[107] ;
-  args_info->framedservice_help = gengetopt_args_info_help[108] ;
+  args_info->adminupdatefile_help = gengetopt_args_info_help[89] ;
+  args_info->nasmac_help = gengetopt_args_info_help[90] ;
+  args_info->nasip_help = gengetopt_args_info_help[91] ;
+  args_info->ssid_help = gengetopt_args_info_help[92] ;
+  args_info->vlan_help = gengetopt_args_info_help[93] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[94] ;
+  args_info->radiusoriginalurl_help = gengetopt_args_info_help[95] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[96] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[97] ;
+  args_info->localusers_help = gengetopt_args_info_help[98] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[99] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[100] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[101] ;
+  args_info->openidauth_help = gengetopt_args_info_help[102] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[103] ;
+  args_info->chillixml_help = gengetopt_args_info_help[104] ;
+  args_info->acctupdate_help = gengetopt_args_info_help[105] ;
+  args_info->dnsparanoia_help = gengetopt_args_info_help[106] ;
+  args_info->usetap_help = gengetopt_args_info_help[107] ;
+  args_info->routeif_help = gengetopt_args_info_help[108] ;
+  args_info->framedservice_help = gengetopt_args_info_help[109] ;
   
 }
 
@@ -851,6 +856,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->adminuser_orig));
   free_string_field (&(args_info->adminpasswd_arg));
   free_string_field (&(args_info->adminpasswd_orig));
+  free_string_field (&(args_info->adminupdatefile_arg));
+  free_string_field (&(args_info->adminupdatefile_orig));
   free_string_field (&(args_info->nasmac_arg));
   free_string_field (&(args_info->nasmac_orig));
   free_string_field (&(args_info->nasip_arg));
@@ -1080,6 +1087,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "adminuser", args_info->adminuser_orig, 0);
   if (args_info->adminpasswd_given)
     write_into_file(outfile, "adminpasswd", args_info->adminpasswd_orig, 0);
+  if (args_info->adminupdatefile_given)
+    write_into_file(outfile, "adminupdatefile", args_info->adminupdatefile_orig, 0);
   if (args_info->nasmac_given)
     write_into_file(outfile, "nasmac", args_info->nasmac_orig, 0);
   if (args_info->nasip_given)
@@ -1769,6 +1778,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "uamui",	1, NULL, 0 },
         { "adminuser",	1, NULL, 0 },
         { "adminpasswd",	1, NULL, 0 },
+        { "adminupdatefile",	1, NULL, 0 },
         { "nasmac",	1, NULL, 0 },
         { "nasip",	1, NULL, 0 },
         { "ssid",	1, NULL, 0 },
@@ -2978,7 +2988,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
           
             if (update_arg( (void *)&(args_info->adminuser_arg), 
                  &(args_info->adminuser_orig), &(args_info->adminuser_given),
-                &(local_args_info.adminuser_given), optarg, 0, "chillispot", ARG_STRING,
+                &(local_args_info.adminuser_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "adminuser", '-',
                 additional_error))
@@ -2992,9 +3002,23 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
           
             if (update_arg( (void *)&(args_info->adminpasswd_arg), 
                  &(args_info->adminpasswd_orig), &(args_info->adminpasswd_given),
-                &(local_args_info.adminpasswd_given), optarg, 0, "chillispot", ARG_STRING,
+                &(local_args_info.adminpasswd_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "adminpasswd", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* File for administrative user ChilliSpot-Config settings.  */
+          else if (strcmp (long_options[option_index].name, "adminupdatefile") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->adminupdatefile_arg), 
+                 &(args_info->adminupdatefile_orig), &(args_info->adminupdatefile_given),
+                &(local_args_info.adminupdatefile_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "adminupdatefile", '-',
                 additional_error))
               goto failure;
           
