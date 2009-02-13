@@ -2181,6 +2181,9 @@ static int chilliauth_cb(struct radius_t *radius,
   }
 
   if (options.adminupdatefile) {
+
+    log_dbg("looking to replace: %s", options.adminupdatefile);
+
     if (!radius_getnextattr(pack, &attr, 
 			    RADIUS_ATTR_VENDOR_SPECIFIC,
 			    RADIUS_VENDOR_CHILLISPOT,
@@ -2194,8 +2197,10 @@ static int chilliauth_cb(struct radius_t *radius,
        *  We have configurations in the administrative-user session.
        *  Save to a temporary file.
        */
+
+      log_dbg("using temp: %s", hs_temp);
       
-      int fd = open(hs_temp, O_RDWR | O_TRUNC);
+      int fd = open(hs_temp, O_RDWR | O_TRUNC | O_CREAT);
 
       if (fd > 0) {
 
@@ -2237,12 +2242,11 @@ static int chilliauth_cb(struct radius_t *radius,
 	  close(newfd); newfd=0;
 	  close(oldfd); oldfd=0;
 	  
-	  
 	  if (differ) {
 	    log_dbg("Writing out new hs.conf file with administraive-user settings");
 	    
 	    newfd = open(hs_temp, O_RDONLY);
-	    oldfd = open(hs_conf, O_RDWR | O_TRUNC);
+	    oldfd = open(hs_conf, O_RDWR | O_TRUNC | O_CREAT);
 	    
 	    if (newfd > 0 && oldfd > 0) {
 	      while ((r1 = read(newfd, b1, sizeof(b1))) > 0)
@@ -2405,12 +2409,12 @@ int cb_radius_auth_conf(struct radius_t *radius,
     hisip = (struct in_addr*) &appconn->reqip.s_addr;
   }
 
+  config_radius_session(&appconn->s_params, pack, dhcpconn, 0);
+
   /* for the admin session */
   if (appconn->is_adminsession) {
     return chilliauth_cb(radius, pack, pack_req, cbp);
   }
-
-  config_radius_session(&appconn->s_params, pack, dhcpconn, 0);
 
   if (options.dhcpradius) {
     struct radius_attr_t *attr = NULL;
