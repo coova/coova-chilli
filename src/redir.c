@@ -2203,7 +2203,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     }
 
     /* Did the challenge expire? */
-    if ((conn.s_state.uamtime + REDIR_CHALLENGETIMEOUT2) < time(NULL)) {
+    if (options.challengetimeout2 && 
+	(conn.s_state.uamtime + options.challengetimeout2) < time(NULL)) {
       log_dbg("redir_accept: challenge expired: %d : %d", conn.s_state.uamtime, time(NULL));
 
       redir_memcopy(REDIR_CHALLENGE);      
@@ -2285,8 +2286,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	msg.mtype = REDIR_NOTYET;
       }
 
-      redir_reply(redir, &socket, &conn, REDIR_FAILED_REJECT,
-		  hasnexturl ? besturl : NULL,
+      redir_reply(redir, &socket, &conn, REDIR_FAILED_REJECT, hasnexturl ? besturl : NULL,
 		  0, hexchal, NULL, conn.s_state.redir.userurl, conn.reply,
 		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, qs);
 
@@ -2335,7 +2335,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   case REDIR_PRELOGIN:
     /* Did the challenge expire? */
-    if ((conn.s_state.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
+    if (options.challengetimeout &&
+	(conn.s_state.uamtime + options.challengetimeout) < time(NULL)) {
       redir_memcopy(REDIR_CHALLENGE);
       redir_msg_send(REDIR_MSG_OPT_REDIR);
     }
@@ -2380,7 +2381,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       time_t timenow = time(0);
 
       /* Did the challenge expire? */
-      if ((conn.s_state.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
+      if (options.challengetimeout &&
+	  (conn.s_state.uamtime + options.challengetimeout) < time(NULL)) {
 	redir_memcopy(REDIR_CHALLENGE);
 	redir_msg_send(REDIR_MSG_OPT_REDIR);
       }
@@ -2412,7 +2414,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
 
   /* Did the challenge expire? */
-  if ((conn.s_state.uamtime + REDIR_CHALLENGETIMEOUT1) < time(NULL)) {
+  if (options.challengetimeout &&
+      (conn.s_state.uamtime + options.challengetimeout) < time(NULL)) {
     redir_memcopy(REDIR_CHALLENGE);
     redir_msg_send(REDIR_MSG_OPT_REDIR);
   }
@@ -2423,6 +2426,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	redir_msg_send(REDIR_MSG_OPT_REDIR);
     */
   }
+
+  log_dbg("---->>> challenge: %s", hexchal);
 
   if (options.macreauth) {
     msg.mtype = REDIR_MACREAUTH;

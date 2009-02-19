@@ -150,3 +150,6 @@ option "dnsparanoia"   - "Inspect DNS packets and drop responses with any non- A
 option "usetap"        - "Use a TAP instead of TUN (linux only)" flag   off
 option "routeif"       - "Interface to use as default route; turns on 'manual' routing" string no
 option "framedservice" - "Use Service-Type = Framed instead of Login" flag  off
+
+option "challengetimeout" - "Timeout in seconds for the generated challenge" int default="600" no
+option "challengetimeout2" - "Timeout in seconds for challenge during login" int default="1200" no

@@ -3265,7 +3265,6 @@ int static uam_msg(struct redir_msg_t *msg) {
 
     if (appconn->s_state.authenticated == 1) {
       terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
-      appconn->s_state.uamtime = 0;
       appconn->s_params.sessiontimeout = 0;
       appconn->s_params.idletimeout = 0;
     }

@@ -1,7 +1,7 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
-== ChangeLog (Coova Chilli v1.0.13 svn revision 185) ==
+== ChangeLog (Coova Chilli v1.0.13 svn revision ?) ==
 
 * Added options ''uid'' and ''gid'' to set the process user and group after being started by root (experimental)
 * Added option ''noc2c'' to have clients configured with /32 networks - http://coova.org/lists/?0::558
@@ -14,6 +14,7 @@
 * Added ''macreauth'' option to have chilli always re-attempt a MAC authentication when it does an initial redirection
 * Added the special ''/macreauth'' URL which will do a MAC re-auth if the ''macauth'' option is true (does not check the ''macreauth'' option which controls the re-auth for initial redirects)
 * Added option ''adminupdatefile'' which optionally defines a file to write ChilliSpot-Config administrative user session attributes to - when the file changes, chilli will reread it's configs
+* Added options ''challengetimeout'' and ''challengetimeout2'' to control previously hard-coded values for challenge timeout
 * Crashing bug fix for when using ''acctupate'' and there is a RADIUS timeout
 * Fix to have Acct-Session-Id reset upon Reject from UAM authentication
 * Added ''mtu'' option which sets the MTU returned by DHCP

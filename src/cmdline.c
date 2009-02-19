@@ -138,6 +138,8 @@ const char *gengetopt_args_info_help[] = {
   "      --usetap                  Use a TAP instead of TUN (linux only)  \n                                  (default=off)",
   "      --routeif=STRING          Interface to use as default route; turns on \n                                  'manual' routing",
   "      --framedservice           Use Service-Type = Framed instead of Login  \n                                  (default=off)",
+  "      --challengetimeout=INT    Timeout in seconds for the generated challenge  \n                                  (default=`600')",
+  "      --challengetimeout2=INT   Timeout in seconds for challenge during login  \n                                  (default=`1200')",
     0
 };
 
@@ -300,6 +302,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->usetap_given = 0 ;
   args_info->routeif_given = 0 ;
   args_info->framedservice_given = 0 ;
+  args_info->challengetimeout_given = 0 ;
+  args_info->challengetimeout2_given = 0 ;
 }
 
 static
@@ -495,6 +499,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->routeif_arg = NULL;
   args_info->routeif_orig = NULL;
   args_info->framedservice_flag = 0;
+  args_info->challengetimeout_arg = 600;
+  args_info->challengetimeout_orig = NULL;
+  args_info->challengetimeout2_arg = 1200;
+  args_info->challengetimeout2_orig = NULL;
   
 }
 
@@ -619,6 +627,8 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->usetap_help = gengetopt_args_info_help[107] ;
   args_info->routeif_help = gengetopt_args_info_help[108] ;
   args_info->framedservice_help = gengetopt_args_info_help[109] ;
+  args_info->challengetimeout_help = gengetopt_args_info_help[110] ;
+  args_info->challengetimeout2_help = gengetopt_args_info_help[111] ;
   
 }
 
@@ -875,6 +885,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->postauthproxyport_orig));
   free_string_field (&(args_info->routeif_arg));
   free_string_field (&(args_info->routeif_orig));
+  free_string_field (&(args_info->challengetimeout_orig));
+  free_string_field (&(args_info->challengetimeout2_orig));
   
   
 
@@ -1129,6 +1141,10 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "routeif", args_info->routeif_orig, 0);
   if (args_info->framedservice_given)
     write_into_file(outfile, "framedservice", 0, 0 );
+  if (args_info->challengetimeout_given)
+    write_into_file(outfile, "challengetimeout", args_info->challengetimeout_orig, 0);
+  if (args_info->challengetimeout2_given)
+    write_into_file(outfile, "challengetimeout2", args_info->challengetimeout2_orig, 0);
   
 
   i = EXIT_SUCCESS;
@@ -1799,6 +1815,8 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "usetap",	0, NULL, 0 },
         { "routeif",	1, NULL, 0 },
         { "framedservice",	0, NULL, 0 },
+        { "challengetimeout",	1, NULL, 0 },
+        { "challengetimeout2",	1, NULL, 0 },
         { NULL,	0, NULL, 0 }
       };
 
@@ -3277,6 +3295,34 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             if (update_arg((void *)&(args_info->framedservice_flag), 0, &(args_info->framedservice_given),
                 &(local_args_info.framedservice_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "framedservice", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Timeout in seconds for the generated challenge.  */
+          else if (strcmp (long_options[option_index].name, "challengetimeout") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->challengetimeout_arg), 
+                 &(args_info->challengetimeout_orig), &(args_info->challengetimeout_given),
+                &(local_args_info.challengetimeout_given), optarg, 0, "600", ARG_INT,
+                check_ambiguity, override, 0, 0,
+                "challengetimeout", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Timeout in seconds for challenge during login.  */
+          else if (strcmp (long_options[option_index].name, "challengetimeout2") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->challengetimeout2_arg), 
+                 &(args_info->challengetimeout2_orig), &(args_info->challengetimeout2_given),
+                &(local_args_info.challengetimeout2_given), optarg, 0, "1200", ARG_INT,
+                check_ambiguity, override, 0, 0,
+                "challengetimeout2", '-',
                 additional_error))
               goto failure;
           

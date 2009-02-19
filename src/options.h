@@ -157,6 +157,9 @@ struct options_t {
   unsigned int defidletimeout;
   unsigned short definteriminterval;
 
+  unsigned int challengetimeout;
+  unsigned int challengetimeout2;
+
   /* local content */
   char *wwwdir;
   char *wwwbin;
