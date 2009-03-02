@@ -776,7 +776,7 @@ int tun_encaps(struct tun_t *tun, void *pack, size_t len, int idx) {
 
   /* Can we user writev here to be more efficient??? */
   *((uint32_t *)(&buffer))=htonl(AF_INET);
-  memcpy(&buffer[4], pack, PACKET_MAX);
+  memcpy(&buffer[4], pack, len);
 
   return net_write(&tun(tun, idx), buffer, len+4);
 

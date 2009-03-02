@@ -687,8 +687,8 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 
   if (0) {
     printf("radius_getattr payload(len=%d,off=%d) %.2x %.2x %.2x %.2x\n",
-	   len, offset, pack->payload[0], pack->payload[1], pack->payload[2], 
-	   pack->payload[3]);
+	   len, offset, pack->payload[offset], pack->payload[offset+1], 
+	   pack->payload[offset+2], pack->payload[offset+3]);
   }
 
   while (offset < len) {
@@ -715,7 +715,7 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
       else
 	*attr = t;
       
-      if (0) printf("Found\n");
+      if (0) printf("Found %.*s\n", (*attr)->l - 2, (char *)(*attr)->v.t);
       
       *roffset = offset;
       return 0;

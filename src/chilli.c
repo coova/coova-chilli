@@ -1283,7 +1283,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
   
   if ((appconn = (struct app_conn_t *)ipm->peer) == NULL ||
       (appconn->dnlink) == NULL) {
-    log_err(0, "No peer protocol defined");
+    log_err(0, "No %s protocol defined for %s", appconn ? "dnlink" : "peer", inet_ntoa(dst));
     return 0;
   }
   
@@ -2069,12 +2069,14 @@ void config_radius_session(struct session_params *params,
 	params->flags |= REQUIRE_UAM_SPLASH;
 	is_splash = 1;
       }
-      else if (len > strlen(uamallowed) && !memcmp(val, uamallowed, strlen(uamallowed))) {
-	val[len]=0;
+      else if (len > strlen(uamallowed) && !memcmp(val, uamallowed, strlen(uamallowed)) && len < 255) {
+	char name[256];
+	strncpy(name, val, len);
+	name[len] = 0;
 	pass_throughs_from_string(params->pass_throughs,
 				  SESSION_PASS_THROUGH_MAX,
 				  &params->pass_through_count,
-				  val + strlen(uamallowed));
+				  name + strlen(uamallowed));
       }
       else if (dhcpconn && len >= strlen(adminreset) && !memcmp(val, adminreset, strlen(adminreset))) {
 	dhcp_release_mac(dhcp, dhcpconn->hismac, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
@@ -2158,7 +2160,9 @@ void config_radius_session(struct session_params *params,
 
 static int chilliauth_cb(struct radius_t *radius,
 			 struct radius_packet_t *pack,
-			 struct radius_packet_t *pack_req, void *cbp) {
+			 struct radius_packet_t *pack_req, 
+			 void *cbp) {
+
   struct radius_attr_t *attr = NULL;
   size_t offset = 0;
 
@@ -2205,10 +2209,8 @@ static int chilliauth_cb(struct radius_t *radius,
       if (fd > 0) {
 
 	do {
-	  
-	  write(fd, (char *)attr->v.t, attr->l-2);
+	  write(fd, (const char *) attr->v.t, attr->l - 2);
 	  write(fd, "\n", 1);
-	
 	} 
 	while (!radius_getnextattr(pack, &attr, 
 				   RADIUS_ATTR_VENDOR_SPECIFIC,

@@ -1874,7 +1874,11 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
    */
   if ((memcmp(pack->ethh.dst, this->ipif.hwaddr, PKT_ETH_ALEN)) && 
       (memcmp(pack->ethh.dst, bmac, PKT_ETH_ALEN))) {
-    log_dbg("dropping packet; not for our MAC or broadcast");
+    log_dbg("dropping packet; not for our MAC or broadcast: "
+	    "%2X:%2X:%2X:%2X:%2X:%2X", 
+	    pack->ethh.dst[0], pack->ethh.dst[1],
+	    pack->ethh.dst[2], pack->ethh.dst[3],
+	    pack->ethh.dst[4], pack->ethh.dst[5]);
     return 0;
   }
 
@@ -1945,7 +1949,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
     if (this->cb_request)
       if (this->cb_request(conn, &addr, 0, 0)) {
 	if (this->debug) 
-	  log_dbg("dropping packet; ip not known");
+	  log_dbg("dropping packet; ip not known: %s", inet_ntoa(addr));
 	return 0; /* Ignore request if IP address was not allocated */
       }
   }
