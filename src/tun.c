@@ -711,7 +711,7 @@ int tun_decaps(struct tun_t *this, int idx) {
    if (this->cb_ind)
 #if defined (__OpenBSD__)
     /* tun interface adds 4 bytes to front of packet under OpenBSD */
-     return this->cb_ind(this, buffer+4, status, idx);
+     return this->cb_ind(this, buffer+4, status-4, idx);
 #else
      return this->cb_ind(this, buffer, status, idx);
 #endif
