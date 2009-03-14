@@ -586,10 +586,29 @@ dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
     int on = 1;
     
     if (fd > 0) {
+
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = AF_INET;
       addr.sin_addr.s_addr = dhcp->uamlisten.s_addr;
-      addr.sin_port = htons(68);
+
+      /*
+       * ====[http://tools.ietf.org/id/draft-ietf-dhc-implementation-02.txt]====
+       * 4.7.2 Relay Agent Port Usage
+       *    Relay agents should use port 67 as the source port number.  Relay
+       *    agents always listen on port 67, but port 68 has sometimes been used
+       *    as the source port number probably because it was copied from the
+       *    source port of the incoming packet.
+       * 
+       *    Cable modem vendors would like to install filters blocking outgoing
+       *    packets with source port 67.
+       * 
+       *    RECOMMENDATIONS:
+       *      O  Relay agents MUST use 67 as their source port number.
+       *      O  Relay agents MUST NOT forward packets with non-zero giaddr
+       *         unless the source port number on the packet is 67.
+       */
+
+      addr.sin_port = htons(67);
       
       if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
 	log_err(errno, "Can't set reuse option");
