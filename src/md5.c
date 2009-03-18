@@ -18,6 +18,8 @@
 #include <string.h>		/* for memcpy() */
 #include "md5.h"
 
+#ifndef HAVE_OPENSSL
+
 void byteReverse(unsigned char *buf, size_t longs);
 
 /*
@@ -241,3 +243,4 @@ void MD5Transform(uint32_t buf[4], uint32_t const in[16])
     buf[3] += d;
 }
 
+#endif

@@ -143,6 +143,7 @@ option "postauthproxyport" - "Port of an upstream transparent proxy" int default
 option "wpaguests"     - "Allow WPA 'Guest' access" flag off
 option "openidauth"    - "Allow OpenID authentication" flag off
 option "papalwaysok"   - "Always allow 'PAP' authentication (depreciated; always on)" flag off
+option "mschapv2"      - "Use MSCHAPv2 authentication where possible" flag off
 option "chillixml"     - "Use ChilliSpot XML in WISPr blocks" flag   off
 option "acctupdate"    - "Allow updating of session attributes in Accounting-Response" flag off
 option "dnsparanoia"   - "Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX records (to prevent dns tunnels)" flag off

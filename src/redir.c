@@ -70,17 +70,16 @@ static int redir_challenge(unsigned char *dst) {
   return 0;
 }
 
-/* Convert 32+1 octet ASCII hex string to 16 octet unsigned char */
-static int redir_hextochar(unsigned char *src, unsigned char * dst) {
+static int redir_hextochar2(unsigned char *src, unsigned char * dst, int len) {
   char x[3];
   int n;
   int y;
   
-  for (n=0; n< REDIR_MD5LEN; n++) {
+  for (n=0; n < len; n++) {
     x[0] = src[n*2+0];
     x[1] = src[n*2+1];
     x[2] = 0;
-    if (sscanf (x, "%2x", &y) != 1) {
+    if (sscanf(x, "%2x", &y) != 1) {
       log_err(0, "HEX conversion failed!");
       return -1;
     }
@@ -88,6 +87,10 @@ static int redir_hextochar(unsigned char *src, unsigned char * dst) {
   }
 
   return 0;
+}
+
+static int redir_hextochar(unsigned char *src, unsigned char * dst) {
+  return redir_hextochar2(src, dst, REDIR_MD5LEN);
 }
 
 /* Convert 16 octet unsigned char to 32+1 octet ASCII hex string */
@@ -1338,7 +1341,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	bdestroy(bt2);
       }
       
-      if (!redir_getparam(redir, qs, "response", bt)) {
+      if (!redir_getparam(redir, qs, "ntresponse", bt)) {
+	redir_hextochar2(bt->data, conn->chappassword, 24);
+	conn->chap = 2;
+	conn->password[0] = 0;
+      }
+      else if (!redir_getparam(redir, qs, "response", bt)) {
 	redir_hextochar(bt->data, conn->chappassword);
 	conn->chap = 1;
 	conn->password[0] = 0;
@@ -1491,6 +1499,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   return 0;
 }
 
+
 /* Send radius Access-Request and wait for answer */
 static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 			struct redir_conn_t *conn, char reauth) {
@@ -1547,24 +1556,65 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_ORIGINALURL, 
 		   0, (uint8_t*) conn->s_state.redir.userurl, strlen(conn->s_state.redir.userurl));
 
+
   if (redir->secret && *redir->secret) {
-    /*fprintf(stderr,"SECRET: [%s]\n",redir->secret);*/
+    /* fprintf(stderr,"SECRET: [%s]\n",redir->secret); */
     /* Get MD5 hash on challenge and uamsecret */
     MD5Init(&context);
     MD5Update(&context, conn->s_state.redir.uamchal, REDIR_MD5LEN);
-    MD5Update(&context, (uint8_t*) redir->secret, strlen(redir->secret));
+    MD5Update(&context, (uint8_t *) redir->secret, strlen(redir->secret));
     MD5Final(chap_challenge, &context);
   }
   else {
     memcpy(chap_challenge, conn->s_state.redir.uamchal, REDIR_MD5LEN);
   }
+
   
   if (conn->chap == 0) {
+
+    /*
+     * decode password - encoded by the UAM portal/script. 
+     */
     for (n=0; n < REDIR_MD5LEN; n++) 
       user_password[n] = conn->password[n] ^ chap_challenge[n];
 
+#ifdef HAVE_OPENSSL
+    if (options.mschapv2) {
+      uint8_t response[50];
+      uint8_t ntresponse[24];
+
+      /*uint8_t peer_challenge[16];
+	redir_challenge(peer_challenge);*/
+
+      GenerateNTResponse(chap_challenge, /*peer*/chap_challenge,
+			 conn->s_state.redir.username, strlen(conn->s_state.redir.username),
+			 user_password, strlen(user_password),
+			 ntresponse);
+      
+      /* peer challenge - same as auth challenge */
+      memset(&response[0], 0, sizeof(response));
+      memcpy(&response[2], /*peer*/chap_challenge, 16); 
+      memcpy(&response[26], ntresponse, 24);
+      
+      radius_addattr(radius, &radius_pack, 
+		     RADIUS_ATTR_VENDOR_SPECIFIC,
+		     RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP_CHALLENGE, 0,
+		     chap_challenge, 16);
+      
+      radius_addattr(radius, &radius_pack, 
+		     RADIUS_ATTR_VENDOR_SPECIFIC,
+		     RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP2_RESPONSE, 0,
+		     response, 50);
+    } else {
+#endif
+
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
 		   (uint8_t*)user_password, REDIR_MD5LEN);
+
+#ifdef HAVE_OPENSSL
+    }
+#endif
+
   }
   else if (conn->chap == 1) {
     chap_password[0] = conn->chap_ident; /* Chap ident found on logon url */
@@ -1575,6 +1625,23 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CHAP_PASSWORD, 0, 0, 0,
 		   chap_password, REDIR_MD5LEN+1);
+  }
+  else if (conn->chap == 2) {
+    uint8_t response[50];
+
+    /* peer challenge - same as auth challenge */
+    memcpy(response + 2, chap_challenge, 16); 
+    memcpy(response + 26, conn->chappassword, 24);
+
+    radius_addattr(radius, &radius_pack, 
+		   RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP_CHALLENGE, 0,
+		   chap_challenge, 16);
+
+    radius_addattr(radius, &radius_pack, 
+		   RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP2_RESPONSE, 0,
+		   response, 50);
   }
 
   radius_addnasip(radius, &radius_pack);

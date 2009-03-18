@@ -132,6 +132,7 @@ const char *gengetopt_args_info_help[] = {
   "      --wpaguests               Allow WPA 'Guest' access  (default=off)",
   "      --openidauth              Allow OpenID authentication  (default=off)",
   "      --papalwaysok             Always allow 'PAP' authentication (depreciated; \n                                  always on)  (default=off)",
+  "      --mschapv2                Use MSCHAPv2 authentication where possible  \n                                  (default=off)",
   "      --chillixml               Use ChilliSpot XML in WISPr blocks  \n                                  (default=off)",
   "      --acctupdate              Allow updating of session attributes in \n                                  Accounting-Response  (default=off)",
   "      --dnsparanoia             Inspect DNS packets and drop responses with any \n                                  non- A, CNAME, SOA, or MX records (to prevent \n                                  dns tunnels)  (default=off)",
@@ -296,6 +297,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->wpaguests_given = 0 ;
   args_info->openidauth_given = 0 ;
   args_info->papalwaysok_given = 0 ;
+  args_info->mschapv2_given = 0 ;
   args_info->chillixml_given = 0 ;
   args_info->acctupdate_given = 0 ;
   args_info->dnsparanoia_given = 0 ;
@@ -492,6 +494,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->wpaguests_flag = 0;
   args_info->openidauth_flag = 0;
   args_info->papalwaysok_flag = 0;
+  args_info->mschapv2_flag = 0;
   args_info->chillixml_flag = 0;
   args_info->acctupdate_flag = 0;
   args_info->dnsparanoia_flag = 0;
@@ -621,14 +624,15 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->wpaguests_help = gengetopt_args_info_help[101] ;
   args_info->openidauth_help = gengetopt_args_info_help[102] ;
   args_info->papalwaysok_help = gengetopt_args_info_help[103] ;
-  args_info->chillixml_help = gengetopt_args_info_help[104] ;
-  args_info->acctupdate_help = gengetopt_args_info_help[105] ;
-  args_info->dnsparanoia_help = gengetopt_args_info_help[106] ;
-  args_info->usetap_help = gengetopt_args_info_help[107] ;
-  args_info->routeif_help = gengetopt_args_info_help[108] ;
-  args_info->framedservice_help = gengetopt_args_info_help[109] ;
-  args_info->challengetimeout_help = gengetopt_args_info_help[110] ;
-  args_info->challengetimeout2_help = gengetopt_args_info_help[111] ;
+  args_info->mschapv2_help = gengetopt_args_info_help[104] ;
+  args_info->chillixml_help = gengetopt_args_info_help[105] ;
+  args_info->acctupdate_help = gengetopt_args_info_help[106] ;
+  args_info->dnsparanoia_help = gengetopt_args_info_help[107] ;
+  args_info->usetap_help = gengetopt_args_info_help[108] ;
+  args_info->routeif_help = gengetopt_args_info_help[109] ;
+  args_info->framedservice_help = gengetopt_args_info_help[110] ;
+  args_info->challengetimeout_help = gengetopt_args_info_help[111] ;
+  args_info->challengetimeout2_help = gengetopt_args_info_help[112] ;
   
 }
 
@@ -1129,6 +1133,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "openidauth", 0, 0 );
   if (args_info->papalwaysok_given)
     write_into_file(outfile, "papalwaysok", 0, 0 );
+  if (args_info->mschapv2_given)
+    write_into_file(outfile, "mschapv2", 0, 0 );
   if (args_info->chillixml_given)
     write_into_file(outfile, "chillixml", 0, 0 );
   if (args_info->acctupdate_given)
@@ -1809,6 +1815,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "wpaguests",	0, NULL, 0 },
         { "openidauth",	0, NULL, 0 },
         { "papalwaysok",	0, NULL, 0 },
+        { "mschapv2",	0, NULL, 0 },
         { "chillixml",	0, NULL, 0 },
         { "acctupdate",	0, NULL, 0 },
         { "dnsparanoia",	0, NULL, 0 },
@@ -3221,6 +3228,18 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             if (update_arg((void *)&(args_info->papalwaysok_flag), 0, &(args_info->papalwaysok_given),
                 &(local_args_info.papalwaysok_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "papalwaysok", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Use MSCHAPv2 authentication where possible.  */
+          else if (strcmp (long_options[option_index].name, "mschapv2") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->mschapv2_flag), 0, &(args_info->mschapv2_given),
+                &(local_args_info.mschapv2_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "mschapv2", '-',
                 additional_error))
               goto failure;
           

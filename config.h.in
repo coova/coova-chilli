@@ -69,6 +69,9 @@
 /* Define to 1 if you have the <net/route.h> header file. */
 #undef HAVE_NET_ROUTE_H
 
+/* Define if you have openssl */
+#undef HAVE_OPENSSL
+
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H
 

@@ -325,6 +325,8 @@ struct gengetopt_args_info
   const char *openidauth_help; /**< @brief Allow OpenID authentication help description.  */
   int papalwaysok_flag;	/**< @brief Always allow 'PAP' authentication (depreciated; always on) (default=off).  */
   const char *papalwaysok_help; /**< @brief Always allow 'PAP' authentication (depreciated; always on) help description.  */
+  int mschapv2_flag;	/**< @brief Use MSCHAPv2 authentication where possible (default=off).  */
+  const char *mschapv2_help; /**< @brief Use MSCHAPv2 authentication where possible help description.  */
   int chillixml_flag;	/**< @brief Use ChilliSpot XML in WISPr blocks (default=off).  */
   const char *chillixml_help; /**< @brief Use ChilliSpot XML in WISPr blocks help description.  */
   int acctupdate_flag;	/**< @brief Allow updating of session attributes in Accounting-Response (default=off).  */
@@ -449,6 +451,7 @@ struct gengetopt_args_info
   unsigned int wpaguests_given ;	/**< @brief Whether wpaguests was given.  */
   unsigned int openidauth_given ;	/**< @brief Whether openidauth was given.  */
   unsigned int papalwaysok_given ;	/**< @brief Whether papalwaysok was given.  */
+  unsigned int mschapv2_given ;	/**< @brief Whether mschapv2 was given.  */
   unsigned int chillixml_given ;	/**< @brief Whether chillixml was given.  */
   unsigned int acctupdate_given ;	/**< @brief Whether acctupdate was given.  */
   unsigned int dnsparanoia_given ;	/**< @brief Whether dnsparanoia was given.  */

@@ -124,6 +124,7 @@ struct options_t {
   uint8_t usestatusfile:1;
   uint8_t chillixml:1;
   uint8_t pap_always_ok:1;
+  uint8_t mschapv2:1;               /* Use and support MSCHAPv2 */
   uint8_t uamanydns:1;              /* Allow any dns server */
   uint8_t uamanyip:1;               /* Allow any ip address */
   uint8_t dnsparanoia:1;            /* Filter DNS for questionable content (dns tunnels) */

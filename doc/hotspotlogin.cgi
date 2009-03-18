@@ -9,6 +9,9 @@
 # notice and this permission notice is included in all copies or
 # substantial portions of the software.
 
+# This code is horrible -- it came that way, and remains that way. A
+# real captive portal is demonstrated here: http://drupal.org/project/hotspot
+
 # Redirects from ChilliSpot daemon:
 #
 # Redirection when not yet or already authenticated
@@ -22,19 +25,24 @@
 #
 # logoff:  Response to a logout
 
-
 # Shared secret used to encrypt challenge with. Prevents dictionary attacks.
 # You should change this to your own shared secret.
 $uamsecret = "ht2eb8ej6s4et3rg1ulp";
+$uamsecret = "uamsecret";
 
-# Uncomment the following line if you want to use ordinary user-password
-# for radius authentication. Must be used together with $uamsecret.
-#$userpassword=1;
-
-# This code is horrible -- it came that way, and remains that way. A
-# real open-source captive portal for coova-chilli should be built -- david
+# Uncomment the following line if you want to use ordinary user-password (PAP)
+# for radius authentication. 
+$userpassword=1;
 
 $loginpath = "/cgi-bin/hotspotlogin.cgi";
+$debug = 1;
+
+# To use MSCHAPv2 Authentication with, 
+# then uncomment the next two lines. 
+#$ntresponse = 1;
+#$chilli_response = '/usr/local/sbin/chilli_response';
+
+# start program
 
 use Digest::MD5  qw(md5 md5_hex md5_base64);
 
@@ -52,7 +60,7 @@ $query = $_;
 
 
 # If she did not use https tell her that it was wrong.
-if (!($ENV{HTTPS} =~ /^on$/)) {
+if (!$debug && !($ENV{HTTPS} =~ /^on$/)) {
     print "Content-type: text/html\n\n
 <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
 <html>
@@ -137,33 +145,55 @@ $password =~ s/\+/ /g;
 $password =~s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
 
 # If attempt to login
+
 if ($button =~ /^Login$/) {
+
+    print "Content-type: text/html\n\n";
+
     $hexchal  = pack "H32", $challenge;
+
     if (defined $uamsecret) {
 	$newchal  = md5($hexchal, $uamsecret);
     }
     else {
 	$newchal  = $hexchal;
     }
-    $response = md5_hex("\0", $password, $newchal);
-    $pappassword = unpack "H32", ($password ^ $newchal);
+
+    if (defined($ntresponse)) {
+	# Encode plain text into NT-Password 
+
+	$response = `$chilli_response -nt "$challenge" "$uamsecret" "$username" "$password"`;
+
+	$logonUrl = "http://$uamip:$uamport/logon?username=$username&ntresponse=$response";
+
+    } elsif (defined($userpassword)) {
+	# Encode plain text password with challenge 
+	# (which may or may not be uamsecret encoded)
+
+	$pappassword = unpack "H32", ($password ^ $newchal);
+
+	$logonUrl = "http://$uamip:$uamport/logon?username=$username&password=$pappassword";
+
+    } else {
+	# Generate a CHAP response with the password and the
+	# challenge (which may have been uamsecret encoded)
+
+	$response = md5_hex("\0", $password, $newchal);
+
+	$logonUrl = "http://$uamip:$uamport/logon?username=$username&response=$response&userurl=$userurl";
+    }
+
 #sleep 5;
-print "Content-type: text/html\n\n";
 print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
 <html>
 <head>
   <title>ChilliSpot Login</title>
   <meta http-equiv=\"Cache-control\" content=\"no-cache\">
-  <meta http-equiv=\"Pragma\" content=\"no-cache\">";
-    if ((defined $uamsecret) && defined($userpassword)) {
-	print "  <meta http-equiv=\"refresh\" content=\"0;url=http://$uamip:$uamport/logon?username=$username&password=$pappassword\">";
-    } else {
-	print "  <meta http-equiv=\"refresh\" content=\"0;url=http://$uamip:$uamport/logon?username=$username&response=$response&userurl=$userurl\">";
-    }
-print "</head>
-<body bgColor = '#c0d8f4'>";
-  print "<h1 style=\"text-align: center;\">Logging in to ChilliSpot</h1>";
-  print "
+  <meta http-equiv=\"Pragma\" content=\"no-cache\">
+  <meta http-equiv=\"refresh\" content=\"0;url=$logonUrl\">
+</head>
+<body bgColor = '#c0d8f4'>
+<h1 style=\"text-align: center;\">Logging in to ChilliSpot</h1>
   <center>
     Please wait......
   </center>
@@ -176,13 +206,8 @@ print "</head>
 <AuthenticationReply>
 <MessageType>120</MessageType>
 <ResponseCode>201</ResponseCode>
-";
-    if ((defined $uamsecret) && defined($userpassword)) {
-	print "<LoginResultsURL>http://$uamip:$uamport/logon?username=$username&password=$pappassword</LoginResultsURL>";
-    } else {
-	print "<LoginResultsURL>http://$uamip:$uamport/logon?username=$username&response=$response&userurl=$userurl</LoginResultsURL>";
-    }
-print "</AuthenticationReply> 
+<LoginResultsURL>$logonUrl</LoginResultsURL>
+</AuthenticationReply> 
 </WISPAccessGatewayParam>
 -->
 </html>

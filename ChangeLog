@@ -3,6 +3,9 @@
 
 == ChangeLog (Coova Chilli v1.0.13 svn revision ?) ==
 
+* Accepts the parameter ''ntresponse'' in the ''logon'' which is used in MS-CHAPv2 (does not require the mschapv2 option, but simply passes through the ntresponse into the MSCHAPv2-Response
+* Added option ''mschapv2'' (requiring OpenSSL enabled with --with-openssl) to support MS-CHAPv2 authentication during what would otherwise be PAP authentication (doesn't impact CHAP authentication)
+* Added option to ''chilli_response'' to generate NT-Responses from the ''challenge'', ''uamsecret'', ''username'', and ''password'' - suitable to be used to encode the ''ntresponse'' sent to the 'logon'' handler. 
 * Added options ''uid'' and ''gid'' to set the process user and group after being started by root (experimental)
 * Added option ''noc2c'' to have clients configured with /32 networks - http://coova.org/lists/?0::558
 * Expanded the output of ''chilli_query'' to include the input/output octets, the max input/output and total octets, and bandwidth limitation information for each session.

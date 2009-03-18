@@ -48,6 +48,21 @@ AC_FUNC_SELECT_ARGTYPES
 AC_CHECK_FUNCS([gethostbyname getprotoent gettimeofday inet_ntoa memset select socket strdup strerror strstr strtol getline])
 AC_CHECK_LIB(resolv, res_init)
 
+
+AC_ARG_WITH([openssl],
+ [AS_HELP_STRING([--with-openssl], [enable support for openssl])],[],[with_openssl=no])
+
+OPENSSL=
+AS_IF([test "x$with_openssl" != xno],
+  [AC_CHECK_LIB([crypto], [CRYPTO_malloc],
+              [AC_SUBST([LIBOPENSSL], ["-lssl -lcrypto"])
+               AC_DEFINE([HAVE_OPENSSL], [1],
+                         [Define if you have openssl])
+              ],
+              [AC_MSG_FAILURE(
+                 [--with-openssl was given, but test for openssl failed])],
+              [-lssl -lcrypto])])
+
 AC_SUBST(sysconfdir)
 AC_CONFIG_FILES([Makefile 
 		 bstring/Makefile 
@@ -57,4 +72,6 @@ AC_CONFIG_FILES([Makefile
                  conf/Makefile 
                  debian/Makefile 
 		 coova-chilli.spec])
+
+
 AC_OUTPUT
