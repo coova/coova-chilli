@@ -2,9 +2,8 @@
 #define MD5_H
 #include "system.h"
 
-#include <openssl/md5.h>
-
 #if HAVE_OPENSSL
+#include <openssl/md5.h>
 
 #define MD5Init MD5_Init
 #define MD5Update MD5_Update
