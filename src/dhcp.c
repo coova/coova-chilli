@@ -120,7 +120,19 @@ void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t 
 void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause) {
   struct dhcp_conn_t *conn;
   if (!dhcp_hashget(this, &conn, hwaddr)) {
+    if (conn->authstate == DHCP_AUTH_DROP &&
+	term_cause != RADIUS_TERMINATE_CAUSE_ADMIN_RESET) 
+      return;
     dhcp_freeconn(conn, term_cause);
+  }
+}
+
+void dhcp_block_mac(struct dhcp_t *this, uint8_t *hwaddr) {
+  struct dhcp_conn_t *conn;
+  if (!dhcp_hashget(this, &conn, hwaddr)) {
+    struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+    conn->authstate = DHCP_AUTH_DROP;
+    if (appconn) appconn->dnprot = DNPROT_NULL;
   }
 }
 
@@ -1776,7 +1788,10 @@ int dhcp_getreq(struct dhcp_t *this, struct dhcp_fullpacket_t *pack, size_t len)
       return 0; /* Out of connections */
   }
 
-  /* Request an IP address */
+  if (conn->authstate == DHCP_AUTH_DROP)
+    return 0;
+
+  /* Request an IP address */ 
   if (conn->authstate == DHCP_AUTH_NONE) {
     addr.s_addr = pack->dhcp.ciaddr;
     if (this->cb_request)
@@ -2303,7 +2318,6 @@ int dhcp_receive_arp(struct dhcp_t *this,
 
   /* Check to see if we know MAC address. */
   if (dhcp_hashget(this, &conn, pack->ethh.src)) {
-
     if (options.debug) 
       log_dbg("Address not found: %s", inet_ntoa(reqaddr));
 
@@ -2320,6 +2334,9 @@ int dhcp_receive_arp(struct dhcp_t *this,
       return 0; /* Out of connections */
     }
   }
+
+  if (conn->authstate == DHCP_AUTH_DROP) 
+    return 0;
   
   /* if no sender ip, then client is checking their own ip */
   if (!reqaddr.s_addr) {

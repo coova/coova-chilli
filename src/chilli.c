@@ -3340,6 +3340,9 @@ static int cmdsock_accept(int sock) {
     break;
     
   case CMDSOCK_DHCP_DROP:
+    if (dhcp) dhcp_block_mac(dhcp, req.data.mac);
+    break;
+
   case CMDSOCK_DHCP_RELEASE:
     if (dhcp) dhcp_release_mac(dhcp, req.data.mac, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
     break;

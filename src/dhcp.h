@@ -255,6 +255,7 @@ int dhcp_sendEAPreject(struct dhcp_conn_t *conn, void *pack, size_t len);
 int dhcp_eapol_ind(struct dhcp_t *this);
 
 void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause);
+void dhcp_block_mac(struct dhcp_t *this, uint8_t *hwaddr);
 
 #define LIST_SHORT_FMT 0
 #define LIST_LONG_FMT  1

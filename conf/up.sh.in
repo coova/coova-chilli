@@ -50,8 +50,8 @@ ipt_in() {
     ipt -I OUTPUT -t raw -j NOTRACK -o $DHCPIF
 
     # Help out MTU issues with PPPoE or Mesh
+    ipt -I FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
     ipt -I FORWARD -t mangle -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu
-
 
     [ "$HS_LAN_ACCESS" != "on" -a "$HS_LAN_ACCESS" != "allow" ] && \
 	ipt -I FORWARD -i $IF -o \! $HS_WANIF -j DROP

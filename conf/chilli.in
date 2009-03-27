@@ -6,11 +6,20 @@
 # description: CoovaChilli
 
 # Source function library.
-. /etc/rc.d/init.d/functions
 
-. /etc/sysconfig/network
+daemon=
+killproc=killall
 
-[ ${NETWORKING} = "no" ] && exit 0
+[ -e /etc/rc.d/init.d/functions ] && {
+    . /etc/rc.d/init.d/functions
+    daemon=daemon
+    killproc=killproc
+}
+
+[ -e /etc/sysconfig/network ] && {
+    . /etc/sysconfig/network
+    [ ${NETWORKING} = "no" ] && exit 0
+}
 
 [ -f @SBINDIR@/chilli ] || exit 0
 [ -f @SYSCONFDIR@/chilli.conf ] || exit 0
@@ -24,7 +33,7 @@ prog="chilli"
 
 case $1 in
     start)
-        echo -n $"Starting $prog: "
+        echo -n "Starting $prog: "
         /sbin/modprobe tun >/dev/null 2>&1
         echo 1 > /proc/sys/net/ipv4/ip_forward
 
@@ -38,10 +47,10 @@ case $1 in
         ) | crontab - 2>&-
 	
 	ifconfig $HS_LANIF 0.0.0.0
-        daemon @SBINDIR@/chilli
+        $daemon @SBINDIR@/chilli
         RETVAL=$?
 
-        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/chilli
+        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/chilli 2>/dev/null
         echo
 	;;
     
@@ -72,9 +81,11 @@ case $1 in
         [ -f @VARRUN@/chilli.pid ] && { 
 	    kill $(cat @VARRUN@/chilli.pid)
 	    RETVAL=$
-	    [ $RETVAL = 0 ] && rm -f /var/lock/subsys/chilli @VARRUN@/chilli.pid
+	    [ $RETVAL = 0 ] && {
+		rm -f /var/lock/subsys/chilli @VARRUN@/chilli.pid 2>/dev/null
+	    }
 	}
-	killproc chilli
+	$killproc chilli
         echo
 	;;
     
@@ -91,7 +102,7 @@ case $1 in
         ;;
 
     *)
-        echo $"Usage: $0 {start|stop|restart|condrestart|status|reload|radconfig}"
+        echo "Usage: $0 {start|stop|restart|condrestart|status|reload|radconfig}"
         exit 1
 esac
 

@@ -32,6 +32,7 @@ HS_RADAUTH=${HS_RADAUTH:-1812}
 HS_RADACCT=${HS_RADACCT=1813}
 #HS_ADMUSR=${HS_ADMUSR:-chillispot}
 #HS_ADMPWD=${HS_ADMPWD:-chillispot}
+HS_ADMINUPDATEFILE=${HS_ADMINUPDATEFILE:-$LOCAL_CONF}
 HS_ADMINTERVAL=${HS_ADMINTERVAL:-60}
 HS_RADCONF=${HS_RADCONF:-off}
 HS_RADCONF_SERVER=${HS_RADCONF_SERVER:-rad01.coova.org}
@@ -157,6 +158,7 @@ EOF
 	[ "$HS_OPENIDAUTH" = "on" ] && addconfig2 "openidauth"
 	[ "$HS_ACCTUPDATE" = "on" ] && addconfig2 "acctupdate"
 	[ "$HS_DNSPARANOIA" = "on" ] && addconfig2 "dnsparanoia"
+	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile $HS_ADMINUPDATEFILE"
 	[ -n "$HS_UAMSECRET" ] && addconfig2 "uamsecret $HS_UAMSECRET"
 	test ${HS_DEFSESSIONTIMEOUT:-0} -gt 0 && addconfig2 "defsessiontimeout $HS_DEFSESSIONTIMEOUT"
 	test ${HS_DEFIDLETIMEOUT:-0} -gt 0 && addconfig2 "defidletimeout $HS_DEFIDLETIMEOUT"
@@ -202,7 +204,7 @@ files_equal() {
 }
 
 update_new_file() {
-    files_equal $1 $2 || {
+    files_equal $1 $2 && {
 	echo "updating $2"
 	cp -f $1 $2
 	return 0;
