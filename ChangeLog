@@ -1,7 +1,7 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
-== ChangeLog (Coova Chilli v1.0.13 svn revision ?) ==
+== ChangeLog (Coova Chilli v1.0.13 svn revision 199) ==
 
 * Accepts the parameter ''ntresponse'' in the ''logon'' which is used in MS-CHAPv2 (does not require the mschapv2 option, but simply passes through the ntresponse into the MSCHAPv2-Response
 * Added option ''mschapv2'' (requiring OpenSSL enabled with --with-openssl) to support MS-CHAPv2 authentication during what would otherwise be PAP authentication (doesn't impact CHAP authentication)
@@ -21,6 +21,7 @@
 * Crashing bug fix for when using ''acctupate'' and there is a RADIUS timeout
 * Fix to have Acct-Session-Id reset upon Reject from UAM authentication
 * Added ''mtu'' option which sets the MTU returned by DHCP
+* Added ''tcpwin'' option to adjust all TCP windows coming and going
 * More parameters sent to the WISPr login URL.
 	
 == ChangeLog (Coova Chilli v1.0.12 svn revision 171) ==

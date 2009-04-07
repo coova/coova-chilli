@@ -1,3 +1,9 @@
+coova-chilli (1.0.13-1) unstable; urgency=low
+
+   * See ChangeLog
+
+ -- Coova <support@coova.com>  Tue, 7 Apr 2009 22:25:00 +0200
+ 
 coova-chilli (1.0.12-2) unstable; urgency=low
 
    * Fix debian/changelog on Debian builds (make it buildable by dpkg-buildpackage -rfakeroot) - no changes to code
