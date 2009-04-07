@@ -138,6 +138,18 @@ void dhcp_block_mac(struct dhcp_t *this, uint8_t *hwaddr) {
 
 int dhcp_send(struct dhcp_t *this, struct _net_interface *netif, 
 	      unsigned char *hismac, void *packet, size_t length) {
+
+  if (options.tcpwin) {
+    struct tcp_fullheader_t *tcp_pack = (struct tcp_fullheader_t *)packet;
+    if (tcp_pack->iph.protocol == PKT_IP_PROTO_TCP) {
+      if (ntohs(tcp_pack->tcph.win) > options.tcpwin) {
+	tcp_pack->tcph.win = htons(options.tcpwin);
+	chksum(&tcp_pack->iph);
+      }
+    }
+  }
+
+
 #if defined(__linux__)
   struct sockaddr_ll dest;
 
@@ -753,6 +765,64 @@ int check_garden(pass_through *ptlist, int ptcnt, struct pkt_ippacket_t *pack, i
 }
 
 static
+size_t tcprst(struct tcp_fullheader_t *tcp_pack, struct tcp_fullheader_t *orig_pack, char reverse) {
+
+  size_t len = PKT_ETH_HLEN + PKT_IP_HLEN + PKT_TCP_HLEN;
+  
+  if (reverse) {
+
+    memset(tcp_pack, 0, len);
+
+    /* eth */
+    memcpy(tcp_pack->ethh.dst, orig_pack->ethh.src, PKT_ETH_ALEN); 
+    memcpy(tcp_pack->ethh.src, orig_pack->ethh.dst, PKT_ETH_ALEN); 
+    tcp_pack->ethh.prot = orig_pack->ethh.prot;
+
+    /* ip */
+    memcpy(&tcp_pack->iph, &orig_pack->iph, PKT_IP_HLEN); 
+    tcp_pack->iph.saddr = orig_pack->iph.daddr;
+    tcp_pack->iph.daddr = orig_pack->iph.saddr;
+    
+    /* tcp */
+    tcp_pack->tcph.src = orig_pack->tcph.dst;
+    tcp_pack->tcph.dst = orig_pack->tcph.src;
+    tcp_pack->tcph.seq = htonl(ntohl(orig_pack->tcph.seq)+1);
+
+  } else {
+
+    memcpy(tcp_pack, orig_pack, len); 
+
+  }
+
+  tcp_pack->iph.tot_len = htons(PKT_IP_HLEN + PKT_TCP_HLEN);
+
+  tcp_pack->tcph.flags = 4;
+  tcp_pack->tcph.offres = 0x50;
+
+  chksum(&(tcp_pack->iph));
+
+  return len;
+}
+
+
+static
+void tun_sendRESET(struct tun_t *tun, void *pack, struct app_conn_t *appconn) {
+  struct tcp_fullheader_t *orig_pack = (struct tcp_fullheader_t *)pack;
+  struct tcp_fullheader_t tcp_pack;
+
+  tun_encaps(tun, &tcp_pack, tcprst(&tcp_pack, orig_pack, 1), appconn->s_params.routeidx);
+}
+
+static
+void dhcp_sendRESET(struct dhcp_conn_t *conn, void *pack, char reverse) {
+  struct tcp_fullheader_t *orig_pack = (struct tcp_fullheader *)pack;
+  struct tcp_fullheader_t tcp_pack;
+  struct dhcp_t *this = conn->parent;
+  
+  dhcp_send(this, &this->ipif, conn->hismac, &tcp_pack, tcprst(&tcp_pack, orig_pack, reverse));
+}
+
+static
 int dhcp_nakDNS(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t len) {
   struct dhcp_t *this = conn->parent;
   struct pkt_udphdr_t *udph = (struct pkt_udphdr_t *)pack->payload;
@@ -951,39 +1021,48 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn,
     if (check_garden(appconn->s_params.pass_throughs, appconn->s_params.pass_through_count, pack, 1))
       return 0;
   }
-  
-  /* Was it a http request for another server? */
-  /* We are changing dest IP and dest port to local UAM server */
-  if ((pack->iph.protocol == PKT_IP_PROTO_TCP) &&
-      (tcph->dst == htons(DHCP_HTTP))) {
-    int n;
-    int pos=-1;
 
-    for (n=0; n<DHCP_DNAT_MAX; n++) {
-      if ((conn->dnatip[n] == pack->iph.daddr) && 
-	  (conn->dnatport[n] == tcph->src)) {
-	pos = n;
-	break;
+  if (pack->iph.protocol == PKT_IP_PROTO_TCP) {
+
+    if (tcph->dst == htons(DHCP_HTTP)) {
+      /* Was it a http request for another server? */
+      /* We are changing dest IP and dest port to local UAM server */
+      int n;
+      int pos=-1;
+      
+      for (n=0; n<DHCP_DNAT_MAX; n++) {
+	if ((conn->dnatip[n] == pack->iph.daddr) && 
+	    (conn->dnatport[n] == tcph->src)) {
+	  pos = n;
+	  break;
+	}
       }
-    }
-    if (pos==-1) { /* Save for undoing */
+      if (pos==-1) { /* Save for undoing */
+	if (options.usetap) 
+	  memcpy(conn->dnatmac[conn->nextdnat], pack->ethh.dst, PKT_ETH_ALEN); 
+	conn->dnatip[conn->nextdnat] = pack->iph.daddr; 
+	conn->dnatport[conn->nextdnat] = tcph->src;
+	conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
+      }
+      
       if (options.usetap) 
-	memcpy(conn->dnatmac[conn->nextdnat], pack->ethh.dst, PKT_ETH_ALEN); 
-      conn->dnatip[conn->nextdnat] = pack->iph.daddr; 
-      conn->dnatport[conn->nextdnat] = tcph->src;
-      conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
-    }
-
-    if (options.usetap) 
       memcpy(pack->ethh.dst, tuntap(tun).hwaddr, PKT_ETH_ALEN); 
+      
+      pack->iph.daddr = this->uamlisten.s_addr;
+      tcph->dst = htons(this->uamport);
+      
+      chksum(&pack->iph);
 
-    pack->iph.daddr = this->uamlisten.s_addr;
-    tcph->dst = htons(this->uamport);
+      return 0;
 
-    chksum(&pack->iph);
-    return 0;
+    } else {
+
+      /* otherwise, RESET and drop */
+
+      dhcp_sendRESET(conn, pack, 1);
+    }
   }
-
+  
   return -1; /* Something else */
 
 }
@@ -1162,6 +1241,13 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn, struct pkt_ippacket_t *pack, size_t 
     struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
     if (check_garden(appconn->s_params.pass_throughs, appconn->s_params.pass_through_count, pack, 0))
       return 0;
+  }
+
+  if (pack->iph.protocol == PKT_IP_PROTO_TCP) {
+    dhcp_sendRESET(conn, pack, 0);
+    if (conn->peer) {
+      tun_sendRESET(tun, pack, (struct app_conn_t *)conn->peer);
+    }
   }
 
   return -1; /* Something else */
@@ -2040,7 +2126,7 @@ int dhcp_receive_ip(struct dhcp_t *this, struct pkt_ippacket_t *pack, size_t len
     /* Destination NAT if request to unknown web server */
     if (dhcp_doDNAT(conn, pack, len)) {
       if (this->debug) log_dbg("dropping packet; not nat'ed");
-      return 0; /* Drop is not http or dns */
+      return 0; /* drop */
     }
     break;
 

@@ -35,6 +35,7 @@
 #define PKT_IP_PROTO_GRE         47 /* GRE Protocol number */
 
 #define PKT_UDP_HLEN              8
+#define PKT_TCP_HLEN             20
 
 #define PKT_EAP_PLEN           1500 /* Dot1x Payload length */
 
@@ -148,7 +149,8 @@ struct pkt_tcphdr_t {
   uint16_t dst;
   uint32_t seq;
   uint32_t ack;
-  uint16_t flags;
+  uint8_t  offres;
+  uint8_t  flags;
   uint16_t win;
   uint16_t check;
   uint16_t urgent;
@@ -270,6 +272,13 @@ struct dns_fullpacket_t {
   struct pkt_iphdr_t iph;
   struct pkt_udphdr_t udph;
   struct dns_packet_t dns;
+} __attribute__((packed));
+
+
+struct tcp_fullheader_t {
+  struct pkt_ethhdr_t ethh;
+  struct pkt_iphdr_t iph;
+  struct pkt_tcphdr_t tcph;
 } __attribute__((packed));
 
 

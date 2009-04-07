@@ -340,6 +340,9 @@ struct gengetopt_args_info
   const char *routeif_help; /**< @brief Interface to use as default route; turns on 'manual' routing help description.  */
   int framedservice_flag;	/**< @brief Use Service-Type = Framed instead of Login (default=off).  */
   const char *framedservice_help; /**< @brief Use Service-Type = Framed instead of Login help description.  */
+  int tcpwin_arg;	/**< @brief Change TCP window size to this value to help prevent congestion (default='0').  */
+  char * tcpwin_orig;	/**< @brief Change TCP window size to this value to help prevent congestion original value given at command line.  */
+  const char *tcpwin_help; /**< @brief Change TCP window size to this value to help prevent congestion help description.  */
   int challengetimeout_arg;	/**< @brief Timeout in seconds for the generated challenge (default='600').  */
   char * challengetimeout_orig;	/**< @brief Timeout in seconds for the generated challenge original value given at command line.  */
   const char *challengetimeout_help; /**< @brief Timeout in seconds for the generated challenge help description.  */
@@ -458,6 +461,7 @@ struct gengetopt_args_info
   unsigned int usetap_given ;	/**< @brief Whether usetap was given.  */
   unsigned int routeif_given ;	/**< @brief Whether routeif was given.  */
   unsigned int framedservice_given ;	/**< @brief Whether framedservice was given.  */
+  unsigned int tcpwin_given ;	/**< @brief Whether tcpwin was given.  */
   unsigned int challengetimeout_given ;	/**< @brief Whether challengetimeout was given.  */
   unsigned int challengetimeout2_given ;	/**< @brief Whether challengetimeout2 was given.  */
 

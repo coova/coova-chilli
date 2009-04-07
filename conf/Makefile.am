@@ -13,7 +13,8 @@ initdir = $(sysconfdir)/init.d
 init_SCRIPTS = chilli
 
 EXTRA_DIST = $(init_SCRIPTS:=.in) \
-$(chilli_SCRIPTS:=.in) chilli.conf.in defaults.in
+$(chilli_SCRIPTS:=.in) chilli.conf.in defaults.in \
+CoovaChilliLib.py.in gui-config-default.ini
 
 edit = sed \
 	-e 's,@SBINDIR\@,$(sbindir),g' \

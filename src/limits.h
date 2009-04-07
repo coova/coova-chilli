@@ -55,6 +55,7 @@
 #define REDIR_MAXQUERYSTRING            2048
 #define REDIR_USERURLSIZE               2048 /* Max length of URL requested by user */
 #define REDIR_USERAGENTSIZE              256
+#define REDIR_COOKIESIZE                 256
 #define REDIR_LANGSIZE                    16
 #define REDIR_IDENTSIZE                   16
 

@@ -282,6 +282,7 @@ int process_options(int argc, char **argv, int minimal) {
   options.dhcpradius = args_info.dhcpradius_flag;
   options.dhcpgwport = args_info.dhcpgatewayport_arg;
   options.noc2c = args_info.noc2c_flag;
+  options.tcpwin = args_info.tcpwin_arg;
 
   if (args_info.dhcpgateway_arg &&
       !inet_aton(args_info.dhcpgateway_arg, &options.dhcpgwip)) {

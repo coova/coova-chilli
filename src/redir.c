@@ -30,7 +30,7 @@ static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
 char credits[] =
 "<H1>CoovaChilli(ChilliSpot) " VERSION "</H1>"
 "<p>Copyright 2002-2005 Mondru AB</p>"
-"<p>Copyright 2006-2007 Coova.org</p>"
+"<p>Copyright 2006-2009 Coova.org</p>"
 "ChilliSpot is an Open Source captive portal or wireless LAN access point "
 "controller developed by the community at <a href=\"http://coova.org\">coova.org</a>. "
 "It is licensed under the Gnu Public License (GPL). ";
@@ -133,6 +133,14 @@ static int redir_xmlencode(char *src, int srclen, char *dst, int dstsize) {
   }
   dst[i] = 0;
   return 0;
+}
+
+static void redir_http(bstring s, char *code) {
+  bassigncstr(s, "HTTP/1.1 ");
+  bcatcstr(s, code);
+  bcatcstr(s, "\r\n");
+  bcatcstr(s, "Connection: close\r\nCache-Control: no-cache, must-revalidate\r\n");
+  bcatcstr(s, "P3P: CP=\"IDC DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT\"\r\n");
 }
 
 static int bstrtocstr(bstring src, char *dst, unsigned int len) {
@@ -796,8 +804,8 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
     bcatcstr(json, ")");
   }
 
-  bassigncstr(s, "HTTP/1.1 200 OK\r\n");
-  bcatcstr(s, "Cache-Control: no-cache, must-revalidate\r\n");
+
+  redir_http(s, "200 OK");
 
   bcatcstr(s, "Content-Length: ");
   bassignformat(tmp , "%ld", blength(json) );
@@ -874,7 +882,8 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
     redir_json_reply(redir, res, conn, hexchal, userurl, redirurl, hismac, reply, qs, buffer);
     
   } else if (resp) {
-    bcatcstr(buffer, "HTTP/1.0 302 Moved Temporarily\r\nLocation: ");
+    redir_http(buffer, "302 Moved Temporarily");
+    bcatcstr(buffer, "Location: ");
     
     if (url) {
       bconcat(buffer, url);
@@ -900,9 +909,10 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
     bcatcstr(buffer, "\r\n</HTML>\r\n");
     
   } else {
-    bassigncstr(buffer, 
-		"HTTP/1.0 200 OK\r\nContent-type: text/html\r\n\r\n"
-		"<HTML><HEAD><TITLE>CoovaChilli</TITLE></HEAD><BODY>");
+    redir_http(buffer, "200 OK");
+    bcatcstr(buffer, 
+	     "Content-type: text/html\r\n\r\n"
+	     "<HTML><HEAD><TITLE>CoovaChilli</TITLE></HEAD><BODY>");
     bcatcstr(buffer, credits);
     bcatcstr(buffer, "</BODY></HTML>\r\n");
   }
@@ -1296,6 +1306,17 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	  conn->useragent[len]=0;
 	  if (optionsdebug)
 	    log_dbg("User-Agent: %s",conn->useragent);
+	}
+	else if (!strncasecmp(buffer,"Cookie:",7)) {
+	  p = buffer + 7;
+	  while (*p && isspace(*p)) p++;
+	  len = strlen(p);
+	  if (len >= sizeof(conn->httpcookie)-1)
+	    len = sizeof(conn->httpcookie)-1;
+	  strncpy(conn->httpcookie, p, len);
+	  conn->httpcookie[len]=0;
+	  if (optionsdebug)
+	    log_dbg("Cookie: %s",conn->useragent);
 	}
       }
 
@@ -2180,6 +2201,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	setenv("CONTENT_LENGTH", buffer, 1);
 	setenv("REQUEST_METHOD", ispost ? "POST" : "GET", 1);
 	setenv("QUERY_STRING", qs, 1);
+	setenv("HTTP_COOKIE", conn.httpcookie, 1);
 	
 	log_dbg("Running: %s %s/%s",options.wwwbin, options.wwwdir, filename);
 	sprintf(buffer, "%s/%s", options.wwwdir, filename);
@@ -2222,7 +2244,9 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	  }
 	  
 	  buflen = snprintf(buffer, bufsize,
-			    "HTTP/1.0 200 OK\r\nContent-type: %s\r\n\r\n", ctype);
+			    "HTTP/1.1 200 OK\r\n"
+			    "Connection: close\r\n"
+			    "Content-type: %s\r\n\r\n", ctype);
 	  
 	  if (tcp_write(&socket, buffer, (size_t) buflen) < 0) {
 	    log_err(errno, "tcp_write() failed!");
@@ -2469,7 +2493,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     }
 
   case REDIR_MSDOWNLOAD:
-    buflen = snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
+    buflen = snprintf(buffer, bufsize, "HTTP/1.1 403 Forbidden\r\n\r\n");
     tcp_write(&socket, buffer, buflen);
     redir_close(infd, outfd);
 

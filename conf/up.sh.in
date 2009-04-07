@@ -17,7 +17,7 @@ ipt() {
 }
 
 ipt_in() {
-    ipt -A INPUT -i $IF $*
+    ipt -I INPUT -i $IF $*
 }
 
 [ -n "$DHCPIF" ] && {

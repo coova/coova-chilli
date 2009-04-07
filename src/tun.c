@@ -744,6 +744,16 @@ static uint16_t dnatport[1024];
 
 int tun_encaps(struct tun_t *tun, void *pack, size_t len, int idx) {
 
+  if (options.tcpwin) {
+    struct tcp_fullheader_t *tcp_pack = (struct tcp_fullheader_t *)pack;
+    if (tcp_pack->iph.protocol == PKT_IP_PROTO_TCP) {
+      if (ntohs(tcp_pack->tcph.win) > options.tcpwin) {
+	tcp_pack->tcph.win = htons(options.tcpwin);
+	chksum(&tcp_pack->iph);
+      }
+    }
+  }
+
   if (tun(tun, idx).flags & NET_ETHHDR) {
 
     struct pkt_ethhdr_t *ethh = (struct pkt_ethhdr_t *)pack;
@@ -768,7 +778,6 @@ int tun_encaps(struct tun_t *tun, void *pack, size_t len, int idx) {
 
   if (tun->debug) 
     log_dbg("tun_encaps(%d) %s",len,tun(tun,idx).devname);
-
 
 #if defined (__OpenBSD__)
 

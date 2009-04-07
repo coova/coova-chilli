@@ -3626,7 +3626,7 @@ int chilli_main(int argc, char **argv) {
 	       &options.dhcplisten, options.lease, 1, 
 	       &options.uamlisten, options.uamport, 
 	       options.eapolenable, options.noc2c)) {
-    log_err(0, "Failed to create dhcp");
+    log_err(0, "Failed to create dhcp listener on %s", options.dhcpif);
     exit(1);
   }
 

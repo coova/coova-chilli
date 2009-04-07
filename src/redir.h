@@ -60,6 +60,7 @@ struct redir_conn_t {
   unsigned short type;                 /* REDIR_LOGOUT, LOGIN, PRELOGIN, CHALLENGE, MSDOWNLOAD */
   unsigned char format;                /* REDIR_FMT_DEFAULT, REDIR_FMT_JSON */
   char useragent[REDIR_USERAGENTSIZE]; /* Browser User-Agent */
+  char httpcookie[REDIR_COOKIESIZE];   /* Browser Cookies */
   char lang[REDIR_LANGSIZE];           /* Query string parameter for language */
   char wwwfile[REDIR_USERNAMESIZE];    /* File request, i.e. PATH_INFO */
 

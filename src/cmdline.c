@@ -139,6 +139,7 @@ const char *gengetopt_args_info_help[] = {
   "      --usetap                  Use a TAP instead of TUN (linux only)  \n                                  (default=off)",
   "      --routeif=STRING          Interface to use as default route; turns on \n                                  'manual' routing",
   "      --framedservice           Use Service-Type = Framed instead of Login  \n                                  (default=off)",
+  "      --tcpwin=INT              Change TCP window size to this value to help \n                                  prevent congestion  (default=`0')",
   "      --challengetimeout=INT    Timeout in seconds for the generated challenge  \n                                  (default=`600')",
   "      --challengetimeout2=INT   Timeout in seconds for challenge during login  \n                                  (default=`1200')",
     0
@@ -304,6 +305,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->usetap_given = 0 ;
   args_info->routeif_given = 0 ;
   args_info->framedservice_given = 0 ;
+  args_info->tcpwin_given = 0 ;
   args_info->challengetimeout_given = 0 ;
   args_info->challengetimeout2_given = 0 ;
 }
@@ -502,6 +504,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->routeif_arg = NULL;
   args_info->routeif_orig = NULL;
   args_info->framedservice_flag = 0;
+  args_info->tcpwin_arg = 0;
+  args_info->tcpwin_orig = NULL;
   args_info->challengetimeout_arg = 600;
   args_info->challengetimeout_orig = NULL;
   args_info->challengetimeout2_arg = 1200;
@@ -631,8 +635,9 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->usetap_help = gengetopt_args_info_help[108] ;
   args_info->routeif_help = gengetopt_args_info_help[109] ;
   args_info->framedservice_help = gengetopt_args_info_help[110] ;
-  args_info->challengetimeout_help = gengetopt_args_info_help[111] ;
-  args_info->challengetimeout2_help = gengetopt_args_info_help[112] ;
+  args_info->tcpwin_help = gengetopt_args_info_help[111] ;
+  args_info->challengetimeout_help = gengetopt_args_info_help[112] ;
+  args_info->challengetimeout2_help = gengetopt_args_info_help[113] ;
   
 }
 
@@ -889,6 +894,7 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->postauthproxyport_orig));
   free_string_field (&(args_info->routeif_arg));
   free_string_field (&(args_info->routeif_orig));
+  free_string_field (&(args_info->tcpwin_orig));
   free_string_field (&(args_info->challengetimeout_orig));
   free_string_field (&(args_info->challengetimeout2_orig));
   
@@ -1147,6 +1153,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "routeif", args_info->routeif_orig, 0);
   if (args_info->framedservice_given)
     write_into_file(outfile, "framedservice", 0, 0 );
+  if (args_info->tcpwin_given)
+    write_into_file(outfile, "tcpwin", args_info->tcpwin_orig, 0);
   if (args_info->challengetimeout_given)
     write_into_file(outfile, "challengetimeout", args_info->challengetimeout_orig, 0);
   if (args_info->challengetimeout2_given)
@@ -1822,6 +1830,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "usetap",	0, NULL, 0 },
         { "routeif",	1, NULL, 0 },
         { "framedservice",	0, NULL, 0 },
+        { "tcpwin",	1, NULL, 0 },
         { "challengetimeout",	1, NULL, 0 },
         { "challengetimeout2",	1, NULL, 0 },
         { NULL,	0, NULL, 0 }
@@ -3314,6 +3323,20 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             if (update_arg((void *)&(args_info->framedservice_flag), 0, &(args_info->framedservice_given),
                 &(local_args_info.framedservice_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "framedservice", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Change TCP window size to this value to help prevent congestion.  */
+          else if (strcmp (long_options[option_index].name, "tcpwin") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->tcpwin_arg), 
+                 &(args_info->tcpwin_orig), &(args_info->tcpwin_given),
+                &(local_args_info.tcpwin_given), optarg, 0, "0", ARG_INT,
+                check_ambiguity, override, 0, 0,
+                "tcpwin", '-',
                 additional_error))
               goto failure;
           
