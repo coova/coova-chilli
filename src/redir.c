@@ -30,7 +30,7 @@ static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
 char credits[] =
 "<H1>CoovaChilli(ChilliSpot) " VERSION "</H1>"
 "<p>Copyright 2002-2005 Mondru AB</p>"
-"<p>Copyright 2006-2009 Coova.org</p>"
+"<p>Copyright 2006-2009 Coova Technologies, LLC</p>"
 "ChilliSpot is an Open Source captive portal or wireless LAN access point "
 "controller developed by the community at <a href=\"http://coova.org\">coova.org</a>. "
 "It is licensed under the Gnu Public License (GPL). ";
@@ -217,16 +217,18 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
 			    struct redir_t *redir, char *redir_url, char *resp,
 			    long int timeleft, char* hexchal, char* uid, 
 			    char* userurl, char* reply, char* redirurl,
-			    uint8_t *hismac, struct in_addr *hisip) {
+			    uint8_t *hismac, struct in_addr *hisip, char *amp) {
   bstring bt = bfromcstr("");
   bstring bt2 = bfromcstr("");
 
-  bassignformat(str, "%s%cres=%s&uamip=%s&uamport=%d", 
-		redir_url, strchr(redir_url, '?') ? '&' : '?',
-		resp, inet_ntoa(redir->addr), redir->port);
+  bassignformat(str, "%s%cres=%s%suamip=%s%suamport=%d", 
+		redir_url, strchr(redir_url, '?') ? '&' : '?', resp, amp,
+		inet_ntoa(redir->addr), amp, 
+		redir->port);
 
   if (hexchal) {
-    bassignformat(bt, "&challenge=%s", hexchal);
+    bcatcstr(str, amp);
+    bassignformat(bt, "challenge=%s", hexchal);
     bconcat(str, bt);
     bassigncstr(bt,"");
   }
@@ -239,37 +241,44 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
 
       sessiontime = timenow - starttime;
 
-      bassignformat(bt, "&starttime=%ld", starttime);
+      bcatcstr(str, amp);
+      bassignformat(bt, "starttime=%ld", starttime);
       bconcat(str, bt);
-      bassignformat(bt, "&sessiontime=%ld", sessiontime);
+      bcatcstr(str, amp);
+      bassignformat(bt, "sessiontime=%ld", sessiontime);
       bconcat(str, bt);
     }
 
     if (conn->s_params.sessiontimeout) {
-      bassignformat(bt, "&sessiontimeout=%ld", conn->s_params.sessiontimeout);
+      bcatcstr(str, amp);
+      bassignformat(bt, "sessiontimeout=%ld", conn->s_params.sessiontimeout);
       bconcat(str, bt);
     }
 
     if (conn->s_params.sessionterminatetime) {
-      bassignformat(bt, "&stoptime=%ld", conn->s_params.sessionterminatetime);
+      bcatcstr(str, amp);
+      bassignformat(bt, "stoptime=%ld", conn->s_params.sessionterminatetime);
       bconcat(str, bt);
     }
   }
  
   if (uid) {
-    bcatcstr(str, "&uid=");
+    bcatcstr(str, amp);
+    bcatcstr(str, "uid=");
     bassigncstr(bt, uid);
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   }
 
   if (timeleft) {
-    bassignformat(bt, "&timeleft=%ld", timeleft);
+    bcatcstr(str, amp);
+    bassignformat(bt, "timeleft=%ld", timeleft);
     bconcat(str, bt);
   }
   
   if (hismac) {
-    bcatcstr(str, "&mac=");
+    bcatcstr(str, amp);
+    bcatcstr(str, "mac=");
     bassignformat(bt, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 		  hismac[0], hismac[1], 
 		  hismac[2], hismac[3],
@@ -279,54 +288,62 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
   }
 
   if (hisip) {
-    bassignformat(bt, "&ip=%s", inet_ntoa(*hisip));
+    bcatcstr(str, amp);
+    bassignformat(bt, "ip=%s", inet_ntoa(*hisip));
     bconcat(str, bt);
   }
 
   if (reply) {
-    bcatcstr(str, "&reply=");
+    bcatcstr(str, amp);
+    bcatcstr(str, "reply=");
     bassigncstr(bt, reply);
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   }
 
   if (redir->ssid) {
-    bcatcstr(str, "&ssid=");
+    bcatcstr(str, amp);
+    bcatcstr(str, "ssid=");
     bassigncstr(bt, redir->ssid);
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   }
 
   if (redir->nasmac) {
-    bcatcstr(str, "&called=");
+    bcatcstr(str, amp);
+    bcatcstr(str, "called=");
     bassigncstr(bt, redir->nasmac);
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   } 
 
   if (redir->radiusnasid) {
-    bcatcstr(str, "&nasid=");
+    bcatcstr(str, amp);
+    bcatcstr(str, "nasid=");
     bassigncstr(bt, redir->radiusnasid);
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   }
 
   if (conn->lang[0]) {
-    bcatcstr(str, "&lang=");
+    bcatcstr(str, amp);
+    bcatcstr(str, "lang=");
     bassigncstr(bt, conn->lang);
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   }
 
   if (redirurl) {
-    bcatcstr(str, "&redirurl=");
+    bcatcstr(str, amp);
+    bcatcstr(str, "redirurl=");
     bassigncstr(bt, redirurl);
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   }
 
   if (userurl) {
-    bcatcstr(str, "&userurl=");
+    bcatcstr(str, amp);
+    bcatcstr(str, "userurl=");
     bassigncstr(bt, userurl);
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
@@ -347,7 +364,8 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
     for (i=0; i<16; i++)
       sprintf(hex+strlen(hex), "%.2X", cksum[i]);
 
-    bcatcstr(str, "&md=");
+    bcatcstr(str, amp);
+    bcatcstr(str, "md=");
     bcatcstr(str, hex);
   }
 
@@ -474,16 +492,10 @@ static int redir_xmlreply(struct redir_t *redir,
 
       bstring_buildurl(bt, conn, redir, options.wisprlogin ? options.wisprlogin : redir->url, 
 		       "smartclient", 0, hexchal, NULL, NULL, NULL, NULL, 
-		       conn->hismac, &conn->hisip);
+		       conn->hismac, &conn->hisip, "&amp;");
       bconcat(b, bt);
 
       bcatcstr(b, "</LoginURL>\r\n");
-      
-      bassignformat(bt, "<LoginURL>%s%cres=smartclient&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
-		    options.wisprlogin ? options.wisprlogin : redir->url, 
-		    strchr(options.wisprlogin ? options.wisprlogin : redir->url, '?') ? '&' : '?',
-		    inet_ntoa(redir->addr), redir->port, hexchal); 
-      bconcat(b, bt);
       
       bassignformat(bt, "<AbortLoginURL>http://%s:%d/abort</AbortLoginURL>\r\n",
 		    inet_ntoa(redir->addr), redir->port);
@@ -648,7 +660,7 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
   }
   
   return bstring_buildurl(str, conn, redir, redir_url, resp, timeleft, 
-			  hexchal, uid, userurl, reply, redirurl, hismac, hisip);
+			  hexchal, uid, userurl, reply, redirurl, hismac, hisip, "&");
 }
 
 ssize_t
