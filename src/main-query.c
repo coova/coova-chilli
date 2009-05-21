@@ -37,6 +37,8 @@ typedef struct _cmd_info {
 
 static cmd_info commands[] = {
   { CMDSOCK_LIST,          "list",          NULL },
+  { CMDSOCK_ENTRY_FOR_IP,  "listip",        NULL },
+  { CMDSOCK_ENTRY_FOR_MAC, "listmac",       NULL },
   { CMDSOCK_ROUTE,         "route",         NULL },
   { CMDSOCK_DHCP_LIST,     "dhcp-list",     NULL },
   { CMDSOCK_DHCP_RELEASE,  "dhcp-release",  NULL },
@@ -222,8 +224,23 @@ int main(int argc, char **argv) {
 	  }
 	}
 	break;
+      case CMDSOCK_ENTRY_FOR_IP:
+    {
+      /* Test for a valid ip argument. */
+  	  if (argc < argidx+1) {
+  	    fprintf(stderr, "%s requires an IP address argument\n", cmd);
+  	    return usage(argv[0]);
+  	  }
+
+    	if (!inet_aton(argv[argidx], &request.data.sess.ip)) {
+		    fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx]);
+		    return usage(argv[0]);
+		  }
+    }
+    break;
       case CMDSOCK_DHCP_DROP:
       case CMDSOCK_DHCP_RELEASE:
+      case CMDSOCK_ENTRY_FOR_MAC:
 	{
 	  unsigned int temp[PKT_ETH_ALEN];
 	  char macstr[RADIUS_ATTR_VLEN];

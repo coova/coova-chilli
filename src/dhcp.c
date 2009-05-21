@@ -62,6 +62,36 @@ void dhcp_list(struct dhcp_t *this, bstring s, bstring pre, bstring post, int li
   }
 }
 
+void dhcp_entry_for_ip(struct dhcp_t *this, bstring s, struct in_addr *ip, int listfmt) {
+  struct dhcp_conn_t *conn = this->firstusedconn;
+  if (listfmt == LIST_JSON_FMT) {
+    bcatcstr(s, "{ \"sessions\":[");
+  }
+  while (conn) {
+    if (conn->hisip.s_addr==ip->s_addr){
+      dhcp_print(this, s, listfmt, conn);
+    }
+    conn = conn->next;
+  }
+  if (listfmt == LIST_JSON_FMT) {
+    bcatcstr(s, "]}");
+  }
+}
+
+void dhcp_entry_for_mac(struct dhcp_t *this, bstring s, unsigned char * hwaddr, int listfmt) {
+
+  struct dhcp_conn_t *conn;
+  if (listfmt == LIST_JSON_FMT) {
+    bcatcstr(s, "{ \"sessions\":[");
+  }
+  if (!dhcp_hashget(this, &conn, hwaddr)) {
+    dhcp_print(this, s, listfmt, conn);
+  }
+  if (listfmt == LIST_JSON_FMT) {
+    bcatcstr(s, "]}");
+  }
+}
+
 void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t *conn) {
   struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
   bstring b = bfromcstr("");

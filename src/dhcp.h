@@ -263,6 +263,10 @@ void dhcp_block_mac(struct dhcp_t *this, uint8_t *hwaddr);
 
 void dhcp_list(struct dhcp_t *this, bstring s, bstring pre, bstring post, int listfmt);
 
+void dhcp_entry_for_ip(struct dhcp_t *this, bstring s, struct in_addr *ip, int listfmt);
+
+void dhcp_entry_for_mac(struct dhcp_t *this, bstring s, unsigned char * hwaddr, int listfmt);
+
 void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t *conn);
 
 int dhcp_filterDNS(struct dhcp_conn_t *conn, 

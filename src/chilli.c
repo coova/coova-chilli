@@ -2204,7 +2204,7 @@ static int chilliauth_cb(struct radius_t *radius,
 
       log_dbg("using temp: %s", hs_temp);
       
-      int fd = open(hs_temp, O_RDWR | O_TRUNC | O_CREAT);
+      int fd = open(hs_temp, O_RDWR | O_TRUNC | O_CREAT, 0644);
 
       if (fd > 0) {
 
@@ -2248,7 +2248,7 @@ static int chilliauth_cb(struct radius_t *radius,
 	    log_dbg("Writing out new hs.conf file with administraive-user settings");
 	    
 	    newfd = open(hs_temp, O_RDONLY);
-	    oldfd = open(hs_conf, O_RDWR | O_TRUNC | O_CREAT);
+	    oldfd = open(hs_conf, O_RDWR | O_TRUNC | O_CREAT, 0644);
 	    
 	    if (newfd > 0 && oldfd > 0) {
 	      while ((r1 = read(newfd, b1, sizeof(b1))) > 0)
@@ -3350,7 +3350,23 @@ static int cmdsock_accept(int sock) {
   case CMDSOCK_LIST:
     s = bfromcstr("");
     if (dhcp) dhcp_list(dhcp, s, 0, 0,
-			req.options & CMDSOCK_OPT_JSON ? 
+			req.options & CMDSOCK_OPT_JSON ?
+			LIST_JSON_FMT : LIST_LONG_FMT);
+    write(csock, s->data, s->slen);
+    break;
+
+  case CMDSOCK_ENTRY_FOR_IP:
+    s = bfromcstr("");
+    if (dhcp) dhcp_entry_for_ip(dhcp, s, &req.data.sess.ip,
+			req.options & CMDSOCK_OPT_JSON ?
+			LIST_JSON_FMT : LIST_LONG_FMT);
+    write(csock, s->data, s->slen);
+    break;
+
+  case CMDSOCK_ENTRY_FOR_MAC:
+    s = bfromcstr("");
+    if (dhcp) dhcp_entry_for_mac(dhcp, s, req.data.mac,
+			req.options & CMDSOCK_OPT_JSON ?
 			LIST_JSON_FMT : LIST_LONG_FMT);
     write(csock, s->data, s->slen);
     break;
