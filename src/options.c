@@ -686,7 +686,7 @@ int process_options(int argc, char **argv, int minimal) {
 		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	  }
 
-	  if (i = 0, i < 6, i++)
+	  for (i = 0, i < 6, i++)
 	    options.macok[options.macoklen][i] = (unsigned char) mac[i]; 
 
 	  options.macoklen++;
