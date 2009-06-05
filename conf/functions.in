@@ -191,20 +191,20 @@ EOF
     fi
 }
 
-files_equal() {
-    [ -x /usr/bin/cmp ] && {
-	cmp -s $1 $2 || return 0;
+files_equal() {    # returns 0 for equal, 1 for not-equal
+    [ "$(which cmp)" != "" ] && {
+	cmp -s $1 $2 && return 0;
 	return 1;
     }
-    [ -x /bin/md5sum ] && {
+    [ "$(which md5sum)" != "" ] && {
 	[ "$(md5sum $1 | cut -f1 -d' ')" = "$(md5sum $2 | cut -f1 -d' ')" ] && return 0;
 	return 1;
     }
-    return 1;
+    return 0;
 }
 
 update_new_file() {
-    files_equal $1 $2 && {
+    files_equal $1 $2 || {
 	echo "updating $2"
 	cp -f $1 $2
 	return 0;
