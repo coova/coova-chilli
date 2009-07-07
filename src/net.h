@@ -21,6 +21,7 @@ typedef struct _net_interface {
 
   /* hardware/link */
   uint16_t protocol;
+  uint8_t hwtype;
   uint8_t hwaddr[PKT_ETH_ALEN];
   char devname[IFNAMSIZ+1];
   int devflags;

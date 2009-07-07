@@ -69,8 +69,8 @@ struct redir_conn_t {
    */
   int chap; /* 0 if using normal password; 1 if using CHAP */
   int response; /* 0: No radius response yet; 1:Reject; 2:Accept; 3:Timeout */
-  uint8_t chappassword[REDIR_MAXCHAR];
-  uint8_t password[REDIR_MAXCHAR];
+  uint8_t chappassword[RADIUS_CHAPSIZE];
+  uint8_t password[RADIUS_PWSIZE];
   uint8_t chap_ident;
   
   /* 
@@ -103,27 +103,30 @@ struct redir_t {
   struct in_addr addr;
   int port;
   int uiport;
-  char *url;
-  char *homepage;
-  char *secret;
-  char *ssid;
-  char *nasmac;
-  char *nasip;
-  struct in_addr radiuslisten;
-  struct in_addr radiusserver0;
-  struct in_addr radiusserver1;
-  uint16_t radiusauthport;
-  uint16_t radiusacctport;
-  char *radiussecret;
-  char *radiusnasid;
-  char* radiuslocationid;
-  char* radiuslocationname;
-  char* locationname;
-  int radiusnasporttype;
+
   int starttime;
-  int chillixml;     /* Send chilli specific XML along with WISPr */
-  int no_uamsuccess; /* Do not redirect back to uamserver on success */
-  int no_uamwispr;   /* Do not have Chilli return WISPr blocks */
+
+   char *url;
+   char *homepage;
+   char *secret;
+   char *ssid;
+   char *vlan;
+   char *nasmac;
+   char *nasip;
+   struct in_addr radiuslisten;
+   struct in_addr radiusserver0;
+   struct in_addr radiusserver1;
+   uint16_t radiusauthport;
+   uint16_t radiusacctport;
+   char *radiussecret;
+   char *radiusnasid;
+   char* radiuslocationid;
+   char* radiuslocationname;
+   char* locationname;
+   int radiusnasporttype;
+   int chillixml;     /* Send chilli specific XML along with WISPr */
+   int no_uamwispr;   /* Do not have Chilli return WISPr blocks */
+
   int (*cb_getstate) (struct redir_t *redir, struct in_addr *addr,
 		      struct redir_conn_t *conn);
 };

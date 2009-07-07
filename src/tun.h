@@ -45,7 +45,8 @@ struct tun_t {
 int tun_new(struct tun_t **tun);
 int tun_free(struct tun_t *this);
 int tun_decaps(struct tun_t *this, int idx);
-int tun_encaps(struct tun_t *this, void *pack, size_t len, int idx);
+int tun_encaps(struct tun_t *this, uint8_t *pack, size_t len, int idx);
+int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx);
 
 /*int tun_addaddr(struct tun_t *this, struct in_addr *addr, struct in_addr *dstaddr, struct in_addr *netmask);
 int tun_setaddr(struct tun_t *this, struct in_addr *our_adr, struct in_addr *his_adr, struct in_addr *net_mask);
@@ -66,5 +67,6 @@ int tun_name2idx(struct tun_t *tun, char *name);
 #define tun_ckset(tun,fds) {int i; for (i=0; i<(tun)->_interface_count; i++) { \
   if (net_isset(&(tun)->_interfaces[i], (fds)) && tun_decaps((tun), i) < 0) log_err(0, "tun_decaps()"); } }
 #define tun_close(tun) {int i; for (i=0; i<(tun)->_interface_count; i++) net_close(&(tun)->_interfaces[i]);}
+
 
 #endif	/* !_TUN_H */

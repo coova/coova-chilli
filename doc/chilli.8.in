@@ -11,7 +11,7 @@
 .\" IP indented paragraph
 .\" TP hanging label
 
-.TH chilli 8 "August 2007"
+.TH chilli 8 "June 2009"
 .SH NAME
 chilli \-  A Software Access Controller for Captive Portal and WPA
 
@@ -43,7 +43,7 @@ Universal Access Method (UAM) as well as Wireless Protected Access
 (WPA). This version of 
 .B chilli
 is called CoovaChilli, a fork of the original ChilliSpot. See
-.I http://coova.org/
+.I http://www.coova.org/
 for more information.
 
 .B chilli
@@ -264,6 +264,7 @@ The above configuration options can only be changed by restarting the daemon.
 .SH "SEE ALSO"
 .BR chilli.conf(5)
 .BR chilli-radius(5)
+.BR chilli_opt(1)
 .BR chilli_query(1)
 .BR chilli_radconfig(1)
 .BR chilli_response(1)
@@ -274,7 +275,7 @@ The above configuration options can only be changed by restarting the daemon.
 .LP
 
 See
-.I http://coova.org/
+.I http://www.coova.org/
 for further documentation and community support.
 The original ChilliSpot project homepage is/was at www.chillispot.org.
 
@@ -303,7 +304,6 @@ for information on how to install and configure the TUN/TAP driver.
 .SH AUTHORS
 
 CoovaChilli and ChilliSpot are licensed under the Gnu Public License.
-Copyright (C) 2002-2005 by Mondru AB.,
-2006-2007 David Bird <david@coova.com>,
-All rights reserved.
+
+Copyright (C) 2002-2005 by Mondru AB., 2006-2009 Coova Technologies, LLC. All rights reserved.
 

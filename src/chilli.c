@@ -1,15 +1,15 @@
 /* 
- * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
- *
- * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (C) 2007-2009 David Bird <david@coova.com>
+ * CoovaChilli: A Wireless LAN Access Point Controller.
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
  * notice and this permission notice is included in all copies or
  * substantial portions of the software.
  * 
+ * Copyright (C) 2003-2005 Mondru AB., 
+ * Copyright (C) 2006 PicoPoint B.V.
+ * Copyright (C) 2007-2009 David Bird <david@coova.com>
+ *
  */
 
 #include "system.h"
@@ -33,7 +33,7 @@ struct radius_t *radius;          /* Radius client instance */
 struct dhcp_t *dhcp = NULL;       /* DHCP instance */
 struct redir_t *redir = NULL;     /* Redir instance */
 
-int connections=0;
+static int connections=0;
 struct app_conn_t *firstfreeconn=0; /* First free in linked list */
 struct app_conn_t *lastfreeconn=0;  /* Last free in linked list */
 struct app_conn_t *firstusedconn=0; /* First used in linked list */
@@ -47,7 +47,8 @@ time_t rereadtime;
 
 static int keep_going = 1;
 /*static int do_timeouts = 1;*/
-static int do_sighup = 0;
+static int do_interval = 0;
+static int reload_config = 0;
 
 /* some IPv4LL/APIPA(rfc 3927) specific stuff for uamanyip */
 struct in_addr ipv4ll_ip;
@@ -63,22 +64,42 @@ static void fireman(int signum) {
 
 /* Termination handler for clean shutdown */
 static void termination_handler(int signum) {
-  if (options.debug) log_dbg("SIGTERM received!\n");
+  if (options()->debug) log_dbg("SIGTERM received!\n");
   keep_going = 0;
 }
 
 /* Alarm handler for general house keeping 
 void static alarm_handler(int signum) {
-  if (options.debug) log_dbg("SIGALRM received!\n");
+  if (options()->debug) log_dbg("SIGALRM received!\n");
   do_timeouts = 1;
 }*/
 
 /* Sighup handler for rereading configuration file */
 static void sighup_handler(int signum) {
-  if (options.debug) log_dbg("SIGHUP received!\n");
-  do_sighup = 1;
+  if (options()->debug) log_dbg("SIGHUP received!\n");
+  do_interval = 1;
+  reload_config = 1;
 }
 
+static void mainclock_tick() {
+  if (time(&mainclock) == (time_t)-1) {
+    log_err(errno, "time()");
+  }
+}
+
+time_t mainclock_now() {
+  return mainclock;
+}
+
+int mainclock_diff(time_t past) {
+  return (int)difftime(mainclock, past);
+}
+
+uint32_t mainclock_diffu(time_t past) {
+  int i = mainclock_diff(past);
+  if (i > 0) return (uint32_t) i;
+  return 0;
+}
 
 static void set_sessionid(struct app_conn_t *appconn) {
   snprintf(appconn->s_state.sessionid, sizeof(appconn->s_state.sessionid), 
@@ -103,14 +124,12 @@ void static log_pid(char *pidfile) {
 #ifdef LEAKY_BUCKET
 /* Perform leaky bucket on up- and downlink traffic */
 int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t octetsdown) {
-  
-  time_t timenow = mainclock;
-  uint64_t timediff; 
   int result = 0;
+  uint64_t timediff; 
 
-  timediff = timenow - conn->s_state.last_time;
+  timediff = (uint64_t) mainclock_diffu(conn->s_state.last_time);
 
-  if (options.debug && (conn->s_params.bandwidthmaxup || 
+  if (options()->debug && (conn->s_params.bandwidthmaxup || 
 			conn->s_params.bandwidthmaxdown))
     log_dbg("Leaky bucket timediff: %lld, bucketup: %lld/%lld, bucketdown: %lld/%lld, up: %lld, down: %lld", 
 	    timediff, 
@@ -129,7 +148,7 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
     }
     
     if ((conn->s_state.bucketup + octetsup) > conn->s_state.bucketupsize) {
-      if (options.debug) log_dbg("Leaky bucket deleting uplink packet");
+      if (options()->debug) log_dbg("Leaky bucket deleting uplink packet");
       result = -1;
     }
     else {
@@ -147,7 +166,7 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
     }
     
     if ((conn->s_state.bucketdown + octetsdown) > conn->s_state.bucketdownsize) {
-      if (options.debug) log_dbg("Leaky bucket deleting downlink packet");
+      if (options()->debug) log_dbg("Leaky bucket deleting downlink packet");
       result = -1;
     }
     else {
@@ -155,7 +174,7 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
     }
   }
 
-  conn->s_state.last_time = timenow;
+  conn->s_state.last_time = mainclock;
     
   return result;
 }
@@ -257,7 +276,7 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("MASK", VAL_IN_ADDR, &appconn->mask, 0);
   set_env("ADDR", VAL_IN_ADDR, &appconn->ourip, 0);
   set_env("USER_NAME", VAL_STRING, appconn->s_state.redir.username, 0);
-  set_env("NAS_IP_ADDRESS", VAL_IN_ADDR,&options.radiuslisten, 0);
+  set_env("NAS_IP_ADDRESS", VAL_IN_ADDR,&options()->radiuslisten, 0);
   set_env("SERVICE_TYPE", VAL_STRING, "1", 0);
   set_env("FRAMED_IP_ADDRESS", VAL_IN_ADDR, &appconn->hisip, 0);
   set_env("FILTER_ID", VAL_STRING, appconn->s_params.filteridbuf, 0);
@@ -267,12 +286,12 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("IDLE_TIMEOUT", VAL_ULONG, &appconn->s_params.idletimeout, 0);
   set_env("CALLING_STATION_ID", VAL_MAC_ADDR, appconn->hismac, 0);
   set_env("CALLED_STATION_ID", VAL_MAC_ADDR, appconn->ourmac, 0);
-  set_env("NAS_ID", VAL_STRING, options.radiusnasid, 0);
+  set_env("NAS_ID", VAL_STRING, options()->radiusnasid, 0);
   set_env("NAS_PORT_TYPE", VAL_STRING, "19", 0);
   set_env("ACCT_SESSION_ID", VAL_STRING, appconn->s_state.sessionid, 0);
   set_env("ACCT_INTERIM_INTERVAL", VAL_USHORT, &appconn->s_params.interim_interval, 0);
-  set_env("WISPR_LOCATION_ID", VAL_STRING, options.radiuslocationid, 0);
-  set_env("WISPR_LOCATION_NAME", VAL_STRING, options.radiuslocationname, 0);
+  set_env("WISPR_LOCATION_ID", VAL_STRING, options()->radiuslocationid, 0);
+  set_env("WISPR_LOCATION_NAME", VAL_STRING, options()->radiuslocationname, 0);
   set_env("WISPR_BANDWIDTH_MAX_UP", VAL_ULONG, &appconn->s_params.bandwidthmaxup, 0);
   set_env("WISPR_BANDWIDTH_MAX_DOWN", VAL_ULONG, &appconn->s_params.bandwidthmaxdown, 0);
   /*set_env("WISPR-SESSION_TERMINATE_TIME", VAL_USHORT, &appconn->sessionterminatetime, 0);*/
@@ -299,9 +318,9 @@ int runscript(struct app_conn_t *appconn, char* script) {
 static int newip(struct ippoolm_t **ipm, struct in_addr *hisip, uint8_t *hismac) {
   struct in_addr tmpip;
 
-  if (options.autostatip && hismac) {
+  if (options()->autostatip && hismac) {
     if (!hisip) hisip = &tmpip;
-    hisip->s_addr = htonl((options.autostatip % 255) * 0x1000000 + 
+    hisip->s_addr = htonl((options()->autostatip % 255) * 0x1000000 + 
 			  hismac[3] * 0x10000 + 
 			  hismac[4] * 0x100 + 
 			  hismac[5]);
@@ -332,7 +351,7 @@ int static newconn(struct app_conn_t **conn) {
 
   if (!firstfreeconn) {
 
-    if (connections == APP_NUM_CONN) {
+    if (connections == options()->max_clients) {
       log_err(0, "reached max connections!");
       return -1;
     }
@@ -470,21 +489,28 @@ int static dnprot_terminate(struct app_conn_t *appconn) {
  */
 
 void session_interval(struct app_conn_t *conn) {
-  time_t timenow = mainclock;
   uint32_t sessiontime;
   uint32_t idletime;
   uint32_t interimtime;
 
-  sessiontime = timenow - conn->s_state.start_time;
-  idletime    = timenow - conn->s_state.last_time;
-  interimtime = timenow - conn->s_state.interim_time;
+  sessiontime = mainclock_diffu(conn->s_state.start_time);
+  idletime    = mainclock_diffu(conn->s_state.last_time);
+  interimtime = mainclock_diffu(conn->s_state.interim_time);
+
+  /* debugging timeout information
+  log_dbg("now:%d  sessiontime:%d  idle=%d  interim=%d  conn:(timeout:%d  idle:%d  interim:%d)", 
+	  (int)mainclock,(int)sessiontime,(int)idletime,(int)interimtime,
+	  (int)conn->s_params.sessiontimeout,
+	  (int)conn->s_params.idletimeout,
+	  (int)conn->s_params.interim_interval);
+  */
   
   if ((conn->s_params.sessiontimeout) &&
       (sessiontime > conn->s_params.sessiontimeout)) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.sessionterminatetime) && 
-	   (timenow > conn->s_params.sessionterminatetime)) {
+	   (mainclock_diff(conn->s_params.sessionterminatetime) > 0)) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.idletimeout) && 
@@ -505,25 +531,24 @@ void session_interval(struct app_conn_t *conn) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.interim_interval) &&
-	   (interimtime > conn->s_params.interim_interval)) {
+	   (interimtime >= conn->s_params.interim_interval)) {
     acct_req(conn, RADIUS_STATUS_TYPE_INTERIM_UPDATE);
   }
 }
 
 static int checkconn()
 {
-  time_t timenow = mainclock;
   struct app_conn_t *conn;
   struct dhcp_conn_t* dhcpconn;
   uint32_t checkdiff;
   uint32_t rereaddiff;
 
-  checkdiff = timenow - checktime;
+  checkdiff = mainclock_diffu(checktime);
 
   if (checkdiff < CHECK_INTERVAL)
     return 0;
 
-  checktime = timenow;
+  checktime = mainclock;
   
   if (admin_session.s_state.authenticated) {
     session_interval(&admin_session);
@@ -540,11 +565,11 @@ static int checkconn()
   }
   
   /* Reread configuration file and recheck DNS */
-  if (options.interval) {
-    rereaddiff = timenow - rereadtime;
-    if (rereaddiff >= options.interval) {
-      rereadtime = timenow;
-      do_sighup = 1;
+  if (options()->interval) {
+    rereaddiff = mainclock_diffu(rereadtime);
+    if (rereaddiff >= options()->interval) {
+      rereadtime = mainclock;
+      do_interval = 1;
     }
   }
   
@@ -576,15 +601,15 @@ int static killconn()
 int static maccmp(unsigned char *mac) {
   int i; 
 
-  for (i=0; i<options.macoklen; i++)
-    if (!memcmp(mac, options.macok[i], PKT_ETH_ALEN))
+  for (i=0; i<options()->macoklen; i++)
+    if (!memcmp(mac, options()->macok[i], PKT_ETH_ALEN))
       return 0;
 
   return -1;
 }
 
-int static macauth_radius(struct app_conn_t *appconn, 
-			  struct dhcp_fullpacket_t *dhcp_pkt, size_t dhcp_len) {
+int static macauth_radius(struct app_conn_t *appconn, uint8_t *pkt, size_t len) {
+
   struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
   struct radius_packet_t radius_pack;
   char mac[MACSTRLEN+1];
@@ -604,16 +629,16 @@ int static macauth_radius(struct app_conn_t *appconn,
 
   strncpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
 
-  if (options.macsuffix)
-    strncat(appconn->s_state.redir.username, options.macsuffix, USERNAMESIZE);
+  if (options()->macsuffix)
+    strncat(appconn->s_state.redir.username, options()->macsuffix, USERNAMESIZE);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
 		 (uint8_t*) appconn->s_state.redir.username, 
 		 strlen(appconn->s_state.redir.username));
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		 (uint8_t*) (options.macpasswd ? options.macpasswd : appconn->s_state.redir.username), 
-		 options.macpasswd ? strlen(options.macpasswd) : strlen(appconn->s_state.redir.username));
+		 (uint8_t*) (options()->macpasswd ? options()->macpasswd : appconn->s_state.redir.username), 
+		 options()->macpasswd ? strlen(options()->macpasswd) : strlen(appconn->s_state.redir.username));
   
   appconn->authtype = PAP_PASSWORD;
   
@@ -631,34 +656,44 @@ int static macauth_radius(struct app_conn_t *appconn,
 		 RADIUS_SERVICE_TYPE_FRAMED, NULL, 0); 
   
   /* Include NAS-Identifier if given in configuration options */
-  if (options.radiusnasid)
+  if (options()->radiusnasid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-		   (uint8_t*) options.radiusnasid, strlen(options.radiusnasid));
+		   (uint8_t*) options()->radiusnasid, strlen(options()->radiusnasid));
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
 		 (uint8_t*) appconn->s_state.sessionid, REDIR_SESSIONID_LEN-1);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-		 options.radiusnasporttype, NULL, 0);
+		 options()->radiusnasporttype, NULL, 0);
 
 
-  if (options.radiuslocationid)
+  if (options()->radiuslocationid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_ID, 0,
-		   (uint8_t*) options.radiuslocationid, 
-		   strlen(options.radiuslocationid));
+		   (uint8_t*) options()->radiuslocationid, 
+		   strlen(options()->radiuslocationid));
 
-  if (options.radiuslocationname)
+  if (options()->radiuslocationname)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
-		   (uint8_t*) options.radiuslocationname, 
-		   strlen(options.radiuslocationname));
+		   (uint8_t*) options()->radiuslocationname, 
+		   strlen(options()->radiuslocationname));
 
-  if (options.dhcpradius && dhcp_pkt) {
+  
+  if (dhcpconn->tag8021q)
+
+  if (dhcpconn->tag8021q)
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
+		   ntohl(dhcpconn->tag8021q & 0x0FFF), 0, 0);
+
+  if (options()->dhcpradius && pkt) {
     struct dhcp_tag_t *tag = 0;
+    struct pkt_udphdr_t *udph = udphdr(pkt);
+    struct dhcp_packet_t *dhcppkt = dhcppkt(pkt);
 
 #define maptag(OPT,VSA)\
-    if (!dhcp_gettag(&dhcp_pkt->dhcp, ntohs(dhcp_pkt->udph.len)-PKT_UDP_HLEN, &tag, OPT)) { \
+    if (!dhcp_gettag(dhcppkt, ntohs(udph->len)-PKT_UDP_HLEN, &tag, OPT)) { \
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC, \
 		     RADIUS_VENDOR_CHILLISPOT, VSA, 0, (uint8_t *) tag->v, tag->l); } 
     /*
@@ -820,7 +855,6 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
   struct radius_packet_t radius_pack;
   char mac[MACSTRLEN+1];
   char portid[16+1];
-  time_t timenow;
   uint32_t timediff;
 
   if (RADIUS_STATUS_TYPE_START == status_type ||
@@ -861,8 +895,52 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
     }
 
     if (conn->is_adminsession) {
+
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
 		     RADIUS_SERVICE_TYPE_ADMIN_USER, NULL, 0); 
+
+#ifdef HAVE_SYS_SYSINFO_H
+      {
+	struct sysinfo the_info;
+	
+	if (sysinfo(&the_info)) {
+	  
+	  log_err(errno, "sysinfo()");
+	  
+	} else {
+	  float shiftfloat;
+	  float fav[3];
+	  char b[128];
+	  
+	  shiftfloat = (float) (1<<SI_LOAD_SHIFT);
+	  
+	  fav[0]=((float)the_info.loads[0])/shiftfloat;
+	  fav[1]=((float)the_info.loads[1])/shiftfloat;
+	  fav[2]=((float)the_info.loads[2])/shiftfloat;
+
+	  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+			 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_SYS_UPTIME, 
+			 (uint32_t) the_info.uptime, NULL, 0);
+	  
+	  snprintf(b, sizeof(b), "%f %f %f",fav[0],fav[1],fav[2]);
+	  
+	  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+			 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_SYS_LOADAVG, 
+			 0, (uint8_t *) b, strlen(b));
+	  
+	  snprintf(b, sizeof(b), "%ld %ld %ld %ld",
+		   the_info.totalram,
+		   the_info.freeram,
+		   the_info.sharedram,
+		   the_info.bufferram);
+	  
+	  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+			 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_SYS_MEMORY, 
+			 0, (uint8_t *) b, strlen(b));
+	}
+      }
+#endif
+
     } else {
       snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 	       conn->hismac[0], conn->hismac[1],
@@ -873,7 +951,7 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 		     (uint8_t*) mac, MACSTRLEN);
       
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-		     options.radiusnasporttype, NULL, 0);
+		     options()->radiusnasporttype, NULL, 0);
       
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
 		     conn->unit, NULL, 0);
@@ -898,10 +976,10 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 
 
   /* Include NAS-Identifier if given in configuration options */
-  if (options.radiusnasid)
+  if (options()->radiusnasid)
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-		   (uint8_t*) options.radiusnasid, 
-		   strlen(options.radiusnasid));
+		   (uint8_t*) options()->radiusnasid, 
+		   strlen(options()->radiusnasid));
 
   /*
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_MTU, 0, 0,
@@ -925,24 +1003,23 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_OUTPUT_PACKETS, 0, 0,
 		   conn->s_state.output_packets, NULL, 0);
 
-    timenow = mainclock;
-    timediff = timenow - conn->s_state.start_time;
+    timediff = mainclock_diffu(conn->s_state.start_time);
 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_TIME, 0, 0,
 		   timediff, NULL, 0);  
   }
 
-  if (options.radiuslocationid)
+  if (options()->radiuslocationid)
     (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_ID, 0,
-		   (uint8_t*) options.radiuslocationid,
-		   strlen(options.radiuslocationid));
+		   (uint8_t*) options()->radiuslocationid,
+		   strlen(options()->radiuslocationid));
 
-  if (options.radiuslocationname)
+  if (options()->radiuslocationname)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
-		   (uint8_t*) options.radiuslocationname, 
-		   strlen(options.radiuslocationname));
+		   (uint8_t*) options()->radiuslocationname, 
+		   strlen(options()->radiuslocationname));
 
 
   if (status_type == RADIUS_STATUS_TYPE_STOP ||
@@ -953,16 +1030,47 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 
     if (status_type == RADIUS_STATUS_TYPE_STOP) {
       /* TODO: This probably belongs somewhere else */
-      if (options.condown) {
-	if (options.debug)
-	  log_dbg("Calling connection down script: %s\n",options.condown);
-	runscript(conn, options.condown);
+      if (options()->condown) {
+	log_dbg("Calling connection down script: %s\n",options()->condown);
+	runscript(conn, options()->condown);
       }
     }
   }
   
   radius_req(radius, &radius_pack, conn);
   
+  return 0;
+}
+
+/**
+ * Assigns an ip from the dynamic pool, for SNAT'ing anyip connections.
+ * If anyip is on and the clients address is outside of our network,
+ * we need to SNAT to an ip of our network.
+ */
+int assign_snat(struct app_conn_t *appconn) {
+  struct ippoolm_t *newipm;
+  
+  if (!options()->uamanyip)     return 0;
+  if (!options()->uamnatanyip)  return 0;
+  if (appconn->natip.s_addr) return 0;
+
+  if ((appconn->hisip.s_addr & appconn->mask.s_addr) ==
+      (appconn->ourip.s_addr & appconn->mask.s_addr))
+    return 0;
+
+  log_dbg("Request SNAT ip for client ip: %s",
+	  inet_ntoa(appconn->hisip));
+
+  if (ippool_newip(ippool, &newipm, &appconn->natip, 0)) {
+    log_err(0, "Failed to allocate SNAT IP address");
+    return -1;
+  }
+
+  appconn->natip.s_addr = newipm->addr.s_addr;
+  newipm->peer = appconn;
+
+  log_dbg("SNAT IP %s assigned", inet_ntoa(appconn->natip));
+
   return 0;
 }
 
@@ -1009,7 +1117,7 @@ int static dnprot_reject(struct app_conn_t *appconn) {
       return 0;
     }
 
-    if (options.macauthdeny) {
+    if (options()->macauthdeny) {
       dhcpconn->authstate = DHCP_AUTH_DROP;
       appconn->dnprot = DNPROT_NULL;
     }
@@ -1080,7 +1188,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 		   &appconn->hisip, &appconn->mask,
 		   &appconn->ourip, &appconn->mask,
 		   &appconn->dns1, &appconn->dns2,
-		   options.domain);
+		   options()->domain);
     
     /* This is the one and only place eapol authentication is accepted */
 
@@ -1102,7 +1210,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 		   &appconn->hisip, &appconn->mask,
 		   &appconn->ourip, &appconn->mask,
 		   &appconn->dns1, &appconn->dns2,
-		   options.domain);
+		   options()->domain);
 
     /* This is the one and only place UAM authentication is accepted */
     dhcpconn->authstate = DHCP_AUTH_PASS;
@@ -1119,7 +1227,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 		   &appconn->hisip, &appconn->mask, 
 		   &appconn->ourip, &appconn->mask, 
 		   &appconn->dns1, &appconn->dns2,
-		   options.domain);
+		   options()->domain);
     
     /* This is the one and only place WPA authentication is accepted */
     if (appconn->s_params.flags & REQUIRE_UAM_AUTH) {
@@ -1145,7 +1253,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 		   &appconn->hisip, &appconn->mask, 
 		   &appconn->ourip, &appconn->mask, 
 		   &appconn->dns1, &appconn->dns2,
-		   options.domain);
+		   options()->domain);
     
     dhcpconn->authstate = DHCP_AUTH_PASS;
     break;
@@ -1167,9 +1275,9 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     appconn->s_state.authenticated = 1;
     
     /* Run connection up script */
-    if (options.conup) {
-      if (options.debug) log_dbg("Calling connection up script: %s\n", options.conup);
-      runscript(appconn, options.conup);
+    if (options()->conup) {
+      log_dbg("Calling connection up script: %s\n", options()->conup);
+      runscript(appconn, options()->conup);
     }
     
     printstatus(appconn);
@@ -1196,34 +1304,49 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
   struct app_conn_t *appconn;
   struct pkt_ipphdr_t *ipph;
 
-  int ethhdr = !!(tun(tun, idx).flags & NET_ETHHDR);
+  int ethhdr = (tun(tun, idx).flags & NET_ETHHDR) != 0;
 
   if (ethhdr) {
-    struct pkt_ethhdr_t *ethh = (struct pkt_ethhdr_t *)pack;
+    /*
+     *   Will never be 802.1Q
+     */
+    struct pkt_ethhdr_t *ethh = ethhdr(pack);
     uint16_t prot = ntohs(ethh->prot);
 
     ipph = (struct pkt_ipphdr_t *)((char *)pack + PKT_ETH_HLEN);
 
     if (prot == PKT_ETH_PROTO_ARP) {
       /*
-       * send arp reply with us being target
+       *  Send arp reply 
        */
-      struct arp_fullpacket_t *p = (struct arp_fullpacket_t *)pack;
-      struct arp_fullpacket_t packet;
+      uint8_t packet[PKT_BUFFER];
+
+      struct pkt_ethhdr_t *p_ethh = ethhdr(pack);
+      struct arp_packet_t *p_arp = arppkt(pack);
+      struct pkt_ethhdr_t *packet_ethh = ethhdr(packet);
+      struct arp_packet_t *packet_arp = ((struct arp_packet_t *)(((uint8_t*)(pack)) + PKT_ETH_HLEN));
+
+      size_t length = PKT_ETH_HLEN + sizeof(struct arp_packet_t);
+
       struct in_addr reqaddr;
-      size_t length = sizeof(packet);
       
-      log_dbg("arp: dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x\n",
-	      ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+      /* 
+       *   Get local copy of the target address to resolve
+       */
+      memcpy(&reqaddr.s_addr, p_arp->tpa, PKT_IP_ALEN);
+      
+      log_dbg("arp: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+	      "prot=%.4x (asking for %s)",
 	      ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
-	      ntohs(ethh->prot));
-      
-      /* Get local copy */
-      memcpy(&reqaddr.s_addr, p->arp.tpa, PKT_IP_ALEN);
-      
+	      ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+	      ntohs(ethh->prot), inet_ntoa(reqaddr));
+
+      /*
+       *  Lookup request address, see if we control it.
+       */
       if (ippool_getip(ippool, &ipm, &reqaddr)) {
-	if (options.debug) 
-	    log_dbg("ARP for unknown IP %s\n", inet_ntoa(reqaddr));
+	if (options()->debug) 
+	  log_dbg("ARP for unknown IP %s", inet_ntoa(reqaddr));
 	return 0;
       }
       
@@ -1237,44 +1360,62 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
       memset(&packet, 0, sizeof(packet));
       
       /* ARP Payload */
-      packet.arp.hrd = htons(DHCP_HTYPE_ETH);
-      packet.arp.pro = htons(PKT_ETH_PROTO_IP);
-      packet.arp.hln = PKT_ETH_ALEN;
-      packet.arp.pln = PKT_IP_ALEN;
-      packet.arp.op  = htons(DHCP_ARP_REPLY);
+      packet_arp->hrd = htons(DHCP_HTYPE_ETH);
+      packet_arp->pro = htons(PKT_ETH_PROTO_IP);
+      packet_arp->hln = PKT_ETH_ALEN;
+      packet_arp->pln = PKT_IP_ALEN;
+      packet_arp->op  = htons(DHCP_ARP_REPLY);
       
       /* Source address */
-      /*memcpy(packet.arp.sha, dhcp->arp_hwaddr, PKT_ETH_ALEN);
-	memcpy(packet.arp.spa, &dhcp->ourip.s_addr, PKT_IP_ALEN);*/
-      /*memcpy(packet.arp.sha, appconn->hismac, PKT_ETH_ALEN);*/
-      memcpy(packet.arp.sha, tun->_interfaces[0].hwaddr, PKT_ETH_ALEN);
-      memcpy(packet.arp.spa, &appconn->hisip.s_addr, PKT_IP_ALEN);
-	
+      memcpy(packet_arp->sha, appconn->hismac, PKT_ETH_ALEN);
+      memcpy(packet_arp->spa, &appconn->hisip.s_addr, PKT_IP_ALEN);
+
       /* Target address */
-      /*memcpy(packet.arp.tha, &appconn->hismac, PKT_ETH_ALEN);
-	memcpy(packet.arp.tpa, &appconn->hisip.s_addr, PKT_IP_ALEN); */
-      memcpy(packet.arp.tha, p->arp.sha, PKT_ETH_ALEN);
-      memcpy(packet.arp.tpa, p->arp.spa, PKT_IP_ALEN);
-      
+      memcpy(packet_arp->tha, p_arp->sha, PKT_ETH_ALEN);
+      memcpy(packet_arp->tpa, p_arp->spa, PKT_IP_ALEN);
+
       /* Ethernet header */
-      memcpy(packet.ethh.dst, p->ethh.src, PKT_ETH_ALEN);
-      memcpy(packet.ethh.src, dhcp->ipif.hwaddr, PKT_ETH_ALEN);
-      packet.ethh.prot = htons(PKT_ETH_PROTO_ARP);
-      
-      return tun_encaps(tun, &packet, length, idx);
+      memcpy(packet_ethh->dst, p_ethh->src, PKT_ETH_ALEN);
+      memcpy(packet_ethh->src, appconn->hismac, PKT_ETH_ALEN);
+
+      /*memcpy(packet.ethh.src, dhcp->rawif.hwaddr, PKT_ETH_ALEN);*/
+
+      packet_ethh->prot = htons(PKT_ETH_PROTO_ARP);
+
+      if (options()->debug) {
+	log_dbg("arp-reply: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
+		packet_ethh->src[0],packet_ethh->src[1],packet_ethh->src[2],
+		packet_ethh->src[3],packet_ethh->src[4],packet_ethh->src[5],
+		packet_ethh->dst[0],packet_ethh->dst[1],packet_ethh->dst[2],
+		packet_ethh->dst[3],packet_ethh->dst[4],packet_ethh->dst[5]);
+	
+	memcpy(&reqaddr.s_addr, packet_arp->spa, PKT_IP_ALEN);
+	log_dbg("arp-reply: source sha=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x spa=%s",
+		packet_arp->sha[0],packet_arp->sha[1],packet_arp->sha[2],
+		packet_arp->sha[3],packet_arp->sha[4],packet_arp->sha[5],
+		inet_ntoa(reqaddr));	      
+	
+	memcpy(&reqaddr.s_addr, packet_arp->tpa, PKT_IP_ALEN);
+	log_dbg("arp-reply: target tha=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x tpa=%s",
+		packet_arp->tha[0],packet_arp->tha[1],packet_arp->tha[2],
+		packet_arp->tha[3],packet_arp->tha[4],packet_arp->tha[5],
+		inet_ntoa(reqaddr));
+      }
+	
+      return tun_write(tun, &packet, length, idx);
     }
   } else {
     ipph = (struct pkt_ipphdr_t *)pack;
   }
 
-  /*if (options.debug) 
-    log_dbg("cb_tun_ind. Packet received: Forwarding to link layer");*/
+  if (options()->debug) 
+    log_dbg("cb_tun_ind. Packet received from tun/tap");
 
   dst.s_addr = ipph->daddr;
 
   if (ippool_getip(ippool, &ipm, &dst)) {
     if (ippool_newip(ippool, &ipm, &dst, 1)) {
-      if (options.debug) 
+      if (options()->debug) 
 	log_dbg("dropping packet with unknown destination: %s", inet_ntoa(dst));
 
       return 0;
@@ -1286,11 +1427,29 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
     log_err(0, "No %s protocol defined for %s", appconn ? "dnlink" : "peer", inet_ntoa(dst));
     return 0;
   }
+
+  /**
+   * connection needs to be NAT'ed, since client is an anyip client
+   * outside of our network.
+   * So, let's NAT the SNAT ip back to it's client ip.
+   */
+  if (options()->uamanyip && appconn->natip.s_addr) {
+    if (options()->debug) {
+      char ip[56];
+      char snatip[56];
+      strcpy(ip, inet_ntoa(appconn->hisip));
+      strcpy(snatip, inet_ntoa(appconn->natip));
+      log_dbg("SNAT anyip replace %s back to %s; snat was: %s",
+	      inet_ntoa(dst), ip, snatip);
+    }
+    ipph->daddr = appconn->hisip.s_addr;
+    chksum((struct pkt_iphdr_t *) ipph);
+  }
   
   /* If the ip src is uamlisten and psrc is uamport we won't call leaky_bucket */
-  if ( ! (ipph->saddr  == options.uamlisten.s_addr && 
-	  (ipph->sport == htons(options.uamport) ||
-	   ipph->sport == htons(options.uamuiport)))) {
+  if ( ! (ipph->saddr  == options()->uamlisten.s_addr && 
+	  (ipph->sport == htons(options()->uamport) ||
+	   ipph->sport == htons(options()->uamuiport)))) {
     if (appconn->s_state.authenticated == 1) {
 
 #ifndef LEAKY_BUCKET
@@ -1302,7 +1461,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
     if (leaky_bucket(appconn, 0, len)) return 0;
 #endif
 #endif
-    if (options.swapoctets) {
+    if (options()->swapoctets) {
       appconn->s_state.output_packets++;
       appconn->s_state.output_octets += len;
       if (admin_session.s_state.authenticated) {
@@ -1368,7 +1527,7 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
     return -1;
   }
   
-  conn->nasip = options.radiuslisten;
+  conn->nasip = options()->radiuslisten;
   conn->nasport = appconn->unit;
   memcpy(conn->hismac, dhcpconn->hismac, PKT_ETH_ALEN);
   memcpy(conn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);
@@ -1450,7 +1609,7 @@ int accounting_request(struct radius_packet_t *pack,
   
   /* Calling Station ID (MAC Address) */
   if (!radius_getattr(pack, &hismacattr, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0)) {
-    if (options.debug) {
+    if (options()->debug) {
       log_dbg("Calling Station ID is: %.*s", hismacattr->l-2, hismacattr->v.t);
     }
     if ((macstrlen = (size_t)hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
@@ -1472,7 +1631,7 @@ int accounting_request(struct radius_packet_t *pack,
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     
-    for(i = 0; i < PKT_ETH_ALEN; i++) 
+    for (i = 0; i < PKT_ETH_ALEN; i++) 
       hismac[i] = temp[i];
   }
 
@@ -1576,7 +1735,7 @@ int access_request(struct radius_packet_t *pack,
   size_t eaplen = 0;
   int instance = 0;
 
-  if (options.debug) 
+  if (options()->debug) 
     log_dbg("RADIUS Access-Request received");
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REJECT)) {
@@ -1590,7 +1749,7 @@ int access_request(struct radius_packet_t *pack,
   
   /* Framed IP address (Conditional) */
   if (!radius_getattr(pack, &hisipattr, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0, 0)) {
-    if (options.debug) {
+    if (options()->debug) {
       log_dbg("Framed IP address is: ");
       for (n=0; n<hisipattr->l-2; n++) log_dbg("%.2x", hisipattr->v.t[n]); 
       log_dbg("\n");
@@ -1604,7 +1763,7 @@ int access_request(struct radius_packet_t *pack,
 
   /* Calling Station ID: MAC Address (Conditional) */
   if (!radius_getattr(pack, &hismacattr, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0)) {
-    if (options.debug) {
+    if (options()->debug) {
       log_dbg("Calling Station ID is: %.*s", hismacattr->l-2, hismacattr->v.t);
     }
     if ((macstrlen = (size_t)hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
@@ -1625,7 +1784,7 @@ int access_request(struct radius_packet_t *pack,
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     
-    for(i = 0; i < PKT_ETH_ALEN; i++) 
+    for (i = 0; i < PKT_ETH_ALEN; i++) 
       hismac[i] = temp[i];
   }
 
@@ -1655,7 +1814,7 @@ int access_request(struct radius_packet_t *pack,
   }
   else if (hismacattr) { /* Look for mac address. If not found allocate new */
     if (dhcp_hashget(dhcp, &dhcpconn, hismac)) {
-      if (dhcp_newconn(dhcp, &dhcpconn, hismac)) {
+      if (dhcp_newconn(dhcp, &dhcpconn, hismac, 0)) {
 	log_err(0, "Out of connections");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
@@ -1694,7 +1853,7 @@ int access_request(struct radius_packet_t *pack,
       log_err(0, "radius_pwdecode() failed");
       return -1;
     }
-    if (options.debug) log_dbg("Password is: %s\n", pwd);
+    if (options()->debug) log_dbg("Password is: %s\n", pwd);
   }
 
   /* Get EAP message */
@@ -1817,7 +1976,7 @@ int access_request(struct radius_packet_t *pack,
   } 
 
   if (resplen) {
-    if (options.wpaguests)
+    if (options()->wpaguests)
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		     RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
 		     0, (uint8_t*)"allow-wpa-guests", 16);
@@ -1838,7 +1997,7 @@ int access_request(struct radius_packet_t *pack,
   radius_addcalledstation(radius, &radius_pack);
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-		 options.radiusnasporttype, NULL, 0);
+		 options()->radiusnasporttype, NULL, 0);
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
 		 appconn->unit, NULL, 0);
@@ -1846,9 +2005,9 @@ int access_request(struct radius_packet_t *pack,
   radius_addnasip(radius, &radius_pack);
   
   /* Include NAS-Identifier if given in configuration options */
-  if (options.radiusnasid)
+  if (options()->radiusnasid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-		   (uint8_t*) options.radiusnasid, strlen(options.radiusnasid));
+		   (uint8_t*) options()->radiusnasid, strlen(options()->radiusnasid));
   
   return radius_req(radius, &radius_pack, appconn);
 }
@@ -1880,7 +2039,6 @@ int cb_radius_ind(struct radius_t *rp, struct radius_packet_t *pack,
   }
 }
 
-
 int upprot_getip(struct app_conn_t *appconn, 
 		 struct in_addr *hisip, int statip) {
   struct ippoolm_t *ipm;
@@ -1902,14 +2060,17 @@ int upprot_getip(struct app_conn_t *appconn,
     appconn->hisip.s_addr = ipm->addr.s_addr;
 
     /* TODO: Too many "listen" and "our" addresses having around */
-    appconn->ourip.s_addr = options.dhcplisten.s_addr;
+    appconn->ourip.s_addr = options()->dhcplisten.s_addr;
     
     appconn->uplink = ipm;
     ipm->peer = appconn; 
   }
 
-  return dnprot_accept(appconn);
+  if (assign_snat(appconn) != 0) {
+    return -1;
+  }
 
+  return dnprot_accept(appconn);
 }
 
 void config_radius_session(struct session_params *params, 
@@ -1947,11 +2108,11 @@ void config_radius_session(struct session_params *params,
     if (params->interim_interval < 60) {
       log_err(0, "Received too small radius Acct-Interim-Interval: %d; resettings to default.",
 	      params->interim_interval);
-      params->interim_interval = options.definteriminterval;
+      params->interim_interval = options()->definteriminterval;
     } 
   }
   else if (!reconfig)
-    params->interim_interval = 0;
+    params->interim_interval = options()->definteriminterval;
 
   /* Bandwidth up */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
@@ -2060,7 +2221,7 @@ void config_radius_session(struct session_params *params,
       size_t len = (size_t)attr->l-2;
       char *val = (char *)attr->v.t;
 
-      if (options.wpaguests && len == strlen(uamauth) && !memcmp(val, uamauth, len)) {
+      if (options()->wpaguests && len == strlen(uamauth) && !memcmp(val, uamauth, len)) {
 	log_dbg("received wpaguests");
 	params->flags |= REQUIRE_UAM_AUTH;
       } 
@@ -2184,9 +2345,9 @@ static int chilliauth_cb(struct radius_t *radius,
     return 0;
   }
 
-  if (options.adminupdatefile) {
+  if (options()->adminupdatefile) {
 
-    log_dbg("looking to replace: %s", options.adminupdatefile);
+    log_dbg("looking to replace: %s", options()->adminupdatefile);
 
     if (!radius_getnextattr(pack, &attr, 
 			    RADIUS_ATTR_VENDOR_SPECIFIC,
@@ -2194,7 +2355,7 @@ static int chilliauth_cb(struct radius_t *radius,
 			    RADIUS_ATTR_CHILLISPOT_CONFIG, 
 			    0, &offset)) {
 
-      char * hs_conf = options.adminupdatefile;
+      char * hs_conf = options()->adminupdatefile;
       char * hs_temp = "/tmp/hs.conf";
       
       /* 
@@ -2256,7 +2417,7 @@ static int chilliauth_cb(struct radius_t *radius,
 	      
 	      close(newfd); newfd=0;
 	      close(oldfd); oldfd=0;
-	      do_sighup = 1;
+	      do_interval = 1;
 	    }
 	  }
 	}
@@ -2320,7 +2481,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
 
-  if (options.debug)
+  if (options()->debug)
     log_dbg("Received access request confirmation from radius server\n");
   
   if (!appconn) {
@@ -2342,7 +2503,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   /* ACCESS-REJECT */
   if (pack->code == RADIUS_CODE_ACCESS_REJECT) {
-    if (options.debug)
+    if (options()->debug)
       log_dbg("Received access reject from radius server");
     config_radius_session(&appconn->s_params, pack, dhcpconn, 0); /*XXX*/
     return dnprot_reject(appconn);
@@ -2356,7 +2517,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   /* ACCESS-CHALLENGE */
   if (pack->code == RADIUS_CODE_ACCESS_CHALLENGE) {
-    if (options.debug)
+    if (options()->debug)
       log_dbg("Received access challenge from radius server");
 
     /* Get EAP message */
@@ -2413,12 +2574,12 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   config_radius_session(&appconn->s_params, pack, dhcpconn, 0);
 
-  /* for the admin session */
   if (appconn->is_adminsession) {
+    /* for the admin session */
     return chilliauth_cb(radius, pack, pack_req, cbp);
   }
 
-  if (options.dhcpradius) {
+  if (options()->dhcpradius) {
     struct radius_attr_t *attr = NULL;
     if (dhcpconn) {
       if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
@@ -2438,8 +2599,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
   }
 
   if (appconn->s_params.sessionterminatetime) {
-    time_t timenow = mainclock;
-    if (timenow > appconn->s_params.sessionterminatetime) {
+    if (mainclock_diff(appconn->s_params.sessionterminatetime) > 0) {
       log(LOG_WARNING, "WISPr-Session-Terminate-Time in the past received, rejecting");
       return dnprot_reject(appconn);
     }
@@ -2612,7 +2772,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
   int found = 0;
   int iscoa = 0;
 
-  if (options.debug)
+  if (options()->debug)
     log_dbg("Received coa or disconnect request\n");
   
   if (pack->code != RADIUS_CODE_DISCONNECT_REQUEST &&
@@ -2630,11 +2790,11 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
   }
 
   if (!radius_getattr(pack, &sattr, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0))
-    if (options.debug) 
+    if (options()->debug) 
       log_dbg("Session-id present in disconnect. Only disconnecting that session\n");
 
 
-  if (options.debug)
+  if (options()->debug)
     log_dbg("Looking for session [username=%.*s,sessionid=%.*s]", 
 	    uattr->l-2, uattr->v.t, sattr ? sattr->l-2 : 3, sattr ? (char*)sattr->v.t : "all");
   
@@ -2648,7 +2808,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 	 (strlen(appconn->s_state.sessionid) == sattr->l-2 && 
 	  !strncasecmp(appconn->s_state.sessionid, (char*)sattr->v.t, sattr->l-2)))) {
 
-      if (options.debug)
+      if (options()->debug)
 	log_dbg("Found session\n");
 
       if (iscoa)
@@ -2692,11 +2852,11 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 /* In the case of WPA it is allready allocated,
  * for UAM address is allocated before authentication */
 int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr, 
-		    struct dhcp_fullpacket_t *dhcp_pkt, size_t dhcp_len) {
+		    uint8_t *dhcp_pkt, size_t dhcp_len) {
   struct app_conn_t *appconn = conn->peer;
   struct ippoolm_t *ipm;
 
-  if (options.debug) 
+  if (options()->debug) 
     log_dbg("DHCP request for IP address");
 
   if (!appconn) {
@@ -2705,7 +2865,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
   }
 
   /* if uamanyip is on we have to filter out which ip's are allowed */
-  if (options.uamanyip && addr && addr->s_addr) {
+  if (options()->uamanyip && addr && addr->s_addr) {
     if ((addr->s_addr & ipv4ll_mask.s_addr) == ipv4ll_ip.s_addr) {
       /* clients with an IPv4LL ip normally have no default gw assigned, rendering uamanyip useless
       They must rather get a proper dynamic ip via dhcp */
@@ -2723,7 +2883,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
      */
     ipm = (struct ippoolm_t*) appconn->uplink;
 
-  } else if ((options.macoklen) && 
+  } else if ((options()->macoklen) && 
 	     (appconn->dnprot == DNPROT_DHCP_NONE) &&
 	     !maccmp(conn->hismac)) {
     
@@ -2732,7 +2892,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
      */
     appconn->dnprot = DNPROT_MAC;
 
-    if (options.macallowlocal) {
+    if (options()->macallowlocal) {
 
       /*
        *  Local MAC allowed list, authenticate without RADIUS.
@@ -2745,7 +2905,6 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
                     conn->hismac[4], conn->hismac[5],
                     inet_ntoa(appconn->hisip));
     } else {
-
       /*
        *  Otherwise, authenticate with RADIUS.
        */
@@ -2754,7 +2913,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 
     return -1;
 
-  } else if ((options.macauth) && 
+  } else if ((options()->macauth) && 
 	     (appconn->dnprot == DNPROT_DHCP_NONE)) {
     
     /*
@@ -2789,17 +2948,21 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 	inet_ntoa(appconn->hisip));
 
     /* TODO: Too many "listen" and "our" addresses hanging around */
-    appconn->ourip.s_addr = options.dhcplisten.s_addr;
+    appconn->ourip.s_addr = options()->dhcplisten.s_addr;
     
     appconn->uplink =  ipm;
     ipm->peer   = appconn; 
+
+    if (!assign_snat(appconn)) {
+      return -1;
+    }
   }
-  
+
   dhcp_set_addrs(conn, 
-		 &ipm->addr, &options.mask, 
+		 &ipm->addr, &options()->mask, 
 		 &appconn->ourip, &appconn->mask,
-		 &options.dns1, &options.dns2, 
-		 options.domain);
+		 &options()->dns1, &options()->dns2, 
+		 options()->domain);
 
   /* if not already authenticated, ensure DNAT authstate */
   if (!appconn->s_state.authenticated)
@@ -2821,7 +2984,7 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
       conn->hismac[2], conn->hismac[3],
       conn->hismac[4], conn->hismac[5]);
   
-  if (options.debug) 
+  if (options()->debug) 
     log_dbg("New DHCP connection established");
 
   /* Allocate new application connection */
@@ -2834,10 +2997,10 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
   appconn->dnprot =  DNPROT_DHCP_NONE;
   conn->peer = appconn;
 
-  appconn->net.s_addr = options.net.s_addr;
-  appconn->mask.s_addr = options.mask.s_addr;
-  appconn->dns1.s_addr = options.dns1.s_addr;
-  appconn->dns2.s_addr = options.dns2.s_addr;
+  appconn->net.s_addr = options()->net.s_addr;
+  appconn->mask.s_addr = options()->mask.s_addr;
+  appconn->dns1.s_addr = options()->dns1.s_addr;
+  appconn->dns2.s_addr = options()->dns2.s_addr;
 
   memcpy(appconn->hismac, conn->hismac, PKT_ETH_ALEN);
   memcpy(appconn->ourmac, conn->ourmac, PKT_ETH_ALEN);
@@ -2850,7 +3013,6 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
 }
 
 int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
-  time_t timenow = mainclock;
   struct app_conn_t *appconn;
   uint32_t sessiontime = 0;
   uint32_t idletime = 0;
@@ -2860,8 +3022,8 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
   if (!appconn->inuse) return 2;
 
   if (appconn->s_state.authenticated) {
-    sessiontime = timenow - appconn->s_state.start_time;
-    idletime    = timenow - appconn->s_state.last_time;
+    sessiontime = mainclock_diffu(appconn->s_state.start_time);
+    idletime    = mainclock_diffu(appconn->s_state.last_time);
   }
 
   switch(fmt) {
@@ -2900,7 +3062,7 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
 
       /* adding: max-total-octets option-swapoctets */
       bassignformat(tmp, " %lld %d", 
-		    appconn->s_params.maxtotaloctets, options.swapoctets);
+		    appconn->s_params.maxtotaloctets, options()->swapoctets);
       bconcat(b, tmp);
 
       /* adding: max-bandwidth-up max-bandwidth-down */
@@ -2953,7 +3115,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
       conn->hismac[4], conn->hismac[5], 
       inet_ntoa(conn->hisip));
   
-  if (options.debug) log_dbg("DHCP connection removed");
+  if (options()->debug) log_dbg("DHCP connection removed");
 
   if (!conn->peer) return 0; /* No appconn allocated. Stop here */
   appconn = (struct app_conn_t*) conn->peer;
@@ -2972,21 +3134,54 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 		    appconn->s_state.terminate_cause :
 		    RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
 
-  /* ALPAPAD */
   if (appconn->uplink) {
-    if (options.uamanyip) {
-      struct ippoolm_t *member = (struct ippoolm_t *) appconn->uplink;
-      if (member->inuse  == 2) {
-	struct in_addr mask;
-	int res;
-	mask.s_addr = 0xffffffff;
-	res = net_del_route(&member->addr, &appconn->ourip, &mask);
-	log_dbg("Removing route: %s %d\n", inet_ntoa(member->addr), res);
+
+    if (options()->uamanyip) {
+      if (!appconn->natip.s_addr) {
+        struct ippoolm_t *member = (struct ippoolm_t *) appconn->uplink;
+	if (member->inuse == 2) {
+	  struct in_addr mask;
+	  int res;
+	  mask.s_addr = 0xffffffff;
+	  res = net_del_route(&member->addr, &appconn->ourip, &mask);
+	  log_dbg("Removing route: %s %d\n", inet_ntoa(member->addr), res);
+	}
+      } else {
+	struct ippoolm_t *natipm;
+	if (ippool_getip(ippool, &natipm, &appconn->natip) == 0) {
+	  if (ippool_freeip(ippool, natipm)) {
+	    log_err(0, "ippool_freeip() failed for nat ip!");
+	  }
+	}
       }
     }
     if (ippool_freeip(ippool, (struct ippoolm_t *) appconn->uplink)) {
       log_err(0, "ippool_freeip() failed!");
     }
+
+    if (options()->usetap) {
+      /*
+       *    USETAP ARP
+       */
+      int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+      if (sockfd > 0) {
+	struct arpreq req;
+
+	memset(&req, 0, sizeof(req));
+
+	SET_SA_FAMILY(req.arp_pa, AF_INET);
+	((struct sockaddr_in *) &req.arp_pa)->sin_addr.s_addr = appconn->hisip.s_addr;
+	req.arp_flags = ATF_PERM | ATF_PUBL;
+
+	strncpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
+
+	if (ioctl(sockfd, SIOCDARP, &req) < 0) {
+	  perror("ioctrl()");
+	}
+	close(sockfd);
+      }
+    }
+    
   }
   
   freeconn(appconn);
@@ -2996,18 +3191,16 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 
 
 /* Callback for receiving messages from dhcp */
-int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
+int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct app_conn_t *appconn = conn->peer;
-  /*struct dhcp_ethhdr_t *ethh = (struct dhcp_ethhdr_t *)pack;*/
-  struct pkt_ipphdr_t *ipph = (struct pkt_ipphdr_t *)((char*)pack + PKT_ETH_HLEN);
+  struct pkt_ipphdr_t *ipph = iphdr(pack);
 
-  /*if (options.debug)
+  /*if (options()->debug)
     log_dbg("cb_dhcp_data_ind. Packet received. DHCP authstate: %d\n", 
     conn->authstate);*/
 
   if (ipph->saddr != conn->hisip.s_addr) {
-    if (options.debug) 
-      log_dbg("Received packet with spoofed source!");
+    log_dbg("Received packet with spoofed source!");
     return 0;
   }
 
@@ -3019,6 +3212,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
   switch (appconn->dnprot) {
   case DNPROT_NULL:
   case DNPROT_DHCP_NONE:
+    log_dbg("NULL: %d", appconn->dnprot);
     return -1;
 
   case DNPROT_UAM:
@@ -3032,12 +3226,23 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
     break;
   }
 
+  /**
+   * packet is coming from an anyip client, therefore SNAT address
+   * has been assigned from dynamic pool. So, let's do the SNAT here.
+   */
+  if (options()->uamanyip && appconn->natip.s_addr) {
+    log_dbg("SNAT to: %s", inet_ntoa(appconn->natip));
+    ipph->saddr = appconn->natip.s_addr;
+    chksum(ipph);
+  }
+  
+
   /* If the ip dst is uamlisten and pdst is uamport we won't call leaky_bucket,
   *  and we always send these packets through to the tun/tap interface (index 0) 
   */
-  if (ipph->daddr  == options.uamlisten.s_addr && 
-      (ipph->dport == htons(options.uamport) ||
-       ipph->dport == htons(options.uamuiport)))
+  if (ipph->daddr  == options()->uamlisten.s_addr && 
+      (ipph->dport == htons(options()->uamport) ||
+       ipph->dport == htons(options()->uamuiport)))
     return tun_encaps(tun, pack, len, 0);
   
   if (appconn->s_state.authenticated == 1) {
@@ -3051,7 +3256,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
     if (leaky_bucket(appconn, len, 0)) return 0;
 #endif
 #endif
-    if (options.swapoctets) {
+    if (options()->swapoctets) {
       appconn->s_state.input_packets++;
       appconn->s_state.input_octets +=len;
       if (admin_session.s_state.authenticated) {
@@ -3078,13 +3283,13 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
 
 /* Callback for receiving messages from eapol */
 int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
-  struct eap_packet_t *eap = (struct eap_packet_t *)pack;
+  struct eap_packet_t *eap = eappkt(pack);
   struct app_conn_t *appconn = conn->peer;
   struct radius_packet_t radius_pack;
   char mac[MACSTRLEN+1];
   size_t offset;
 
-  if (options.debug) log_dbg("EAP Packet received");
+  if (options()->debug) log_dbg("EAP Packet received");
 
   /* If this is the first EAPOL authentication request */
   if ((appconn->dnprot == DNPROT_DHCP_NONE) || 
@@ -3149,7 +3354,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
 		   0, 0, 0, NULL, RADIUS_MD5LEN);
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-		 options.radiusnasporttype, NULL, 0);
+		 options()->radiusnasporttype, NULL, 0);
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
 		 appconn->unit, NULL, 0);
@@ -3167,10 +3372,10 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
   radius_addcalledstation(radius, &radius_pack);
   
   /* Include NAS-Identifier if given in configuration options */
-  if (options.radiusnasid)
+  if (options()->radiusnasid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-		   (uint8_t*) options.radiusnasid,
-		   strlen(options.radiusnasid));
+		   (uint8_t*) options()->radiusnasid,
+		   strlen(options()->radiusnasid));
   
   return radius_req(radius, &radius_pack, appconn);
 }
@@ -3189,7 +3394,7 @@ int static uam_msg(struct redir_msg_t *msg) {
   struct dhcp_conn_t* dhcpconn;
 
   if (ippool_getip(ippool, &ipm, &msg->mdata.addr)) {
-    if (options.debug) 
+    if (options()->debug) 
       log_dbg("UAM login with unknown IP address: %s", inet_ntoa(msg->mdata.addr));
     return 0;
   }
@@ -3262,7 +3467,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     log_info("Received UAM logoff from username=%s IP=%s",
 	     appconn->s_state.redir.username, inet_ntoa(appconn->hisip));
 
-    if (options.debug)
+    if (options()->debug)
       log_dbg("Received logoff from UAM\n");
 
     if (appconn->s_state.authenticated == 1) {
@@ -3314,7 +3519,7 @@ static int cmdsock_accept(int sock) {
   int csock;
   int rval = 0;
 
-  if (options.debug) 
+  if (options()->debug) 
     log_dbg("Processing cmdsock request...\n");
 
   len = sizeof(remote);
@@ -3458,6 +3663,10 @@ static int cmdsock_accept(int sock) {
     }
     break;
 
+  case CMDSOCK_RELOAD:
+    reload_config = 1;
+    break;
+
   default:
     perror("unknown command");
     close(csock);
@@ -3473,14 +3682,13 @@ static int cmdsock_accept(int sock) {
 
 /* Function that will create and write a status file in statedir*/
 int printstatus(struct app_conn_t *appconn) {
-  char *statedir = options.statedir ? options.statedir : DEFSTATEDIR;
+  char *statedir = options()->statedir ? options()->statedir : DEFSTATEDIR;
   struct app_conn_t *apptemp;
   FILE *file;
   char filedest[512];
-  time_t timenow = mainclock;
   struct stat statbuf;
 
-  if (!options.usestatusfile) 
+  if (!options()->usestatusfile) 
     return 0;
 
   if (strlen(statedir)>sizeof(filedest)-1) 
@@ -3504,7 +3712,7 @@ int printstatus(struct app_conn_t *appconn) {
   fprintf(file, "#Version:1.1\n");
   fprintf(file, "#SessionID = SID\n#Start-Time = ST\n");
   fprintf(file, "#SessionTimeOut = STO\n#SessionTerminateTime = STT\n");
-  fprintf(file, "#Timestamp: %d\n", timenow);
+  fprintf(file, "#Timestamp: %d\n", (int) mainclock);
   fprintf(file, "#User, IP, MAC, SID, ST, STO, STT\n");
   if(appconn == NULL)
   {
@@ -3553,22 +3761,19 @@ int printstatus(struct app_conn_t *appconn) {
 
 static void fixup_options() {
   /*
-   * If we have no nasmac configured, lets default it here, after creating the dhcp
+   *   If we have no nasmac configured, lets default it here, after creating the dhcp
    */
-  if (!options.nasmac) {
-    char mac[24];
-
-    sprintf(mac, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
-	    dhcp->ipif.hwaddr[0],dhcp->ipif.hwaddr[1],dhcp->ipif.hwaddr[2],
-	    dhcp->ipif.hwaddr[3],dhcp->ipif.hwaddr[4],dhcp->ipif.hwaddr[5]);
-    
-    options.nasmac = strdup(mac);
+  if (!options()->nasmac) {
+    sprintf(options()->ourmac, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+	    dhcp->rawif.hwaddr[0],dhcp->rawif.hwaddr[1],dhcp->rawif.hwaddr[2],
+	    dhcp->rawif.hwaddr[3],dhcp->rawif.hwaddr[4],dhcp->rawif.hwaddr[5]);
+    options()->nasmac = options()->ourmac;
   }
-
 }
 
+
 int chilli_main(int argc, char **argv) {
-  
+  struct options_t *opt;
   int maxfd = 0;	        /* For select() */
   fd_set fds;			/* For select() */
   struct timeval idleTime;	/* How long to select() */
@@ -3582,9 +3787,14 @@ int chilli_main(int argc, char **argv) {
 
   int cmdsock = -1;
 
+  pid_t cpid = getpid();
+  pid_t rtmon = 0;
+
   /* open a connection to the syslog daemon */
   /*openlog(PACKAGE, LOG_PID, LOG_DAEMON);*/
   openlog(PACKAGE, (LOG_PID | LOG_PERROR), LOG_DAEMON);
+
+  options_set(opt = (struct options_t *)calloc(1, sizeof(struct options_t)));
 
   /* Process options given in configuration file and command line */
   if (process_options(argc, argv, 0))
@@ -3592,7 +3802,7 @@ int chilli_main(int argc, char **argv) {
 
   /* foreground                                                   */
   /* If flag not given run as a daemon                            */
-  if (!options.foreground) {
+  if (!opt->foreground) {
     /* Close the standard file descriptors. */
     /* Is this really needed ? */
     freopen("/dev/null", "w", stdout);
@@ -3601,25 +3811,53 @@ int chilli_main(int argc, char **argv) {
     if (daemon(1, 1)) {
       log_err(errno, "daemon() failed!");
     }
+    else {
+
+      /*
+       *  We switched PID when we forked. 
+       *  To keep things nice and tity, lets move the
+       *  binary configuration file to the new directory. 
+       */
+
+      mode_t process_mask = umask(0077);
+      char file[128];
+      char file2[128];
+      
+      snprintf(file2,sizeof(file2),"/tmp/chilli-%d",getpid());
+      
+      if (mkdir(file2, S_IRWXU | S_IRWXG | S_IRWXO))
+	log_err(errno, file2);
+
+      snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",cpid);
+      snprintf(file2,sizeof(file2),"/tmp/chilli-%d/config.bin",getpid());
+
+      rename(file, file2);
+
+      umask(process_mask);
+
+      snprintf(file,sizeof(file),"/tmp/chilli-%d",cpid);
+      if (rmdir(file)) log_err(errno, file);
+      cpid = getpid();
+    }
   } 
 
-  if (options.logfacility<0||options.logfacility>LOG_NFACILITIES)
-    options.logfacility=LOG_FAC(LOG_LOCAL6);
+  if (opt->logfacility < 0 || opt->logfacility > LOG_NFACILITIES)
+    opt->logfacility= LOG_FAC(LOG_LOCAL6);
 
   closelog(); 
-  openlog(PACKAGE, LOG_PID, (options.logfacility<<3));
+  openlog(PACKAGE, LOG_PID, (opt->logfacility<<3));
   
   /* This has to be done after we have our final pid */
-  log_pid((options.pidfile && *options.pidfile) ? options.pidfile : DEFPIDFILE);
+  log_pid((opt->pidfile && *opt->pidfile) ? opt->pidfile : DEFPIDFILE);
 
-  if (options.debug) 
+  if (opt->debug) 
     log_dbg("ChilliSpot version %s started.\n", VERSION);
 
   syslog(LOG_INFO, "CoovaChilli(ChilliSpot) %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006-2008 David Bird <dbird@acm.org>. Licensed under GPL. "
+	 "Copyright 2006-2009 Coova Technologies <support@coova.com>. Licensed under GPL. "
 	 "See http://coova.org/ for details.", VERSION);
 
-  mainclock = time(0);
+  mainclock_tick();
 
   printstatus(NULL);
 
@@ -3629,26 +3867,24 @@ int chilli_main(int argc, char **argv) {
     exit(1);
   }
 
-  tun_setaddr(tun, &options.dhcplisten,  &options.dhcplisten, &options.mask);
+  tun_setaddr(tun, &opt->dhcplisten,  &opt->dhcplisten, &opt->mask);
+
   tun_set_cb_ind(tun, cb_tun_ind);
 
   if (tun) tun_maxfd(tun, maxfd);
-  if (options.ipup) tun_runscript(tun, options.ipup);
+  if (opt->ipup) tun_runscript(tun, opt->ipup);
 
-  
   /* Create an instance of dhcp */
-  if (dhcp_new(&dhcp, APP_NUM_CONN, options.dhcpif,
-	       options.dhcpusemac, options.dhcpmac, options.dhcpusemac, 
-	       &options.dhcplisten, options.lease, 1, 
-	       &options.uamlisten, options.uamport, 
-	       options.eapolenable, options.noc2c)) {
-    log_err(0, "Failed to create dhcp listener on %s", options.dhcpif);
+  if (dhcp_new(&dhcp, opt->max_clients, opt->dhcpif,
+	       opt->dhcpusemac, opt->dhcpmac, 1, 
+	       &opt->dhcplisten, opt->lease, 1, 
+	       &opt->uamlisten, opt->uamport, 
+	       opt->eapolenable, opt->noc2c)) {
+    log_err(0, "Failed to create dhcp listener on %s", opt->dhcpif);
     exit(1);
   }
 
-  net_maxfd(&dhcp->ipif, maxfd);
-  net_maxfd(&dhcp->arpif, maxfd);
-  net_maxfd(&dhcp->eapif, maxfd);
+  net_maxfd(&dhcp->rawif, maxfd);
 
   fd_max(dhcp->relayfd, maxfd);
   
@@ -3659,7 +3895,7 @@ int chilli_main(int argc, char **argv) {
   dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
   dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
 
-  if (dhcp_set(dhcp, (options.debug & DEBUG_DHCP))) {
+  if (dhcp_set(dhcp, (opt->debug & DEBUG_DHCP))) {
     log_err(0, "Failed to set DHCP parameters");
     exit(1);
   }
@@ -3668,10 +3904,10 @@ int chilli_main(int argc, char **argv) {
 
   /* Create an instance of radius */
   if (radius_new(&radius,
-		 &options.radiuslisten, options.coaport, options.coanoipcheck,
-		 &options.proxylisten, options.proxyport,
-		 &options.proxyaddr, &options.proxymask,
-		 options.proxysecret)) {
+		 &opt->radiuslisten, opt->coaport, opt->coanoipcheck,
+		 &opt->proxylisten, opt->proxyport,
+		 &opt->proxyaddr, &opt->proxymask,
+		 opt->proxysecret)) {
     log_err(0, "Failed to create radius");
     return -1;
   }
@@ -3682,12 +3918,12 @@ int chilli_main(int argc, char **argv) {
   if ((radius->proxyfd != -1) && (radius->proxyfd > maxfd))
     maxfd = radius->proxyfd;
   
-  radius_set(radius, dhcp ? dhcp->ipif.hwaddr : 0, (options.debug & DEBUG_RADIUS));
+  radius_set(radius, dhcp ? dhcp->rawif.hwaddr : 0, (opt->debug & DEBUG_RADIUS));
   radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
   radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
   radius_set_cb_ind(radius, cb_radius_ind);
 
-  if (options.acct_update)
+  if (opt->acct_update)
     radius_set_cb_acct_conf(radius, cb_radius_acct_conf);
 
   /* Initialise connections */
@@ -3695,44 +3931,45 @@ int chilli_main(int argc, char **argv) {
   
   /* Allocate ippool for dynamic IP address allocation */
   if (ippool_new(&ippool, 
-		 options.dynip, 
-		 options.dhcpstart, 
-		 options.dhcpend, 
-		 options.statip, 
-		 options.allowdyn, 
-		 options.allowstat)) {
+		 opt->dynip, 
+		 opt->dhcpstart, 
+		 opt->dhcpend, 
+		 opt->statip, 
+		 opt->allowdyn, 
+		 opt->allowstat)) {
     log_err(0, "Failed to allocate IP pool!");
     exit(1);
   }
 
   /* Create an instance of redir */
-  if (redir_new(&redir, &options.uamlisten, options.uamport, options.uamuiport)) {
+  if (redir_new(&redir, &opt->uamlisten, opt->uamport, opt->uamuiport)) {
     log_err(0, "Failed to create redir");
     return -1;
   }
 
   if (redir->fd[0] > maxfd) maxfd = redir->fd[0];
   if (redir->fd[1] > maxfd) maxfd = redir->fd[1];
-  redir_set(redir, (options.debug));
+  redir_set(redir, (opt->debug));
   redir_set_cb_getstate(redir, cb_redir_getstate);
 
   memset(&admin_session, 0, sizeof(admin_session));
-  memcpy(admin_session.ourmac, dhcp->ipif.hwaddr, sizeof(dhcp->ipif.hwaddr));
+  memcpy(admin_session.ourmac, dhcp->rawif.hwaddr, sizeof(dhcp->rawif.hwaddr));
   acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
 
-  if (options.adminuser) {
+  if (opt->adminuser) {
     admin_session.is_adminsession = 1;
     strncpy(admin_session.s_state.redir.username, 
-	    options.adminuser, sizeof(admin_session.s_state.redir.username));
+	    opt->adminuser, sizeof(admin_session.s_state.redir.username));
     set_sessionid(&admin_session);
     chilliauth_radius(radius);
   }
 
-  if (options.cmdsocket) {
+  if (opt->cmdsocket) {
     cmdsock = cmdsock_init();
     if (cmdsock > 0)
       maxfd = cmdsock;
   }
+
 
   /* Set up signal handlers */
   memset(&act, 0, sizeof(act));
@@ -3762,11 +3999,40 @@ int chilli_main(int argc, char **argv) {
   }
   */
 
+
+  if (opt->usetap && opt->rtmonfile) {
+    pid_t p = fork();
+    if (p < 0) {
+      perror("fork");
+    } else if (p == 0) {
+      char pst[16];
+      char *newargs[16];
+      int status;
+      int i=0;
+
+      sprintf(pst,"%d",cpid);
+      newargs[i++] = "chilli_rtmon";
+      newargs[i++] = "-file";
+      newargs[i++] = options()->rtmonfile;
+      newargs[i++] = "-pid";
+      newargs[i++] = pst;
+      newargs[i++] = NULL;
+      
+      if (execv(SBINDIR "/chilli_rtmon", newargs) != 0) {
+	log_err(errno, "execl() did not return 0!");
+	exit(0);
+      }
+
+    } else {
+      rtmon = p;
+    }
+  }
+
   /* setup IPv4LL/APIPA network ip and mask for uamanyip exception */
   inet_aton("169.254.0.0", &ipv4ll_ip);
   inet_aton("255.255.0.0", &ipv4ll_mask);
 
-  if (options.debug) 
+  if (opt->debug) 
     log_dbg("Waiting for client request...");
 
 
@@ -3774,34 +4040,41 @@ int chilli_main(int argc, char **argv) {
   /* Main select loop                                               */
   /******************************************************************/
 
-  if (options.uid && setuid(options.uid)) {
-    log_err(errno, "setuid(%d) failed while running with uid = %d\n", options.uid, getuid());
+  if (opt->uid && setuid(opt->uid)) {
+    log_err(errno, "setuid(%d) failed while running with uid = %d\n", opt->uid, getuid());
   }
 
-  if (options.gid && setgid(options.gid)) {
-    log_err(errno, "setgid(%d) failed while running with gid = %d\n", options.gid, getgid());
+  if (opt->gid && setgid(opt->gid)) {
+    log_err(errno, "setgid(%d) failed while running with gid = %d\n", opt->gid, getgid());
   }
 
-  mainclock = time(0);
+  mainclock_tick();
   while (keep_going) {
 
-    if (do_sighup) {
-      reprocess_options(argc, argv);
+    if (reload_config) {
+      reload_options(argc, argv);
+
       fixup_options();
 
-      do_sighup = 0;
+      reload_config = 0;
 
       /* Reinit DHCP parameters */
       if (dhcp)
-	dhcp_set(dhcp, (options.debug & DEBUG_DHCP));
+	dhcp_set(dhcp, (opt->debug & DEBUG_DHCP));
       
       /* Reinit RADIUS parameters */
-      radius_set(radius, dhcp ? dhcp->ipif.hwaddr : 0, (options.debug & DEBUG_RADIUS));
+      radius_set(radius, dhcp ? dhcp->rawif.hwaddr : 0, (opt->debug & DEBUG_RADIUS));
       
       /* Reinit Redir parameters */
-      redir_set(redir, options.debug);
+      redir_set(redir, opt->debug);
+    }
 
-      if (options.adminuser)
+    if (do_interval) {
+      reprocess_options(argc, argv);
+
+      do_interval = 0;
+
+      if (opt->adminuser)
 	chilliauth_radius(radius);
     }
 
@@ -3820,10 +4093,8 @@ int chilli_main(int argc, char **argv) {
 
     if (tun) tun_fdset(tun, &fds);
     if (dhcp) {
-      net_fdset(&dhcp->ipif, &fds);
+      net_fdset(&dhcp->rawif, &fds);
 #if defined(__linux__)
-      net_fdset(&dhcp->arpif, &fds);
-      net_fdset(&dhcp->eapif, &fds);
       fd_set(dhcp->relayfd, &fds);
 #endif
     }
@@ -3849,7 +4120,7 @@ int chilli_main(int argc, char **argv) {
       break;
     }
 
-    mainclock = time(0);
+    mainclock_tick();
 
     if ((msgresult = 
 	 TEMP_FAILURE_RETRY(msgrcv(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0, IPC_NOWAIT)))  == -1) {
@@ -3871,18 +4142,12 @@ int chilli_main(int argc, char **argv) {
       
 #if defined(__linux__)
 
-	if (net_isset(&dhcp->ipif, &fds) && dhcp_decaps(dhcp) < 0)
+	if (net_isset(&dhcp->rawif, &fds) && dhcp_decaps(dhcp) < 0)
 	  log_err(0, "dhcp_decaps() failed!");
       
-	if (net_isset(&dhcp->arpif, &fds) && dhcp_arp_ind(dhcp) < 0)
-	  log_err(0, "dhcp_arpind() failed!");
-	
-	if (net_isset(&dhcp->eapif, &fds) && dhcp_eapol_ind(dhcp) < 0)
-	  log_err(0, "dhcp_eapol_ind() failed!");
-
 #elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
 
-	if (net_isset(&dhcp->ipif, &fds) && dhcp_receive(dhcp) < 0)
+	if (net_isset(&dhcp->rawif, &fds) && dhcp_receive(dhcp) < 0)
 	  log_err(0, "dhcp_decaps() failed!");
 
 #endif
@@ -3907,7 +4172,7 @@ int chilli_main(int argc, char **argv) {
     }
   }
   
-  if (options.debug) 
+  if (opt->debug) 
     log_dbg("Terminating ChilliSpot!");
 
   killconn();
@@ -3920,15 +4185,28 @@ int chilli_main(int argc, char **argv) {
 
   if (dhcp) 
     dhcp_free(dhcp);
-
-  if (tun && options.ipdown)
-    tun_runscript(tun, options.ipdown);
+  
+  if (opt->ipdown)
+    tun_runscript(tun, opt->ipdown);
 
   if (tun) 
     tun_free(tun);
 
   if (ippool) 
     ippool_free(ippool);
+
+  { /* clean up run-time files */
+    char file[128];
+
+    snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",getpid());
+    if (remove(file)) log_err(errno, file);
+
+    snprintf(file,sizeof(file),"/tmp/chilli-%d",getpid());
+    if (rmdir(file)) log_err(errno, file);
+  }
+
+  if (rtmon > 0)
+    kill(rtmon, SIGTERM);
 
   return 0;
   

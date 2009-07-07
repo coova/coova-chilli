@@ -15,7 +15,7 @@
 #include "dhcp.h"
 #include "options.h"
 
-#define antidnstunnel options.dnsparanoia
+#define antidnstunnel options()->dnsparanoia
 
 extern struct dhcp_t *dhcp;
 
@@ -164,7 +164,7 @@ dns_copy_res(int q,
       log_dbg("CNAME record");
       break;
     default:
-      if (options.debug) switch(type) {
+      if (options()->debug) switch(type) {
       case 6:  log_dbg("SOA record"); break;
       case 12: log_dbg("PTR record"); break;
       case 15: log_dbg("MX record");  break;
@@ -213,15 +213,15 @@ dns_copy_res(int q,
     
   case 1:/* A */
     log_dbg("A record");
-    if (options.uamdomains) {
+    if (options()->uamdomains[0]) {
       int id;
-      for (id=0; options.uamdomains[id]; id++) {
+      for (id=0; options()->uamdomains[id] && id < MAX_UAM_DOMAINS; id++) {
 
-	log_dbg("checking %s [%s]", options.uamdomains[id], question);
+	log_dbg("checking %s [%s]", options()->uamdomains[id], question);
 
-	if (strlen(question) >= strlen(options.uamdomains[id]) &&
-	    !strcmp(options.uamdomains[id],
-		    question + (strlen(question) - strlen(options.uamdomains[id])))) {
+	if (strlen(question) >= strlen(options()->uamdomains[id]) &&
+	    !strcmp(options()->uamdomains[id],
+		    question + (strlen(question) - strlen(options()->uamdomains[id])))) {
 	  size_t offset;
 	  for (offset=0; offset < rdlen; offset += 4) {
 	    add_A_to_garden(p_pkt+offset);
@@ -244,7 +244,7 @@ dns_copy_res(int q,
 
   default:
 
-    if (options.debug) switch(type) {
+    if (options()->debug) switch(type) {
     case 6:  log_dbg("SOA record"); break;
     case 12: log_dbg("PTR record"); break;
     case 15: log_dbg("MX record");  break;

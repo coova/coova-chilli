@@ -1,6 +1,5 @@
 /* 
- *
- * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
+ * CoovaChilli: A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (c) 2006-2007 David Bird <david@coova.com>
@@ -75,9 +74,9 @@ int static chilliauth() {
   int status;
   int ret=-1;
 
-  if (!options.adminuser || !options.adminpasswd) return 1;
+  if (!options()->adminuser || !options()->adminpasswd) return 1;
 
-  if (radius_new(&radius, &options.radiuslisten, 0, 0, NULL, 0, NULL, NULL, NULL)) {
+  if (radius_new(&radius, &options()->radiuslisten, 0, 0, NULL, 0, NULL, NULL, NULL)) {
     log_err(0, "Failed to create radius");
     return ret;
   }
@@ -86,12 +85,12 @@ int static chilliauth() {
   memset(hwaddr, 0, sizeof(hwaddr));
 
 #ifdef SIOCGIFHWADDR
-  if (!options.nasmac && options.dhcpif) {
+  if (!options()->nasmac && options()->dhcpif) {
     struct ifreq ifr;
     int fd;
     if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
       memset(&ifr, 0, sizeof(ifr));
-      strncpy(ifr.ifr_name, options.dhcpif, IFNAMSIZ);
+      strncpy(ifr.ifr_name, options()->dhcpif, IFNAMSIZ);
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
 	log_err(errno, "ioctl(d=%d, request=%d) failed", fd, SIOCGIFHWADDR);
       }
@@ -101,7 +100,7 @@ int static chilliauth() {
   }
 #endif
 
-  radius_set(radius, hwaddr, (options.debug & DEBUG_RADIUS));
+  radius_set(radius, hwaddr, (options()->debug & DEBUG_RADIUS));
   radius_set_cb_auth_conf(radius, chilliauth_cb); 
 
   ret = chilliauth_radius(radius);

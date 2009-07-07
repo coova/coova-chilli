@@ -18,17 +18,16 @@
 /* $Id: getline.c,v 1.3 2004/05/18 22:45:18 summerisle Exp $ */
 
 #include "../config.h"
+
 #ifndef HAVE_GETLINE
 #include <stdio.h>
 #include <sys/types.h>
 #include <stdlib.h>
 
-
 #define GETLINE_BUFSIZE 4096
 
 ssize_t
-getline (char** lineptr, size_t* n, FILE* stream)
-{
+getline (char** lineptr, size_t* n, FILE* stream) {
   char* lptr1;
   size_t nn;
   int c;

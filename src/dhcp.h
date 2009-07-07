@@ -100,8 +100,8 @@ struct dhcp_conn_t {
   struct dhcp_conn_t *prev;    /* Previous in linked list. 0: First */
   struct dhcp_t *parent;       /* Parent of all connections */
   void *peer;                  /* Peer protocol handler */
-  uint8_t ourmac[PKT_ETH_ALEN];    /* Our MAC address */
-  uint8_t hismac[PKT_ETH_ALEN];    /* Peer's MAC address */
+  uint8_t ourmac[PKT_ETH_ALEN];/* Our MAC address */
+  uint8_t hismac[PKT_ETH_ALEN];/* Peer's MAC address */
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
   struct in_addr hismask;      /* Client Network Mask */
@@ -112,11 +112,13 @@ struct dhcp_conn_t {
   uint8_t unauth_cp;           /* Unauthenticated codepoint */
   uint8_t auth_cp;             /* Authenticated codepoint */
   int nextdnat;                /* Next location to use for DNAT */
+  uint32_t dnatdns;            /* Destination NAT for dns mapping */
   uint32_t dnatip[DHCP_DNAT_MAX]; /* Destination NAT destination IP address */
   uint16_t dnatport[DHCP_DNAT_MAX]; /* Destination NAT source port */
   uint8_t dnatmac[DHCP_DNAT_MAX][PKT_ETH_ALEN]; /* Destination NAT source mac */
   uint16_t mtu;                /* Maximum transfer unit */
   uint8_t noc2c;               /* Prevent client to client access using /32 subnets */
+  uint16_t tag8021q;
 
   /*XXX: optional*/
   struct {
@@ -139,7 +141,7 @@ struct dhcp_conn_t {
 struct dhcp_t {
 
   /* network interfaces */
-  struct _net_interface ipif, arpif, eapif; 
+  struct _net_interface rawif; 
 
   int numconn;          /* Maximum number of connections */
 #if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
@@ -166,7 +168,6 @@ struct dhcp_t {
   int relayfd;          /* DHCP relay socket, 0 if not relaying */
 
   /* Connection management */
-  struct dhcp_conn_t *conn;
   struct dhcp_conn_t *firstfreeconn; /* First free in linked list */
   struct dhcp_conn_t *lastfreeconn;  /* Last free in linked list */
   struct dhcp_conn_t *firstusedconn; /* First used in linked list */
@@ -182,9 +183,9 @@ struct dhcp_t {
   size_t num_pass_throughs;
 
   /* Call back functions */
-  int (*cb_data_ind) (struct dhcp_conn_t *conn, void *pack, size_t len);
-  int (*cb_eap_ind)  (struct dhcp_conn_t *conn, void *pack, size_t len);
-  int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr, struct dhcp_fullpacket_t *pack, size_t len);
+  int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
+  int (*cb_eap_ind)  (struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
+  int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr, uint8_t *pack, size_t len);
   int (*cb_connect) (struct dhcp_conn_t *conn);
   int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause);
   int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt);
@@ -207,7 +208,6 @@ int dhcp_timeout(struct dhcp_t *this);
 
 struct timeval * dhcp_timeleft(struct dhcp_t *this, struct timeval *tvp);
 
-
 int dhcp_validate(struct dhcp_t *this);
 
 int dhcp_set_addrs(struct dhcp_conn_t *conn, 
@@ -215,17 +215,17 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
 	       struct in_addr *ourip, struct in_addr *ourmask,
 	       struct in_addr *dns1, struct in_addr *dns2, char *domain);
 
-
 /* Called whenever a packet arrives */
 int dhcp_decaps(struct dhcp_t *this);
 int dhcp_relay_decaps(struct dhcp_t *this);
-int dhcp_data_req(struct dhcp_conn_t *conn, void *pack, size_t len, int ethhdr);
+int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhdr);
+uint8_t * dhcp_nexthop(struct dhcp_t *);
 
 int dhcp_set_cb_data_ind(struct dhcp_t *this, 
-  int (*cb_data_ind) (struct dhcp_conn_t *conn, void *pack, size_t len));
+  int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len));
 
 int dhcp_set_cb_request(struct dhcp_t *this, 
-  int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr, struct dhcp_fullpacket_t *pack, size_t len));
+  int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr, uint8_t *pack, size_t len));
 
 int dhcp_set_cb_disconnect(struct dhcp_t *this, 
   int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause));
@@ -234,23 +234,23 @@ int dhcp_set_cb_connect(struct dhcp_t *this,
   int (*cb_connect) (struct dhcp_conn_t *conn));
 
 int dhcp_set_cb_eap_ind(struct dhcp_t *this, 
-  int (*cb_eap_ind) (struct dhcp_conn_t *conn, void *pack, size_t len));
+  int (*cb_eap_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len));
 
 int dhcp_set_cb_getinfo(struct dhcp_t *this, 
   int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt));
 
 int dhcp_hashget(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr);
 
-int dhcp_newconn(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr);
+int dhcp_newconn(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr, uint8_t *pkt);
 
 int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause);
 
 
 int dhcp_arp_ind(struct dhcp_t *this);  /* ARP Indication */
 
-int dhcp_sendEAP(struct dhcp_conn_t *conn, void *pack, size_t len);
+int dhcp_sendEAP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
 
-int dhcp_sendEAPreject(struct dhcp_conn_t *conn, void *pack, size_t len);
+int dhcp_sendEAPreject(struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
 
 int dhcp_eapol_ind(struct dhcp_t *this);
 
@@ -269,9 +269,7 @@ void dhcp_entry_for_mac(struct dhcp_t *this, bstring s, unsigned char * hwaddr, 
 
 void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t *conn);
 
-int dhcp_filterDNS(struct dhcp_conn_t *conn, 
-		   struct pkt_ippacket_t *pack, 
-		   size_t *plen);
+int dhcp_filterDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen);
 
 int dhcp_gettag(struct dhcp_packet_t *pack, size_t length,
 		struct dhcp_tag_t **tag, uint8_t tagtype);

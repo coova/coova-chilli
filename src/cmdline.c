@@ -32,6 +32,8 @@ const char *gengetopt_args_info_help[] = {
   "  -V, --version                 Print version and exit",
   "  -f, --fg                      Run in foreground  (default=off)",
   "  -d, --debug                   Run in debug mode  (default=off)",
+  "  -b, --bin=STRING              Binary config file",
+  "  -r, --reload                  Send reload after reconfigure  (default=off)",
   "      --debugfacility=INT       Which modules to print debug messages for  \n                                  (default=`1')",
   "      --logfacility=INT         Syslog facility to be used for logging  \n                                  (default=`-1')",
   "  -c, --conf=STRING             Read configuration file",
@@ -43,6 +45,7 @@ const char *gengetopt_args_info_help[] = {
   "  -n, --net=STRING              Network  (default=`192.168.182.0/24')",
   "      --dhcpstart=INT           Network DHCP Starting IP  (default=`0')",
   "      --dhcpend=INT             Network DHCP Ending IP  (default=`0')",
+  "      --dhcpbroadcast           Always broadcast DHCP responses  (default=off)",
   "      --dynip=STRING            Dynamic IP address pool",
   "      --nodynip                 No Dynamic IP assignment  (default=off)",
   "      --statip=STRING           Static IP address pool",
@@ -79,6 +82,7 @@ const char *gengetopt_args_info_help[] = {
   "      --proxysecret=STRING      Radius proxy shared secret",
   "      --dhcpif=STRING           Local Ethernet interface",
   "      --dhcpmac=STRING          Interface MAC address",
+  "      --nexthop=STRING          Next Hop MAC address",
   "      --dhcpradius              Map certain DHCP options to RADIUS attributes  \n                                  (default=off)",
   "      --dhcpgateway=STRING      DHCP gateway addresss for relay",
   "      --dhcpgatewayport=INT     DHCP gateway port for relay  (default=`67')",
@@ -90,12 +94,14 @@ const char *gengetopt_args_info_help[] = {
   "      --uamhomepage=STRING      URL of homepage to redirect unauthenticated \n                                  users to",
   "      --uamsecret=STRING        Shared secret between uamserver and chilli",
   "      --uamlisten=STRING        IP address to listen to for authentication \n                                  requests",
+  "      --dhcplisten=STRING       IP address for DHCP default gateway (defaults \n                                  to uamlisten)",
   "      --uamport=INT             TCP port to bind to for authentication requests \n                                   (default=`3990')",
   "      --uamuiport=INT           TCP port to bind to for UAM UI requests  \n                                  (default=`3991')",
   "      --uamallowed=STRING       Domain names exempt from access check ",
   "      --uamdomain=STRING        Domain name allowed (active dns filtering; one \n                                  per line!) ",
   "      --uamanydns               Allow client to use any DNS server  \n                                  (default=off)",
   "      --uamanyip                Allow client to use any IP Address  \n                                  (default=off)",
+  "      --uamnatanyip             Source NAT clients using anyip to an IP of \n                                  dynip pool  (default=off)",
   "      --wisprlogin=STRING       A specific WISPr login url to be used",
   "      --nouamsuccess            Do not return to the UAM server on success, \n                                  original url instead  (default=off)",
   "      --nouamwispr              Do not send WISPr XML from ChilliSpot, assume \n                                  back-end does  (default=off)",
@@ -118,10 +124,12 @@ const char *gengetopt_args_info_help[] = {
   "      --adminuser=STRING        RADIUS administrative user login username",
   "      --adminpasswd=STRING      RADIUS administrative user login password",
   "      --adminupdatefile=STRING  File for administrative user ChilliSpot-Config \n                                  settings",
+  "      --rtmonfile=STRING        File to update with routing settings",
   "      --nasmac=STRING           Unique MAC address of the NAS \n                                  (called-station-id)",
   "      --nasip=STRING            Unique IP address of the NAS (nas-ip-address)",
   "      --ssid=STRING             SSID of the session",
   "      --vlan=STRING             VLAN of the session",
+  "      --ieee8021q               Support 802.1Q VLAN tagging  (default=off)",
   "      --cmdsocket=STRING        path to the command unix socket",
   "      --radiusoriginalurl       Turn on the sending of ChilliSpot-OriginalURL \n                                  in Access-Request  (default=off)",
   "      --swapoctets              Swap the meaning of input/output octets/packets \n                                   (default=off)",
@@ -140,6 +148,8 @@ const char *gengetopt_args_info_help[] = {
   "      --routeif=STRING          Interface to use as default route; turns on \n                                  'manual' routing",
   "      --framedservice           Use Service-Type = Framed instead of Login  \n                                  (default=off)",
   "      --tcpwin=INT              Change TCP window size to this value to help \n                                  prevent congestion  (default=`0')",
+  "      --tcpmss=INT              Change TCP maximum window size (mss) option in \n                                  TCP traffic  (default=`0')",
+  "      --maxclients=INT          Maximum number of clients/subscribers  \n                                  (default=`512')",
   "      --challengetimeout=INT    Timeout in seconds for the generated challenge  \n                                  (default=`600')",
   "      --challengetimeout2=INT   Timeout in seconds for challenge during login  \n                                  (default=`1200')",
     0
@@ -198,6 +208,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->version_given = 0 ;
   args_info->fg_given = 0 ;
   args_info->debug_given = 0 ;
+  args_info->bin_given = 0 ;
+  args_info->reload_given = 0 ;
   args_info->debugfacility_given = 0 ;
   args_info->logfacility_given = 0 ;
   args_info->conf_given = 0 ;
@@ -209,6 +221,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->net_given = 0 ;
   args_info->dhcpstart_given = 0 ;
   args_info->dhcpend_given = 0 ;
+  args_info->dhcpbroadcast_given = 0 ;
   args_info->dynip_given = 0 ;
   args_info->nodynip_given = 0 ;
   args_info->statip_given = 0 ;
@@ -245,6 +258,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->proxysecret_given = 0 ;
   args_info->dhcpif_given = 0 ;
   args_info->dhcpmac_given = 0 ;
+  args_info->nexthop_given = 0 ;
   args_info->dhcpradius_given = 0 ;
   args_info->dhcpgateway_given = 0 ;
   args_info->dhcpgatewayport_given = 0 ;
@@ -256,12 +270,14 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamhomepage_given = 0 ;
   args_info->uamsecret_given = 0 ;
   args_info->uamlisten_given = 0 ;
+  args_info->dhcplisten_given = 0 ;
   args_info->uamport_given = 0 ;
   args_info->uamuiport_given = 0 ;
   args_info->uamallowed_given = 0 ;
   args_info->uamdomain_given = 0 ;
   args_info->uamanydns_given = 0 ;
   args_info->uamanyip_given = 0 ;
+  args_info->uamnatanyip_given = 0 ;
   args_info->wisprlogin_given = 0 ;
   args_info->nouamsuccess_given = 0 ;
   args_info->nouamwispr_given = 0 ;
@@ -284,10 +300,12 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->adminuser_given = 0 ;
   args_info->adminpasswd_given = 0 ;
   args_info->adminupdatefile_given = 0 ;
+  args_info->rtmonfile_given = 0 ;
   args_info->nasmac_given = 0 ;
   args_info->nasip_given = 0 ;
   args_info->ssid_given = 0 ;
   args_info->vlan_given = 0 ;
+  args_info->ieee8021q_given = 0 ;
   args_info->cmdsocket_given = 0 ;
   args_info->radiusoriginalurl_given = 0 ;
   args_info->swapoctets_given = 0 ;
@@ -306,6 +324,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->routeif_given = 0 ;
   args_info->framedservice_given = 0 ;
   args_info->tcpwin_given = 0 ;
+  args_info->tcpmss_given = 0 ;
+  args_info->maxclients_given = 0 ;
   args_info->challengetimeout_given = 0 ;
   args_info->challengetimeout2_given = 0 ;
 }
@@ -315,6 +335,9 @@ void clear_args (struct gengetopt_args_info *args_info)
 {
   args_info->fg_flag = 0;
   args_info->debug_flag = 0;
+  args_info->bin_arg = NULL;
+  args_info->bin_orig = NULL;
+  args_info->reload_flag = 0;
   args_info->debugfacility_arg = 1;
   args_info->debugfacility_orig = NULL;
   args_info->logfacility_arg = -1;
@@ -337,6 +360,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->dhcpstart_orig = NULL;
   args_info->dhcpend_arg = 0;
   args_info->dhcpend_orig = NULL;
+  args_info->dhcpbroadcast_flag = 0;
   args_info->dynip_arg = NULL;
   args_info->dynip_orig = NULL;
   args_info->nodynip_flag = 0;
@@ -407,6 +431,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->dhcpif_orig = NULL;
   args_info->dhcpmac_arg = NULL;
   args_info->dhcpmac_orig = NULL;
+  args_info->nexthop_arg = NULL;
+  args_info->nexthop_orig = NULL;
   args_info->dhcpradius_flag = 0;
   args_info->dhcpgateway_arg = NULL;
   args_info->dhcpgateway_orig = NULL;
@@ -426,6 +452,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->uamsecret_orig = NULL;
   args_info->uamlisten_arg = NULL;
   args_info->uamlisten_orig = NULL;
+  args_info->dhcplisten_arg = NULL;
+  args_info->dhcplisten_orig = NULL;
   args_info->uamport_arg = 3990;
   args_info->uamport_orig = NULL;
   args_info->uamuiport_arg = 3991;
@@ -436,6 +464,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->uamdomain_orig = NULL;
   args_info->uamanydns_flag = 0;
   args_info->uamanyip_flag = 0;
+  args_info->uamnatanyip_flag = 0;
   args_info->wisprlogin_arg = NULL;
   args_info->wisprlogin_orig = NULL;
   args_info->nouamsuccess_flag = 0;
@@ -474,6 +503,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->adminpasswd_orig = NULL;
   args_info->adminupdatefile_arg = NULL;
   args_info->adminupdatefile_orig = NULL;
+  args_info->rtmonfile_arg = NULL;
+  args_info->rtmonfile_orig = NULL;
   args_info->nasmac_arg = NULL;
   args_info->nasmac_orig = NULL;
   args_info->nasip_arg = NULL;
@@ -482,6 +513,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->ssid_orig = NULL;
   args_info->vlan_arg = NULL;
   args_info->vlan_orig = NULL;
+  args_info->ieee8021q_flag = 0;
   args_info->cmdsocket_arg = NULL;
   args_info->cmdsocket_orig = NULL;
   args_info->radiusoriginalurl_flag = 0;
@@ -506,6 +538,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->framedservice_flag = 0;
   args_info->tcpwin_arg = 0;
   args_info->tcpwin_orig = NULL;
+  args_info->tcpmss_arg = 0;
+  args_info->tcpmss_orig = NULL;
+  args_info->maxclients_arg = 512;
+  args_info->maxclients_orig = NULL;
   args_info->challengetimeout_arg = 600;
   args_info->challengetimeout_orig = NULL;
   args_info->challengetimeout2_arg = 1200;
@@ -522,122 +558,132 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->version_help = gengetopt_args_info_help[1] ;
   args_info->fg_help = gengetopt_args_info_help[2] ;
   args_info->debug_help = gengetopt_args_info_help[3] ;
-  args_info->debugfacility_help = gengetopt_args_info_help[4] ;
-  args_info->logfacility_help = gengetopt_args_info_help[5] ;
-  args_info->conf_help = gengetopt_args_info_help[6] ;
-  args_info->interval_help = gengetopt_args_info_help[7] ;
-  args_info->pidfile_help = gengetopt_args_info_help[8] ;
-  args_info->statedir_help = gengetopt_args_info_help[9] ;
-  args_info->uid_help = gengetopt_args_info_help[10] ;
-  args_info->gid_help = gengetopt_args_info_help[11] ;
-  args_info->net_help = gengetopt_args_info_help[12] ;
-  args_info->dhcpstart_help = gengetopt_args_info_help[13] ;
-  args_info->dhcpend_help = gengetopt_args_info_help[14] ;
-  args_info->dynip_help = gengetopt_args_info_help[15] ;
-  args_info->nodynip_help = gengetopt_args_info_help[16] ;
-  args_info->statip_help = gengetopt_args_info_help[17] ;
-  args_info->dns1_help = gengetopt_args_info_help[18] ;
-  args_info->dns2_help = gengetopt_args_info_help[19] ;
-  args_info->domain_help = gengetopt_args_info_help[20] ;
-  args_info->ipup_help = gengetopt_args_info_help[21] ;
-  args_info->ipdown_help = gengetopt_args_info_help[22] ;
-  args_info->conup_help = gengetopt_args_info_help[23] ;
-  args_info->condown_help = gengetopt_args_info_help[24] ;
-  args_info->txqlen_help = gengetopt_args_info_help[25] ;
-  args_info->tundev_help = gengetopt_args_info_help[26] ;
-  args_info->mtu_help = gengetopt_args_info_help[27] ;
-  args_info->autostatip_help = gengetopt_args_info_help[28] ;
-  args_info->radiuslisten_help = gengetopt_args_info_help[29] ;
-  args_info->radiusserver1_help = gengetopt_args_info_help[30] ;
-  args_info->radiusserver2_help = gengetopt_args_info_help[31] ;
-  args_info->radiusauthport_help = gengetopt_args_info_help[32] ;
-  args_info->radiusacctport_help = gengetopt_args_info_help[33] ;
-  args_info->radiussecret_help = gengetopt_args_info_help[34] ;
-  args_info->radiustimeout_help = gengetopt_args_info_help[35] ;
-  args_info->radiusretry_help = gengetopt_args_info_help[36] ;
-  args_info->radiusretrysec_help = gengetopt_args_info_help[37] ;
-  args_info->radiusnasid_help = gengetopt_args_info_help[38] ;
-  args_info->radiuslocationid_help = gengetopt_args_info_help[39] ;
-  args_info->radiuslocationname_help = gengetopt_args_info_help[40] ;
-  args_info->locationname_help = gengetopt_args_info_help[41] ;
-  args_info->radiusnasporttype_help = gengetopt_args_info_help[42] ;
-  args_info->coaport_help = gengetopt_args_info_help[43] ;
-  args_info->coanoipcheck_help = gengetopt_args_info_help[44] ;
-  args_info->proxylisten_help = gengetopt_args_info_help[45] ;
-  args_info->proxyport_help = gengetopt_args_info_help[46] ;
-  args_info->proxyclient_help = gengetopt_args_info_help[47] ;
-  args_info->proxysecret_help = gengetopt_args_info_help[48] ;
-  args_info->dhcpif_help = gengetopt_args_info_help[49] ;
-  args_info->dhcpmac_help = gengetopt_args_info_help[50] ;
-  args_info->dhcpradius_help = gengetopt_args_info_help[51] ;
-  args_info->dhcpgateway_help = gengetopt_args_info_help[52] ;
-  args_info->dhcpgatewayport_help = gengetopt_args_info_help[53] ;
-  args_info->dhcprelayagent_help = gengetopt_args_info_help[54] ;
-  args_info->lease_help = gengetopt_args_info_help[55] ;
-  args_info->noc2c_help = gengetopt_args_info_help[56] ;
-  args_info->eapolenable_help = gengetopt_args_info_help[57] ;
-  args_info->uamserver_help = gengetopt_args_info_help[58] ;
-  args_info->uamhomepage_help = gengetopt_args_info_help[59] ;
-  args_info->uamsecret_help = gengetopt_args_info_help[60] ;
-  args_info->uamlisten_help = gengetopt_args_info_help[61] ;
-  args_info->uamport_help = gengetopt_args_info_help[62] ;
-  args_info->uamuiport_help = gengetopt_args_info_help[63] ;
-  args_info->uamallowed_help = gengetopt_args_info_help[64] ;
+  args_info->bin_help = gengetopt_args_info_help[4] ;
+  args_info->reload_help = gengetopt_args_info_help[5] ;
+  args_info->debugfacility_help = gengetopt_args_info_help[6] ;
+  args_info->logfacility_help = gengetopt_args_info_help[7] ;
+  args_info->conf_help = gengetopt_args_info_help[8] ;
+  args_info->interval_help = gengetopt_args_info_help[9] ;
+  args_info->pidfile_help = gengetopt_args_info_help[10] ;
+  args_info->statedir_help = gengetopt_args_info_help[11] ;
+  args_info->uid_help = gengetopt_args_info_help[12] ;
+  args_info->gid_help = gengetopt_args_info_help[13] ;
+  args_info->net_help = gengetopt_args_info_help[14] ;
+  args_info->dhcpstart_help = gengetopt_args_info_help[15] ;
+  args_info->dhcpend_help = gengetopt_args_info_help[16] ;
+  args_info->dhcpbroadcast_help = gengetopt_args_info_help[17] ;
+  args_info->dynip_help = gengetopt_args_info_help[18] ;
+  args_info->nodynip_help = gengetopt_args_info_help[19] ;
+  args_info->statip_help = gengetopt_args_info_help[20] ;
+  args_info->dns1_help = gengetopt_args_info_help[21] ;
+  args_info->dns2_help = gengetopt_args_info_help[22] ;
+  args_info->domain_help = gengetopt_args_info_help[23] ;
+  args_info->ipup_help = gengetopt_args_info_help[24] ;
+  args_info->ipdown_help = gengetopt_args_info_help[25] ;
+  args_info->conup_help = gengetopt_args_info_help[26] ;
+  args_info->condown_help = gengetopt_args_info_help[27] ;
+  args_info->txqlen_help = gengetopt_args_info_help[28] ;
+  args_info->tundev_help = gengetopt_args_info_help[29] ;
+  args_info->mtu_help = gengetopt_args_info_help[30] ;
+  args_info->autostatip_help = gengetopt_args_info_help[31] ;
+  args_info->radiuslisten_help = gengetopt_args_info_help[32] ;
+  args_info->radiusserver1_help = gengetopt_args_info_help[33] ;
+  args_info->radiusserver2_help = gengetopt_args_info_help[34] ;
+  args_info->radiusauthport_help = gengetopt_args_info_help[35] ;
+  args_info->radiusacctport_help = gengetopt_args_info_help[36] ;
+  args_info->radiussecret_help = gengetopt_args_info_help[37] ;
+  args_info->radiustimeout_help = gengetopt_args_info_help[38] ;
+  args_info->radiusretry_help = gengetopt_args_info_help[39] ;
+  args_info->radiusretrysec_help = gengetopt_args_info_help[40] ;
+  args_info->radiusnasid_help = gengetopt_args_info_help[41] ;
+  args_info->radiuslocationid_help = gengetopt_args_info_help[42] ;
+  args_info->radiuslocationname_help = gengetopt_args_info_help[43] ;
+  args_info->locationname_help = gengetopt_args_info_help[44] ;
+  args_info->radiusnasporttype_help = gengetopt_args_info_help[45] ;
+  args_info->coaport_help = gengetopt_args_info_help[46] ;
+  args_info->coanoipcheck_help = gengetopt_args_info_help[47] ;
+  args_info->proxylisten_help = gengetopt_args_info_help[48] ;
+  args_info->proxyport_help = gengetopt_args_info_help[49] ;
+  args_info->proxyclient_help = gengetopt_args_info_help[50] ;
+  args_info->proxysecret_help = gengetopt_args_info_help[51] ;
+  args_info->dhcpif_help = gengetopt_args_info_help[52] ;
+  args_info->dhcpmac_help = gengetopt_args_info_help[53] ;
+  args_info->nexthop_help = gengetopt_args_info_help[54] ;
+  args_info->dhcpradius_help = gengetopt_args_info_help[55] ;
+  args_info->dhcpgateway_help = gengetopt_args_info_help[56] ;
+  args_info->dhcpgatewayport_help = gengetopt_args_info_help[57] ;
+  args_info->dhcprelayagent_help = gengetopt_args_info_help[58] ;
+  args_info->lease_help = gengetopt_args_info_help[59] ;
+  args_info->noc2c_help = gengetopt_args_info_help[60] ;
+  args_info->eapolenable_help = gengetopt_args_info_help[61] ;
+  args_info->uamserver_help = gengetopt_args_info_help[62] ;
+  args_info->uamhomepage_help = gengetopt_args_info_help[63] ;
+  args_info->uamsecret_help = gengetopt_args_info_help[64] ;
+  args_info->uamlisten_help = gengetopt_args_info_help[65] ;
+  args_info->dhcplisten_help = gengetopt_args_info_help[66] ;
+  args_info->uamport_help = gengetopt_args_info_help[67] ;
+  args_info->uamuiport_help = gengetopt_args_info_help[68] ;
+  args_info->uamallowed_help = gengetopt_args_info_help[69] ;
   args_info->uamallowed_min = -1;
   args_info->uamallowed_max = -1;
-  args_info->uamdomain_help = gengetopt_args_info_help[65] ;
+  args_info->uamdomain_help = gengetopt_args_info_help[70] ;
   args_info->uamdomain_min = -1;
   args_info->uamdomain_max = -1;
-  args_info->uamanydns_help = gengetopt_args_info_help[66] ;
-  args_info->uamanyip_help = gengetopt_args_info_help[67] ;
-  args_info->wisprlogin_help = gengetopt_args_info_help[68] ;
-  args_info->nouamsuccess_help = gengetopt_args_info_help[69] ;
-  args_info->nouamwispr_help = gengetopt_args_info_help[70] ;
-  args_info->uamlogoutip_help = gengetopt_args_info_help[71] ;
-  args_info->defsessiontimeout_help = gengetopt_args_info_help[72] ;
-  args_info->defidletimeout_help = gengetopt_args_info_help[73] ;
-  args_info->defbandwidthmaxdown_help = gengetopt_args_info_help[74] ;
-  args_info->defbandwidthmaxup_help = gengetopt_args_info_help[75] ;
-  args_info->definteriminterval_help = gengetopt_args_info_help[76] ;
-  args_info->macauth_help = gengetopt_args_info_help[77] ;
-  args_info->macreauth_help = gengetopt_args_info_help[78] ;
-  args_info->macauthdeny_help = gengetopt_args_info_help[79] ;
-  args_info->macallowed_help = gengetopt_args_info_help[80] ;
+  args_info->uamanydns_help = gengetopt_args_info_help[71] ;
+  args_info->uamanyip_help = gengetopt_args_info_help[72] ;
+  args_info->uamnatanyip_help = gengetopt_args_info_help[73] ;
+  args_info->wisprlogin_help = gengetopt_args_info_help[74] ;
+  args_info->nouamsuccess_help = gengetopt_args_info_help[75] ;
+  args_info->nouamwispr_help = gengetopt_args_info_help[76] ;
+  args_info->uamlogoutip_help = gengetopt_args_info_help[77] ;
+  args_info->defsessiontimeout_help = gengetopt_args_info_help[78] ;
+  args_info->defidletimeout_help = gengetopt_args_info_help[79] ;
+  args_info->defbandwidthmaxdown_help = gengetopt_args_info_help[80] ;
+  args_info->defbandwidthmaxup_help = gengetopt_args_info_help[81] ;
+  args_info->definteriminterval_help = gengetopt_args_info_help[82] ;
+  args_info->macauth_help = gengetopt_args_info_help[83] ;
+  args_info->macreauth_help = gengetopt_args_info_help[84] ;
+  args_info->macauthdeny_help = gengetopt_args_info_help[85] ;
+  args_info->macallowed_help = gengetopt_args_info_help[86] ;
   args_info->macallowed_min = -1;
   args_info->macallowed_max = -1;
-  args_info->macsuffix_help = gengetopt_args_info_help[81] ;
-  args_info->macpasswd_help = gengetopt_args_info_help[82] ;
-  args_info->macallowlocal_help = gengetopt_args_info_help[83] ;
-  args_info->wwwdir_help = gengetopt_args_info_help[84] ;
-  args_info->wwwbin_help = gengetopt_args_info_help[85] ;
-  args_info->uamui_help = gengetopt_args_info_help[86] ;
-  args_info->adminuser_help = gengetopt_args_info_help[87] ;
-  args_info->adminpasswd_help = gengetopt_args_info_help[88] ;
-  args_info->adminupdatefile_help = gengetopt_args_info_help[89] ;
-  args_info->nasmac_help = gengetopt_args_info_help[90] ;
-  args_info->nasip_help = gengetopt_args_info_help[91] ;
-  args_info->ssid_help = gengetopt_args_info_help[92] ;
-  args_info->vlan_help = gengetopt_args_info_help[93] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[94] ;
-  args_info->radiusoriginalurl_help = gengetopt_args_info_help[95] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[96] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[97] ;
-  args_info->localusers_help = gengetopt_args_info_help[98] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[99] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[100] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[101] ;
-  args_info->openidauth_help = gengetopt_args_info_help[102] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[103] ;
-  args_info->mschapv2_help = gengetopt_args_info_help[104] ;
-  args_info->chillixml_help = gengetopt_args_info_help[105] ;
-  args_info->acctupdate_help = gengetopt_args_info_help[106] ;
-  args_info->dnsparanoia_help = gengetopt_args_info_help[107] ;
-  args_info->usetap_help = gengetopt_args_info_help[108] ;
-  args_info->routeif_help = gengetopt_args_info_help[109] ;
-  args_info->framedservice_help = gengetopt_args_info_help[110] ;
-  args_info->tcpwin_help = gengetopt_args_info_help[111] ;
-  args_info->challengetimeout_help = gengetopt_args_info_help[112] ;
-  args_info->challengetimeout2_help = gengetopt_args_info_help[113] ;
+  args_info->macsuffix_help = gengetopt_args_info_help[87] ;
+  args_info->macpasswd_help = gengetopt_args_info_help[88] ;
+  args_info->macallowlocal_help = gengetopt_args_info_help[89] ;
+  args_info->wwwdir_help = gengetopt_args_info_help[90] ;
+  args_info->wwwbin_help = gengetopt_args_info_help[91] ;
+  args_info->uamui_help = gengetopt_args_info_help[92] ;
+  args_info->adminuser_help = gengetopt_args_info_help[93] ;
+  args_info->adminpasswd_help = gengetopt_args_info_help[94] ;
+  args_info->adminupdatefile_help = gengetopt_args_info_help[95] ;
+  args_info->rtmonfile_help = gengetopt_args_info_help[96] ;
+  args_info->nasmac_help = gengetopt_args_info_help[97] ;
+  args_info->nasip_help = gengetopt_args_info_help[98] ;
+  args_info->ssid_help = gengetopt_args_info_help[99] ;
+  args_info->vlan_help = gengetopt_args_info_help[100] ;
+  args_info->ieee8021q_help = gengetopt_args_info_help[101] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[102] ;
+  args_info->radiusoriginalurl_help = gengetopt_args_info_help[103] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[104] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[105] ;
+  args_info->localusers_help = gengetopt_args_info_help[106] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[107] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[108] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[109] ;
+  args_info->openidauth_help = gengetopt_args_info_help[110] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[111] ;
+  args_info->mschapv2_help = gengetopt_args_info_help[112] ;
+  args_info->chillixml_help = gengetopt_args_info_help[113] ;
+  args_info->acctupdate_help = gengetopt_args_info_help[114] ;
+  args_info->dnsparanoia_help = gengetopt_args_info_help[115] ;
+  args_info->usetap_help = gengetopt_args_info_help[116] ;
+  args_info->routeif_help = gengetopt_args_info_help[117] ;
+  args_info->framedservice_help = gengetopt_args_info_help[118] ;
+  args_info->tcpwin_help = gengetopt_args_info_help[119] ;
+  args_info->tcpmss_help = gengetopt_args_info_help[120] ;
+  args_info->maxclients_help = gengetopt_args_info_help[121] ;
+  args_info->challengetimeout_help = gengetopt_args_info_help[122] ;
+  args_info->challengetimeout2_help = gengetopt_args_info_help[123] ;
   
 }
 
@@ -761,6 +807,8 @@ static void
 cmdline_parser_release (struct gengetopt_args_info *args_info)
 {
 
+  free_string_field (&(args_info->bin_arg));
+  free_string_field (&(args_info->bin_orig));
   free_string_field (&(args_info->debugfacility_orig));
   free_string_field (&(args_info->logfacility_orig));
   free_string_field (&(args_info->conf_arg));
@@ -833,6 +881,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->dhcpif_orig));
   free_string_field (&(args_info->dhcpmac_arg));
   free_string_field (&(args_info->dhcpmac_orig));
+  free_string_field (&(args_info->nexthop_arg));
+  free_string_field (&(args_info->nexthop_orig));
   free_string_field (&(args_info->dhcpgateway_arg));
   free_string_field (&(args_info->dhcpgateway_orig));
   free_string_field (&(args_info->dhcpgatewayport_orig));
@@ -847,6 +897,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->uamsecret_orig));
   free_string_field (&(args_info->uamlisten_arg));
   free_string_field (&(args_info->uamlisten_orig));
+  free_string_field (&(args_info->dhcplisten_arg));
+  free_string_field (&(args_info->dhcplisten_orig));
   free_string_field (&(args_info->uamport_orig));
   free_string_field (&(args_info->uamuiport_orig));
   free_multiple_string_field (args_info->uamallowed_given, &(args_info->uamallowed_arg), &(args_info->uamallowed_orig));
@@ -877,6 +929,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->adminpasswd_orig));
   free_string_field (&(args_info->adminupdatefile_arg));
   free_string_field (&(args_info->adminupdatefile_orig));
+  free_string_field (&(args_info->rtmonfile_arg));
+  free_string_field (&(args_info->rtmonfile_orig));
   free_string_field (&(args_info->nasmac_arg));
   free_string_field (&(args_info->nasmac_orig));
   free_string_field (&(args_info->nasip_arg));
@@ -895,6 +949,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->routeif_arg));
   free_string_field (&(args_info->routeif_orig));
   free_string_field (&(args_info->tcpwin_orig));
+  free_string_field (&(args_info->tcpmss_orig));
+  free_string_field (&(args_info->maxclients_orig));
   free_string_field (&(args_info->challengetimeout_orig));
   free_string_field (&(args_info->challengetimeout2_orig));
   
@@ -942,6 +998,10 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "fg", 0, 0 );
   if (args_info->debug_given)
     write_into_file(outfile, "debug", 0, 0 );
+  if (args_info->bin_given)
+    write_into_file(outfile, "bin", args_info->bin_orig, 0);
+  if (args_info->reload_given)
+    write_into_file(outfile, "reload", 0, 0 );
   if (args_info->debugfacility_given)
     write_into_file(outfile, "debugfacility", args_info->debugfacility_orig, 0);
   if (args_info->logfacility_given)
@@ -964,6 +1024,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "dhcpstart", args_info->dhcpstart_orig, 0);
   if (args_info->dhcpend_given)
     write_into_file(outfile, "dhcpend", args_info->dhcpend_orig, 0);
+  if (args_info->dhcpbroadcast_given)
+    write_into_file(outfile, "dhcpbroadcast", 0, 0 );
   if (args_info->dynip_given)
     write_into_file(outfile, "dynip", args_info->dynip_orig, 0);
   if (args_info->nodynip_given)
@@ -1036,6 +1098,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "dhcpif", args_info->dhcpif_orig, 0);
   if (args_info->dhcpmac_given)
     write_into_file(outfile, "dhcpmac", args_info->dhcpmac_orig, 0);
+  if (args_info->nexthop_given)
+    write_into_file(outfile, "nexthop", args_info->nexthop_orig, 0);
   if (args_info->dhcpradius_given)
     write_into_file(outfile, "dhcpradius", 0, 0 );
   if (args_info->dhcpgateway_given)
@@ -1058,6 +1122,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "uamsecret", args_info->uamsecret_orig, 0);
   if (args_info->uamlisten_given)
     write_into_file(outfile, "uamlisten", args_info->uamlisten_orig, 0);
+  if (args_info->dhcplisten_given)
+    write_into_file(outfile, "dhcplisten", args_info->dhcplisten_orig, 0);
   if (args_info->uamport_given)
     write_into_file(outfile, "uamport", args_info->uamport_orig, 0);
   if (args_info->uamuiport_given)
@@ -1068,6 +1134,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "uamanydns", 0, 0 );
   if (args_info->uamanyip_given)
     write_into_file(outfile, "uamanyip", 0, 0 );
+  if (args_info->uamnatanyip_given)
+    write_into_file(outfile, "uamnatanyip", 0, 0 );
   if (args_info->wisprlogin_given)
     write_into_file(outfile, "wisprlogin", args_info->wisprlogin_orig, 0);
   if (args_info->nouamsuccess_given)
@@ -1111,6 +1179,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "adminpasswd", args_info->adminpasswd_orig, 0);
   if (args_info->adminupdatefile_given)
     write_into_file(outfile, "adminupdatefile", args_info->adminupdatefile_orig, 0);
+  if (args_info->rtmonfile_given)
+    write_into_file(outfile, "rtmonfile", args_info->rtmonfile_orig, 0);
   if (args_info->nasmac_given)
     write_into_file(outfile, "nasmac", args_info->nasmac_orig, 0);
   if (args_info->nasip_given)
@@ -1119,6 +1189,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "ssid", args_info->ssid_orig, 0);
   if (args_info->vlan_given)
     write_into_file(outfile, "vlan", args_info->vlan_orig, 0);
+  if (args_info->ieee8021q_given)
+    write_into_file(outfile, "ieee8021q", 0, 0 );
   if (args_info->cmdsocket_given)
     write_into_file(outfile, "cmdsocket", args_info->cmdsocket_orig, 0);
   if (args_info->radiusoriginalurl_given)
@@ -1155,6 +1227,10 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "framedservice", 0, 0 );
   if (args_info->tcpwin_given)
     write_into_file(outfile, "tcpwin", args_info->tcpwin_orig, 0);
+  if (args_info->tcpmss_given)
+    write_into_file(outfile, "tcpmss", args_info->tcpmss_orig, 0);
+  if (args_info->maxclients_given)
+    write_into_file(outfile, "maxclients", args_info->maxclients_orig, 0);
   if (args_info->challengetimeout_given)
     write_into_file(outfile, "challengetimeout", args_info->challengetimeout_orig, 0);
   if (args_info->challengetimeout2_given)
@@ -1723,6 +1799,8 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "version",	0, NULL, 'V' },
         { "fg",	0, NULL, 'f' },
         { "debug",	0, NULL, 'd' },
+        { "bin",	1, NULL, 'b' },
+        { "reload",	0, NULL, 'r' },
         { "debugfacility",	1, NULL, 0 },
         { "logfacility",	1, NULL, 0 },
         { "conf",	1, NULL, 'c' },
@@ -1734,6 +1812,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "net",	1, NULL, 'n' },
         { "dhcpstart",	1, NULL, 0 },
         { "dhcpend",	1, NULL, 0 },
+        { "dhcpbroadcast",	0, NULL, 0 },
         { "dynip",	1, NULL, 0 },
         { "nodynip",	0, NULL, 0 },
         { "statip",	1, NULL, 0 },
@@ -1770,6 +1849,7 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "proxysecret",	1, NULL, 0 },
         { "dhcpif",	1, NULL, 0 },
         { "dhcpmac",	1, NULL, 0 },
+        { "nexthop",	1, NULL, 0 },
         { "dhcpradius",	0, NULL, 0 },
         { "dhcpgateway",	1, NULL, 0 },
         { "dhcpgatewayport",	1, NULL, 0 },
@@ -1781,12 +1861,14 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "uamhomepage",	1, NULL, 0 },
         { "uamsecret",	1, NULL, 0 },
         { "uamlisten",	1, NULL, 0 },
+        { "dhcplisten",	1, NULL, 0 },
         { "uamport",	1, NULL, 0 },
         { "uamuiport",	1, NULL, 0 },
         { "uamallowed",	1, NULL, 0 },
         { "uamdomain",	1, NULL, 0 },
         { "uamanydns",	0, NULL, 0 },
         { "uamanyip",	0, NULL, 0 },
+        { "uamnatanyip",	0, NULL, 0 },
         { "wisprlogin",	1, NULL, 0 },
         { "nouamsuccess",	0, NULL, 0 },
         { "nouamwispr",	0, NULL, 0 },
@@ -1809,10 +1891,12 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "adminuser",	1, NULL, 0 },
         { "adminpasswd",	1, NULL, 0 },
         { "adminupdatefile",	1, NULL, 0 },
+        { "rtmonfile",	1, NULL, 0 },
         { "nasmac",	1, NULL, 0 },
         { "nasip",	1, NULL, 0 },
         { "ssid",	1, NULL, 0 },
         { "vlan",	1, NULL, 0 },
+        { "ieee8021q",	0, NULL, 0 },
         { "cmdsocket",	1, NULL, 0 },
         { "radiusoriginalurl",	0, NULL, 0 },
         { "swapoctets",	0, NULL, 0 },
@@ -1831,12 +1915,14 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
         { "routeif",	1, NULL, 0 },
         { "framedservice",	0, NULL, 0 },
         { "tcpwin",	1, NULL, 0 },
+        { "tcpmss",	1, NULL, 0 },
+        { "maxclients",	1, NULL, 0 },
         { "challengetimeout",	1, NULL, 0 },
         { "challengetimeout2",	1, NULL, 0 },
         { NULL,	0, NULL, 0 }
       };
 
-      c = getopt_long (argc, argv, "hVfdc:n:", long_options, &option_index);
+      c = getopt_long (argc, argv, "hVfdb:rc:n:", long_options, &option_index);
 
       if (c == -1) break;	/* Exit from `while (1)' loop.  */
 
@@ -1886,6 +1972,28 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
           if (update_arg((void *)&(args_info->debug_flag), 0, &(args_info->debug_given),
               &(local_args_info.debug_given), optarg, 0, 0, ARG_FLAG,
               check_ambiguity, override, 1, 0, "debug", 'd',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'b':	/* Binary config file.  */
+        
+        
+          if (update_arg( (void *)&(args_info->bin_arg), 
+               &(args_info->bin_orig), &(args_info->bin_given),
+              &(local_args_info.bin_given), optarg, 0, 0, ARG_STRING,
+              check_ambiguity, override, 0, 0,
+              "bin", 'b',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'r':	/* Send reload after reconfigure.  */
+        
+        
+          if (update_arg((void *)&(args_info->reload_flag), 0, &(args_info->reload_given),
+              &(local_args_info.reload_given), optarg, 0, 0, ARG_FLAG,
+              check_ambiguity, override, 1, 0, "reload", 'r',
               additional_error))
             goto failure;
         
@@ -2038,6 +2146,18 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
                 &(local_args_info.dhcpend_given), optarg, 0, "0", ARG_INT,
                 check_ambiguity, override, 0, 0,
                 "dhcpend", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Always broadcast DHCP responses.  */
+          else if (strcmp (long_options[option_index].name, "dhcpbroadcast") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->dhcpbroadcast_flag), 0, &(args_info->dhcpbroadcast_given),
+                &(local_args_info.dhcpbroadcast_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "dhcpbroadcast", '-',
                 additional_error))
               goto failure;
           
@@ -2542,6 +2662,20 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               goto failure;
           
           }
+          /* Next Hop MAC address.  */
+          else if (strcmp (long_options[option_index].name, "nexthop") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->nexthop_arg), 
+                 &(args_info->nexthop_orig), &(args_info->nexthop_given),
+                &(local_args_info.nexthop_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "nexthop", '-',
+                additional_error))
+              goto failure;
+          
+          }
           /* Map certain DHCP options to RADIUS attributes.  */
           else if (strcmp (long_options[option_index].name, "dhcpradius") == 0)
           {
@@ -2690,6 +2824,20 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               goto failure;
           
           }
+          /* IP address for DHCP default gateway (defaults to uamlisten).  */
+          else if (strcmp (long_options[option_index].name, "dhcplisten") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->dhcplisten_arg), 
+                 &(args_info->dhcplisten_orig), &(args_info->dhcplisten_given),
+                &(local_args_info.dhcplisten_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "dhcplisten", '-',
+                additional_error))
+              goto failure;
+          
+          }
           /* TCP port to bind to for authentication requests.  */
           else if (strcmp (long_options[option_index].name, "uamport") == 0)
           {
@@ -2760,6 +2908,18 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
             if (update_arg((void *)&(args_info->uamanyip_flag), 0, &(args_info->uamanyip_given),
                 &(local_args_info.uamanyip_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "uamanyip", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Source NAT clients using anyip to an IP of dynip pool.  */
+          else if (strcmp (long_options[option_index].name, "uamnatanyip") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->uamnatanyip_flag), 0, &(args_info->uamnatanyip_given),
+                &(local_args_info.uamnatanyip_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "uamnatanyip", '-',
                 additional_error))
               goto failure;
           
@@ -3057,6 +3217,20 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
               goto failure;
           
           }
+          /* File to update with routing settings.  */
+          else if (strcmp (long_options[option_index].name, "rtmonfile") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->rtmonfile_arg), 
+                 &(args_info->rtmonfile_orig), &(args_info->rtmonfile_given),
+                &(local_args_info.rtmonfile_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "rtmonfile", '-',
+                additional_error))
+              goto failure;
+          
+          }
           /* Unique MAC address of the NAS (called-station-id).  */
           else if (strcmp (long_options[option_index].name, "nasmac") == 0)
           {
@@ -3109,6 +3283,18 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
                 &(local_args_info.vlan_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "vlan", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Support 802.1Q VLAN tagging.  */
+          else if (strcmp (long_options[option_index].name, "ieee8021q") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->ieee8021q_flag), 0, &(args_info->ieee8021q_given),
+                &(local_args_info.ieee8021q_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "ieee8021q", '-',
                 additional_error))
               goto failure;
           
@@ -3337,6 +3523,34 @@ cmdline_parser_internal (int argc, char * const *argv, struct gengetopt_args_inf
                 &(local_args_info.tcpwin_given), optarg, 0, "0", ARG_INT,
                 check_ambiguity, override, 0, 0,
                 "tcpwin", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Change TCP maximum window size (mss) option in TCP traffic.  */
+          else if (strcmp (long_options[option_index].name, "tcpmss") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->tcpmss_arg), 
+                 &(args_info->tcpmss_orig), &(args_info->tcpmss_given),
+                &(local_args_info.tcpmss_given), optarg, 0, "0", ARG_INT,
+                check_ambiguity, override, 0, 0,
+                "tcpmss", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Maximum number of clients/subscribers.  */
+          else if (strcmp (long_options[option_index].name, "maxclients") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->maxclients_arg), 
+                 &(args_info->maxclients_orig), &(args_info->maxclients_given),
+                &(local_args_info.maxclients_given), optarg, 0, "512", ARG_INT,
+                check_ambiguity, override, 0, 0,
+                "maxclients", '-',
                 additional_error))
               goto failure;
           

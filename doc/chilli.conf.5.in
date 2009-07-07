@@ -422,6 +422,15 @@ Password to use for Administrative-User authentication in order to pick up
 chilli configurations and establish a device 'system' session.
 
 .TP
+.BI adminupdatefile " filename" 
+The file to use as the Administrative-User update file. When used in
+combination with the above adminuser and adminpasswd options,
+ChilliSpot-Config RADIUS attributes found in the Administrative-User
+Access-Accept are put into the specified file. If the file changes,
+chilli will reload it's configuration (it's assumed that this file is
+included into the chilli configuration file).
+
+.TP
 .B swapoctets
 Swap the meaning of "input octets" and "output octets" as it related to
 RADIUS attribtues.
@@ -482,6 +491,30 @@ option must be specified.
 Use the TAP interface instead of TUN (Linux only).
 
 .TP
+.BI nexthop " mac-address"
+Specify a MAC address which is the layer 2 next hop to route
+packets to (used with
+.B usetap
+only).
+
+.TP
+.BI rtmonfile " file"
+Option to launch the 
+.I chilli_rtmon
+daemon with the specified file as the update file. The 
+.I chilli_rtmon
+daemon will update the file with a 
+.BI nexthop
+configuration entry before sending 
+.I chilli
+a SIGHUP to reread it's configuration. 
+
+.TP
+.BI tcpwin " number"
+Specify an integer value for the TCP Window and TCP Maximum Segment Size. 
+If set, packets are rewritten with the values for both Window and MSS. 
+
+.TP
 .BI tundev " dev"
 The specific device to use for the TUN/TAP interface.
 
@@ -521,6 +554,10 @@ Where to start assigning IP addresses (default 10).
 .TP
 .BI dhcpend " number"
 Where to stop assigning IP addresses (default 254).
+
+.TP
+.B dhcpbroadcast
+Always respond to DHCP to the broadcast IP, when no relay.
 
 .TP
 .B eapolenable

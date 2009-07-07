@@ -35,6 +35,7 @@
 #define OPT_IPADDRLEN                    256
 #define OPT_IDLETIME                      10 /* Options idletime between each select */
 #define MAX_PASS_THROUGHS                128 /* Max number of allowed UAM pass-throughs */
+#define MAX_UAM_DOMAINS                   32 /* Max number of allowed UAM domains */
 #define UAMSERVER_MAX                      8
 #define MACOK_MAX                         16
 
@@ -48,7 +49,6 @@
 #define REDIR_CHALLEN                     16
 #define REDIR_MD5LEN                      16
 #define REDIR_MACSTRLEN                   17
-#define REDIR_MAXCHAR                     64 /* 1024 */
 #define REDIR_MAXBUFFER                 5125
 
 #define REDIR_USERNAMESIZE               256 /* Max length of username */
@@ -65,7 +65,6 @@
 #define REDIR_SESSIONID_LEN               17
 
 /* chilli */
-#define APP_NUM_CONN                    1024
 #define EAP_LEN                         2048 /* TODO: Rather large */
 #define MACSTRLEN                         17
 #define MS2SUCCSIZE                       40 /* MS-CHAPv2 authenticator response as ASCII */
@@ -83,11 +82,11 @@
 #define RADIUS_MD5LEN                     16 /* Length of MD5 hash */
 #define RADIUS_AUTHLEN                    16 /* RFC 2865: Length of authenticator */
 #define RADIUS_PWSIZE                    128 /* RFC 2865: Max 128 octets in password */
+#define RADIUS_CHAPSIZE                   24 
 #define RADIUS_QUEUESIZE                 256 /* Same size as id address space */
 #define RADIUS_ATTR_VLEN                 253
 #define RADIUS_PACKSIZE                 4096
 #define RADIUS_HDRSIZE                    20
-#define RADIUS_PASSWORD_LEN               16
 #define RADIUS_MPPEKEYSSIZE               32 /* Length of MS_CHAP_MPPE_KEYS attribute */ 
 
 #endif

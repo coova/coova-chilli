@@ -105,6 +105,7 @@ struct app_conn_t {
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
   struct in_addr reqip;        /* IP requested by client */
+  struct in_addr natip;
   uint16_t mtu;
 
   /* Information for each connection */
@@ -134,5 +135,9 @@ void config_radius_session(struct session_params *params,
 			   struct dhcp_conn_t *dhcpconn,
 			   int reconfig);
 int cmdsock_init();
+
+time_t mainclock_now();
+int mainclock_diff(time_t past);
+uint32_t mainclock_diffu(time_t past);
 
 #endif /*_CHILLI_H */

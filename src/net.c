@@ -146,7 +146,9 @@ int net_init(net_interface *netif, char *ifname, uint16_t protocol, int promisc,
   netif->devname[IFNAMSIZ] = 0;
   netif->protocol = protocol;
 
-  if (promisc) netif->flags |= NET_PROMISC;
+  if (promisc) {
+    netif->flags |= NET_PROMISC;
+  }
   
   if (mac) {
     netif->flags |= NET_USEMAC;
@@ -214,6 +216,17 @@ ssize_t net_write(net_interface *netif, void *d, size_t dlen) {
   }
 
   return len;
+}
+
+int net_set_mtu(net_interface *netif, size_t mtu) {
+  struct ifreq ifr;
+  memset(&ifr, 0, sizeof(ifr));
+  strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+  ifr.ifr_mtu = mtu;
+  if (ioctl(netif->fd, SIOCSIFMTU, &ifr) < 0) {
+    log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCSIFMTU);
+    return -1;
+  }
 }
 
 int net_route(struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask, int delete) {
@@ -354,7 +367,7 @@ int net_open_eth(net_interface *netif) {
   
   /* Get the MAC address of our interface */
   strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
-  if (ioctl(netif->fd, SIOCGIFHWADDR, &ifr) < 0) {
+  if (ioctl(netif->fd, SIOCGIFHWADDR, (caddr_t)&ifr) < 0) {
     log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCGIFHWADDR);
     return -1;
   }
@@ -370,12 +383,12 @@ int net_open_eth(net_interface *netif) {
   if (netif->hwaddr[0] & 0x01) {
     log_err(0, "Ethernet has broadcast or multicast address: %.16s", netif->devname);
   }
-
+  
   /* Get the current interface address, network, and any destination address */
-
+  
   /* Verify that MTU = ETH_DATA_LEN */
   strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
-  if (ioctl(netif->fd, SIOCGIFMTU, &ifr) < 0) {
+  if (ioctl(netif->fd, SIOCGIFMTU, (caddr_t)&ifr) < 0) {
     log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCGIFMTU);
     return -1;
   }
@@ -383,19 +396,32 @@ int net_open_eth(net_interface *netif) {
     log_err(0, "MTU does not match EHT_DATA_LEN: %d %d", ifr.ifr_mtu, ETH_DATA_LEN);
     return -1;
   }
-
+  
   /* Get ifindex */
   strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
-  if (ioctl(netif->fd, SIOCGIFINDEX, &ifr) < 0) {
+  if (ioctl(netif->fd, SIOCGIFINDEX, (caddr_t)&ifr) < 0) {
     log_err(errno, "ioctl(SIOCFIGINDEX) failed");
   }
   netif->ifindex = ifr.ifr_ifindex;
   
   /* Set interface in promisc mode */
   if (netif->flags & NET_PROMISC) {
+
+    memset(&ifr, 0, sizeof(ifr));
+    strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+    if (-1 < ioctl(netif->fd, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
+      log_err(errno, "ioctl(SIOCGIFFLAGS)");
+    } else {
+      netif->devflags = ifr.ifr_flags;
+      ifr.ifr_flags |= IFF_PROMISC;
+      if (ioctl (netif->fd, SIOCSIFFLAGS, (caddr_t)&ifr) == -1) {
+	log_err(errno, "Could not set flag IFF_PROMISC");
+      }
+    }
+
     memset(&mr,0,sizeof(mr));
-    mr.mr_ifindex = ifr.ifr_ifindex;
-    mr.mr_type =  PACKET_MR_PROMISC;
+    mr.mr_ifindex = netif->ifindex;
+    mr.mr_type = PACKET_MR_PROMISC;
     if (setsockopt(netif->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, (char *)&mr, sizeof(mr)) < 0) {
       log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
 	      netif->fd, SOL_SOCKET, PACKET_ADD_MEMBERSHIP, sizeof(mr));
@@ -407,7 +433,7 @@ int net_open_eth(net_interface *netif) {
   memset(&sa, 0, sizeof(sa));
   sa.sll_family = AF_PACKET;
   sa.sll_protocol = htons(netif->protocol);
-  sa.sll_ifindex = ifr.ifr_ifindex;
+  sa.sll_ifindex = netif->ifindex;
 
   if (bind(netif->fd, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
     log_err(errno, "bind(sockfd=%d) failed", netif->fd);

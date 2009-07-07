@@ -1,6 +1,5 @@
 /* 
- *
- * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
+ * CoovaChilli: A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (c) 2006-2007 David Bird <david@coova.com>

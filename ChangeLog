@@ -1,6 +1,18 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+* Major reduction in initial memory usage as the MAC session pool will grow as needed.	
+* Separation of configuration from running server (experimental!! report problems!)
+* Major changes to for the use of ''usetap'' option, whereby chilli will establish a tap interface
+* New configuration setting for ''nexthop'' (for use with ''usetap'' when part of a bridge) which defines the next hop MAC address
+* New utility ''chilli_opt'' which processes the configuration and writes out an architecture dependent binary configuration file
+* New utility ''chilli_rtmon'', launched by chilli using ''rtmonfile'' option, will monitor the default route and write out the ''nexthop'' option and SIGHUP the running ''chilli''
+* Support for VLAN / 802.1Q tags in Ethernet frames on the ''dhcpif'' network. The VLAN ID is sent to the portal in the ''vlan'' query string parameter and in the ChilliSpot-VLAN-Id RADIUS attribute
+* Fixup for ''uamanydns'' whereby requests to anything other than ''dns1'' or ''dns2'' will be rewritten to access ''dns1'' instead of whatever setting the user has
+* The ''dhcpbroadcast'' option will have the DHCP server respond to broadcast IP always (when no relay)	
+* The ''tcpmss'' option will rewrite the TCP Maximum Segment Size (TCP Option).
+* WISPr LoginURL bug fix      
+	
 == ChangeLog (Coova Chilli v1.0.13 svn revision 199) ==
 
 * Accepts the parameter ''ntresponse'' in the ''logon'' which is used in MS-CHAPv2 (does not require the mschapv2 option, but simply passes through the ntresponse into the MSCHAPv2-Response

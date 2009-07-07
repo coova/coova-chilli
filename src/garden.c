@@ -26,21 +26,21 @@ int pass_through_add(pass_through *ptlist, size_t ptlen, size_t *ptcnt, pass_thr
   int i;
 
   if (cnt >= ptlen) {
-    if (options.debug) 
+    if (options()->debug) 
       log_dbg("No more room for walled garden entries");
     return -1;
   }
 
   for (i=0; i < cnt; i++) {
     if (!memcmp(&ptlist[i],pt,sizeof(pass_through))) {
-      if (options.debug) 
+      if (options()->debug) 
 	log_info("Uamallowed already exists #%d:%d: proto=%d host=%s port=%d", i, ptlen,
 		 pt->proto, inet_ntoa(pt->host), pt->port);
       return 0;
     }
   }
 
-  if (options.debug) 
+  if (options()->debug) 
     log_info("Uamallowed IP address #%d:%d: proto=%d host=%s port=%d", cnt, ptlen,
 	     pt->proto, inet_ntoa(pt->host), pt->port);
 
@@ -54,10 +54,11 @@ int pass_throughs_from_string(pass_through *ptlist, size_t ptlen, size_t *ptcnt,
   pass_through pt;
   char *t, *p1 = NULL, *p2 = NULL;
   char *p3 = malloc(strlen(s)+1);
+
   strcpy(p3, s);
   p1 = p3;
   
-  if (options.debug) 
+  if (options()->debug) 
     log_dbg("Uamallowed %s", s);
   
   for ( ; p1; p1 = p2) {

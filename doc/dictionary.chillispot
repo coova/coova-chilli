@@ -22,9 +22,16 @@ ATTRIBUTE       ChilliSpot-Acct-View-Point             10	integer
 ATTRIBUTE       ChilliSpot-Require-UAM		       11	string
 ATTRIBUTE       ChilliSpot-Require-Splash	       12	string
 ATTRIBUTE       ChilliSpot-Route-To-Interface	       13	string
+
 ATTRIBUTE	ChilliSpot-Max-Input-Gigawords	       21	integer
 ATTRIBUTE	ChilliSpot-Max-Output-Gigawords	       22	integer
 ATTRIBUTE	ChilliSpot-Max-Total-Gigawords	       23	integer
+
+ATTRIBUTE	ChilliSpot-VLAN-Id		       24	integer
+
+ATTRIBUTE	ChilliSpot-Sys-Uptime		       40	integer
+ATTRIBUTE	ChilliSpot-Sys-LoadAvg		       41	string
+ATTRIBUTE	ChilliSpot-Sys-Memory		       42	string
 
 ATTRIBUTE       ChilliSpot-DHCP-Vendor-Class-Id	       50	string
 ATTRIBUTE       ChilliSpot-DHCP-Client-Id	       51	string

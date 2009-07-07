@@ -78,6 +78,7 @@ struct session_state {
   uint64_t output_octets;
   uint32_t terminate_cause;
   uint32_t session_id;
+  uint16_t tag8021q;
 
 #ifdef LEAKY_BUCKET
   /* Leaky bucket */

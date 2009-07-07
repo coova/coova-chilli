@@ -1,5 +1,5 @@
 /* 
- * chilli - A Wireless LAN Access Point Controller.
+ * CoovaChilli: A Wireless LAN Access Point Controller.
  * Copyright (c) 2007 David Bird <david@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
@@ -29,7 +29,7 @@ cmdsock_init() {
   } else {
     local.sun_family = AF_UNIX;
 
-    strcpy(local.sun_path, options.cmdsocket);
+    strcpy(local.sun_path, options()->cmdsocket);
     unlink(local.sun_path);
 
     if (bind(cmdsock, (struct sockaddr *)&local, 

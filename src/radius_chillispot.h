@@ -31,6 +31,12 @@
 #define	RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS       21 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS      22 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS       23 /* integer */
+#define	RADIUS_ATTR_CHILLISPOT_VLAN_ID                   24 /* integer */
+
+#define RADIUS_ATTR_CHILLISPOT_SYS_UPTIME                40 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_SYS_LOADAVG               41 /* string */
+#define RADIUS_ATTR_CHILLISPOT_SYS_MEMORY                42 /* string */
+
 #define RADIUS_ATTR_CHILLISPOT_DHCP_VENDOR_CLASS_ID      50 /* string */
 #define RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_ID            51 /* string */
 #define RADIUS_ATTR_CHILLISPOT_DHCP_OPTION               52 /* string */
@@ -40,5 +46,7 @@
 #define RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_FQDN          56 /* string */
 #define RADIUS_ATTR_CHILLISPOT_DHCP_PARAMETER_REQUEST_LIST 57 /* string */
 
+#define RADIUS_VALUE_CHILLISPOT_NAS_VIEWPOINT             1
+#define RADIUS_VALUE_CHILLISPOT_CLIENT_VIEWPOINT          2
 
 #endif	/* !_RADIUS_CHILLISPOT_H */

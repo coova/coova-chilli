@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(coova-chilli, 1.0.13, support@coova.org)
+AC_INIT(coova-chilli, 1.0.14, support@coova.org)
 AC_CONFIG_SRCDIR([src/cmdline.c])
 
 AM_INIT_AUTOMAKE
@@ -24,7 +24,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h \
 		  netdb.h netinet/in.h \
 		  stdint.h stdlib.h string.h \
-		  sys/ioctl.h sys/socket.h \
+		  sys/ioctl.h sys/socket.h sys/sysinfo.h \
 		  sys/param.h sys/time.h \
 		  sys/ipc.h sys/msg.h \
 		  sys/wait.h sys/un.h \

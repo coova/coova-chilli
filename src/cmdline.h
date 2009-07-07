@@ -38,6 +38,11 @@ struct gengetopt_args_info
   const char *fg_help; /**< @brief Run in foreground help description.  */
   int debug_flag;	/**< @brief Run in debug mode (default=off).  */
   const char *debug_help; /**< @brief Run in debug mode help description.  */
+  char * bin_arg;	/**< @brief Binary config file.  */
+  char * bin_orig;	/**< @brief Binary config file original value given at command line.  */
+  const char *bin_help; /**< @brief Binary config file help description.  */
+  int reload_flag;	/**< @brief Send reload after reconfigure (default=off).  */
+  const char *reload_help; /**< @brief Send reload after reconfigure help description.  */
   int debugfacility_arg;	/**< @brief Which modules to print debug messages for (default='1').  */
   char * debugfacility_orig;	/**< @brief Which modules to print debug messages for original value given at command line.  */
   const char *debugfacility_help; /**< @brief Which modules to print debug messages for help description.  */
@@ -71,6 +76,8 @@ struct gengetopt_args_info
   int dhcpend_arg;	/**< @brief Network DHCP Ending IP (default='0').  */
   char * dhcpend_orig;	/**< @brief Network DHCP Ending IP original value given at command line.  */
   const char *dhcpend_help; /**< @brief Network DHCP Ending IP help description.  */
+  int dhcpbroadcast_flag;	/**< @brief Always broadcast DHCP responses (default=off).  */
+  const char *dhcpbroadcast_help; /**< @brief Always broadcast DHCP responses help description.  */
   char * dynip_arg;	/**< @brief Dynamic IP address pool.  */
   char * dynip_orig;	/**< @brief Dynamic IP address pool original value given at command line.  */
   const char *dynip_help; /**< @brief Dynamic IP address pool help description.  */
@@ -177,6 +184,9 @@ struct gengetopt_args_info
   char * dhcpmac_arg;	/**< @brief Interface MAC address.  */
   char * dhcpmac_orig;	/**< @brief Interface MAC address original value given at command line.  */
   const char *dhcpmac_help; /**< @brief Interface MAC address help description.  */
+  char * nexthop_arg;	/**< @brief Next Hop MAC address.  */
+  char * nexthop_orig;	/**< @brief Next Hop MAC address original value given at command line.  */
+  const char *nexthop_help; /**< @brief Next Hop MAC address help description.  */
   int dhcpradius_flag;	/**< @brief Map certain DHCP options to RADIUS attributes (default=off).  */
   const char *dhcpradius_help; /**< @brief Map certain DHCP options to RADIUS attributes help description.  */
   char * dhcpgateway_arg;	/**< @brief DHCP gateway addresss for relay.  */
@@ -207,6 +217,9 @@ struct gengetopt_args_info
   char * uamlisten_arg;	/**< @brief IP address to listen to for authentication requests.  */
   char * uamlisten_orig;	/**< @brief IP address to listen to for authentication requests original value given at command line.  */
   const char *uamlisten_help; /**< @brief IP address to listen to for authentication requests help description.  */
+  char * dhcplisten_arg;	/**< @brief IP address for DHCP default gateway (defaults to uamlisten).  */
+  char * dhcplisten_orig;	/**< @brief IP address for DHCP default gateway (defaults to uamlisten) original value given at command line.  */
+  const char *dhcplisten_help; /**< @brief IP address for DHCP default gateway (defaults to uamlisten) help description.  */
   int uamport_arg;	/**< @brief TCP port to bind to for authentication requests (default='3990').  */
   char * uamport_orig;	/**< @brief TCP port to bind to for authentication requests original value given at command line.  */
   const char *uamport_help; /**< @brief TCP port to bind to for authentication requests help description.  */
@@ -227,6 +240,8 @@ struct gengetopt_args_info
   const char *uamanydns_help; /**< @brief Allow client to use any DNS server help description.  */
   int uamanyip_flag;	/**< @brief Allow client to use any IP Address (default=off).  */
   const char *uamanyip_help; /**< @brief Allow client to use any IP Address help description.  */
+  int uamnatanyip_flag;	/**< @brief Source NAT clients using anyip to an IP of dynip pool (default=off).  */
+  const char *uamnatanyip_help; /**< @brief Source NAT clients using anyip to an IP of dynip pool help description.  */
   char * wisprlogin_arg;	/**< @brief A specific WISPr login url to be used.  */
   char * wisprlogin_orig;	/**< @brief A specific WISPr login url to be used original value given at command line.  */
   const char *wisprlogin_help; /**< @brief A specific WISPr login url to be used help description.  */
@@ -289,6 +304,9 @@ struct gengetopt_args_info
   char * adminupdatefile_arg;	/**< @brief File for administrative user ChilliSpot-Config settings.  */
   char * adminupdatefile_orig;	/**< @brief File for administrative user ChilliSpot-Config settings original value given at command line.  */
   const char *adminupdatefile_help; /**< @brief File for administrative user ChilliSpot-Config settings help description.  */
+  char * rtmonfile_arg;	/**< @brief File to update with routing settings.  */
+  char * rtmonfile_orig;	/**< @brief File to update with routing settings original value given at command line.  */
+  const char *rtmonfile_help; /**< @brief File to update with routing settings help description.  */
   char * nasmac_arg;	/**< @brief Unique MAC address of the NAS (called-station-id).  */
   char * nasmac_orig;	/**< @brief Unique MAC address of the NAS (called-station-id) original value given at command line.  */
   const char *nasmac_help; /**< @brief Unique MAC address of the NAS (called-station-id) help description.  */
@@ -301,6 +319,8 @@ struct gengetopt_args_info
   char * vlan_arg;	/**< @brief VLAN of the session.  */
   char * vlan_orig;	/**< @brief VLAN of the session original value given at command line.  */
   const char *vlan_help; /**< @brief VLAN of the session help description.  */
+  int ieee8021q_flag;	/**< @brief Support 802.1Q VLAN tagging (default=off).  */
+  const char *ieee8021q_help; /**< @brief Support 802.1Q VLAN tagging help description.  */
   char * cmdsocket_arg;	/**< @brief path to the command unix socket.  */
   char * cmdsocket_orig;	/**< @brief path to the command unix socket original value given at command line.  */
   const char *cmdsocket_help; /**< @brief path to the command unix socket help description.  */
@@ -343,6 +363,12 @@ struct gengetopt_args_info
   int tcpwin_arg;	/**< @brief Change TCP window size to this value to help prevent congestion (default='0').  */
   char * tcpwin_orig;	/**< @brief Change TCP window size to this value to help prevent congestion original value given at command line.  */
   const char *tcpwin_help; /**< @brief Change TCP window size to this value to help prevent congestion help description.  */
+  int tcpmss_arg;	/**< @brief Change TCP maximum window size (mss) option in TCP traffic (default='0').  */
+  char * tcpmss_orig;	/**< @brief Change TCP maximum window size (mss) option in TCP traffic original value given at command line.  */
+  const char *tcpmss_help; /**< @brief Change TCP maximum window size (mss) option in TCP traffic help description.  */
+  int maxclients_arg;	/**< @brief Maximum number of clients/subscribers (default='512').  */
+  char * maxclients_orig;	/**< @brief Maximum number of clients/subscribers original value given at command line.  */
+  const char *maxclients_help; /**< @brief Maximum number of clients/subscribers help description.  */
   int challengetimeout_arg;	/**< @brief Timeout in seconds for the generated challenge (default='600').  */
   char * challengetimeout_orig;	/**< @brief Timeout in seconds for the generated challenge original value given at command line.  */
   const char *challengetimeout_help; /**< @brief Timeout in seconds for the generated challenge help description.  */
@@ -354,6 +380,8 @@ struct gengetopt_args_info
   unsigned int version_given ;	/**< @brief Whether version was given.  */
   unsigned int fg_given ;	/**< @brief Whether fg was given.  */
   unsigned int debug_given ;	/**< @brief Whether debug was given.  */
+  unsigned int bin_given ;	/**< @brief Whether bin was given.  */
+  unsigned int reload_given ;	/**< @brief Whether reload was given.  */
   unsigned int debugfacility_given ;	/**< @brief Whether debugfacility was given.  */
   unsigned int logfacility_given ;	/**< @brief Whether logfacility was given.  */
   unsigned int conf_given ;	/**< @brief Whether conf was given.  */
@@ -365,6 +393,7 @@ struct gengetopt_args_info
   unsigned int net_given ;	/**< @brief Whether net was given.  */
   unsigned int dhcpstart_given ;	/**< @brief Whether dhcpstart was given.  */
   unsigned int dhcpend_given ;	/**< @brief Whether dhcpend was given.  */
+  unsigned int dhcpbroadcast_given ;	/**< @brief Whether dhcpbroadcast was given.  */
   unsigned int dynip_given ;	/**< @brief Whether dynip was given.  */
   unsigned int nodynip_given ;	/**< @brief Whether nodynip was given.  */
   unsigned int statip_given ;	/**< @brief Whether statip was given.  */
@@ -401,6 +430,7 @@ struct gengetopt_args_info
   unsigned int proxysecret_given ;	/**< @brief Whether proxysecret was given.  */
   unsigned int dhcpif_given ;	/**< @brief Whether dhcpif was given.  */
   unsigned int dhcpmac_given ;	/**< @brief Whether dhcpmac was given.  */
+  unsigned int nexthop_given ;	/**< @brief Whether nexthop was given.  */
   unsigned int dhcpradius_given ;	/**< @brief Whether dhcpradius was given.  */
   unsigned int dhcpgateway_given ;	/**< @brief Whether dhcpgateway was given.  */
   unsigned int dhcpgatewayport_given ;	/**< @brief Whether dhcpgatewayport was given.  */
@@ -412,12 +442,14 @@ struct gengetopt_args_info
   unsigned int uamhomepage_given ;	/**< @brief Whether uamhomepage was given.  */
   unsigned int uamsecret_given ;	/**< @brief Whether uamsecret was given.  */
   unsigned int uamlisten_given ;	/**< @brief Whether uamlisten was given.  */
+  unsigned int dhcplisten_given ;	/**< @brief Whether dhcplisten was given.  */
   unsigned int uamport_given ;	/**< @brief Whether uamport was given.  */
   unsigned int uamuiport_given ;	/**< @brief Whether uamuiport was given.  */
   unsigned int uamallowed_given ;	/**< @brief Whether uamallowed was given.  */
   unsigned int uamdomain_given ;	/**< @brief Whether uamdomain was given.  */
   unsigned int uamanydns_given ;	/**< @brief Whether uamanydns was given.  */
   unsigned int uamanyip_given ;	/**< @brief Whether uamanyip was given.  */
+  unsigned int uamnatanyip_given ;	/**< @brief Whether uamnatanyip was given.  */
   unsigned int wisprlogin_given ;	/**< @brief Whether wisprlogin was given.  */
   unsigned int nouamsuccess_given ;	/**< @brief Whether nouamsuccess was given.  */
   unsigned int nouamwispr_given ;	/**< @brief Whether nouamwispr was given.  */
@@ -440,10 +472,12 @@ struct gengetopt_args_info
   unsigned int adminuser_given ;	/**< @brief Whether adminuser was given.  */
   unsigned int adminpasswd_given ;	/**< @brief Whether adminpasswd was given.  */
   unsigned int adminupdatefile_given ;	/**< @brief Whether adminupdatefile was given.  */
+  unsigned int rtmonfile_given ;	/**< @brief Whether rtmonfile was given.  */
   unsigned int nasmac_given ;	/**< @brief Whether nasmac was given.  */
   unsigned int nasip_given ;	/**< @brief Whether nasip was given.  */
   unsigned int ssid_given ;	/**< @brief Whether ssid was given.  */
   unsigned int vlan_given ;	/**< @brief Whether vlan was given.  */
+  unsigned int ieee8021q_given ;	/**< @brief Whether ieee8021q was given.  */
   unsigned int cmdsocket_given ;	/**< @brief Whether cmdsocket was given.  */
   unsigned int radiusoriginalurl_given ;	/**< @brief Whether radiusoriginalurl was given.  */
   unsigned int swapoctets_given ;	/**< @brief Whether swapoctets was given.  */
@@ -462,6 +496,8 @@ struct gengetopt_args_info
   unsigned int routeif_given ;	/**< @brief Whether routeif was given.  */
   unsigned int framedservice_given ;	/**< @brief Whether framedservice was given.  */
   unsigned int tcpwin_given ;	/**< @brief Whether tcpwin was given.  */
+  unsigned int tcpmss_given ;	/**< @brief Whether tcpmss was given.  */
+  unsigned int maxclients_given ;	/**< @brief Whether maxclients was given.  */
   unsigned int challengetimeout_given ;	/**< @brief Whether challengetimeout was given.  */
   unsigned int challengetimeout2_given ;	/**< @brief Whether challengetimeout2 was given.  */
 

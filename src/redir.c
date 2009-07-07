@@ -108,6 +108,7 @@ static int redir_chartohex(unsigned char *src, char *dst) {
   return 0;
 }
 
+/*
 static int redir_xmlencode(char *src, int srclen, char *dst, int dstsize) {
   char *x;
   int n;
@@ -134,6 +135,7 @@ static int redir_xmlencode(char *src, int srclen, char *dst, int dstsize) {
   dst[i] = 0;
   return 0;
 }
+*/
 
 static void redir_http(bstring s, char *code) {
   bassigncstr(s, "HTTP/1.1 ");
@@ -325,6 +327,19 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
     bconcat(str, bt2);
   }
 
+  if (conn->s_state.tag8021q) {
+    bcatcstr(str, amp);
+    bcatcstr(str, "vlan=");
+    bassignformat(bt, "%d", ntohs(conn->s_state.tag8021q & 0x0FFF));
+    bconcat(str, bt);
+  } else if (redir->vlan) {
+    bcatcstr(str, amp);
+    bcatcstr(str, "vlan=");
+    bassigncstr(bt, redir->vlan);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
+  }
+
   if (conn->lang[0]) {
     bcatcstr(str, amp);
     bcatcstr(str, "lang=");
@@ -490,7 +505,7 @@ static int redir_xmlreply(struct redir_t *redir,
 
       bcatcstr(b, "<LoginURL>");
 
-      bstring_buildurl(bt, conn, redir, options.wisprlogin ? options.wisprlogin : redir->url, 
+      bstring_buildurl(bt, conn, redir, options()->wisprlogin ? options()->wisprlogin : redir->url, 
 		       "smartclient", 0, hexchal, NULL, NULL, NULL, NULL, 
 		       conn->hismac, &conn->hisip, "&amp;");
       bconcat(b, bt);
@@ -651,8 +666,6 @@ static int redir_buildurl(struct redir_conn_t *conn, bstring str,
 			  char* userurl, char* reply, char* redirurl,
 			  uint8_t *hismac, struct in_addr *hisip) {
   char *redir_url = redir->url;
-  bstring bt = bfromcstr("");
-  bstring bt2 = bfromcstr("");
 
   if ((conn->s_params.flags & REQUIRE_UAM_SPLASH) && 
       conn->s_params.url[0]) {
@@ -830,7 +843,7 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   bcatcstr(s, "\r\n\r\n");
   bconcat(s, json);
 
-  if (options.debug) {
+  if (options()->debug) {
     log_dbg("sending json: %s\n", json->data);
   }
 
@@ -1003,7 +1016,8 @@ int redir_new(struct redir_t **redir,
 
     while (bind((*redir)->fd[n], (struct sockaddr *)&address, sizeof(address))) {
       if ((EADDRINUSE == errno) && (10 > n++)) {
-	log_warn(0, "UAM port already in use. Waiting for retry.");
+	log_warn(errno, "IP: %s Port: %d - Waiting for retry.",
+		 inet_ntoa(address.sin_addr),ntohs(address.sin_port));
 	if (sleep(30)) { /* In case we got killed */
 	  close((*redir)->fd[n]);
 	  (*redir)->fd[n]=0;
@@ -1032,14 +1046,15 @@ int redir_new(struct redir_t **redir,
     return -1;
   }
 
-  if (options.uid) {
-    struct msqid_ds ds = {0};
+  if (options()->uid) {
+    struct msqid_ds ds;
+    memset(&ds, 0, sizeof(ds));
     if (msgctl((*redir)->msgid, IPC_STAT, &ds) < 0) {
       log_err(errno, "msgctl(stat) failed");
       return -1;
     }
-    ds.msg_perm.uid = options.uid;
-    if (options.gid) ds.msg_perm.gid = options.gid;
+    ds.msg_perm.uid = options()->uid;
+    if (options()->gid) ds.msg_perm.gid = options()->gid;
     ds.msg_perm.mode = (ds.msg_perm.mode & ~0777) | 0600;
     if (msgctl((*redir)->msgid, IPC_SET, &ds) < 0) {
       log_err(errno, "msgctl(set) failed");
@@ -1072,25 +1087,26 @@ int redir_free(struct redir_t *redir) {
 void redir_set(struct redir_t *redir, int debug) { 
   optionsdebug = debug; /* TODO: Do not change static variable from instance */
   redir->debug = debug;
-  redir->no_uamsuccess = options.no_uamsuccess;
-  redir->no_uamwispr = options.no_uamwispr;
-  redir->chillixml = options.chillixml;
-  redir->url = options.uamurl;
-  redir->homepage = options.uamhomepage;
-  redir->secret = options.uamsecret;
-  redir->ssid = options.ssid;
-  redir->nasmac = options.nasmac;
-  redir->nasip = options.nasip;
-  redir->radiusserver0 = options.radiusserver1;
-  redir->radiusserver1 = options.radiusserver2;
-  redir->radiusauthport = options.radiusauthport;
-  redir->radiusacctport = options.radiusacctport;
-  redir->radiussecret  = options.radiussecret;
-  redir->radiusnasid  = options.radiusnasid;
-  redir->radiuslocationid  = options.radiuslocationid;
-  redir->radiuslocationname  = options.radiuslocationname;
-  redir->locationname  = options.locationname;
-  redir->radiusnasporttype = options.radiusnasporttype;
+
+  redir->no_uamwispr = options()->no_uamwispr;
+  redir->chillixml = options()->chillixml;
+  redir->url = options()->uamurl;
+  redir->homepage = options()->uamhomepage;
+  redir->secret = options()->uamsecret;
+  redir->ssid = options()->ssid;
+  redir->vlan = options()->vlan;
+  redir->nasmac = options()->nasmac;
+  redir->nasip = options()->nasip;
+  redir->radiusserver0 = options()->radiusserver1;
+  redir->radiusserver1 = options()->radiusserver2;
+  redir->radiusauthport = options()->radiusauthport;
+  redir->radiusacctport = options()->radiusacctport;
+  redir->radiussecret  = options()->radiussecret;
+  redir->radiusnasid  = options()->radiusnasid;
+  redir->radiuslocationid  = options()->radiuslocationid;
+  redir->radiuslocationname  = options()->radiuslocationname;
+  redir->locationname  = options()->locationname;
+  redir->radiusnasporttype = options()->radiusnasporttype;
   return;
 }
 
@@ -1536,9 +1552,9 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 /* Send radius Access-Request and wait for answer */
 static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 			struct redir_conn_t *conn, char reauth) {
-  unsigned char chap_password[REDIR_MD5LEN + 2];
-  unsigned char chap_challenge[REDIR_MD5LEN];
-  unsigned char user_password[REDIR_MD5LEN + 1];
+  uint8_t user_password[RADIUS_PWSIZE + 1];
+  uint8_t chap_password[REDIR_MD5LEN + 2];
+  uint8_t chap_challenge[REDIR_MD5LEN];
   struct radius_packet_t radius_pack;
   struct radius_t *radius;      /* Radius client instance */
   struct timeval idleTime;	/* How long to select() */
@@ -1551,7 +1567,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   char mac[REDIR_MACSTRLEN+1];
   char url[REDIR_URL_LEN];
-  int n;
+  int n, m;
 
   if (radius_new(&radius,
 		 &redir->radiuslisten, 0, 0,
@@ -1565,7 +1581,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   if (radius->fd > maxfd)
     maxfd = radius->fd;
 
-  radius_set(radius, dhcp ? dhcp->ipif.hwaddr : 0, (options.debug & DEBUG_RADIUS));
+  radius_set(radius, dhcp ? dhcp->rawif.hwaddr : 0, (options()->debug & DEBUG_RADIUS));
   
   radius_set_cb_auth_conf(radius, redir_cb_radius_auth_conf);
 
@@ -1584,7 +1600,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_LANG, 
 		   0, (uint8_t*) conn->lang, strlen(conn->lang));
 
-  if (options.radiusoriginalurl)
+  if (options()->radiusoriginalurl)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC, 
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_ORIGINALURL, 
 		   0, (uint8_t*) conn->s_state.redir.userurl, strlen(conn->s_state.redir.userurl));
@@ -1608,11 +1624,14 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
     /*
      * decode password - encoded by the UAM portal/script. 
      */
-    for (n=0; n < REDIR_MD5LEN; n++) 
-      user_password[n] = conn->password[n] ^ chap_challenge[n];
+    for (m=0; m < RADIUS_PWSIZE;) 
+      for (n=0; n < REDIR_MD5LEN; m++, n++) 
+	user_password[m] = conn->password[m] ^ chap_challenge[n];
+    
+    user_password[RADIUS_PWSIZE] = 0;
 
 #ifdef HAVE_OPENSSL
-    if (options.mschapv2) {
+    if (options()->mschapv2) {
       uint8_t response[50];
       uint8_t ntresponse[24];
 
@@ -1642,7 +1661,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 #endif
 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		   (uint8_t*)user_password, REDIR_MD5LEN);
+		   user_password, strlen((char*)user_password));
 
 #ifdef HAVE_OPENSSL
     }
@@ -1680,7 +1699,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   radius_addnasip(radius, &radius_pack);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
-		 options.framedservice ? RADIUS_SERVICE_TYPE_FRAMED :
+		 options()->framedservice ? RADIUS_SERVICE_TYPE_FRAMED :
 		 RADIUS_SERVICE_TYPE_LOGIN, NULL, 0); /* WISPr_V1.0 */
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,
@@ -1738,10 +1757,15 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOGOFF_URL, 0,
 		   (uint8_t*)url, strlen(url));
 
-  if (options.openidauth)
+  if (options()->openidauth)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
 		   0, (uint8_t*)"allow-openidauth", 16);
+
+  if (conn->s_state.tag8021q)
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
+		   ntohl(conn->s_state.tag8021q & 0x0FFF), 0, 0);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
@@ -1815,9 +1839,8 @@ int clear_nonblocking(int fd) {
 }
 
 int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
-  unsigned char user_password[REDIR_MD5LEN+1];
-  unsigned char chap_challenge[REDIR_MD5LEN];
-  unsigned char tmp[REDIR_MD5LEN+1];
+  uint8_t user_password[RADIUS_PWSIZE+1];
+  uint8_t chap_challenge[REDIR_MD5LEN];
   char u[256]; char p[256];
   size_t usernamelen, sz=1024;
   ssize_t len;
@@ -1826,16 +1849,16 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   MD5_CTX context;
   FILE *f;
 
-  if (!options.localusers) return 0;
+  if (!options()->localusers) return 0;
 
-  log_dbg("checking %s for user %s", options.localusers, conn->s_state.redir.username);
+  log_dbg("checking %s for user %s", options()->localusers, conn->s_state.redir.username);
 
-  if (!(f = fopen(options.localusers, "r"))) {
-    log_err(errno, "fopen() failed opening %s!", options.localusers);
+  if (!(f = fopen(options()->localusers, "r"))) {
+    log_err(errno, "fopen() failed opening %s!", options()->localusers);
     return 0;
   }
 
-  if (options.debug) {/*debug*/
+  if (options()->debug) {/*debug*/
     char buffer[64];
     redir_chartohex(conn->s_state.redir.uamchal, buffer);
     log_dbg("challenge: %s", buffer);
@@ -1851,22 +1874,23 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
     memcpy(chap_challenge, conn->s_state.redir.uamchal, REDIR_MD5LEN);
   }
 
-  if (options.debug) {/*debug*/
+  if (options()->debug) {/*debug*/
     char buffer[64];
     redir_chartohex(chap_challenge, buffer);
     log_dbg("chap challenge: %s", buffer);
   }/**/
 
   if (conn->chap == 0) {
-    int n;
-    for (n=0; n < REDIR_MD5LEN; n++)
-      user_password[n] = conn->password[n] ^ chap_challenge[n];
+    int n, m;
+    for (m=0; m < RADIUS_PWSIZE;)
+      for (n=0; n < REDIR_MD5LEN; m++, n++)
+	user_password[m] = conn->password[m] ^ chap_challenge[n];
   }
   else if (conn->chap == 1) {
     memcpy(user_password, conn->chappassword, REDIR_MD5LEN);
   }
   
-  user_password[REDIR_MD5LEN] = 0;
+  user_password[RADIUS_PWSIZE] = 0;
 	
   log_dbg("looking for %s", conn->s_state.redir.username);
   usernamelen = strlen(conn->s_state.redir.username);
@@ -1900,22 +1924,23 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 	log_dbg("found %s, checking password", u);
 
 	if (conn->chap == 0) {
-	  int n;
-	  for (n=0; n < REDIR_MD5LEN; n++)
-	    tmp[n] = p[n] ^ chap_challenge[n];
+
+	  if (!strcmp((char*)user_password, p))
+	    match = 1;
+
 	}
 	else if (conn->chap == 1) {
+	  unsigned char tmp[REDIR_MD5LEN];
+
 	  MD5Init(&context);
 	  MD5Update(&context, (uint8_t*)&conn->chap_ident, 1);	  
 	  MD5Update(&context, (uint8_t*)p, strlen(p));
 	  MD5Update(&context, chap_challenge, REDIR_MD5LEN);
 	  MD5Final(tmp, &context);
+
+	  if (!memcmp(user_password, tmp,  REDIR_MD5LEN)) 
+	    match = 1; 
 	}
-
-	tmp[REDIR_MD5LEN] = 0;
-
-	if (!memcmp(user_password, tmp, REDIR_MD5LEN)) 
-	  match = 1; 
 
 	break;
       }
@@ -1997,8 +2022,8 @@ int redir_accept(struct redir_t *redir, int idx) {
   if (dup2(new_socket,1) == -1) return -1;
 #endif
     
-  if (idx == 1 && options.uamui) {
-    char *binqqargs[2] = { options.uamui, 0 } ;
+  if (idx == 1 && options()->uamui) {
+    char *binqqargs[2] = { options()->uamui, 0 } ;
     char buffer[128];
 
     snprintf(buffer,sizeof(buffer)-1,"%s",inet_ntoa(address.sin_addr));
@@ -2070,7 +2095,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   redir_chartohex(challenge, hexchal); \
   msg.mtype = msgtype; \
   memcpy(conn.s_state.redir.uamchal, challenge, REDIR_MD5LEN); \
-  if (options.debug) { \
+  if (options()->debug) { \
     log_dbg("---->>> resetting challenge: %s", hexchal); \
   }
 
@@ -2137,6 +2162,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   /* get_state returns 0 for unauth'ed and 1 for auth'ed */
   state = redir->cb_getstate(redir, &address->sin_addr, &conn);
+
   if (state == -1) {
     redir_close(infd, outfd); 
   }
@@ -2161,7 +2187,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   if (conn.type == REDIR_WWW) {
     int fd = -1;
-    if (options.wwwdir && conn.wwwfile && *conn.wwwfile) {
+    if (options()->wwwdir && conn.wwwfile && *conn.wwwfile) {
       char *ctype = "text/plain";
       char *filename = conn.wwwfile;
       size_t namelen = strlen(filename);
@@ -2198,7 +2224,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       }
       
       if (parse) {
-	if (!options.wwwbin) {
+	if (!options()->wwwbin) {
 	  log_err(0, "the 'wwwbin' setting must be configured for CGI use");
 	  redir_close(infd, outfd);
 	}
@@ -2215,11 +2241,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	setenv("QUERY_STRING", qs, 1);
 	setenv("HTTP_COOKIE", conn.httpcookie, 1);
 	
-	log_dbg("Running: %s %s/%s",options.wwwbin, options.wwwdir, filename);
-	sprintf(buffer, "%s/%s", options.wwwdir, filename);
+	log_dbg("Running: %s %s/%s",options()->wwwbin, options()->wwwdir, filename);
+	sprintf(buffer, "%s/%s", options()->wwwdir, filename);
 	
 	{
-	  char *binqqargs[3] = { options.wwwbin, buffer, 0 } ;
+	  char *binqqargs[3] = { options()->wwwbin, buffer, 0 } ;
 	  int status;
 	  
 	  if ((status = fork()) < 0) {
@@ -2245,7 +2271,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	redir_close(infd, outfd);
       }
       
-      if (!chroot(options.wwwdir) && !chdir("/")) {
+      if (!chroot(options()->wwwdir) && !chdir("/")) {
 	
 	fd = open(filename, O_RDONLY);
 	
@@ -2273,7 +2299,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	} 
 	else log_err(0, "could not open local content file %s!", filename);
       }
-      else log_err(0, "chroot to %s was not successful\n", options.wwwdir); 
+      else log_err(0, "chroot to %s was not successful\n", options()->wwwdir); 
     } 
     else log_err(0, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param\n"); 
     
@@ -2306,8 +2332,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
     }
 
     /* Did the challenge expire? */
-    if (options.challengetimeout2 && 
-	(conn.s_state.uamtime + options.challengetimeout2) < time(NULL)) {
+    if (options()->challengetimeout2 && 
+	(conn.s_state.uamtime + options()->challengetimeout2) < time(NULL)) {
       log_dbg("redir_accept: challenge expired: %d : %d", conn.s_state.uamtime, time(NULL));
 
       redir_memcopy(REDIR_CHALLENGE);      
@@ -2336,24 +2362,23 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 	log_dbg("Received radius reply\n");
     }
 
-    if (options.defsessiontimeout && !conn.s_params.sessiontimeout)
-      conn.s_params.sessiontimeout = options.defsessiontimeout;
+    if (options()->defsessiontimeout && !conn.s_params.sessiontimeout)
+      conn.s_params.sessiontimeout = options()->defsessiontimeout;
 
-    if (options.defidletimeout && !conn.s_params.idletimeout)
-      conn.s_params.idletimeout = options.defidletimeout;
+    if (options()->defidletimeout && !conn.s_params.idletimeout)
+      conn.s_params.idletimeout = options()->defidletimeout;
       
-    if (options.defbandwidthmaxdown && !conn.s_params.bandwidthmaxdown)
-      conn.s_params.bandwidthmaxdown = options.defbandwidthmaxdown;
+    if (options()->defbandwidthmaxdown && !conn.s_params.bandwidthmaxdown)
+      conn.s_params.bandwidthmaxdown = options()->defbandwidthmaxdown;
       
-    if (options.defbandwidthmaxup && !conn.s_params.bandwidthmaxup)
-      conn.s_params.bandwidthmaxup = options.defbandwidthmaxup;
+    if (options()->defbandwidthmaxup && !conn.s_params.bandwidthmaxup)
+      conn.s_params.bandwidthmaxup = options()->defbandwidthmaxup;
 
-    if (options.definteriminterval && !conn.s_params.interim_interval)
-      conn.s_params.interim_interval = options.definteriminterval;
+    if (options()->definteriminterval && !conn.s_params.interim_interval)
+      conn.s_params.interim_interval = options()->definteriminterval;
 
     if (conn.response == REDIR_SUCCESS) { /* Accept-Accept */
-      bstring besturl = bfromcstr((char*)conn.s_params.url);
-      
+
       conn.s_params.flags &= ~REQUIRE_UAM_SPLASH;
 
       if (reauth) {
@@ -2361,20 +2386,11 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       }
 
       msg.mtype = REDIR_LOGIN;
-      if (! (besturl && besturl->slen)) 
-	bassigncstr(besturl, conn.s_state.redir.userurl);
       
-      if (redir->no_uamsuccess && besturl && besturl->slen)
-	redir_reply(redir, &socket, &conn, REDIR_SUCCESS, besturl, conn.s_params.sessiontimeout,
-		    NULL, conn.s_state.redir.username, conn.s_state.redir.userurl, conn.reply,
-		    (char *)conn.s_params.url, conn.hismac, &conn.hisip, qs);
-      else 
-	redir_reply(redir, &socket, &conn, REDIR_SUCCESS, NULL, conn.s_params.sessiontimeout,
-		    NULL, conn.s_state.redir.username, conn.s_state.redir.userurl, conn.reply, 
-		    (char *)conn.s_params.url, conn.hismac, &conn.hisip, qs);
+      redir_reply(redir, &socket, &conn, REDIR_SUCCESS, NULL, conn.s_params.sessiontimeout,
+		  NULL, conn.s_state.redir.username, conn.s_state.redir.userurl, conn.reply, 
+		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, qs);
       
-      bdestroy(besturl);
-
       /* set params and redir data */
       redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS);
 
@@ -2405,32 +2421,20 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   case REDIR_LOGOUT:
     {
-      bstring besturl = bfromcstr((char *)conn.s_params.url);
-
       redir_memcopy(REDIR_LOGOUT); 
       redir_msg_send(REDIR_MSG_OPT_REDIR);
 
       conn.s_state.authenticated=0;
       
-      if (! (besturl && besturl->slen)) 
-	bassigncstr(besturl, conn.s_state.redir.userurl);
-
-      if (redir->no_uamsuccess && besturl && besturl->slen)
-	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, besturl, 0, 
-		    hexchal, NULL, conn.s_state.redir.userurl, NULL, 
-		    NULL, conn.hismac, &conn.hisip, qs);
-      else 
-	redir_reply(redir, &socket, &conn, REDIR_LOGOFF, NULL, 0, 
-		    hexchal, NULL, conn.s_state.redir.userurl, NULL, 
-		    NULL, conn.hismac, &conn.hisip, qs);
-      
-      bdestroy(besturl);
+      redir_reply(redir, &socket, &conn, REDIR_LOGOFF, NULL, 0, 
+		  hexchal, NULL, conn.s_state.redir.userurl, NULL, 
+		  NULL, conn.hismac, &conn.hisip, qs);
       
       redir_close(infd, outfd);    
     }
     
   case REDIR_MACREAUTH:
-    if (options.macauth) {
+    if (options()->macauth) {
       msg.mtype = REDIR_MACREAUTH;
       redir_msg_send(0);
     }
@@ -2438,8 +2442,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   case REDIR_PRELOGIN:
     /* Did the challenge expire? */
-    if (options.challengetimeout &&
-	(conn.s_state.uamtime + options.challengetimeout) < time(NULL)) {
+    if (options()->challengetimeout &&
+	(conn.s_state.uamtime + options()->challengetimeout) < time(NULL)) {
       redir_memcopy(REDIR_CHALLENGE);
       redir_msg_send(REDIR_MSG_OPT_REDIR);
     }
@@ -2484,8 +2488,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       time_t timenow = time(0);
 
       /* Did the challenge expire? */
-      if (options.challengetimeout &&
-	  (conn.s_state.uamtime + options.challengetimeout) < time(NULL)) {
+      if (options()->challengetimeout &&
+	  (conn.s_state.uamtime + options()->challengetimeout) < time(NULL)) {
 	redir_memcopy(REDIR_CHALLENGE);
 	redir_msg_send(REDIR_MSG_OPT_REDIR);
       }
@@ -2517,8 +2521,8 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
 
   /* Did the challenge expire? */
-  if (options.challengetimeout &&
-      (conn.s_state.uamtime + options.challengetimeout) < time(NULL)) {
+  if (options()->challengetimeout &&
+      (conn.s_state.uamtime + options()->challengetimeout) < time(NULL)) {
     redir_memcopy(REDIR_CHALLENGE);
     redir_msg_send(REDIR_MSG_OPT_REDIR);
   }
@@ -2532,7 +2536,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   log_dbg("---->>> challenge: %s", hexchal);
 
-  if (options.macreauth) {
+  if (options()->macreauth) {
     msg.mtype = REDIR_MACREAUTH;
     redir_msg_send(0);
   }

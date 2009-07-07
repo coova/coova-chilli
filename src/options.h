@@ -34,6 +34,7 @@ struct options_t {
   /* TUN parameters */
   struct in_addr net;            /* Network IP address */
   char netc[OPT_IPADDRLEN];
+
   struct in_addr mask;           /* Network mask */
   char maskc[OPT_IPADDRLEN];
 
@@ -41,8 +42,6 @@ struct options_t {
   char * dynip;                  /* Dynamic IP address pool */
   char * statip;                 /* Static IP address pool */
   int autostatip;                /* Automatically assign "Static" IP addresses */
-  int allowdyn;                  /* Allow dynamic address allocation */
-  int allowstat;                 /* Allow static address allocation */
   struct in_addr dns1;           /* Primary DNS server IP address */
   struct in_addr dns2;           /* Secondary DNS server IP address */
   char * domain;                 /* Domain to use for DNS lookups */
@@ -72,8 +71,8 @@ struct options_t {
   int radiusretrysec;            /* Amount of retries after we switch to secondary */
 
   /* Radius proxy parameters */
-  struct in_addr proxylisten;    /* IP address to listen to */
   int proxyport;                 /* UDP port to listen to */
+  struct in_addr proxylisten;    /* IP address to listen to */
   struct in_addr proxyaddr;      /* IP address of proxy client(s) */
   struct in_addr proxymask;      /* IP mask of proxy client(s) */
   char* proxysecret;             /* Proxy shared secret */
@@ -82,14 +81,16 @@ struct options_t {
   int postauth_proxyport;           /* TCP port to proxy to */
 
   /* DHCP parameters */
-  char *dhcpif;                 /* Interface: eth1 */
-  char *routeif;                /* Interface: eth0 (optional) */
-  unsigned char dhcpmac[PKT_ETH_ALEN]; /* Interface MAC address */
-  int dhcpusemac;                /* Use given MAC or interface default */
+  char *dhcpif;                  /* Interface: eth1 */
+  char *routeif;                 /* Interface: eth0 (optional) */
+  uint8_t dhcpmac[PKT_ETH_ALEN]; /* Interface MAC address */
   struct in_addr dhcplisten;     /* IP address to listen to */
   int lease;                     /* DHCP lease time */
   int dhcpstart;
   int dhcpend;
+
+  /* XXX */
+  uint8_t nexthop[PKT_ETH_ALEN];
 
   uint16_t mtu;                  /* Max MTU */
 
@@ -97,7 +98,7 @@ struct options_t {
   struct in_addr dhcpgwip;       /* IP address of DHCP gateway to relay to */
   uint16_t dhcpgwport;           /* Port of DHCP gateway to relay to */
   uint16_t tcpwin;               /* TCP Window (zero to leave unchanged) */
-
+  uint16_t tcpmss;               /* TCP Maximum Segment Size (zero to leave unchanged) */
 
   /* UAM parameters */
   struct in_addr uamserver[UAMSERVER_MAX]; /* IP address of UAM server */
@@ -112,11 +113,14 @@ struct options_t {
   struct in_addr uamlisten;      /* IP address of local authentication */
   int uamport;                   /* TCP port to listen to */
   int uamuiport;                 /* TCP port to listen to */
+  int max_clients;               /* Max subscriber/clients */
 
   struct in_addr uamlogout;      /* IP address of HTTP auto-logout */
 
-
   /* booleans */
+  uint8_t allowdyn:1;               /* Allow dynamic address allocation */
+  uint8_t allowstat:1;              /* Allow static address allocation */
+  uint8_t dhcpusemac:1;             /* Use given MAC or interface default */
   uint8_t noc2c:1;
   uint8_t framedservice:1;
   uint8_t usetap:1;
@@ -128,8 +132,8 @@ struct options_t {
   uint8_t mschapv2:1;               /* Use and support MSCHAPv2 */
   uint8_t uamanydns:1;              /* Allow any dns server */
   uint8_t uamanyip:1;               /* Allow any ip address */
+  uint8_t uamnatanyip:1;
   uint8_t dnsparanoia:1;            /* Filter DNS for questionable content (dns tunnels) */
-  uint8_t no_uamsuccess:1;          /* Do not send redirect back to UAM on success */
   uint8_t no_uamwispr:1;            /* Do not have ChilliSpot return WISPr blocks */
   uint8_t acct_update:1;
   uint8_t wpaguests:1;              /* Allow WPS "Guest" access */
@@ -140,12 +144,15 @@ struct options_t {
   uint8_t macallowlocal:1;          /* Do not use RADIUS for authenticating the macallowed */
   uint8_t radiusoriginalurl:1;      /* Send ChilliSpot-OriginalURL in AccessRequest */
   uint8_t dhcpradius:1;             /* Send certain DHCP options in RADIUS attributes */
+  uint8_t has_nexthop:1;            /* Has a nexthop entry */
+  uint8_t ieee8021q:1;              /* check for VLAN tags */
+  uint8_t dhcp_broadcast:1;         /* always broadcast DHCP (when not relaying) */
   /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
   size_t num_pass_throughs;
 
-  char** uamdomains;
+  char* uamdomains[MAX_UAM_DOMAINS];
 
   /* MAC Authentication */
   unsigned char macok[MACOK_MAX][PKT_ETH_ALEN]; /* Allowed MACs */
@@ -162,6 +169,8 @@ struct options_t {
   unsigned int challengetimeout;
   unsigned int challengetimeout2;
 
+  char ourmac[32];
+
   /* local content */
   char *wwwdir;
   char *wwwbin;
@@ -172,23 +181,26 @@ struct options_t {
   char *adminuser;
   char *adminpasswd;
   char *adminupdatefile;
+  char *rtmonfile;
 
   /* Location-awareness */
   char *ssid;
+  char *vlan;
   char *nasmac;
   char *nasip;
 
   /* Command-Socket */
   char *cmdsocket;
-  
-  char **extra_argv;
-  int extra_argc;
-};
 
-extern struct options_t options;
+  char * _data; /* actual data buffer for loaded options */
+};
 
 int option_aton(struct in_addr *addr, struct in_addr *mask, char *pool, int number);
 int process_options(int argc, char **argv, int minimal);
 void reprocess_options(int argc, char **argv);
+int reload_options(int argc, char **argv);
+int options_save(char *file, bstring bt);
+void options_set(struct options_t *);
+struct options_t * options();
 
 #endif /*_OPTIONS_H */

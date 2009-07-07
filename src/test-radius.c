@@ -62,14 +62,14 @@ int static test_radius() {
   fd_set fds;
   int status;
 
-  if (!options.adminuser || !options.adminpasswd) return 1;
+  if (!options()->adminuser || !options()->adminpasswd) return 1;
 
-  if (radius_new(&radius, &options.radiuslisten, 0, 0, NULL, 0, NULL, NULL, NULL)) {
+  if (radius_new(&radius, &options()->radiuslisten, 0, 0, NULL, 0, NULL, NULL, NULL)) {
     sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Failed to create radius");
     return -1;
   }
 
-  radius_set(radius, 0, (options.debug & DEBUG_RADIUS));
+  radius_set(radius, 0, (options()->debug & DEBUG_RADIUS));
 
   radius_set_cb_auth_conf(radius, chilliauth_cb); 
 
@@ -81,37 +81,37 @@ int static test_radius() {
   }
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
-		 (uint8_t *)options.adminuser, strlen(options.adminuser));
+		 (uint8_t *)options()->adminuser, strlen(options()->adminuser));
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		 (uint8_t *)options.adminpasswd, strlen(options.adminpasswd));
+		 (uint8_t *)options()->adminpasswd, strlen(options()->adminpasswd));
 
   radius_addnasip(radius, &radius_pack);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
 		 RADIUS_SERVICE_TYPE_ADMIN_USER, NULL, 0); 
   
-  if (options.radiusnasid)
+  if (options()->radiusnasid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-		   (uint8_t *)options.radiusnasid, strlen(options.radiusnasid));
+		   (uint8_t *)options()->radiusnasid, strlen(options()->radiusnasid));
   
-  if (options.nasmac)
+  if (options()->nasmac)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-		   (uint8_t *)options.nasmac, strlen(options.nasmac)); 
+		   (uint8_t *)options()->nasmac, strlen(options()->nasmac)); 
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-		 options.radiusnasporttype, NULL, 0);
+		 options()->radiusnasporttype, NULL, 0);
 
-  if (options.radiuslocationid)
+  if (options()->radiuslocationid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_ID, 0,
-		   (uint8_t *)options.radiuslocationid, strlen(options.radiuslocationid));
+		   (uint8_t *)options()->radiuslocationid, strlen(options()->radiuslocationid));
 
-  if (options.radiuslocationname)
+  if (options()->radiuslocationname)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
-		   (uint8_t *)options.radiuslocationname, 
-		   strlen(options.radiuslocationname));
+		   (uint8_t *)options()->radiuslocationname, 
+		   strlen(options()->radiuslocationname));
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);

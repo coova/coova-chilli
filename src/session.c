@@ -11,8 +11,8 @@
  */
 #include "system.h"
 #include "session.h"
-
-extern time_t mainclock;
+#include "dhcp.h"
+#include "chilli.h"
 
 int session_redir_json_fmt(bstring json, char *userurl, char *redirurl, uint8_t *hismac) {
   bcatcstr(json,",\"redir\":{\"originalURL\":\"");
@@ -41,19 +41,18 @@ int session_json_fmt(struct session_state *state,
   uint32_t outoctets = state->output_octets;
   uint32_t ingigawords = (state->input_octets >> 32);
   uint32_t outgigawords = (state->output_octets >> 32);
-  time_t timenow = mainclock;
   uint32_t sessiontime;
   uint32_t idletime;
   
-  sessiontime = timenow - state->start_time;
-  idletime    = timenow - state->last_time;
+  sessiontime = mainclock_diff(state->start_time);
+  idletime    = mainclock_diff(state->last_time);
 
   bcatcstr(json,",\"session\":{\"sessionId\":\"");
   bcatcstr(json,state->sessionid);
   bcatcstr(json,"\",\"userName\":\"");
   bcatcstr(json,state->redir.username);
   bcatcstr(json, "\",\"startTime\":");
-  bassignformat(tmp, "%ld", init ? mainclock : starttime);
+  bassignformat(tmp, "%ld", init ? mainclock_now() : starttime);
   bconcat(json, tmp);
   bcatcstr(json,",\"sessionTimeout\":");
   bassignformat(tmp, "%lld", params->sessiontimeout);

@@ -61,6 +61,10 @@
 #include <sys/stat.h>
 #endif
 
+#ifdef HAVE_SYS_SYSINFO_H
+#include <sys/sysinfo.h>
+#endif
+
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -178,6 +182,10 @@
 # define BIG_ENDIAN 0
 #endif
 
+#ifndef SI_LOAD_SHIFT
+#define SI_LOAD_SHIFT 16
+#endif
+
 #include <unistd.h>
 #include <errno.h>
 
@@ -192,6 +200,10 @@
 #endif
 
 #define offsetof(TYPE, MEMBER) ((int)&((TYPE *)0)->MEMBER)
+
+#define SET_SA_FAMILY(addr, family)			\
+    memset ((char *) &(addr), '\0', sizeof(addr));	\
+    addr.sa_family = (family);
 
 #include "bstrlib.h"
 

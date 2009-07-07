@@ -1,5 +1,5 @@
 /* 
- * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
+ * CoovaChilli: A Wireless LAN Access Point Controller.
  * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (c) 2006-2008 David Bird <david@coova.com>
  *
@@ -40,6 +40,7 @@ static cmd_info commands[] = {
   { CMDSOCK_ENTRY_FOR_IP,  "listip",        NULL },
   { CMDSOCK_ENTRY_FOR_MAC, "listmac",       NULL },
   { CMDSOCK_ROUTE,         "route",         NULL },
+  { CMDSOCK_RELOAD,        "reload",        NULL },
   { CMDSOCK_DHCP_LIST,     "dhcp-list",     NULL },
   { CMDSOCK_DHCP_RELEASE,  "dhcp-release",  NULL },
   { CMDSOCK_AUTHORIZE,     "authorize",     NULL },

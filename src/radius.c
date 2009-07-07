@@ -27,15 +27,15 @@ void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   struct in_addr inaddr;
   struct in_addr *paddr = 0;
 
-  if (options.nasip && *options.nasip)
-    if (inet_aton(options.nasip, &inaddr))
+  if (options()->nasip && *options()->nasip)
+    if (inet_aton(options()->nasip, &inaddr))
       paddr = &inaddr;
 
-  if (!paddr && options.radiuslisten.s_addr != 0)
-    paddr = &options.radiuslisten;
+  if (!paddr && options()->radiuslisten.s_addr != 0)
+    paddr = &options()->radiuslisten;
 
   if (!paddr)
-    paddr = &options.uamlisten;
+    paddr = &options()->uamlisten;
     
   radius_addattr(radius, pack, RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, ntohl(paddr->s_addr), NULL, 0); 
 }
@@ -44,8 +44,8 @@ void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pa
   uint8_t b[24];
   uint8_t *mac= (uint8_t*)"";
 
-  if (options.nasmac)
-    mac = (uint8_t *)options.nasmac;
+  if (options()->nasmac)
+    mac = (uint8_t *)options()->nasmac;
   else 
     sprintf((char*)(mac=b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
 	    radius->nas_hwaddr[0],radius->nas_hwaddr[1],radius->nas_hwaddr[2],
@@ -224,7 +224,7 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
   tv = &this->queue[this->next].timeout;
   gettimeofday(tv, NULL);
 
-  tv->tv_sec += options.radiustimeout;
+  tv->tv_sec += options()->radiustimeout;
 
   this->queue[this->next].lastsent = this->lastreply;
 
@@ -324,7 +324,7 @@ int radius_queue_reschedule(struct radius_t *this, int id) {
   tv = &this->queue[id].timeout;
   gettimeofday(tv, NULL);
 
-  tv->tv_sec += options.radiustimeout;
+  tv->tv_sec += options()->radiustimeout;
 
   /* Remove from linked list */
   if (this->queue[id].next == -1) /* Are we the last in queue? */
@@ -486,11 +486,11 @@ int radius_timeout(struct radius_t *this) {
   while (this->first != -1 && 
 	 radius_cmptv(&now, &this->queue[this->first].timeout) >= 0) {
     
-    if (this->queue[this->first].retrans < options.radiusretry) {
+    if (this->queue[this->first].retrans < options()->radiusretry) {
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = AF_INET;
       
-      if (this->queue[this->first].retrans == (options.radiusretrysec - 1)) {
+      if (this->queue[this->first].retrans == (options()->radiusretrysec - 1)) {
 	/* Use the other server for next retransmission */
 	if (this->queue[this->first].lastsent) {
 	  addr.sin_addr = this->hisaddr0;
@@ -516,7 +516,6 @@ int radius_timeout(struct radius_t *this) {
 	addr.sin_port = htons(this->acctport);
       else
 	addr.sin_port = htons(this->authport);
-      
       
       if (sendto(this->fd, &this->queue[this->first].p,
 		 ntohs(this->queue[this->first].p.length), 0,
@@ -951,13 +950,13 @@ int radius_pwdecode(struct radius_t *this,
     dst[i] = src[i] ^ output[i];
 
   /* Continue with the remaining octets of passwd if any */
-  for (n = 0; n < 128 && n < (*dstlen - RADIUS_AUTHLEN); n += RADIUS_AUTHLEN) {
+  for (n = RADIUS_MD5LEN; n < 128 && n < *dstlen; n += RADIUS_MD5LEN) {
     MD5Init(&context);
     MD5Update(&context, (uint8_t*) secret, secretlen);
-    MD5Update(&context, src + n, RADIUS_AUTHLEN);
+    MD5Update(&context, src + n - RADIUS_MD5LEN, RADIUS_MD5LEN);
     MD5Final(output, &context);
-    for (i = 0; i < RADIUS_AUTHLEN; i++)
-      dst[i + n + RADIUS_AUTHLEN] = src[i + n + RADIUS_AUTHLEN] ^ output[i];
+    for (i = 0; i < RADIUS_MD5LEN; i++)
+      dst[i + n] = src[i + n] ^ output[i];
   }    
 
   if (this->debug) {
@@ -1019,18 +1018,14 @@ int radius_pwencode(struct radius_t *this,
   for (i = 0; i < RADIUS_MD5LEN; i++)
     dst[i] ^= output[i];
 
-  /* if (*dstlen <= RADIUS_MD5LEN) return 0;  Finished */
-
   /* Continue with the remaining octets of dst if any */
-  for (n = 0; 
-       n < 128 && n < (*dstlen - RADIUS_AUTHLEN); 
-       n += RADIUS_AUTHLEN) {
+  for (n = RADIUS_MD5LEN; n < *dstlen; n += RADIUS_MD5LEN) {
     MD5Init(&context);
     MD5Update(&context, (uint8_t*) secret, secretlen);
-    MD5Update(&context, dst + n, RADIUS_AUTHLEN);
+    MD5Update(&context, dst + n - RADIUS_MD5LEN, RADIUS_MD5LEN);
     MD5Final(output, &context);
-    for (i = 0; i < RADIUS_AUTHLEN; i++)
-      dst[i + n + RADIUS_AUTHLEN] ^= output[i];
+    for (i = 0; i < RADIUS_MD5LEN; i++)
+      dst[i + n] ^= output[i];
   }    
 
   return 0;
@@ -1167,24 +1162,24 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
   this->debug = debug;
 
   /* Remote radius server parameters */
-  this->hisaddr0.s_addr = options.radiusserver1.s_addr;
-  this->hisaddr1.s_addr = options.radiusserver2.s_addr;
+  this->hisaddr0.s_addr = options()->radiusserver1.s_addr;
+  this->hisaddr1.s_addr = options()->radiusserver2.s_addr;
 
-  if (options.radiusauthport) {
-    this->authport = options.radiusauthport;
+  if (options()->radiusauthport) {
+    this->authport = options()->radiusauthport;
   }
   else {
     this->authport = RADIUS_AUTHPORT;
   }
   
-  if (options.radiusacctport) {
-    this->acctport = options.radiusacctport;
+  if (options()->radiusacctport) {
+    this->acctport = options()->radiusacctport;
   }
   else {
     this->acctport = RADIUS_ACCTPORT;
   }
 
-  if ((this->secretlen = strlen(options.radiussecret)) > RADIUS_SECRETSIZE) {
+  if ((this->secretlen = strlen(options()->radiussecret)) > RADIUS_SECRETSIZE) {
     log_err(0, "Radius secret too long. Truncating to %d characters", 
 	    RADIUS_SECRETSIZE);
     this->secretlen = RADIUS_SECRETSIZE;
@@ -1193,7 +1188,7 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
   if (hwaddr)
     memcpy(this->nas_hwaddr, hwaddr, sizeof(this->nas_hwaddr));
 
-  memcpy(this->secret, options.radiussecret, this->secretlen);
+  memcpy(this->secret, options()->radiussecret, this->secretlen);
 
   this->lastreply = 0; /* Start out using server 0 */  
   return;
@@ -1388,6 +1383,24 @@ radius_default_pack(struct radius_t *this,
   radius_addattr(this, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VERSION, 
 		 0, (uint8_t*)VERSION, strlen(VERSION));
+
+  if (code == RADIUS_CODE_ACCOUNTING_REQUEST) {
+
+    /*
+     * For accounting, always indicate the "direction" of accounting
+     * up / down data measurements.
+     */
+
+    uint32_t v = options()->swapoctets ? 
+      RADIUS_VALUE_CHILLISPOT_NAS_VIEWPOINT :
+      RADIUS_VALUE_CHILLISPOT_CLIENT_VIEWPOINT;
+      
+    radius_addattr(this, pack, 
+		   RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_CHILLISPOT,
+		   RADIUS_ATTR_CHILLISPOT_ACCT_VIEW_POINT, 
+		   v, 0, 0);
+  }
   
   return 0;
 }
@@ -1635,37 +1648,37 @@ int chilliauth_radius(struct radius_t *radius) {
 
   /* adminuser is required */
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
-		 (uint8_t *)options.adminuser, strlen(options.adminuser));
+		 (uint8_t *)options()->adminuser, strlen(options()->adminuser));
 
-  if (options.adminpasswd)
+  if (options()->adminpasswd)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		   (uint8_t *)options.adminpasswd, strlen(options.adminpasswd));
+		   (uint8_t *)options()->adminpasswd, strlen(options()->adminpasswd));
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
 		 RADIUS_SERVICE_TYPE_ADMIN_USER, NULL, 0); 
-
+  
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-		 options.radiusnasporttype, NULL, 0);
-
+		 options()->radiusnasporttype, NULL, 0);
+  
   radius_addnasip(radius, &radius_pack);
-
+  
   radius_addcalledstation(radius, &radius_pack);
 
-  if (options.radiusnasid)
+  if (options()->radiusnasid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-		   (uint8_t *)options.radiusnasid, strlen(options.radiusnasid));
+		   (uint8_t *)options()->radiusnasid, strlen(options()->radiusnasid));
   
-  if (options.radiuslocationid)
+  if (options()->radiuslocationid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_ID, 0,
-		   (uint8_t *)options.radiuslocationid, strlen(options.radiuslocationid));
+		   (uint8_t *)options()->radiuslocationid, strlen(options()->radiuslocationid));
   
-  if (options.radiuslocationname)
+  if (options()->radiuslocationname)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
-		   (uint8_t *)options.radiuslocationname, 
-		   strlen(options.radiuslocationname));
+		   (uint8_t *)options()->radiuslocationname, 
+		   strlen(options()->radiuslocationname));
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
 		 (uint8_t*)admin_session.s_state.sessionid, REDIR_SESSIONID_LEN-1);

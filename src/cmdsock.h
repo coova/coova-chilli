@@ -11,6 +11,7 @@
 #define  CMDSOCK_ROUTE_SET      7
 #define  CMDSOCK_ENTRY_FOR_IP   8
 #define  CMDSOCK_ENTRY_FOR_MAC  9
+#define  CMDSOCK_RELOAD        10
 #define  CMDSOCK_OPT_JSON      (1)
 
 #include "pkt.h"
