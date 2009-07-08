@@ -157,6 +157,20 @@ specified by the radius server. Static address allocation can be used
 for both MAC authentication and Wireless Protected Access.
 
 .TP
+.BI dhcpgateway " ipaddress "
+IP address of a DHCP server (on the uplink network). If configured DHCP
+requests will be relayed to this server.
+
+.TP
+.BI dhcpgatewayport " port "
+Port number to use when relaying requests to the DHCP server configured via
+\fI dhcpgateway \fR at. Defaults to 67.
+
+.TP
+.BI dhcprelayagent " ipaddress "
+IP address to use when relaying DHCP requests to the DHCP gateway.
+
+.TP
 .BI dns1 " host"
 DNS Server 1. It is used to inform the client about the DNS address to
 use for host name resolution. If this option is not given the system
@@ -226,9 +240,8 @@ with the same arguments and environment variables as above.
 
 .TP
 .BI conup " script"
-Script executed after the tun network interface has been brought up.
-Executed with the following environment variables (see source code for
-possibly more):
+Script executed after a session is authorized.  Executed with the following
+environment variables (see source code for possibly more):
 .RS
 
 .TP
