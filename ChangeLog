@@ -11,6 +11,7 @@
 * Fixup for ''uamanydns'' whereby requests to anything other than ''dns1'' or ''dns2'' will be rewritten to access ''dns1'' instead of whatever setting the user has
 * The ''dhcpbroadcast'' option will have the DHCP server respond to broadcast IP always (when no relay)	
 * The ''tcpmss'' option will rewrite the TCP Maximum Segment Size (TCP Option).
+* Added logoutURL to the JSON redir block
 * WISPr LoginURL bug fix      
 	
 == ChangeLog (Coova Chilli v1.0.13 svn revision 199) ==

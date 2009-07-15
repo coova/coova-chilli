@@ -132,6 +132,16 @@ int ippool_new(struct ippool_t **this,
     m = ntohl(mask.s_addr);
     dynsize = ((~m)+1); 
 
+    if ( ((ntohl(addr.s_addr) + start)&m) != (ntohl(addr.s_addr)&m) ) {
+      log_err(0, "Invalid dhcpstart (outside of subnet)!");
+      return -1;
+    }
+
+    if ( ((ntohl(addr.s_addr) + end)&m) != (ntohl(addr.s_addr)&m) ) {
+      log_err(0, "Invalid dhcpend (outside of subnet)!");
+      return -1;
+    }
+
     if (start > 0 && end > 0) {
 
       if (end < start) {

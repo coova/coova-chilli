@@ -816,8 +816,12 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
     bcatcstr(json,"}");
   }
 
-  if (flg & FLG_redir)
-    session_redir_json_fmt(json, userurl, redirurl, hismac);
+  if (flg & FLG_redir) {
+    bassignformat(tmp , "http://%s:%d/logoff", 
+		  inet_ntoa(redir->addr), redir->port);
+
+    session_redir_json_fmt(json, userurl, redirurl, tmp, hismac);
+  }
 
   if (flg & FLG_sess) 
     session_json_fmt(&conn->s_state, &conn->s_params, 
@@ -2169,7 +2173,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
   splash = (conn.s_params.flags & REQUIRE_UAM_SPLASH) == REQUIRE_UAM_SPLASH;
 
-
   /*
    *  Parse the request, updating the status
    */
@@ -2361,21 +2364,6 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
       if (optionsdebug) 
 	log_dbg("Received radius reply\n");
     }
-
-    if (options()->defsessiontimeout && !conn.s_params.sessiontimeout)
-      conn.s_params.sessiontimeout = options()->defsessiontimeout;
-
-    if (options()->defidletimeout && !conn.s_params.idletimeout)
-      conn.s_params.idletimeout = options()->defidletimeout;
-      
-    if (options()->defbandwidthmaxdown && !conn.s_params.bandwidthmaxdown)
-      conn.s_params.bandwidthmaxdown = options()->defbandwidthmaxdown;
-      
-    if (options()->defbandwidthmaxup && !conn.s_params.bandwidthmaxup)
-      conn.s_params.bandwidthmaxup = options()->defbandwidthmaxup;
-
-    if (options()->definteriminterval && !conn.s_params.interim_interval)
-      conn.s_params.interim_interval = options()->definteriminterval;
 
     if (conn.response == REDIR_SUCCESS) { /* Accept-Accept */
 

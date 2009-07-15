@@ -71,21 +71,24 @@ sub man2wiki {
 	    $out .= "\n" if $in_tp_s && $nl;
 	} elsif ($line =~ /^\.LP/) {
 	} elsif ($line =~ /^\.RS/) {
-#	    $out .= "\n<dl><dd>\n";
+	    $out .= "\n<blockquote>";
 #	    $out .= "\n: ";
-	    $out .= "\n<div style='margin-left:60px;'>\n";
+#	    $out .= "\n<div style='margin-left:60px;'>\n";
 	    $in_rs = 1;
 	} elsif ($line =~ /^\.RE/) {
 #	    $out .= "\n</dd></dl>\n";
 	    if ($in_rs) {
-		$out .= "\n</div>\n";
+#		$out .= "\n</div>\n";
+		$out .= "</blockquote>\n\n";
 		$in_rs = 0;
 	    }
 	} elsif ($line =~ /^\.BR (.*)$/) {
 	    $nl=0;
 	    $link = trim($1);
 	    if ($link =~ /chilli/) {
-		$out .= "[[CoovaChilli/$link|$link]] ";
+		$l = $link;
+		$l =~ s/\(\d+\)//g;
+		$out .= "[[CoovaChilli $l|$link]] ";
 	    } else {
 		$link =~ s/\s//g;
 		$out .= "'''$link'''";
@@ -117,7 +120,7 @@ sub man2wiki {
     $out =~ s/\\//gs;
     $out =~ s/BACKSLASH/\\/gs;
 
-    print "<div style='float:right;'>__TOC__</div>\n";
+#    print "<div style='float:right;'>__TOC__</div>\n";
     print trim($out);
     print "\n";
 }

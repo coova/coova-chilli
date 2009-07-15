@@ -1538,7 +1538,7 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
   memcpy(&conn->s_state,  &appconn->s_state,  sizeof(appconn->s_state));
 
   /* reset state */
-  appconn->uamexit=0;
+  appconn->uamexit = 0;
 
   return conn->s_state.authenticated == 1;
 }
@@ -2317,6 +2317,26 @@ void config_radius_session(struct session_params *params,
   }
   else if (!reconfig)
     params->sessionterminatetime = 0;
+
+
+  { /* default options */ 
+    struct options_t * opt = options();
+    
+    if (opt->defsessiontimeout && !params->sessiontimeout)
+      params->sessiontimeout = opt->defsessiontimeout;
+    
+    if (opt->defidletimeout && !params->idletimeout)
+      params->idletimeout = opt->defidletimeout;
+    
+    if (opt->defbandwidthmaxdown && !params->bandwidthmaxdown)
+      params->bandwidthmaxdown = opt->defbandwidthmaxdown;
+    
+    if (opt->defbandwidthmaxup && !params->bandwidthmaxup)
+      params->bandwidthmaxup = opt->defbandwidthmaxup;
+    
+    if (opt->definteriminterval && !params->interim_interval)
+      params->interim_interval = opt->definteriminterval;
+  }
 }
 
 static int chilliauth_cb(struct radius_t *radius,

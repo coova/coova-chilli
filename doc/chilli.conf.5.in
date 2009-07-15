@@ -23,18 +23,18 @@ line or in a configuration file. When on the command line, options are
 prefixed with two dashes and may or may not have an equal sign, for
 instance, these are equivalent:
 
-.I chilli --uamallowed coova.org --uamanydns
+.I chilli --uamallowed www.coova.org --uamanydns
 
-.I chilli --uamallowed="coova.org" --uamanydns
+.I chilli --uamallowed="www.coova.org" --uamanydns
 
 Options that do not have arguments behave the same way, just without any
 equal sign or second argument. When in the configuration file, options must
 not have any dashes, but can still be used with or without the equal sign,
 as in:
 
-.I uamallowed "coova.org"
+.I uamallowed "www.coova.org"
 
-.I uamallowed=coova.org
+.I uamallowed=www.coova.org
 
 .I uamanydns
 
@@ -896,6 +896,7 @@ URL.
 .SH "SEE ALSO"
 .BR chilli(8)
 .BR chilli-radius(5)
+.BR chilli_opt(1)
 .BR chilli_radconfig(1)
 .BR syslogd(8)
 
@@ -904,7 +905,7 @@ URL.
 .LP
 
 See
-.I http://coova.org/
+.I http://www.coova.org/
 for further documentation and community support.
 The original ChilliSpot project homepage is/was at www.chillispot.org.
 
@@ -912,6 +913,6 @@ The original ChilliSpot project homepage is/was at www.chillispot.org.
 
 CoovaChilli and ChilliSpot are licensed under the Gnu Public License.
 Copyright (C) 2002-2005 by Mondru AB.,
-2006-2007 David Bird <david@coova.com>,
+2006-2009 Coova Technologies, LLC. 
 All rights reserved.
 
