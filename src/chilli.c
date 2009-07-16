@@ -2073,6 +2073,25 @@ int upprot_getip(struct app_conn_t *appconn,
   return dnprot_accept(appconn);
 }
 
+static void session_param_defaults(struct session_params *params) {
+  struct options_t * opt = options();
+  
+  if (opt->defsessiontimeout && !params->sessiontimeout)
+    params->sessiontimeout = opt->defsessiontimeout;
+  
+  if (opt->defidletimeout && !params->idletimeout)
+    params->idletimeout = opt->defidletimeout;
+  
+  if (opt->defbandwidthmaxdown && !params->bandwidthmaxdown)
+    params->bandwidthmaxdown = opt->defbandwidthmaxdown;
+  
+  if (opt->defbandwidthmaxup && !params->bandwidthmaxup)
+    params->bandwidthmaxup = opt->defbandwidthmaxup;
+  
+  if (opt->definteriminterval && !params->interim_interval)
+    params->interim_interval = opt->definteriminterval;
+}
+
 void config_radius_session(struct session_params *params, 
 			   struct radius_packet_t *pack, 
 			   struct dhcp_conn_t *dhcpconn,
@@ -2108,11 +2127,11 @@ void config_radius_session(struct session_params *params,
     if (params->interim_interval < 60) {
       log_err(0, "Received too small radius Acct-Interim-Interval: %d; resettings to default.",
 	      params->interim_interval);
-      params->interim_interval = options()->definteriminterval;
+      params->interim_interval = 0;
     } 
   }
   else if (!reconfig)
-    params->interim_interval = options()->definteriminterval;
+    params->interim_interval = 0;
 
   /* Bandwidth up */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
@@ -2319,24 +2338,7 @@ void config_radius_session(struct session_params *params,
     params->sessionterminatetime = 0;
 
 
-  { /* default options */ 
-    struct options_t * opt = options();
-    
-    if (opt->defsessiontimeout && !params->sessiontimeout)
-      params->sessiontimeout = opt->defsessiontimeout;
-    
-    if (opt->defidletimeout && !params->idletimeout)
-      params->idletimeout = opt->defidletimeout;
-    
-    if (opt->defbandwidthmaxdown && !params->bandwidthmaxdown)
-      params->bandwidthmaxdown = opt->defbandwidthmaxdown;
-    
-    if (opt->defbandwidthmaxup && !params->bandwidthmaxup)
-      params->bandwidthmaxup = opt->defbandwidthmaxup;
-    
-    if (opt->definteriminterval && !params->interim_interval)
-      params->interim_interval = opt->definteriminterval;
-  }
+  session_param_defaults(params);
 }
 
 static int chilliauth_cb(struct radius_t *radius,
@@ -3674,6 +3676,7 @@ static int cmdsock_accept(int sock) {
 	    log_dbg("remotely authorized session %s",appconn->s_state.sessionid);
 	    memcpy(&appconn->s_params, &req.data.sess.params, sizeof(req.data.sess.params));
 	    if (uname[0]) strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
+	    session_param_defaults(&appconn->s_params);
 	    dnprot_accept(appconn);
 	    break;
 	  }
