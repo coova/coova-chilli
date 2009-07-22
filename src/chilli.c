@@ -8,7 +8,7 @@
  * 
  * Copyright (C) 2003-2005 Mondru AB., 
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (C) 2007-2009 David Bird <david@coova.com>
+ * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
  *
  */
 

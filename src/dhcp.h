@@ -1,7 +1,7 @@
 /* 
  * DHCP library functions
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (c) 2007 David Bird <david@coova.com>
+ * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright

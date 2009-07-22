@@ -1,6 +1,6 @@
 /* 
  * CoovaChilli: A Wireless LAN Access Point Controller.
- * Copyright (c) 2006-2009 David Bird <david@coova.com>
+ * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -85,7 +85,7 @@ static int get_namepart(char *src, char *host, int hostsize, int *port) {
 static const char *description = 
   "CoovaChilli - A Wireless LAN Access Point Controller.\n"
   "  For more information on this project, visit: \n"
-  "  http://coova.org/wiki/index.php/CoovaChilli\n";
+  "  http://www.coova.org/\n";
 
 static const char *copyright = 
   "Copyright (c) 2003-2005 Mondru AB., 2006-2009 Coova Technologies LLC, and others.\n"

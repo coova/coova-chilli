@@ -1,7 +1,7 @@
 /*
  * HTTP redirection functions.
  * Copyright (C) 2004, 2005 Mondru AB.
- * Copyright (c) 2006-2009 David Bird <david@cova.com>
+ * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
  *
  * The contents of this file may be used under the terms of the GNU
  * General Public License Version 2, provided that the above copyright
@@ -501,7 +501,6 @@ static int redir_xmlreply(struct redir_t *redir,
 	bassignformat(bt, "<LocationName>%s</LocationName>\r\n", redir->radiuslocationname);
 	bconcat(b, bt);
       }
-
 
       bcatcstr(b, "<LoginURL>");
 

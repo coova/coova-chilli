@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006-2007 David Bird <david@coova.com>
+ * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
  *
  */
 #include "system.h"
