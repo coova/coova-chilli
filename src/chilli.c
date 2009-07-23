@@ -2096,6 +2096,7 @@ void config_radius_session(struct session_params *params,
 			   struct radius_packet_t *pack, 
 			   struct dhcp_conn_t *dhcpconn,
 			   int reconfig) {
+
   struct radius_attr_t *attr = NULL;
 
   /* Session timeout */
@@ -2453,6 +2454,13 @@ static int chilliauth_cb(struct radius_t *radius,
     admin_session.s_state.authenticated = 1;
     acct_req(&admin_session, RADIUS_STATUS_TYPE_START);
   }
+
+  /* reset these values to zero */
+  admin_session.s_params.idletimeout = 0;
+  admin_session.s_params.sessionterminatetime = 0;
+
+  /* should instead honor this with a re-auth (see interval) */
+  admin_session.s_params.sessiontimeout = 0;
 
   return 0;
 }
@@ -3745,7 +3753,7 @@ int printstatus(struct app_conn_t *appconn) {
   apptemp = appconn;
   while(apptemp != NULL)
   {
-    if(apptemp->s_state.authenticated==1)
+    if(apptemp->s_state.authenticated == 1)
     {
       fprintf(file, "%s, %s, %.2X-%.2X-%.2X-%.2X-%.2X-%.2X, %s, %d, %d, %d\n",
 	apptemp->s_state.redir.username,

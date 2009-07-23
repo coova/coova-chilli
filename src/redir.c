@@ -911,6 +911,7 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
     
   } else if (resp) {
     bstring bt = 0;
+    bstring bbody = 0;
 
     redir_http(buffer, "302 Moved Temporarily");
     bcatcstr(buffer, "Location: ");
@@ -932,18 +933,22 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
     
     bcatcstr(buffer, "\r\nConnection: close\r\n");
 
-    bt = bfromcstralloc(512, 
-			"<HTML><BODY><H2>Browser error!</H2>"
-			"Browser does not support redirects!</BODY>\r\n");
-    redir_xmlreply(redir, conn, res, timeleft, hexchal, reply, redirurl, bt);
-    bcatcstr(bt, "\r\n</HTML>\r\n");
-
+    bbody = bfromcstralloc(512, 
+			   "<HTML><BODY><H2>Browser error!</H2>"
+			   "Browser does not support redirects!</BODY>\r\n");
+    redir_xmlreply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
+    bcatcstr(bbody, "\r\n</HTML>\r\n");
+    
     bcatcstr(buffer, "Content-Length: ");
-    bassignformat(buffer , "%ld", blength(bt));
-    bcatcstr(buffer, "\r\nContent-Type: text/html; charset=UTF-8\r\n");
-
-    bcatcstr(buffer, "\r\n"); /* end of headers */
+    bassignformat(bt , "%ld", blength(bbody));
     bconcat(buffer, bt);
+    
+    bcatcstr(buffer, "\r\nContent-Type: text/html; charset=UTF-8\r\n");
+    
+    bcatcstr(buffer, "\r\n"); /* end of headers */
+    bconcat(buffer, bbody);
+
+    bdestroy(bbody);
     bdestroy(bt);
     
   } else {

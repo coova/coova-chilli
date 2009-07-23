@@ -1641,6 +1641,11 @@ int chilliauth_radius(struct radius_t *radius) {
   struct radius_packet_t radius_pack;
   int ret = -1;
 
+  /*if (admin_session.s_state.authenticated) {
+    terminate_appconn(&admin_session, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
+    memset(&admin_session.s_state, 0, sizeof(admin_session.s_state));
+    }*/
+  
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
     log_err(0, "radius_default_pack() failed");
     return ret;
