@@ -836,10 +836,10 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   redir_http(s, "200 OK");
 
   bcatcstr(s, "Content-Length: ");
-  bassignformat(tmp , "%ld", blength(json) );
+  bassignformat(tmp , "%d", blength(json));
   bconcat(s, tmp);
 
-  bcatcstr(s, "\r\nContent-type: ");
+  bcatcstr(s, "\r\nContent-Type: ");
   if (tmp->slen) bcatcstr(s, "text/javascript");
   else bcatcstr(s, "application/json");
 
@@ -910,8 +910,8 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
     redir_json_reply(redir, res, conn, hexchal, userurl, redirurl, hismac, reply, qs, buffer);
     
   } else if (resp) {
-    bstring bt = 0;
-    bstring bbody = 0;
+    bstring bt;
+    bstring bbody;
 
     redir_http(buffer, "302 Moved Temporarily");
     bcatcstr(buffer, "Location: ");
@@ -931,19 +931,17 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
       bdestroy(bt);
     }
     
-    bcatcstr(buffer, "\r\nConnection: close\r\n");
+    bcatcstr(buffer, "\r\nContent-Type: text/html; charset=UTF-8\r\n");
 
     bbody = bfromcstralloc(512, 
 			   "<HTML><BODY><H2>Browser error!</H2>"
 			   "Browser does not support redirects!</BODY>\r\n");
     redir_xmlreply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
     bcatcstr(bbody, "\r\n</HTML>\r\n");
-    
-    bcatcstr(buffer, "Content-Length: ");
-    bassignformat(bt , "%ld", blength(bbody));
+
+    bt = bfromcstralloc(128, "");
+    bassignformat(bt, "Content-Length: %d\r\n", blength(bbody));
     bconcat(buffer, bt);
-    
-    bcatcstr(buffer, "\r\nContent-Type: text/html; charset=UTF-8\r\n");
     
     bcatcstr(buffer, "\r\n"); /* end of headers */
     bconcat(buffer, bbody);
