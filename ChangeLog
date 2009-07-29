@@ -1,6 +1,8 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+* Added Content-Type and Content-Length to chilli HTTP responses (redirect) - needed for some smart-clients (iPASS)
+
 == ChangeLog (Coova Chilli v1.0.14 svn revision 208) ==
 
 * Major reduction in initial memory usage as the MAC session pool will grow as needed.	

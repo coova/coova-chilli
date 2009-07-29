@@ -288,6 +288,23 @@ int dhcp_hashdel(struct dhcp_t *this, struct dhcp_conn_t *conn) {
 }
 
 
+void dhcp_checktag(struct dhcp_conn_t *conn, uint8_t *pack) {
+  if (options()->ieee8021q && is_8021q(pack)) {
+    uint16_t tag = get8021q(pack);
+    if (tag != conn->tag8021q) {
+      conn->tag8021q = tag;
+      log_dbg("IEEE 802.1Q: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x on VLAN %d", 
+	      conn->hismac[0], conn->hismac[1], conn->hismac[2],
+	      conn->hismac[3], conn->hismac[4], conn->hismac[5],
+	      (int)(ntohs(tag) & 0xFF));
+    }
+    if (conn->peer) {
+      ((struct app_conn_t *)conn->peer)->s_state.tag8021q = conn->tag8021q;
+    }
+  }
+}
+
+
 /**
  * dhcp_hashget()
  * Uses the hash tables to find a connection based on the mac address.
@@ -380,6 +397,8 @@ int dhcp_newconn(struct dhcp_t *this,
   (*conn)->lasttime = mainclock_now();
   
   dhcp_hashadd(this, *conn);
+
+  dhcp_checktag(*conn, pkt);
   
   /* Inform application that connection was created */
   if (this->cb_connect)
@@ -1992,23 +2011,6 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
   }
 
   return 0;
-}
-
-static
-void dhcp_checktag(struct dhcp_conn_t *conn, uint8_t *pack) {
-  if (options()->ieee8021q && is_8021q(pack)) {
-    uint16_t tag = get8021q(pack);
-    if (tag != conn->tag8021q) {
-      conn->tag8021q = tag;
-      log_dbg("IEEE 802.1Q: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x on VLAN %d", 
-	      conn->hismac[0], conn->hismac[1], conn->hismac[2],
-	      conn->hismac[3], conn->hismac[4], conn->hismac[5],
-	      (int)(ntohs(tag) & 0xFF));
-    }
-    if (conn->peer) {
-      ((struct app_conn_t *)conn->peer)->s_state.tag8021q = conn->tag8021q;
-    }
-  }
 }
 
 static unsigned char const bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
