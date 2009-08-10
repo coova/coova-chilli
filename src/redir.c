@@ -70,12 +70,13 @@ static int redir_challenge(unsigned char *dst) {
   return 0;
 }
 
-static int redir_hextochar(unsigned char *src, unsigned char * dst, int len) {
+static int redir_hextochar(unsigned char *src, unsigned char * dst, int len, int nul_terminate) {
   char x[3];
   int n;
   int y;
+  int max_len = nul_terminate ? len-1 : len;
   
-  for (n=0; n < len; n++) {
+  for (n=0; n < max_len; n++) {
     x[0] = src[n*2+0];
     x[1] = src[n*2+1];
     x[2] = 0;
@@ -85,6 +86,8 @@ static int redir_hextochar(unsigned char *src, unsigned char * dst, int len) {
     }
     dst[n] = (unsigned char) y;
   }
+  if (nul_terminate)
+    dst[n]=0;
 
   return 0;
 }
@@ -1414,17 +1417,17 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       }
       
       if (!redir_getparam(redir, qs, "ntresponse", bt)) {
-	redir_hextochar(bt->data, conn->chappassword, 24);
+	redir_hextochar(bt->data, conn->chappassword, 24, 0);
 	conn->chap = 2;
 	conn->password[0] = 0;
       }
       else if (!redir_getparam(redir, qs, "response", bt)) {
-	redir_hextochar(bt->data, conn->chappassword, RADIUS_CHAPSIZE);
+	redir_hextochar(bt->data, conn->chappassword, RADIUS_CHAPSIZE, 0);
 	conn->chap = 1;
 	conn->password[0] = 0;
       }
       else if (!redir_getparam(redir, qs, "password", bt)) {
-	redir_hextochar(bt->data, conn->password, RADIUS_PWSIZE);
+	redir_hextochar(bt->data, conn->password, RADIUS_PWSIZE, 1);
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
       } else {
@@ -1648,10 +1651,10 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
      * decode password - encoded by the UAM portal/script. 
      */
     for (m=0; m < RADIUS_PWSIZE;) 
-      for (n=0; n < REDIR_MD5LEN; m++, n++) 
+      for (n=0; n < REDIR_MD5LEN; m++, n++)
 	user_password[m] = conn->password[m] ^ chap_challenge[n];
     
-    user_password[RADIUS_PWSIZE] = 0;
+    user_password[strlen(conn->password)] = 0;
 
 #ifdef HAVE_OPENSSL
     if (options()->mschapv2) {

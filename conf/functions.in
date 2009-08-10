@@ -159,8 +159,8 @@ EOF
 	[ "$HS_OPENIDAUTH" = "on" ] && addconfig2 "openidauth"
 	[ "$HS_ACCTUPDATE" = "on" ] && addconfig2 "acctupdate"
 	[ "$HS_DNSPARANOIA" = "on" ] && addconfig2 "dnsparanoia"
-	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile $HS_ADMINUPDATEFILE"
-	[ -n "$HS_UAMSECRET" ] && addconfig2 "uamsecret $HS_UAMSECRET"
+	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile \"$HS_ADMINUPDATEFILE\""
+	[ -n "$HS_UAMSECRET" ] && addconfig2 "uamsecret \"$HS_UAMSECRET\""
 	test ${HS_DEFSESSIONTIMEOUT:-0} -gt 0 && addconfig2 "defsessiontimeout $HS_DEFSESSIONTIMEOUT"
 	test ${HS_DEFIDLETIMEOUT:-0} -gt 0 && addconfig2 "defidletimeout $HS_DEFIDLETIMEOUT"
 	test ${HS_DEFBANDWIDTHMAXDOWN:-0} -gt 0 && addconfig2 "defbandwidthmaxdown $HS_DEFBANDWIDTHMAXDOWN"
@@ -177,13 +177,13 @@ EOF
 	# to manage settings and ensure they are not repeated
 
 	(cat <<EOF
-radiusserver1	$HS_RADIUS
-radiusserver2	${HS_RADIUS2:-$HS_UAMSERVER}
-radiussecret	$HS_RADSECRET
+radiusserver1	"$HS_RADIUS"
+radiusserver2	"${HS_RADIUS2:-$HS_UAMSERVER}"
+radiussecret	"$HS_RADSECRET"
 radiusauthport  ${HS_RADAUTH:-1812}
 radiusacctport  ${HS_RADACCT:-1813}
-uamserver	$(eval echo $HS_UAMFORMAT)
-radiusnasid	${HS_NASID:-nas01}
+uamserver	"$(eval echo $HS_UAMFORMAT)"
+radiusnasid	"${HS_NASID:-nas01}"
 $configs2
 EOF
 	) > $HS_TEMP
