@@ -69,6 +69,7 @@ struct session_state {
   time_t start_time;
   time_t interim_time;
 
+  time_t last_sent_time; /* Last time a packet was sent. Used for idle timeout calculations */
   time_t last_time; /* Last time a packet was received or sent */
   time_t uamtime;
 

@@ -50,7 +50,7 @@ int session_json_fmt(struct session_state *state,
   uint32_t idletime;
   
   sessiontime = mainclock_diff(state->start_time);
-  idletime    = mainclock_diff(state->last_time);
+  idletime    = mainclock_diff(state->last_sent_time);
 
   bcatcstr(json,",\"session\":{\"sessionId\":\"");
   bcatcstr(json,state->sessionid);

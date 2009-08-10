@@ -130,16 +130,17 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
   timediff = (uint64_t) mainclock_diffu(conn->s_state.last_time);
 
   if (options()->debug && (conn->s_params.bandwidthmaxup || 
-			conn->s_params.bandwidthmaxdown))
+			   conn->s_params.bandwidthmaxdown))
     log_dbg("Leaky bucket timediff: %lld, bucketup: %lld/%lld, bucketdown: %lld/%lld, up: %lld, down: %lld", 
 	    timediff, 
 	    conn->s_state.bucketup, conn->s_state.bucketupsize,
 	    conn->s_state.bucketdown, conn->s_state.bucketdownsize,
 	    octetsup, octetsdown);
-
+  
   if (conn->s_params.bandwidthmaxup) {
     /* subtract what the leak since last time we visited */
     uint64_t bytes = (timediff * conn->s_params.bandwidthmaxup) / 8;
+
     if (conn->s_state.bucketup > bytes) {
       conn->s_state.bucketup -= bytes;
     }
@@ -494,7 +495,7 @@ void session_interval(struct app_conn_t *conn) {
   uint32_t interimtime;
 
   sessiontime = mainclock_diffu(conn->s_state.start_time);
-  idletime    = mainclock_diffu(conn->s_state.last_time);
+  idletime    = mainclock_diffu(conn->s_state.last_sent_time);
   interimtime = mainclock_diffu(conn->s_state.interim_time);
 
   /* debugging timeout information
@@ -862,6 +863,7 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
     conn->s_state.start_time = mainclock;
     conn->s_state.interim_time = mainclock;
     conn->s_state.last_time = mainclock;
+    conn->s_state.last_sent_time = mainclock;
     conn->s_state.input_packets = 0;
     conn->s_state.output_packets = 0;
     conn->s_state.input_octets = 0;
@@ -1462,9 +1464,11 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 #endif
 #endif
     if (options()->swapoctets) {
+      appconn->s_state.last_sent_time = mainclock;
       appconn->s_state.output_packets++;
       appconn->s_state.output_octets += len;
       if (admin_session.s_state.authenticated) {
+        admin_session.s_state.last_sent_time = mainclock;
 	admin_session.s_state.output_packets++;
 	admin_session.s_state.output_octets+=len;
       }
@@ -3053,7 +3057,7 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
 
   if (appconn->s_state.authenticated) {
     sessiontime = mainclock_diffu(appconn->s_state.start_time);
-    idletime    = mainclock_diffu(appconn->s_state.last_time);
+    idletime    = mainclock_diffu(appconn->s_state.last_sent_time);
   }
 
   switch(fmt) {
@@ -3294,9 +3298,11 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 	admin_session.s_state.input_octets+=len;
       }
     } else {
+      appconn->s_state.last_sent_time = mainclock;
       appconn->s_state.output_packets++;
       appconn->s_state.output_octets +=len;
       if (admin_session.s_state.authenticated) {
+        admin_session.s_state.last_sent_time = mainclock;
 	admin_session.s_state.output_packets++;
 	admin_session.s_state.output_octets+=len;
       }

@@ -70,7 +70,7 @@ static int redir_challenge(unsigned char *dst) {
   return 0;
 }
 
-static int redir_hextochar2(unsigned char *src, unsigned char * dst, int len) {
+static int redir_hextochar(unsigned char *src, unsigned char * dst, int len) {
   char x[3];
   int n;
   int y;
@@ -87,10 +87,6 @@ static int redir_hextochar2(unsigned char *src, unsigned char * dst, int len) {
   }
 
   return 0;
-}
-
-static int redir_hextochar(unsigned char *src, unsigned char * dst) {
-  return redir_hextochar2(src, dst, REDIR_MD5LEN);
 }
 
 /* Convert 16 octet unsigned char to 32+1 octet ASCII hex string */
@@ -223,8 +219,8 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
   bstring bt = bfromcstr("");
   bstring bt2 = bfromcstr("");
 
-  bassignformat(str, "%s%cres=%s%suamip=%s%suamport=%d", 
-		redir_url, strchr(redir_url, '?') ? '&' : '?', resp, amp,
+  bassignformat(str, "%s%sres=%s%suamip=%s%suamport=%d", 
+		redir_url, strchr(redir_url, '?') ? amp : "?", resp, amp,
 		inet_ntoa(redir->addr), amp, 
 		redir->port);
 
@@ -417,11 +413,21 @@ static int redir_xmlreply(struct redir_t *redir,
       bcatcstr(b, 
 	       "<AuthenticationPollReply>\r\n"
 	       "<MessageType>140</MessageType>\r\n"
-	       "<ResponseCode>102</ResponseCode>\r\n"
-	       "<ReplyMessage>Already logged on</ReplyMessage>\r\n"
-	       "</AuthenticationPollReply>\r\n");
-      break;
+	       "<ResponseCode>50</ResponseCode>\r\n"
+	       "<ReplyMessage>Already logged on</ReplyMessage>\r\n");
       
+      bassignformat(bt, "<LogoffURL>http://%s:%d/logoff</LogoffURL>\r\n",
+		    inet_ntoa(redir->addr), redir->port);
+      bconcat(b, bt);
+      
+      if (redirurl) {
+	bassignformat(bt, "<RedirectionURL>%s</RedirectionURL>\r\n", redirurl);
+	bconcat(b, bt);
+      }
+
+      bcatcstr(b, "</AuthenticationPollReply>\r\n");
+      break;
+
     case REDIR_FAILED_REJECT:
       bcatcstr(b, 
 	       "<AuthenticationPollReply>\r\n"
@@ -475,6 +481,7 @@ static int redir_xmlreply(struct redir_t *redir,
 	bassignformat(bt, "<RedirectionURL>%s</RedirectionURL>\r\n", redirurl);
 	bconcat(b, bt);
       }
+
       bcatcstr(b, "</AuthenticationPollReply>\r\n");
       break;
       
@@ -1407,17 +1414,17 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       }
       
       if (!redir_getparam(redir, qs, "ntresponse", bt)) {
-	redir_hextochar2(bt->data, conn->chappassword, 24);
+	redir_hextochar(bt->data, conn->chappassword, 24);
 	conn->chap = 2;
 	conn->password[0] = 0;
       }
       else if (!redir_getparam(redir, qs, "response", bt)) {
-	redir_hextochar(bt->data, conn->chappassword);
+	redir_hextochar(bt->data, conn->chappassword, RADIUS_CHAPSIZE);
 	conn->chap = 1;
 	conn->password[0] = 0;
       }
       else if (!redir_getparam(redir, qs, "password", bt)) {
-	redir_hextochar(bt->data, conn->password);
+	redir_hextochar(bt->data, conn->password, RADIUS_PWSIZE);
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
       } else {
@@ -1650,10 +1657,10 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
     if (options()->mschapv2) {
       uint8_t response[50];
       uint8_t ntresponse[24];
-
+      
       /*uint8_t peer_challenge[16];
 	redir_challenge(peer_challenge);*/
-
+      
       GenerateNTResponse(chap_challenge, /*peer*/chap_challenge,
 			 conn->s_state.redir.username, strlen(conn->s_state.redir.username),
 			 user_password, strlen(user_password),
@@ -1675,9 +1682,9 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		     response, 50);
     } else {
 #endif
-
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		   user_password, strlen((char*)user_password));
+      
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
+		     user_password, strlen((char*)user_password));
 
 #ifdef HAVE_OPENSSL
     }
