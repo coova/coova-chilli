@@ -2015,6 +2015,9 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
 
 static unsigned char const bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
+int dhcp_receive_eapol(struct dhcp_t *this, uint8_t *pack);
+int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len);
+
 int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   struct pkt_ethhdr_t *pack_ethh = ethhdr(pack);
   struct pkt_iphdr_t  *pack_iph  = iphdr(pack);
@@ -2218,7 +2221,7 @@ int dhcp_decaps(struct dhcp_t *this) {
   }
 
   switch (prot) {
-  case PKT_ETH_PROTO_EAPOL: return dhcp_receive_eapol(this, packet, length);
+  case PKT_ETH_PROTO_EAPOL: return dhcp_receive_eapol(this, packet);
   case PKT_ETH_PROTO_ARP:   return dhcp_receive_arp(this, packet, length);
   case PKT_ETH_PROTO_IP:    return dhcp_receive_ip(this, packet, length);
   default: log_dbg("Layer2 PROT: 0x%.4x dropped", ntohs(prot));

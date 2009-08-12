@@ -55,6 +55,7 @@ int net_open_eth(net_interface *netif);
 int net_reopen(net_interface *netif);
 int net_init(net_interface *netif, char *ifname, uint16_t protocol, int promisc, uint8_t *mac);
 int net_route(struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask, int delete);
+int net_set_mtu(net_interface *netif, size_t mtu);
 
 ssize_t net_read(net_interface *netif, void *d, size_t slen);
 ssize_t net_write(net_interface *netif, void *d, size_t slen);

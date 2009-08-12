@@ -1404,7 +1404,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 		inet_ntoa(reqaddr));
       }
 	
-      return tun_write(tun, &packet, length, idx);
+      return tun_write(tun, (uint8_t*)&packet, length, idx);
     }
   } else {
     ipph = (struct pkt_ipphdr_t *)pack;
@@ -3227,7 +3227,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 /* Callback for receiving messages from dhcp */
 int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct app_conn_t *appconn = conn->peer;
-  struct pkt_ipphdr_t *ipph = iphdr(pack);
+  struct pkt_ipphdr_t *ipph = ipphdr(pack);
 
   /*if (options()->debug)
     log_dbg("cb_dhcp_data_ind. Packet received. DHCP authstate: %d\n", 
@@ -3267,7 +3267,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   if (options()->uamanyip && appconn->natip.s_addr) {
     log_dbg("SNAT to: %s", inet_ntoa(appconn->natip));
     ipph->saddr = appconn->natip.s_addr;
-    chksum(ipph);
+    chksum((struct pkt_iphdr_t *) ipph);
   }
   
 
@@ -3318,7 +3318,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 }
 
 /* Callback for receiving messages from eapol */
-int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, void *pack, size_t len) {
+int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct eap_packet_t *eap = eappkt(pack);
   struct app_conn_t *appconn = conn->peer;
   struct radius_packet_t radius_pack;
@@ -4044,7 +4044,6 @@ int chilli_main(int argc, char **argv) {
     } else if (p == 0) {
       char pst[16];
       char *newargs[16];
-      int status;
       int i=0;
 
       sprintf(pst,"%d",cpid);

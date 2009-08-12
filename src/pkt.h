@@ -310,6 +310,7 @@ struct eap_packet_t {
     ((struct pkt_ethhdr_t *)n)->prot = ((struct pkt_ethhdr_t *)o)->prot; \
   }
 
+#define ipphdr(pkt)   ((struct pkt_ipphdr_t *)   (((uint8_t*)(pkt)) + sizeofeth(pkt)))
 #define iphdr(pkt)    ((struct pkt_iphdr_t *)   (((uint8_t*)(pkt)) + sizeofeth(pkt)))
 #define udphdr(pkt)   ((struct pkt_udphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))
 #define tcphdr(pkt)   ((struct pkt_tcphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))
