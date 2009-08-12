@@ -2226,6 +2226,7 @@ int dhcp_decaps(struct dhcp_t *this) {
   case PKT_ETH_PROTO_IP:    return dhcp_receive_ip(this, packet, length);
   default: log_dbg("Layer2 PROT: 0x%.4x dropped", ntohs(prot));
   }
+  return -1;
 }
 
 int dhcp_ethhdr(struct dhcp_conn_t *conn, uint8_t *packet, uint8_t *hismac, uint8_t *nexthop, uint16_t prot) {

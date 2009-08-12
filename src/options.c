@@ -252,7 +252,6 @@ int options_load(int argc, char **argv, bstring bt) {
 }
 
 int options_save(char *file, bstring bt) {
-  char our_mac[32];
   struct options_t o;
   mode_t oldmask;
   int fd, i;
@@ -323,7 +322,7 @@ int options_save(char *file, bstring bt) {
     return 0;
 
   } else {
-    int wr = write(fd, &o, sizeof(o));
+    write(fd, &o, sizeof(o));
     size_t len = bt->slen;
     write(fd, &len, sizeof(len));
     write(fd, bt->data, len);
@@ -356,7 +355,7 @@ int process_options(int argc, char **argv, int minimal) {
 }
 
 void reprocess_options(int argc, char **argv) {
-  int pid = opt_run(argc, argv, 1);
+  opt_run(argc, argv, 1);
 }
 
 int reload_options(int argc, char **argv) {

@@ -283,7 +283,6 @@ int main(int argc, char **argv) {
 	  unsigned int temp[PKT_ETH_ALEN];
 	  char macstr[RADIUS_ATTR_VLEN];
 	  int macstrlen;
-	  int routeidx;
 	  int i;
 
 	  if (argc < argidx + 2) {

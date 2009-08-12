@@ -41,8 +41,6 @@ int pkt_shape(uint8_t *packet, size_t *length) {
     if (iph->protocol == PKT_IP_PROTO_TCP) {
 
       struct pkt_tcphdr_t *tcph = tcphdr(packet);
-      int modified = 0;
-
       int off = tcph->offres >> 4;
       int hasmss = 0;
 

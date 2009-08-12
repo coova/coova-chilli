@@ -104,11 +104,11 @@ int netlink_route_request(int fd) {
     perror("sendmsg");
     return -1;
   }
+  return 0;
 }
 
 int netlink_route_results(int fd, char *b, size_t blen) {
   int len = 0;
-  int rtn;
 
   bzero(b, blen);
 
@@ -137,7 +137,7 @@ int netlink_route_results(int fd, char *b, size_t blen) {
 /**
 * Extract each route table entry and print
 */
-int netlink_parse_routes(char *b, int blen) {
+void netlink_parse_routes(char *b, int blen) {
   struct nlmsghdr *hdr = (struct nlmsghdr *) b;
   struct rtattr * attr;
   int payload;
@@ -254,7 +254,7 @@ void print_routes() {
   }
 }
 
-static char *mactoa(uint8_t *m) {
+static const char *mactoa(uint8_t *m) {
   static char buff[256];
   sprintf(buff, "%02x:%02x:%02x:%02x:%02x:%02x",
 	  m[0], m[1], m[2], m[3], m[4], m[5]);

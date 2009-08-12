@@ -12,6 +12,7 @@
 #include "system.h"
 #include "session.h"
 #include "dhcp.h"
+#include "radius.h"
 #include "chilli.h"
 
 int session_redir_json_fmt(bstring json, char *userurl, char *redirurl, 

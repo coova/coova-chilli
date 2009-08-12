@@ -171,7 +171,7 @@ dns_copy_res(int q,
       case 16: log_dbg("TXT record"); break;
       default: log_dbg("Record type %d", type); break;
       }
-      log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, rdlen);
+      log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, namelen);
       return -1;
     }
   }

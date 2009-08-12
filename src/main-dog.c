@@ -44,8 +44,9 @@ int main(int argc, char **argv) {
 
   while (1) {
     FD_ZERO(&fds);
-    FD_SET(maxfd = radius_auth->fd, &fds);
-    FD_SET(maxfd = radius_acct->fd, &fds);
+    FD_SET(radius_auth->fd, &fds);
+    FD_SET(radius_acct->fd, &fds);
+    maxfd=radius_auth->fd>radius_acct->fd ? radius_auth->fd : radius_acct->fd;
     
     switch (status = select(maxfd + 1, &fds, NULL, NULL, NULL)) {
     case -1:

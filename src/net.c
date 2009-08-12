@@ -227,6 +227,7 @@ int net_set_mtu(net_interface *netif, size_t mtu) {
     log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCSIFMTU);
     return -1;
   }
+  return 0;
 }
 
 int net_route(struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask, int delete) {
@@ -409,7 +410,7 @@ int net_open_eth(net_interface *netif) {
 
     memset(&ifr, 0, sizeof(ifr));
     strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
-    if (-1 < ioctl(netif->fd, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
+    if (ioctl(netif->fd, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
       log_err(errno, "ioctl(SIOCGIFFLAGS)");
     } else {
       netif->devflags = ifr.ifr_flags;
