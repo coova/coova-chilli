@@ -418,9 +418,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
 #else
 #error  "Unknown platform!"
 #endif
-  
 }
-
 
 int tun_setaddr(struct tun_t *this, struct in_addr *addr, struct in_addr *dstaddr, struct in_addr *netmask) {
   net_set_address(&tuntap(this), addr, dstaddr, netmask);

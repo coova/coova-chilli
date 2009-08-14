@@ -121,7 +121,7 @@ void static log_pid(char *pidfile) {
   fclose(file);
 }
 
-#ifdef LEAKY_BUCKET
+#ifdef ENABLE_LEAKYBUCKET
 /* Perform leaky bucket on up- and downlink traffic */
 int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t octetsdown) {
   int result = 0;
@@ -460,7 +460,9 @@ int static getconn(struct app_conn_t **conn, uint32_t nasip, uint32_t nasport) {
 
 int static dnprot_terminate(struct app_conn_t *appconn) {
   appconn->s_state.authenticated = 0;
+#ifdef EANBLE_STATFILE
   printstatus(appconn);
+#endif
   switch (appconn->dnprot) {
   case DNPROT_WPA:
   case DNPROT_EAPOL:
@@ -1282,7 +1284,9 @@ int static dnprot_accept(struct app_conn_t *appconn) {
       runscript(appconn, options()->conup);
     }
     
+#ifdef EANBLE_STATFILE
     printstatus(appconn);
+#endif
     
     if (!(appconn->s_params.flags & IS_UAM_REAUTH))
       acct_req(appconn, RADIUS_STATUS_TYPE_START);
@@ -1454,11 +1458,11 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 	   ipph->sport == htons(options()->uamuiport)))) {
     if (appconn->s_state.authenticated == 1) {
 
-#ifndef LEAKY_BUCKET
+#ifndef ENABLE_LEAKYBUCKET
       appconn->s_state.last_time = mainclock;
 #endif
 
-#ifdef LEAKY_BUCKET
+#ifdef ENABLE_LEAKYBUCKET
 #ifndef COUNT_DOWNLINK_DROP
     if (leaky_bucket(appconn, 0, len)) return 0;
 #endif
@@ -1480,7 +1484,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 	admin_session.s_state.input_octets+=len;
       }
     }
-#ifdef LEAKY_BUCKET
+#ifdef ENABLE_LEAKYBUCKET
 #ifdef COUNT_DOWNLINK_DROP
     if (leaky_bucket(appconn, 0, len)) return 0;
 #endif
@@ -2229,15 +2233,18 @@ void config_radius_session(struct session_params *params,
 
   {
     const char *uamauth = "require-uam-auth";
-    const char *uamallowed = "uamallowed=";
     const char *splash = "splash";
     const char *adminreset = "admin-reset";
 
     size_t offset = 0;
     int is_splash = 0;
 
+#ifdef ENABLE_SESSGARDEN
+    const char *uamallowed = "uamallowed=";
+
     /* Always reset the per session passthroughs */
     params->pass_through_count = 0;
+#endif
 
     while (!radius_getnextattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
 			       RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
@@ -2254,6 +2261,7 @@ void config_radius_session(struct session_params *params,
 	params->flags |= REQUIRE_UAM_SPLASH;
 	is_splash = 1;
       }
+#ifdef ENABLE_SESSGARDEN
       else if (len > strlen(uamallowed) && !memcmp(val, uamallowed, strlen(uamallowed)) && len < 255) {
 	char name[256];
 	strncpy(name, val, len);
@@ -2263,6 +2271,7 @@ void config_radius_session(struct session_params *params,
 				  &params->pass_through_count,
 				  name + strlen(uamallowed));
       }
+#endif
       else if (dhcpconn && len >= strlen(adminreset) && !memcmp(val, adminreset, strlen(adminreset))) {
 	dhcp_release_mac(dhcp, dhcpconn->hismac, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
       }
@@ -2639,7 +2648,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     }
   }
 
-#ifdef LEAKY_BUCKET
+#ifdef ENABLE_LEAKYBUCKET
   if (appconn->s_params.bandwidthmaxup) {
 #ifdef BUCKET_SIZE
     appconn->s_state.bucketupsize = BUCKET_SIZE;
@@ -2651,7 +2660,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
   }
 #endif
   
-#ifdef LEAKY_BUCKET
+#ifdef ENABLE_LEAKYBUCKET
   if (appconn->s_params.bandwidthmaxdown) {
 #ifdef BUCKET_SIZE
     appconn->s_state.bucketdownsize = BUCKET_SIZE;
@@ -3061,10 +3070,12 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
   }
 
   switch(fmt) {
+#ifdef ENABLE_JSON
   case LIST_JSON_FMT:
     if (appconn->s_state.authenticated)
       session_json_fmt(&appconn->s_state, &appconn->s_params, b, 0);
     break;
+#endif
   default:
     {
       bstring tmp = bfromcstr("");
@@ -3099,20 +3110,26 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
 		    appconn->s_params.maxtotaloctets, options()->swapoctets);
       bconcat(b, tmp);
 
+#ifdef ENABLE_LEAKYBUCKET
       /* adding: max-bandwidth-up max-bandwidth-down */
       if (appconn->s_state.bucketupsize) {
 	bassignformat(tmp, " %d/%lld", 
 		      (int) (appconn->s_state.bucketup * 100 / appconn->s_state.bucketupsize),
 		      appconn->s_params.bandwidthmaxup);
 	bconcat(b, tmp);
-      } else bcatcstr(b, " 0/0");
+      } else 
+#endif
+	bcatcstr(b, " 0/0");
 
+#ifdef ENABLE_LEAKYBUCKET
       if (appconn->s_state.bucketdownsize) {
 	bassignformat(tmp, " %d/%lld ", 
 		      (int) (appconn->s_state.bucketdown * 100 / appconn->s_state.bucketdownsize),
 		      appconn->s_params.bandwidthmaxdown);
 	bconcat(b, tmp);
-      } else bcatcstr(b, " 0/0 ");
+      } else 
+#endif
+	bcatcstr(b, " 0/0 ");
 
       /* adding: original url */
       if (appconn->s_state.redir.userurl[0])
@@ -3281,11 +3298,11 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   
   if (appconn->s_state.authenticated == 1) {
 
-#ifndef LEAKY_BUCKET
+#ifndef ENABLE_LEAKYBUCKET
     appconn->s_state.last_time = mainclock;
 #endif
 
-#ifdef LEAKY_BUCKET
+#ifdef ENABLE_LEAKYBUCKET
 #ifndef COUNT_UPLINK_DROP
     if (leaky_bucket(appconn, len, 0)) return 0;
 #endif
@@ -3307,7 +3324,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 	admin_session.s_state.output_octets+=len;
       }
     }
-#ifdef LEAKY_BUCKET
+#ifdef ENABLE_LEAKYBUCKET
 #ifdef COUNT_UPLINK_DROP
     if (leaky_bucket(appconn, len, 0)) return 0;
 #endif
@@ -3476,7 +3493,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     
     appconn->policy = 0; /* TODO */
 
-#ifdef LEAKY_BUCKET
+#ifdef ENABLE_LEAKYBUCKET
 #ifdef BUCKET_SIZE
     appconn->s_state.bucketupsize = BUCKET_SIZE;
 #else
@@ -3486,7 +3503,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 #endif
 #endif
 
-#ifdef LEAKY_BUCKET
+#ifdef ENABLE_LEAKYBUCKET
 #ifdef BUCKET_SIZE
     appconn->s_state.bucketdownsize = BUCKET_SIZE;
 #else
@@ -3717,6 +3734,7 @@ static int cmdsock_accept(int sock) {
   return rval;
 }
 
+#ifdef ENABLE_STATFILE
 /* Function that will create and write a status file in statedir*/
 int printstatus(struct app_conn_t *appconn) {
   char *statedir = options()->statedir ? options()->statedir : DEFSTATEDIR;
@@ -3795,6 +3813,7 @@ int printstatus(struct app_conn_t *appconn) {
   fclose(file);
   return 0;
 }
+#endif
 
 static void fixup_options() {
   /*
@@ -3896,7 +3915,9 @@ int chilli_main(int argc, char **argv) {
 
   mainclock_tick();
 
+#ifdef EANBLE_STATFILE
   printstatus(NULL);
+#endif
 
   /* Create a tunnel interface */
   if (tun_new(&tun)) {
@@ -4245,5 +4266,4 @@ int chilli_main(int argc, char **argv) {
     kill(rtmon, SIGTERM);
 
   return 0;
-  
 }

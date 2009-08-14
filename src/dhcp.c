@@ -288,6 +288,7 @@ int dhcp_hashdel(struct dhcp_t *this, struct dhcp_conn_t *conn) {
 }
 
 
+#ifdef ENABLE_IEEE8021Q
 void dhcp_checktag(struct dhcp_conn_t *conn, uint8_t *pack) {
   if (options()->ieee8021q && is_8021q(pack)) {
     uint16_t tag = get8021q(pack);
@@ -303,6 +304,7 @@ void dhcp_checktag(struct dhcp_conn_t *conn, uint8_t *pack) {
     }
   }
 }
+#endif
 
 
 /**
@@ -398,7 +400,9 @@ int dhcp_newconn(struct dhcp_t *this,
   
   dhcp_hashadd(this, *conn);
 
+#ifdef ENABLE_IEEE8021Q
   dhcp_checktag(*conn, pkt);
+#endif
   
   /* Inform application that connection was created */
   if (this->cb_connect)
@@ -957,16 +961,19 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   /* Was it a request for a pass-through entry? */
   if (check_garden(options()->pass_throughs, options()->num_pass_throughs, pack, 1))
     return 0;
+
   /* Check uamdomain driven walled garden */
   if (check_garden(this->pass_throughs, this->num_pass_throughs, pack, 1))
     return 0;
 
+#ifdef ENABLE_SESSGARDEN
   /* Check appconn session specific pass-throughs */
   if (conn->peer) {
     struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
     if (check_garden(appconn->s_params.pass_throughs, appconn->s_params.pass_through_count, pack, 1))
       return 0;
   }
+#endif
 
   if (iph->protocol == PKT_IP_PROTO_TCP) {
 
@@ -1192,12 +1199,14 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen) {
   if (check_garden(this->pass_throughs, this->num_pass_throughs, pack, 0))
     return 0;
 
+#ifdef ENABLE_SESSGARDEN
   /* Check appconn session specific pass-throughs */
   if (conn->peer) {
     struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
     if (check_garden(appconn->s_params.pass_throughs, appconn->s_params.pass_through_count, pack, 0))
       return 0;
   }
+#endif
 
   if (iph->protocol == PKT_IP_PROTO_TCP) {
     dhcp_sendRESET(conn, pack, 0);
@@ -2100,7 +2109,9 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     return 0;
   }
 
+#ifdef ENABLE_IEEE8021Q
   dhcp_checktag(conn, pack);
+#endif
 
   /* 
    *  Request an IP address 
@@ -2230,6 +2241,7 @@ int dhcp_decaps(struct dhcp_t *this) {
 }
 
 int dhcp_ethhdr(struct dhcp_conn_t *conn, uint8_t *packet, uint8_t *hismac, uint8_t *nexthop, uint16_t prot) {
+#ifdef ENABLE_IEEE8021Q
   if (conn->tag8021q) {
     struct pkt_ethhdr8021q_t *pack_ethh = ethhdr8021q(packet);
     memcpy(pack_ethh->dst, hismac, PKT_ETH_ALEN);
@@ -2237,7 +2249,9 @@ int dhcp_ethhdr(struct dhcp_conn_t *conn, uint8_t *packet, uint8_t *hismac, uint
     pack_ethh->prot = htons(prot);
     pack_ethh->tpid = htons(PKT_ETH_8021Q_TPID);
     pack_ethh->pcp_cfi_vid = conn->tag8021q;
-  } else {
+  } else 
+#endif
+  {
     struct pkt_ethhdr_t *pack_ethh = ethhdr(packet);
     memcpy(pack_ethh->dst, hismac, PKT_ETH_ALEN);
     memcpy(pack_ethh->src, nexthop, PKT_ETH_ALEN);
@@ -2501,7 +2515,9 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
     }
   }
 
+#ifdef ENABLE_IEEE8021Q
   dhcp_checktag(conn, pack);
+#endif
 
   log_dbg("ARP: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X asking about %s", 
 	  conn->hismac[0], conn->hismac[1], conn->hismac[2],

@@ -15,6 +15,7 @@
 #include "radius.h"
 #include "chilli.h"
 
+#ifdef ENABLE_JSON
 int session_redir_json_fmt(bstring json, char *userurl, char *redirurl, 
 			   bstring logouturl, uint8_t *hismac) {
   bcatcstr(json,",\"redir\":{\"originalURL\":\"");
@@ -106,4 +107,5 @@ int session_json_fmt(struct session_state *state,
   bdestroy(tmp);
   return 0;
 }
+#endif
 

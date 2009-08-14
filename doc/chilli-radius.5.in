@@ -13,7 +13,7 @@ does take some liberties and bends the rules in places to better adapt to
 the more dynamic application of captive portals. 
 
 See
-.I http://coova.org/wiki/index.php/CoovaChilli/RADIUS
+.I http://www.coova.org/CoovaChilli/RADIUS
 for details.
 
 .SH ATTRIBUTES
@@ -33,13 +33,13 @@ and a short description:
 .LP
 
 See
-.I http://coova.org/
+.I http://www.coova.org/
 for further documentation and community support.
 The original ChilliSpot project homepage is/was at www.chillispot.org.
 
 .SH AUTHORS
 
-Copyright (C) 2006-2007 David Bird <david@coova.com>,
+Copyright (C) 2006-2009 Coova Techcnologies, LLC <support@coova.com>,
 CoovaChilli and ChilliSpot are licensed under the Gnu Public License.
 All rights reserved.
 

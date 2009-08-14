@@ -15,8 +15,6 @@
  * extracted from various .h files, needs some cleanup.
  */
 
-/* chilli */
-#define LEAKY_BUCKET 1
 /* If the constants below are defined packets which have been dropped
    by the traffic shaper will be counted towards accounting and
    volume limitation */

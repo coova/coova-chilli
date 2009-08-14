@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Copyright (c) 2006 David Bird <david@coova.com>
-# Licensed under GPL. See http://coova.org/
+# Licensed under GPL. See http://www.coova.org/
 #
 
 IPTABLES=/sbin/iptables
@@ -35,7 +35,6 @@ HS_RADACCT=${HS_RADACCT=1813}
 HS_ADMINUPDATEFILE=${HS_ADMINUPDATEFILE:-$LOCAL_CONF}
 HS_ADMINTERVAL=${HS_ADMINTERVAL:-60}
 HS_RADCONF=${HS_RADCONF:-off}
-HS_RADCONF_SERVER=${HS_RADCONF_SERVER:-rad01.coova.org}
 HS_RADCONF_SERVERS=${HS_RADCONF_SERVERS:+$(echo "$HS_RADCONF_SERVERS"|sed 's/[;, ]/ /g')}
 HS_RADCONF_SECRET=${HS_RADCONF_SECRET:-coova-anonymous}
 HS_RADCONF_AUTHPORT=${HS_RADCONF_AUTHPORT:-1812}
@@ -67,9 +66,9 @@ addconfig2() { [ -n "$*" ] && configs2="$configs2
 $*"; }
 
 writeconfig() {
-    [ "$HS_ANYIP" = "on" ] && {
-	addconfig1 "uamanyip"
-    }
+    [ "$HS_ANYIP" = "on" ] && addconfig1 "uamanyip"
+    [ "$HS_NATANYIP" = "on" ] && addconfig1 "uamnatanyip"
+    [ "$HS_NOC2C" = "on" ] && addconfig1 "noc2c"
 
     addconfig1 ${HS_DYNIP:+"dynip $HS_DYNIP/${HS_DYNIP_MASK:-255.255.255.0}"}
     addconfig1 ${HS_STATIP:+"statip $HS_STATIP/${HS_STATIP_MASK:-255.255.255.0}"}
@@ -141,7 +140,7 @@ net		$HS_NETWORK/$HS_NETMASK
 uamlisten	$HS_UAMLISTEN
 uamport         $HS_UAMPORT
 dhcpif		$HS_LANIF
-uamallowed	"coova.org,$HS_UAMSERVER,$HS_RADIUS$webadmin$uamallow"
+uamallowed	"www.coova.org,$HS_UAMSERVER,$HS_RADIUS$webadmin$uamallow"
 uamanydns
 $configs1
 EOF

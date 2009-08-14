@@ -134,7 +134,7 @@ int main(int argc, char **argv) {
 
   memset(&args_info, 0, sizeof(args_info));
 
-  if (cmdline_parser(argc, argv, &args_info) != 0) {
+  if (cmdline_parser2(argc, argv, &args_info, 1, 1, 1) != 0) {
     log_err(0, "Failed to parse command line options");
     goto end_processing;
   }

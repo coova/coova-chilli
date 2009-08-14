@@ -326,12 +326,15 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
     bconcat(str, bt2);
   }
 
+#ifdef ENABLE_IEEE8021Q
   if (conn->s_state.tag8021q) {
     bcatcstr(str, amp);
     bcatcstr(str, "vlan=");
     bassignformat(bt, "%d", ntohs(conn->s_state.tag8021q & 0x0FFF));
     bconcat(str, bt);
-  } else if (redir->vlan) {
+  } else 
+#endif
+  if (redir->vlan) {
     bcatcstr(str, amp);
     bcatcstr(str, "vlan=");
     bassigncstr(bt, redir->vlan);
@@ -575,6 +578,7 @@ static int redir_xmlreply(struct redir_t *redir,
     bcatcstr(b, "</WISPAccessGatewayParam>\r\n");
   }
 
+#ifdef ENABLE_CHILLIXML
   if (redir->chillixml) {
     bcatcstr(b, "<ChilliSpotSession>\r\n");
     switch (res) {
@@ -663,9 +667,11 @@ static int redir_xmlreply(struct redir_t *redir,
     }
     bcatcstr(b, "</ChilliSpotSession>\r\n");  
   }
+#endif
   
   bcatcstr(b, "-->\r\n");
   bdestroy(bt);
+
   return 0;
 }
 
@@ -724,6 +730,7 @@ tcp_write(struct redir_socket *sock, char *buf, size_t len) {
   return (ssize_t)r;
 }
 
+#ifdef ENABLE_JSON
 static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t *conn,  
 			    char *hexchal, char *userurl, char *redirurl, uint8_t *hismac, 
 			    char *reply, char *qs, bstring s) {
@@ -865,6 +872,7 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
 
   return 0;
 }
+#endif
 
 /* Make an HTTP redirection reply and send it to the client */
 static int redir_reply(struct redir_t *redir, struct redir_socket *sock, 
@@ -915,11 +923,14 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
 
   buffer = bfromcstralloc(1024, "");
 
+#ifdef ENABLE_JSON
   if (conn->format == REDIR_FMT_JSON) {
 
     redir_json_reply(redir, res, conn, hexchal, userurl, redirurl, hismac, reply, qs, buffer);
     
-  } else if (resp) {
+  } else 
+#endif
+  if (resp) {
     bstring bt;
     bstring bbody;
 
@@ -1275,6 +1286,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
 	/* TODO: Should also check the Host: to make sure we are talking directly to uamlisten */
 
+#ifdef ENABLE_JSON
 	if (!strncmp(path, "json/", 5) && strlen(path) > 6) {
 	  int i, last=strlen(path)-5;
 
@@ -1287,6 +1299,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 
 	  log_dbg("The (json format) path: %s", path); 
 	}
+#endif
 
 	if ((!strcmp(path, "logon")) || (!strcmp(path, "login")))
 	  conn->type = REDIR_LOGIN;
@@ -1788,10 +1801,12 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
 		   0, (uint8_t*)"allow-openidauth", 16);
 
+#ifdef ENABLE_IEEE8021Q
   if (conn->s_state.tag8021q)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
 		   ntohl(conn->s_state.tag8021q & 0x0FFF), 0, 0);
+#endif
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);

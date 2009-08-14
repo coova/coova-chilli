@@ -50,11 +50,11 @@ option "autostatip"  - "Auto- static ip assignment" int default="0" no
 
 # Radius parameters
 option "radiuslisten"       - "IP address to send from"       string no
-option "radiusserver1"      - "IP address of radius server 1" string default="rad01.coova.org" no
-option "radiusserver2"      - "IP address of radius server 2" string default="rad01.coova.org" no
+option "radiusserver1"      - "IP address of radius server 1" string no
+option "radiusserver2"      - "IP address of radius server 2" string no
 option "radiusauthport"     - "Authentication UDP port of radius server" int default="1812" no
 option "radiusacctport"     - "Accounting UDP port of radius server" int default="1813" no
-option "radiussecret"       - "Radius shared secret"          string default="coova-anonymous" no
+option "radiussecret"       - "Radius shared secret"          string default="testing123" no
 option "radiustimeout"      - "Retry timeout in seconds" int default="30" no
 option "radiusretry"        - "Total number of retries"        int default="6" no
 option "radiusretrysec"     - "Number of retries before using secondary" int default="3" no
@@ -104,7 +104,7 @@ option "uamnatanyip"  - "Source NAT clients using anyip to an IP of dynip pool" 
 option "wisprlogin"   - "A specific WISPr login url to be used" string no
 option "nouamsuccess" - "Do not return to the UAM server on success, original url instead" flag  off
 option "nouamwispr"   - "Do not send WISPr XML from ChilliSpot, assume back-end does" flag  off
-option "uamlogoutip"  - "HTTP Auto-Logout IP Address" string default="1.1.1.1" no
+option "uamlogoutip"  - "HTTP Auto-Logout IP Address" string default="1.0.0.0" no
 
 option "defsessiontimeout" - "Default session-timeout if not returned by RADIUS" long default="0" no
 option "defidletimeout" - "Default idle-timeout if not returned by RADIUS" int default="0" no

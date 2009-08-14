@@ -39,8 +39,10 @@ struct session_params {
 #define IS_UAM_REAUTH      (1<<3)
   uint8_t flags;
 
+#ifdef ENABLE_SESSGARDEN
   pass_through pass_throughs[SESSION_PASS_THROUGH_MAX];
   uint32_t pass_through_count;
+#endif
 } __attribute__((packed));
 
 
@@ -79,9 +81,12 @@ struct session_state {
   uint64_t output_octets;
   uint32_t terminate_cause;
   uint32_t session_id;
-  uint16_t tag8021q;
 
-#ifdef LEAKY_BUCKET
+#ifdef ENABLE_IEEE8021Q
+  uint16_t tag8021q;
+#endif
+
+#ifdef ENABLE_LEAKYBUCKET
   /* Leaky bucket */
   uint64_t bucketup;
   uint64_t bucketdown;

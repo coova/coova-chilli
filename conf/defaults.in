@@ -29,11 +29,11 @@ HS_UAMPORT=3990            # HotSpot Port (on subscriber network)
 #   HotSpot settings for simple Captive Portal
 #
 HS_NASID=nas01
-HS_UAMSECRET=
-HS_RADIUS=rad01.coova.org
-HS_RADIUS2=rad01.coova.org
-HS_RADSECRET=coova-anonymous
-HS_UAMALLOW=coova.org
+HS_RADIUS=radius1.coova.net
+HS_RADIUS2=radius2.coova.net
+# HS_UAMALLOW=www.coova.org
+# HS_RADSECRET=  # Set to be your RADIUS shared secret (assigned from CoovaNET)
+# HS_UAMSECRET=  # Set to be your UAM secret (assigned from CoovaNET)
 
 #   Put entire domains in the walled-garden with DNS inspection
 # HS_UAMDOMAINS=".paypal.com,.paypalobjects.com"
@@ -45,13 +45,13 @@ HS_UAMALLOW=coova.org
 
 #   The server to be used in combination with HS_UAMFORMAT to 
 #   create the final chilli 'uamserver' url configuration.
-HS_UAMSERVER=coova.org
+HS_UAMSERVER=www.coova.net
 
 #   Use HS_UAMFORMAT to define the actual captive portal url.
 #   Shell variable replacement takes place when evaluated, so here
 #   HS_UAMSERVER is escaped and later replaced by the pre-defined 
 #   HS_UAMSERVER to form the actual "--uamserver" option in chilli.
-HS_UAMFORMAT=https://\$HS_UAMSERVER/app/uam/chilli
+HS_UAMFORMAT=https://\$HS_UAMSERVER/hotspot
 
 #   Same principal goes for HS_UAMHOMEPAGE.
 HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
@@ -60,7 +60,7 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 #   as provide "uamService" to the ChilliController. The UAM Service is
 #   described in: http://coova.org/wiki/index.php/CoovaChilli/UAMService
 #
-HS_UAMSERVICE=https://coova.org/app/uam/auth
+# HS_UAMSERVICE=https://coova.org/app/uam/auth
 
 
 ###

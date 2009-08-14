@@ -65,6 +65,7 @@ struct app_conn_t {
   struct session_state  state[2];         /* Session state */
   char has_subsession;
 #endif
+
   struct session_params s_params;         /* Session parameters */
   struct session_state  s_state;          /* Session state */
 

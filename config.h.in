@@ -1,5 +1,20 @@
 /* config.h.in.  Generated from configure.in by autoheader.  */
 
+/* Define to enable Chilli XML */
+#undef ENABLE_CHILLIXML
+
+/* Define to enable Chilli JSON */
+#undef ENABLE_JSON
+
+/* Define to enable Chilli Leaky Bucket shaping */
+#undef ENABLE_LEAKYBUCKET
+
+/* Define to enable Chilli session walled garden */
+#undef ENABLE_SESSGARDEN
+
+/* Define to enable status file */
+#undef ENABLE_STATFILE
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
