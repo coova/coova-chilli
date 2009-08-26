@@ -283,6 +283,7 @@ struct eap_packet_t {
 } __attribute__((packed));
 
 
+#ifdef ENABLE_IEEE8021Q
 #define is_8021q(pkt) (((struct pkt_ethhdr8021q_t *)pkt)->tpid == htons(PKT_ETH_8021Q_TPID))
 #define get8021q(pkt) (((struct pkt_ethhdr8021q_t *)pkt)->pcp_cfi_vid)
 
@@ -298,9 +299,8 @@ struct eap_packet_t {
 #define sizeofudp(pkt)   sizeofudp2(is_8021q(pkt))
 #define sizeoftcp(pkt)   sizeoftcp2(is_8021q(pkt))
 #define sizeofarp(pkt)   (sizeofeth(pkt)+sizeof(struct arp_packet_t))
-
-#define ethhdr(pkt)      ((struct pkt_ethhdr_t *)pkt)
 #define ethhdr8021q(pkt) ((struct pkt_ethhdr8021q_t *)pkt)
+
 #define copy_ethproto(o,n)  \
   if (is_8021q(o)) { \
     ((struct pkt_ethhdr8021q_t *)n)->tpid = htons(PKT_ETH_8021Q_TPID); \
@@ -310,7 +310,27 @@ struct eap_packet_t {
     ((struct pkt_ethhdr_t *)n)->prot = ((struct pkt_ethhdr_t *)o)->prot; \
   }
 
-#define ipphdr(pkt)   ((struct pkt_ipphdr_t *)   (((uint8_t*)(pkt)) + sizeofeth(pkt)))
+#else
+
+#define sizeofeth2(x)   (PKT_ETH_HLEN)
+#define sizeofip2(x)    (sizeofeth2(x)+PKT_IP_HLEN)
+#define sizeofdot1x2(x) (sizeofeth2(x)+PKT_DOT1X_HLEN)
+#define sizeofudp2(x)   (sizeofip2(x)+PKT_UDP_HLEN)
+#define sizeoftcp2(x)   (sizeofip2(x)+PKT_TCP_HLEN)
+#define sizeofeth(pkt)   sizeofeth2(0)
+#define sizeofip(pkt)    sizeofip2(0)
+#define sizeofdot1x(pkt) sizeofdot1x2(0)
+#define sizeofudp(pkt)   sizeofudp2(0)
+#define sizeoftcp(pkt)   sizeoftcp2(0)
+#define sizeofarp(pkt)   (sizeofeth(pkt)+sizeof(struct arp_packet_t))
+
+#define copy_ethproto(o,n) { \
+    ((struct pkt_ethhdr_t *)n)->prot = ((struct pkt_ethhdr_t *)o)->prot; \
+  }
+#endif
+
+#define ethhdr(pkt)   ((struct pkt_ethhdr_t *)pkt)
+#define ipphdr(pkt)   ((struct pkt_ipphdr_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))
 #define iphdr(pkt)    ((struct pkt_iphdr_t *)   (((uint8_t*)(pkt)) + sizeofeth(pkt)))
 #define udphdr(pkt)   ((struct pkt_udphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))
 #define tcphdr(pkt)   ((struct pkt_tcphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))

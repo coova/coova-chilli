@@ -376,6 +376,7 @@ radius_cmptv(struct timeval *tv1, struct timeval *tv2)
   /* First take the difference with |usec| < 1000000 */
   diff.tv_sec = (tv1->tv_usec  - tv2->tv_usec) / 1000000 +
                 (tv1->tv_sec   - tv2->tv_sec);
+
   diff.tv_usec = (tv1->tv_usec - tv2->tv_usec) % 1000000;
 
   if (0) {
@@ -1482,7 +1483,6 @@ int radius_decaps(struct radius_t *this) {
 	     ntohs(pack.length), status);
     return -1;
   }
-
 
   switch (pack.code) {
   case RADIUS_CODE_DISCONNECT_REQUEST:

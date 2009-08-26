@@ -6,9 +6,9 @@
  * notice and this permission notice is included in all copies or
  * substantial portions of the software.
  * 
- * Copyright (C) 2003-2005 Mondru AB., 
- * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2006 PicoPoint B.V.
+ * Copyright (C) 2003-2005 Mondru AB., 
  *
  */
 
@@ -681,14 +681,13 @@ int static macauth_radius(struct app_conn_t *appconn, uint8_t *pkt, size_t len) 
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
 		   (uint8_t*) options()->radiuslocationname, 
 		   strlen(options()->radiuslocationname));
-
   
-  if (dhcpconn->tag8021q)
-
+#ifdef ENABLE_IEEE8021Q
   if (dhcpconn->tag8021q)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
 		   ntohl(dhcpconn->tag8021q & 0x0FFF), 0, 0);
+#endif
 
   if (options()->dhcpradius && pkt) {
     struct dhcp_tag_t *tag = 0;
@@ -966,6 +965,13 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,
 		     ntohl(conn->hisip.s_addr), NULL, 0);
+
+#ifdef ENABLE_IEEE8021Q
+      if (conn->s_state.tag8021q)
+	radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		       RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
+		       ntohl(conn->s_state.tag8021q & 0x0FFF), 0, 0);
+#endif
       
     }
     
@@ -3136,6 +3142,14 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
 	bcatcstr(b, appconn->s_state.redir.userurl);
       else
 	bcatcstr(b, "-");
+
+#ifdef ENABLE_IEEE8021Q
+      /* adding: vlan, if one */
+      if (appconn->s_state.tag8021q) {
+	bassignformat(tmp, " vlan=%d", ntohl(appconn->s_state.tag8021q & 0x0FFF));
+	bconcat(b, tmp);
+      }
+#endif
       
       bdestroy(tmp);
     }
@@ -3910,8 +3924,8 @@ int chilli_main(int argc, char **argv) {
     log_dbg("ChilliSpot version %s started.\n", VERSION);
 
   syslog(LOG_INFO, "CoovaChilli(ChilliSpot) %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006-2009 Coova Technologies <support@coova.com>. Licensed under GPL. "
-	 "See http://coova.org/ for details.", VERSION);
+	 "Copyright 2006-2009 Coova Technologies, LLC <support@coova.com>. Licensed under GPL. "
+	 "See http://www.coova.org/ for details.", VERSION);
 
   mainclock_tick();
 

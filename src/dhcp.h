@@ -118,7 +118,10 @@ struct dhcp_conn_t {
   uint8_t dnatmac[DHCP_DNAT_MAX][PKT_ETH_ALEN]; /* Destination NAT source mac */
   uint16_t mtu;                /* Maximum transfer unit */
   uint8_t noc2c;               /* Prevent client to client access using /32 subnets */
+
+#ifdef ENABLE_IEEE8021Q
   uint16_t tag8021q;
+#endif
 
   /*XXX: optional*/
   struct {

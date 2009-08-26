@@ -31,5 +31,6 @@ chilli_opt_SOURCES = main-opt.c ${cmdline_sources}
 chilli_rtmon_SOURCES = main-rtmon.c 
 chilli_dog_SOURCES = main-dog.c 
 #test_radius_SOURCES = test-radius.c 
+#test_dhcp_SOURCES = test-dhcp.c 
 
 LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la 

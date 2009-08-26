@@ -4,6 +4,8 @@
 * Added Content-Type and Content-Length to chilli HTTP responses (redirect) - needed for some smart-clients (iPASS)
 * Bug fixed thanks to Wichert Akkerman (idle-timeout, '&' encoding, long passwords)
 * Changes default uamlogoutip from 1.1.1.1 to 1.0.0.0 because of reports it disconnects VPN connections. 
+* Added some compile time options to remove certain features (see configure script).
+* Added VLAN-Id RADIUS attribute to accounting. 
 
 == ChangeLog (Coova Chilli v1.0.14 svn revision 208) ==
 

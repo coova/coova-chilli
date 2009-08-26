@@ -3,8 +3,14 @@
 /* Define to enable Chilli XML */
 #undef ENABLE_CHILLIXML
 
+/* Define to enable Chilli IEEE 802.1Q */
+#undef ENABLE_IEEE8021Q
+
 /* Define to enable Chilli JSON */
 #undef ENABLE_JSON
+
+/* Enable larger limits for use with non-embedded systems */
+#undef ENABLE_LARGELIMITS
 
 /* Define to enable Chilli Leaky Bucket shaping */
 #undef ENABLE_LEAKYBUCKET

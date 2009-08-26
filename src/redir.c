@@ -71,10 +71,10 @@ static int redir_challenge(unsigned char *dst) {
 }
 
 static int redir_hextochar(unsigned char *src, unsigned char * dst, int len, int nul_terminate) {
+  int max_len = nul_terminate ? len - 1 : len;
   char x[3];
   int n;
   int y;
-  int max_len = nul_terminate ? len-1 : len;
   
   for (n=0; n < max_len; n++) {
     x[0] = src[n*2+0];

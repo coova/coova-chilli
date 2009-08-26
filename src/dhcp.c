@@ -2183,8 +2183,11 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     break;
 
   case DHCP_AUTH_DROP: 
-  default:
     log_dbg("dropping packet; auth-drop");
+    return 0;
+
+  default:
+    log_dbg("dropping packet; unhandled auth state %d", conn->authstate);
     return 0;
   }
 
@@ -2215,10 +2218,13 @@ int dhcp_decaps(struct dhcp_t *this) {
   if ((length = net_read(&this->rawif, packet, sizeof(packet))) < 0) 
     return -1;
 
+#ifdef ENABLE_IEEE8021Q
   if (is_8021q(packet)) {
     struct pkt_ethhdr8021q_t *ethh = ethhdr8021q(packet);
     prot = ntohs(ethh->prot);
-  } else {
+  } else 
+#endif
+  {
     struct pkt_ethhdr_t *ethh = ethhdr(packet);
     prot = ntohs(ethh->prot);
   }
@@ -2375,11 +2381,17 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   uint8_t packet[PKT_BUFFER];
   size_t length = len;
 
+#ifdef ENABLE_IEEE8021Q
+  uint16_t tag = conn->tag8021q;
+#else
+  uint16_t tag = 0;
+#endif
+
   if (ethhdr) { /* Ethernet frame */
     memcpy(packet, pack, len);
-    length += sizeofeth2(conn->tag8021q) - sizeofeth(pack);
+    length += sizeofeth2(tag) - sizeofeth(pack);
   } else {      /* IP packet */
-    size_t hdrlen = sizeofeth2(conn->tag8021q);
+    size_t hdrlen = sizeofeth2(tag);
     memcpy(packet + hdrlen, pack, len);
     length += hdrlen;
   }

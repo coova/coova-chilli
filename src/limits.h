@@ -32,10 +32,6 @@
 /* options */
 #define OPT_IPADDRLEN                    256
 #define OPT_IDLETIME                      10 /* Options idletime between each select */
-#define MAX_PASS_THROUGHS                128 /* Max number of allowed UAM pass-throughs */
-#define MAX_UAM_DOMAINS                   32 /* Max number of allowed UAM domains */
-#define UAMSERVER_MAX                      8
-#define MACOK_MAX                         16
 
 /* redir */
 #define REDIR_MAXLISTEN                   32
@@ -86,5 +82,19 @@
 #define RADIUS_PACKSIZE                 4096
 #define RADIUS_HDRSIZE                    20
 #define RADIUS_MPPEKEYSSIZE               32 /* Length of MS_CHAP_MPPE_KEYS attribute */ 
+
+#define UAMSERVER_MAX                      8
+
+#ifdef ENABLE_LARGELIMITS
+#define SESSION_PASS_THROUGH_MAX          16
+#define MAX_PASS_THROUGHS                512 /* Max number of allowed UAM pass-throughs */
+#define MAX_UAM_DOMAINS                   56 /* Max number of allowed UAM domains */
+#define MACOK_MAX                         56
+#else
+#define SESSION_PASS_THROUGH_MAX           8
+#define MAX_PASS_THROUGHS                128 /* Max number of allowed UAM pass-throughs */
+#define MAX_UAM_DOMAINS                   32 /* Max number of allowed UAM domains */
+#define MACOK_MAX                         16
+#endif
 
 #endif

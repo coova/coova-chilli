@@ -22,8 +22,10 @@ HS_UAMPORT=3990            # HotSpot Port (on subscriber network)
 # HS_STATIP=
 # HS_STATIP_MASK=255.255.255.0
 # HS_DNS_DOMAIN=
-# HS_DNS1=
-# HS_DNS2=
+
+# OpenDNS Servers
+HS_DNS1=208.67.222.222
+HS_DNS2=208.67.220.220
 
 ###
 #   HotSpot settings for simple Captive Portal

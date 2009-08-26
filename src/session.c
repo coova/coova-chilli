@@ -67,6 +67,13 @@ int session_json_fmt(struct session_state *state,
   bcatcstr(json,",\"idleTimeout\":");
   bassignformat(tmp, "%ld", params->idletimeout);
   bconcat(json, tmp);
+#ifdef ENABLE_IEEE8021Q
+  if (state->tag8021q) {
+    bcatcstr(json,",\"vlan\":");
+    bassignformat(tmp, "%d", ntohl(state->tag8021q & 0x0FFF));
+    bconcat(json, tmp);
+  }
+#endif
   if (params->maxinputoctets) {
     bcatcstr(json,",\"maxInputOctets\":");
     bassignformat(tmp, "%lld", params->maxinputoctets);
