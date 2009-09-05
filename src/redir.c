@@ -32,8 +32,8 @@ char credits[] =
 "<p>Copyright 2002-2005 Mondru AB</p>"
 "<p>Copyright 2006-2009 Coova Technologies, LLC</p>"
 "ChilliSpot is an Open Source captive portal or wireless LAN access point "
-"controller developed by the community at <a href=\"http://coova.org\">coova.org</a>. "
-"It is licensed under the Gnu Public License (GPL). ";
+"controller developed by the community at <a href=\"http://www.coova.org\">www.coova.org</a>. "
+"It is licensed under the GNU General Public License (GPL). ";
 
 struct redir_socket{int fd[2];};
 static unsigned char redir_radius_id=0;
@@ -70,24 +70,23 @@ static int redir_challenge(unsigned char *dst) {
   return 0;
 }
 
-static int redir_hextochar(unsigned char *src, unsigned char * dst, int len, int nul_terminate) {
-  int max_len = nul_terminate ? len - 1 : len;
+static int redir_hextochar(unsigned char *src, unsigned char * dst, int len) {
   char x[3];
   int n;
   int y;
   
-  for (n=0; n < max_len; n++) {
+  for (n=0; n < len; n++) {
     x[0] = src[n*2+0];
     x[1] = src[n*2+1];
     x[2] = 0;
     if (sscanf(x, "%2x", &y) != 1) {
-      log_err(0, "HEX conversion failed!");
-      return -1;
+      /*log_err(0, "HEX conversion failed!");
+	return -1;*/
+      dst[n] = 0;
+      break;
     }
     dst[n] = (unsigned char) y;
   }
-  if (nul_terminate)
-    dst[n]=0;
 
   return 0;
 }
@@ -1430,17 +1429,18 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       }
       
       if (!redir_getparam(redir, qs, "ntresponse", bt)) {
-	redir_hextochar(bt->data, conn->chappassword, 24, 0);
+	redir_hextochar(bt->data, conn->chappassword, 24);
 	conn->chap = 2;
 	conn->password[0] = 0;
       }
       else if (!redir_getparam(redir, qs, "response", bt)) {
-	redir_hextochar(bt->data, conn->chappassword, RADIUS_CHAPSIZE, 0);
+	redir_hextochar(bt->data, conn->chappassword, RADIUS_CHAPSIZE);
 	conn->chap = 1;
 	conn->password[0] = 0;
       }
       else if (!redir_getparam(redir, qs, "password", bt)) {
-	redir_hextochar(bt->data, conn->password, RADIUS_PWSIZE, 1);
+	redir_hextochar(bt->data, conn->password, RADIUS_PWSIZE);
+	conn->password[RADIUS_PWSIZE-1]=0;
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
       } else {
