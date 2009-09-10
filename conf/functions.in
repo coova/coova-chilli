@@ -177,7 +177,7 @@ EOF
 
 	(cat <<EOF
 radiusserver1	"$HS_RADIUS"
-radiusserver2	"${HS_RADIUS2:-$HS_UAMSERVER}"
+radiusserver2	"${HS_RADIUS2:-$HS_RADIUS}"
 radiussecret	"$HS_RADSECRET"
 radiusauthport  ${HS_RADAUTH:-1812}
 radiusacctport  ${HS_RADACCT:-1813}

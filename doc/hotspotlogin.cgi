@@ -150,7 +150,7 @@ if ($button =~ /^Login$/) {
 
     print "Content-type: text/html\n\n";
 
-    $hexchal  = pack "H32", $challenge;
+    $hexchal  = pack "H*", $challenge;
 
     if (defined $uamsecret) {
 	$newchal  = md5($hexchal, $uamsecret);
@@ -170,7 +170,12 @@ if ($button =~ /^Login$/) {
 	# Encode plain text password with challenge 
 	# (which may or may not be uamsecret encoded)
 
-	$pappassword = unpack "H32", ($password ^ $newchal);
+	# If challange isn't long enough, repeat it until it is
+	while (length($newchal) < length($password)){
+		$newchal .= $newchal;
+        }
+
+	$pappassword = unpack "H*", ($password ^ $newchal);
 
 	$logonUrl = "http://$uamip:$uamport/logon?username=$username&password=$pappassword";
 
