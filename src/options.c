@@ -195,6 +195,7 @@ int options_load(int argc, char **argv, bstring bt) {
 
   if (!option_s_l(bt, &o.pidfile)) return 0;
   if (!option_s_l(bt, &o.statedir)) return 0;
+  if (!option_s_l(bt, &o.usestatusfile)) return 0;
   if (!option_s_l(bt, &o.tundev)) return 0;
   if (!option_s_l(bt, &o.dynip)) return 0;
   if (!option_s_l(bt, &o.statip)) return 0;
@@ -260,6 +261,7 @@ int options_save(char *file, bstring bt) {
 
   if (!option_s_s(bt, &o.pidfile)) return 0;
   if (!option_s_s(bt, &o.statedir)) return 0;
+  if (!option_s_s(bt, &o.usestatusfile)) return 0;
   if (!option_s_s(bt, &o.tundev)) return 0;
   if (!option_s_s(bt, &o.dynip)) return 0;
   if (!option_s_s(bt, &o.statip)) return 0;

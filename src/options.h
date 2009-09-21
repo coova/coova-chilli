@@ -108,6 +108,7 @@ struct options_t {
   char* uamurl;                  /* URL of authentication server */
   char* uamhomepage;             /* URL of redirection homepage */
   char* wisprlogin;              /* Specific WISPr login url */
+  char* usestatusfile;           /* Specific status file to use */
   int uamhomepageport;		 /* Port of redirection homepage */
 
   struct in_addr uamlisten;      /* IP address of local authentication */
@@ -126,16 +127,15 @@ struct options_t {
   uint8_t usetap:1;
   uint8_t eapolenable:1;            /* Use eapol */
   uint8_t swapoctets:1;
-  uint8_t usestatusfile:1;
   uint8_t chillixml:1;
-  uint8_t pap_always_ok:1;
+  uint8_t pap_always_ok:1;          /* Obsolete */
   uint8_t mschapv2:1;               /* Use and support MSCHAPv2 */
   uint8_t uamanydns:1;              /* Allow any dns server */
   uint8_t uamanyip:1;               /* Allow any ip address */
-  uint8_t uamnatanyip:1;
+  uint8_t uamnatanyip:1;            /* Provide NAT for Any IP clients */
   uint8_t dnsparanoia:1;            /* Filter DNS for questionable content (dns tunnels) */
   uint8_t no_uamwispr:1;            /* Do not have ChilliSpot return WISPr blocks */
-  uint8_t acct_update:1;
+  uint8_t acct_update:1;            /* Allow for session parameter updates in accounting response */
   uint8_t wpaguests:1;              /* Allow WPS "Guest" access */
   uint8_t openidauth:1;             /* Allow OpenID authentication */
   uint8_t macauth:1;                /* Use MAC authentication */
@@ -147,6 +147,7 @@ struct options_t {
   uint8_t has_nexthop:1;            /* Has a nexthop entry */
   uint8_t ieee8021q:1;              /* check for VLAN tags */
   uint8_t dhcp_broadcast:1;         /* always broadcast DHCP (when not relaying) */
+  uint8_t seskeepalive:1;           /* Keep sessions alive during shutdown */
   /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];

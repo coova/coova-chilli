@@ -48,6 +48,11 @@ static cmd_info commands[] = {
   { CMDSOCK_DHCP_RELEASE,  "logoff",        NULL },
   { CMDSOCK_DHCP_DROP,     "drop",          NULL },
   { CMDSOCK_DHCP_DROP,     "block",         NULL },
+#ifdef ENABLE_STATFILE
+  { CMDSOCK_STATUSFILE,    "statusfile",    NULL },
+#else
+#error huh?
+#endif
   { 0, NULL, NULL }
 };
 

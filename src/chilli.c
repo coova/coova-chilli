@@ -286,7 +286,7 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("SESSION_TIMEOUT", VAL_ULONG64, &appconn->s_params.sessiontimeout, 0);
   set_env("IDLE_TIMEOUT", VAL_ULONG, &appconn->s_params.idletimeout, 0);
   set_env("CALLING_STATION_ID", VAL_MAC_ADDR, appconn->hismac, 0);
-  set_env("CALLED_STATION_ID", VAL_MAC_ADDR, appconn->ourmac, 0);
+  set_env("CALLED_STATION_ID", VAL_MAC_ADDR, /*appconn->ourmac*/dhcp_nexthop(dhcp), 0);
   set_env("NAS_ID", VAL_STRING, options()->radiusnasid, 0);
   set_env("NAS_PORT_TYPE", VAL_STRING, "19", 0);
   set_env("ACCT_SESSION_ID", VAL_STRING, appconn->s_state.sessionid, 0);
@@ -347,7 +347,7 @@ int static initconn()
   return 0;
 }
 
-int static newconn(struct app_conn_t **conn) {
+int newconn(struct app_conn_t **conn) {
   int n;
 
   if (!firstfreeconn) {
@@ -460,26 +460,24 @@ int static getconn(struct app_conn_t **conn, uint32_t nasip, uint32_t nasport) {
 
 int static dnprot_terminate(struct app_conn_t *appconn) {
   appconn->s_state.authenticated = 0;
-#ifdef EANBLE_STATFILE
-  printstatus(appconn);
-#endif
   switch (appconn->dnprot) {
   case DNPROT_WPA:
   case DNPROT_EAPOL:
     if (appconn->dnlink)
       ((struct dhcp_conn_t*) appconn->dnlink)->authstate = DHCP_AUTH_NONE;
-    return 0;
+    break;
   case DNPROT_MAC:
   case DNPROT_UAM:
   case DNPROT_DHCP_NONE:
   case DNPROT_NULL:
     if (appconn->dnlink)
       ((struct dhcp_conn_t*) appconn->dnlink)->authstate = DHCP_AUTH_DNAT;
-    return 0;
+    break;
   default: 
     log_err(0, "Unknown downlink protocol"); 
-    return 0;
+    break;
   }
+  return 0;
 }
 
 
@@ -1290,15 +1288,16 @@ int static dnprot_accept(struct app_conn_t *appconn) {
       runscript(appconn, options()->conup);
     }
     
-#ifdef EANBLE_STATFILE
-    printstatus(appconn);
-#endif
-    
     if (!(appconn->s_params.flags & IS_UAM_REAUTH))
       acct_req(appconn, RADIUS_STATUS_TYPE_START);
   }
   
   appconn->s_params.flags &= ~IS_UAM_REAUTH;
+
+#ifdef ENABLE_STATFILE
+  printstatus();
+#endif
+    
   return 0;
 }
 
@@ -1544,7 +1543,7 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
   conn->nasip = options()->radiuslisten;
   conn->nasport = appconn->unit;
   memcpy(conn->hismac, dhcpconn->hismac, PKT_ETH_ALEN);
-  memcpy(conn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);
+  /*memcpy(conn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);*/
   conn->ourip = appconn->ourip;
   conn->hisip = appconn->hisip;
 
@@ -1957,7 +1956,7 @@ int access_request(struct radius_packet_t *pack,
   memcpy(&appconn->radiuspeer, peer, sizeof(*peer));
   memcpy(appconn->authenticator, pack->authenticator, RADIUS_AUTHLEN);
   memcpy(appconn->hismac, dhcpconn->hismac, PKT_ETH_ALEN);
-  memcpy(appconn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);
+  /*memcpy(appconn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);*/
 
   /* Build up radius request */
   radius_pack.code = RADIUS_CODE_ACCESS_REQUEST;
@@ -3052,11 +3051,15 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
   appconn->dns2.s_addr = options()->dns2.s_addr;
 
   memcpy(appconn->hismac, conn->hismac, PKT_ETH_ALEN);
-  memcpy(appconn->ourmac, conn->ourmac, PKT_ETH_ALEN);
+  /*memcpy(appconn->ourmac, conn->ourmac, PKT_ETH_ALEN);*/
   
   set_sessionid(appconn);
 
   conn->authstate = DHCP_AUTH_NONE; /* TODO: Not yet authenticated */
+
+#ifdef ENABLE_BINSTATFILE
+  printstatus();
+#endif
 
   return 0;
 }
@@ -3166,6 +3169,9 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
     /* should memory be cleared here?? */
     memset(&appconn->s_params, 0, sizeof(appconn->s_params));
     set_sessionid(appconn);
+#ifdef ENABLE_STATFILE
+    printstatus();
+#endif
   }
   return 0;
 }
@@ -3182,7 +3188,13 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
   
   if (options()->debug) log_dbg("DHCP connection removed");
 
-  if (!conn->peer) return 0; /* No appconn allocated. Stop here */
+  if (!conn->peer) {
+    /* No appconn allocated. Stop here */
+#ifdef ENABLE_BINSTATFILE
+    printstatus();
+#endif
+    return 0;
+  }
   appconn = (struct app_conn_t*) conn->peer;
 
   if ((appconn->dnprot != DNPROT_DHCP_NONE) &&
@@ -3250,6 +3262,10 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
   }
   
   freeconn(appconn);
+
+#ifdef ENABLE_BINSTATFILE
+  printstatus();
+#endif
 
   return 0;
 }
@@ -3503,7 +3519,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     appconn->lmntlen  = 0;
     
     memcpy(appconn->hismac, dhcpconn->hismac, PKT_ETH_ALEN);
-    memcpy(appconn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);
+    /*memcpy(appconn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);*/
     
     appconn->policy = 0; /* TODO */
 
@@ -3735,6 +3751,12 @@ static int cmdsock_accept(int sock) {
     reload_config = 1;
     break;
 
+#ifdef ENABLE_STATFILE
+  case CMDSOCK_STATUSFILE:
+    printstatus();
+    break;
+#endif
+
   default:
     perror("unknown command");
     close(csock);
@@ -3747,87 +3769,6 @@ static int cmdsock_accept(int sock) {
 
   return rval;
 }
-
-#ifdef ENABLE_STATFILE
-/* Function that will create and write a status file in statedir*/
-int printstatus(struct app_conn_t *appconn) {
-  char *statedir = options()->statedir ? options()->statedir : DEFSTATEDIR;
-  struct app_conn_t *apptemp;
-  FILE *file;
-  char filedest[512];
-  struct stat statbuf;
-
-  if (!options()->usestatusfile) 
-    return 0;
-
-  if (strlen(statedir)>sizeof(filedest)-1) 
-    return -1;
-
-  if (stat(statedir, &statbuf)) { 
-    log_err(errno, "statedir (%s) does not exist", statedir); 
-    return -1; 
-  }
-
-  if (!S_ISDIR(statbuf.st_mode)) { 
-    log_err(0, "statedir (%s) not a directory", statedir); 
-    return -1; 
-  }
-
-  strcpy(filedest, statedir);
-  strcat(filedest, "/chillispot.state");
-
-  file = fopen(filedest, "w");
-  if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
-  fprintf(file, "#Version:1.1\n");
-  fprintf(file, "#SessionID = SID\n#Start-Time = ST\n");
-  fprintf(file, "#SessionTimeOut = STO\n#SessionTerminateTime = STT\n");
-  fprintf(file, "#Timestamp: %d\n", (int) mainclock);
-  fprintf(file, "#User, IP, MAC, SID, ST, STO, STT\n");
-  if(appconn == NULL)
-  {
-    fclose(file);
-    return 0;
-  }
-  apptemp = appconn;
-  while(apptemp != NULL)
-  {
-    if(apptemp->s_state.authenticated == 1)
-    {
-      fprintf(file, "%s, %s, %.2X-%.2X-%.2X-%.2X-%.2X-%.2X, %s, %d, %d, %d\n",
-	apptemp->s_state.redir.username,
-	inet_ntoa(apptemp->hisip),
-	apptemp->hismac[0], apptemp->hismac[1],
-	apptemp->hismac[2], apptemp->hismac[3],
-	apptemp->hismac[4], apptemp->hismac[5],
-	apptemp->s_state.sessionid,
-	apptemp->s_state.start_time,
-	apptemp->s_params.sessiontimeout,
-	apptemp->s_params.sessionterminatetime);
-    }
-    apptemp = apptemp->prev;
-  }
-  apptemp = appconn->next;
-  while(apptemp != NULL)
-  {
-    if(apptemp->s_state.authenticated==1)
-    {
-      fprintf(file, "%s, %s, %.2X-%.2X-%.2X-%.2X-%.2X-%.2X, %s, %d, %d, %d\n",
-	apptemp->s_state.redir.username,
-	inet_ntoa(apptemp->hisip),
-	apptemp->hismac[0], apptemp->hismac[1],
-	apptemp->hismac[2], apptemp->hismac[3],
-	apptemp->hismac[4], apptemp->hismac[5],
-	apptemp->s_state.sessionid,
-        apptemp->s_state.start_time,
-	apptemp->s_params.sessiontimeout,
-	apptemp->s_params.sessionterminatetime);
-    }
-    apptemp = apptemp->next;
-  }
-  fclose(file);
-  return 0;
-}
-#endif
 
 static void fixup_options() {
   /*
@@ -3929,10 +3870,6 @@ int chilli_main(int argc, char **argv) {
 
   mainclock_tick();
 
-#ifdef EANBLE_STATFILE
-  printstatus(NULL);
-#endif
-
   /* Create a tunnel interface */
   if (tun_new(&tun)) {
     log_err(0, "Failed to create tun");
@@ -4025,7 +3962,11 @@ int chilli_main(int argc, char **argv) {
   redir_set_cb_getstate(redir, cb_redir_getstate);
 
   memset(&admin_session, 0, sizeof(admin_session));
-  memcpy(admin_session.ourmac, dhcp->rawif.hwaddr, sizeof(dhcp->rawif.hwaddr));
+  /*memcpy(admin_session.ourmac, dhcp->rawif.hwaddr, sizeof(dhcp->rawif.hwaddr));*/
+
+#ifdef ENABLE_BINSTATFILE
+  if (loadstatus() != 0) /* Only indicate a fresh start-up if we didn't load keepalive sessions */
+#endif
   acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
 
   if (opt->adminuser) {
@@ -4041,7 +3982,6 @@ int chilli_main(int argc, char **argv) {
     if (cmdsock > 0)
       maxfd = cmdsock;
   }
-
 
   /* Set up signal handlers */
   memset(&act, 0, sizeof(act));
@@ -4070,7 +4010,6 @@ int chilli_main(int argc, char **argv) {
     log_err(errno, "setitimer() failed!");
   }
   */
-
 
   if (opt->usetap && opt->rtmonfile) {
     pid_t p = fork();
@@ -4246,7 +4185,18 @@ int chilli_main(int argc, char **argv) {
   if (opt->debug) 
     log_dbg("Terminating ChilliSpot!");
 
-  killconn();
+  if (opt->seskeepalive) {
+#ifdef ENABLE_BINSTATFILE
+    if (printstatus() != 0) log_err(errno, "could not save status file");
+#else
+    log_warn("Not stopping sessions! seskeepalive should be used with compile option --enable-binstatusfile");
+#endif
+  } else {
+    killconn();
+#ifdef ENABLE_STATFILE
+    if (printstatus() != 0) log_err(errno, "could not save status file");
+#endif
+  }
 
   if (redir) 
     redir_free(redir);

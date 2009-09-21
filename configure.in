@@ -104,10 +104,17 @@ AS_IF([test "x$with_openssl" != xno],
                  [--with-openssl was given, but test for openssl failed])],
               [-lssl -lcrypto])])
 
-AC_ARG_ENABLE(statusfile, [AC_HELP_STRING([--disable-statusfile],[disable support for status file])], 
-  enable_statfile=$enableval, enable_statfile=yes)
+AC_ARG_ENABLE(binstatusfile, [AC_HELP_STRING([--enable-binstatusfile],[Enable support for binary status file])], 
+  enable_binstatfile=$enableval, enable_binstatfile=no)
 
-if test "x$enable_statfile" = "xyes"; then
+if test "x$enable_binstatfile" = "xyes"; then
+   AC_DEFINE(ENABLE_BINSTATFILE,1,[Define to enable binary status file])
+fi
+
+AC_ARG_ENABLE(statusfile, [AC_HELP_STRING([--enable-statusfile],[Enable support for status file])], 
+  enable_statfile=$enableval, enable_statfile=no)
+
+if test "x$enable_statfile" = "xyes" || test "x$enable_binstatfile" = "xyes"; then
    AC_DEFINE(ENABLE_STATFILE,1,[Define to enable status file])
 fi
 

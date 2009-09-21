@@ -43,17 +43,18 @@
 /* Struct information for each connection */
 struct app_conn_t {
   
-  char is_adminsession;
-
-  /* Management of connections */
-  int inuse;
-  int unit;
   struct app_conn_t *next;    /* Next in linked list. 0: Last */
   struct app_conn_t *prev;    /* Previous in linked list. 0: First */
 
   /* Pointers to protocol handlers */
   void *uplink;                  /* Uplink network interface (Internet) */
   void *dnlink;                  /* Downlink network interface (Wireless) */
+
+  char is_adminsession;
+
+  /* Management of connections */
+  int inuse;
+  int unit;
   int dnprot;                    /* Downlink protocol */
 
 #if(0)
@@ -94,7 +95,6 @@ struct app_conn_t {
   uint8_t authenticator[RADIUS_AUTHLEN];
   int authtype; /* TODO */
 
-
   /* Parameters for radius accounting */
   /* These parameters are set when an access accept is sent back to the
      NAS */
@@ -102,7 +102,7 @@ struct app_conn_t {
   uint32_t nasip;              /* Set by access request */
   uint32_t nasport;            /* Set by access request */
   uint8_t hismac[PKT_ETH_ALEN];/* His MAC address */
-  uint8_t ourmac[PKT_ETH_ALEN];/* Our MAC address */
+  /*uint8_t ourmac[PKT_ETH_ALEN];/* Our MAC address */
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
   struct in_addr reqip;        /* IP requested by client */
@@ -129,7 +129,11 @@ extern struct radius_t *radius;          /* Radius client instance */
 extern struct dhcp_t *dhcp;              /* DHCP instance */
 extern struct tun_t *tun;                /* TUN/TAP instance */
 
-int printstatus(struct app_conn_t *appconn);
+#ifdef ENABLE_STATFILE
+int printstatus();
+int loadstatus();
+#endif
+
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause);
 void config_radius_session(struct session_params *params, 
 			   struct radius_packet_t *pack, 

@@ -70,9 +70,9 @@ const char *gengetopt_args_info_help[] = {
   "      --radiusauthport=INT      Authentication UDP port of radius server  \n                                  (default=`1812')",
   "      --radiusacctport=INT      Accounting UDP port of radius server  \n                                  (default=`1813')",
   "      --radiussecret=STRING     Radius shared secret  (default=`testing123')",
-  "      --radiustimeout=INT       Retry timeout in seconds  (default=`30')",
-  "      --radiusretry=INT         Total number of retries  (default=`6')",
-  "      --radiusretrysec=INT      Number of retries before using secondary  \n                                  (default=`3')",
+  "      --radiustimeout=INT       Retry timeout in seconds  (default=`10')",
+  "      --radiusretry=INT         Total number of retries  (default=`4')",
+  "      --radiusretrysec=INT      Number of retries before using secondary  \n                                  (default=`2')",
   "      --radiusnasid=STRING      Radius NAS-Identifier  (default=`nas01')",
   "      --radiuslocationid=STRING WISPr Location ID",
   "      --radiuslocationname=STRING\n                                WISPr Location Name",
@@ -137,7 +137,7 @@ const char *gengetopt_args_info_help[] = {
   "      --cmdsocket=STRING        path to the command unix socket",
   "      --radiusoriginalurl       Turn on the sending of ChilliSpot-OriginalURL \n                                  in Access-Request  (default=off)",
   "      --swapoctets              Swap the meaning of input/output octets/packets \n                                   (default=off)",
-  "      --usestatusfile           Use the status file to keep track of sessions  \n                                  (default=off)",
+  "      --usestatusfile=STRING    Use the status file to keep track of sessions",
   "      --localusers=STRING       File keep 'Local' usernames and passwords",
   "      --postauthproxy=STRING    IP of an upstream transparent proxy",
   "      --postauthproxyport=INT   Port of an upstream transparent proxy  \n                                  (default=`0')",
@@ -148,6 +148,7 @@ const char *gengetopt_args_info_help[] = {
   "      --chillixml               Use ChilliSpot XML in WISPr blocks  \n                                  (default=off)",
   "      --acctupdate              Allow updating of session attributes in \n                                  Accounting-Response  (default=off)",
   "      --dnsparanoia             Inspect DNS packets and drop responses with any \n                                  non- A, CNAME, SOA, or MX records (to prevent \n                                  dns tunnels)  (default=off)",
+  "      --seskeepalive            Keep sessions 'alive' after a restart of the \n                                  server  (default=off)",
   "      --usetap                  Use a TAP instead of TUN (linux only)  \n                                  (default=off)",
   "      --routeif=STRING          Interface to use as default route; turns on \n                                  'manual' routing",
   "      --framedservice           Use Service-Type = Framed instead of Login  \n                                  (default=off)",
@@ -324,6 +325,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->chillixml_given = 0 ;
   args_info->acctupdate_given = 0 ;
   args_info->dnsparanoia_given = 0 ;
+  args_info->seskeepalive_given = 0 ;
   args_info->usetap_given = 0 ;
   args_info->routeif_given = 0 ;
   args_info->framedservice_given = 0 ;
@@ -405,11 +407,11 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->radiusacctport_orig = NULL;
   args_info->radiussecret_arg = gengetopt_strdup ("testing123");
   args_info->radiussecret_orig = NULL;
-  args_info->radiustimeout_arg = 30;
+  args_info->radiustimeout_arg = 10;
   args_info->radiustimeout_orig = NULL;
-  args_info->radiusretry_arg = 6;
+  args_info->radiusretry_arg = 4;
   args_info->radiusretry_orig = NULL;
-  args_info->radiusretrysec_arg = 3;
+  args_info->radiusretrysec_arg = 2;
   args_info->radiusretrysec_orig = NULL;
   args_info->radiusnasid_arg = gengetopt_strdup ("nas01");
   args_info->radiusnasid_orig = NULL;
@@ -523,7 +525,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->cmdsocket_orig = NULL;
   args_info->radiusoriginalurl_flag = 0;
   args_info->swapoctets_flag = 0;
-  args_info->usestatusfile_flag = 0;
+  args_info->usestatusfile_arg = NULL;
+  args_info->usestatusfile_orig = NULL;
   args_info->localusers_arg = NULL;
   args_info->localusers_orig = NULL;
   args_info->postauthproxy_arg = NULL;
@@ -537,6 +540,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->chillixml_flag = 0;
   args_info->acctupdate_flag = 0;
   args_info->dnsparanoia_flag = 0;
+  args_info->seskeepalive_flag = 0;
   args_info->usetap_flag = 0;
   args_info->routeif_arg = NULL;
   args_info->routeif_orig = NULL;
@@ -681,14 +685,15 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->chillixml_help = gengetopt_args_info_help[113] ;
   args_info->acctupdate_help = gengetopt_args_info_help[114] ;
   args_info->dnsparanoia_help = gengetopt_args_info_help[115] ;
-  args_info->usetap_help = gengetopt_args_info_help[116] ;
-  args_info->routeif_help = gengetopt_args_info_help[117] ;
-  args_info->framedservice_help = gengetopt_args_info_help[118] ;
-  args_info->tcpwin_help = gengetopt_args_info_help[119] ;
-  args_info->tcpmss_help = gengetopt_args_info_help[120] ;
-  args_info->maxclients_help = gengetopt_args_info_help[121] ;
-  args_info->challengetimeout_help = gengetopt_args_info_help[122] ;
-  args_info->challengetimeout2_help = gengetopt_args_info_help[123] ;
+  args_info->seskeepalive_help = gengetopt_args_info_help[116] ;
+  args_info->usetap_help = gengetopt_args_info_help[117] ;
+  args_info->routeif_help = gengetopt_args_info_help[118] ;
+  args_info->framedservice_help = gengetopt_args_info_help[119] ;
+  args_info->tcpwin_help = gengetopt_args_info_help[120] ;
+  args_info->tcpmss_help = gengetopt_args_info_help[121] ;
+  args_info->maxclients_help = gengetopt_args_info_help[122] ;
+  args_info->challengetimeout_help = gengetopt_args_info_help[123] ;
+  args_info->challengetimeout2_help = gengetopt_args_info_help[124] ;
   
 }
 
@@ -949,6 +954,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->vlan_orig));
   free_string_field (&(args_info->cmdsocket_arg));
   free_string_field (&(args_info->cmdsocket_orig));
+  free_string_field (&(args_info->usestatusfile_arg));
+  free_string_field (&(args_info->usestatusfile_orig));
   free_string_field (&(args_info->localusers_arg));
   free_string_field (&(args_info->localusers_orig));
   free_string_field (&(args_info->postauthproxy_arg));
@@ -1207,7 +1214,7 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
   if (args_info->swapoctets_given)
     write_into_file(outfile, "swapoctets", 0, 0 );
   if (args_info->usestatusfile_given)
-    write_into_file(outfile, "usestatusfile", 0, 0 );
+    write_into_file(outfile, "usestatusfile", args_info->usestatusfile_orig, 0);
   if (args_info->localusers_given)
     write_into_file(outfile, "localusers", args_info->localusers_orig, 0);
   if (args_info->postauthproxy_given)
@@ -1228,6 +1235,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "acctupdate", 0, 0 );
   if (args_info->dnsparanoia_given)
     write_into_file(outfile, "dnsparanoia", 0, 0 );
+  if (args_info->seskeepalive_given)
+    write_into_file(outfile, "seskeepalive", 0, 0 );
   if (args_info->usetap_given)
     write_into_file(outfile, "usetap", 0, 0 );
   if (args_info->routeif_given)
@@ -1914,7 +1923,7 @@ cmdline_parser_internal (
         { "cmdsocket",	1, NULL, 0 },
         { "radiusoriginalurl",	0, NULL, 0 },
         { "swapoctets",	0, NULL, 0 },
-        { "usestatusfile",	0, NULL, 0 },
+        { "usestatusfile",	1, NULL, 0 },
         { "localusers",	1, NULL, 0 },
         { "postauthproxy",	1, NULL, 0 },
         { "postauthproxyport",	1, NULL, 0 },
@@ -1925,6 +1934,7 @@ cmdline_parser_internal (
         { "chillixml",	0, NULL, 0 },
         { "acctupdate",	0, NULL, 0 },
         { "dnsparanoia",	0, NULL, 0 },
+        { "seskeepalive",	0, NULL, 0 },
         { "usetap",	0, NULL, 0 },
         { "routeif",	1, NULL, 0 },
         { "framedservice",	0, NULL, 0 },
@@ -2461,7 +2471,7 @@ cmdline_parser_internal (
           
             if (update_arg( (void *)&(args_info->radiustimeout_arg), 
                  &(args_info->radiustimeout_orig), &(args_info->radiustimeout_given),
-                &(local_args_info.radiustimeout_given), optarg, 0, "30", ARG_INT,
+                &(local_args_info.radiustimeout_given), optarg, 0, "10", ARG_INT,
                 check_ambiguity, override, 0, 0,
                 "radiustimeout", '-',
                 additional_error))
@@ -2475,7 +2485,7 @@ cmdline_parser_internal (
           
             if (update_arg( (void *)&(args_info->radiusretry_arg), 
                  &(args_info->radiusretry_orig), &(args_info->radiusretry_given),
-                &(local_args_info.radiusretry_given), optarg, 0, "6", ARG_INT,
+                &(local_args_info.radiusretry_given), optarg, 0, "4", ARG_INT,
                 check_ambiguity, override, 0, 0,
                 "radiusretry", '-',
                 additional_error))
@@ -2489,7 +2499,7 @@ cmdline_parser_internal (
           
             if (update_arg( (void *)&(args_info->radiusretrysec_arg), 
                  &(args_info->radiusretrysec_orig), &(args_info->radiusretrysec_given),
-                &(local_args_info.radiusretrysec_given), optarg, 0, "3", ARG_INT,
+                &(local_args_info.radiusretrysec_given), optarg, 0, "2", ARG_INT,
                 check_ambiguity, override, 0, 0,
                 "radiusretrysec", '-',
                 additional_error))
@@ -3356,9 +3366,11 @@ cmdline_parser_internal (
           {
           
           
-            if (update_arg((void *)&(args_info->usestatusfile_flag), 0, &(args_info->usestatusfile_given),
-                &(local_args_info.usestatusfile_given), optarg, 0, 0, ARG_FLAG,
-                check_ambiguity, override, 1, 0, "usestatusfile", '-',
+            if (update_arg( (void *)&(args_info->usestatusfile_arg), 
+                 &(args_info->usestatusfile_orig), &(args_info->usestatusfile_given),
+                &(local_args_info.usestatusfile_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "usestatusfile", '-',
                 additional_error))
               goto failure;
           
@@ -3485,6 +3497,18 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->dnsparanoia_flag), 0, &(args_info->dnsparanoia_given),
                 &(local_args_info.dnsparanoia_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "dnsparanoia", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Keep sessions 'alive' after a restart of the server.  */
+          else if (strcmp (long_options[option_index].name, "seskeepalive") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->seskeepalive_flag), 0, &(args_info->seskeepalive_given),
+                &(local_args_info.seskeepalive_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "seskeepalive", '-',
                 additional_error))
               goto failure;
           

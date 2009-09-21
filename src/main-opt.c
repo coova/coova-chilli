@@ -184,7 +184,6 @@ int main(int argc, char **argv) {
   opt->dhcpend = args_info.dhcpend_arg;
   opt->eapolenable = args_info.eapolenable_flag;
   opt->swapoctets = args_info.swapoctets_flag;
-  opt->usestatusfile = args_info.usestatusfile_flag;
   opt->logfacility = args_info.logfacility_arg;
   opt->chillixml = args_info.chillixml_flag;
   opt->macauth = args_info.macauth_flag;
@@ -225,6 +224,7 @@ int main(int argc, char **argv) {
   opt->tcpwin = args_info.tcpwin_arg;
   opt->tcpmss = args_info.tcpmss_arg;
   opt->max_clients = args_info.maxclients_arg;
+  opt->seskeepalive = args_info.seskeepalive_flag;
 
   if (args_info.dhcpgateway_arg &&
       !inet_aton(args_info.dhcpgateway_arg, &opt->dhcpgwip)) {
@@ -776,6 +776,9 @@ int main(int argc, char **argv) {
 
   if (opt->statedir) free(opt->statedir);
   opt->statedir = STRDUP(args_info.statedir_arg);
+
+  if (opt->usestatusfile) free(opt->usestatusfile);
+  opt->usestatusfile = STRDUP(args_info.usestatusfile_arg);
 
   ret = 0;
 

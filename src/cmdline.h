@@ -146,13 +146,13 @@ struct gengetopt_args_info
   char * radiussecret_arg;	/**< @brief Radius shared secret (default='testing123').  */
   char * radiussecret_orig;	/**< @brief Radius shared secret original value given at command line.  */
   const char *radiussecret_help; /**< @brief Radius shared secret help description.  */
-  int radiustimeout_arg;	/**< @brief Retry timeout in seconds (default='30').  */
+  int radiustimeout_arg;	/**< @brief Retry timeout in seconds (default='10').  */
   char * radiustimeout_orig;	/**< @brief Retry timeout in seconds original value given at command line.  */
   const char *radiustimeout_help; /**< @brief Retry timeout in seconds help description.  */
-  int radiusretry_arg;	/**< @brief Total number of retries (default='6').  */
+  int radiusretry_arg;	/**< @brief Total number of retries (default='4').  */
   char * radiusretry_orig;	/**< @brief Total number of retries original value given at command line.  */
   const char *radiusretry_help; /**< @brief Total number of retries help description.  */
-  int radiusretrysec_arg;	/**< @brief Number of retries before using secondary (default='3').  */
+  int radiusretrysec_arg;	/**< @brief Number of retries before using secondary (default='2').  */
   char * radiusretrysec_orig;	/**< @brief Number of retries before using secondary original value given at command line.  */
   const char *radiusretrysec_help; /**< @brief Number of retries before using secondary help description.  */
   char * radiusnasid_arg;	/**< @brief Radius NAS-Identifier (default='nas01').  */
@@ -337,7 +337,8 @@ struct gengetopt_args_info
   const char *radiusoriginalurl_help; /**< @brief Turn on the sending of ChilliSpot-OriginalURL in Access-Request help description.  */
   int swapoctets_flag;	/**< @brief Swap the meaning of input/output octets/packets (default=off).  */
   const char *swapoctets_help; /**< @brief Swap the meaning of input/output octets/packets help description.  */
-  int usestatusfile_flag;	/**< @brief Use the status file to keep track of sessions (default=off).  */
+  char * usestatusfile_arg;	/**< @brief Use the status file to keep track of sessions.  */
+  char * usestatusfile_orig;	/**< @brief Use the status file to keep track of sessions original value given at command line.  */
   const char *usestatusfile_help; /**< @brief Use the status file to keep track of sessions help description.  */
   char * localusers_arg;	/**< @brief File keep 'Local' usernames and passwords.  */
   char * localusers_orig;	/**< @brief File keep 'Local' usernames and passwords original value given at command line.  */
@@ -362,6 +363,8 @@ struct gengetopt_args_info
   const char *acctupdate_help; /**< @brief Allow updating of session attributes in Accounting-Response help description.  */
   int dnsparanoia_flag;	/**< @brief Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX records (to prevent dns tunnels) (default=off).  */
   const char *dnsparanoia_help; /**< @brief Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX records (to prevent dns tunnels) help description.  */
+  int seskeepalive_flag;	/**< @brief Keep sessions 'alive' after a restart of the server (default=off).  */
+  const char *seskeepalive_help; /**< @brief Keep sessions 'alive' after a restart of the server help description.  */
   int usetap_flag;	/**< @brief Use a TAP instead of TUN (linux only) (default=off).  */
   const char *usetap_help; /**< @brief Use a TAP instead of TUN (linux only) help description.  */
   char * routeif_arg;	/**< @brief Interface to use as default route; turns on 'manual' routing.  */
@@ -501,6 +504,7 @@ struct gengetopt_args_info
   unsigned int chillixml_given ;	/**< @brief Whether chillixml was given.  */
   unsigned int acctupdate_given ;	/**< @brief Whether acctupdate was given.  */
   unsigned int dnsparanoia_given ;	/**< @brief Whether dnsparanoia was given.  */
+  unsigned int seskeepalive_given ;	/**< @brief Whether seskeepalive was given.  */
   unsigned int usetap_given ;	/**< @brief Whether usetap was given.  */
   unsigned int routeif_given ;	/**< @brief Whether routeif was given.  */
   unsigned int framedservice_given ;	/**< @brief Whether framedservice was given.  */

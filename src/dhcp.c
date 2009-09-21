@@ -329,21 +329,12 @@ int dhcp_hashget(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr
 }
 
 /**
- * dhcp_newconn()
- * Allocates a new connection from the pool. 
+ * dhcp_lnkconn()
+ * Allocates/link a new connection from the pool. 
  * Returns -1 if unsuccessful.
  **/
-int dhcp_newconn(struct dhcp_t *this, 
-		 struct dhcp_conn_t **conn, 
-		 uint8_t *hwaddr, uint8_t *pkt)
+int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn)
 {
-  int n;
-
-  if (options()->debug) 
-    log_dbg("DHCP newconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
-	    hwaddr[0], hwaddr[1], hwaddr[2],
-	    hwaddr[3], hwaddr[4], hwaddr[5]);
-
   if (!this->firstfreeconn) {
 
     if (connections == options()->max_clients) {
@@ -351,7 +342,7 @@ int dhcp_newconn(struct dhcp_t *this,
       return -1;
     }
 
-    n = ++connections;
+    ++connections;
 
     if (!(*conn = calloc(1, sizeof(struct dhcp_conn_t)))) {
       log_err(0, "Out of memory!");
@@ -387,6 +378,26 @@ int dhcp_newconn(struct dhcp_t *this,
   
   this->firstusedconn = *conn;
 
+  return 0; /* Success */
+}
+
+/**
+ * dhcp_newconn()
+ * Allocates a new connection from the pool. 
+ * Returns -1 if unsuccessful.
+ **/
+int dhcp_newconn(struct dhcp_t *this, 
+		 struct dhcp_conn_t **conn, 
+		 uint8_t *hwaddr, uint8_t *pkt)
+{
+  if (options()->debug) 
+    log_dbg("DHCP newconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
+	    hwaddr[0], hwaddr[1], hwaddr[2],
+	    hwaddr[3], hwaddr[4], hwaddr[5]);
+
+  if (dhcp_lnkconn(dhcp, conn) != 0)
+    return -1;
+
   (*conn)->inuse = 1;
   (*conn)->parent = this;
   (*conn)->mtu = this->mtu;
@@ -394,7 +405,7 @@ int dhcp_newconn(struct dhcp_t *this,
 
   /* Application specific initialisations */
   memcpy((*conn)->hismac, hwaddr, PKT_ETH_ALEN);
-  memcpy((*conn)->ourmac, dhcp_nexthop(this), PKT_ETH_ALEN);
+  /*memcpy((*conn)->ourmac, dhcp_nexthop(this), PKT_ETH_ALEN);*/
 
   (*conn)->lasttime = mainclock_now();
   
@@ -1514,12 +1525,12 @@ int dhcp_gettag(struct dhcp_packet_t *pack, size_t length,
   while ((offset + 2) < length) {
     t = (struct dhcp_tag_t *)(((uint8_t *)pack) + offset);
     if (t->t == tagtype) {
-      if ((offset +  2 + (size_t)(t->l)) > length)
+      if ((offset + 2 + (size_t)(t->l)) > length)
 	return -1; /* Tag length too long */
       *tag = t;
       return 0;
     }
-    offset +=  2 + t->l;
+    offset += 2 + t->l;
   }
   
   return -1; /* Not found  */

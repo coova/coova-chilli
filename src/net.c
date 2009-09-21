@@ -377,8 +377,16 @@ int net_open_eth(net_interface *netif) {
 
     netif->flags |= NET_ETHHDR;
 
-    if ((netif->flags & NET_USEMAC) == 0)
+    if ((netif->flags & NET_USEMAC) == 0) {
       memcpy(netif->hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
+    } else {
+      strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+      memcpy(ifr.ifr_hwaddr.sa_data, netif->hwaddr, PKT_ETH_ALEN);
+      if (ioctl(netif->fd, SIOCSIFHWADDR, (caddr_t)&ifr) < 0) {
+	log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCSIFHWADDR);
+	return -1;
+      }
+    }
   }
   
   if (netif->hwaddr[0] & 0x01) {

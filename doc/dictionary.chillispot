@@ -31,14 +31,14 @@ ATTRIBUTE	ChilliSpot-Sys-Uptime		       40	integer
 ATTRIBUTE	ChilliSpot-Sys-LoadAvg		       41	string
 ATTRIBUTE	ChilliSpot-Sys-Memory		       42	string
 
-ATTRIBUTE       ChilliSpot-DHCP-Vendor-Class-Id	       50	string
-ATTRIBUTE       ChilliSpot-DHCP-Client-Id	       51	string
-ATTRIBUTE       ChilliSpot-DHCP-Options		       52	string
+ATTRIBUTE       ChilliSpot-DHCP-Vendor-Class-Id	       50	octets
+ATTRIBUTE       ChilliSpot-DHCP-Client-Id	       51	octets
+ATTRIBUTE       ChilliSpot-DHCP-Options		       52	octets
 ATTRIBUTE       ChilliSpot-DHCP-Filename	       53	string
 ATTRIBUTE       ChilliSpot-DHCP-Hostname	       54	string
 ATTRIBUTE       ChilliSpot-DHCP-Server-Name	       55	string
 ATTRIBUTE       ChilliSpot-DHCP-Client-FQDN	       56	string
-ATTRIBUTE       ChilliSpot-DHCP-Parameter-Request-List 57	string
+ATTRIBUTE       ChilliSpot-DHCP-Parameter-Request-List 57	octets
 
 VALUE	ChilliSpot-Acct-View-Point ChilliSpot-NAS-View-Point	1
 VALUE	ChilliSpot-Acct-View-Point ChilliSpot-Client-View-Point 2

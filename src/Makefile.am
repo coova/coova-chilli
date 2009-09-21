@@ -19,7 +19,7 @@ iphash.c iphash.h lookup3.c sfhash.c lookup.c lookup.h \
 system.h cmdsock.c cmdsock.h radius_wispr.h radius_chillispot.h \
 chilli.h options.h util.c garden.c garden.h \
 dns.c dns.h session.c session.h limits.h pkt.h pkt.c \
-chksum.c net.h net.c ms_chap.c options.c 
+chksum.c net.h net.c ms_chap.c options.c statusfile.c
 
 # AM_LDFLAGS = -lchilli
 

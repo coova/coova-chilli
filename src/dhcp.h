@@ -93,14 +93,15 @@ struct dhcp_t; /* Forward declaration */
 #define DHCP_DNAT_MAX        64
 
 struct dhcp_conn_t {
-  int inuse;                    /* Free = 0; Inuse = 1 */
-  time_t lasttime;      /* Last time we heard anything from client */
   struct dhcp_conn_t *nexthash; /* Linked list part of hash table */
-  struct dhcp_conn_t *next;    /* Next in linked list. 0: Last */
-  struct dhcp_conn_t *prev;    /* Previous in linked list. 0: First */
-  struct dhcp_t *parent;       /* Parent of all connections */
-  void *peer;                  /* Peer protocol handler */
-  uint8_t ourmac[PKT_ETH_ALEN];/* Our MAC address */
+  struct dhcp_conn_t *next;     /* Next in linked list. 0: Last */
+  struct dhcp_conn_t *prev;     /* Previous in linked list. 0: First */
+  struct dhcp_t *parent;        /* Parent of all connections */
+  void *peer;                   /* Peer protocol handler */
+
+  int inuse;                   /* Free = 0; Inuse = 1 */
+  time_t lasttime;             /* Last time we heard anything from client */
+  /*uint8_t ourmac[PKT_ETH_ALEN];/* Our MAC address */
   uint8_t hismac[PKT_ETH_ALEN];/* Peer's MAC address */
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
@@ -244,10 +245,10 @@ int dhcp_set_cb_getinfo(struct dhcp_t *this,
 
 int dhcp_hashget(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr);
 
+int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn);
 int dhcp_newconn(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr, uint8_t *pkt);
 
 int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause);
-
 
 int dhcp_arp_ind(struct dhcp_t *this);  /* ARP Indication */
 
