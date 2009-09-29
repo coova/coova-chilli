@@ -122,6 +122,15 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 
 
 ###
+#   Firewall issues
+#
+# Uncomment the following to add ports to the allowed local ports list
+# The up.sh script will allow these local ports to be used, while the default
+# is to block all unwanted traffic to the tun/tap. 
+#
+# HS_TCP_PORTS="80 443"
+
+###
 #   Standard configurations
 #
 HS_MODE=hotspot

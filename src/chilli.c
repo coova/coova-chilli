@@ -4189,7 +4189,7 @@ int chilli_main(int argc, char **argv) {
 #ifdef ENABLE_BINSTATFILE
     if (printstatus() != 0) log_err(errno, "could not save status file");
 #else
-    log_warn("Not stopping sessions! seskeepalive should be used with compile option --enable-binstatusfile");
+    log_warn(0, "Not stopping sessions! seskeepalive should be used with compile option --enable-binstatusfile");
 #endif
   } else {
     killconn();

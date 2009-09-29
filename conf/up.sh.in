@@ -1,7 +1,4 @@
 #!/bin/sh
-# Coova Chilli - David Bird <david@coova.com>
-# Licensed under the GPL, see http://coova.org/
-# up.sh /dev/tun0 192.168.0.10 255.255.255.0
 
 . @ETCCHILLI@/functions
 

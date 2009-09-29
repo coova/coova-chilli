@@ -1444,8 +1444,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
       } else {
-	if (optionsdebug) 
-	  log_dbg("No password found!");
+	if (optionsdebug) log_dbg("No password found!");
 	bdestroy(bt);
 	return -1;
       }
