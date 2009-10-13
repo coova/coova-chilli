@@ -1,13 +1,20 @@
 /* 
- * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller.
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
- *
- * The contents of this file may be used under the terms of the GNU
- * General Public License Version 2, provided that the above copyright
- * notice and this permission notice is included in all copies or
- * substantial portions of the software.
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
  */
 
@@ -228,6 +235,10 @@ int options_load(int argc, char **argv, bstring bt) {
   if (!option_s_l(bt, &o.wwwbin)) return 0;
   if (!option_s_l(bt, &o.uamui)) return 0;
   if (!option_s_l(bt, &o.localusers)) return 0;
+#ifdef HAVE_OPENSSL
+  if (!option_s_l(bt, &o.sslkeyfile)) return 0;
+  if (!option_s_l(bt, &o.sslcertfile)) return 0;
+#endif
 
   if (!option_s_l(bt, &o.adminuser)) return 0;
   if (!option_s_l(bt, &o.adminpasswd)) return 0;
@@ -294,6 +305,10 @@ int options_save(char *file, bstring bt) {
   if (!option_s_s(bt, &o.wwwbin)) return 0;
   if (!option_s_s(bt, &o.uamui)) return 0;
   if (!option_s_s(bt, &o.localusers)) return 0;
+#ifdef HAVE_OPENSSL
+  if (!option_s_s(bt, &o.sslkeyfile)) return 0;
+  if (!option_s_s(bt, &o.sslcertfile)) return 0;
+#endif
 
   if (!option_s_s(bt, &o.adminuser)) return 0;
   if (!option_s_s(bt, &o.adminpasswd)) return 0;

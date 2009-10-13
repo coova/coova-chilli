@@ -172,6 +172,11 @@ struct options_t {
 
   char ourmac[32];
 
+#ifdef HAVE_OPENSSL
+  char *sslkeyfile;
+  char *sslcertfile;
+#endif
+
   /* local content */
   char *wwwdir;
   char *wwwbin;

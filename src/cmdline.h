@@ -387,6 +387,12 @@ struct gengetopt_args_info
   int challengetimeout2_arg;	/**< @brief Timeout in seconds for challenge during login (default='1200').  */
   char * challengetimeout2_orig;	/**< @brief Timeout in seconds for challenge during login original value given at command line.  */
   const char *challengetimeout2_help; /**< @brief Timeout in seconds for challenge during login help description.  */
+  char * sslkeyfile_arg;	/**< @brief SSL private key file in PEM format.  */
+  char * sslkeyfile_orig;	/**< @brief SSL private key file in PEM format original value given at command line.  */
+  const char *sslkeyfile_help; /**< @brief SSL private key file in PEM format help description.  */
+  char * sslcertfile_arg;	/**< @brief SSL certificate file in PEM format.  */
+  char * sslcertfile_orig;	/**< @brief SSL certificate file in PEM format original value given at command line.  */
+  const char *sslcertfile_help; /**< @brief SSL certificate file in PEM format help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -513,6 +519,8 @@ struct gengetopt_args_info
   unsigned int maxclients_given ;	/**< @brief Whether maxclients was given.  */
   unsigned int challengetimeout_given ;	/**< @brief Whether challengetimeout was given.  */
   unsigned int challengetimeout2_given ;	/**< @brief Whether challengetimeout2 was given.  */
+  unsigned int sslkeyfile_given ;	/**< @brief Whether sslkeyfile was given.  */
+  unsigned int sslcertfile_given ;	/**< @brief Whether sslcertfile was given.  */
 
 } ;
 

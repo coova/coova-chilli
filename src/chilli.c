@@ -1,15 +1,21 @@
 /* 
- * CoovaChilli: A Wireless LAN Access Point Controller.
- *
- * The contents of this file may be used under the terms of the GNU
- * General Public License Version 2, provided that the above copyright
- * notice and this permission notice is included in all copies or
- * substantial portions of the software.
- * 
  * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
  * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (C) 2003-2005 Mondru AB., 
- *
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
  */
 
 #include "system.h"
@@ -1517,18 +1523,21 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
   return 0;
 }
 
-
 /*********************************************************
  *
  * Redir callbacks
  *
  *********************************************************/
 
-int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
+int cb_redir_getstate(struct redir_t *redir, 
+		      struct sockaddr_in *address,
+		      struct sockaddr_in *remaddress,
 		      struct redir_conn_t *conn) {
+  struct in_addr *addr = &address->sin_addr;
   struct ippoolm_t *ipm;
   struct app_conn_t *appconn;
   struct dhcp_conn_t *dhcpconn;
+  uint8_t flags = 0;
 
   if (ippool_getip(ippool, &ipm, addr)) {
     return -1;
@@ -1543,9 +1552,23 @@ int cb_redir_getstate(struct redir_t *redir, struct in_addr *addr,
   conn->nasip = options()->radiuslisten;
   conn->nasport = appconn->unit;
   memcpy(conn->hismac, dhcpconn->hismac, PKT_ETH_ALEN);
-  /*memcpy(conn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);*/
   conn->ourip = appconn->ourip;
   conn->hisip = appconn->hisip;
+
+#ifdef HAVE_OPENSSL
+  {
+    int n;
+    for (n=0; n < DHCP_DNAT_MAX; n++) {
+      if (dhcpconn->dnatport[n] == address->sin_port) {
+	if (dhcpconn->dnatstate[n])
+	  flags |= USING_SSL;
+	break;
+      }
+    }
+  }
+#endif
+
+  conn->flags = flags;
 
   memcpy(&conn->s_params, &appconn->s_params, sizeof(appconn->s_params));
   memcpy(&conn->s_state,  &appconn->s_state,  sizeof(appconn->s_state));
@@ -1587,6 +1610,7 @@ int accounting_request(struct radius_packet_t *pack,
     log_err(0, "radius_default_pack() failed");
     return -1;
   }
+
   radius_pack.id = pack->id;
   
   /* Status type */
@@ -1596,11 +1620,11 @@ int accounting_request(struct radius_packet_t *pack,
     return 0;
   }
 
+  /* Only interested in the disconnect, if one */
   if (typeattr->v.i != htonl(RADIUS_STATUS_TYPE_STOP)) {
     radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
   }
-
 
   /* NAS IP */
   if (!radius_getattr(pack, &nasipattr, RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, 0)) {
@@ -1625,10 +1649,12 @@ int accounting_request(struct radius_packet_t *pack,
     if (options()->debug) {
       log_dbg("Calling Station ID is: %.*s", hismacattr->l-2, hismacattr->v.t);
     }
+
     if ((macstrlen = (size_t)hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
       log_err(0, "Wrong length of called station ID");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
+
     memcpy(macstr, hismacattr->v.t, macstrlen);
     macstr[macstrlen] = 0;
     
@@ -1639,8 +1665,7 @@ int accounting_request(struct radius_packet_t *pack,
     if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x",
 		&temp[0], &temp[1], &temp[2], 
 		&temp[3], &temp[4], &temp[5]) != 6) {
-      log_err(0,
-	      "Failed to convert Calling Station ID to MAC Address");
+      log_err(0, "Failed to convert Calling Station ID to MAC Address");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     
@@ -1654,10 +1679,12 @@ int accounting_request(struct radius_packet_t *pack,
       radius_resp(radius, &radius_pack, peer, pack->authenticator);
       return 0;
     }
+
     if (!(dhcpconn->peer) || !((struct app_conn_t *)dhcpconn->peer)->uplink) {
-      log_err(0,"No peer protocol defined");
+      log_err(0, "No peer protocol defined");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
+
     appconn = (struct app_conn_t*) dhcpconn->peer;
   }
   else if (nasipattr && nasportattr) { /* Look for NAS IP / Port */
@@ -1668,8 +1695,7 @@ int accounting_request(struct radius_packet_t *pack,
     }
   }
   else {
-    log_err(0,
-	    "Calling Station ID or NAS IP/Port is missing from radius request");
+    log_err(0, "Calling Station ID or NAS IP/Port is missing from radius request");
     radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
   }
@@ -1686,26 +1712,25 @@ int accounting_request(struct radius_packet_t *pack,
     }
   }
   
-  /* TODO: Check validity of pointers */
-  
   switch (appconn->dnprot) {
-  case DNPROT_UAM:
-    log_err(0,"Auth stop received for UAM");
-    break;
   case DNPROT_WPA:
-    dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
-    if (!dhcpconn) {
-      log_err(0,"No downlink protocol");
-      return 0;
-    }
-    /* Connection is simply deleted */
-    dhcp_freeconn(dhcpconn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
+    break;
+  case DNPROT_UAM:
+    /* might error here to indicate wrong type (should be WPA) */
     break;
   default:
     log_err(0,"Unhandled downlink protocol %d", appconn->dnprot);
     radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
   }
+
+  dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
+  if (!dhcpconn) {
+    log_err(0,"No downlink protocol");
+    return 0;
+  }
+
+  dhcp_freeconn(dhcpconn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
 
   radius_resp(radius, &radius_pack, peer, pack->authenticator);
 
@@ -2014,6 +2039,10 @@ int access_request(struct radius_packet_t *pack,
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
 		 appconn->unit, NULL, 0);
+
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
+		 options()->framedservice ? RADIUS_SERVICE_TYPE_FRAMED :
+		 RADIUS_SERVICE_TYPE_LOGIN, NULL, 0); 
   
   radius_addnasip(radius, &radius_pack);
   
@@ -2024,7 +2053,6 @@ int access_request(struct radius_packet_t *pack,
   
   return radius_req(radius, &radius_pack, appconn);
 }
-
 
 /*********************************************************
  *

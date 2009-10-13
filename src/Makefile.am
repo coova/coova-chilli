@@ -17,7 +17,7 @@ chilli.c tun.c tun.h ippool.c ippool.h radius.h radius.c \
 md5.c md5.h redir.h redir.c dhcp.c dhcp.h syserr.c syserr.h \
 iphash.c iphash.h lookup3.c sfhash.c lookup.c lookup.h \
 system.h cmdsock.c cmdsock.h radius_wispr.h radius_chillispot.h \
-chilli.h options.h util.c garden.c garden.h \
+chilli.h options.h util.c garden.c garden.h ssl.h ssl.c \
 dns.c dns.h session.c session.h limits.h pkt.h pkt.c \
 chksum.c net.h net.c ms_chap.c options.c statusfile.c
 
@@ -33,4 +33,4 @@ chilli_dog_SOURCES = main-dog.c
 #test_radius_SOURCES = test-radius.c 
 #test_dhcp_SOURCES = test-dhcp.c 
 
-LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la 
+LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBOPENSSL}

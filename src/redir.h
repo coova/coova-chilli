@@ -83,6 +83,9 @@ struct redir_conn_t {
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
 
+#define USING_SSL (1<<0)
+  uint8_t flags;
+
   /*
    *  RADIUS Reply-Message
    */
@@ -127,7 +130,9 @@ struct redir_t {
    int chillixml;     /* Send chilli specific XML along with WISPr */
    int no_uamwispr;   /* Do not have Chilli return WISPr blocks */
 
-  int (*cb_getstate) (struct redir_t *redir, struct in_addr *addr,
+  int (*cb_getstate) (struct redir_t *redir, 
+		      struct sockaddr_in *address,
+		      struct sockaddr_in *remaddress,
 		      struct redir_conn_t *conn);
 };
 
@@ -154,10 +159,15 @@ int redir_accept(struct redir_t *redir, int idx);
 int redir_setchallenge(struct redir_t *redir, struct in_addr *addr, uint8_t *challenge);
 
 int redir_set_cb_getstate(struct redir_t *redir,
-  int (*cb_getstate) (struct redir_t *redir, struct in_addr *addr,
+  int (*cb_getstate) (struct redir_t *redir, 
+		      struct sockaddr_in *address,
+		      struct sockaddr_in *remaddress,
 		      struct redir_conn_t *conn));
 
-int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *address, int isui);
+int redir_main(struct redir_t *redir, int infd, int outfd, 
+	       struct sockaddr_in *address, 
+	       struct sockaddr_in *remaddress, 
+	       int isui);
 
 int redir_json_fmt_redir(struct redir_conn_t *conn, bstring json, 
 			 char *userurl, char *redirurl, uint8_t *hismac);

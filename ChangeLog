@@ -1,6 +1,7 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+* Added support for SSL redirecting (with SSL cert violation, of course) and SSL on the local UAM sockets
 * Added Content-Type and Content-Length to chilli HTTP responses (redirect) - needed for some smart-clients (iPASS)
 * Bug fixed thanks to Wichert Akkerman (idle-timeout, '&' encoding, long passwords)
 * Changes default uamlogoutip from 1.1.1.1 to 1.0.0.0 because of reports it disconnects VPN connections. 

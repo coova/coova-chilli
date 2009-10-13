@@ -1,13 +1,20 @@
-/*
- * DHCP library functions.
+/* 
  * Copyright (C) 2003, 2004, 2005, 2006 Mondru AB.
  * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
- *
- * The contents of this file may be used under the terms of the GNU
- * General Public License Version 2, provided that the above copyright
- * notice and this permission notice is included in all copies or
- * substantial portions of the software.
- *
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
  */
 
 #include "system.h"
@@ -988,7 +995,11 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
   if (iph->protocol == PKT_IP_PROTO_TCP) {
 
-    if (tcph->dst == htons(DHCP_HTTP)) {
+    if (tcph->dst == htons(DHCP_HTTP)
+#ifdef HAVE_OPENSSL
+	|| tcph->dst == htons(DHCP_HTTPS)
+#endif
+	) {
       /* Was it a http request for another server? */
       /* We are changing dest IP and dest port to local UAM server */
       int n;
@@ -1008,6 +1019,13 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 	}
 	conn->dnatip[conn->nextdnat] = iph->daddr; 
 	conn->dnatport[conn->nextdnat] = tcph->src;
+	conn->dnatstate[conn->nextdnat] = 0;
+#ifdef HAVE_OPENSSL
+	if (tcph->dst == htons(DHCP_HTTPS)) {
+	  log_dbg("HTTPS Redirect");
+	  conn->dnatstate[conn->nextdnat] = 1;
+	}
+#endif
 	conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
       }
       
@@ -1051,7 +1069,7 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int i
 	      memcpy(ethh->src, conn->dnatmac[n], PKT_ETH_ALEN);
 	    }
 	    iph->saddr = conn->dnatip[n];
-	    tcph->src = htons(DHCP_HTTP);
+	    tcph->src = htons(conn->dnatstate[n] ? DHCP_HTTPS : DHCP_HTTP);
 
 	    chksum(iph);
 
@@ -1063,7 +1081,11 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int i
     }
     else {
       if ((iph->protocol == PKT_IP_PROTO_TCP) &&
-	  (tcph->dst == htons(DHCP_HTTP))) {
+	  (tcph->dst == htons(DHCP_HTTP) 
+#ifdef HAVE_OPENSSL
+	   || tcph->dst == htons(DHCP_HTTPS)
+#endif
+	   )) {
 
 	int n;
 	int pos=-1;
@@ -1086,6 +1108,12 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int i
 	  }
 	  conn->dnatip[conn->nextdnat] = iph->daddr; 
 	  conn->dnatport[conn->nextdnat] = tcph->src;
+#ifdef HAVE_OPENSSL
+	  if (tcph->dst == htons(DHCP_HTTPS)) {
+	    log_dbg("HTTPS Redirect");
+	    conn->dnatstate[conn->nextdnat] = 1;
+	  }
+#endif
 	  conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
 	}
 	
@@ -1184,7 +1212,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen) {
 	}
 
 	iph->saddr = conn->dnatip[n];
-	tcph->src = htons(DHCP_HTTP);
+	tcph->src = htons(conn->dnatstate[n] ? DHCP_HTTPS : DHCP_HTTP);
 
 	chksum(iph);
 
@@ -2252,9 +2280,9 @@ int dhcp_decaps(struct dhcp_t *this) {
   case PKT_ETH_PROTO_EAPOL: return dhcp_receive_eapol(this, packet);
   case PKT_ETH_PROTO_ARP:   return dhcp_receive_arp(this, packet, length);
   case PKT_ETH_PROTO_IP:    return dhcp_receive_ip(this, packet, length);
-  default: log_dbg("Layer2 PROT: 0x%.4x dropped", ntohs(prot));
+  default: log_dbg("Layer2 PROT: 0x%.4x dropped", ntohs(prot)); 
   }
-  return -1;
+  return 0;
 }
 
 int dhcp_ethhdr(struct dhcp_conn_t *conn, uint8_t *packet, uint8_t *hismac, uint8_t *nexthop, uint16_t prot) {

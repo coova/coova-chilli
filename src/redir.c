@@ -1,13 +1,20 @@
-/*
- * HTTP redirection functions.
- * Copyright (C) 2004, 2005 Mondru AB.
+/* 
+ * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
- *
- * The contents of this file may be used under the terms of the GNU
- * General Public License Version 2, provided that the above copyright
- * notice and this permission notice is included in all copies or
- * substantial portions of the software.
- *
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
  */
 
 #include "system.h"
@@ -20,6 +27,7 @@
 #include "dhcp.h"
 #include "chilli.h"
 #include "options.h"
+#include "ssl.h"
 
 static int optionsdebug = 0; /* TODO: Should be changed to instance */
 
@@ -35,7 +43,13 @@ char credits[] =
 "controller developed by the community at <a href=\"http://www.coova.org\">www.coova.org</a>. "
 "It is licensed under the GNU General Public License (GPL). ";
 
-struct redir_socket{int fd[2];};
+struct redir_socket {
+  int fd[2];
+#ifdef HAVE_OPENSSL
+  openssl_con *sslcon;
+#endif
+};
+
 static unsigned char redir_radius_id=0;
 static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst);
 extern time_t mainclock;
@@ -722,6 +736,11 @@ tcp_write(struct redir_socket *sock, char *buf, size_t len) {
   ssize_t c;
   size_t r = 0;
   while (r < len) {
+#ifdef HAVE_OPENSSL
+    if (sock->sslcon) {
+      c = openssl_write(sock->sslcon, buf, len);
+    } else 
+#endif
     c = tcp_write_timeout(timeout, sock, buf+r, len-r);
     if (c <= 0) return (ssize_t)r;
     r += (size_t)c;
@@ -1227,9 +1246,16 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       }
 
       /* if post is allowed, we do not buffer on the read (to not eat post data) */
-      if ((recvlen = recv(fd, buffer + buflen, (*ispost) ? 1 : sizeof(buffer) - 1 - buflen, 0)) < 0) {
+#ifdef HAVE_OPENSSL
+      if (sock->sslcon) 
+	recvlen = openssl_read(sock->sslcon, buffer + buflen, (*ispost) ? 1 : sizeof(buffer) - 1 - buflen);
+      else
+#endif
+      recvlen = recv(fd, buffer + buflen, (*ispost) ? 1 : sizeof(buffer) - 1 - buflen, 0);
+
+      if (recvlen < 0) {
 	if (errno != ECONNRESET)
-	  log_err(errno, "recv() failed!");
+	  log_err(errno, "redir read() failed!");
 	return -1;
       }
 
@@ -2021,6 +2047,7 @@ int redir_accept(struct redir_t *redir, int idx) {
   int status;
   int new_socket;
   struct sockaddr_in address;
+  struct sockaddr_in remaddress;
   socklen_t addrlen;
 
   addrlen = sizeof(struct sockaddr_in);
@@ -2029,6 +2056,12 @@ int redir_accept(struct redir_t *redir, int idx) {
     if (errno != ECONNABORTED)
       log_err(errno, "accept() failed!");
     return 0;
+  }
+
+  addrlen = sizeof(struct sockaddr_in);
+
+  if (getpeername(redir->fd[idx], (struct sockaddr *) &remaddress, &addrlen) < 0) {
+    log_dbg("getpeername() failed!");
   }
 
   /* This forks a new process. The child really should close all
@@ -2048,7 +2081,6 @@ int redir_accept(struct redir_t *redir, int idx) {
     close(new_socket);
     return 0; 
   }
-
 
 #if defined(F_DUPFD)
   if (fcntl(new_socket,F_GETFL,0) == -1) return -1;
@@ -2076,7 +2108,8 @@ int redir_accept(struct redir_t *redir, int idx) {
     execv(*binqqargs, binqqargs);
 
   } else {
-    return redir_main(redir, 0, 1, &address, idx);
+
+    return redir_main(redir, 0, 1, &address, &remaddress, idx);
   }
 
   return 0;
@@ -2099,9 +2132,13 @@ static void redir_close(int infd, int outfd) {
   close(infd);
   exit(0);
 }
-  
 
-int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *address, int isui) {
+
+int redir_main(struct redir_t *redir, 
+	       int infd, int outfd, 
+	       struct sockaddr_in *address, 
+	       struct sockaddr_in *remaddress, 
+	       int isui) {
   char hexchal[1+(2*REDIR_MD5LEN)];
   unsigned char challenge[REDIR_MD5LEN];
   size_t bufsize = REDIR_MAXBUFFER;
@@ -2153,7 +2190,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   /*
    *  Initializations
    */
-  memset(&socket,0,sizeof(socket));
+  memset(&socket, 0, sizeof(socket));
   memset(hexchal, 0, sizeof(hexchal));
   memset(&conn, 0, sizeof(conn));
   memset(&msg, 0, sizeof(msg));
@@ -2201,7 +2238,7 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
   }
 
   /* get_state returns 0 for unauth'ed and 1 for auth'ed */
-  state = redir->cb_getstate(redir, &address->sin_addr, &conn);
+  state = redir->cb_getstate(redir, address, remaddress, &conn);
 
   if (state == -1) {
     redir_close(infd, outfd); 
@@ -2213,7 +2250,13 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
    *  Parse the request, updating the status
    */
   if (optionsdebug) 
-    log_dbg("Get HTTP Request");
+    log_dbg("Receiving HTTP%s Request", conn.flags & USING_SSL ? "S" : "");
+
+#ifdef HAVE_OPENSSL
+  if (conn.flags & USING_SSL) {
+    socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 30);
+  }
+#endif
 
   termstate = REDIR_TERM_GETREQ;
   if (redir_getreq(redir, &socket, &conn, &ispost, &clen, qs, sizeof(qs))) {
@@ -2604,7 +2647,9 @@ int redir_main(struct redir_t *redir, int infd, int outfd, struct sockaddr_in *a
 
 /* Set callback to determine state information for the connection */
 int redir_set_cb_getstate(struct redir_t *redir,
-  int (*cb_getstate) (struct redir_t *redir, struct in_addr *addr,
+  int (*cb_getstate) (struct redir_t *redir, 
+		      struct sockaddr_in *address, 
+		      struct sockaddr_in *remaddress,
 		      struct redir_conn_t *conn)) {
   redir->cb_getstate = cb_getstate;
   return 0;

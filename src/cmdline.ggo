@@ -166,3 +166,6 @@ option "maxclients"    - "Maximum number of clients/subscribers" int default="51
 
 option "challengetimeout" - "Timeout in seconds for the generated challenge" int default="600" no
 option "challengetimeout2" - "Timeout in seconds for challenge during login" int default="1200" no
+
+option "sslkeyfile" - "SSL private key file in PEM format" string no
+option "sslcertfile" - "SSL certificate file in PEM format" string no

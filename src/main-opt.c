@@ -1,11 +1,18 @@
 /* 
- * CoovaChilli: A Wireless LAN Access Point Controller.
  * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
- *
- * The contents of this file may be used under the terms of the GNU
- * General Public License Version 2, provided that the above copyright
- * notice and this permission notice is included in all copies or
- * substantial portions of the software.
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
  */
 
@@ -684,6 +691,14 @@ int main(int argc, char **argv) {
 
   if (opt->localusers) free(opt->localusers);
   opt->localusers = STRDUP(args_info.localusers_arg);
+
+#ifdef HAVE_OPENSSL
+  if (opt->sslkeyfile) free(opt->sslkeyfile);
+  opt->sslkeyfile = STRDUP(args_info.sslkeyfile_arg);
+
+  if (opt->sslcertfile) free(opt->sslcertfile);
+  opt->sslcertfile = STRDUP(args_info.sslcertfile_arg);
+#endif
 
   if (opt->uamurl) free(opt->uamurl);
   opt->uamurl = STRDUP(args_info.uamserver_arg);

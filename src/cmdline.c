@@ -157,6 +157,8 @@ const char *gengetopt_args_info_help[] = {
   "      --maxclients=INT          Maximum number of clients/subscribers  \n                                  (default=`512')",
   "      --challengetimeout=INT    Timeout in seconds for the generated challenge  \n                                  (default=`600')",
   "      --challengetimeout2=INT   Timeout in seconds for challenge during login  \n                                  (default=`1200')",
+  "      --sslkeyfile=STRING       SSL private key file in PEM format",
+  "      --sslcertfile=STRING      SSL certificate file in PEM format",
     0
 };
 
@@ -334,6 +336,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->maxclients_given = 0 ;
   args_info->challengetimeout_given = 0 ;
   args_info->challengetimeout2_given = 0 ;
+  args_info->sslkeyfile_given = 0 ;
+  args_info->sslcertfile_given = 0 ;
 }
 
 static
@@ -555,6 +559,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->challengetimeout_orig = NULL;
   args_info->challengetimeout2_arg = 1200;
   args_info->challengetimeout2_orig = NULL;
+  args_info->sslkeyfile_arg = NULL;
+  args_info->sslkeyfile_orig = NULL;
+  args_info->sslcertfile_arg = NULL;
+  args_info->sslcertfile_orig = NULL;
   
 }
 
@@ -694,6 +702,8 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->maxclients_help = gengetopt_args_info_help[122] ;
   args_info->challengetimeout_help = gengetopt_args_info_help[123] ;
   args_info->challengetimeout2_help = gengetopt_args_info_help[124] ;
+  args_info->sslkeyfile_help = gengetopt_args_info_help[125] ;
+  args_info->sslcertfile_help = gengetopt_args_info_help[126] ;
   
 }
 
@@ -968,6 +978,10 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->maxclients_orig));
   free_string_field (&(args_info->challengetimeout_orig));
   free_string_field (&(args_info->challengetimeout2_orig));
+  free_string_field (&(args_info->sslkeyfile_arg));
+  free_string_field (&(args_info->sslkeyfile_orig));
+  free_string_field (&(args_info->sslcertfile_arg));
+  free_string_field (&(args_info->sslcertfile_orig));
   
   
 
@@ -1253,6 +1267,10 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "challengetimeout", args_info->challengetimeout_orig, 0);
   if (args_info->challengetimeout2_given)
     write_into_file(outfile, "challengetimeout2", args_info->challengetimeout2_orig, 0);
+  if (args_info->sslkeyfile_given)
+    write_into_file(outfile, "sslkeyfile", args_info->sslkeyfile_orig, 0);
+  if (args_info->sslcertfile_given)
+    write_into_file(outfile, "sslcertfile", args_info->sslcertfile_orig, 0);
   
 
   i = EXIT_SUCCESS;
@@ -1943,6 +1961,8 @@ cmdline_parser_internal (
         { "maxclients",	1, NULL, 0 },
         { "challengetimeout",	1, NULL, 0 },
         { "challengetimeout2",	1, NULL, 0 },
+        { "sslkeyfile",	1, NULL, 0 },
+        { "sslcertfile",	1, NULL, 0 },
         { 0,  0, 0, 0 }
       };
 
@@ -3617,6 +3637,34 @@ cmdline_parser_internal (
                 &(local_args_info.challengetimeout2_given), optarg, 0, "1200", ARG_INT,
                 check_ambiguity, override, 0, 0,
                 "challengetimeout2", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* SSL private key file in PEM format.  */
+          else if (strcmp (long_options[option_index].name, "sslkeyfile") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->sslkeyfile_arg), 
+                 &(args_info->sslkeyfile_orig), &(args_info->sslkeyfile_given),
+                &(local_args_info.sslkeyfile_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "sslkeyfile", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* SSL certificate file in PEM format.  */
+          else if (strcmp (long_options[option_index].name, "sslcertfile") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->sslcertfile_arg), 
+                 &(args_info->sslcertfile_orig), &(args_info->sslcertfile_given),
+                &(local_args_info.sslcertfile_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "sslcertfile", '-',
                 additional_error))
               goto failure;
           

@@ -101,7 +101,6 @@ struct dhcp_conn_t {
 
   int inuse;                   /* Free = 0; Inuse = 1 */
   time_t lasttime;             /* Last time we heard anything from client */
-  /*uint8_t ourmac[PKT_ETH_ALEN];/* Our MAC address */
   uint8_t hismac[PKT_ETH_ALEN];/* Peer's MAC address */
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
@@ -116,8 +115,10 @@ struct dhcp_conn_t {
   uint32_t dnatdns;            /* Destination NAT for dns mapping */
   uint32_t dnatip[DHCP_DNAT_MAX]; /* Destination NAT destination IP address */
   uint16_t dnatport[DHCP_DNAT_MAX]; /* Destination NAT source port */
+  uint8_t dnatstate[DHCP_DNAT_MAX]; /* Destination NAT source port */
   uint8_t dnatmac[DHCP_DNAT_MAX][PKT_ETH_ALEN]; /* Destination NAT source mac */
   uint16_t mtu;                /* Maximum transfer unit */
+
   uint8_t noc2c;               /* Prevent client to client access using /32 subnets */
 
 #ifdef ENABLE_IEEE8021Q
