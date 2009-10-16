@@ -120,14 +120,14 @@ if test x"$enable_statfile" = xyes || test x"$enable_binstatfile" = xyes; then
    AC_DEFINE(ENABLE_STATFILE,1,[Define to enable status file])
 fi
 
-AC_ARG_ENABLE(chillidog, [AC_HELP_STRING([--enable-chillidog],[Enable support for WiFiDog HTTP AAA Proxy])], 
-  enable_chillidog=$enableval, enable_chillidog=no)
+AC_ARG_ENABLE(chilliproxy, [AC_HELP_STRING([--enable-chilliproxy],[Enable support for HTTP AAA Proxy])], 
+  enable_chilliproxy=$enableval, enable_chilliproxy=no)
 
-if test x"$enable_chillidog" = xyes; then
-   AC_DEFINE(ENABLE_CHILLIDOG,1,[Define to enable WiFiDog HTTP AAA Proxy])
+if test x"$enable_chilliproxy" = xyes; then
+   AC_DEFINE(ENABLE_CHILLIPROXY,1,[Define to enable HTTP AAA Proxy])
 fi
 
-AM_CONDITIONAL(WITH_CHILLIDOG, [test x"$enable_chillidog" = xyes])
+AM_CONDITIONAL(WITH_CHILLIPROXY, [test x"$enable_chilliproxy" = xyes])
 
 AC_ARG_ENABLE(rtmon, [AC_HELP_STRING([--enable-rtmon],[Enable support for route monitoring deamon])], 
   enable_rtmon=$enableval, enable_rtmon=no)

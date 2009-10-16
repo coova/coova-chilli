@@ -291,7 +291,7 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
     }
   }
 
-  /* finish off RADIUS respose */
+  /* finish off RADIUS response */
   switch(req->radius_req.code) {
     
   case RADIUS_CODE_ACCESS_REQUEST:
@@ -386,6 +386,9 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
       case RADIUS_SERVICE_TYPE_FRAMED:
 	bcatcstr(req->url, "framed");
 	break;
+      case RADIUS_SERVICE_TYPE_ADMIN_USER:
+	bcatcstr(req->url, "admin");
+	break;
       default:
 	bassignformat(tmp, "%d", ntohl(attr->v.i));
 	bconcat(req->url, tmp);
@@ -466,6 +469,9 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
   radius_reply(radius, &req->radius_res, peer);
 
   close_request(req);
+
+  bdestroy(tmp);
+  bdestroy(tmp2);
 }
 
 int main(int argc, char **argv) {

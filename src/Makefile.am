@@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS=foreign
 lib_LTLIBRARIES = libchilli.la
 sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt
 
-if WITH_CHILLIDOG
+if WITH_CHILLIPROXY
 sbin_PROGRAMS += chilli_proxy
 chilli_proxy_SOURCES = main-proxy.c 
 chilli_proxy_LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la -lcurl ${LIBOPENSSL}
