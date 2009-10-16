@@ -17,6 +17,10 @@ ATTRIBUTE       ChilliSpot-Lang                    	7       string
 ATTRIBUTE       ChilliSpot-Version                 	8       string
 ATTRIBUTE       ChilliSpot-OriginalURL             	9       string
 ATTRIBUTE       ChilliSpot-Acct-View-Point             10	integer
+
+VALUE	ChilliSpot-Acct-View-Point ChilliSpot-NAS-View-Point	1
+VALUE	ChilliSpot-Acct-View-Point ChilliSpot-Client-View-Point 2
+
 ATTRIBUTE       ChilliSpot-Require-UAM		       11	string
 ATTRIBUTE       ChilliSpot-Require-Splash	       12	string
 ATTRIBUTE       ChilliSpot-Route-To-Interface	       13	string
@@ -39,9 +43,6 @@ ATTRIBUTE       ChilliSpot-DHCP-Hostname	       54	string
 ATTRIBUTE       ChilliSpot-DHCP-Server-Name	       55	string
 ATTRIBUTE       ChilliSpot-DHCP-Client-FQDN	       56	string
 ATTRIBUTE       ChilliSpot-DHCP-Parameter-Request-List 57	octets
-
-VALUE	ChilliSpot-Acct-View-Point ChilliSpot-NAS-View-Point	1
-VALUE	ChilliSpot-Acct-View-Point ChilliSpot-Client-View-Point 2
 
 # Configuration management parameters (ChilliSpot Only)
 ATTRIBUTE	ChilliSpot-UAM-Allowed			100	string

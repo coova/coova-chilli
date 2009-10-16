@@ -1,6 +1,18 @@
+AUTOMAKE_OPTIONS=foreign
+
 lib_LTLIBRARIES = libchilli.la
-sbin_PROGRAMS = chilli chilli_response chilli_radconfig \
-chilli_query chilli_opt chilli_dog chilli_rtmon
+sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt
+
+if WITH_CHILLIDOG
+sbin_PROGRAMS += chilli_proxy
+chilli_proxy_SOURCES = main-proxy.c 
+chilli_proxy_LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la -lcurl ${LIBOPENSSL}
+endif
+
+if WITH_RTMON
+sbin_PROGRAMS += chilli_rtmon
+chilli_rtmon_SOURCES = main-rtmon.c 
+endif
 
 # add -pg to enable gprof
 AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fstrict-aliasing -ansi\
@@ -28,9 +40,10 @@ chilli_radconfig_SOURCES = main-radconfig.c
 chilli_response_SOURCES = main-response.c 
 chilli_query_SOURCES = main-query.c 
 chilli_opt_SOURCES = main-opt.c ${cmdline_sources}
-chilli_rtmon_SOURCES = main-rtmon.c 
-chilli_dog_SOURCES = main-dog.c 
 #test_radius_SOURCES = test-radius.c 
 #test_dhcp_SOURCES = test-dhcp.c 
 
-LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBOPENSSL}
+LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la 
+if WITH_OPENSSL
+LDADD += ${LIBOPENSSL}
+endif

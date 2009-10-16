@@ -172,7 +172,7 @@ static int bstrtocstr(bstring src, char *dst, unsigned int len) {
 }
 
 /* Encode src as urlencoded and place null terminated result in dst */
-static int redir_urlencode(bstring src, bstring dst) {
+int redir_urlencode(bstring src, bstring dst) {
   char x[3];
   int n;
   

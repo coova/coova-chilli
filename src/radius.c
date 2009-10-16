@@ -706,6 +706,9 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
     }
 
     offset +=  t->l;
+
+    if (t->t == 0)
+      return -1;
     
     if (t->t != type) 
       continue;

@@ -3,8 +3,14 @@
 /* Define to enable binary status file */
 #undef ENABLE_BINSTATFILE
 
+/* Define to enable WiFiDog HTTP AAA Proxy */
+#undef ENABLE_CHILLIDOG
+
 /* Define to enable Chilli XML */
 #undef ENABLE_CHILLIXML
+
+/* Define to enable CoovaEWT API */
+#undef ENABLE_EWTAPI
 
 /* Define to enable Chilli IEEE 802.1Q */
 #undef ENABLE_IEEE8021Q
@@ -17,6 +23,9 @@
 
 /* Define to enable Chilli Leaky Bucket shaping */
 #undef ENABLE_LEAKYBUCKET
+
+/* Define to enable route monitoring deamon */
+#undef ENABLE_RTMON
 
 /* Define to enable Chilli session walled garden */
 #undef ENABLE_SESSGARDEN
