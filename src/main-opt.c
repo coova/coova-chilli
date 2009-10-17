@@ -703,6 +703,9 @@ int main(int argc, char **argv) {
   if (opt->uamurl) free(opt->uamurl);
   opt->uamurl = STRDUP(args_info.uamserver_arg);
 
+  if (opt->uamaaaurl) free(opt->uamaaaurl);
+  opt->uamaaaurl = STRDUP(args_info.uamaaaurl_arg);
+
   if (opt->uamhomepage) free(opt->uamhomepage);
   opt->uamhomepage = STRDUP(args_info.uamhomepage_arg);
 

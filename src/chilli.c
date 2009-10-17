@@ -3828,6 +3828,7 @@ int chilli_main(int argc, char **argv) {
 
   pid_t cpid = getpid();
   pid_t rtmon = 0;
+  pid_t proxy = 0;
 
   /* open a connection to the syslog daemon */
   /*openlog(PACKAGE, LOG_PID, LOG_DAEMON);*/

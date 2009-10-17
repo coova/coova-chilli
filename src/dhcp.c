@@ -1791,13 +1791,7 @@ int dhcp_sendACK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   return dhcp_send(this, &this->rawif, conn->hismac, packet, length);
 }
 
-/**
- * dhcp_sendNAK()
- * Send of a DHCP negative acknowledge message to a peer.
- * NAK messages are always sent to broadcast IP address (
- * except when using a DHCP relay server)
- **/
-int dhcp_sendNAK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
+int dhcp_sendTYPE(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int type) {
 
   struct dhcp_t *this = conn->parent;
   uint8_t packet[PKT_BUFFER];
@@ -1812,7 +1806,7 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
   /* Get packet default values */
   memset(packet, 0, sizeof(packet));
-  pos = dhcp_create_pkt(DHCPNAK, packet, pack, conn);
+  pos = dhcp_create_pkt(type, packet, pack, conn);
 
   packet_iph = iphdr(packet);
   packet_udph = udphdr(packet);
@@ -1843,6 +1837,21 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
   return dhcp_send(this, &this->rawif, conn->hismac, packet, length);
 }
+
+/**
+ * dhcp_sendNAK()
+ * Send of a DHCP negative acknowledge message to a peer.
+ * NAK messages are always sent to broadcast IP address (
+ * except when using a DHCP relay server)
+ **/
+int dhcp_sendNAK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
+  return dhcp_sendTYPE(conn, pack, len, DHCPNAK);
+}
+
+int dhcp_sendRENEW(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
+  return dhcp_sendTYPE(conn, pack, len, DHCPFORCERENEW);
+}
+
 
 
 /**

@@ -162,7 +162,6 @@ int radius_acctreq_authenticator(struct radius_t *this,
   return 0;
 }
 
-
 /* 
  * radius_authresp_authenticator()
  * Update a packet with an authentication response authenticator
@@ -1500,6 +1499,7 @@ int radius_decaps(struct radius_t *this) {
     break;
   default:
     coarequest = 0;
+    break;
   }
 
   if (!coarequest) {

@@ -228,6 +228,7 @@ int options_load(int argc, char **argv, bstring bt) {
 
   if (!option_s_l(bt, &o.uamsecret)) return 0;
   if (!option_s_l(bt, &o.uamurl)) return 0;
+  if (!option_s_l(bt, &o.uamaaaurl)) return 0;
   if (!option_s_l(bt, &o.uamhomepage)) return 0;
   if (!option_s_l(bt, &o.wisprlogin)) return 0;
 
@@ -298,6 +299,7 @@ int options_save(char *file, bstring bt) {
 
   if (!option_s_s(bt, &o.uamsecret)) return 0;
   if (!option_s_s(bt, &o.uamurl)) return 0;
+  if (!option_s_s(bt, &o.uamaaaurl)) return 0;
   if (!option_s_s(bt, &o.uamhomepage)) return 0;
   if (!option_s_s(bt, &o.wisprlogin)) return 0;
 

@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2009 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -58,6 +58,11 @@ typedef struct _proxy_request {
   struct radius_packet_t radius_req;
   struct radius_packet_t radius_res;
 
+  struct sockaddr_in peer;
+
+  CURL *curl;
+  struct radius_t *radius;
+
   struct _proxy_request *prev, *next;
   
 } proxy_request;
@@ -65,6 +70,9 @@ typedef struct _proxy_request {
 static int max_requests = 0;
 static proxy_request * requests = 0;
 static proxy_request * requests_free = 0;
+
+static CURLM * curl_multi;
+static int still_running = 0;
 
 static proxy_request * get_request() {
   proxy_request * req = 0;
@@ -104,6 +112,21 @@ static proxy_request * get_request() {
   return req;
 }
 
+static int radius_reply(struct radius_t *this,
+			struct radius_packet_t *pack,
+			struct sockaddr_in *peer) {
+
+  size_t len = ntohs(pack->length);
+  
+  if (sendto(this->fd, pack, len, 0,(struct sockaddr *) peer, 
+	     sizeof(struct sockaddr_in)) < 0) {
+    log_err(errno, "sendto() failed!");
+    return -1;
+  } 
+  
+  return 0;
+}
+
 static void close_request(proxy_request *req) {
   req->inuse = 0;
   if (requests_free) {
@@ -132,7 +155,9 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
   char *key = 0;
   char *keypwd = 0;
 
-  if ((curl = curl_easy_init()) != NULL) {
+  req->radius = radius;
+
+  if ((curl = req->curl = curl_easy_init()) != NULL) {
     struct curl_httppost *formpost=NULL;
     struct curl_httppost *lastptr=NULL;
     char error_buffer[CURL_ERROR_SIZE + 1];
@@ -209,31 +234,51 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
 
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, &error_buffer);
     
+    curl_multi_add_handle(curl_multi, curl);
+
+    while(CURLM_CALL_MULTI_PERFORM ==
+	  curl_multi_perform(curl_multi, &still_running));
+
+    /*
     if ((res = curl_easy_perform(curl)) != 0) {
-      log_err(errno, "curl: failed for url %s [%s] %s", 
+      log_err(errno, "failed for url %s [%s] %s", 
 	      req->url->data, curl_easy_strerror(res), error_buffer);
       result = -1;
     } else {
-      log_dbg("curl: got %s", req->url->data);
       result = 0;
     }
     
     curl_easy_cleanup(curl);
+    */
   }
 
+  return 0;
+}
+
+static int http_aaa_finish(proxy_request *req) {
+
+  struct radius_t *radius = req->radius;
+
+  curl_multi_remove_handle(curl_multi, req->curl);
+
+  curl_easy_cleanup(req->curl);
+
+  req->curl = 0;
+
   if (req->data->slen) {
-    /*printf("Received: %s\n",req->data->data);/**/
+    log_dbg("Received: %s\n",req->data->data);
     req->authorized = !memcmp(req->data->data, "Auth: 1", 7);
-    log_dbg("Access-%s", req->authorized ? "Accept" : "Reject");
   }
 
   /* initialize response packet */
   switch(req->radius_req.code) {
   case RADIUS_CODE_ACCOUNTING_REQUEST:
+    log_dbg("Accounting-Response");
     radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCOUNTING_RESPONSE);
     break;
     
   case RADIUS_CODE_ACCESS_REQUEST:
+    log_dbg("Access-%s", req->authorized ? "Accept" : "Reject");
     if (req->authorized) {
       radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCESS_ACCEPT);
       break;
@@ -254,39 +299,48 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
       while ((ptr = strtok(parse,"\n"))) {
 	parse = 0;
 
-	if (req->authorized) {
-
-	  /* access-accept only */
-
-	  struct {
-	    char *n;
-	    int a;
-	  } attrs[] = {
-	    { "Session-Timeout:", RADIUS_ATTR_SESSION_TIMEOUT },
-	    { "ChilliSpot-Bandwidth-Max-Up:", RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP },
-	    { "ChilliSpot-Bandwidth-Max-Down:", RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN },
-	    { "ChilliSpot-Max-Input-Octets:", RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS },
-	    { "ChilliSpot-Max-Output-Octets:", RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS },
-	    { "ChilliSpot-Max-Total-Octets:", RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS },
-	    { "ChilliSpot-Max-Input-Gigawords:", RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS },
-	    { "ChilliSpot-Max-Output-Gigawords:", RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS },
-	    { "ChilliSpot-Max-Total-Gigawords:", RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS },
-	    { 0 }
-	  };
-	  
-	  int i = 0;
-	  for (;;i++) {
-	    if (!attrs[i].n) break;
-	    if (!strncmp(ptr,attrs[i].n,strlen(attrs[i].n))) {
-	      int v = atoi(ptr+strlen(attrs[i].n));
-	      if (v > 0) {
-		radius_addattr(radius, &req->radius_res, attrs[i].a, 0, 0, v, NULL, 0);
-		log_dbg("Setting %s = %d\n", attrs[i].n, v);
+	struct {
+	  char *n;
+	  int a;
+	  char t;
+	} attrs[] = {
+	  { "Idle-Timeout:", RADIUS_ATTR_IDLE_TIMEOUT, 0 },
+	  { "Session-Timeout:", RADIUS_ATTR_SESSION_TIMEOUT, 0 },
+	  { "Acct-Interim-Interval:", RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 0 },
+	  { "ChilliSpot-Bandwidth-Max-Up:", RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0 },
+	  { "ChilliSpot-Bandwidth-Max-Down:", RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0 },
+	  { "ChilliSpot-Max-Input-Octets:", RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0 },
+	  { "ChilliSpot-Max-Output-Octets:", RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0 },
+	  { "ChilliSpot-Max-Total-Octets:", RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0 },
+	  { "ChilliSpot-Max-Input-Gigawords:", RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS, 0 },
+	  { "ChilliSpot-Max-Output-Gigawords:", RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS, 0 },
+	  { "ChilliSpot-Max-Total-Gigawords:", RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS, 0 },
+	  { "WISPr-Bandwidth-Max-Up", RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0 },
+	  { "WISPr-Bandwidth-Max-Down", RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0 },
+	  { 0 }
+	};
+	
+	int i;
+	for (i=0; attrs[i].n; i++) {
+	  if (!strncmp(ptr,attrs[i].n,strlen(attrs[i].n))) {
+	    switch(attrs[i].t) {
+	    case 0:
+	      {
+		int v = atoi(ptr+strlen(attrs[i].n));
+		if (v > 0) {
+		  radius_addattr(radius, &req->radius_res, attrs[i].a, 0, 0, v, NULL, 0);
+		  log_dbg("Setting %s = %d", attrs[i].n, v);
+		}
 	      }
+	      break;
+	    case 1:
+	      {
+		radius_addattr(radius, &req->radius_res, attrs[i].a, 0, 0, 0, ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
+	      }
+	      break;
 	    }
 	  }
 	}
-	/* all packets */
       }
     }
   }
@@ -316,25 +370,17 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
     break;
     
   case RADIUS_CODE_ACCOUNTING_REQUEST:
-    radius_acctreq_authenticator(radius, &req->radius_res);
+    radius_authresp_authenticator(radius, &req->radius_res, 
+				  req->radius_req.authenticator,
+				  radius->secret,
+				  radius->secretlen);
     break;
   }
 
-  return result;
-}
+  radius_reply(req->radius, &req->radius_res, &req->peer);
 
-static int radius_reply(struct radius_t *this,
-			struct radius_packet_t *pack,
-			struct sockaddr_in *peer) {
+  close_request(req);
 
-  size_t len = ntohs(pack->length);
-  
-  if (sendto(this->fd, pack, len, 0,(struct sockaddr *) peer, 
-	     sizeof(struct sockaddr_in)) < 0) {
-    log_err(errno, "sendto() failed!");
-    return -1;
-  } 
-  
   return 0;
 }
 
@@ -355,6 +401,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
   if (!req->url) req->url = bfromcstr("");
   if (!req->data) req->data = bfromcstr("");
 
+  memcpy(&req->peer, peer, sizeof(req->peer));
   memcpy(&req->radius_req, pack, sizeof(struct radius_packet_t));
   memset(&req->radius_res, '0', sizeof(struct radius_packet_t));
 
@@ -365,16 +412,6 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
   switch(req->radius_req.code) {
   case RADIUS_CODE_ACCESS_REQUEST:
     bcatcstr(req->url, "stage=login");
-    break;
-  case RADIUS_CODE_ACCOUNTING_REQUEST:
-    bcatcstr(req->url, "stage=counters");
-    break;
-  default:
-    error = "Unsupported RADIUS code";
-    break;
-  }
-
-  if (!error) {
     if (radius_getattr(pack, &attr, RADIUS_ATTR_SERVICE_TYPE, 0,0,0)) {
       error = "No service-type in RADIUS packet";
     } else {
@@ -395,46 +432,70 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 	break;
       }
     }
-  }
-  
-  if (!error) {
-    if (radius_getattr(pack, &attr, RADIUS_ATTR_USER_NAME, 0,0,0)) {
-      error = "No user-name in RADIUS packet";
+    break;
+  case RADIUS_CODE_ACCOUNTING_REQUEST:
+    bcatcstr(req->url, "stage=counters");
+    if (radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_STATUS_TYPE, 0,0,0)) {
+      error = "No acct-status-type in RADIUS packet";
     } else {
+      bcatcstr(req->url, "&status=");
+      switch (ntohl(attr->v.i)) {
+      case RADIUS_STATUS_TYPE_START:
+	bcatcstr(req->url, "start");
+	break;
+      case RADIUS_STATUS_TYPE_STOP:
+	bcatcstr(req->url, "stop");
+	break;
+      case RADIUS_STATUS_TYPE_INTERIM_UPDATE:
+	bcatcstr(req->url, "update");
+	break;
+      case RADIUS_STATUS_TYPE_ACCOUNTING_ON:
+	bcatcstr(req->url, "up");
+	break;
+      case RADIUS_STATUS_TYPE_ACCOUNTING_OFF:
+	bcatcstr(req->url, "down");
+	break;
+      default:
+	log_err(0,"unsupported acct-status-type %d",ntohl(attr->v.i));
+	error = "Unsupported acct-status-type";
+	break;
+      }
+    }
+    break;
+  default:
+    error = "Unsupported RADIUS code";
+    break;
+  }
+
+  if (!error) {
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_USER_NAME, 0,0,0)) {
       bcatcstr(req->url, "&user=");
       bassignblk(tmp, attr->v.t, attr->l-2);
       redir_urlencode(tmp, tmp2);
       bconcat(req->url, tmp2);
     }
-  }
 
-  if (!error) {
-    if (radius_getattr(pack, &attr, RADIUS_ATTR_CALLED_STATION_ID, 0,0,0)) {
-      error = "No called-station-id in RADIUS packet";
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_CALLED_STATION_ID, 0,0,0)) {
+      bcatcstr(req->url, "&ap=");
+      bassignblk(tmp, attr->v.t, attr->l-2);
+      redir_urlencode(tmp, tmp2);
+      bconcat(req->url, tmp2);
     }
-    bcatcstr(req->url, "&ap=");
-    bassignblk(tmp, attr->v.t, attr->l-2);
-    redir_urlencode(tmp, tmp2);
-    bconcat(req->url, tmp2);
-  }
-  
-  if (!error) {
-    if (radius_getattr(pack, &attr, RADIUS_ATTR_CALLING_STATION_ID, 0,0,0)) {
-      error = "No calling-station-id in RADIUS packet";
-    }
-    bcatcstr(req->url, "&mac=");
-    bassignblk(tmp, attr->v.t, attr->l-2);
-    redir_urlencode(tmp, tmp2);
-    bconcat(req->url, tmp2);
-  }
 
-  if (!error) {
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_CALLING_STATION_ID, 0,0,0)) {
+      bcatcstr(req->url, "&mac=");
+      bassignblk(tmp, attr->v.t, attr->l-2);
+      redir_urlencode(tmp, tmp2);
+      bconcat(req->url, tmp2);
+    }
+
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_SESSION_ID, 0,0,0)) {
       bcatcstr(req->url, "&sessionid=");
       bassignblk(tmp, attr->v.t, attr->l-2);
       redir_urlencode(tmp, tmp2);
       bconcat(req->url, tmp2);
     }
+
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_NAS_IDENTIFIER, 0,0,0)) {
       bcatcstr(req->url, "&nasid=");
       bassignblk(tmp, attr->v.t, attr->l-2);
@@ -451,7 +512,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 
     MD5Init(&context);
     MD5Update(&context, (uint8_t*)req->url->data, req->url->slen);
-    MD5Update(&context, (uint8_t*)radius->secret, strlen(radius->secret));
+    MD5Update(&context, (uint8_t*)options()->uamsecret, strlen(options()->uamsecret));
     MD5Final(cksum, &context);
 
     hex[0]=0;
@@ -460,15 +521,14 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 
     bcatcstr(req->url, "&md=");
     bcatcstr(req->url, hex);
-  }
   
-  log_dbg("==> %s", req->url->data);
-
-  http_aaa(radius, req);
-
-  radius_reply(radius, &req->radius_res, peer);
-
-  close_request(req);
+    log_dbg("==> %s", req->url->data);
+    
+    http_aaa(radius, req);
+    
+  } else {
+    log_err(0, "problem: %s", error);
+  }
 
   bdestroy(tmp);
   bdestroy(tmp2);
@@ -481,11 +541,18 @@ int main(int argc, char **argv) {
   struct radius_t *radius_auth;
   struct radius_t *radius_acct;
   struct in_addr radiuslisten;
+
+  struct timeval timeout;
+
   int maxfd = 0;
-  fd_set fds;
+  fd_set fdread;
+  fd_set fdwrite;
+  fd_set fdexcep;
+
   int status;
 
-  bstring optbt = bfromcstr("");
+  CURLMsg *msg;
+  int msgs_left;
 
   options_set(opt = (struct options_t *)calloc(1, sizeof(struct options_t)));
   process_options(argc, argv, 1);
@@ -494,12 +561,18 @@ int main(int argc, char **argv) {
   
   radiuslisten.s_addr = htonl(INADDR_ANY);
 
-  if (radius_new(&radius_auth, &radiuslisten, 11812, 0, NULL, 0, NULL, NULL, NULL)) {
+  curl_multi = curl_multi_init();
+
+  if (radius_new(&radius_auth, &radiuslisten, 
+		 opt->radiusauthport ? opt->radiusauthport : RADIUS_AUTHPORT, 
+		 0, NULL, 0, NULL, NULL, NULL)) {
     log_err(0, "Failed to create radius");
     return -1;
   }
 
-  if (radius_new(&radius_acct, &radiuslisten, 11813, 0, NULL, 0, NULL, NULL, NULL)) {
+  if (radius_new(&radius_acct, &radiuslisten, 
+		 opt->radiusacctport ? opt->radiusacctport : RADIUS_ACCTPORT, 
+		 0, NULL, 0, NULL, NULL, NULL)) {
     log_err(0, "Failed to create radius");
     return -1;
   }
@@ -508,55 +581,94 @@ int main(int argc, char **argv) {
   radius_set(radius_acct, 0, 0);
 
   while (1) {
-    FD_ZERO(&fds);
-    FD_SET(radius_auth->fd, &fds);
-    FD_SET(radius_acct->fd, &fds);
+    FD_ZERO(&fdread);
+    FD_ZERO(&fdwrite);
+    FD_ZERO(&fdexcep);
 
-    maxfd = radius_auth->fd > radius_acct->fd ? radius_auth->fd : radius_acct->fd;
+    FD_SET(radius_auth->fd, &fdread);
+    FD_SET(radius_acct->fd, &fdread);
+
+    curl_multi_fdset(curl_multi, &fdread, &fdwrite, &fdexcep, &maxfd);
+
+    if (radius_auth->fd > maxfd) maxfd = radius_auth->fd;
+    if (radius_acct->fd > maxfd) maxfd = radius_acct->fd;
     
-    switch (status = select(maxfd + 1, &fds, NULL, NULL, NULL)) {
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+ 
+    status = select(maxfd + 1, &fdread, &fdwrite, &fdexcep, &timeout);
+
+    switch (status) {
     case -1:
       log_err(errno, "select() returned -1!");
       break;  
+
     case 0:
     default:
+
+      if (status > 0) {
+	struct sockaddr_in addr;
+	socklen_t fromlen = sizeof(addr);
+	
+	if (FD_ISSET(radius_auth->fd, &fdread)) {
+	  /*
+	   *    ---> Authentication
+	   */
+	  
+	  if ((status = recvfrom(radius_auth->fd, &radius_pack, sizeof(radius_pack), 0, 
+				 (struct sockaddr *) &addr, &fromlen)) <= 0) {
+	    log_err(errno, "recvfrom() failed");
+	    
+	    return -1;
+	  }
+	  
+	  process_radius(radius_auth, &radius_pack, &addr);
+	}
+	
+	if (FD_ISSET(radius_acct->fd, &fdread)) {
+	  /*
+	   *    ---> Accounting
+	   */
+	  
+	  log_dbg("received accounting");
+	  
+	  if ((status = recvfrom(radius_acct->fd, &radius_pack, sizeof(radius_pack), 0, 
+			       (struct sockaddr *) &addr, &fromlen)) <= 0) {
+	    log_err(errno, "recvfrom() failed");
+	    return -1;
+	  }
+	  
+	  process_radius(radius_acct, &radius_pack, &addr);
+	}
+      }
+      
+      if (still_running) {
+	while(CURLM_CALL_MULTI_PERFORM ==
+	      curl_multi_perform(curl_multi, &still_running));
+      }
+
+      while ((msg = curl_multi_info_read(curl_multi, &msgs_left))) {
+	if (msg->msg == CURLMSG_DONE) {
+	  
+	  int idx, found = 0;
+	  
+	  /* Find out which handle this message is about */ 
+	  for (idx=0; (!found && (idx < max_requests)); idx++) 
+	    found = (msg->easy_handle == requests[idx].curl);
+	  
+	  if (found) {
+	    --idx;
+	    log_dbg("HTTP completed with status %d\n", msg->data.result);
+	    http_aaa_finish(&requests[idx]);
+	  }
+	}
+      }
+
       break;
     }
-    
-    if (status > 0) {
-      struct sockaddr_in addr;
-      socklen_t fromlen = sizeof(addr);
-
-      if (FD_ISSET(radius_auth->fd, &fds)) {
-	/*
-	 *    ---> Authentication
-	 */
-
-	if ((status = recvfrom(radius_auth->fd, &radius_pack, sizeof(radius_pack), 0, 
-			       (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	  log_err(errno, "recvfrom() failed");
-
-	  return -1;
-	}
-
-	process_radius(radius_auth, &radius_pack, &addr);
-      }
-
-      if (FD_ISSET(radius_acct->fd, &fds)) {
-	/*
-	 *    ---> Accounting
-	 */
-
-	if ((status = recvfrom(radius_acct->fd, &radius_pack, sizeof(radius_pack), 0, 
-			       (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	  log_err(errno, "recvfrom() failed");
-	  return -1;
-	}
-
-	process_radius(radius_acct, &radius_pack, &addr);
-      }
-    }
   }
+
+  curl_multi_cleanup(curl_multi);
 
   curl_global_cleanup();
 }

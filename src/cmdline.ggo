@@ -106,6 +106,8 @@ option "nouamsuccess" - "Do not return to the UAM server on success, original ur
 option "nouamwispr"   - "Do not send WISPr XML from ChilliSpot, assume back-end does" flag  off
 option "uamlogoutip"  - "HTTP Auto-Logout IP Address" string default="1.0.0.0" no
 
+option "uamaaaurl"    - "UAM AAA URL specifying the URL to use for the Chilli HTTP AAA" string no
+
 option "defsessiontimeout" - "Default session-timeout if not returned by RADIUS" long default="0" no
 option "defidletimeout" - "Default idle-timeout if not returned by RADIUS" int default="0" no
 option "defbandwidthmaxdown" - "Default WISPr-Bandwidth-Max-Down if not returned by RADIUS" long default="0" no

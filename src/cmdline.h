@@ -261,6 +261,9 @@ struct gengetopt_args_info
   char * uamlogoutip_arg;	/**< @brief HTTP Auto-Logout IP Address (default='1.0.0.0').  */
   char * uamlogoutip_orig;	/**< @brief HTTP Auto-Logout IP Address original value given at command line.  */
   const char *uamlogoutip_help; /**< @brief HTTP Auto-Logout IP Address help description.  */
+  char * uamaaaurl_arg;	/**< @brief UAM AAA URL specifying the URL to use for the Chilli HTTP AAA.  */
+  char * uamaaaurl_orig;	/**< @brief UAM AAA URL specifying the URL to use for the Chilli HTTP AAA original value given at command line.  */
+  const char *uamaaaurl_help; /**< @brief UAM AAA URL specifying the URL to use for the Chilli HTTP AAA help description.  */
   long defsessiontimeout_arg;	/**< @brief Default session-timeout if not returned by RADIUS (default='0').  */
   char * defsessiontimeout_orig;	/**< @brief Default session-timeout if not returned by RADIUS original value given at command line.  */
   const char *defsessiontimeout_help; /**< @brief Default session-timeout if not returned by RADIUS help description.  */
@@ -472,6 +475,7 @@ struct gengetopt_args_info
   unsigned int nouamsuccess_given ;	/**< @brief Whether nouamsuccess was given.  */
   unsigned int nouamwispr_given ;	/**< @brief Whether nouamwispr was given.  */
   unsigned int uamlogoutip_given ;	/**< @brief Whether uamlogoutip was given.  */
+  unsigned int uamaaaurl_given ;	/**< @brief Whether uamaaaurl was given.  */
   unsigned int defsessiontimeout_given ;	/**< @brief Whether defsessiontimeout was given.  */
   unsigned int defidletimeout_given ;	/**< @brief Whether defidletimeout was given.  */
   unsigned int defbandwidthmaxdown_given ;	/**< @brief Whether defbandwidthmaxdown was given.  */
