@@ -302,21 +302,24 @@ static int http_aaa_finish(proxy_request *req) {
 	struct {
 	  char *n;
 	  int a;
+	  int v;
+	  int va;
 	  char t;
 	} attrs[] = {
-	  { "Idle-Timeout:", RADIUS_ATTR_IDLE_TIMEOUT, 0 },
-	  { "Session-Timeout:", RADIUS_ATTR_SESSION_TIMEOUT, 0 },
-	  { "Acct-Interim-Interval:", RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 0 },
-	  { "ChilliSpot-Bandwidth-Max-Up:", RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0 },
-	  { "ChilliSpot-Bandwidth-Max-Down:", RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0 },
-	  { "ChilliSpot-Max-Input-Octets:", RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0 },
-	  { "ChilliSpot-Max-Output-Octets:", RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0 },
-	  { "ChilliSpot-Max-Total-Octets:", RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0 },
-	  { "ChilliSpot-Max-Input-Gigawords:", RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS, 0 },
-	  { "ChilliSpot-Max-Output-Gigawords:", RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS, 0 },
-	  { "ChilliSpot-Max-Total-Gigawords:", RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS, 0 },
-	  { "WISPr-Bandwidth-Max-Up", RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0 },
-	  { "WISPr-Bandwidth-Max-Down", RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0 },
+	  { "Idle-Timeout:", RADIUS_ATTR_IDLE_TIMEOUT, 0, 0, 0 },
+	  { "Session-Timeout:", RADIUS_ATTR_SESSION_TIMEOUT, 0, 0, 0 },
+	  { "Acct-Interim-Interval:", RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 0, 0, 0 },
+	  { "ChilliSpot-Bandwidth-Max-Up:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0 },
+	  { "ChilliSpot-Bandwidth-Max-Down:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0 },
+	  { "ChilliSpot-Max-Input-Octets:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0 },
+	  { "ChilliSpot-Max-Output-Octets:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0 },
+	  { "ChilliSpot-Max-Total-Octets:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0 },
+	  { "ChilliSpot-Max-Input-Gigawords:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS, 0 },
+	  { "ChilliSpot-Max-Output-Gigawords:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS, 0 },
+	  { "ChilliSpot-Max-Total-Gigawords:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS, 0 },
+	  { "WISPr-Bandwidth-Max-Up:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0 },
+	  { "WISPr-Bandwidth-Max-Down:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0 },
+	  { "Reply-Message:", RADIUS_ATTR_REPLY_MESSAGE, 0, 0, 1 },
 	  { 0 }
 	};
 	
@@ -328,14 +331,15 @@ static int http_aaa_finish(proxy_request *req) {
 	      {
 		int v = atoi(ptr+strlen(attrs[i].n));
 		if (v > 0) {
-		  radius_addattr(radius, &req->radius_res, attrs[i].a, 0, 0, v, NULL, 0);
+		  radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, v, NULL, 0);
 		  log_dbg("Setting %s = %d", attrs[i].n, v);
 		}
 	      }
 	      break;
 	    case 1:
 	      {
-		radius_addattr(radius, &req->radius_res, attrs[i].a, 0, 0, 0, ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
+		radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, 0, 
+			       ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
 	      }
 	      break;
 	    }
@@ -395,6 +399,11 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 
   if (!req) return;
 
+  if (!options()->uamaaaurl) {
+    log_err(0,"No --uamaaaurl parameter defined");
+    return;
+  }
+
   tmp = bfromcstralloc(10,"");
   tmp2 = bfromcstralloc(10,"");
 
@@ -407,7 +416,9 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 
   bassigncstr(req->data, "");
 
-  bassignformat(req->url, "%s%s", "http://localhost/simple-dog.php", "?");
+  bassignformat(req->url, "%s%s", 
+		options()->uamaaaurl, 
+		strchr(options()->uamaaaurl, '?') > 0 ? "&" : "?");
 
   switch(req->radius_req.code) {
   case RADIUS_CODE_ACCESS_REQUEST:
