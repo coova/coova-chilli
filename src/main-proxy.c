@@ -39,6 +39,8 @@
  *  - It should also be able to proxy to an alternate RADIUS server(s). 
  *  - It should also be able to establish and use a RadSec Tunnel. 
  *
+ * Also see: http://www.coova.org/CoovaChilli/Proxy
+ *
  */
 
 typedef struct _proxy_request {
@@ -238,18 +240,6 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
 
     while(CURLM_CALL_MULTI_PERFORM ==
 	  curl_multi_perform(curl_multi, &still_running));
-
-    /*
-    if ((res = curl_easy_perform(curl)) != 0) {
-      log_err(errno, "failed for url %s [%s] %s", 
-	      req->url->data, curl_easy_strerror(res), error_buffer);
-      result = -1;
-    } else {
-      result = 0;
-    }
-    
-    curl_easy_cleanup(curl);
-    */
   }
 
   return 0;
@@ -307,19 +297,42 @@ static int http_aaa_finish(proxy_request *req) {
 	  char t;
 	} attrs[] = {
 	  { "Idle-Timeout:", RADIUS_ATTR_IDLE_TIMEOUT, 0, 0, 0 },
+	  { "Reply-Message:", RADIUS_ATTR_REPLY_MESSAGE, 0, 0, 1 },
 	  { "Session-Timeout:", RADIUS_ATTR_SESSION_TIMEOUT, 0, 0, 0 },
 	  { "Acct-Interim-Interval:", RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 0, 0, 0 },
-	  { "ChilliSpot-Bandwidth-Max-Up:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0 },
-	  { "ChilliSpot-Bandwidth-Max-Down:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0 },
-	  { "ChilliSpot-Max-Input-Octets:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0 },
-	  { "ChilliSpot-Max-Output-Octets:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0 },
-	  { "ChilliSpot-Max-Total-Octets:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0 },
-	  { "ChilliSpot-Max-Input-Gigawords:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS, 0 },
-	  { "ChilliSpot-Max-Output-Gigawords:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS, 0 },
-	  { "ChilliSpot-Max-Total-Gigawords:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS, 0 },
-	  { "WISPr-Bandwidth-Max-Up:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0 },
-	  { "WISPr-Bandwidth-Max-Down:", RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0 },
-	  { "Reply-Message:", RADIUS_ATTR_REPLY_MESSAGE, 0, 0, 1 },
+	  { "ChilliSpot-Config:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_CONFIG, 1 },
+	  { "ChilliSpot-Bandwidth-Max-Up:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0 },
+	  { "ChilliSpot-Bandwidth-Max-Down:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0 },
+	  { "ChilliSpot-Max-Input-Octets:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0 },
+	  { "ChilliSpot-Max-Output-Octets:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0 },
+	  { "ChilliSpot-Max-Total-Octets:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0 },
+	  { "ChilliSpot-Max-Input-Gigawords:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS, 0 },
+	  { "ChilliSpot-Max-Output-Gigawords:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS, 0 },
+	  { "ChilliSpot-Max-Total-Gigawords:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS, 0 },
+	  { "WISPr-Bandwidth-Max-Up:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, 
+	    RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0 },
+	  { "WISPr-Bandwidth-Max-Down:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, 
+	    RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0 },
 	  { 0 }
 	};
 	
@@ -486,6 +499,20 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
       bconcat(req->url, tmp2);
     }
 
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_USER_PASSWORD, 0,0,0)) {
+      char pwd[RADIUS_ATTR_VLEN];
+      size_t pwdlen = 0;
+      if (!radius_pwdecode(radius, (uint8_t *) pwd, RADIUS_ATTR_VLEN, &pwdlen, 
+			   attr->v.t, attr->l-2, pack->authenticator,
+			   radius->secret,
+			   radius->secretlen)) {
+	bcatcstr(req->url, "&pass=");
+	bassignblk(tmp, pwd, strlen(pwd));
+	redir_urlencode(tmp, tmp2);
+	bconcat(req->url, tmp2);
+      }
+    }
+
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_CALLED_STATION_ID, 0,0,0)) {
       bcatcstr(req->url, "&ap=");
       bassignblk(tmp, attr->v.t, attr->l-2);
@@ -512,6 +539,46 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
       bassignblk(tmp, attr->v.t, attr->l-2);
       redir_urlencode(tmp, tmp2);
       bconcat(req->url, tmp2);
+    }
+
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_SESSION_TIME, 0,0,0)) {
+      uint32_t val = ntohl(attr->v.i);
+      bassignformat(tmp, "&duration=%d", val);
+      bconcat(req->url, tmp);
+    }
+
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INPUT_OCTETS, 0,0,0)) {
+      char *direction = options()->swapoctets ? "up" : "down";
+      uint32_t val = ntohl(attr->v.i);
+      uint64_t input = val;
+      if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INPUT_GIGAWORDS, 0,0,0)) {
+	val = ntohl(attr->v.i);
+	input |= (val << 32);
+      }
+      bassignformat(tmp, "&bytes_%s=%ld", direction, input);
+      bconcat(req->url, tmp);
+      if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INPUT_PACKETS, 0,0,0)) {
+	val = ntohl(attr->v.i);
+	bassignformat(tmp, "&pkts_%s=%ld", direction, val);
+	bconcat(req->url, tmp);
+      }
+    }
+
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_OUTPUT_OCTETS, 0,0,0)) {
+      char *direction = options()->swapoctets ? "down" : "up";
+      uint32_t val = ntohl(attr->v.i);
+      uint64_t output = val;
+      if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_OUTPUT_GIGAWORDS, 0,0,0)) {
+	val = ntohl(attr->v.i);
+	output |= (val << 32);
+      }
+      bassignformat(tmp, "&bytes_%s=%ld", direction, output);
+      bconcat(req->url, tmp);
+      if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_OUTPUT_PACKETS, 0,0,0)) {
+	val = ntohl(attr->v.i);
+	bassignformat(tmp, "&pkts_%s=%ld", direction, val);
+	bconcat(req->url, tmp);
+      }
     }
   }
 

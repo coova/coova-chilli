@@ -24,6 +24,9 @@
 /* Define to enable Chilli Leaky Bucket shaping */
 #undef ENABLE_LEAKYBUCKET
 
+/* Define to enable Coova miniportal */
+#undef ENABLE_MINIPORTAL
+
 /* Define to enable route monitoring deamon */
 #undef ENABLE_RTMON
 
