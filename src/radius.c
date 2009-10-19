@@ -657,9 +657,9 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     a->v.vv.l = vlen+2;
 
     if (data)
-      memcpy(((void*) a)+8, data, dlen);
+      memcpy(a->v.vv.v.t, data, dlen);
     else if (dlen)
-      memset(((void*) a)+8, 0, dlen); 
+      memset(a->v.vv.v.t, 0, dlen); 
     else
       a->v.vv.v.i = htonl(value);
   }

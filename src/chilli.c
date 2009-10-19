@@ -4067,6 +4067,32 @@ int chilli_main(int argc, char **argv) {
     }
   }
 
+  if (opt->uamaaaurl) {
+    pid_t p = fork();
+    if (p < 0) {
+      perror("fork");
+    } else if (p == 0) {
+      char *newargs[16];
+      char file[128];
+      int i=0;
+
+      snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",cpid);
+
+      newargs[i++] = "chilli_proxy";
+      newargs[i++] = "-b";
+      newargs[i++] = file;
+      newargs[i++] = NULL;
+      
+      if (execv(SBINDIR "/chilli_proxy", newargs) != 0) {
+	log_err(errno, "execl() did not return 0!");
+	exit(0);
+      }
+
+    } else {
+      proxy = p;
+    }
+  }
+
   /* setup IPv4LL/APIPA network ip and mask for uamanyip exception */
   inet_aton("169.254.0.0", &ipv4ll_ip);
   inet_aton("255.255.0.0", &ipv4ll_mask);
@@ -4257,6 +4283,9 @@ int chilli_main(int argc, char **argv) {
 
   if (rtmon > 0)
     kill(rtmon, SIGTERM);
+
+  if (proxy > 0)
+    kill(proxy, SIGTERM);
 
   return 0;
 }

@@ -41,6 +41,8 @@
  *
  * Also see: http://www.coova.org/CoovaChilli/Proxy
  *
+ * To enable, be sure to configure with "./configure --enable-chilliproxy"
+ *
  */
 
 typedef struct _proxy_request {
@@ -333,6 +335,9 @@ static int http_aaa_finish(proxy_request *req) {
 	  { "WISPr-Bandwidth-Max-Down:", 
 	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, 
 	    RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0 },
+	  { "WISPr-Redirection-URL:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, 
+	    RADIUS_ATTR_WISPR_REDIRECTION_URL, 1 },
 	  { 0 }
 	};
 	
@@ -342,7 +347,7 @@ static int http_aaa_finish(proxy_request *req) {
 	    switch(attrs[i].t) {
 	    case 0:
 	      {
-		int v = atoi(ptr+strlen(attrs[i].n));
+		uint32_t v = (uint32_t) atoi(ptr+strlen(attrs[i].n));
 		if (v > 0) {
 		  radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, v, NULL, 0);
 		  log_dbg("Setting %s = %d", attrs[i].n, v);
@@ -353,6 +358,7 @@ static int http_aaa_finish(proxy_request *req) {
 	      {
 		radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, 0, 
 			       ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
+		log_dbg("Setting %s = %s", attrs[i].n, ptr);
 	      }
 	      break;
 	    }
@@ -527,6 +533,14 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
       bconcat(req->url, tmp2);
     }
 
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0, 0)) {
+      if ((attr->l-2) == sizeof(struct in_addr)) {
+	struct in_addr *ip = (struct in_addr *) &(attr->v.i);
+	bcatcstr(req->url, "&ip=");
+	bcatcstr(req->url, inet_ntoa(*ip));
+      }
+    }
+
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_SESSION_ID, 0,0,0)) {
       bcatcstr(req->url, "&sessionid=");
       bassignblk(tmp, attr->v.t, attr->l-2);
@@ -613,7 +627,6 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 }
 
 int main(int argc, char **argv) {
-  struct gengetopt_args_info args_info;
   struct options_t * opt;
   struct radius_packet_t radius_pack;
   struct radius_t *radius_auth;
@@ -633,6 +646,7 @@ int main(int argc, char **argv) {
   int msgs_left;
 
   options_set(opt = (struct options_t *)calloc(1, sizeof(struct options_t)));
+
   process_options(argc, argv, 1);
 
   curl_global_init(CURL_GLOBAL_ALL);

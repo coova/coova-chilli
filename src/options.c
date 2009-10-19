@@ -125,8 +125,9 @@ static int opt_run(int argc, char **argv, int reload) {
 
   newargs = calloc(1, sizeof(char *) * (argc + 4));
 
-  for (i=1; i < argc; i++)
+  for (i=1; i < argc; i++) {
     newargs[i] = argv[i];
+  }
 
   newargs[0] = "chilli_opt";
   newargs[i++] = "-b";
@@ -141,25 +142,13 @@ static int opt_run(int argc, char **argv, int reload) {
   exit(0);
 }
 
+
 int options_load(int argc, char **argv, bstring bt) {
-  struct options_t o;
   char file[128];
   int fd;
-  int i;
 
   snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",getpid());
   fd = open(file, O_RDONLY);
-
-  /*
-  if (fd <= 0) {
-    snprintf(file,sizeof(file),"/tmp/chilli-config.bin");
-    fd = open(file, O_RDONLY);
-  }
-
-  if (fd <= 0) {
-    snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",getpid());
-  }
-  */
 
   while (fd <= 0) {
     int status = 0;
@@ -176,29 +165,37 @@ int options_load(int argc, char **argv, bstring bt) {
   if (fd <= 0) {
     return 0;
   } else {
-    char has_error = 1;
-    size_t len;
+    return options_fromfd(fd, bt);
+  }
+}
 
-    int rd = read(fd, &o, sizeof(o));
-    if (rd == sizeof(o)) {
-      rd = read(fd, &len, sizeof(len));
-      if (rd == sizeof(len)) {
-	ballocmin(bt, len);
-	rd = read(fd, bt->data, len);
-	if (rd == len) {
-	  has_error = 0;
-	}
+int options_fromfd(int fd, bstring bt) {
+
+  struct options_t o;
+  char has_error = 1;
+  size_t len;
+  int i;
+  
+  int rd = read(fd, &o, sizeof(o));
+
+  if (rd == sizeof(o)) {
+    rd = read(fd, &len, sizeof(len));
+    if (rd == sizeof(len)) {
+      ballocmin(bt, len);
+      rd = read(fd, bt->data, len);
+      if (rd == len) {
+	has_error = 0;
       }
     }
-
-    if (has_error) {
-      log_err(errno, "could not read configuration");
-      close(fd);
-      return 0;
-    }
-
-    close(fd);
   }
+  
+  if (has_error) {
+    log_err(errno, "could not read configuration");
+    close(fd);
+    return 0;
+  }
+  
+  close(fd);
 
   if (!option_s_l(bt, &o.pidfile)) return 0;
   if (!option_s_l(bt, &o.statedir)) return 0;
@@ -362,7 +359,23 @@ int process_options(int argc, char **argv, int minimal) {
 
   mode_t process_mask = umask(0077);
   char file[128];
-  
+  int i;
+
+  for (i=0; i < argc; i++) {
+    if (!strcmp(argv[i],"-b")) {
+      if (i+1 < argc) {
+	char *file = argv[i+1];
+	int fd = open(file, O_RDONLY);
+	while (fd > 0) {
+	  bstring bt = bfromcstr("");
+	  int ok = options_fromfd(fd, bt);
+	  if (!ok) bdestroy(bt);
+	  return ok;
+	}
+      }
+    }
+  }
+
   snprintf(file,sizeof(file),"/tmp/chilli-%d",getpid());
   
   if (mkdir(file, S_IRWXU | S_IRWXG | S_IRWXO))

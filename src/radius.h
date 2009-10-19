@@ -255,22 +255,25 @@ struct radiusm_t {
 };
 
 
+struct radius_vsattr_t {
+  uint32_t i;  /* vendor-id */
+  uint8_t t;   /* vsa type */
+  uint8_t l;   /* length */
+  union {
+    uint32_t i;
+    uint8_t  t[RADIUS_ATTR_VLEN-4];
+  } v;         /* value */
+} __attribute__((packed));
+
+
 struct radius_attr_t {
-  uint8_t t;
-  uint8_t l;
+  uint8_t t;   /* type */
+  uint8_t l;   /* length */
   union {
     uint32_t i;
     uint8_t  t[RADIUS_ATTR_VLEN];
-    struct {
-      uint32_t i;
-      uint8_t t;
-      uint8_t l;
-      union {
-	uint32_t i;
-	uint8_t  t[RADIUS_ATTR_VLEN-4];
-      } v;
-    } vv;
-  } v; 
+    struct radius_vsattr_t vv;
+  } v;        /* value */
 } __attribute__((packed));
 
 
