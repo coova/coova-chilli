@@ -135,8 +135,7 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
 
   timediff = (uint64_t) mainclock_diffu(conn->s_state.last_time);
 
-  if (options()->debug && (conn->s_params.bandwidthmaxup || 
-			   conn->s_params.bandwidthmaxdown))
+  if (options()->debug && (conn->s_params.bandwidthmaxup || conn->s_params.bandwidthmaxdown))
     log_dbg("Leaky bucket timediff: %lld, bucketup: %lld/%lld, bucketdown: %lld/%lld, up: %lld, down: %lld", 
 	    timediff, 
 	    conn->s_state.bucketup, conn->s_state.bucketupsize,
@@ -146,6 +145,16 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
   if (conn->s_params.bandwidthmaxup) {
     /* subtract what the leak since last time we visited */
     uint64_t bytes = (timediff * conn->s_params.bandwidthmaxup) / 8;
+
+    if (!conn->s_state.bucketupsize) {
+#ifdef BUCKET_SIZE
+      conn->s_state.bucketupsize = BUCKET_SIZE;
+#else
+      conn->s_state.bucketupsize = conn->s_params.bandwidthmaxup / 8000 * BUCKET_TIME;
+      if (conn->s_state.bucketupsize < BUCKET_SIZE_MIN) 
+	conn->s_state.bucketupsize = BUCKET_SIZE_MIN;
+#endif
+    }
 
     if (conn->s_state.bucketup > bytes) {
       conn->s_state.bucketup -= bytes;
@@ -165,6 +174,17 @@ int static leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t oct
 
   if (conn->s_params.bandwidthmaxdown) {
     uint64_t bytes = (timediff * conn->s_params.bandwidthmaxdown) / 8;
+
+    if (!conn->s_state.bucketdownsize) {
+#ifdef BUCKET_SIZE
+      conn->s_state.bucketdownsize = BUCKET_SIZE;
+#else
+      conn->s_state.bucketdownsize = conn->s_params.bandwidthmaxdown / 8000 * BUCKET_TIME;
+      if (conn->s_state.bucketdownsize < BUCKET_SIZE_MIN) 
+	conn->s_state.bucketdownsize = BUCKET_SIZE_MIN;
+#endif
+    }
+
     if (conn->s_state.bucketdown > bytes) {
       conn->s_state.bucketdown -= bytes;
     }
@@ -2680,30 +2700,6 @@ int cb_radius_auth_conf(struct radius_t *radius,
       return dnprot_reject(appconn);
     }
   }
-
-#ifdef ENABLE_LEAKYBUCKET
-  if (appconn->s_params.bandwidthmaxup) {
-#ifdef BUCKET_SIZE
-    appconn->s_state.bucketupsize = BUCKET_SIZE;
-#else
-    appconn->s_state.bucketupsize = appconn->s_params.bandwidthmaxup / 8000 * BUCKET_TIME;
-    if (appconn->s_state.bucketupsize < BUCKET_SIZE_MIN) 
-      appconn->s_state.bucketupsize = BUCKET_SIZE_MIN;
-#endif
-  }
-#endif
-  
-#ifdef ENABLE_LEAKYBUCKET
-  if (appconn->s_params.bandwidthmaxdown) {
-#ifdef BUCKET_SIZE
-    appconn->s_state.bucketdownsize = BUCKET_SIZE;
-#else
-    appconn->s_state.bucketdownsize = appconn->s_params.bandwidthmaxdown / 8000 * BUCKET_TIME;
-    if (appconn->s_state.bucketdownsize < BUCKET_SIZE_MIN) 
-      appconn->s_state.bucketdownsize = BUCKET_SIZE_MIN;
-#endif
-  }
-#endif
 
   /* EAP Message */
   appconn->challen = 0;

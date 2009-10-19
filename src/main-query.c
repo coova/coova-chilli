@@ -164,9 +164,12 @@ int main(int argc, char **argv) {
 	      "Route interface index",  0, 0 },
 	    /* more... */
 	  };
+
 	  int count = sizeof(args)/sizeof(struct arguments);
 	  int pos = argidx;
+
 	  argc -= argidx;
+
 	  while(argc > 0) {
 	    int i;
 
