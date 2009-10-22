@@ -88,19 +88,19 @@ function set_interim_interval  (&$a, $v, $o = true) { set_attribute('Acct-Interi
 function set_max_total_octets  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Total-Octets',$a,$v,$o); } 
 function set_max_input_octets  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Input-Octets',$a,$v,$o); } 
 function set_max_output_octets (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Output-Octets',$a,$v,$o); } 
-function set_max_total_kbytes  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Total-Octets',$a,$v,$o); } 
-function set_max_input_kbytes  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Input-Octets',$a,$v,$o); } 
-function set_max_output_kbytes (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Output-Octets',$a,$v,$o); } 
+function set_max_total_kbytes  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Total-Octets',$a,($v*1000),$o); } 
+function set_max_input_kbytes  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Input-Octets',$a,($v*1000),$o); } 
+function set_max_output_kbytes (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Output-Octets',$a,($v*1000),$o); } 
 function set_redirection_url   (&$a, $v, $o = true) { set_attribute('WISPr-Redirection-URL',$a,$v,$o); } 
 
 function set_max_bandwidth_up_bit_sec     (&$a, $v, $o = true) { set_attribute('WISPr-Bandwidth-Max-Up',$a,$v,$o); } 
 function set_max_bandwidth_down_bit_sec   (&$a, $v, $o = true) { set_attribute('WISPr-Bandwidth-Max-Down',$a,$v,$o); } 
 function set_max_bandwidth_up_kbit_sec    (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Up',$a,$v,$o); } 
 function set_max_bandwidth_down_kbit_sec  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Down',$a,$v,$o); } 
-function set_max_bandwidth_up_kbyte_sec   (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Up',$a,$v,$o); } 
-function set_max_bandwidth_down_kbyte_sec (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Down',$a,$v,$o); } 
-function set_max_bandwidth_up_mbyte_sec   (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Up',$a,$v,$o); } 
-function set_max_bandwidth_down_mbyte_sec (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Down',$a,$v,$o); } 
+function set_max_bandwidth_up_kbyte_sec   (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Up',$a,($v*8),$o); } 
+function set_max_bandwidth_down_kbyte_sec (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Down',$a,($v*8),$o); } 
+function set_max_bandwidth_up_mbyte_sec   (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Up',$a,($v*8000),$o); } 
+function set_max_bandwidth_down_mbyte_sec (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Down',$a,($v*8000),$o); } 
 
 function format_attributes(&$attrs) {
   foreach ($attrs as $n => $v) {
@@ -382,23 +382,6 @@ create table sessions (
   KEY(stop_time),
   PRIMARY KEY(id)
 );
-
-insert into users(network_id,username,password,created) values(1,'test','test',now());
-
-insert into networks(id,name,uamsecret)values(1,'Test','uamsecret2');
-insert into aps(network_id,mac_address)values(1,'00-1C-23-4F-46-10');
-
-insert into attributes(key_id,resource,name,value)
-values(1,'users','Session-Timeout','1200');
-
-insert into attributes(key_id,resource,name,value)
-values(1,'users','ChilliSpot-Bandwidth-Max-Up','40');
-
-insert into attributes(key_id,resource,name,value)
-values(1,'users','ChilliSpot-Bandwidth-Max-Down','40');
-
-insert into attributes(key_id,resource,name,value)
-values(1,'networks','Idle-Timeout','100');
 
 
 */
