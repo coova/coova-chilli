@@ -46,7 +46,6 @@
  */
 
 typedef struct _proxy_request {
-
   int index;
 
   char reserved:6;
@@ -54,9 +53,7 @@ typedef struct _proxy_request {
   char inuse:1;
 
   bstring url;
-
   bstring data;
-
   bstring post;
 
   struct radius_packet_t radius_req;
@@ -84,7 +81,7 @@ static proxy_request * get_request() {
 
   if (!max_requests) {
 
-    max_requests = 255;  /* hard maximum! (should be configurable) */
+    max_requests = 16; /* hard maximum! (should be configurable) */
 
     requests = (proxy_request *) calloc(max_requests, sizeof(proxy_request));
     for (i=0; i < max_requests; i++) {
@@ -94,23 +91,23 @@ static proxy_request * get_request() {
       if ((i+1) < max_requests) 
 	requests[i].next = &requests[i+1];
     }
-
+    
     requests_free = requests;
   }
-
+  
   if (requests_free) {
     req = requests_free;
     requests_free = requests_free->next;
     if (requests_free)
       requests_free->prev = 0;
   }
-
+  
   if (!req) {
     /* problem */
     log_err(0,"out of connections\n");
     return 0;
   }
-
+  
   req->next = req->prev = 0;
   req->inuse = 1;
   return req;
@@ -119,7 +116,7 @@ static proxy_request * get_request() {
 static int radius_reply(struct radius_t *this,
 			struct radius_packet_t *pack,
 			struct sockaddr_in *peer) {
-
+  
   size_t len = ntohs(pack->length);
   
   if (sendto(this->fd, pack, len, 0,(struct sockaddr *) peer, 

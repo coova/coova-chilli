@@ -33,17 +33,46 @@ hs_latitude=$(getconfig latitude)
 hs_longitude=$(getconfig longitude)
 
 USERS=@ETCCHILLI@/localusers
-FORM_userurl=${FORM_userurl:-http://www.coova.org}
+FORM_userurl=${FORM_userurl:-http://www.coova.org/}
+
+if [ "$FORM_uamip" != "" ]; then
+    QS=$(echo $QUERY_STRING | sed 's/&md=[^&=]*$//')
+    URL="http://$SERVER_NAME/$REQUEST_URI?$QS"
+    CHECK="$URL$hs_uamsecret"
+    CHECK_MD5=$(echo -n "$CHECK" |md5sum|cut -d' ' -f1|tr 'a-z' 'A-Z');
+    #echo "$URL" >> /tmp/debug
+    #echo "$CHECK" >> /tmp/debug
+    #echo "$CHECK_MD5" >> /tmp/debug
+    #echo "$FORM_md" >> /tmp/debug
+    if [ "$CHECK_MD5" = "$FORM_md" ]; then
+	COOVA_SESSIONID=$FORM_sessionid
+	COOVA_CHALLENGE=$FORM_challenge
+    else
+	echo "HTTP/1.0 302 Redirect"
+	echo "Location: /www/error.chi"
+	echo ""
+	exit
+    fi
+fi
 
 http_header() {
-    COOVA_SESSIONID=$FORM_sessionid
+    [ "$(getconfig enabled)" = "true" ] || {
+	echo "HTTP/1.0 302 Redirect"
+	echo "Location: /www/disabled.chi"
+	echo ""
+	exit
+    }
+    
     COOVA_SESSIONID=${COOVA_SESSIONID:-$COOKIE_COOVA_SESSIONID}
+    COOVA_CHALLENGE=${COOVA_CHALLENGE:-$COOKIE_COOVA_CHALLENGE}
     PORTAL_SESSIONID=${COOKIE_PORTAL_SESSIONID:-$SESSIONID}
-
+    
     echo "HTTP/1.0 200 OK"
     echo "Content-Type: text/html"
     echo "Set-Cookie: COOVA_SESSIONID=$COOVA_SESSIONID"
+    echo "Set-Cookie: COOVA_CHALLENGE=$COOVA_CHALLENGE"
     echo "Set-Cookie: PORTAL_SESSIONID=$PORTAL_SESSIONID"
+    echo "Connection: close"
     echo "Cache: none"
     echo ""
 }
@@ -86,19 +115,11 @@ footer() {
 error() { echo "<div class=\"err\">$1</div>"; }
 
 href() {
-    echo -n "<a href=\"$1?challenge=$FORM_challenge&uamip=$FORM_uamip&uamport=$FORM_uamport&"
-    echo -n "ip=$FORM_ip&mac=$FORM_mac&userurl=$FORM_userurl&"
-    echo "\">$2</a>"
+    echo "<a href=\"$1\">$2</a>"
 }
 
 form() {
-    echo "<form name=\"form\" method=\"post\" action=\"$1\">
-<INPUT TYPE=\"hidden\" NAME=\"challenge\" VALUE=\"$FORM_challenge\">
-<INPUT TYPE=\"hidden\" NAME=\"uamip\" VALUE=\"$FORM_uamip\">
-<INPUT TYPE=\"hidden\" NAME=\"ip\" VALUE=\"$FORM_ip\">
-<INPUT TYPE=\"hidden\" NAME=\"mac\" VALUE=\"$FORM_mac\">
-<INPUT TYPE=\"hidden\" NAME=\"uamport\" VALUE=\"$FORM_uamport\">
-<INPUT TYPE=\"hidden\" NAME=\"userurl\" VALUE=\"$FORM_userurl\">$2</form>"
+    echo "<form name=\"form\" method=\"post\" action=\"$1\"><INPUT TYPE=\"hidden\" NAME=\"userurl\" VALUE=\"$FORM_userurl\">$2</form>"
 }
 
 loginform() {
@@ -128,10 +149,10 @@ runlogin() {
 }
 
 dologin() {
-   response=$($CHILLI_RESPONSE "$FORM_challenge" "$hs_uamsecret" "$FORM_password")
+   response=$($CHILLI_RESPONSE "$COOVA_CHALLENGE" "$hs_uamsecret" "$FORM_password")
    cat <<ENDHTML
 <html><head>
-<meta http-equiv="refresh" content="0;url=http://${FORM_uamip}:${FORM_uamport}/login?username=${FORM_username}&response=${response}&userurl=${FORM_userurl}">
+<meta http-equiv="refresh" content="0;url=http://$(getconfig uamlisten):$(getconfig uamport)/login?username=${FORM_username}&response=${response}&userurl=${FORM_userurl}">
 </head></html>
 <!--
 <WISPAccessGatewayParam
@@ -140,7 +161,7 @@ dologin() {
 <AuthenticationReply>
 <MessageType>120</MessageType>
 <ResponseCode>201</ResponseCode>
-<LoginResultsURL>http://${FORM_uamip}:${FORM_uamport}/login?username=${FORM_username}&amp;response=${response}&amp;userurl=${FORM_userurl}</LoginResultsURL>
+<LoginResultsURL>http://$(getconfig uamlisten):$(getconfig uamport)/login?username=${FORM_username}&amp;response=${response}&amp;userurl=${FORM_userurl}</LoginResultsURL>
 </AuthenticationReply>
 </WISPAccessGatewayParam>
 -->

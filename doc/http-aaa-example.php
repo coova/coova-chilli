@@ -260,6 +260,37 @@ drop table networks;
 create table networks (
   id serial,
   name varchar(200),
+
+  -- defaults for 'classes' of service
+
+  defcode_idle_timeout integer unsigned,
+  defcode_kbps_down integer unsigned,
+  defcode_kbps_up integer unsigned,
+  defcode_limit_interval varchar(10), -- values: daily, weekly, monthly
+  defcode_session_time integer unsigned,
+  defcode_kbytes_total integer unsigned,
+  defcode_kbytes_down integer unsigned,
+  defcode_kbytes_up integer unsigned,
+
+  defuser_idle_timeout integer unsigned,
+  defuser_kbps_down integer unsigned,
+  defuser_kbps_up integer unsigned,
+  defuser_limit_interval varchar(10), -- values: daily, weekly, monthly
+  defuser_session_time integer unsigned,
+  defuser_kbytes_total integer unsigned,
+  defuser_kbytes_down integer unsigned,
+  defuser_kbytes_up integer unsigned,
+
+  defdev_always_allow boolean default false,
+  defdev_idle_timeout integer unsigned,
+  defdev_kbps_down integer unsigned,
+  defdev_kbps_up integer unsigned,
+  defdev_limit_interval varchar(10), -- values: daily, weekly, monthly
+  defdev_session_time integer unsigned,
+  defdev_kbytes_total integer unsigned,
+  defdev_kbytes_down integer unsigned,
+  defdev_kbytes_up integer unsigned,
+
   uamsecret varchar(200),
   KEY(name),
   PRIMARY KEY(id)
@@ -273,8 +304,7 @@ create table users (
   password varchar(200),
   email varchar(200),
 
-  -- "shared" attributes for acces control
-
+  -- attributes for acces control
 
   created datetime,
   FOREIGN KEY (network_id) REFERENCES networks(id),
@@ -291,7 +321,7 @@ create table devices (
   network_id bigint unsigned,
   mac_address varchar(200),
 
-  -- "shared" attributes for acces control
+  -- attributes for acces control
 
   FOREIGN KEY (network_id) REFERENCES networks(id),
   KEY(mac_address),
@@ -306,16 +336,15 @@ create table codes (
   username varchar(200),
   password varchar(200),
 
-  -- "shared" attributes for acces control
+  -- attributes for acces control
   access_disabled boolean default false,
   reply_message varchar(200),
   redirection_url varchar(200),
-  authorized_until datetime,
-  check_since datetime,
   idle_timeout integer unsigned,
-  session_time integer unsigned,
   kbps_down integer unsigned,
   kbps_up integer unsigned,
+  limit_interval varchar(10), -- values: daily, weekly, monthly
+  session_time integer unsigned,
   kbytes_total integer unsigned,
   kbytes_down integer unsigned,
   kbytes_up integer unsigned,

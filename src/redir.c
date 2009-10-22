@@ -1213,11 +1213,21 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring
   return 0;
 }
 
+/* HTTP request parsing context */
+struct redir_httpreq_t {
+  char allow_post:1;
+  char is_post:1;
+
+  char host[256];
+  char path[256];
+  char qs[REDIR_USERURLSIZE];
+
+  size_t clen;
+};
+
 /* Read the an HTTP request from a client */
-/* If POST is allowed, 1 is the input value of ispost */
 static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
-			struct redir_conn_t *conn, int *ispost, size_t *clen,
-			char *qs, size_t qslen) {
+			struct redir_conn_t *conn, struct redir_httpreq_t *httpreq) {
   int fd = sock->fd[0];
   fd_set fds;
   struct timeval idleTime;
@@ -1225,14 +1235,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
   ssize_t recvlen = 0;
   size_t buflen = 0;
   char buffer[REDIR_MAXBUFFER];
-  char host[256];
-  char path[256];
   int i, lines=0, done=0;
   char *eol;
 
+  char *path = httpreq->path;
+
   memset(buffer, 0, sizeof(buffer));
-  memset(host,   0, sizeof(host));
-  memset(path,   0, sizeof(path));
   
   /* read whatever the client send to us */
   while (!done && (redir->starttime + REDIR_HTTP_MAX_TIME) > time(NULL)) {
@@ -1262,10 +1270,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       /* if post is allowed, we do not buffer on the read (to not eat post data) */
 #ifdef HAVE_OPENSSL
       if (sock->sslcon) 
-	recvlen = openssl_read(sock->sslcon, buffer + buflen, (*ispost) ? 1 : sizeof(buffer) - 1 - buflen);
+	recvlen = openssl_read(sock->sslcon, buffer + buflen, httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen);
       else
 #endif
-      recvlen = recv(fd, buffer + buflen, (*ispost) ? 1 : sizeof(buffer) - 1 - buflen, 0);
+      recvlen = recv(fd, buffer + buflen, httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 0);
 
       if (recvlen < 0) {
 	if (errno != ECONNRESET)
@@ -1295,11 +1303,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	if (optionsdebug)
 	  log_dbg("http-request: %s", buffer);
 
-	if      (!strncmp("GET ",  p1, 4)) { p1 += 4; *ispost = 0; }
-	else if (!strncmp("HEAD ", p1, 5)) { p1 += 5; *ispost = 0; }
-	else if ((*ispost) && 
-		 !strncmp("POST ", p1, 5)) { p1 += 5; *ispost = 1; }
-	else { 
+	if      (!strncmp("GET ",  p1, 4)) { p1 += 4; }
+	else if (!strncmp("HEAD ", p1, 5)) { p1 += 5; }
+	else if (httpreq->allow_post && !strncmp("POST ", p1, 5)) { 
+	  p1 += 5; 
+	  httpreq->is_post = 1; 
+	} else { 
 	  if (optionsdebug)
 	    log_dbg("Unhandled http request: %s", buffer);
 	  return -1;
@@ -1315,8 +1324,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	if (!p2) return -1;
 	dstlen = p2 - p1;
 
-	if (dstlen >= sizeof(path)-1) 
-	  dstlen = sizeof(path)-1;
+	if (dstlen >= sizeof(httpreq->path)-1) 
+	  dstlen = sizeof(httpreq->path)-1;
 
 	strncpy(path, p1, dstlen);
 
@@ -1364,13 +1373,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	  if (p2) {
 	    dstlen = p2 - p1;
 
-	    if (dstlen >= qslen-1) 
-	      dstlen = qslen-1;
+	    if (dstlen >= sizeof(httpreq->qs)-1) 
+	      dstlen = sizeof(httpreq->qs)-1;
 
-	    strncpy(qs, p1, dstlen);
+	    strncpy(httpreq->qs, p1, dstlen);
 
 	    if (optionsdebug)
-	      log_dbg("Query string: %s", qs); 
+	      log_dbg("Query string: %s", httpreq->qs); 
 	  }
 	}
       } else if (linelen == 0) { 
@@ -1387,18 +1396,18 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	  p = buffer + 5;
 	  while (*p && isspace(*p)) p++;
 	  len = strlen(p);
-	  if (len >= sizeof(host)-1)
-	    len = sizeof(host)-1;
-	  strncpy(host, p, len);
-	  host[len]=0;
+	  if (len >= sizeof(httpreq->host)-1)
+	    len = sizeof(httpreq->host)-1;
+	  strncpy(httpreq->host, p, len);
+	  httpreq->host[len]=0;
 	  if (optionsdebug)
-	    log_dbg("Host: %s",host);
+	    log_dbg("Host: %s",httpreq->host);
 	} 
 	else if (!strncasecmp(buffer,"Content-Length:",15)) {
 	  p = buffer + 15;
 	  while (*p && isspace(*p)) p++;
 	  len = strlen(p);
-	  if (len > 0) *clen = atoi(p);
+	  if (len > 0) httpreq->clen = atoi(p);
 	  if (optionsdebug)
 	    log_dbg("Content-Length: %s",p);
 	}
@@ -1444,13 +1453,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
     {
       bstring bt = bfromcstr("");
 
-      if (!redir_getparam(redir, qs, "lang", bt))
+      if (!redir_getparam(redir, httpreq->qs, "lang", bt))
 	bstrtocstr(bt, conn->lang, sizeof(conn->lang));
       
-      if (!redir_getparam(redir, qs, "ident", bt) && bt->slen)
+      if (!redir_getparam(redir, httpreq->qs, "ident", bt) && bt->slen)
 	conn->chap_ident = atoi((char*)bt->data);
       
-      if (redir_getparam(redir, qs, "username", bt)) {
+      if (redir_getparam(redir, httpreq->qs, "username", bt)) {
 	log_err(0, "No username found in login request");
 	bdestroy(bt);
 	return -1;
@@ -1459,7 +1468,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       bstrtocstr(bt, conn->s_state.redir.username, sizeof(conn->s_state.redir.username));
       log_dbg("-->> Setting username=[%s]",conn->s_state.redir.username);
       
-      if (!redir_getparam(redir, qs, "userurl", bt)) {
+      if (!redir_getparam(redir, httpreq->qs, "userurl", bt)) {
 	bstring bt2 = bfromcstr("");
 	redir_urldecode(bt, bt2);
 	bstrtocstr(bt2, conn->s_state.redir.userurl, sizeof(conn->s_state.redir.userurl));
@@ -1468,17 +1477,17 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
 	bdestroy(bt2);
       }
       
-      if (!redir_getparam(redir, qs, "ntresponse", bt)) {
+      if (!redir_getparam(redir, httpreq->qs, "ntresponse", bt)) {
 	redir_hextochar(bt->data, conn->chappassword, 24);
 	conn->chap = 2;
 	conn->password[0] = 0;
       }
-      else if (!redir_getparam(redir, qs, "response", bt)) {
+      else if (!redir_getparam(redir, httpreq->qs, "response", bt)) {
 	redir_hextochar(bt->data, conn->chappassword, RADIUS_CHAPSIZE);
 	conn->chap = 1;
 	conn->password[0] = 0;
       }
-      else if (!redir_getparam(redir, qs, "password", bt)) {
+      else if (!redir_getparam(redir, httpreq->qs, "password", bt)) {
 	redir_hextochar(bt->data, conn->password, RADIUS_PWSIZE);
 	conn->password[RADIUS_PWSIZE-1]=0;
 	conn->chap = 0;
@@ -1496,7 +1505,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
   case REDIR_LOGOUT:
     {
       bstring bt = bfromcstr("");
-      if (!redir_getparam(redir, qs, "userurl", bt)) {
+      if (!redir_getparam(redir, httpreq->qs, "userurl", bt)) {
 	bstring bt2 = bfromcstr("");
 	redir_urldecode(bt, bt2);
 	bstrtocstr(bt2, conn->s_state.redir.userurl, sizeof(conn->s_state.redir.userurl));
@@ -1526,7 +1535,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket *sock,
       /* some basic checks for urls we don't care about */
       
       snprintf(conn->s_state.redir.userurl, sizeof(conn->s_state.redir.userurl), "http://%s/%s%s%s", 
-	       host, path, qs[0] ? "?" : "", qs[0] ? qs : "");
+	       httpreq->host, httpreq->path, httpreq->qs[0] ? "?" : "", httpreq->qs[0] ? httpreq->qs : "");
 
       if (optionsdebug) 
 	log_dbg("-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
@@ -2157,7 +2166,6 @@ int redir_main(struct redir_t *redir,
   unsigned char challenge[REDIR_MD5LEN];
   size_t bufsize = REDIR_MAXBUFFER;
   char buffer[bufsize+1];
-  char qs[REDIR_USERURLSIZE];
   struct redir_msg_t msg;
   ssize_t buflen;
 
@@ -2177,9 +2185,11 @@ int redir_main(struct redir_t *redir,
   struct sigaction act, oldact;
   struct itimerval itval;
   struct redir_socket socket;
-  int ispost = isui;
-  size_t clen = 0;
 
+  struct redir_httpreq_t httpreq;
+
+  memset(&httpreq,0,sizeof(httpreq));
+  httpreq.allow_post = isui;
 
 #define redir_memcopy(msgtype) \
   redir_challenge(challenge); \
@@ -2209,7 +2219,6 @@ int redir_main(struct redir_t *redir,
   memset(&conn, 0, sizeof(conn));
   memset(&msg, 0, sizeof(msg));
   memset(&act, 0, sizeof(act));
-  memset(qs, 0, sizeof(qs));
 
   socket.fd[0] = infd;
   socket.fd[1] = outfd;
@@ -2273,7 +2282,7 @@ int redir_main(struct redir_t *redir,
 #endif
 
   termstate = REDIR_TERM_GETREQ;
-  if (redir_getreq(redir, &socket, &conn, &ispost, &clen, qs, sizeof(qs))) {
+  if (redir_getreq(redir, &socket, &conn, &httpreq)) {
     log_dbg("Error calling get_req. Terminating\n");
     redir_close(infd, outfd);
   }
@@ -2331,10 +2340,12 @@ int redir_main(struct redir_t *redir,
 	
 	/* XXX: Todo: look for malicious content! */
 	
-	sprintf(buffer,"%d", clen > 0 ? clen : 0);
+	sprintf(buffer,"%d", httpreq.clen > 0 ? httpreq.clen : 0);
 	setenv("CONTENT_LENGTH", buffer, 1);
-	setenv("REQUEST_METHOD", ispost ? "POST" : "GET", 1);
-	setenv("QUERY_STRING", qs, 1);
+	setenv("REQUEST_METHOD", httpreq.is_post ? "POST" : "GET", 1);
+	setenv("REQUEST_URI", httpreq.path, 1);
+	setenv("QUERY_STRING", httpreq.qs, 1);
+	setenv("SERVER_NAME", httpreq.host, 1);
 	setenv("HTTP_COOKIE", conn.httpcookie, 1);
 	
 	log_dbg("Running: %s %s/%s",options()->wwwbin, options()->wwwdir, filename);
@@ -2422,7 +2433,7 @@ int redir_main(struct redir_t *redir,
 	log_dbg("redir_accept: already logged on");
 	redir_reply(redir, &socket, &conn, REDIR_ALREADY, NULL, 0, 
 		    NULL, NULL, conn.s_state.redir.userurl, NULL,
-		    NULL, conn.hismac, &conn.hisip, qs);
+		    NULL, conn.hismac, &conn.hisip, httpreq.qs);
 	redir_close(infd, outfd);
       }
     }
@@ -2437,7 +2448,7 @@ int redir_main(struct redir_t *redir,
 
       redir_reply(redir, &socket, &conn, REDIR_FAILED_OTHER, NULL, 
 		  0, hexchal, NULL, NULL, NULL, 
-		  NULL, conn.hismac, &conn.hisip, qs);
+		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
 
       redir_close(infd, outfd);
     }
@@ -2470,7 +2481,7 @@ int redir_main(struct redir_t *redir,
       
       redir_reply(redir, &socket, &conn, REDIR_SUCCESS, NULL, conn.s_params.sessiontimeout,
 		  NULL, conn.s_state.redir.username, conn.s_state.redir.userurl, conn.reply, 
-		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, qs);
+		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
       
       /* set params and redir data */
       redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS);
@@ -2488,7 +2499,7 @@ int redir_main(struct redir_t *redir,
 
       redir_reply(redir, &socket, &conn, REDIR_FAILED_REJECT, hasnexturl ? besturl : NULL,
 		  0, hexchal, NULL, conn.s_state.redir.userurl, conn.reply,
-		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, qs);
+		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
 
       bdestroy(besturl);
 
@@ -2509,7 +2520,7 @@ int redir_main(struct redir_t *redir,
       
       redir_reply(redir, &socket, &conn, REDIR_LOGOFF, NULL, 0, 
 		  hexchal, NULL, conn.s_state.redir.userurl, NULL, 
-		  NULL, conn.hismac, &conn.hisip, qs);
+		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
       
       redir_close(infd, outfd);    
     }
@@ -2532,12 +2543,12 @@ int redir_main(struct redir_t *redir,
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ALREADY, 
 		  NULL, 0, NULL, NULL, conn.s_state.redir.userurl, NULL,
-		  NULL, conn.hismac, &conn.hisip, qs);
+		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
     }
     else {
       redir_reply(redir, &socket, &conn, REDIR_NOTYET, 
 		  NULL, 0, hexchal, NULL, conn.s_state.redir.userurl, NULL, 
-		  NULL, conn.hismac, &conn.hisip, qs);
+		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
     }
     redir_close(infd, outfd);
 
@@ -2545,7 +2556,7 @@ int redir_main(struct redir_t *redir,
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ABORT_NAK, 
 		  NULL, 0, NULL, NULL, conn.s_state.redir.userurl, NULL, 
-		  NULL, conn.hismac, &conn.hisip, qs);
+		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
     }
     else {
       redir_memcopy(REDIR_ABORT);
@@ -2553,13 +2564,13 @@ int redir_main(struct redir_t *redir,
 
       redir_reply(redir, &socket, &conn, REDIR_ABORT_ACK, 
 		  NULL, 0, hexchal, NULL, conn.s_state.redir.userurl, NULL, 
-		  NULL, conn.hismac, &conn.hisip, qs);
+		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
     }
     redir_close(infd, outfd);
 
   case REDIR_ABOUT:
     redir_reply(redir, &socket, &conn, REDIR_ABOUT, NULL, 
-		0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, qs);
+		0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, httpreq.qs);
     redir_close(infd, outfd);
 
   case REDIR_STATUS:
@@ -2584,7 +2595,7 @@ int redir_main(struct redir_t *redir,
 
       redir_reply(redir, &socket, &conn, REDIR_STATUS, NULL, timeleft,
 		  hexchal, conn.s_state.redir.username, conn.s_state.redir.userurl, conn.reply, 
-		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, qs);
+		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
       
       redir_close(infd, outfd);
     }
@@ -2641,17 +2652,17 @@ int redir_main(struct redir_t *redir,
 
     redir_reply(redir, &socket, &conn, splash ? REDIR_SPLASH : REDIR_NOTYET, url, 
 		0, hexchal, NULL, conn.s_state.redir.userurl, NULL, 
-		NULL, conn.hismac, &conn.hisip, qs);
+		NULL, conn.hismac, &conn.hisip, httpreq.qs);
   }
   else if (state == 1) {
     redir_reply(redir, &socket, &conn, splash ? REDIR_SPLASH : REDIR_ALREADY, NULL, 0, 
 		splash ? hexchal : NULL, NULL, conn.s_state.redir.userurl, NULL,
-		NULL, conn.hismac, &conn.hisip, qs);
+		NULL, conn.hismac, &conn.hisip, httpreq.qs);
   }
   else {
     redir_reply(redir, &socket, &conn, splash ? REDIR_SPLASH : REDIR_NOTYET, NULL, 
 		0, hexchal, NULL, conn.s_state.redir.userurl, NULL, 
-		NULL, conn.hismac, &conn.hisip, qs);
+		NULL, conn.hismac, &conn.hisip, httpreq.qs);
   }
   
   redir_close(infd, outfd);

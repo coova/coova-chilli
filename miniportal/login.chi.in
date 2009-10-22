@@ -16,18 +16,14 @@
 
 . ./config.sh
 
-[ "$(getconfig enabled)" = "true" ] || exit
-
 http_header
-
-env | tee > /tmp/env
 
 FORM_username="${FORM_username:-$FORM_UserName}"
 FORM_username="${FORM_username:-$FORM_Username}"
 FORM_password="${FORM_password:-$FORM_Password}"
 FORM_password="${FORM_password:-$FORM_PassWord}"
 
-if [ -n "$FORM_username" -a -n "$FORM_challenge" ]; then
+if [ -n "$FORM_username" -a -n "$COOVA_CHALLENGE" ]; then
 
    dologin
 
