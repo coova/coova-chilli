@@ -635,42 +635,59 @@ int static maccmp(unsigned char *mac) {
   return -1;
 }
 
-int static macauth_radius(struct app_conn_t *appconn, uint8_t *pkt, size_t len) {
-
+int static auth_radius(struct app_conn_t *appconn, 
+		       char *username, char *password, 
+		       uint8_t *dhcp_pkt, size_t dhcp_len) {
+  
   struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
   struct radius_packet_t radius_pack;
   char mac[MACSTRLEN+1];
 
-  log_dbg("Starting mac radius authentication");
+  uint32_t service_type = RADIUS_SERVICE_TYPE_LOGIN;
+
+  log_dbg("Starting radius authentication");
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
     log_err(0, "radius_default_pack() failed");
     return -1;
   }
-  
+
   /* Include his MAC address */
   snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 	   dhcpconn->hismac[0], dhcpconn->hismac[1],
 	   dhcpconn->hismac[2], dhcpconn->hismac[3],
 	   dhcpconn->hismac[4], dhcpconn->hismac[5]);
 
-  strncpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
+  if (!username) {
+    service_type = RADIUS_SERVICE_TYPE_FRAMED;
 
-  if (options()->macsuffix)
-    strncat(appconn->s_state.redir.username, options()->macsuffix, USERNAMESIZE);
+    strncpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
+
+    if (options()->macsuffix)
+      strncat(appconn->s_state.redir.username, options()->macsuffix, USERNAMESIZE);
+  
+    username = appconn->s_state.redir.username;
+  } else {
+    strncpy(appconn->s_state.redir.username, username, USERNAMESIZE);
+  }
+
+  if (!password) {
+    password = options()->macpasswd;
+    if (!password) {
+      password = appconn->s_state.redir.username;
+    }
+  }
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
-		 (uint8_t*) appconn->s_state.redir.username, 
-		 strlen(appconn->s_state.redir.username));
+		 (uint8_t *) username, strlen(username));
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		 (uint8_t*) (options()->macpasswd ? options()->macpasswd : appconn->s_state.redir.username), 
-		 options()->macpasswd ? strlen(options()->macpasswd) : strlen(appconn->s_state.redir.username));
+		 (uint8_t *) password, strlen(password)); 
   
   appconn->authtype = PAP_PASSWORD;
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
-		 (uint8_t*) mac, MACSTRLEN);
+		 (uint8_t *) mac, MACSTRLEN);
   
   radius_addcalledstation(radius, &radius_pack);
 
@@ -680,8 +697,8 @@ int static macauth_radius(struct app_conn_t *appconn, uint8_t *pkt, size_t len) 
   radius_addnasip(radius, &radius_pack);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
-		 RADIUS_SERVICE_TYPE_FRAMED, NULL, 0); 
-  
+		 service_type, NULL, 0); 
+
   /* Include NAS-Identifier if given in configuration options */
   if (options()->radiusnasid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
@@ -713,10 +730,10 @@ int static macauth_radius(struct app_conn_t *appconn, uint8_t *pkt, size_t len) 
 		   ntohl(dhcpconn->tag8021q & 0x0FFF), 0, 0);
 #endif
 
-  if (options()->dhcpradius && pkt) {
+  if (options()->dhcpradius && dhcp_pkt) {
     struct dhcp_tag_t *tag = 0;
-    struct pkt_udphdr_t *udph = udphdr(pkt);
-    struct dhcp_packet_t *dhcppkt = dhcppkt(pkt);
+    struct pkt_udphdr_t *udph = udphdr(dhcp_pkt);
+    struct dhcp_packet_t *dhcppkt = dhcppkt(dhcp_pkt);
 
 #define maptag(OPT,VSA)\
     if (!dhcp_gettag(dhcppkt, ntohs(udph->len)-PKT_UDP_HLEN, &tag, OPT)) { \
@@ -2354,7 +2371,7 @@ void config_radius_session(struct session_params *params,
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
 		      RADIUS_VENDOR_WISPR,
 		      RADIUS_ATTR_WISPR_SESSION_TERMINATE_TIME, 0)) {
-    char attrs[RADIUS_ATTR_VLEN+1];
+    char attrs[RADIUS_ATTR_VLEN + 1];
     struct tm stt;
     int tzhour, tzmin;
     char *tz;
@@ -2383,10 +2400,8 @@ void config_radius_session(struct session_params *params,
       setenv("TZ", "", 1); /* Set environment to UTC */
       tzset();
       params->sessionterminatetime = mktime(&stt);
-      if (tz) 
-	setenv("TZ", tz, 1); 
-      else
-	unsetenv("TZ");
+      if (tz) setenv("TZ", tz, 1); 
+      else    unsetenv("TZ");
       tzset();
     }
     else if (result >= 6) { /* Local time */
@@ -2398,7 +2413,7 @@ void config_radius_session(struct session_params *params,
     }
     else {
       params->sessionterminatetime = 0;
-      log(LOG_WARNING, "Illegal WISPr-Session-Terminate-Time received: %s", attrs);
+      log_warn(0, "Invalid WISPr-Session-Terminate-Time received: %s", attrs);
     }
   }
   else if (!reconfig)
@@ -2980,7 +2995,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
       /*
        *  Otherwise, authenticate with RADIUS.
        */
-      macauth_radius(appconn, dhcp_pkt, dhcp_len);
+      auth_radius(appconn, 0, 0, dhcp_pkt, dhcp_len);
     }
 
     return -1;
@@ -2994,7 +3009,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     /** TODO: only if not being strict */
     appconn->dnprot = DNPROT_MAC;
 
-    macauth_radius(appconn, dhcp_pkt, dhcp_len);
+    auth_radius(appconn, 0, 0, dhcp_pkt, dhcp_len);
 
     return -1;
 
@@ -3306,6 +3321,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
   if (ipph->saddr != conn->hisip.s_addr) {
     log_dbg("Received packet with spoofed source!");
+    /*dhcp_sendRENEW(conn, pack, len);*/
     return 0;
   }
 
@@ -3607,7 +3623,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     break;
 
   case REDIR_MACREAUTH:
-    macauth_radius(appconn, 0, 0);
+    auth_radius(appconn, 0, 0, 0, 0);
     break;
 
   case REDIR_NOTYET:
@@ -3747,6 +3763,7 @@ static int cmdsock_accept(int sock) {
     }
     break;
 
+  case CMDSOCK_LOGIN:
   case CMDSOCK_AUTHORIZE:
     if (dhcp) {
       struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
@@ -3758,11 +3775,18 @@ static int cmdsock_accept(int sock) {
 		(req.data.sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid,req.data.sess.sessionid))
 		){
 	    char *uname = req.data.sess.username;
+
 	    log_dbg("remotely authorized session %s",appconn->s_state.sessionid);
 	    memcpy(&appconn->s_params, &req.data.sess.params, sizeof(req.data.sess.params));
+
 	    if (uname[0]) strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
 	    session_param_defaults(&appconn->s_params);
-	    dnprot_accept(appconn);
+
+	    if (req.type == CMDSOCK_LOGIN) {
+	      auth_radius(appconn, uname, req.data.sess.password, 0, 0);
+	    } else {
+	      dnprot_accept(appconn);
+	    }
 	    break;
 	  }
 	}
@@ -3987,7 +4011,6 @@ int chilli_main(int argc, char **argv) {
   redir_set_cb_getstate(redir, cb_redir_getstate);
 
   memset(&admin_session, 0, sizeof(admin_session));
-  /*memcpy(admin_session.ourmac, dhcp->rawif.hwaddr, sizeof(dhcp->rawif.hwaddr));*/
 
 #ifdef ENABLE_BINSTATFILE
   if (loadstatus() != 0) /* Only indicate a fresh start-up if we didn't load keepalive sessions */

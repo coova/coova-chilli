@@ -51,6 +51,7 @@ static cmd_info commands[] = {
   { CMDSOCK_DHCP_LIST,     "dhcp-list",     NULL },
   { CMDSOCK_DHCP_RELEASE,  "dhcp-release",  NULL },
   { CMDSOCK_AUTHORIZE,     "authorize",     NULL },
+  { CMDSOCK_LOGIN,         "login",         NULL },
   { CMDSOCK_DHCP_RELEASE,  "logout",        NULL },
   { CMDSOCK_DHCP_RELEASE,  "logoff",        NULL },
   { CMDSOCK_DHCP_DROP,     "drop",          NULL },
@@ -102,6 +103,7 @@ int main(int argc, char **argv) {
     if (!strcmp(cmd, commands[s].command)) {
       request.type = commands[s].type;
       switch(request.type) {
+      case CMDSOCK_LOGIN:
       case CMDSOCK_AUTHORIZE:
 	{
 	  struct arguments {
@@ -124,7 +126,11 @@ int main(int argc, char **argv) {
 	    { "username", 0, 
 	      sizeof(request.data.sess.username),
 	      request.data.sess.username,
-	      "Username to use in RADIUS Accounting",0,0 },
+	      "Username to use in RADIUS 'login' or authorization",0,0 },
+	    { "password", 0, 
+	      sizeof(request.data.sess.password),
+	      request.data.sess.password,
+	      "Password to be used for 'login' command",0,0 },
 	    { "sessiontimeout", 1, 
 	      sizeof(request.data.sess.params.sessiontimeout),
 	      &request.data.sess.params.sessiontimeout,

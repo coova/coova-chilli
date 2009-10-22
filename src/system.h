@@ -220,4 +220,6 @@
 
 #include "bstrlib.h"
 
+int bstring_fromfd(bstring s, int fd);
+
 #endif

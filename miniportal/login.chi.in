@@ -1,0 +1,58 @@
+<?
+# Copyright (C) 2009 Coova Technologies, LLC. <support@coova.com>
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#  
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#  
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+. ./config.sh
+
+[ "$(getconfig enabled)" = "true" ] || exit
+
+http_header
+
+env | tee > /tmp/env
+
+FORM_username="${FORM_username:-$FORM_UserName}"
+FORM_username="${FORM_username:-$FORM_Username}"
+FORM_password="${FORM_password:-$FORM_Password}"
+FORM_password="${FORM_password:-$FORM_PassWord}"
+
+if [ -n "$FORM_username" -a -n "$FORM_challenge" ]; then
+
+   dologin
+
+else
+
+   header
+
+   uamfile "login" 1 
+
+   if [ "$FORM_res" =  "failed" ]; then
+       if [ -n "$FORM_reply" ]; then
+	   error "$FORM_reply"
+       else
+	   error "Username and/or passowrd was not valid"
+       fi
+   fi
+
+   loginform 
+
+   uamfile "login_footer" 1 
+   [ "$register" = "1" ] && uamfile "login_register" 1 
+   [ "$usemap" = "1" ] && uamfile "login_map" 1 
+
+   footer
+
+fi
+
+?>

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-. @ETCCHILLI@/functions
+. @SYSCONFDIR@/chilli/functions
 
 [ -e "@VARRUN@/chilli.iptables" ] && sh @VARRUN@/chilli.iptables 2>/dev/null
 rm -f @VARRUN@/chilli.iptables 2>/dev/null

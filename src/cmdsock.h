@@ -32,6 +32,7 @@
 #ifdef ENABLE_STATFILE
 #define  CMDSOCK_STATUSFILE    11
 #endif
+#define  CMDSOCK_LOGIN         12
 #define  CMDSOCK_OPT_JSON      (1)
 
 #include "pkt.h"
@@ -45,6 +46,7 @@ struct cmdsock_request {
     struct cmdsock_session {
       struct in_addr ip;
       char username[256];
+      char password[256];
       char sessionid[17];
       struct session_params params;
     } sess;

@@ -1408,6 +1408,11 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req, struct dhcp_conn_t *c
 
   int pos = 0;
 
+  int is_req_dhcp = (req_dhcp->options[0] == 0x63 &&
+		     req_dhcp->options[1] == 0x82 &&
+		     req_dhcp->options[2] == 0x53 &&
+		     req_dhcp->options[3] == 0x63);
+
   copy_ethproto(req, pack);
 
   pack_ethh = ethhdr(pack);
@@ -1429,19 +1434,22 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req, struct dhcp_conn_t *c
   pack_iph->protocol = 0x11;
   pack_iph->check = 0; /* Calculate at end of packet */
 
-  pack_dhcp->xid      = req_dhcp->xid;
-  pack_dhcp->flags[0] = req_dhcp->flags[0];
-  pack_dhcp->flags[1] = req_dhcp->flags[1];
-  pack_dhcp->giaddr   = req_dhcp->giaddr;
+  if (is_req_dhcp) {
+    pack_dhcp->xid      = req_dhcp->xid;
+    pack_dhcp->flags[0] = req_dhcp->flags[0];
+    pack_dhcp->flags[1] = req_dhcp->flags[1];
+    pack_dhcp->giaddr   = req_dhcp->giaddr;
 
-  memcpy(&pack_dhcp->chaddr, &req_dhcp->chaddr, DHCP_CHADDR_LEN);
-  memcpy(&pack_dhcp->sname, conn->dhcp_opts.sname, DHCP_SNAME_LEN);
-  memcpy(&pack_dhcp->file, conn->dhcp_opts.file, DHCP_FILE_LEN);
+    memcpy(&pack_dhcp->chaddr, &req_dhcp->chaddr, DHCP_CHADDR_LEN);
+    memcpy(&pack_dhcp->sname, conn->dhcp_opts.sname, DHCP_SNAME_LEN);
+    memcpy(&pack_dhcp->file, conn->dhcp_opts.file, DHCP_FILE_LEN);
 
-  log_dbg("!!! dhcp server : %s !!!", pack_dhcp->sname);
+    log_dbg("!!! dhcp server : %s !!!", pack_dhcp->sname);
+  }
 
   switch(type) {
   case DHCPOFFER:
+  case DHCPFORCERENEW:
     pack_dhcp->yiaddr = conn->hisip.s_addr;
     break;
   case DHCPACK:
@@ -1501,20 +1509,26 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req, struct dhcp_conn_t *c
 
   **/
 
-  if (req_dhcp->ciaddr) {
-    pack_iph->daddr = req_dhcp->ciaddr; 
-    pack_udph->dst = htons(DHCP_BOOTPC);
-  } else if (req_dhcp->giaddr) {
-    pack_iph->daddr = req_dhcp->giaddr; 
-    pack_udph->dst = htons(DHCP_BOOTPS);
-  } else if (type == DHCPNAK ||              /* Nak always to broadcast */
-	     req_dhcp->flags[0] & 0x80 ||    /* Broadcast bit set */
-	     options()->dhcp_broadcast) {    /* Optional always send to broadcast */
-    pack_iph->daddr = ~0; 
-    pack_udph->dst = htons(DHCP_BOOTPC);
-    pack_dhcp->flags[0] = 0x80;
+  if (is_req_dhcp) {
+    if (req_dhcp->ciaddr) {
+      pack_iph->daddr = req_dhcp->ciaddr; 
+      pack_udph->dst = htons(DHCP_BOOTPC);
+    } else if (req_dhcp->giaddr) {
+      pack_iph->daddr = req_dhcp->giaddr; 
+      pack_udph->dst = htons(DHCP_BOOTPS);
+    } else if (type == DHCPNAK ||              /* Nak always to broadcast */
+	       req_dhcp->flags[0] & 0x80 ||    /* Broadcast bit set */
+	       options()->dhcp_broadcast) {    /* Optional always send to broadcast */
+      pack_iph->daddr = ~0; 
+      pack_udph->dst = htons(DHCP_BOOTPC);
+      pack_dhcp->flags[0] = 0x80;
+    } else {
+      pack_iph->daddr = pack_dhcp->yiaddr; 
+      pack_udph->dst = htons(DHCP_BOOTPC);
+    }
   } else {
-    pack_iph->daddr = pack_dhcp->yiaddr; 
+    struct pkt_iphdr_t *iph = iphdr(req);
+    pack_iph->daddr = iph->saddr;
     pack_udph->dst = htons(DHCP_BOOTPC);
   }
 
@@ -1848,11 +1862,11 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   return dhcp_sendTYPE(conn, pack, len, DHCPNAK);
 }
 
+/* Requires DHCP-AUTH
 int dhcp_sendRENEW(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   return dhcp_sendTYPE(conn, pack, len, DHCPFORCERENEW);
 }
-
-
+*/
 
 /**
  *  dhcp_getreq()
@@ -2172,6 +2186,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     if (this->cb_request)
       if (this->cb_request(conn, &addr, 0, 0)) {
 	log_dbg("dropping packet; ip not known: %s", inet_ntoa(addr));
+	/*dhcp_sendRENEW(conn, pack, len);*/
 	return 0; /* Ignore request if IP address was not allocated */
       }
   }

@@ -163,7 +163,7 @@ writeconfig() {
     writeconfig1 > $MAIN_TEMP
 
     # Not using auto-config, so set hs.conf settings directly
-    if [ "x$HS_RADCONF" != "xon" -a "x$HS_RADCONF" != "xurl" ]; then 
+    if [ "$HS_RADCONF" != "on" -a "$HS_RADCONF" != "url" ]; then 
 	[ "$HS_PAP_OK" = "on" ] && addconfig2 "papalwaysok"
 	[ "$HS_MACAUTH" = "on" ] && addconfig2 "macauth"
 	[ "$HS_MACREAUTH" = "on" ] && addconfig2 "macreauth"
@@ -172,12 +172,13 @@ writeconfig() {
 	[ "$HS_OPENIDAUTH" = "on" ] && addconfig2 "openidauth"
 	[ "$HS_ACCTUPDATE" = "on" ] && addconfig2 "acctupdate"
 	[ "$HS_DNSPARANOIA" = "on" ] && addconfig2 "dnsparanoia"
+	[ -n "$HS_UAMAAAURL" ] && addconfig2 "uamaaaurl \"$HS_UAMAAAURL\""
 	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile \"$HS_ADMINUPDATEFILE\""
 	[ -n "$HS_UAMSECRET" ] && addconfig2 "uamsecret \"$HS_UAMSECRET\""
 	test ${HS_DEFSESSIONTIMEOUT:-0} -gt 0 && addconfig2 "defsessiontimeout $HS_DEFSESSIONTIMEOUT"
 	test ${HS_DEFIDLETIMEOUT:-0} -gt 0 && addconfig2 "defidletimeout $HS_DEFIDLETIMEOUT"
 	test ${HS_DEFBANDWIDTHMAXDOWN:-0} -gt 0 && addconfig2 "defbandwidthmaxdown $HS_DEFBANDWIDTHMAXDOWN"
-	test ${HS_DEFBANDWIDTHMAXUP:-0} -gt 0 && addconfig2 "ddefbandwidthmaxup $HS_DEFBANDWIDTHMAXUP"
+	test ${HS_DEFBANDWIDTHMAXUP:-0} -gt 0 && addconfig2 "defbandwidthmaxup $HS_DEFBANDWIDTHMAXUP"
 	test ${HS_DEFINTERIMINTERVAL:-0} -gt 0 && addconfig2 "definteriminterval $HS_DEFINTERIMINTERVAL"
 	test ${HS_COAPORT:-0} -gt 0 && addconfig2 "coaport $HS_COAPORT"
 	[ -n "$HS_POSTAUTH_PROXY" -a -n "$HS_POSTAUTH_PROXYPORT" ] && {

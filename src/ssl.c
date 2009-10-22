@@ -45,7 +45,7 @@ static int
 openssl_verify_peer_cb(int ok, X509_STORE_CTX *ctx) {
   int err = X509_STORE_CTX_get_error(ctx);
   if (err != X509_V_OK) {
-    log_err(errno, "openssl: peer certificate error: #%d : %s\n", 
+    log_err(errno, "peer certificate error: #%d : %s\n", 
               err, X509_verify_cert_error_string(err));
     return 0;
   }
@@ -64,7 +64,7 @@ openssl_use_certificate(openssl_env *env, char *file) {
   if (file)
     if (SSL_CTX_use_certificate_chain_file(env->ctx, file) > 0)
       return 1;
-  log_err(errno, "openssl: could not load certificate file %s\n",file);
+  log_err(errno, "could not load certificate file %s\n",file);
   return 0;
 }
 
@@ -76,8 +76,7 @@ openssl_use_privatekey(openssl_env *env, char *file) {
     if ((err1 = SSL_CTX_use_PrivateKey_file(env->ctx, file, SSL_FILETYPE_PEM)) > 0 &&
         (err2 = SSL_CTX_check_private_key(env->ctx)))
       return 1;
-  log_err(errno,
-            "openssl: could not load private key file %s (%d,%d)\n",file,err1,err2);
+  log_err(errno, "could not load private key file %s (%d,%d)\n",file,err1,err2);
   bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
   BIO_printf(bio_err,"unable to set private key file\n");
   ERR_print_errors(bio_err);
@@ -88,7 +87,7 @@ int
 openssl_cacert_location(openssl_env *env, char *file, char *dir) {
   int err = SSL_CTX_load_verify_locations(env->ctx, file, dir);
   if (!err)
-    log_err(errno, "openssl: unable to load CA certificates.\n");
+    log_err(errno, "unable to load CA certificates.\n");
   return err;
 }
 
@@ -142,19 +141,19 @@ static void
 openssl_tmp_genkeys(openssl_env *env) {
 
   if ((env->tmpKeys[OPENSSL_TMPKEY_RSA512] = RSA_generate_key(512, RSA_F4, NULL, NULL)) == NULL) {
-    log_err(errno, "openssl: could not generate tmp 512bit RSA key\n");
+    log_err(errno, "could not generate tmp 512bit RSA key\n");
   }
 
   if ((env->tmpKeys[OPENSSL_TMPKEY_RSA1024] = RSA_generate_key(1024, RSA_F4, NULL, NULL)) == NULL) {
-    log_err(errno, "openssl: could not generate tmp 1024bit RSA key\n");
+    log_err(errno, "could not generate tmp 1024bit RSA key\n");
   }
 
   if ((env->tmpKeys[OPENSSL_TMPKEY_DH512] = openssl_dh_tmpkey(512)) == NULL) {
-    log_err(errno, "openssl: could not generate tmp 512bit DH key\n");
+    log_err(errno, "could not generate tmp 512bit DH key\n");
   }
 
   if ((env->tmpKeys[OPENSSL_TMPKEY_DH1024] = openssl_dh_tmpkey(1024)) == NULL) {
-    log_err(errno, "openssl: could not generate tmp 512bit DH key\n");
+    log_err(errno, "could not generate tmp 512bit DH key\n");
   }
 }
 

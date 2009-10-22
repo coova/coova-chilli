@@ -37,6 +37,9 @@ HS_RADIUS2=radius2.coova.net
 # HS_RADSECRET=  # Set to be your RADIUS shared secret (assigned from CoovaNET)
 # HS_UAMSECRET=  # Set to be your UAM secret (assigned from CoovaNET)
 
+#   To alternatively use a HTTP URL for AAA instead of RADIUS:
+# HS_UAMAAAURL=http://my-site/script.php
+
 #   Put entire domains in the walled-garden with DNS inspection
 # HS_UAMDOMAINS=".paypal.com,.paypalobjects.com"
 

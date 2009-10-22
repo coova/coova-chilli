@@ -1,9 +1,16 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+* Added the '''miniportal''' project to CoovaChilli, for a light-weight haserl/shell captive portal
 * Added support for SSL redirecting (with SSL cert violation, of course) and SSL on the local UAM sockets
+* Added compile-type option ''--enable-chilliproxy'' to have the new ''chilli_proxy'' server built
+* Added ''chilli_proxy'' to perform a RADIUS to/from HTTP translation for networks not wanting to use RADIUS
 * Added Content-Type and Content-Length to chilli HTTP responses (redirect) - needed for some smart-clients (iPASS)
+* Added option to ''chilli_query'' to have a session login with a certain username/password, (e.g. ''chilli_query login sessionid xxx username test password test'')
+* Added example HTTP AAA PHP script, see doc/http-aaa-example.php
+* Added ''sessionid'' (Acct-Session-Id in RADIUS) to initial redirect URL
 * Bug fixed thanks to Wichert Akkerman (idle-timeout, '&' encoding, long passwords)
+* Bug fix for when setting bandwidth limitations using chilli_query
 * Changes default uamlogoutip from 1.1.1.1 to 1.0.0.0 because of reports it disconnects VPN connections. 
 * Added some compile time options to remove certain features (see configure script).
 * Changed ''usestatusfile'' option from flag to an argument that takes a string (filename)

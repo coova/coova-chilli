@@ -1,0 +1,22 @@
+<!--
+  --  The login form
+  -->
+
+<div id="login-form">
+<table>
+<tr>
+  <td>Username</td>
+  <td><INPUT NAME="username" VALUE="$FORM_username"></td>
+</tr>
+<tr>
+  <td>Password</td>
+  <td><INPUT NAME="password" VALUE="$FORM_password" TYPE="password"></td>
+</tr>
+<tr>
+  <td colspan="2" nowrap align="center">
+    <input type="submit" name="button" value="Login & Accept Terms">&nbsp;&nbsp;
+    <input type="button" name="decline" value="Decline Terms"
+    onClick="alert('Then go home!');window.location='$FORM_userurl';"></td>
+</tr>
+</table>
+</div>

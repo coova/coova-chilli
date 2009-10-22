@@ -147,7 +147,7 @@ static int bstring_data(void *ptr, size_t size, size_t nmemb, void *userdata) {
   return rsize;
 }
 
-static int http_aaa(struct radius_t *radius, proxy_request *req) {
+static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
   int result = -2;
   CURL *curl;
   CURLcode res;
@@ -169,17 +169,13 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
     memset(&error_buffer, 0, sizeof(error_buffer));
 
     if (req->post) {
-      curl_formadd(&formpost,
-		   &lastptr,
-		   CURLFORM_COPYNAME, "xml",
-		   CURLFORM_COPYCONTENTS, req->post->data,
-		   CURLFORM_END);
-
-      curl_easy_setopt(curl, CURLOPT_HTTPPOST, formpost);
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, req->post->data);
     }
 
     if (user && pwd) {
     }
+
+#ifdef HAVE_OPENSSL
 
     if (cert && strlen(cert)) {
       log_dbg("using cert [%s]",cert);
@@ -221,13 +217,14 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
     }
 
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0);
+    curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_SSLv3);
+#endif
 
     curl_easy_setopt(curl, CURLOPT_VERBOSE, /*debug ? 1 :*/ 0);
-    curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_SSLv3);
 
     curl_easy_setopt(curl, CURLOPT_URL, req->url->data);
     
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "CoovaChilli");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "CoovaChilli " VERSION);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1);
     curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1); 
     curl_easy_setopt(curl, CURLOPT_NETRC, 0);
@@ -237,14 +234,26 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, req->data);
 
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, &error_buffer);
+
+    result = 0;
+  }
+
+  return result;
+}
+
+static int http_aaa(struct radius_t *radius, proxy_request *req) {
+
+  if (http_aaa_setup(radius, req) == 0) {
     
-    curl_multi_add_handle(curl_multi, curl);
+    curl_multi_add_handle(curl_multi, req->curl);
 
     while(CURLM_CALL_MULTI_PERFORM ==
 	  curl_multi_perform(curl_multi, &still_running));
+
+    return 0;
   }
 
-  return 0;
+  return -1;
 }
 
 static int http_aaa_finish(proxy_request *req) {
@@ -407,6 +416,101 @@ static int http_aaa_finish(proxy_request *req) {
   return 0;
 }
 
+static void http_aaa_register(int argc, char **argv, int i) {
+  proxy_request req = {0};
+
+  bstring tmp = bfromcstr("");
+  bstring tmp2 = bfromcstr("");
+
+  /* end with removing options */
+  argv[i] = 0;
+  process_options(i, argv, 1);
+
+  if (!options()->uamaaaurl) {
+    log_err(0, "uamaaaurl not defined in configuration");
+    exit(-1);
+  }
+
+  req.url = bfromcstr("");
+  req.data = bfromcstr("");
+  req.post = bfromcstr("");
+
+  bstring_fromfd(req.post, 0);
+
+  bassignformat(req.url, "%s%c", 
+		options()->uamaaaurl,
+		strchr(options()->uamaaaurl, '?') > 0 ? '&' : '?');
+
+  bcatcstr(req.url, "stage=register");
+
+  bcatcstr(req.url, "&ap=");
+  if (options()->nasmac) {
+    bcatcstr(req.url, options()->nasmac);
+  } else {
+    char nas_hwaddr[PKT_ETH_ALEN];
+    struct ifreq ifr;
+    char mac[32];
+
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    strncpy(ifr.ifr_name, options()->dhcpif, sizeof(ifr.ifr_name));
+
+    if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
+      memcpy(nas_hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
+      sprintf(mac, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+	      nas_hwaddr[0],nas_hwaddr[1],nas_hwaddr[2],
+	      nas_hwaddr[3],nas_hwaddr[4],nas_hwaddr[5]);
+      bcatcstr(req.url, mac);
+    }
+      
+    close(fd);
+  }
+
+  bcatcstr(req.url, "&nasid=");
+  if (options()->radiusnasid) {
+    char *nasid = options()->radiusnasid;
+    bassignblk(tmp, nasid, strlen(nasid));
+    redir_urlencode(tmp, tmp2);
+    bconcat(req.url, tmp2);
+  }
+    
+  for (i=i+1; i < argc; i++) {
+    bcatcstr(req.url, "&");
+    bcatcstr(req.url, argv[i]);
+    bcatcstr(req.url, "=");
+    i++;
+    if (i < argc) {
+      bassignblk(tmp, argv[i], strlen(argv[i]));
+      redir_urlencode(tmp, tmp2);
+      bconcat(req.url, tmp2);
+    }
+  }
+
+  redir_md_param(req.url, options()->uamsecret, "&");
+
+  curl_global_init(CURL_GLOBAL_ALL);
+
+  if (http_aaa_setup(0, &req) == 0) {
+
+    log_dbg("==> %s\npost:%s", req.url->data, req.post->data);
+
+    curl_easy_perform(req.curl);
+
+    log_dbg("<== %s", req.data->data);
+
+    curl_easy_cleanup(req.curl);
+  }
+
+  bdestroy(req.url);
+  bdestroy(req.data);
+  bdestroy(req.post);
+  bdestroy(tmp);
+  bdestroy(tmp2);
+
+  curl_global_cleanup();
+  exit(0);
+}
+
 static void process_radius(struct radius_t *radius, struct radius_packet_t *pack, struct sockaddr_in *peer) {
   struct radius_attr_t *attr = NULL; 
   char *error = 0;
@@ -435,9 +539,9 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 
   bassigncstr(req->data, "");
 
-  bassignformat(req->url, "%s%s", 
+  bassignformat(req->url, "%s%c", 
 		options()->uamaaaurl, 
-		strchr(options()->uamaaaurl, '?') > 0 ? "&" : "?");
+		strchr(options()->uamaaaurl, '?') > 0 ? '&' : '?');
 
   switch(req->radius_req.code) {
   case RADIUS_CODE_ACCESS_REQUEST:
@@ -519,6 +623,30 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
       }
     }
 
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_CHAP_CHALLENGE, 0,0,0)) {
+      char hexchal[1+(2*REDIR_MD5LEN)];
+      unsigned char challenge[REDIR_MD5LEN];
+      if (attr->l-2 <= sizeof(challenge)) {
+	bcatcstr(req->url, "&chap_chal=");
+	memcpy(challenge, attr->v.t, attr->l-2);
+	redir_chartohex(challenge, hexchal, REDIR_MD5LEN);
+	bcatcstr(req->url, hexchal);
+      }
+    }
+
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_CHAP_PASSWORD, 0,0,0)) {
+      char hexchal[65]; /* more than enough */
+      unsigned char resp[32]; 
+      if (attr->l-3 <= sizeof(resp)) {
+	char chapid = attr->v.t[0];
+	bcatcstr(req->url, "&chap_pass=");
+	redir_chartohex(attr->v.t+1, hexchal, attr->l-3);
+	bcatcstr(req->url, hexchal);
+	bassignformat(tmp, "&chap_id=%d", chapid);
+	bconcat(req->url, tmp);
+      }
+    }
+
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_CALLED_STATION_ID, 0,0,0)) {
       bcatcstr(req->url, "&ap=");
       bassignblk(tmp, attr->v.t, attr->l-2);
@@ -597,22 +725,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
   }
 
   if (!error) {
-    MD5_CTX context;
-    unsigned char cksum[16];
-    char hex[32+1];
-    int i;
-
-    MD5Init(&context);
-    MD5Update(&context, (uint8_t*)req->url->data, req->url->slen);
-    MD5Update(&context, (uint8_t*)options()->uamsecret, strlen(options()->uamsecret));
-    MD5Final(cksum, &context);
-
-    hex[0]=0;
-    for (i=0; i<16; i++)
-      sprintf(hex+strlen(hex), "%.2X", cksum[i]);
-
-    bcatcstr(req->url, "&md=");
-    bcatcstr(req->url, hex);
+    redir_md_param(req->url, options()->uamsecret, "&");
   
     log_dbg("==> %s", req->url->data);
     
@@ -644,8 +757,19 @@ int main(int argc, char **argv) {
 
   CURLMsg *msg;
   int msgs_left;
+  int i;
 
   options_set(opt = (struct options_t *)calloc(1, sizeof(struct options_t)));
+
+  /*
+   *  Support a --register mode whereby all subsequent arguments are 
+   *  used to create a URL for sending to the back-end. 
+   */
+  for (i=0; i < argc; i++) {
+    if (!strcmp(argv[i],"--register")) {
+      http_aaa_register(argc, argv, i);
+    }
+  }
 
   process_options(argc, argv, 1);
 

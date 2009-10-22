@@ -38,11 +38,13 @@ functions: Makefile functions.in
 up.sh: Makefile up.sh.in
 	rm -f up.sh up.sh.tmp
 	$(edit) up.sh.in >up.sh.tmp
+	chmod +x up.sh.tmp
 	mv up.sh.tmp up.sh
 
 down.sh: Makefile down.sh.in
 	rm -f down.sh down.sh.tmp
 	$(edit) down.sh.in >down.sh.tmp
+	chmod +x down.sh.tmp
 	mv down.sh.tmp down.sh
 
 chilli: Makefile chilli.in

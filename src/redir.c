@@ -84,7 +84,7 @@ static int redir_challenge(unsigned char *dst) {
   return 0;
 }
 
-static int redir_hextochar(unsigned char *src, unsigned char * dst, int len) {
+int redir_hextochar(unsigned char *src, unsigned char * dst, int len) {
   char x[3];
   int n;
   int y;
@@ -105,18 +105,19 @@ static int redir_hextochar(unsigned char *src, unsigned char * dst, int len) {
   return 0;
 }
 
-/* Convert 16 octet unsigned char to 32+1 octet ASCII hex string */
-static int redir_chartohex(unsigned char *src, char *dst) {
+/* Convert 'len' octet unsigned char to 'len'*2+1 octet ASCII hex string */
+int redir_chartohex(unsigned char *src, char *dst, size_t len) {
   char x[3];
+  int i = 0;
   int n;
  
-  for (n=0; n<REDIR_MD5LEN; n++) {
+  for (n=0; n < len; n++) {
     snprintf(x, 3, "%.2x", src[n]);
-    dst[n*2+0] = x[0];
-    dst[n*2+1] = x[1];
+    dst[i++] = x[0];
+    dst[i++] = x[1];
   }
 
-  dst[REDIR_MD5LEN*2] = 0;
+  dst[i] = 0;
   return 0;
 }
 
@@ -363,6 +364,14 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
     bconcat(str, bt2);
   }
 
+  if (conn->s_state.sessionid[0]) {
+    bcatcstr(str, amp);
+    bcatcstr(str, "sessionid=");
+    bassigncstr(bt, conn->s_state.sessionid);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
+  }
+
   if (redirurl) {
     bcatcstr(str, amp);
     bcatcstr(str, "redirurl=");
@@ -380,27 +389,32 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
   }
 
   if (redir->secret && *redir->secret) { /* take the md5 of the url+uamsecret as a checksum */
-    MD5_CTX context;
-    unsigned char cksum[16];
-    char hex[32+1];
-    int i;
-
-    MD5Init(&context);
-    MD5Update(&context, (uint8_t*)str->data, str->slen);
-    MD5Update(&context, (uint8_t*)redir->secret, strlen(redir->secret));
-    MD5Final(cksum, &context);
-
-    hex[0]=0;
-    for (i=0; i<16; i++)
-      sprintf(hex+strlen(hex), "%.2X", cksum[i]);
-
-    bcatcstr(str, amp);
-    bcatcstr(str, "md=");
-    bcatcstr(str, hex);
+    redir_md_param(str, redir->secret, amp);
   }
 
   bdestroy(bt);
   bdestroy(bt2);
+  return 0;
+}
+
+int redir_md_param(bstring str, char *secret, char *amp) {
+  MD5_CTX context;
+  unsigned char cksum[16];
+  char hex[32+1];
+  int i;
+  
+  MD5Init(&context);
+  MD5Update(&context, (uint8_t *)str->data, str->slen);
+  MD5Update(&context, (uint8_t *)secret, strlen(secret));
+  MD5Final(cksum, &context);
+  
+  hex[0]=0;
+  for (i=0; i<16; i++)
+    sprintf(hex+strlen(hex), "%.2X", cksum[i]);
+  
+  bcatcstr(str, amp);
+  bcatcstr(str, "md=");
+  bcatcstr(str, hex);
   return 0;
 }
 
@@ -1926,7 +1940,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 
   if (options()->debug) {/*debug*/
     char buffer[64];
-    redir_chartohex(conn->s_state.redir.uamchal, buffer);
+    redir_chartohex(conn->s_state.redir.uamchal, buffer, REDIR_MD5LEN);
     log_dbg("challenge: %s", buffer);
   }/**/
 
@@ -1942,7 +1956,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 
   if (options()->debug) {/*debug*/
     char buffer[64];
-    redir_chartohex(chap_challenge, buffer);
+    redir_chartohex(chap_challenge, buffer, REDIR_MD5LEN);
     log_dbg("chap challenge: %s", buffer);
   }/**/
 
@@ -2169,7 +2183,7 @@ int redir_main(struct redir_t *redir,
 
 #define redir_memcopy(msgtype) \
   redir_challenge(challenge); \
-  redir_chartohex(challenge, hexchal); \
+  redir_chartohex(challenge, hexchal, REDIR_MD5LEN); \
   msg.mtype = msgtype; \
   memcpy(conn.s_state.redir.uamchal, challenge, REDIR_MD5LEN); \
   if (options()->debug) { \
@@ -2392,7 +2406,7 @@ int redir_main(struct redir_t *redir,
   if (optionsdebug) log_dbg("Processing received request");
 
   /* default hexchal for use in replies */
-  redir_chartohex(conn.s_state.redir.uamchal, hexchal);
+  redir_chartohex(conn.s_state.redir.uamchal, hexchal, REDIR_MD5LEN);
 
   switch (conn.type) {
 
@@ -2594,7 +2608,7 @@ int redir_main(struct redir_t *redir,
     redir_msg_send(REDIR_MSG_OPT_REDIR);
   }
   else {
-    redir_chartohex(conn.s_state.redir.uamchal, hexchal);
+    redir_chartohex(conn.s_state.redir.uamchal, hexchal, REDIR_MD5LEN);
     /*
 	redir_memcopy(REDIR_CHALLENGE);
 	redir_msg_send(REDIR_MSG_OPT_REDIR);

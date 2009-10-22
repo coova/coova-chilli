@@ -155,6 +155,8 @@ struct redir_msg_t {
   struct redir_msg_data mdata;
 };
 
+int redir_md_param(bstring str, char *secret, char *amp);
+
 int redir_new(struct redir_t **redir, struct in_addr *addr, int port, int uiport);
 
 int redir_free(struct redir_t *redir);

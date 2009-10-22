@@ -16,6 +16,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
  */
+
+#include "system.h"
+
+int bstring_fromfd(bstring s, int fd) {
+  int len = 128;
+  int rd;
+  while (1) {
+    ballocmin(s, s->slen + len);
+    rd = read(fd, s->data + s->slen, len);
+    if (rd <= 0) break;
+    s->slen += rd;
+  }
+  return s->slen;
+}
+
 /* This file is free software; you can redistribute it and/or modify */
 /* it under the terms of the GNU General Public License as published by */
 /* the Free Software Foundation; either version 2, or (at your option) */
@@ -34,8 +49,6 @@
 /* Copyright (C) 2004 Ian Zimmerman */
 
 /* $Id: getline.c,v 1.3 2004/05/18 22:45:18 summerisle Exp $ */
-
-#include "../config.h"
 
 #ifndef HAVE_GETLINE
 #include <stdio.h>

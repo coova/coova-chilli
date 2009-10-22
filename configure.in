@@ -157,9 +157,9 @@ fi
 AC_SUBST(sysconfdir)
 AC_CONFIG_FILES([Makefile 
 		 bstring/Makefile 
-		 doc/Makefile 
 		 src/Makefile 
 		 www/Makefile 
+		 doc/Makefile
 		 conf/Makefile 
 		 debian/Makefile
 		 coova-chilli.spec])

@@ -3,10 +3,10 @@
 # Licensed under the GPL, see http://coova.org/
 # down.sh /dev/tun0 192.168.0.10 255.255.255.0
 
-. @ETCCHILLI@/functions
+. @SYSCONFDIR@/chilli/functions
 
 [ -e "@VARRUN@/chilli.iptables" ] && sh @VARRUN@/chilli.iptables 2>/dev/null
 rm -f @VARRUN@/chilli.iptables 2>/dev/null
 
 # site specific stuff optional
-[ -e @ETCCHILLI@/ipdown.sh ] && . @ETCCHILLI@/ipdown.sh
+[ -e @SYSCONFDIR@/chilli/ipdown.sh ] && . @SYSCONFDIR@/chilli/ipdown.sh
