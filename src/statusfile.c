@@ -138,6 +138,9 @@ int loadstatus() {
 	  conn->peer = aconn;
 	  newipm->peer = aconn;
 
+	  if (appconn.natip.s_addr)
+	    assign_snat(aconn, 1);
+
 	  dhcp_set_addrs(conn, 
 			 &newipm->addr, &options()->mask, 
 			 &aconn->ourip, &aconn->mask,

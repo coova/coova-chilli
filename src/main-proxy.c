@@ -498,6 +498,9 @@ static void http_aaa_register(int argc, char **argv, int i) {
     curl_easy_cleanup(req.curl);
   }
 
+  if (req.data->slen)
+    write(1, req.data->data, req.data->slen);
+
   bdestroy(req.url);
   bdestroy(req.data);
   bdestroy(req.post);

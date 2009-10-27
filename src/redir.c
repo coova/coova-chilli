@@ -1025,8 +1025,8 @@ static int redir_reply(struct redir_t *redir, struct redir_socket *sock,
 int redir_new(struct redir_t **redir,
 	      struct in_addr *addr, int port, int uiport) {
   struct sockaddr_in address;
-  int optval = 1;
-  int n = 0;
+  int optval;
+  int n = 0, tries = 0;
 
   if (!(*redir = calloc(1, sizeof(struct redir_t)))) {
     log_err(errno, "calloc() failed");
@@ -1068,6 +1068,12 @@ int redir_new(struct redir_t **redir,
       break;
     }
 
+
+    /*
+     *  Note: these "ReUse" rules don't work because we aren't bind'ing to '*'
+     *  but are binding to a specific (uamlisten) address. 
+     */
+    optval = 1;
     if (setsockopt((*redir)->fd[n], SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))) {
       log_err(errno, "setsockopt() failed");
       close((*redir)->fd[n]);
@@ -1075,19 +1081,21 @@ int redir_new(struct redir_t **redir,
       break;
     }
 
-    /* TODO: FreeBSD?
-       if (setsockopt((*redir)->fd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))) {
+    /**
+       optval = 1;
+       if (setsockopt((*redir)->fd[n], SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))) {
        log_err(errno, "setsockopt() failed");
-       close((*redir)->fd);
+       close((*redir)->fd[n]);
+       (*redir)->fd[n]=0;
        return -1;
        }
     */
-
-    while (bind((*redir)->fd[n], (struct sockaddr *)&address, sizeof(address))) {
-      if ((EADDRINUSE == errno) && (10 > n++)) {
+    
+    while (bind((*redir)->fd[n], (struct sockaddr *)&address, sizeof(address)) == -1) {
+      if ((EADDRINUSE == errno) && (10 > tries++)) {
 	log_warn(errno, "IP: %s Port: %d - Waiting for retry.",
-		 inet_ntoa(address.sin_addr),ntohs(address.sin_port));
-	if (sleep(30)) { /* In case we got killed */
+		 inet_ntoa(address.sin_addr), ntohs(address.sin_port));
+	if (sleep(10)) { /* In case we got killed */
 	  close((*redir)->fd[n]);
 	  (*redir)->fd[n]=0;
 	  break;
@@ -1108,13 +1116,16 @@ int redir_new(struct redir_t **redir,
       break;
     }
   }
-  
+
+#ifdef MSG_IPC_PIPE
+  pipe((*redir)->msgfd);
+#else
   if (((*redir)->msgid = msgget(IPC_PRIVATE, 0)) < 0) {
     log_err(errno, "msgget() failed");
     log_err(0, "Most likely your computer does not have System V IPC installed");
     return -1;
   }
-
+ 
   if (options()->uid) {
     struct msqid_ds ds;
     memset(&ds, 0, sizeof(ds));
@@ -1130,7 +1141,8 @@ int redir_new(struct redir_t **redir,
       return -1;
     }
   }
-  
+#endif
+
   return 0;
 }
 
@@ -1144,9 +1156,14 @@ int redir_free(struct redir_t *redir) {
     }
   }
 
+#ifdef MSG_IPC_PIPE
+  close(redir->msgfd[0]);
+  close(redir->msgfd[1]);
+#else
   if (msgctl(redir->msgid, IPC_RMID, NULL)) {
     log_err(errno, "msgctl() failed");
   }
+#endif
   
   free(redir);
   return 0;
@@ -2201,6 +2218,16 @@ int redir_main(struct redir_t *redir,
   }
 
 
+#ifdef MSG_IPC_PIPE
+  msg.mdata.opt = msgopt; \
+  msg.mdata.addr = address->sin_addr; \
+  memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
+  memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
+  if (write(redir->msgfd[1], (void *)&msg, sizeof(msg)) < 0) { \
+    log_err(errno, "write() failed! msgfd=%d type=%d len=%d", redir->msgfd[1], msg.mtype, sizeof(msg.mdata)); \
+    redir_close(infd, outfd); \
+  } 
+#else
 #define redir_msg_send(msgopt) \
   msg.mdata.opt = msgopt; \
   msg.mdata.addr = address->sin_addr; \
@@ -2210,6 +2237,7 @@ int redir_main(struct redir_t *redir,
     log_err(errno, "msgsnd() failed! msgid=%d type=%d len=%d", redir->msgid, msg.mtype, sizeof(msg.mdata)); \
     redir_close(infd, outfd); \
   } 
+#endif
 
   /*
    *  Initializations

@@ -436,7 +436,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
   /* It was not possible to allocate from dynamic address pool */
   /* Try to allocate from static address space */
 
-  if ((addr) && (addr->s_addr) && (statip||options()->uamanyip)) { /* IP address given */
+  if ((addr) && (addr->s_addr) && (statip || options()->uamanyip)) { /* IP address given */
     if (!this->firststat) {
       log_err(0, "No more IP addresses available");
       return -1; /* No more available */

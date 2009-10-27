@@ -2062,7 +2062,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
     }
   }
 
-  if (options()->uamanyip && 
+  if (options()->uamanyip && !options()->uamnatanyip &&
       (hisip->s_addr & ourmask->s_addr) != (ourip->s_addr & ourmask->s_addr)) {
     /**
      *  We have enabled ''uamanyip'' and the address we are setting does
@@ -2143,8 +2143,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 
     memcpy(&reqaddr.s_addr, &pack_iph->saddr, PKT_IP_ALEN);
 
-    if (options()->debug) 
-      log_dbg("Address not found (%s)", inet_ntoa(reqaddr)); 
+    log_dbg("Address not found (%s)", inet_ntoa(reqaddr)); 
 
     /* Do we allow dynamic allocation of IP addresses? */
     if (!this->allowdyn && !options()->uamanyip) {
@@ -2186,7 +2185,6 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     if (this->cb_request)
       if (this->cb_request(conn, &addr, 0, 0)) {
 	log_dbg("dropping packet; ip not known: %s", inet_ntoa(addr));
-	/*dhcp_sendRENEW(conn, pack, len);*/
 	return 0; /* Ignore request if IP address was not allocated */
       }
   }

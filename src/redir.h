@@ -109,7 +109,11 @@ struct redir_conn_t {
 struct redir_t {
   int fd[2];             /* File descriptors */
   int debug;
+#if MSG_IPC_PIPE
+  int msgfd[2];
+#else
   int msgid;             /* Message Queue */
+#endif
   struct in_addr addr;
   int port;
   int uiport;

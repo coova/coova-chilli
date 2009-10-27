@@ -28,7 +28,7 @@ cpid=$!
 if [ $CONTENT_LENGTH -gt 0 ]; then
     POST_FILE=/tmp/post.$$
     export POST_FILE
-    dd of=$POST_FILE count=$CONTENT_LENGTH bs=1 
+    dd of=$POST_FILE count=$CONTENT_LENGTH bs=1 2>/dev/null
     $haserl $file < $POST_FILE
     /bin/rm -f $POST_FILE
 else

@@ -37,9 +37,9 @@ if [ "$register" = "1" ]; then
 	    [ -z "$errmsg" ] && grep "^$FORM_username:" $USERS >/dev/null 2>&1 && \
 		errmsg="Username already taken, select another one."
 	else
-	    regout=$(echo|$CHILLI_PROXY --register status check username "$FORM_username")
+	    regout=$(echo|$CHILLI_PROXY --register status check user "$FORM_username")
 	    [ -z "$errmsg" ] && [ "$regout" != "available" ] && \
-		errmsg="Username already taken, select another one."
+		errmsg="Username already taken, select another one.[$regout]"
 	fi
 
 	
@@ -61,7 +61,7 @@ if [ "$register" = "1" ]; then
 	    if [ 0 = 1 ]; then
 		echo "$FORM_username:$FORM_password:$FORM_realname:$FORM_email" >> $USERS
 	    else
-		regout=$(echo|$CHILLI_PROXY --register status save username "$FORM_username" password "$FORM_password")
+		regout=$(echo|$CHILLI_PROXY --register status new_user user "$FORM_username" pass "$FORM_password")
 	    fi
 
 	    sync

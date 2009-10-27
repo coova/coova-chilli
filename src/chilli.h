@@ -20,6 +20,8 @@
 #ifndef _CHILLI_H
 #define _CHILLI_H
 
+/*#define XXX_IO_DAEMON 1*/
+
 /* Authtype defs */
 #define CHAP_DIGEST_MD5   0x05
 #define CHAP_MICROSOFT    0x80

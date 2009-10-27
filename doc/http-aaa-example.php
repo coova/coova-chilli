@@ -28,6 +28,12 @@ global $hotspot_user;
 global $hotspot_device;
 global $hotspot_code;
 global $hotspot_session;
+global $aaa_config;
+
+$aaa_config = 
+  array(
+	'using_swapoctets' => 0,
+	);
 
 // initialize globals
 $hotspot_ap = false;
@@ -56,20 +62,23 @@ if (!is_array($hotspot_network) || !isset($hotspot_network['id'])) {
 // Verify the query string parameters with uamsecret
 check_url();
 
-if ($_GET['stage'] == 'login') {
+switch ($_GET['stage']) {
+ case 'login':
+   switch ($_GET['service']) {
+     case 'login':  do_login_service();   break;   // Standard login
+     case 'framed': do_macauth_service(); break;   // MAC authentication
+     case 'admin':  do_admin_service();   break;   // Admin-User session
+     default: echo "Auth: 0\n"; break;
+   }
+   break;
 
-  if      ($_GET['service'] == 'login')  do_login_service();    // Standard login
-  else if ($_GET['service'] == 'framed') do_macauth_service();  // MAC authentication
-  else if ($_GET['service'] == 'admin')  do_admin_service();    // Admin-User session
-  else echo "Auth: 0\n";
-
-} else if ($_GET['stage'] == 'counters') {
-
+ case 'counters':
   do_accounting();
+  break;
 
-} else if ($_GET['stage'] == 'register') {
-
+ case 'register':
   do_register();
+  break;
 
 }
 
@@ -83,6 +92,7 @@ db_close();
 function set_attribute         ($n, &$a, $v, $o = true) { if ($o || !isset($a[$n])) $a[$n]=$v; }
 function set_idle_timeout      (&$a, $v, $o = true) { set_attribute('Idle-Timeout',$a,$v,$o); }
 function set_reply_message     (&$a, $v, $o = true) { set_attribute('Reply-Message',$a,$v,$o); } 
+function set_session_time      (&$a, $v, $o = true) { set_attribute('Acct-Session-Time',$a,$v,$o); } 
 function set_session_timeout   (&$a, $v, $o = true) { set_attribute('Session-Timeout',$a,$v,$o); } 
 function set_interim_interval  (&$a, $v, $o = true) { set_attribute('Acct-Interim-Interval',$a,$v,$o); } 
 function set_max_total_octets  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Total-Octets',$a,$v,$o); } 
@@ -93,8 +103,8 @@ function set_max_input_kbytes  (&$a, $v, $o = true) { set_attribute('ChilliSpot-
 function set_max_output_kbytes (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Output-Octets',$a,($v*1000),$o); } 
 function set_redirection_url   (&$a, $v, $o = true) { set_attribute('WISPr-Redirection-URL',$a,$v,$o); } 
 
-function set_max_bandwidth_up_bit_sec     (&$a, $v, $o = true) { set_attribute('WISPr-Bandwidth-Max-Up',$a,$v,$o); } 
-function set_max_bandwidth_down_bit_sec   (&$a, $v, $o = true) { set_attribute('WISPr-Bandwidth-Max-Down',$a,$v,$o); } 
+#function set_max_bandwidth_up_bit_sec     (&$a, $v, $o = true) { set_attribute('WISPr-Bandwidth-Max-Up',$a,$v,$o); } 
+#function set_max_bandwidth_down_bit_sec   (&$a, $v, $o = true) { set_attribute('WISPr-Bandwidth-Max-Down',$a,$v,$o); } 
 function set_max_bandwidth_up_kbit_sec    (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Up',$a,$v,$o); } 
 function set_max_bandwidth_down_kbit_sec  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Down',$a,$v,$o); } 
 function set_max_bandwidth_up_kbyte_sec   (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Up',$a,($v*8),$o); } 
@@ -102,13 +112,124 @@ function set_max_bandwidth_down_kbyte_sec (&$a, $v, $o = true) { set_attribute('
 function set_max_bandwidth_up_mbyte_sec   (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Up',$a,($v*8000),$o); } 
 function set_max_bandwidth_down_mbyte_sec (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Down',$a,($v*8000),$o); } 
 
+function set_limit_interval(&$a, $v, $o = true) { set_attribute('Meta-Interval',$a,$v,$o); }
+
+function proc_attributes(&$a) {
+  global $aaa_config;
+  global $hotspot_user;
+  global $hotspot_device;
+  global $hotspot_code;
+
+  $login_type = $a['Meta-Login'];
+  $interval = $a['Meta-Interval'];
+  $since = '';
+ 
+  switch($login_type) {
+  case 'device': 
+    $sum = get_device_summary($obj = $hotspot_device, $since);
+    break;
+  case 'user': 
+    $sum = get_user_summary($obj = $hotspot_user, $since);
+    break;
+  case 'code': 
+    $sum = get_code_summary($obj = $hotspot_code, $since);
+    break;
+  default:
+    return false;
+  }
+
+  switch($interval) {
+  case 'daily':
+    break;
+  case 'monthly':
+    break;
+  case 'yearly':
+    break;
+  default:
+    break;
+  }
+
+  if ($obj['valid_until'] == '') {
+    
+  }
+
+  $swap = $aaa_config['using_swapoctets'];
+
+  var_dump($obj);
+  var_dump($sum);
+
+  # Down
+  $n = 'ChilliSpot-Max-'.($swap ? 'Out' : 'In').'put-Octets'; 
+  $v = $a[$n]; 
+  if (isset($v) && $sum['bytes_down'] > 0) {
+    $s = $v - $sum['bytes_down'];
+
+    if ($s <= 0) {
+      set_reply_message($a, 'Download data limit reached', false);
+      return false;
+    }
+
+    $a[$n] = $s;
+  }
+
+  # Up
+  $n = 'ChilliSpot-Max-'.($swap ? 'In' : 'Out').'put-Octets'; 
+  $v = $a[$n]; 
+  if (isset($v) && $sum['bytes_up'] > 0) {
+    $s = $v - $sum['bytes_up'];
+
+    if ($s <= 0) {
+      set_reply_message($a, 'Upload data limit reached', false);
+      return false;
+    }
+
+    $a[$n] = $s;
+  }
+
+  # Total
+  $n = 'ChilliSpot-Max-Total-Octets'; 
+  $v = $a[$n]; 
+  if (isset($v) && ($sum['bytes_up'] > 0 || $sum['bytes_down'] > 0)) {
+    $s = $v;
+    if ($sum['bytes_up']   > 0) $s -= $sum['bytes_up'];
+    if ($sum['bytes_down'] > 0) $s -= $sum['bytes_down'];
+
+    if ($s <= 0) {
+      set_reply_message($a, 'Total data limit reached', false);
+      return false;
+    }
+
+    $a[$n] = $s;
+  }
+
+  $ses_time = $a['Acct-Session-Time'];
+  if (isset($ses_time)) {
+    $ses_time -= $sum['seconds'];
+
+    if ($ses_time <= 0) {
+      set_reply_message($a, 'Time expired', false);
+      return false;
+    }
+
+    set_session_timeout($a, $ses_time, true);
+    unset($a['Acct-Session-Time']);
+  }
+
+  return true;
+}
+
 function format_attributes(&$attrs) {
+  # format for HTTP API
   foreach ($attrs as $n => $v) {
+    if (strpos($n, 'Meta-') === 0) continue;
     echo "$n:$v\n";
   }
 }
 
-function do_auth_accept($attrs = false) {
+function do_auth_accept($attrs = array()) {
+
+  if (!proc_attributes($attrs))
+    return do_auth_reject($attrs);
 
   do_acct_status('auth');
 
@@ -122,23 +243,26 @@ function do_auth_reject($attrs = false) {
 }
 
 function login_user(&$attrs) {
-  network_attributes($attrs);
-  ap_attributes($attrs);
+  $attrs['Meta-Login'] = 'user';
   user_attributes($attrs);
+  ap_attributes($attrs);
+  network_attributes($attrs);
   do_auth_accept($attrs);
 }
 
 function login_code(&$attrs) {
-  network_attributes($attrs);
-  ap_attributes($attrs);
+  $attrs['Meta-Login'] = 'code';
   code_attributes($attrs);
+  ap_attributes($attrs);
+  network_attributes($attrs);
   do_auth_accept($attrs);
 }
 
 function login_device(&$attrs) {
-  network_attributes($attrs);
-  ap_attributes($attrs);
+  $attrs['Meta-Login'] = 'device';
   device_attributes($attrs);
+  ap_attributes($attrs);
+  network_attributes($attrs);
   do_auth_accept($attrs);
 }
 
@@ -150,7 +274,7 @@ function do_macauth_service() {
   $attrs = array();
   $device = get_device();
 
-  if ($device['always_authorized']) {
+  if ($device['always_allow']) {
     login_device($attrs);
   } else {
     do_auth_reject($attrs);
@@ -203,22 +327,24 @@ function do_acct_status($status) {
 
   if (get_device() || $do_admin_acct) {
 
-    if ($status == 'update') {
-      
-      update_session();
-      
-    } else if ($status == 'start') {
-      
-      start_session();
-      
-    } else if ($status == 'stop') {
-      
-      stop_session();
+    switch($status) {
 
-    } else if ($status == 'auth') {
+    case 'update':
+      update_session();
+      break;
       
+    case 'start':
+      start_session();
+      break;
+      
+    case 'stop':
+      stop_session();
+      break;
+
+    case 'auth':
       auth_session();
-      
+      break;
+
     }
   }
 }
@@ -267,6 +393,7 @@ create table networks (
   defcode_kbps_down integer unsigned,
   defcode_kbps_up integer unsigned,
   defcode_limit_interval varchar(10), -- values: daily, weekly, monthly
+  defcode_repeat_interval boolean default false,
   defcode_session_time integer unsigned,
   defcode_kbytes_total integer unsigned,
   defcode_kbytes_down integer unsigned,
@@ -276,6 +403,7 @@ create table networks (
   defuser_kbps_down integer unsigned,
   defuser_kbps_up integer unsigned,
   defuser_limit_interval varchar(10), -- values: daily, weekly, monthly
+  defuser_repeat_interval boolean default false,
   defuser_session_time integer unsigned,
   defuser_kbytes_total integer unsigned,
   defuser_kbytes_down integer unsigned,
@@ -286,6 +414,7 @@ create table networks (
   defdev_kbps_down integer unsigned,
   defdev_kbps_up integer unsigned,
   defdev_limit_interval varchar(10), -- values: daily, weekly, monthly
+  defdev_repeat_interval boolean default false,
   defdev_session_time integer unsigned,
   defdev_kbytes_total integer unsigned,
   defdev_kbytes_down integer unsigned,
@@ -305,6 +434,17 @@ create table users (
   email varchar(200),
 
   -- attributes for acces control
+  idle_timeout integer unsigned,
+  kbps_down integer unsigned,
+  kbps_up integer unsigned,
+  limit_interval varchar(10), -- values: daily, weekly, monthly
+  repeat_interval boolean default false,
+  session_time integer unsigned,
+  kbytes_total integer unsigned,
+  kbytes_down integer unsigned,
+  kbytes_up integer unsigned,
+  valid_from datetime,
+  valid_until datetime,
 
   created datetime,
   FOREIGN KEY (network_id) REFERENCES networks(id),
@@ -322,6 +462,24 @@ create table devices (
   mac_address varchar(200),
 
   -- attributes for acces control
+  always_reject boolean default false,
+  reply_message varchar(200),
+  redirection_url varchar(200),
+  -- the following default from 'networks'
+  always_allow boolean default false,
+  idle_timeout integer unsigned,
+  kbps_down integer unsigned,
+  kbps_up integer unsigned,
+  limit_interval varchar(10), -- values: daily, weekly, monthly
+  repeat_interval boolean default false,
+  session_time integer unsigned,
+  kbytes_total integer unsigned,
+  kbytes_down integer unsigned,
+  kbytes_up integer unsigned,
+  valid_from datetime,
+  valid_until datetime,
+
+  created datetime,
 
   FOREIGN KEY (network_id) REFERENCES networks(id),
   KEY(mac_address),
@@ -337,17 +495,17 @@ create table codes (
   password varchar(200),
 
   -- attributes for acces control
-  access_disabled boolean default false,
-  reply_message varchar(200),
-  redirection_url varchar(200),
   idle_timeout integer unsigned,
   kbps_down integer unsigned,
   kbps_up integer unsigned,
   limit_interval varchar(10), -- values: daily, weekly, monthly
+  repeat_interval boolean default false,
   session_time integer unsigned,
   kbytes_total integer unsigned,
   kbytes_down integer unsigned,
   kbytes_up integer unsigned,
+  valid_from datetime,
+  valid_until datetime,
 
   created datetime,
   FOREIGN KEY (network_id) REFERENCES networks(id),
@@ -389,6 +547,7 @@ create table sessions (
   network_id bigint unsigned,
   device_id bigint unsigned,
   user_id bigint unsigned,
+  code_id bigint unsigned,
   bytes_up bigint unsigned,      -- bytes uploaded by user
   bytes_down bigint unsigned,    -- bytes downloaded by user
   duration bigint unsigned,      -- duration in seconds
@@ -401,6 +560,7 @@ create table sessions (
   FOREIGN KEY (network_id) REFERENCES networks(id),
   FOREIGN KEY (device_id) REFERENCES devices(id),
   FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (code_id) REFERENCES codes(id),
   KEY(session_key),
   KEY(bytes_up),
   KEY(bytes_down),
@@ -468,17 +628,53 @@ function get_code() {
   return null;
 }
 
+function value_fmt(&$a, $n) {
+  $v = $a[$n];
+  if (!isset($v) || !is_numeric($v)) return '0';
+  return $v;
+}
+
+function access_control_fields() {
+  return 'idle_timeout, kbps_down, kbps_up, limit_interval, repeat_interval, session_time, kbytes_total, kbytes_down, kbytes_up';
+}
+
+function access_control_values(&$network, $prefix) {
+  return value_fmt($network,$prefix.'_idle_timeout').
+    ', '.value_fmt($network,$prefix.'_kbps_down').
+    ', '.value_fmt($network,$prefix.'_kbps_up').
+    ', \''.$network[$prefix.'_limit_interval'].'\''.
+    ', '.value_fmt($network,$prefix.'_repeat_interval').
+    ', '.value_fmt($network,$prefix.'_session_time').
+    ', '.value_fmt($network,$prefix.'_kbytes_total').
+    ', '.value_fmt($network,$prefix.'_kbytes_down').
+    ', '.value_fmt($network,$prefix.'_kbytes_up');
+}
+
 function get_device() {
   global $hotspot_device;
   if ($hotspot_device) return $hotspot_device;
+
   $mac = $_GET['mac'];
   if (!isset($mac) || $mac == '') return false;
+
   $network = get_network();
+
   $sql = 'SELECT * FROM devices WHERE mac_address = \''.$mac.'\' AND network_id = '.$network['id'];
+
   $result = db_query($sql);
+
   if (is_array($result) && is_array($result[0])) return $hotspot_device = $result[0];
-  db_query('INSERT INTO devices (network_id, mac_address) VALUES ('.$network['id'].',\''.$mac.'\')', false);
+
+  $sql2 = 'INSERT INTO devices (network_id, mac_address, always_allow, valid_from, created, '.access_control_fields().') '.
+    'VALUES ('.$network['id'].',\''.$mac.
+    '\', \''.$network['defdev_always_allow'].
+    '\', now(), now(), '.access_control_values($network, 'defdev').')';
+
+  db_query($sql2, false);
+
   $result = db_query($sql);
+  $result = db_query($sql);
+
   if (is_array($result)) return $hotspot_device = $result[0];
   return null;
 }
@@ -486,8 +682,11 @@ function get_device() {
 function get_ap() {
   global $hotspot_ap;
   if ($hotspot_ap) return $hotspot_ap;
+
   $sql = 'SELECT * FROM aps WHERE mac_address = \''.$_GET['ap'].'\'';
+
   $result = db_query($sql);
+
   if (is_array($result)) $hotspot_ap = $result[0];
   return $hotspot_ap;
 }
@@ -495,19 +694,54 @@ function get_ap() {
 function get_network() {
   global $hotspot_ap;
   global $hotspot_network;
+
   if ($hotspot_network) return $hotspot_network;
   if (!$hotspot_ap) return false;
+
   $sql = 'SELECT * FROM networks WHERE id = \''.$hotspot_ap['network_id'].'\'';
+
   $result = db_query($sql);
+
   if (is_array($result)) return $hotspot_network = $result[0];
   return null;
 }
 
+function get_session_summary($col, $obj, $since = '') {
+  if ($obj['valid_from']) {
+    $since = $obj['valid_from'];
+  }
+
+  if ($since != '') {
+    $since = ' AND start_time >= \''.$since.'\'';
+  }
+
+  $sql = 'SELECT sum(duration) as seconds, sum(bytes_up) as bytes_up, '.
+    'sum(bytes_down) as bytes_down FROM sessions WHERE '.$col.' = '.$obj['id'].$since;
+
+  var_dump($sql);
+
+  foreach (db_query($sql) as $n) return $n;
+}
+
+function get_user_summary(&$user, $since) {
+  return get_session_summary('user_id', $user, $since);
+}
+
+function get_code_summary(&$code, $since) {
+  return get_session_summary('code_id', $code, $since);
+}
+
+function get_device_summary(&$device, $since) {
+  return get_session_summary('device_id', $device, $since);
+}
+
 function get_attributes($id, $tbl, &$array) {
+
   $sql = 'SELECT orderby, name, value, overwrite FROM attributes '.
     'WHERE key_id = \''.$id.'\' AND resource = \''.$tbl.'\' order by orderby';
 
   $result = db_query($sql);
+
   if (is_array($result)) {
     foreach ($result as $row) {
       if ($row['overwrite'] == 1 || !isset($array[$row['name']])) {
@@ -519,44 +753,58 @@ function get_attributes($id, $tbl, &$array) {
 
 function user_attributes(&$array, $user = false) {
   if (!$user) $user = get_user();
+
   obj_attributes($user, $array);
   get_attributes($user['id'], 'users', $array);
 }
 
 function code_attributes(&$array, $code = false) {
   if (!$code) $code = get_code();
+
   obj_attributes($code, $array);
   get_attributes($code['id'], 'codes', $array);
 }
 
 function network_attributes(&$array, $network = false) {
   if (!$network) $network = get_network();
+
   obj_attributes($network, $array);
   get_attributes($network['id'], 'networks', $array);
 }
 
 function ap_attributes(&$array, $ap = false) {
   if (!$ap) $ap = get_ap();
+
   obj_attributes($ap, $array);
   get_attributes($ap['id'], 'aps', $array);
 }
 
 function device_attributes(&$array, $device = false) {
   if (!$device) $device = get_device();
+
   obj_attributes($device, $array);
   get_attributes($device['id'], 'devices', $array);
 }
 
 function obj_attributes(&$obj, &$array) {
+  global $aaa_config;
+
+  $swap = $aaa_config['using_swapoctets'];
 
   $a = 
-    array('reply_message' => 'set_reply_message',
-	  'kbps_down' => 'set_max_bandwidth_down_kbit_sec',
-	  'kbps_up' => 'set_max_bandwidth_up_kbit_sec',
+    array('reply_message'  => 'set_reply_message',
+	  'idle_timeout'   => 'set_idle_timeout',
+	  'session_time'   => 'set_session_time',
+	  'kbps_down'      => 'set_max_bandwidth_down_kbit_sec',
+	  'kbps_up'        => 'set_max_bandwidth_up_kbit_sec',
+	  'kbytes_total'   => 'set_max_total_kbytes',
+	  'kbytes_down'    => 'set_max_'.($swap ? 'out' : 'in').'put_kbytes',
+	  'kbytes_up'      => 'set_max_'.($swap ? 'in' : 'out').'put_kbytes',
+	  'limit_interval' => 'set_limit_interval',
 	  );
 
   foreach ($a as $s => $f) {
-    if (isset($obj[$s])) $f($array, $obj[$s]);
+    if (isset($obj[$s])) $f($array, $obj[$s], false);
   }
 }
 
@@ -602,13 +850,17 @@ function auth_session() {
   $user = get_user();
   $ap = get_ap();
 
+  if (!$user)
+    $code = get_code();
+
   $s = date("Y-m-d H:i:s", time());
 
-  $sql = 'INSERT INTO sessions (ap_id,network_id,device_id,user_id,auth_time,session_key) '.
+  $sql = 'INSERT INTO sessions (ap_id, network_id, device_id, user_id, code_id, auth_time, session_key) '.
     'VALUES ('.($ap ? $ap['id'] : 'null').','.
     ($network ? $network['id'] : 'null').','.
     ($device ? $device['id'] : 'null').','.
     ($user ? $user['id'] : 'null').','.
+    ($code ? $code['id'] : 'null').','.
     '\''.$s.'\',\''.session_key().'\')';
 
   db_query($sql, false);
@@ -651,14 +903,38 @@ function update_session() {
 function do_register() {
   $network = get_network();
 
-  if ($_GET['status'] == 'new_code') {
-    $sql = 'INSERT INTO codes (network_id, username, password, created) '.
-      'VALUES ('.$network['id'].',\''.$_GET['user'].'\',\''.$_GET['pass'].'\', now())';
+  switch ($_GET['status']) {
+
+  case 'check':
+
+    $user_or_code = get_user();
+
+    if (!$user_or_code) {
+      $user_or_code = get_code();
+    }
+
+    if (!$user_or_code) {
+      echo 'available';
+    } else {
+      echo 'taken';
+    }
+
+    return;
+
+  case 'new_code':
+    $sql = 'INSERT INTO codes (network_id, username, password, valid_from, created, '.access_control_fields().') '.
+      'VALUES ('.$network['id'].',\''.$_GET['user'].'\',\''.$_GET['pass'].'\', now(), now(), '.access_control_values($network, 'defcode').')';
+
     $resource = 'codes';
-  } else if ($_GET['status'] == 'new_user') {
-    $sql = 'INSERT INTO users (network_id, username, password, created) '.
-      'VALUES ('.$network['id'].',\''.$_GET['user'].'\',\''.$_GET['pass'].'\', now())';
+
+    break;
+
+  case 'new_user':
+    $sql = 'INSERT INTO users (network_id, username, password, valid_from, created, '.access_control_fields().') '.
+      'VALUES ('.$network['id'].',\''.$_GET['user'].'\',\''.$_GET['pass'].'\', now(), now(), '.access_control_values($network, 'defuser').')';
+
     $resource = 'users';
+    break;
   }
 
   db_query($sql, false);

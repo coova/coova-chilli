@@ -1098,12 +1098,12 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
  * If anyip is on and the clients address is outside of our network,
  * we need to SNAT to an ip of our network.
  */
-int assign_snat(struct app_conn_t *appconn) {
+int assign_snat(struct app_conn_t *appconn, int force) {
   struct ippoolm_t *newipm;
   
-  if (!options()->uamanyip)     return 0;
-  if (!options()->uamnatanyip)  return 0;
-  if (appconn->natip.s_addr) return 0;
+  if (!options()->uamanyip) return 0;
+  if (!options()->uamnatanyip) return 0;
+  if (appconn->natip.s_addr && !force) return 0;
 
   if ((appconn->hisip.s_addr & appconn->mask.s_addr) ==
       (appconn->ourip.s_addr & appconn->mask.s_addr))
@@ -2144,7 +2144,7 @@ int upprot_getip(struct app_conn_t *appconn,
     ipm->peer = appconn; 
   }
 
-  if (assign_snat(appconn) != 0) {
+  if (assign_snat(appconn, 0) != 0) {
     return -1;
   }
 
@@ -3037,10 +3037,10 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     /* TODO: Too many "listen" and "our" addresses hanging around */
     appconn->ourip.s_addr = options()->dhcplisten.s_addr;
     
-    appconn->uplink =  ipm;
-    ipm->peer   = appconn; 
+    appconn->uplink = ipm;
+    ipm->peer = appconn; 
 
-    if (!assign_snat(appconn)) {
+    if (assign_snat(appconn, 0) != 0) {
       return -1;
     }
   }
@@ -3271,6 +3271,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 	}
       }
     }
+
     if (ippool_freeip(ippool, (struct ippoolm_t *) appconn->uplink)) {
       log_err(0, "ippool_freeip() failed!");
     }
@@ -3297,7 +3298,6 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 	close(sockfd);
       }
     }
-    
   }
   
   freeconn(appconn);
@@ -3830,6 +3830,53 @@ static void fixup_options() {
   }
 }
 
+#if XXX_IO_DAEMON 
+int chilli_io(int fd_ctrl_r, int fd_ctrl_w, int fd_pkt_r, int fd_pkt_w) {
+  int maxfd = 0;
+  fd_set fds;
+  int status;
+
+  while (1) {
+    fd_zero(&fds);
+
+    fd_set(fd_ctrl_r, &fds);
+    fd_set(fd_ctrl_w, &fds);
+    fd_set(fd_pkt_r, &fds);
+    fd_set(fd_pkt_w, &fds);
+
+    if  ((status = select(maxfd + 1, &fds, NULL, NULL, NULL)) == -1) {
+      if (EINTR != errno) {
+	log_err(errno, "select() returned -1!");
+      }
+    }
+
+    if (status > 0) {
+      if (fd_isset(fd_ctrl_r, &fds)) {
+      }
+      if (fd_isset(fd_ctrl_w, &fds)) {
+      }
+      if (fd_isset(fd_pkt_r, &fds)) {
+      }
+      if (fd_isset(fd_pkt_w, &fds)) {
+      }
+    } else {
+      log_err(errno, "problem in select");
+      break;
+    }
+  }
+
+  exit(1);
+}
+#endif
+
+#ifdef MSG_IPC_PIPE
+int static redir_msg(struct redir_t *this) {
+  struct redir_msg_t msg;
+  int msgresult = read(this->msgfd[0], &msg, sizeof(msg));
+  if (msgresult == sizeof(msg)) uam_msg(&msg);
+  return 0;
+}
+#endif
 
 int chilli_main(int argc, char **argv) {
   struct options_t *opt;
@@ -3837,9 +3884,7 @@ int chilli_main(int argc, char **argv) {
   fd_set fds;			/* For select() */
   struct timeval idleTime;	/* How long to select() */
   int status;
-  int msgresult;
 
-  struct redir_msg_t msg;
   struct sigaction act;
   /*  struct itimerval itval; */
   int lastSecond = 0, thisSecond;
@@ -3849,6 +3894,21 @@ int chilli_main(int argc, char **argv) {
   pid_t cpid = getpid();
   pid_t rtmon = 0;
   pid_t proxy = 0;
+
+#ifndef MSG_IPC_PIPE
+  struct redir_msg_t msg;
+  int msgresult;
+#endif
+
+#if XXX_IO_DAEMON 
+  pid_t chilli_fork = 0;
+  int is_slave = 0;
+
+  int ctrl_main_to_io[2];  /* 0/1 read/write - control messages from main -> io */
+  int ctrl_io_to_main[2];  /* 0/1 read/write - control messages from io -> main */
+  int pkt_main_to_io[2];
+  int pkt_io_to_main[2];
+#endif
 
   /* open a connection to the syslog daemon */
   /*openlog(PACKAGE, LOG_PID, LOG_DAEMON);*/
@@ -3905,7 +3965,27 @@ int chilli_main(int argc, char **argv) {
     opt->logfacility= LOG_FAC(LOG_LOCAL6);
 
   closelog(); 
+
   openlog(PACKAGE, LOG_PID, (opt->logfacility<<3));
+
+
+#if XXX_IO_DAEMON 
+  pipe(ctrl_main_to_io);
+  pipe(ctrl_io_to_main);
+  pipe(pkt_main_to_io);
+  pipe(pkt_io_to_main);
+
+  chilli_fork = fork();
+  is_slave = chilli_fork > 0;
+  if (chilli_fork < 0) perror("fork()");
+  if (chilli_fork == 0) 
+    /* kick off io daemon */
+    return chilli_io(ctrl_main_to_io[0],
+		     ctrl_io_to_main[1],
+		     pkt_main_to_io[0],
+		     pkt_io_to_main[1]);
+#endif
+
   
   /* This has to be done after we have our final pid */
   log_pid((opt->pidfile && *opt->pidfile) ? opt->pidfile : DEFPIDFILE);
@@ -3924,14 +4004,14 @@ int chilli_main(int argc, char **argv) {
     log_err(0, "Failed to create tun");
     exit(1);
   }
-
+  
   tun_setaddr(tun, &opt->dhcplisten,  &opt->dhcplisten, &opt->mask);
-
+  
   tun_set_cb_ind(tun, cb_tun_ind);
-
+  
   if (tun) tun_maxfd(tun, maxfd);
   if (opt->ipup) tun_runscript(tun, opt->ipup);
-
+  
   /* Create an instance of dhcp */
   if (dhcp_new(&dhcp, opt->max_clients, opt->dhcpif,
 	       opt->dhcpusemac, opt->dhcpmac, 1, 
@@ -3941,9 +4021,9 @@ int chilli_main(int argc, char **argv) {
     log_err(0, "Failed to create dhcp listener on %s", opt->dhcpif);
     exit(1);
   }
-
+  
   net_maxfd(&dhcp->rawif, maxfd);
-
+  
   fd_max(dhcp->relayfd, maxfd);
   
   dhcp_set_cb_request(dhcp, cb_dhcp_request);
@@ -3952,14 +4032,14 @@ int chilli_main(int argc, char **argv) {
   dhcp_set_cb_data_ind(dhcp, cb_dhcp_data_ind);
   dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
   dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
-
+  
   if (dhcp_set(dhcp, (opt->debug & DEBUG_DHCP))) {
     log_err(0, "Failed to set DHCP parameters");
     exit(1);
   }
-
+  
   fixup_options();
-
+  
   /* Create an instance of radius */
   if (radius_new(&radius,
 		 &opt->radiuslisten, opt->coaport, opt->coanoipcheck,
@@ -3969,7 +4049,7 @@ int chilli_main(int argc, char **argv) {
     log_err(0, "Failed to create radius");
     return -1;
   }
-
+  
   if (radius->fd > maxfd)
     maxfd = radius->fd;
   
@@ -3980,10 +4060,10 @@ int chilli_main(int argc, char **argv) {
   radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
   radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
   radius_set_cb_ind(radius, cb_radius_ind);
-
+  
   if (opt->acct_update)
     radius_set_cb_acct_conf(radius, cb_radius_acct_conf);
-
+  
   /* Initialise connections */
   initconn();
   
@@ -3998,25 +4078,25 @@ int chilli_main(int argc, char **argv) {
     log_err(0, "Failed to allocate IP pool!");
     exit(1);
   }
-
+  
   /* Create an instance of redir */
   if (redir_new(&redir, &opt->uamlisten, opt->uamport, opt->uamuiport)) {
     log_err(0, "Failed to create redir");
     return -1;
   }
-
+  
   if (redir->fd[0] > maxfd) maxfd = redir->fd[0];
   if (redir->fd[1] > maxfd) maxfd = redir->fd[1];
   redir_set(redir, (opt->debug));
   redir_set_cb_getstate(redir, cb_redir_getstate);
-
+  
   memset(&admin_session, 0, sizeof(admin_session));
-
+  
 #ifdef ENABLE_BINSTATFILE
   if (loadstatus() != 0) /* Only indicate a fresh start-up if we didn't load keepalive sessions */
 #endif
-  acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
-
+    acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
+  
   if (opt->adminuser) {
     admin_session.is_adminsession = 1;
     strncpy(admin_session.s_state.redir.username, 
@@ -4024,40 +4104,25 @@ int chilli_main(int argc, char **argv) {
     set_sessionid(&admin_session);
     chilliauth_radius(radius);
   }
-
+  
   if (opt->cmdsocket) {
     cmdsock = cmdsock_init();
     if (cmdsock > 0)
       maxfd = cmdsock;
   }
-
+  
   /* Set up signal handlers */
   memset(&act, 0, sizeof(act));
-
+  
   act.sa_handler = fireman;
   sigaction(SIGCHLD, &act, NULL);
-
+  
   act.sa_handler = termination_handler;
   sigaction(SIGTERM, &act, NULL);
   sigaction(SIGINT, &act, NULL);
-
+  
   act.sa_handler = sighup_handler;
   sigaction(SIGHUP, &act, NULL);
-
-  /*
-  act.sa_handler = alarm_handler;
-  sigaction(SIGALRM, &act, NULL);
-
-  memset(&itval, 0, sizeof(itval));
-  itval.it_interval.tv_sec = 0;
-  itval.it_interval.tv_usec = 500000; / * TODO 0.5 second * /
-  itval.it_value.tv_sec = 0; 
-  itval.it_value.tv_usec = 500000; / * TODO 0.5 second * /
-
-  if (setitimer(ITIMER_REAL, &itval, NULL)) {
-    log_err(errno, "setitimer() failed!");
-  }
-  */
 
   if (opt->usetap && opt->rtmonfile) {
     pid_t p = fork();
@@ -4069,7 +4134,7 @@ int chilli_main(int argc, char **argv) {
       int i=0;
 
       sprintf(pst,"%d",cpid);
-      newargs[i++] = "chilli_rtmon";
+      newargs[i++] = "[chilli_rtmon]";
       newargs[i++] = "-file";
       newargs[i++] = options()->rtmonfile;
       newargs[i++] = "-pid";
@@ -4097,7 +4162,7 @@ int chilli_main(int argc, char **argv) {
 
       snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",cpid);
 
-      newargs[i++] = "chilli_proxy";
+      newargs[i++] = "[chilli_proxy]";
       newargs[i++] = "-b";
       newargs[i++] = file;
       newargs[i++] = NULL;
@@ -4185,14 +4250,17 @@ int chilli_main(int argc, char **argv) {
 
     fd_set(radius->fd, &fds);
     fd_set(radius->proxyfd, &fds);
+
+#ifdef MSG_IPC_PIPE
+    fd_set(redir->msgfd[0], &fds);
+#endif
     fd_set(redir->fd[0], &fds);
     fd_set(redir->fd[1], &fds);
+
     fd_set(cmdsock, &fds);
 
     idleTime.tv_sec = 0; /*IDLETIME;*/
     idleTime.tv_usec = 500;
-    /*radius_timeleft(radius, &idleTime);
-      if (dhcp) dhcp_timeleft(dhcp, &idleTime);*/
     switch (status = select(maxfd + 1, &fds, NULL, NULL, &idleTime /* NULL */)) {
     case -1:
       if (EINTR != errno) {
@@ -4206,6 +4274,7 @@ int chilli_main(int argc, char **argv) {
 
     mainclock_tick();
 
+#ifndef MSG_IPC_PIPE
     if ((msgresult = 
 	 TEMP_FAILURE_RETRY(msgrcv(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0, IPC_NOWAIT)))  == -1) {
       if ((errno != EAGAIN) && (errno != ENOMSG))
@@ -4214,7 +4283,8 @@ int chilli_main(int argc, char **argv) {
 
     if (msgresult > 0) 
       uam_msg(&msg);
-    
+#endif
+
     if (status > 0) {
 
       if (tun) tun_ckset(tun, &fds);
@@ -4244,12 +4314,17 @@ int chilli_main(int argc, char **argv) {
       if (fd_isset(radius->proxyfd, &fds) && radius_proxy_ind(radius) < 0)
 	log_err(0, "radius_proxy_ind() failed!");
 
+#ifdef MSG_IPC_PIPE
+      if (fd_isset(redir->msgfd[0], &fds) && redir_msg(redir) < 0)
+	log_err(0, "redir_msg() failed!");
+#endif
+
       if (fd_isset(redir->fd[0], &fds) && redir_accept(redir, 0) < 0)
 	log_err(0, "redir_accept() failed!");
 
       if (fd_isset(redir->fd[1], &fds) && redir_accept(redir, 1) < 0)
 	log_err(0, "redir_accept() failed!");
-      
+
       if (fd_isset(cmdsock, &fds) && cmdsock_accept(cmdsock) < 0)
 	log_err(0, "cmdsock_accept() failed!");
 
@@ -4271,6 +4346,7 @@ int chilli_main(int argc, char **argv) {
     if (printstatus() != 0) log_err(errno, "could not save status file");
 #endif
   }
+
 
   if (redir) 
     redir_free(redir);

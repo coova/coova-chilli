@@ -1,7 +1,3 @@
-HTTP/1.0 200 OK
-Content-Type: text/html
-Cache: none
-
 <?
 # Copyright (C) 2009 Coova Technologies, LLC. <support@coova.com>
 # 
@@ -20,9 +16,9 @@ Cache: none
 
 . ./config.sh
 
-[ "$(getconfig enabled)" = "true" ] || exit
+http_header
 
-   header
+header
 
 ?>
 
@@ -39,5 +35,5 @@ Cache: none
 </div>
 
 <?
-   footer
+footer
 ?>
