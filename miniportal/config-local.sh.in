@@ -146,6 +146,7 @@ termsform() {
 
 runlogin() {
     out=$($CHILLI_QUERY login sessionid "$COOVA_SESSIONID" username "$1" password "$2")
+    echo "$CHILLI_QUERY login sessionid $COOVA_SESSIONID username $1 password $2" >> /tmp/debug
 }
 
 dologin() {

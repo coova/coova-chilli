@@ -64,12 +64,13 @@ check_url();
 
 switch ($_GET['stage']) {
  case 'login':
+   $sent_reply = false;
    switch ($_GET['service']) {
-     case 'login':  do_login_service();   break;   // Standard login
-     case 'framed': do_macauth_service(); break;   // MAC authentication
-     case 'admin':  do_admin_service();   break;   // Admin-User session
-     default: echo "Auth: 0\n"; break;
+     case 'login':  $sent_reply = do_login_service();   break; // Standard login
+     case 'framed': $sent_reply = do_macauth_service(); break; // MAC authentication
+     case 'admin':  $sent_reply = do_admin_service();   break; // Admin-User session
    }
+   if (!$sent_reply) do_auth_reject();
    break;
 
  case 'counters':
@@ -130,9 +131,17 @@ function proc_attributes(&$a) {
     break;
   case 'user': 
     $sum = get_user_summary($obj = $hotspot_user, $since);
+    if ($obj['id'] != $hotspot_device['owner_id']) {
+      $sql = 'UPDATE devices SET owner_id = '.$obj['id'].' WHERE id = '.$hotspot_device['id'];
+      db_query($sql, false);
+    }
     break;
   case 'code': 
     $sum = get_code_summary($obj = $hotspot_code, $since);
+    if ($obj['device_id'] != $hotspot_device['id']) {
+      $sql = 'UPDATE codes SET device_id = '.$hotspot_device['id'].' WHERE id = '.$obj['id'];
+      db_query($sql, false);
+    }
     break;
   default:
     return false;
@@ -155,13 +164,10 @@ function proc_attributes(&$a) {
 
   $swap = $aaa_config['using_swapoctets'];
 
-  var_dump($obj);
-  var_dump($sum);
-
   # Down
   $n = 'ChilliSpot-Max-'.($swap ? 'Out' : 'In').'put-Octets'; 
   $v = $a[$n]; 
-  if (isset($v) && $sum['bytes_down'] > 0) {
+  if (isset($v) && $v > 0 && $sum['bytes_down'] > 0) {
     $s = $v - $sum['bytes_down'];
 
     if ($s <= 0) {
@@ -175,7 +181,7 @@ function proc_attributes(&$a) {
   # Up
   $n = 'ChilliSpot-Max-'.($swap ? 'In' : 'Out').'put-Octets'; 
   $v = $a[$n]; 
-  if (isset($v) && $sum['bytes_up'] > 0) {
+  if (isset($v) && $v > 0 && $sum['bytes_up'] > 0) {
     $s = $v - $sum['bytes_up'];
 
     if ($s <= 0) {
@@ -189,7 +195,7 @@ function proc_attributes(&$a) {
   # Total
   $n = 'ChilliSpot-Max-Total-Octets'; 
   $v = $a[$n]; 
-  if (isset($v) && ($sum['bytes_up'] > 0 || $sum['bytes_down'] > 0)) {
+  if (isset($v) && $v > 0 && ($sum['bytes_up'] > 0 || $sum['bytes_down'] > 0)) {
     $s = $v;
     if ($sum['bytes_up']   > 0) $s -= $sum['bytes_up'];
     if ($sum['bytes_down'] > 0) $s -= $sum['bytes_down'];
@@ -203,7 +209,7 @@ function proc_attributes(&$a) {
   }
 
   $ses_time = $a['Acct-Session-Time'];
-  if (isset($ses_time)) {
+  if (isset($ses_time) && $ses_time > 0) {
     $ses_time -= $sum['seconds'];
 
     if ($ses_time <= 0) {
@@ -226,20 +232,22 @@ function format_attributes(&$attrs) {
   }
 }
 
-function do_auth_accept($attrs = array()) {
+function do_auth_accept(&$attrs) {
 
   if (!proc_attributes($attrs))
-    return do_auth_reject($attrs);
+    return false;
 
   do_acct_status('auth');
 
   echo "Auth: 1\n";
   if ($attrs) format_attributes($attrs);
+  return true;
 }
 
 function do_auth_reject($attrs = false) {
   echo "Auth: 0\n";
   if ($attrs) format_attributes($attrs);
+  return true;
 }
 
 function login_user(&$attrs) {
@@ -247,7 +255,7 @@ function login_user(&$attrs) {
   user_attributes($attrs);
   ap_attributes($attrs);
   network_attributes($attrs);
-  do_auth_accept($attrs);
+  return do_auth_accept($attrs);
 }
 
 function login_code(&$attrs) {
@@ -255,7 +263,7 @@ function login_code(&$attrs) {
   code_attributes($attrs);
   ap_attributes($attrs);
   network_attributes($attrs);
-  do_auth_accept($attrs);
+  return do_auth_accept($attrs);
 }
 
 function login_device(&$attrs) {
@@ -263,7 +271,7 @@ function login_device(&$attrs) {
   device_attributes($attrs);
   ap_attributes($attrs);
   network_attributes($attrs);
-  do_auth_accept($attrs);
+  return do_auth_accept($attrs);
 }
 
 function session_key() {
@@ -274,11 +282,32 @@ function do_macauth_service() {
   $attrs = array();
   $device = get_device();
 
+  if ($device['always_reject']) {
+    return do_auth_reject($attrs);
+  } 
+
   if ($device['always_allow']) {
-    login_device($attrs);
-  } else {
-    do_auth_reject($attrs);
+    if (login_device($attrs))
+      return true;
+  } 
+
+  if ($device['owner_id'] > 0) {
+    $user = get_user_by_id($device['owner_id']);
+
+    if ($user) {
+      if (login_user($attrs))
+	return true;
+    }
   }
+
+  $code = get_code_by_device_id($device['id']);
+
+  if ($code) {
+    if (login_code($attrs))
+      return true;
+  } 
+
+  return do_auth_reject($attrs);
 }
 
 function do_login_service() {
@@ -301,24 +330,22 @@ function do_login_service() {
       $check = md5("\0" . $user_or_code['password'] . $chal);
 
       if ($check == $_GET['chap_pass']) {
-	$login_func($attrs);
-	return;
+	return $login_func($attrs);
       }
     }
     else if ($user_or_code['password'] == $_GET['pass']) {
-      $login_func($attrs);
-      return;
+      return $login_func($attrs);
     }
   }
 
   set_reply_message($attrs, "Either your username or password did not match our records.");
-  do_auth_reject($attrs);
+  return do_auth_reject($attrs);
 }
 
 function do_admin_service() {
   $attrs = array();
   set_interim_interval($attrs, 300);
-  do_auth_accept($attrs);
+  return do_auth_accept($attrs);
 }
 
 function do_acct_status($status) {
@@ -459,6 +486,7 @@ drop table devices;
 create table devices (
   id serial,
   network_id bigint unsigned,
+  owner_id bigint unsigned,
   mac_address varchar(200),
 
   -- attributes for acces control
@@ -482,6 +510,7 @@ create table devices (
   created datetime,
 
   FOREIGN KEY (network_id) REFERENCES networks(id),
+  FOREIGN KEY (owner_id) REFERENCES users(id),
   KEY(mac_address),
   PRIMARY KEY(id)
 );
@@ -628,6 +657,22 @@ function get_code() {
   return null;
 }
 
+function get_user_by_id($id) {
+  global $hotspot_user;
+  if ($hotspot_user) return $hotspot_user;
+  $result = db_query('SELECT * FROM users WHERE id = '.$id);
+  if (is_array($result)) return $hotspot_user = $result[0];
+  return null;
+}
+
+function get_code_by_device_id($id) {
+  global $hotspot_code;
+  if ($hotspot_code) return $hotspot_code;
+  $result = db_query('SELECT * FROM codes WHERE device_id = '.$id);
+  if (is_array($result)) return $hotspot_code = $result[0];
+  return null;
+}
+
 function value_fmt(&$a, $n) {
   $v = $a[$n];
   if (!isset($v) || !is_numeric($v)) return '0';
@@ -718,8 +763,6 @@ function get_session_summary($col, $obj, $since = '') {
   $sql = 'SELECT sum(duration) as seconds, sum(bytes_up) as bytes_up, '.
     'sum(bytes_down) as bytes_down FROM sessions WHERE '.$col.' = '.$obj['id'].$since;
 
-  var_dump($sql);
-
   foreach (db_query($sql) as $n) return $n;
 }
 
@@ -749,6 +792,9 @@ function get_attributes($id, $tbl, &$array) {
       }
     }
   }
+}
+
+function code_update_device_id(&$code, $id) {
 }
 
 function user_attributes(&$array, $user = false) {

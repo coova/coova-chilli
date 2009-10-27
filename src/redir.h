@@ -106,11 +106,13 @@ struct redir_conn_t {
   struct session_state s_state;
 };
 
+#define MSG_IPC_UNIX 1
+
 struct redir_t {
   int fd[2];             /* File descriptors */
   int debug;
-#if MSG_IPC_PIPE
-  int msgfd[2];
+#if MSG_IPC_UNIX
+  int msgfd;
 #else
   int msgid;             /* Message Queue */
 #endif

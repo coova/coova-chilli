@@ -3869,11 +3869,17 @@ int chilli_io(int fd_ctrl_r, int fd_ctrl_w, int fd_pkt_r, int fd_pkt_w) {
 }
 #endif
 
-#ifdef MSG_IPC_PIPE
+#ifdef MSG_IPC_UNIX
 int static redir_msg(struct redir_t *this) {
   struct redir_msg_t msg;
-  int msgresult = read(this->msgfd[0], &msg, sizeof(msg));
-  if (msgresult == sizeof(msg)) uam_msg(&msg);
+  struct sockaddr_un remote; 
+  size_t len = sizeof(remote);
+  int socket = accept(this->msgfd, (struct sockaddr *)&remote, &len);
+  if (socket > 0) {
+    int msgresult = read(socket, &msg, sizeof(msg));
+    if (msgresult == sizeof(msg)) uam_msg(&msg);
+    close(socket);
+  }
   return 0;
 }
 #endif
@@ -3895,7 +3901,7 @@ int chilli_main(int argc, char **argv) {
   pid_t rtmon = 0;
   pid_t proxy = 0;
 
-#ifndef MSG_IPC_PIPE
+#ifndef MSG_IPC_UNIX
   struct redir_msg_t msg;
   int msgresult;
 #endif
@@ -4251,16 +4257,16 @@ int chilli_main(int argc, char **argv) {
     fd_set(radius->fd, &fds);
     fd_set(radius->proxyfd, &fds);
 
-#ifdef MSG_IPC_PIPE
-    fd_set(redir->msgfd[0], &fds);
+#ifdef MSG_IPC_UNIX
+    fd_set(redir->msgfd, &fds);
 #endif
     fd_set(redir->fd[0], &fds);
     fd_set(redir->fd[1], &fds);
 
     fd_set(cmdsock, &fds);
 
-    idleTime.tv_sec = 0; /*IDLETIME;*/
-    idleTime.tv_usec = 500;
+    idleTime.tv_sec = 1; /*IDLETIME;*/
+    idleTime.tv_usec = 0;
     switch (status = select(maxfd + 1, &fds, NULL, NULL, &idleTime /* NULL */)) {
     case -1:
       if (EINTR != errno) {
@@ -4274,7 +4280,7 @@ int chilli_main(int argc, char **argv) {
 
     mainclock_tick();
 
-#ifndef MSG_IPC_PIPE
+#ifndef MSG_IPC_UNIX
     if ((msgresult = 
 	 TEMP_FAILURE_RETRY(msgrcv(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0, IPC_NOWAIT)))  == -1) {
       if ((errno != EAGAIN) && (errno != ENOMSG))
@@ -4314,8 +4320,8 @@ int chilli_main(int argc, char **argv) {
       if (fd_isset(radius->proxyfd, &fds) && radius_proxy_ind(radius) < 0)
 	log_err(0, "radius_proxy_ind() failed!");
 
-#ifdef MSG_IPC_PIPE
-      if (fd_isset(redir->msgfd[0], &fds) && redir_msg(redir) < 0)
+#ifdef MSG_IPC_UNIX
+      if (fd_isset(redir->msgfd, &fds) && redir_msg(redir) < 0)
 	log_err(0, "redir_msg() failed!");
 #endif
 

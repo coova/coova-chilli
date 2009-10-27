@@ -1117,8 +1117,35 @@ int redir_new(struct redir_t **redir,
     }
   }
 
-#ifdef MSG_IPC_PIPE
-  pipe((*redir)->msgfd);
+#ifdef MSG_IPC_UNIX
+  {
+    struct sockaddr_un local;
+    int sock;
+    
+    if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+      log_err(errno, "could not allocate UNIX Socket!");
+    } else {
+      local.sun_family = AF_UNIX;
+      
+      strcpy(local.sun_path, "/tmp/chilli.ipc");
+      unlink(local.sun_path);
+      
+      if (bind(sock, (struct sockaddr *)&local, 
+	       sizeof(struct sockaddr_un)) == -1) {
+	log_err(errno, "could bind UNIX Socket!");
+	close(sock);
+	sock = -1;
+      } else {
+	if (listen(sock, 5) == -1) {
+	  log_err(errno, "could listen to UNIX Socket!");
+	  close(sock);
+	  sock = -1;
+	} else {
+	  (*redir)->msgfd = sock;
+	}
+      }
+    }
+  }
 #else
   if (((*redir)->msgid = msgget(IPC_PRIVATE, 0)) < 0) {
     log_err(errno, "msgget() failed");
@@ -1156,9 +1183,8 @@ int redir_free(struct redir_t *redir) {
     }
   }
 
-#ifdef MSG_IPC_PIPE
-  close(redir->msgfd[0]);
-  close(redir->msgfd[1]);
+#ifdef MSG_IPC_UNIX
+  close(redir->msgfd);
 #else
   if (msgctl(redir->msgid, IPC_RMID, NULL)) {
     log_err(errno, "msgctl() failed");
@@ -2173,6 +2199,43 @@ static void redir_close(int infd, int outfd) {
   exit(0);
 }
 
+#ifdef MSG_IPC_UNIX
+int static redir_send_msg(struct redir_t *this, struct redir_msg_t *msg) {
+  struct sockaddr_un remote; 
+  size_t len = sizeof(remote);
+  int s;
+
+  if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+    perror("socket");
+    return -1;
+  }
+
+  remote.sun_family = AF_UNIX;
+  strcpy(remote.sun_path, "/tmp/chilli.ipc");
+
+#if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
+  remote.sun_len = strlen(remote.sun_path) + 1;
+#endif
+
+  len = offsetof(struct sockaddr_un, sun_path) + strlen(remote.sun_path);
+
+  if (connect(s, (struct sockaddr *)&remote, len) == -1) {
+    perror("connect");
+    close(s);
+    return -1;
+  }
+  
+  if (write(s, msg, sizeof(*msg)) != sizeof(*msg)) {
+    perror("write");
+    close(s);
+    return -1;
+  }
+
+  shutdown(s,2);
+  close(s);
+  return 0;
+}
+#endif
 
 int redir_main(struct redir_t *redir, 
 	       int infd, int outfd, 
@@ -2218,13 +2281,14 @@ int redir_main(struct redir_t *redir,
   }
 
 
-#ifdef MSG_IPC_PIPE
+#ifdef MSG_IPC_UNIX
+#define redir_msg_send(msgopt) \
   msg.mdata.opt = msgopt; \
   msg.mdata.addr = address->sin_addr; \
   memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
-  if (write(redir->msgfd[1], (void *)&msg, sizeof(msg)) < 0) { \
-    log_err(errno, "write() failed! msgfd=%d type=%d len=%d", redir->msgfd[1], msg.mtype, sizeof(msg.mdata)); \
+  if (redir_send_msg(redir, &msg) < 0) { \
+    log_err(errno, "write() failed! msgfd=%d type=%d len=%d", redir->msgfd, msg.mtype, sizeof(msg.mdata)); \
     redir_close(infd, outfd); \
   } 
 #else
