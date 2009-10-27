@@ -162,6 +162,8 @@ int static chilliauth() {
 
 int main(int argc, char **argv)
 {
+  options_set((struct options_t *)calloc(1, sizeof(struct options_t)));
+
   if (process_options(argc, argv, 1))
     exit(1);
   
