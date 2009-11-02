@@ -33,6 +33,7 @@
 #define  CMDSOCK_STATUSFILE    11
 #endif
 #define  CMDSOCK_LOGIN         12
+#define  CMDSOCK_ROUTE_GW      13
 #define  CMDSOCK_OPT_JSON      (1)
 
 #include "pkt.h"

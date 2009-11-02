@@ -33,7 +33,7 @@ static openssl_env * sslenv = 0;
 openssl_env * initssl() {
   if (sslenv == 0) {
     SSL_library_init();
-    if (options()->debug) SSL_load_error_strings();
+    if (_options.debug) SSL_load_error_strings();
     SSLeay_add_all_algorithms();
     SSLeay_add_ssl_algorithms();
     openssl_env_init(sslenv = calloc(1, sizeof(openssl_env)), 0);
@@ -201,8 +201,8 @@ int
 openssl_env_init(openssl_env *env, char *engine) {
   int err = _openssl_env_init(env, engine, 1);
 
-  if (!openssl_use_certificate(env, options()->sslcertfile) ||
-      !openssl_use_privatekey(env, options()->sslkeyfile))
+  if (!openssl_use_certificate(env, _options.sslcertfile) ||
+      !openssl_use_privatekey(env, _options.sslkeyfile))
     return 0;
 
   return err;
@@ -283,7 +283,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout) {
 
     log_dbg("auth_success: %s\n", subj);
 
-    if (options()->debug) {
+    if (_options.debug) {
       EVP_PKEY *pktmp = X509_get_pubkey(peer_cert);
       SSL_CIPHER *cipher;
       char b[512];

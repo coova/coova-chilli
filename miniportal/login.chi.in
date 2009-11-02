@@ -16,8 +16,6 @@
 
 . ./config.sh
 
-http_header
-
 FORM_username="${FORM_username:-$FORM_UserName}"
 FORM_username="${FORM_username:-$FORM_Username}"
 FORM_password="${FORM_password:-$FORM_Password}"
@@ -25,9 +23,26 @@ FORM_password="${FORM_password:-$FORM_PassWord}"
 
 if [ -n "$FORM_username" -a -n "$COOVA_CHALLENGE" ]; then
 
+   http_header
+
    dologin
 
 else
+
+    if [ -e "splash.chi" ]; then
+	http_redirect "/www/splash.chi"
+    fi
+
+   http_header
+
+   case "$FORM_res" in
+       success|already)
+	   header "<meta http-equiv=\"refresh\" content=\"5;url=${FORM_userurl}\">"
+	   uamfile "login_success" 1
+	   footer
+	   exit
+	   ;;
+   esac
 
    header
 

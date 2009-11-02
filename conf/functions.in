@@ -139,7 +139,7 @@ writeconfig() {
     }
 
     [ -n "$HS_LOC_NAME" ] && {
-	loc_name=$(echo "$HS_LOC_NAME"   | sed 's/"//g')
+	loc_name=$(echo "$HS_LOC_NAME" | sed 's/"//g')
 	addconfig1 "locationname \"$loc_name\""
 	isocc=$(echo    "$HS_LOC_ISOCC"  | sed 's/[^a-zA-Z]//g')
 	cc=$(echo       "$HS_LOC_CC"     | sed 's/[^0-9]//g')
@@ -151,9 +151,9 @@ writeconfig() {
 	    [ -n "$network" ] && network="${network}_"
 	    network="$network$HS_SSID"
 	}
-	loc_name=$(echo "$HS_LOC_NAME"   | sed 's/[^a-zA-Z0-9]/_/g')
+	loc_name=$(echo "$HS_LOC_NAME"  | sed 's/[^a-zA-Z0-9]/_/g')
 	loc_id="isocc=$isocc,cc=$cc,ac=$ac,network=$provider$network"
-	addconfig1 "radiuslocationname \"$loc_nam\""
+	addconfig1 "radiuslocationname \"$loc_name\""
 	addconfig1 "radiuslocationid \"$loc_id\""
     }
 

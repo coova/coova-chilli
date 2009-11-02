@@ -46,6 +46,8 @@ struct options_t {
   char * dynip;                  /* Dynamic IP address pool */
   char * statip;                 /* Static IP address pool */
   int autostatip;                /* Automatically assign "Static" IP addresses */
+  struct in_addr anyipexclude_addr; /* Exclude a given subnet addres from uamanyip */
+  struct in_addr anyipexclude_mask; /* Exclude a given subnet mask from uamanyip */
   struct in_addr dns1;           /* Primary DNS server IP address */
   struct in_addr dns2;           /* Secondary DNS server IP address */
   char * domain;                 /* Domain to use for DNS lookups */
@@ -212,7 +214,11 @@ int process_options(int argc, char **argv, int minimal);
 void reprocess_options(int argc, char **argv);
 int reload_options(int argc, char **argv);
 int options_save(char *file, bstring bt);
-void options_set(struct options_t *);
-struct options_t * options();
+void options_init();
+
+#ifndef MAIN_FILE /* all main() files must implement _options */
+extern struct options_t _options;
+#endif
+
 
 #endif /*_OPTIONS_H */

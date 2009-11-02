@@ -37,7 +37,7 @@ extern struct ippool_t *ippool;
 
 #ifdef ENABLE_BINSTATFILE
 int loadstatus() {
-  char *statedir = options()->statedir ? options()->statedir : DEFSTATEDIR;
+  char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
   struct stat statbuf;
   char filedest[512];
   char header[512], c;
@@ -46,7 +46,7 @@ int loadstatus() {
   struct dhcp_conn_t dhcpconn;
   struct app_conn_t appconn;
 
-  if (!options()->usestatusfile) 
+  if (!_options.usestatusfile) 
     return 1;
 
   if (strlen(statedir)>sizeof(filedest)-1) 
@@ -62,7 +62,7 @@ int loadstatus() {
     return -1; 
   }
 
-  snprintf(filedest, sizeof(filedest), "%s/%s", statedir, options()->usestatusfile);
+  snprintf(filedest, sizeof(filedest), "%s/%s", statedir, _options.usestatusfile);
 
   file = fopen(filedest, "r");
   if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
@@ -142,10 +142,10 @@ int loadstatus() {
 	    assign_snat(aconn, 1);
 
 	  dhcp_set_addrs(conn, 
-			 &newipm->addr, &options()->mask, 
+			 &newipm->addr, &_options.mask, 
 			 &aconn->ourip, &aconn->mask,
-			 &options()->dns1, &options()->dns2, 
-			 options()->domain);
+			 &_options.dns1, &_options.dns2, 
+			 _options.domain);
 	}
 
 	/* todo: read a md5 checksum or magic token */
@@ -163,7 +163,7 @@ int loadstatus() {
 }
 
 int printstatus() {
-  char *statedir = options()->statedir ? options()->statedir : DEFSTATEDIR;
+  char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
   char filedest[512];
   struct stat statbuf;
   FILE *file;
@@ -171,7 +171,7 @@ int printstatus() {
   struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
   struct app_conn_t *appconn;
 
-  if (!options()->usestatusfile) 
+  if (!_options.usestatusfile) 
     return 0;
 
   if (strlen(statedir)>sizeof(filedest)-1) 
@@ -187,7 +187,7 @@ int printstatus() {
     return -1; 
   }
 
-  snprintf(filedest, sizeof(filedest), "%s/%s", statedir, options()->usestatusfile);
+  snprintf(filedest, sizeof(filedest), "%s/%s", statedir, _options.usestatusfile);
 
   log_dbg("Writing status file: %s", filedest);
 
@@ -221,7 +221,7 @@ int loadstatus() {
 }
 
 int printstatus() {
-  char *statedir = options()->statedir ? options()->statedir : DEFSTATEDIR;
+  char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
   FILE *file;
   char filedest[512];
   struct stat statbuf;
@@ -229,7 +229,7 @@ int printstatus() {
   struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
   struct app_conn_t *appconn;
 
-  if (!options()->usestatusfile) 
+  if (!_options.usestatusfile) 
     return 0;
 
   if (strlen(statedir)>sizeof(filedest)-1) 
@@ -245,7 +245,7 @@ int printstatus() {
     return -1; 
   }
 
-  snprintf(filedest, sizeof(filedest), "%s/%s", statedir, options()->usestatusfile);
+  snprintf(filedest, sizeof(filedest), "%s/%s", statedir, _options.usestatusfile);
 
   file = fopen(filedest, "w");
   if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }

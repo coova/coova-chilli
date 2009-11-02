@@ -18,6 +18,8 @@
  */
 
 #include "system.h"
+#include "redir.h"
+#include "syserr.h"
 
 int bstring_fromfd(bstring s, int fd) {
   int len = 128;
@@ -30,6 +32,73 @@ int bstring_fromfd(bstring s, int fd) {
   }
   return s->slen;
 }
+
+inline void copy_mac6(uint8_t *dst, uint8_t *src) {
+  dst[0]=src[0]; dst[1]=src[1];
+  dst[2]=src[2]; dst[3]=src[3];
+  dst[4]=src[4]; dst[5]=src[5];
+}
+
+/* Extract domain name and port from URL */
+int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos) {
+  char *slashslash = NULL;
+  char *slash = NULL;
+  char *colon = NULL;
+  int hostlen;
+  
+  *port = 0;
+
+  if (!memcmp(src, "http://", 7)) {
+    *port = DHCP_HTTP;
+    slashslash = src + 7;
+  }
+  else if (!memcmp(src, "https://", 8)) {
+    *port = DHCP_HTTPS;
+    slashslash = src + 8;
+  }
+  else {
+    log_err(0, "URL must start with http:// or https:// [%s]!", src);
+    return -1;
+  }
+  
+  slash = strstr(slashslash, "/");
+  colon = strstr(slashslash, ":");
+  
+  if (slash != NULL && colon != NULL && slash < colon) {
+    /* .../...: */
+    hostlen = slash - slashslash;
+  }
+  else if ((slash != NULL) && (colon == NULL)) {
+    /* .../... */
+    hostlen = slash - slashslash;
+  }
+  else if (colon != NULL) {
+    /* ...:port/... */
+    hostlen = colon - slashslash;
+    if (1 != sscanf(colon+1, "%d", port)) {
+      log_err(0, "Not able to parse URL port: %s!", src);
+      return -1;
+    }
+  }
+  else {
+    hostlen = strlen(slashslash);
+  }
+
+  if (hostlen > (hostsize-1)) {
+    log_err(0, "URL hostname larger than %d: %s!", hostsize-1, src);
+    return -1;
+  }
+
+  strncpy(host, slashslash, hostsize);
+  host[hostlen] = 0;
+
+  if (uripos) {
+    *uripos = slash ? (slash - src) : strlen(src);
+  }
+
+  return 0;
+}
+
 
 /* This file is free software; you can redistribute it and/or modify */
 /* it under the terms of the GNU General Public License as published by */

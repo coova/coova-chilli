@@ -48,24 +48,40 @@ if [ "$FORM_uamip" != "" ]; then
 	COOVA_SESSIONID=$FORM_sessionid
 	COOVA_CHALLENGE=$FORM_challenge
     else
-	echo "HTTP/1.0 302 Redirect"
-	echo "Location: /www/error.chi"
-	echo ""
-	exit
+	http_redirect "/www/error.chi"
     fi
 fi
 
+COOVA_SESSIONID=$CHI_SESSION_ID
+COOVA_CHALLENGE=$CHI_CHALLENGE
+PORTAL_SESSIONID=${COOKIE_PORTAL_SESSIONID:-$SESSIONID}
+    
+http_redirect2() {
+    echo "HTTP/1.0 302 Redirect"
+    echo "Location: $1"
+    echo "Set-Cookie: PORTAL_SESSIONID=$PORTAL_SESSIONID"
+    echo "Connection: close"
+    echo ""
+    exit
+}
+
+http_redirect() {
+    http_header
+    cat <<EOF
+<body onload="document.form1.submit();">
+<form action="$1" name="form1" id="form1" method="post">
+<input name="res" value="$FORM_res" type="hidden">
+<input name="reply" value="$FORM_reply" type="hidden">
+</form>
+</body>
+EOF
+    exit
+}
+
 http_header() {
     [ "$(getconfig enabled)" = "true" ] || {
-	echo "HTTP/1.0 302 Redirect"
-	echo "Location: /www/disabled.chi"
-	echo ""
-	exit
+	http_redirect "/www/disabled.chi"
     }
-    
-    COOVA_SESSIONID=${COOVA_SESSIONID:-$COOKIE_COOVA_SESSIONID}
-    COOVA_CHALLENGE=${COOVA_CHALLENGE:-$COOKIE_COOVA_CHALLENGE}
-    PORTAL_SESSIONID=${COOKIE_PORTAL_SESSIONID:-$SESSIONID}
     
     echo "HTTP/1.0 200 OK"
     echo "Content-Type: text/html"
@@ -123,13 +139,35 @@ form() {
 }
 
 loginform() {
+    case "$AUTHENTICATED" in
+	1)
+	    ;;
+	
+	*)
+	    [ "$hs_openidauth" = "on" ] && { \
+		echo "<div id=\"login-label\" style=\"display:none;\"><label><a href=\"javascript:toggleAuth('login')\">&lt;&lt; back</a></label></div>"
+		form "login.chi" "$(uamfile openid_form 1)"
+	    }
+	    
+	    form "login.chi" "$(uamfile login_form 1)"
+	    ;;
+    esac
+}
 
-    [ "$hs_openidauth" = "on" ] && { \
-	echo "<div id=\"login-label\" style=\"display:none;\"><label><a href=\"javascript:toggleAuth('login')\">&lt;&lt; back</a></label></div>"
-	form "login.chi" "$(uamfile openid_form 1)"
-    }
+authtarget() {
+    echo ""
+}
 
-    form "login.chi" "$(uamfile login_form 1)"
+reply_message() {
+    case "$AUTHENTICATED" in
+	1)
+	    echo "You are now on-line!"
+	    ;;
+
+	*)
+	   echo "$FORM_reply"
+	   ;;
+    esac
 }
 
 registerform() {
@@ -146,7 +184,6 @@ termsform() {
 
 runlogin() {
     out=$($CHILLI_QUERY login sessionid "$COOVA_SESSIONID" username "$1" password "$2")
-    echo "$CHILLI_QUERY login sessionid $COOVA_SESSIONID username $1 password $2" >> /tmp/debug
 }
 
 dologin() {
@@ -179,11 +216,3 @@ domail() {
     return 1;
 }
 
-case "$FORM_res" in
-    success|already)
-	header "<meta http-equiv=\"refresh\" content=\"5;url=${FORM_userurl}\">"
-	uamfile "login_success" 1
-	footer
-	exit
-	;;
-esac

@@ -16,6 +16,8 @@
  * 
  */
 
+#define MAIN_FILE
+
 #include "system.h"
 #include "syserr.h"
 #include "cmdline.h"
@@ -29,9 +31,15 @@
 #include "cmdsock.h"
 #include "md5.h"
 
+#ifdef USING_CURL
 #include <curl/curl.h>
 #include <curl/types.h>
 #include <curl/easy.h>
+#else
+#ifdef HAVE_OPENSSL
+#include "ssl.h"
+#endif
+#endif
 
 /*
  * Plans (todo):
@@ -41,9 +49,11 @@
  *
  * Also see: http://www.coova.org/CoovaChilli/Proxy
  *
- * To enable, be sure to configure with "./configure --enable-chilliproxy"
+ * To enable, be sure to configure with "./configure --enable-chilliproxy [--with-curl]"
  *
  */
+
+struct options_t _options;
 
 typedef struct _proxy_request {
   int index;
@@ -61,7 +71,16 @@ typedef struct _proxy_request {
 
   struct sockaddr_in peer;
 
+#ifdef USING_CURL
   CURL *curl;
+#else
+  int sock;
+  bstring write_buf;
+  int write_pos;
+#ifdef HAVE_OPENSSL
+  openssl_con * sslcon;
+#endif
+#endif
   struct radius_t *radius;
 
   struct _proxy_request *prev, *next;
@@ -72,8 +91,10 @@ static int max_requests = 0;
 static proxy_request * requests = 0;
 static proxy_request * requests_free = 0;
 
+#ifdef USING_CURL
 static CURLM * curl_multi;
 static int still_running = 0;
+#endif
 
 static proxy_request * get_request() {
   proxy_request * req = 0;
@@ -137,6 +158,7 @@ static void close_request(proxy_request *req) {
   requests_free = req;
 }
 
+#ifdef USING_CURL
 static int bstring_data(void *ptr, size_t size, size_t nmemb, void *userdata) {
   bstring s = (bstring) userdata;
   int rsize = size * nmemb;
@@ -237,15 +259,87 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
 
   return result;
 }
+#else
+static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
+  /*
+   *  - parse url
+   *  - fill in write_buf
+   *  - connect() (non-blocking)
+   *  - return
+   */
+  struct sockaddr_in server;
+  struct hostent *host;
+  char hostname[256];
+  int port = 0, uripos;
+  int sock;
+
+  req->radius = radius;
+
+  if (get_urlparts(req->url->data, hostname, sizeof(hostname), &port, &uripos))
+    return -1;
+
+  if (!req->write_buf) 
+    req->write_buf = bfromcstr("");
+
+  req->write_pos = 0;
+  bassignformat(req->write_buf, 
+		"GET %s\n"
+		"Host: %s\n"
+		"User-Agent: CoovaChilli " VERSION 
+		"\n\n",
+		req->url->data + uripos, hostname);
+
+  memset(&server, 0, sizeof(server));
+  server.sin_family = AF_INET;
+  server.sin_port = htons(port);
+  
+  if (!(host = gethostbyname(hostname))) {
+    log_err(0, "Could not resolve IP address of uamserver: %s! [%s]", 
+	    hostname, strerror(errno));
+    return -1;
+  }
+  else {
+    if (host->h_addr_list[0]) {
+      server.sin_addr.s_addr = ((struct in_addr *)host->h_addr_list[0])->s_addr;
+    }
+  }
+
+  if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) > 0) {
+    int ret, flags = fcntl(sock, F_GETFL, 0);
+
+    if (flags < 0) flags = 0;
+
+    ret = fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+
+    if (ret < 0) {
+      log_err(errno, "could not set non-blocking");
+    }
+ 
+    if (connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0) {
+      if (errno != EINPROGRESS) {
+	log_err(errno, "could not connect to %s:%d", inet_ntoa(server.sin_addr), port);
+	close(sock);
+	return -1;
+      }
+    }
+  }
+
+  req->sock = sock;
+
+  return 0;
+}
+#endif
 
 static int http_aaa(struct radius_t *radius, proxy_request *req) {
 
   if (http_aaa_setup(radius, req) == 0) {
     
+#ifdef USING_CURL
     curl_multi_add_handle(curl_multi, req->curl);
 
     while(CURLM_CALL_MULTI_PERFORM ==
 	  curl_multi_perform(curl_multi, &still_running));
+#endif
 
     return 0;
   }
@@ -257,11 +351,19 @@ static int http_aaa_finish(proxy_request *req) {
 
   struct radius_t *radius = req->radius;
 
+#ifdef USING_CURL
   curl_multi_remove_handle(curl_multi, req->curl);
-
   curl_easy_cleanup(req->curl);
-
   req->curl = 0;
+#else
+  close(req->sock);
+#ifdef HAVE_OPENSSL
+  if (req->sslcon) {
+    openssl_shutdown(req->sslcon, 2);
+    openssl_free(req->sslcon);
+  }
+#endif
+#endif
 
   if (req->data->slen) {
     log_dbg("Received: %s\n",req->data->data);
@@ -423,7 +525,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
   argv[i] = 0;
   process_options(i, argv, 1);
 
-  if (!options()->uamaaaurl) {
+  if (!_options.uamaaaurl) {
     log_err(0, "uamaaaurl not defined in configuration");
     exit(-1);
   }
@@ -435,14 +537,14 @@ static void http_aaa_register(int argc, char **argv, int i) {
   bstring_fromfd(req.post, 0);
 
   bassignformat(req.url, "%s%c", 
-		options()->uamaaaurl,
-		strchr(options()->uamaaaurl, '?') > 0 ? '&' : '?');
+		_options.uamaaaurl,
+		strchr(_options.uamaaaurl, '?') > 0 ? '&' : '?');
 
   bcatcstr(req.url, "stage=register");
 
   bcatcstr(req.url, "&ap=");
-  if (options()->nasmac) {
-    bcatcstr(req.url, options()->nasmac);
+  if (_options.nasmac) {
+    bcatcstr(req.url, _options.nasmac);
   } else {
     char nas_hwaddr[PKT_ETH_ALEN];
     struct ifreq ifr;
@@ -450,7 +552,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
 
-    strncpy(ifr.ifr_name, options()->dhcpif, sizeof(ifr.ifr_name));
+    strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
 
     if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
       memcpy(nas_hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
@@ -464,8 +566,8 @@ static void http_aaa_register(int argc, char **argv, int i) {
   }
 
   bcatcstr(req.url, "&nasid=");
-  if (options()->radiusnasid) {
-    char *nasid = options()->radiusnasid;
+  if (_options.radiusnasid) {
+    char *nasid = _options.radiusnasid;
     bassignblk(tmp, nasid, strlen(nasid));
     redir_urlencode(tmp, tmp2);
     bconcat(req.url, tmp2);
@@ -483,19 +585,25 @@ static void http_aaa_register(int argc, char **argv, int i) {
     }
   }
 
-  redir_md_param(req.url, options()->uamsecret, "&");
+  redir_md_param(req.url, _options.uamsecret, "&");
 
+#ifdef USING_CURL
   curl_global_init(CURL_GLOBAL_ALL);
+#endif
 
   if (http_aaa_setup(0, &req) == 0) {
 
     log_dbg("==> %s\npost:%s", req.url->data, req.post->data);
 
+#ifdef USING_CURL
     curl_easy_perform(req.curl);
+#endif
 
     log_dbg("<== %s", req.data->data);
 
+#ifdef USING_CURL
     curl_easy_cleanup(req.curl);
+#endif
   }
 
   if (req.data->slen)
@@ -507,7 +615,11 @@ static void http_aaa_register(int argc, char **argv, int i) {
   bdestroy(tmp);
   bdestroy(tmp2);
 
+#ifdef USING_CURL
   curl_global_cleanup();
+#else
+  bdestroy(req.write_buf);
+#endif
   exit(0);
 }
 
@@ -522,7 +634,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 
   if (!req) return;
 
-  if (!options()->uamaaaurl) {
+  if (!_options.uamaaaurl) {
     log_err(0,"No --uamaaaurl parameter defined");
     return;
   }
@@ -540,8 +652,8 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
   bassigncstr(req->data, "");
 
   bassignformat(req->url, "%s%c", 
-		options()->uamaaaurl, 
-		strchr(options()->uamaaaurl, '?') > 0 ? '&' : '?');
+		_options.uamaaaurl, 
+		strchr(_options.uamaaaurl, '?') > 0 ? '&' : '?');
 
   switch(req->radius_req.code) {
   case RADIUS_CODE_ACCESS_REQUEST:
@@ -690,7 +802,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
     }
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INPUT_OCTETS, 0,0,0)) {
-      char *direction = options()->swapoctets ? "up" : "down";
+      char *direction = _options.swapoctets ? "up" : "down";
       uint32_t val = ntohl(attr->v.i);
       uint64_t input = val;
       if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INPUT_GIGAWORDS, 0,0,0)) {
@@ -707,7 +819,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
     }
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_OUTPUT_OCTETS, 0,0,0)) {
-      char *direction = options()->swapoctets ? "down" : "up";
+      char *direction = _options.swapoctets ? "down" : "up";
       uint32_t val = ntohl(attr->v.i);
       uint64_t output = val;
       if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_OUTPUT_GIGAWORDS, 0,0,0)) {
@@ -725,7 +837,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
   }
 
   if (!error) {
-    redir_md_param(req->url, options()->uamsecret, "&");
+    redir_md_param(req->url, _options.uamsecret, "&");
   
     log_dbg("==> %s", req->url->data);
     
@@ -740,7 +852,6 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 }
 
 int main(int argc, char **argv) {
-  struct options_t * opt;
   struct radius_packet_t radius_pack;
   struct radius_t *radius_auth;
   struct radius_t *radius_acct;
@@ -754,12 +865,17 @@ int main(int argc, char **argv) {
   fd_set fdexcep;
 
   int status;
+  int idx, i;
 
+#ifdef USING_CURL
   CURLMsg *msg;
   int msgs_left;
-  int i;
+#else
+  proxy_request * request;
+  int ret;
+#endif
 
-  options_set(opt = (struct options_t *)calloc(1, sizeof(struct options_t)));
+  options_init();
 
   /*
    *  Support a --register mode whereby all subsequent arguments are 
@@ -773,21 +889,22 @@ int main(int argc, char **argv) {
 
   process_options(argc, argv, 1);
 
+#ifdef USING_CURL
   curl_global_init(CURL_GLOBAL_ALL);
+  curl_multi = curl_multi_init();
+#endif
   
   radiuslisten.s_addr = htonl(INADDR_ANY);
 
-  curl_multi = curl_multi_init();
-
   if (radius_new(&radius_auth, &radiuslisten, 
-		 opt->radiusauthport ? opt->radiusauthport : RADIUS_AUTHPORT, 
+		 _options.radiusauthport ? _options.radiusauthport : RADIUS_AUTHPORT, 
 		 0, NULL, 0, NULL, NULL, NULL)) {
     log_err(0, "Failed to create radius");
     return -1;
   }
 
   if (radius_new(&radius_acct, &radiuslisten, 
-		 opt->radiusacctport ? opt->radiusacctport : RADIUS_ACCTPORT, 
+		 _options.radiusacctport ? _options.radiusacctport : RADIUS_ACCTPORT, 
 		 0, NULL, 0, NULL, NULL, NULL)) {
     log_err(0, "Failed to create radius");
     return -1;
@@ -804,7 +921,23 @@ int main(int argc, char **argv) {
     FD_SET(radius_auth->fd, &fdread);
     FD_SET(radius_acct->fd, &fdread);
 
+#ifdef USING_CURL
     curl_multi_fdset(curl_multi, &fdread, &fdwrite, &fdexcep, &maxfd);
+#else
+    for (idx=0; idx < max_requests; idx++) {
+      proxy_request *request = &requests[idx];
+
+      if (request->inuse) {
+	FD_SET(request->sock, &fdread);
+	if (request->write_pos < request->write_buf->slen) {
+	  FD_SET(request->sock, &fdwrite);
+	}
+	FD_SET(request->sock, &fdexcep);
+	if (request->sock > maxfd) 
+	  maxfd = request->sock;
+      }
+    }
+#endif
 
     if (radius_auth->fd > maxfd) maxfd = radius_auth->fd;
     if (radius_acct->fd > maxfd) maxfd = radius_acct->fd;
@@ -858,6 +991,7 @@ int main(int argc, char **argv) {
 	}
       }
       
+#ifdef USING_CURL
       if (still_running) {
 	while(CURLM_CALL_MULTI_PERFORM ==
 	      curl_multi_perform(curl_multi, &still_running));
@@ -866,7 +1000,7 @@ int main(int argc, char **argv) {
       while ((msg = curl_multi_info_read(curl_multi, &msgs_left))) {
 	if (msg->msg == CURLMSG_DONE) {
 	  
-	  int idx, found = 0;
+	  int found = 0;
 	  
 	  /* Find out which handle this message is about */ 
 	  for (idx=0; (!found && (idx < max_requests)); idx++) 
@@ -879,12 +1013,67 @@ int main(int argc, char **argv) {
 	  }
 	}
       }
+#else
+    for (idx=0; idx < max_requests; idx++) {
+      proxy_request *request = &requests[idx];
+
+      if (request->inuse) {
+	if (FD_ISSET(request->sock, &fdread)) {
+	  log_dbg("socket readable!");
+	  ballocmin(request->data, request->data->slen + 56);
+	  ret = read(request->sock, 
+		     request->data->data + request->data->slen,
+		     request->data->mlen - request->data->slen);
+	  if (ret > 0) {
+	    log_dbg("read: %d bytes [%s]", ret, request->data->data);
+	    request->data->slen += ret;
+	  } else {
+	    log_dbg("socket closed!");
+	    http_aaa_finish(request);
+	  }
+	}
+	if (FD_ISSET(request->sock, &fdwrite)) {
+	  log_dbg("socket writeable!");
+	  if (request->write_pos == 0) {
+	    int err;
+	    socklen_t errlen = sizeof(err);
+	    if (getsockopt(request->sock, SOL_SOCKET, SO_ERROR, &err, &errlen) || (err != 0)) {
+	      log_err(errno, "not connected");
+	      http_aaa_finish(request);
+	      continue;
+	    } else {
+	      int flags = fcntl(request->sock, F_GETFL, 0);
+	      fcntl(request->sock, F_SETFL, flags & ~O_NONBLOCK);
+	    }
+	  }
+	  if (request->write_pos < request->write_buf->slen) {
+	    ret = write(request->sock, 
+			request->write_buf->data + request->write_pos,
+			request->write_buf->slen - request->write_pos);
+	    if (ret > 0) {
+	      log_dbg("write: %d bytes", ret);
+	      request->write_pos += ret;
+	    } else if (ret < 0) {
+	      log_dbg("socket closed!");
+	      http_aaa_finish(request);
+	    }
+	  } else {
+	    shutdown(request->sock, SHUT_WR);
+	  }
+	}
+	if (FD_ISSET(request->sock, &fdexcep)) {
+	  log_dbg("socket exception!");
+	}
+      }
+    }
+#endif
 
       break;
     }
   }
 
+#ifdef USING_CURL
   curl_multi_cleanup(curl_multi);
-
   curl_global_cleanup();
+#endif
 }

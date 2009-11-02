@@ -6,7 +6,10 @@ sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt
 if WITH_CHILLIPROXY
 sbin_PROGRAMS += chilli_proxy
 chilli_proxy_SOURCES = main-proxy.c 
-chilli_proxy_LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la -lcurl -lz ${LIBOPENSSL}
+chilli_proxy_LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBOPENSSL} ${LIBPCAP}
+if WITH_CURL
+chilli_proxy_LDADD += -lcurl -lz 
+endif
 endif
 
 if WITH_RTMON
@@ -15,7 +18,8 @@ chilli_rtmon_SOURCES = main-rtmon.c
 endif
 
 # add -pg to enable gprof
-AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fstrict-aliasing -ansi\
+AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fstrict-aliasing \
+  -O2 -fomit-frame-pointer -funroll-loops -pipe \
  -DDEFCHILLICONF='"$(sysconfdir)/chilli.conf"'\
  -DDEFPIDFILE='"$(localstatedir)/run/chilli.pid"'\
  -DDEFSTATEDIR='"$(localstatedir)/run"'\
@@ -46,4 +50,7 @@ chilli_opt_SOURCES = main-opt.c ${cmdline_sources}
 LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la 
 if WITH_OPENSSL
 LDADD += ${LIBOPENSSL}
+endif
+if WITH_PCAP
+LDADD += ${LIBPCAP}
 endif

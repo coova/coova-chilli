@@ -18,6 +18,8 @@
  * 
  */
 
+#define MAIN_FILE
+
 #include "system.h"
 #include "syserr.h"
 #include "cmdline.h"
@@ -30,6 +32,8 @@
 #include "options.h"
 
 #define ADMIN_TIMEOUT 10
+
+struct options_t _options;
 
 static int chilliauth_cb(struct radius_t *radius,
 			 struct radius_packet_t *pack,
@@ -81,9 +85,9 @@ int static chilliauth() {
   int status;
   int ret=-1;
 
-  if (!options()->adminuser || !options()->adminpasswd) return 1;
+  if (!_options.adminuser || !_options.adminpasswd) return 1;
 
-  if (radius_new(&radius, &options()->radiuslisten, 0, 0, NULL, 0, NULL, NULL, NULL)) {
+  if (radius_new(&radius, &_options.radiuslisten, 0, 0, NULL, 0, NULL, NULL, NULL)) {
     log_err(0, "Failed to create radius");
     return ret;
   }
@@ -92,12 +96,12 @@ int static chilliauth() {
   memset(hwaddr, 0, sizeof(hwaddr));
 
 #ifdef SIOCGIFHWADDR
-  if (!options()->nasmac && options()->dhcpif) {
+  if (!_options.nasmac && _options.dhcpif) {
     struct ifreq ifr;
     int fd;
     if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
       memset(&ifr, 0, sizeof(ifr));
-      strncpy(ifr.ifr_name, options()->dhcpif, IFNAMSIZ);
+      strncpy(ifr.ifr_name, _options.dhcpif, IFNAMSIZ);
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
 	log_err(errno, "ioctl(d=%d, request=%d) failed", fd, SIOCGIFHWADDR);
       }
@@ -107,7 +111,7 @@ int static chilliauth() {
   }
 #endif
 
-  radius_set(radius, hwaddr, (options()->debug & DEBUG_RADIUS));
+  radius_set(radius, hwaddr, (_options.debug & DEBUG_RADIUS));
   radius_set_cb_auth_conf(radius, chilliauth_cb); 
 
   ret = chilliauth_radius(radius);
@@ -162,7 +166,7 @@ int static chilliauth() {
 
 int main(int argc, char **argv)
 {
-  options_set((struct options_t *)calloc(1, sizeof(struct options_t)));
+  options_init();
 
   if (process_options(argc, argv, 1))
     exit(1);

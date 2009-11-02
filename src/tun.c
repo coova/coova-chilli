@@ -81,6 +81,12 @@ int tun_discover(struct tun_t *this) {
     netif.address = inaddr(ifr_addr);
 
     log_dbg("Interface: %s", ifr->ifr_name);
+
+    if (!strcmp(ifr->ifr_name, _options.dhcpif)) {
+      log_dbg("skipping dhcpif %s", _options.dhcpif);
+      continue;
+    }
+
     log_dbg("\tIP Address:\t%s", inet_ntoa(inaddr(ifr_addr)));
 
 
@@ -177,22 +183,21 @@ int tun_discover(struct tun_t *this) {
 
     else {
       net_interface *newif = tun_nextif(tun);
-
+      
       if (newif) {
 	int idx = newif->idx;
 	memcpy(newif, &netif, sizeof(netif));
 	newif->idx = idx;
-
+	
 	net_open(newif);
-
-
-      switch(newif->idx) {
-      default:
-	/* memcpy(newif->gwaddr, options()->nexthop, PKT_ETH_ALEN);*/
-	break;
-      }
-
-	if (!strcmp(options()->routeif, netif.devname))
+	
+	switch(newif->idx) {
+	default:
+	  /* memcpy(newif->gwaddr, _options.nexthop, PKT_ETH_ALEN);*/
+	  break;
+	}
+	
+	if (!strcmp(_options.routeif, netif.devname))
 	  tun->routeidx = newif->idx;
       } else {
 	log_dbg("no room for interface %s", netif.devname);
@@ -460,7 +465,7 @@ int tuntap_interface(struct _net_interface *netif) {
 
   memset(netif, 0, sizeof(*netif));
 
-  /*  memcpy(netif->gwaddr, options()->nexthop, PKT_ETH_ALEN);*/
+  /*  memcpy(netif->gwaddr, _options.nexthop, PKT_ETH_ALEN);*/
 
 #if defined(__linux__)
   /* Open the actual tun device */
@@ -474,14 +479,14 @@ int tuntap_interface(struct _net_interface *netif) {
   memset(&ifr, 0, sizeof(ifr));
 
   /* Tun device, no packet info */
-  ifr.ifr_flags = (options()->usetap ? IFF_TAP|IFF_PROMISC : IFF_TUN) | IFF_NO_PI; 
+  ifr.ifr_flags = (_options.usetap ? IFF_TAP|IFF_PROMISC : IFF_TUN) | IFF_NO_PI; 
 #if defined(IFF_ONE_QUEUE) && defined(SIOCSIFTXQLEN)
   ifr.ifr_flags |= IFF_ONE_QUEUE;
 #endif
 
-  if (options()->tundev && *options()->tundev && 
-      strcmp(options()->tundev, "tap") && strcmp(options()->tundev, "tun"))
-    strncpy(ifr.ifr_name, options()->tundev, IFNAMSIZ);
+  if (_options.tundev && *_options.tundev && 
+      strcmp(_options.tundev, "tap") && strcmp(_options.tundev, "tun"))
+    strncpy(ifr.ifr_name, _options.tundev, IFNAMSIZ);
 
   if (ioctl(netif->fd, TUNSETIFF, (void *) &ifr) < 0) {
     log_err(errno, "ioctl() failed");
@@ -496,10 +501,10 @@ int tuntap_interface(struct _net_interface *netif) {
     memset(&nifr, 0, sizeof(nifr));
     if ((nfd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) {
       strncpy(nifr.ifr_name, ifr.ifr_name, IFNAMSIZ);
-      nifr.ifr_qlen = options()->txqlen;
+      nifr.ifr_qlen = _options.txqlen;
 
       if (ioctl(nfd, SIOCSIFTXQLEN, (void *) &nifr) >= 0) 
-	log_info("TX queue length set to %d", options()->txqlen);
+	log_info("TX queue length set to %d", _options.txqlen);
       else 
 	log_err(errno, "Cannot set tx queue length on %s", ifr.ifr_name);
 
@@ -516,7 +521,7 @@ int tuntap_interface(struct _net_interface *netif) {
   ioctl(netif->fd, TUNSETNOCSUM, 1); /* Disable checksums */
 
   /* Get the MAC address of our tap interface */
-  if (options()->usetap) {
+  if (_options.usetap) {
     int fd;
     netif->flags |= NET_ETHHDR;
     if ((fd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) {
@@ -645,7 +650,7 @@ int tun_new(struct tun_t **ptun) {
 
   tuntap_interface(tun_nextif(tun));
 
-  if (options()->routeif) {
+  if (_options.routeif) {
     tun_discover(tun);
   }
 
@@ -673,9 +678,31 @@ int tun_set_cb_ind(struct tun_t *this,
   return 0;
 }
 
+struct tundecap {
+  struct tun_t *this;
+  int idx;
+};
+
+static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
+  struct tundecap *c = (struct tundecap *)ctx;
+  return c->this->cb_ind(c->this, packet, length, c->idx);
+}
+
 int tun_decaps(struct tun_t *this, int idx) {
 
-#if defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
+#if defined(__linux__) 
+  ssize_t length;
+  struct tundecap c;
+
+  c.this = this;
+  c.idx = idx;
+  
+  if ((length = net_read_dispatch(&tun(this, idx), tun_decaps_cb, &c)) < 0) 
+    return -1;
+
+  return length;
+
+#elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   unsigned char buffer[PACKET_MAX];
   ssize_t status;
 
@@ -686,14 +713,6 @@ int tun_decaps(struct tun_t *this, int idx) {
 
   if (this->debug)  
     log_dbg("tun_decaps(%d) %s",status,tun(tun,idx).devname);
-
-  if (0) { /* if we wanted to do nat'ing, it would could be done here */
-    struct in_addr a;
-    struct pkt_iphdr_t *iph = (struct pkt_iphdr_t *)buffer;
-    inet_aton("10.1.0.1", &a);
-    iph->daddr = a.s_addr;
-    chksum(iph);
-  }
 
    if (this->cb_ind)
 #if defined (__OpenBSD__)
@@ -742,6 +761,9 @@ int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
 #elif defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__) || defined (__NetBSD__)
 
+  if (idx > 0) {
+  }
+
   return net_write(&tun(tun, idx), pack, len);
 
 #elif defined (__sun__)
@@ -756,10 +778,22 @@ int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
 int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
-  pkt_shape(pack, &len);
+  if (_options.tcpwin)
+    pkt_shape_tcpwin(pack, &len);
+
+  if (_options.tcpmss)
+    pkt_shape_tcpmss(pack, &len);
+
+  if (idx > 0) {
+    struct pkt_iphdr_t *iph = iphdr(pack);
+    if (iph->daddr == dhcp->uamlisten.s_addr) {
+      log_dbg("OVER wriding route idx");
+      idx = 0;
+    }
+  }
 
   if (tun(tun, idx).flags & NET_ETHHDR) {
-    uint8_t *gwaddr = options()->nexthop; /*tun(tun, idx).gwaddr;*/
+    uint8_t *gwaddr = _options.nexthop; /*tun(tun, idx).gwaddr;*/
     struct pkt_ethhdr_t *ethh = (struct pkt_ethhdr_t *)pack;
     /* memcpy(ethh->src, tun(tun, idx).hwaddr, PKT_ETH_ALEN); */
 
@@ -770,22 +804,21 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
        *  default to the tap interface's MAC instead, so that the kernel
        *  will route it. 
        */
-      gwaddr = tun(tun, idx).hwaddr;
+      if (idx == 0) {
+	gwaddr = tun(tun, idx).hwaddr;
+      } else {
+	gwaddr = tun(tun, idx).gwaddr;
+	copy_mac6(ethh->src, tun(tun, idx).hwaddr);
+      }
     }
 
-    memcpy(ethh->dst, gwaddr, PKT_ETH_ALEN);
+    copy_mac6(ethh->dst, gwaddr);
 
-    log_dbg("writing to tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
-	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
-	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5]);
-
-    if (0) { /* if we wanted to do nat'ing we could do it here */
-      struct _net_interface *netif = &tun(tun, idx);
-      struct pkt_iphdr_t *iph = (struct pkt_iphdr_t *)(pack + PKT_ETH_HLEN);
-      iph->saddr = netif->address.s_addr;
-      chksum(iph);
-    }
-
+    if (_options.debug)
+      log_dbg("writing to tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
+	      ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
+	      ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5]);
+    
   } else {
     size_t ethlen = sizeofeth(pack);
     pack += ethlen;
@@ -851,19 +884,19 @@ int tun_runscript(struct tun_t *tun, char* script) {
     exit(0);
   }
 
-  snprintf(b, sizeof(b), "%d", options()->uamport);
+  snprintf(b, sizeof(b), "%d", _options.uamport);
   if (setenv("UAMPORT", b, 1 ) != 0) {
     log_err(errno, "setenv() did not return 0!");
     exit(0);
   }
 
-  snprintf(b, sizeof(b), "%d", options()->uamuiport);
+  snprintf(b, sizeof(b), "%d", _options.uamuiport);
   if (setenv("UAMUIPORT", b, 1 ) != 0) {
     log_err(errno, "setenv() did not return 0!");
     exit(0);
   }
 
-  if (setenv("DHCPIF", options()->dhcpif ? options()->dhcpif : "", 1 ) != 0) {
+  if (setenv("DHCPIF", _options.dhcpif ? _options.dhcpif : "", 1 ) != 0) {
     log_err(errno, "setenv() did not return 0!");
     exit(0);
   }

@@ -251,7 +251,7 @@ int ippool_new(struct ippool_t **this,
   for (i = 0; i<dynsize; i++) {
 
     naddr.s_addr = htonl(ntohl(addr.s_addr) + i + start);
-    if (naddr.s_addr == options()->uamlisten.s_addr) {
+    if (naddr.s_addr == _options.uamlisten.s_addr) {
       start++; /* skip the uamlisten address! */
       naddr.s_addr = htonl(ntohl(addr.s_addr) + i + start);
     }
@@ -355,7 +355,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
 
   /* First check to see if this type of address is allowed */
   if ((addr) && (addr->s_addr) && statip) { /* IP address given */
-    if (!options()->uamanyip) {
+    if (!_options.uamanyip) {
       if (!this->allowstat) {
 	log_dbg("Static IP address not allowed");
 	return -1;
@@ -386,7 +386,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
   }
 
   /* if anyip is set and statip return the same ip */
-  if (statip && options()->uamanyip && p2 && p2->inuse == 2) {
+  if (statip && _options.uamanyip && p2 && p2->inuse == 2) {
     log_dbg("Found already allocated static ip");
     *member = p2;
     return 0;
@@ -436,7 +436,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
   /* It was not possible to allocate from dynamic address pool */
   /* Try to allocate from static address space */
 
-  if ((addr) && (addr->s_addr) && (statip || options()->uamanyip)) { /* IP address given */
+  if ((addr) && (addr->s_addr) && (statip || _options.uamanyip)) { /* IP address given */
     if (!this->firststat) {
       log_err(0, "No more IP addresses available");
       return -1; /* No more available */

@@ -33,7 +33,7 @@ if [ "$register" = "1" ]; then
 	    errmsg="For security reasons, we only allow you to enter very basic text. \
                     Remove any punctuation or non-ASCII characters."
 
-	if [ 0 = 1 ]; then
+	if [ "$(getconfig uamaaaurl)" = "" ]; then
 	    [ -z "$errmsg" ] && grep "^$FORM_username:" $USERS >/dev/null 2>&1 && \
 		errmsg="Username already taken, select another one."
 	else
@@ -58,14 +58,16 @@ if [ "$register" = "1" ]; then
 
 	[ -z "$errmsg" -a "$register" = "1" ] && {
 
-	    if [ 0 = 1 ]; then
+	    if [ "$(getconfig uamaaaurl)" = "" ]; then
 		echo "$FORM_username:$FORM_password:$FORM_realname:$FORM_email" >> $USERS
 	    else
 		regout=$(echo|$CHILLI_PROXY --register status new_user user "$FORM_username" pass "$FORM_password")
 	    fi
 
 	    sync
+
 	    dologin
+
 	    form=0
 	}
 	

@@ -354,6 +354,7 @@ struct eapol_tag_t {
 } __attribute__((packed));
 
 int chksum(struct pkt_iphdr_t *iph);
-int pkt_shape(uint8_t *packet, size_t *length);
+int pkt_shape_tcpwin(uint8_t *packet, size_t *length);
+int pkt_shape_tcpmss(uint8_t *packet, size_t *length);
 
 #endif

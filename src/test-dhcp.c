@@ -17,6 +17,8 @@
  * 
  */
 
+#define MAIN_FILE
+
 #include "system.h"
 #include "syserr.h"
 #include "cmdline.h"
@@ -28,7 +30,7 @@
 #include "chilli.h"
 #include "options.h"
 
-struct options_t __options = {0};
+struct options_t _options;
 
 int test_dhcp() {
   struct _net_interface i; 
@@ -143,7 +145,7 @@ int test_dhcp() {
 }
 
 int main(int argc, char **argv) {
-  options_set(&__options);
+  options_init();
 
   __options.dhcpif = "eth0";
 

@@ -21,7 +21,7 @@ http_header
 form=1
 errmsg=
 
-if [ "$FORM_button" != "" ];
+if [ "$FORM_button" != "" ]; then
 	
     [ "$FORM_realname" = "" -o "$FORM_email" = "" -o "$FORM_message" = "" ] && \
 	errmsg="You must provide both a name, e-mail address, and message."
@@ -38,8 +38,11 @@ if [ "$FORM_button" != "" ];
     
     [ -z "$errmsg" ] && {
 	header
+
 	uamfile "contact_thanks" 1
+
 	footer
+
 	form=0
     }
     
@@ -57,9 +60,7 @@ fi
     
     contactform
     
-    footer
-    
+    footer    
 }
-fi
 
 ?>

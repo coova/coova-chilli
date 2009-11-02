@@ -95,6 +95,9 @@ struct gengetopt_args_info
   char * statip_arg;	/**< @brief Static IP address pool.  */
   char * statip_orig;	/**< @brief Static IP address pool original value given at command line.  */
   const char *statip_help; /**< @brief Static IP address pool help description.  */
+  char * anyipexclude_arg;	/**< @brief Network to exclude from uamanyip.  */
+  char * anyipexclude_orig;	/**< @brief Network to exclude from uamanyip original value given at command line.  */
+  const char *anyipexclude_help; /**< @brief Network to exclude from uamanyip help description.  */
   char * dns1_arg;	/**< @brief Primary DNS server IP address.  */
   char * dns1_orig;	/**< @brief Primary DNS server IP address original value given at command line.  */
   const char *dns1_help; /**< @brief Primary DNS server IP address help description.  */
@@ -418,6 +421,7 @@ struct gengetopt_args_info
   unsigned int dynip_given ;	/**< @brief Whether dynip was given.  */
   unsigned int nodynip_given ;	/**< @brief Whether nodynip was given.  */
   unsigned int statip_given ;	/**< @brief Whether statip was given.  */
+  unsigned int anyipexclude_given ;	/**< @brief Whether anyipexclude was given.  */
   unsigned int dns1_given ;	/**< @brief Whether dns1 was given.  */
   unsigned int dns2_given ;	/**< @brief Whether dns2 was given.  */
   unsigned int domain_given ;	/**< @brief Whether domain was given.  */

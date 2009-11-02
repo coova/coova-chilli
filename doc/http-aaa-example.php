@@ -48,14 +48,14 @@ $dblink = db_open();
 // Look up access point based on MAC address
 $hotspot_ap = get_ap();
 if (!is_array($hotspot_ap) || !isset($hotspot_ap['network_id'])) {
-  echo 'Error: access point is not configured correctly';
+  echo 'Reply-Message: Access Point not found';
   exit;
 }
 
 // Load the network that owns the access point to get uamsecret
 $hotspot_network = get_network();
 if (!is_array($hotspot_network) || !isset($hotspot_network['id'])) {
-  echo 'Error: network is not configured correctly';
+  echo 'Reply-Message: Network is not configured correctly';
   exit;
 }
 
@@ -65,12 +65,19 @@ check_url();
 switch ($_GET['stage']) {
  case 'login':
    $sent_reply = false;
+   $attrs = array();
    switch ($_GET['service']) {
-     case 'login':  $sent_reply = do_login_service();   break; // Standard login
-     case 'framed': $sent_reply = do_macauth_service(); break; // MAC authentication
-     case 'admin':  $sent_reply = do_admin_service();   break; // Admin-User session
+     case 'login':  $sent_reply = do_login_service($attrs);   break; // Standard login
+     case 'framed': $sent_reply = do_macauth_service($attrs); break; // MAC authentication
+     case 'admin':  $sent_reply = do_admin_service($attrs);   break; // Admin-User session
    }
-   if (!$sent_reply) do_auth_reject();
+   if (!$sent_reply) {
+     do_auth_reject(array( // Attribute allowed in access-reject
+			  'Reply-Message' => $attrs['Reply-Message'],
+			  'WISPr-Redirection-URL' => $attrs['WISPr-Redirection-URL'],
+			  'ChilliSpot-Config' => $attrs['ChilliSpot-Config'],
+			  ));
+   }
    break;
 
  case 'counters':
@@ -227,6 +234,7 @@ function proc_attributes(&$a) {
 function format_attributes(&$attrs) {
   # format for HTTP API
   foreach ($attrs as $n => $v) {
+    if ($n == '' || $v == '') continue;
     if (strpos($n, 'Meta-') === 0) continue;
     echo "$n:$v\n";
   }
@@ -234,8 +242,9 @@ function format_attributes(&$attrs) {
 
 function do_auth_accept(&$attrs) {
 
-  if (!proc_attributes($attrs))
+  if (!proc_attributes($attrs)) {
     return false;
+  }
 
   do_acct_status('auth');
 
@@ -278,8 +287,7 @@ function session_key() {
   return str_replace(array('-','.'),array(),$_GET['sessionid'].$_GET['ap'].$_GET['mac'].$_GET['ip'].$_GET['user']);
 }
 
-function do_macauth_service() {
-  $attrs = array();
+function do_macauth_service(&$attrs) {
   $device = get_device();
 
   if ($device['always_reject']) {
@@ -291,6 +299,7 @@ function do_macauth_service() {
       return true;
   } 
 
+  if (false) { #XXX
   if ($device['owner_id'] > 0) {
     $user = get_user_by_id($device['owner_id']);
 
@@ -299,6 +308,7 @@ function do_macauth_service() {
 	return true;
     }
   }
+  } #XXXX
 
   $code = get_code_by_device_id($device['id']);
 
@@ -310,8 +320,7 @@ function do_macauth_service() {
   return do_auth_reject($attrs);
 }
 
-function do_login_service() {
-  $attrs = array();
+function do_login_service(&$attrs) {
   $device = get_device();
 
   $login_func = 'login_user';
@@ -342,8 +351,7 @@ function do_login_service() {
   return do_auth_reject($attrs);
 }
 
-function do_admin_service() {
-  $attrs = array();
+function do_admin_service(&$attrs) {
   set_interim_interval($attrs, 300);
   return do_auth_accept($attrs);
 }
@@ -399,7 +407,7 @@ function check_url() {
 
   if ($md == $match) return;
 
-  echo "Error: bad url or uamsecret\n";
+  echo "Reply-Message: bad url or uamsecret [$check $uamsecret]\n";
   exit;
 }
 
@@ -416,6 +424,7 @@ create table networks (
 
   -- defaults for 'classes' of service
 
+  defcode_redirection_url varchar(200),
   defcode_idle_timeout integer unsigned,
   defcode_kbps_down integer unsigned,
   defcode_kbps_up integer unsigned,
@@ -426,6 +435,7 @@ create table networks (
   defcode_kbytes_down integer unsigned,
   defcode_kbytes_up integer unsigned,
 
+  defuser_redirection_url varchar(200),
   defuser_idle_timeout integer unsigned,
   defuser_kbps_down integer unsigned,
   defuser_kbps_up integer unsigned,
@@ -437,6 +447,7 @@ create table networks (
   defuser_kbytes_up integer unsigned,
 
   defdev_always_allow boolean default false,
+  defdev_redirection_url varchar(200),
   defdev_idle_timeout integer unsigned,
   defdev_kbps_down integer unsigned,
   defdev_kbps_up integer unsigned,
@@ -461,6 +472,7 @@ create table users (
   email varchar(200),
 
   -- attributes for acces control
+  redirection_url varchar(200),
   idle_timeout integer unsigned,
   kbps_down integer unsigned,
   kbps_up integer unsigned,
@@ -492,8 +504,8 @@ create table devices (
   -- attributes for acces control
   always_reject boolean default false,
   reply_message varchar(200),
-  redirection_url varchar(200),
   -- the following default from 'networks'
+  redirection_url varchar(200),
   always_allow boolean default false,
   idle_timeout integer unsigned,
   kbps_down integer unsigned,
@@ -524,6 +536,7 @@ create table codes (
   password varchar(200),
 
   -- attributes for acces control
+  redirection_url varchar(200),
   idle_timeout integer unsigned,
   kbps_down integer unsigned,
   kbps_up integer unsigned,
@@ -680,11 +693,12 @@ function value_fmt(&$a, $n) {
 }
 
 function access_control_fields() {
-  return 'idle_timeout, kbps_down, kbps_up, limit_interval, repeat_interval, session_time, kbytes_total, kbytes_down, kbytes_up';
+  return 'redirection_url, idle_timeout, kbps_down, kbps_up, limit_interval, repeat_interval, session_time, kbytes_total, kbytes_down, kbytes_up';
 }
 
 function access_control_values(&$network, $prefix) {
-  return value_fmt($network,$prefix.'_idle_timeout').
+  return '\''.$network[$prefix.'_redirection_url'].'\''.
+    ', '.value_fmt($network,$prefix.'_idle_timeout').
     ', '.value_fmt($network,$prefix.'_kbps_down').
     ', '.value_fmt($network,$prefix.'_kbps_up').
     ', \''.$network[$prefix.'_limit_interval'].'\''.
@@ -838,15 +852,16 @@ function obj_attributes(&$obj, &$array) {
   $swap = $aaa_config['using_swapoctets'];
 
   $a = 
-    array('reply_message'  => 'set_reply_message',
-	  'idle_timeout'   => 'set_idle_timeout',
-	  'session_time'   => 'set_session_time',
-	  'kbps_down'      => 'set_max_bandwidth_down_kbit_sec',
-	  'kbps_up'        => 'set_max_bandwidth_up_kbit_sec',
-	  'kbytes_total'   => 'set_max_total_kbytes',
-	  'kbytes_down'    => 'set_max_'.($swap ? 'out' : 'in').'put_kbytes',
-	  'kbytes_up'      => 'set_max_'.($swap ? 'in' : 'out').'put_kbytes',
-	  'limit_interval' => 'set_limit_interval',
+    array('reply_message'   => 'set_reply_message',
+	  'redirection_url' => 'set_redirection_url',
+	  'idle_timeout'    => 'set_idle_timeout',
+	  'session_time'    => 'set_session_time',
+	  'kbps_down'       => 'set_max_bandwidth_down_kbit_sec',
+	  'kbps_up'         => 'set_max_bandwidth_up_kbit_sec',
+	  'kbytes_total'    => 'set_max_total_kbytes',
+	  'kbytes_down'     => 'set_max_'.($swap ? 'out' : 'in').'put_kbytes',
+	  'kbytes_up'       => 'set_max_'.($swap ? 'in' : 'out').'put_kbytes',
+	  'limit_interval'  => 'set_limit_interval',
 	  );
 
   foreach ($a as $s => $f) {

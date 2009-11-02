@@ -90,6 +90,9 @@
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H
 
+/* Define to 1 if you have the <netinet/tcp.h> header file. */
+#undef HAVE_NETINET_TCP_H
+
 /* Define to 1 if you have the <net/ethernet.h> header file. */
 #undef HAVE_NET_ETHERNET_H
 
@@ -227,6 +230,12 @@
 
 /* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
 #undef TIME_WITH_SYS_TIME
+
+/* Define if you have curl enabled */
+#undef USING_CURL
+
+/* Define if you have pcap enabled */
+#undef USING_PCAP
 
 /* Version number of package */
 #undef VERSION

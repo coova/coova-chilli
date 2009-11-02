@@ -28,14 +28,14 @@
 #include "bstrlib.h"
 
 void sys_err(int pri, char *fn, int ln, int en, const char *fmt, ...) {
-  if (pri==LOG_DEBUG && !options()->debug) return;
+  if (pri==LOG_DEBUG && !_options.debug) return;
   {
     bstring bt = bfromcstralloc(128,"");
     int sz;
     
     bvformata(sz, bt, fmt, fmt);
     
-    if (options()->foreground && options()->debug) {
+    if (_options.foreground && _options.debug) {
       fprintf(stderr, "%s: %d: %d (%s) %s\n", fn, ln, en, en ? strerror(en) : "Debug", bt->data);
     } else {
       if (en)
@@ -69,7 +69,7 @@ void sys_errpack(int pri, char *fn, int ln, int en, struct sockaddr_in *peer,
     bconcat(bt, bt2);
   }
   
-  if (options()->foreground && options()->debug) {
+  if (_options.foreground && _options.debug) {
     fprintf(stderr, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
   } else {
     if (en)

@@ -130,6 +130,10 @@
 #include <netinet/in.h>
 #endif
 
+#ifdef HAVE_NETINET_TCP_H
+#include <netinet/tcp.h>
+#endif
+
 #if defined(HAVE_NET_IF_H) && !defined(__linux__)
 #include <net/if.h>
 #endif
@@ -221,5 +225,7 @@
 #include "bstrlib.h"
 
 int bstring_fromfd(bstring s, int fd);
+
+void copy_mac6(uint8_t *, uint8_t *);
 
 #endif

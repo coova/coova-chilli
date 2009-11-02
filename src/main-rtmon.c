@@ -16,6 +16,8 @@
  * 
  */
 
+#define MAIN_FILE
+
 #include "system.h"
 #include <asm/types.h>
 #include <sys/socket.h>
@@ -29,6 +31,9 @@
 #include <linux/rtnetlink.h>
 
 #include "net.h"
+#include "options.h"
+
+struct options_t _options;
 
 #define MAX_IFACES 16
 struct {

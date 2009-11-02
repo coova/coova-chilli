@@ -23,6 +23,33 @@
 #include "system.h"
 #include "pkt.h"
 
+#ifdef USING_PCAP
+#include <pcap.h>
+#endif
+
+#if defined(__linux__)
+
+/*#define USE_MMAP 1/**/
+
+#ifdef USE_MMAP
+# ifdef TPACKET_HDRLEN
+#  define HAVE_PACKET_RING
+#  ifdef PACKET_RX_RING
+#   define HAVE_PACKET_RX_RING
+#  endif
+#  ifdef PACKET_TX_RING
+#   define HAVE_PACKET_TX_RING
+#  endif
+#  ifdef TPACKET2_HDRLEN
+#   define HAVE_TPACKET2
+#  else
+#   define TPACKET_V1 0
+#  endif
+# endif
+#endif
+
+#endif
+
 typedef struct _net_interface {
   uint8_t idx;
 
@@ -44,6 +71,27 @@ typedef struct _net_interface {
   /* socket/descriptor */
   int fd;
 
+#ifdef USING_PCAP
+  pcap_t *pd;
+#endif
+
+#ifdef USE_MMAP
+  int cc;
+  int offset;
+  int snapshot;
+  int buffer_size;
+  int bufsize;
+  int tp_version;
+  int tp_hdrlen;
+  size_t mmapbuflen;
+  char *mmapbuf;
+  char *buffer;
+#endif
+
+#if defined(__linux__)
+  struct sockaddr_ll dest;
+#endif
+
   /* routing */
   uint8_t gwaddr[PKT_ETH_ALEN];
 
@@ -53,6 +101,7 @@ typedef struct _net_interface {
 #define NET_ETHHDR  (1<<2)
 } net_interface;
 
+typedef int (*net_handler)(void *ctx, void *data, size_t len);
 
 #define net_sflags(n,f) dev_set_flags((n)->devname, (f))
 #define net_gflags(n) dev_get_flags((n)->devname, &(n)->devflags)
@@ -67,6 +116,8 @@ int net_set_mtu(net_interface *netif, size_t mtu);
 ssize_t net_read(net_interface *netif, void *d, size_t slen);
 ssize_t net_write(net_interface *netif, void *d, size_t slen);
 
+ssize_t net_read_dispatch(net_interface *netif, net_handler func, void *ctx);
+
 #define fd_zero(fds)        FD_ZERO((fds));
 #define fd_set(fd,fds)      if ((fd) > 0) FD_SET((fd), (fds))
 #define fd_isset(fd,fds)    ((fd) > 0) && FD_ISSET((fd), (fds))
@@ -75,7 +126,11 @@ ssize_t net_write(net_interface *netif, void *d, size_t slen);
 #define net_maxfd(this,max) (max) = (max) > (this)->fd ? (max) : (this)->fd
 #define net_fdset(this,fds) if ((this)->fd > 0) FD_SET((this)->fd, (fds))
 #define net_isset(this,fds) ((this)->fd > 0) && FD_ISSET((this)->fd, (fds))
+#if defined(USING_PCAP)
+#define net_close(this)     if ((this)->pd) pcap_close((this)->pd); (this)->pd=0; (this)->fd=0
+#else
 #define net_close(this)     if ((this)->fd > 0) close((this)->fd); (this)->fd=0
+#endif
 #define net_add_route(dst,gw,mask) net_route(dst,gw,mask,0)
 #define net_del_route(dst,gw,mask) net_route(dst,gw,mask,1)
 

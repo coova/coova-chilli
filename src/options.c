@@ -31,9 +31,9 @@
 #include "chilli.h"
 #include "options.h"
 
-static struct options_t *_options;
-struct options_t *options() { return _options; }
-void options_set(struct options_t *o) { _options = o; }
+void options_init() {
+  memset(&_options, 0, sizeof(_options));
+}
 
 /* Get IP address and mask */
 int option_aton(struct in_addr *addr, struct in_addr *mask,
@@ -254,9 +254,9 @@ int options_fromfd(int fd, bstring bt) {
       return 0;
   }
 
-  if (options()->_data) free(options()->_data);
-  memcpy(options(), &o, sizeof(o));
-  options()->_data = bt->data;
+  if (_options._data) free(_options._data);
+  memcpy(&_options, &o, sizeof(o));
+  _options._data = bt->data;
 
   return 1;
 }
@@ -266,7 +266,7 @@ int options_save(char *file, bstring bt) {
   mode_t oldmask;
   int fd, i;
 
-  memcpy(&o, options(), sizeof(o));
+  memcpy(&o, &_options, sizeof(o));
 
   if (!option_s_s(bt, &o.pidfile)) return 0;
   if (!option_s_s(bt, &o.statedir)) return 0;

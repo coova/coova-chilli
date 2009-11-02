@@ -17,6 +17,8 @@
  * 
  */
 
+#define MAIN_FILE
+
 #include "system.h"
 #include "syserr.h"
 #include "cmdline.h"
@@ -28,6 +30,8 @@
 #include "chilli.h"
 #include "options.h"
 #include "cmdsock.h"
+
+struct options_t _options;
 
 static int usage(char *program) {
   fprintf(stderr, "Usage: %s [ -s <socket> ] <command> [<argument>]\n", program);
@@ -47,6 +51,7 @@ static cmd_info commands[] = {
   { CMDSOCK_ENTRY_FOR_IP,  "listip",        NULL },
   { CMDSOCK_ENTRY_FOR_MAC, "listmac",       NULL },
   { CMDSOCK_ROUTE,         "route",         NULL },
+  { CMDSOCK_ROUTE_GW,      "routegw",       NULL },
   { CMDSOCK_RELOAD,        "reload",        NULL },
   { CMDSOCK_DHCP_LIST,     "dhcp-list",     NULL },
   { CMDSOCK_DHCP_RELEASE,  "dhcp-release",  NULL },
@@ -298,6 +303,7 @@ int main(int argc, char **argv) {
 	}
 	break;
       case CMDSOCK_ROUTE:
+      case CMDSOCK_ROUTE_GW:
 	{
 	  unsigned int temp[PKT_ETH_ALEN];
 	  char macstr[RADIUS_ATTR_VLEN];
@@ -333,7 +339,8 @@ int main(int argc, char **argv) {
 	  argidx++;
 	  request.data.sess.params.routeidx = atoi(argv[argidx]);
 
-	  request.type = CMDSOCK_ROUTE_SET;
+	  if (request.type != CMDSOCK_ROUTE_GW)
+	    request.type = CMDSOCK_ROUTE_SET;
 
 	  /* do another switch to pick up param configs for authorize */
 	}

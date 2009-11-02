@@ -16,6 +16,8 @@
  * 
  */
 
+#define MAIN_FILE
+
 #include "system.h"
 #include "syserr.h"
 #include "cmdline.h"
@@ -28,66 +30,7 @@
 #include "options.h"
 #include "cmdsock.h"
 
-
-/* Extract domain name and port from URL */
-static int get_namepart(char *src, char *host, int hostsize, int *port) {
-  char *slashslash = NULL;
-  char *slash = NULL;
-  char *colon = NULL;
-  int hostlen;
-  
-  *port = 0;
-
-  if (!memcmp(src, "http://", 7)) {
-    *port = DHCP_HTTP;
-  }
-  else   if (!memcmp(src, "https://", 8)) {
-    *port = DHCP_HTTPS;
-  }
-  else {
-    log_err(0, "URL must start with http:// or https:// %s!", src);
-    return -1;
-  }
-  
-  /* The host name must be initiated by "//" and terminated by /, :  or \0 */
-  if (!(slashslash = strstr(src, "//"))) {
-    log_err(0, "// not found in url: %s!", src);
-    return -1;
-  }
-  slashslash+=2;
-  
-  slash = strstr(slashslash, "/");
-  colon = strstr(slashslash, ":");
-  
-  if ((slash != NULL) && (colon != NULL) &&
-      (slash < colon)) {
-    hostlen = slash - slashslash;
-  }
-  else if ((slash != NULL) && (colon == NULL)) {
-    hostlen = slash - slashslash;
-  }
-  else if (colon != NULL) {
-    hostlen = colon - slashslash;
-    if (1 != sscanf(colon+1, "%d", port)) {
-      log_err(0, "Not able to parse URL port: %s!", src);
-      return -1;
-    }
-  }
-  else {
-    hostlen = strlen(src);
-  }
-
-  if (hostlen > (hostsize-1)) {
-    log_err(0, "URL hostname larger than %d: %s!", hostsize-1, src);
-    return -1;
-  }
-
-  strncpy(host, slashslash, hostsize);
-  host[hostlen] = 0;
-
-  return 0;
-}
-
+struct options_t _options;
 
 static const char *description = 
   "CoovaChilli - A Wireless LAN Access Point Controller.\n"
@@ -137,7 +80,7 @@ int main(int argc, char **argv) {
   int numargs;
   int ret = -1;
 
-  options_set(opt = (struct options_t *)calloc(1, sizeof(struct options_t)));
+  options_init();
 
   memset(&args_info, 0, sizeof(args_info));
 
@@ -172,80 +115,80 @@ int main(int argc, char **argv) {
   }
 
   /* Handle each option */
-  opt->initialized = 1;
+  _options.initialized = 1;
 
   if (args_info.debug_flag) 
-    opt->debug = args_info.debugfacility_arg;
+    _options.debug = args_info.debugfacility_arg;
   else 
-    opt->debug = 0;
+    _options.debug = 0;
 
   /** simple configuration parameters **/
-  opt->uid = args_info.uid_arg;
-  opt->gid = args_info.gid_arg;
-  opt->mtu = args_info.mtu_arg;
-  opt->usetap = args_info.usetap_flag;
-  opt->foreground = args_info.fg_flag;
-  opt->interval = args_info.interval_arg;
-  opt->lease = args_info.lease_arg;
-  opt->dhcpstart = args_info.dhcpstart_arg;
-  opt->dhcpend = args_info.dhcpend_arg;
-  opt->eapolenable = args_info.eapolenable_flag;
-  opt->swapoctets = args_info.swapoctets_flag;
-  opt->logfacility = args_info.logfacility_arg;
-  opt->chillixml = args_info.chillixml_flag;
-  opt->macauth = args_info.macauth_flag;
-  opt->macreauth = args_info.macreauth_flag;
-  opt->macauthdeny = args_info.macauthdeny_flag;
-  opt->uamport = args_info.uamport_arg;
-  opt->uamuiport = args_info.uamuiport_arg;
-  opt->macallowlocal = args_info.macallowlocal_flag;
-  opt->no_uamwispr = args_info.nouamwispr_flag;
-  opt->wpaguests = args_info.wpaguests_flag;
-  opt->openidauth = args_info.openidauth_flag;
-  opt->challengetimeout = args_info.challengetimeout_arg;
-  opt->challengetimeout2 = args_info.challengetimeout2_arg;
-  opt->defsessiontimeout = args_info.defsessiontimeout_arg;
-  opt->definteriminterval = args_info.definteriminterval_arg;
-  opt->defbandwidthmaxdown = args_info.defbandwidthmaxdown_arg;
-  opt->defbandwidthmaxup = args_info.defbandwidthmaxup_arg;
-  opt->defidletimeout = args_info.defidletimeout_arg;
-  opt->radiusnasporttype = args_info.radiusnasporttype_arg;
-  opt->radiusauthport = args_info.radiusauthport_arg;
-  opt->radiusacctport = args_info.radiusacctport_arg;
-  opt->coaport = args_info.coaport_arg;
-  opt->coanoipcheck = args_info.coanoipcheck_flag;
-  opt->radiustimeout = args_info.radiustimeout_arg;
-  opt->radiusretry = args_info.radiusretry_arg;
-  opt->radiusretrysec = args_info.radiusretrysec_arg;
-  opt->proxyport = args_info.proxyport_arg;
-  opt->txqlen = args_info.txqlen_arg;
-  opt->postauth_proxyport = args_info.postauthproxyport_arg;
-  opt->pap_always_ok = args_info.papalwaysok_flag;
-  opt->mschapv2 = args_info.mschapv2_flag;
-  opt->acct_update = args_info.acctupdate_flag;
-  opt->dhcpradius = args_info.dhcpradius_flag;
-  opt->ieee8021q = args_info.ieee8021q_flag;
-  opt->dhcp_broadcast = args_info.dhcpbroadcast_flag;
-  opt->dhcpgwport = args_info.dhcpgatewayport_arg;
-  opt->noc2c = args_info.noc2c_flag;
-  opt->tcpwin = args_info.tcpwin_arg;
-  opt->tcpmss = args_info.tcpmss_arg;
-  opt->max_clients = args_info.maxclients_arg;
-  opt->seskeepalive = args_info.seskeepalive_flag;
+  _options.uid = args_info.uid_arg;
+  _options.gid = args_info.gid_arg;
+  _options.mtu = args_info.mtu_arg;
+  _options.usetap = args_info.usetap_flag;
+  _options.foreground = args_info.fg_flag;
+  _options.interval = args_info.interval_arg;
+  _options.lease = args_info.lease_arg;
+  _options.dhcpstart = args_info.dhcpstart_arg;
+  _options.dhcpend = args_info.dhcpend_arg;
+  _options.eapolenable = args_info.eapolenable_flag;
+  _options.swapoctets = args_info.swapoctets_flag;
+  _options.logfacility = args_info.logfacility_arg;
+  _options.chillixml = args_info.chillixml_flag;
+  _options.macauth = args_info.macauth_flag;
+  _options.macreauth = args_info.macreauth_flag;
+  _options.macauthdeny = args_info.macauthdeny_flag;
+  _options.uamport = args_info.uamport_arg;
+  _options.uamuiport = args_info.uamuiport_arg;
+  _options.macallowlocal = args_info.macallowlocal_flag;
+  _options.no_uamwispr = args_info.nouamwispr_flag;
+  _options.wpaguests = args_info.wpaguests_flag;
+  _options.openidauth = args_info.openidauth_flag;
+  _options.challengetimeout = args_info.challengetimeout_arg;
+  _options.challengetimeout2 = args_info.challengetimeout2_arg;
+  _options.defsessiontimeout = args_info.defsessiontimeout_arg;
+  _options.definteriminterval = args_info.definteriminterval_arg;
+  _options.defbandwidthmaxdown = args_info.defbandwidthmaxdown_arg;
+  _options.defbandwidthmaxup = args_info.defbandwidthmaxup_arg;
+  _options.defidletimeout = args_info.defidletimeout_arg;
+  _options.radiusnasporttype = args_info.radiusnasporttype_arg;
+  _options.radiusauthport = args_info.radiusauthport_arg;
+  _options.radiusacctport = args_info.radiusacctport_arg;
+  _options.coaport = args_info.coaport_arg;
+  _options.coanoipcheck = args_info.coanoipcheck_flag;
+  _options.radiustimeout = args_info.radiustimeout_arg;
+  _options.radiusretry = args_info.radiusretry_arg;
+  _options.radiusretrysec = args_info.radiusretrysec_arg;
+  _options.proxyport = args_info.proxyport_arg;
+  _options.txqlen = args_info.txqlen_arg;
+  _options.postauth_proxyport = args_info.postauthproxyport_arg;
+  _options.pap_always_ok = args_info.papalwaysok_flag;
+  _options.mschapv2 = args_info.mschapv2_flag;
+  _options.acct_update = args_info.acctupdate_flag;
+  _options.dhcpradius = args_info.dhcpradius_flag;
+  _options.ieee8021q = args_info.ieee8021q_flag;
+  _options.dhcp_broadcast = args_info.dhcpbroadcast_flag;
+  _options.dhcpgwport = args_info.dhcpgatewayport_arg;
+  _options.noc2c = args_info.noc2c_flag;
+  _options.tcpwin = args_info.tcpwin_arg;
+  _options.tcpmss = args_info.tcpmss_arg;
+  _options.max_clients = args_info.maxclients_arg;
+  _options.seskeepalive = args_info.seskeepalive_flag;
 
   if (args_info.dhcpgateway_arg &&
-      !inet_aton(args_info.dhcpgateway_arg, &opt->dhcpgwip)) {
+      !inet_aton(args_info.dhcpgateway_arg, &_options.dhcpgwip)) {
     log_err(0, "Invalid DHCP gateway IP address: %s!", args_info.dhcpgateway_arg);
     goto end_processing;
   }
 
   if (args_info.dhcprelayagent_arg &&
-      !inet_aton(args_info.dhcprelayagent_arg, &opt->dhcprelayip)) {
+      !inet_aton(args_info.dhcprelayagent_arg, &_options.dhcprelayip)) {
     log_err(0, "Invalid DHCP gateway relay IP address: %s!", args_info.dhcprelayagent_arg);
     goto end_processing;
   }
 
-  opt->dhcpif = STRDUP(args_info.dhcpif_arg);
+  _options.dhcpif = STRDUP(args_info.dhcpif_arg);
 
   if (!args_info.radiussecret_arg) {
     log_err(0, "radiussecret must be specified!");
@@ -253,8 +196,8 @@ int main(int argc, char **argv) {
   }
 
   if (!args_info.nexthop_arg) {
-    memset(opt->nexthop, 0, PKT_ETH_ALEN);
-    opt->has_nexthop = 0;
+    memset(_options.nexthop, 0, PKT_ETH_ALEN);
+    _options.has_nexthop = 0;
   }
   else {
     unsigned int temp[PKT_ETH_ALEN];
@@ -283,14 +226,14 @@ int main(int argc, char **argv) {
     }
     
     for (i = 0; i < PKT_ETH_ALEN; i++) 
-      opt->nexthop[i] = temp[i];
+      _options.nexthop[i] = temp[i];
 
-    opt->has_nexthop = 1;
+    _options.has_nexthop = 1;
   }
 
   if (!args_info.dhcpmac_arg) {
-    memset(opt->dhcpmac, 0, PKT_ETH_ALEN);
-    opt->dhcpusemac  = 0;
+    memset(_options.dhcpmac, 0, PKT_ETH_ALEN);
+    _options.dhcpusemac  = 0;
   }
   else {
     unsigned int temp[PKT_ETH_ALEN];
@@ -318,27 +261,27 @@ int main(int argc, char **argv) {
     }
     
     for (i = 0; i < PKT_ETH_ALEN; i++) 
-      opt->dhcpmac[i] = temp[i];
+      _options.dhcpmac[i] = temp[i];
 
-    opt->dhcpusemac  = 1;
+    _options.dhcpusemac  = 1;
   }
 
   if (args_info.net_arg) {
-    if (option_aton(&opt->net, &opt->mask, args_info.net_arg, 0)) {
+    if (option_aton(&_options.net, &_options.mask, args_info.net_arg, 0)) {
       log_err(0, "Invalid network address: %s!", args_info.net_arg);
       goto end_processing;
     }
     if (!args_info.uamlisten_arg) {
-      opt->uamlisten.s_addr = htonl(ntohl(opt->net.s_addr)+1);
+      _options.uamlisten.s_addr = htonl(ntohl(_options.net.s_addr)+1);
     }
-    else if (!inet_aton(args_info.uamlisten_arg, &opt->uamlisten)) {
+    else if (!inet_aton(args_info.uamlisten_arg, &_options.uamlisten)) {
       log_err(0, "Invalid UAM IP address: %s!", args_info.uamlisten_arg);
       goto end_processing;
     }
     if (!args_info.dhcplisten_arg) {
-      opt->dhcplisten.s_addr = opt->uamlisten.s_addr;
+      _options.dhcplisten.s_addr = _options.uamlisten.s_addr;
     }
-    else if (!inet_aton(args_info.dhcplisten_arg, &opt->dhcplisten)) {
+    else if (!inet_aton(args_info.dhcplisten_arg, &_options.dhcplisten)) {
       log_err(0, "Invalid DHCP IP address: %s!", args_info.dhcplisten_arg);
       goto end_processing;
     }
@@ -349,21 +292,21 @@ int main(int argc, char **argv) {
   }
 
 
-  log_dbg("DHCP Listen: %s", inet_ntoa(opt->dhcplisten));
-  log_dbg("UAM Listen: %s", inet_ntoa(opt->uamlisten));
+  log_dbg("DHCP Listen: %s", inet_ntoa(_options.dhcplisten));
+  log_dbg("UAM Listen: %s", inet_ntoa(_options.uamlisten));
 
   if (!args_info.uamserver_arg) {
     log_err(0, "WARNING: No uamserver defiend!");
   }
 
   if (args_info.uamserver_arg) {
-    if (opt->debug & DEBUG_CONF) {
+    if (_options.debug & DEBUG_CONF) {
       log_dbg("Uamserver: %s\n", args_info.uamserver_arg);
     }
-    memset(opt->uamserver, 0, sizeof(opt->uamserver));
-    opt->uamserverlen = 0;
-    if (get_namepart(args_info.uamserver_arg, hostname, USERURLSIZE, 
-		     &opt->uamserverport)) {
+    memset(_options.uamserver, 0, sizeof(_options.uamserver));
+    _options.uamserverlen = 0;
+    if (get_urlparts(args_info.uamserver_arg, hostname, USERURLSIZE, 
+		     &_options.uamserverport, 0)) {
       log_err(0, "Failed to parse uamserver: %s!", args_info.uamserver_arg);
       goto end_processing;
     }
@@ -376,18 +319,18 @@ int main(int argc, char **argv) {
     else {
       int j = 0;
       while (host->h_addr_list[j] != NULL) {
-	if (opt->debug & DEBUG_CONF) {
+	if (_options.debug & DEBUG_CONF) {
 	  log_dbg("Uamserver IP address #%d: %s\n", j,
 		 inet_ntoa(*(struct in_addr*) host->h_addr_list[j]));
 	}
-	if (opt->uamserverlen>=UAMSERVER_MAX) {
+	if (_options.uamserverlen>=UAMSERVER_MAX) {
 	  log_err(0,
 		  "Too many IPs in uamserver %s!",
 		  args_info.uamserver_arg);
 	  goto end_processing;
 	}
 	else {
-	  opt->uamserver[opt->uamserverlen++] = 
+	  _options.uamserver[_options.uamserverlen++] = 
 	    *((struct in_addr*) host->h_addr_list[j++]);
 	}
       }
@@ -395,8 +338,8 @@ int main(int argc, char **argv) {
   }
 
   if (args_info.uamhomepage_arg) {
-    if (get_namepart(args_info.uamhomepage_arg, hostname, USERURLSIZE, 
-		     &opt->uamhomepageport)) {
+    if (get_urlparts(args_info.uamhomepage_arg, hostname, USERURLSIZE, 
+		     &_options.uamhomepageport, 0)) {
       log_err(0,"Failed to parse uamhomepage: %s!", args_info.uamhomepage_arg);
       goto end_processing;
     }
@@ -409,64 +352,64 @@ int main(int argc, char **argv) {
     else {
       int j = 0;
       while (host->h_addr_list[j] != NULL) {
-	if (opt->uamserverlen>=UAMSERVER_MAX) {
+	if (_options.uamserverlen>=UAMSERVER_MAX) {
 	  log_err(0,"Too many IPs in uamhomepage %s!",
 		  args_info.uamhomepage_arg);
 	  goto end_processing;
 	}
 	else {
-	  opt->uamserver[opt->uamserverlen++] = 
+	  _options.uamserver[_options.uamserverlen++] = 
 	    *((struct in_addr*) host->h_addr_list[j++]);
 	}
       }
     }
   }
 
-  opt->uamanydns = args_info.uamanydns_flag;
-  opt->uamanyip = args_info.uamanyip_flag;
-  opt->uamnatanyip = args_info.uamnatanyip_flag;
-  opt->dnsparanoia = args_info.dnsparanoia_flag;
-  opt->radiusoriginalurl = args_info.radiusoriginalurl_flag;
+  _options.uamanydns = args_info.uamanydns_flag;
+  _options.uamanyip = args_info.uamanyip_flag;
+  _options.uamnatanyip = args_info.uamnatanyip_flag;
+  _options.dnsparanoia = args_info.dnsparanoia_flag;
+  _options.radiusoriginalurl = args_info.radiusoriginalurl_flag;
 
   /* pass-throughs */
-  memset(opt->pass_throughs, 0, sizeof(opt->pass_throughs));
-  opt->num_pass_throughs = 0;
+  memset(_options.pass_throughs, 0, sizeof(_options.pass_throughs));
+  _options.num_pass_throughs = 0;
 
   for (numargs = 0; numargs < args_info.uamallowed_given; ++numargs) {
-    pass_throughs_from_string(opt->pass_throughs,
+    pass_throughs_from_string(_options.pass_throughs,
 			      MAX_PASS_THROUGHS,
-			      &opt->num_pass_throughs,
+			      &_options.num_pass_throughs,
 			      args_info.uamallowed_arg[numargs]);
   }
 
   for (numargs = 0; numargs < MAX_UAM_DOMAINS; ++numargs) {
-    if (opt->uamdomains[numargs])
-      free(opt->uamdomains[numargs]);
-    opt->uamdomains[numargs] = 0;
+    if (_options.uamdomains[numargs])
+      free(_options.uamdomains[numargs]);
+    _options.uamdomains[numargs] = 0;
   }
 
   if (args_info.uamdomain_given) {
     for (numargs = 0; numargs < args_info.uamdomain_given && numargs < MAX_UAM_DOMAINS; ++numargs) 
-      opt->uamdomains[numargs] = STRDUP(args_info.uamdomain_arg[numargs]);
+      _options.uamdomains[numargs] = STRDUP(args_info.uamdomain_arg[numargs]);
   }
 
-  opt->allowdyn = 1;
+  _options.allowdyn = 1;
   
-  opt->autostatip = args_info.autostatip_arg;
-  if (opt->autostatip)
-    opt->uamanyip = 1;
+  _options.autostatip = args_info.autostatip_arg;
+  if (_options.autostatip)
+    _options.uamanyip = 1;
   
   if (args_info.nodynip_flag) {
-    opt->allowdyn = 0;
+    _options.allowdyn = 0;
   } else {
     if (!args_info.dynip_arg) {
-      opt->dynip = STRDUP(args_info.net_arg);
+      _options.dynip = STRDUP(args_info.net_arg);
     }
     else {
       struct in_addr addr;
       struct in_addr mask;
-      opt->dynip = STRDUP(args_info.dynip_arg);
-      if (option_aton(&addr, &mask, opt->dynip, 0)) {
+      _options.dynip = STRDUP(args_info.dynip_arg);
+      if (option_aton(&addr, &mask, _options.dynip, 0)) {
 	log_err(0, "Failed to parse dynamic IP address pool!");
 	goto end_processing;
       }
@@ -477,42 +420,50 @@ int main(int argc, char **argv) {
   if (args_info.statip_arg) {
     struct in_addr addr;
     struct in_addr mask;
-    opt->statip = STRDUP(args_info.statip_arg);
-    if (option_aton(&addr, &mask, opt->statip, 0)) {
+    _options.statip = STRDUP(args_info.statip_arg);
+    if (option_aton(&addr, &mask, _options.statip, 0)) {
       log_err(0, "Failed to parse static IP address pool!");
       return -1;
     }
-    opt->allowstat = 1;
+    _options.allowstat = 1;
   } else {
-    opt->allowstat = 0;
+    _options.allowstat = 0;
   }
 
+  /* anyipexclude */
+  if (args_info.anyipexclude_arg) {
+    if (option_aton(&opt->anyipexclude_addr, &opt->anyipexclude_mask, args_info.anyipexclude_arg, 0)) {
+      log_err(0, "Failed to parse anyip exclude network!");
+      return -1;
+    }
+  }
+  
   if (args_info.dns1_arg) {
-    if (!inet_aton(args_info.dns1_arg, &opt->dns1)) {
+    if (!inet_aton(args_info.dns1_arg, &_options.dns1)) {
       log_err(0,"Invalid primary DNS address: %s!", 
 	      args_info.dns1_arg);
       goto end_processing;
     }
   }
   else if (_res.nscount >= 1) {
-    opt->dns1 = _res.nsaddr_list[0].sin_addr;
+    _options.dns1 = _res.nsaddr_list[0].sin_addr;
   }
   else {
-    opt->dns1.s_addr = 0;
+    _options.dns1.s_addr = 0;
   }
 
   if (args_info.dns2_arg) {
-    if (!inet_aton(args_info.dns2_arg, &opt->dns2)) {
+    if (!inet_aton(args_info.dns2_arg, &_options.dns2)) {
       log_err(0,"Invalid secondary DNS address: %s!", 
 	      args_info.dns1_arg);
       goto end_processing;
     }
   }
   else if (_res.nscount >= 2) {
-    opt->dns2 = _res.nsaddr_list[1].sin_addr;
+    _options.dns2 = _res.nsaddr_list[1].sin_addr;
   }
   else {
-    opt->dns2.s_addr = opt->dns1.s_addr;
+    _options.dns2.s_addr = _options.dns1.s_addr;
   }
 
 
@@ -525,11 +476,11 @@ int main(int argc, char **argv) {
       goto end_processing;
     }
     else {
-      memcpy(&opt->radiuslisten.s_addr, host->h_addr, host->h_length);
+      memcpy(&_options.radiuslisten.s_addr, host->h_addr, host->h_length);
     }
   }
   else {
-    opt->radiuslisten.s_addr = htonl(INADDR_ANY);
+    _options.radiuslisten.s_addr = htonl(INADDR_ANY);
   }
 
   if (args_info.uamlogoutip_arg) {
@@ -538,7 +489,7 @@ int main(int argc, char **argv) {
 	       args_info.uamlogoutip_arg, strerror(errno));
     }
     else {
-      memcpy(&opt->uamlogout.s_addr, host->h_addr, host->h_length);
+      memcpy(&_options.uamlogout.s_addr, host->h_addr, host->h_length);
     }
   }
 
@@ -548,7 +499,7 @@ int main(int argc, char **argv) {
 	       args_info.postauthproxy_arg, strerror(errno));
     }
     else {
-      memcpy(&opt->postauth_proxyip.s_addr, host->h_addr, host->h_length);
+      memcpy(&_options.postauth_proxyip.s_addr, host->h_addr, host->h_length);
     }
   }
 
@@ -561,7 +512,7 @@ int main(int argc, char **argv) {
       goto end_processing;
     }
     else {
-      memcpy(&opt->radiusserver1.s_addr, host->h_addr, host->h_length);
+      memcpy(&_options.radiusserver1.s_addr, host->h_addr, host->h_length);
     }
   }
   else {
@@ -579,11 +530,11 @@ int main(int argc, char **argv) {
       goto end_processing;
     }
     else {
-      memcpy(&opt->radiusserver2.s_addr, host->h_addr, host->h_length);
+      memcpy(&_options.radiusserver2.s_addr, host->h_addr, host->h_length);
     }
   }
   else {
-    opt->radiusserver2.s_addr = 0;
+    _options.radiusserver2.s_addr = 0;
   }
 
   /* If no listen option is specified listen to any local port    */
@@ -595,30 +546,30 @@ int main(int argc, char **argv) {
       goto end_processing;
     }
     else {
-      memcpy(&opt->proxylisten.s_addr, host->h_addr, host->h_length);
+      memcpy(&_options.proxylisten.s_addr, host->h_addr, host->h_length);
     }
   }
   else {
-    opt->proxylisten.s_addr = htonl(INADDR_ANY);
+    _options.proxylisten.s_addr = htonl(INADDR_ANY);
   }
   
   /* Store proxyclient as in_addr net and mask                       */
   if (args_info.proxyclient_arg) {
-    if(option_aton(&opt->proxyaddr, &opt->proxymask, 
+    if(option_aton(&_options.proxyaddr, &_options.proxymask, 
 		   args_info.proxyclient_arg, 0)) {
       log_err(0,"Invalid proxy client address: %s!", args_info.proxyclient_arg);
       goto end_processing;
     }
   }
   else {
-    opt->proxyaddr.s_addr = ~0; /* Let nobody through */
-    opt->proxymask.s_addr = 0; 
+    _options.proxyaddr.s_addr = ~0; /* Let nobody through */
+    _options.proxymask.s_addr = 0; 
   }
 
-  memset(opt->macok, 0, sizeof(opt->macok));
-  opt->macoklen = 0;
+  memset(_options.macok, 0, sizeof(_options.macok));
+  _options.macoklen = 0;
   for (numargs = 0; numargs < args_info.macallowed_given; ++numargs) {
-    if (opt->debug & DEBUG_CONF) {
+    if (_options.debug & DEBUG_CONF) {
       log_dbg("Macallowed #%d: %s\n", numargs, 
 	      args_info.macallowed_arg[numargs]);
     }
@@ -635,7 +586,7 @@ int main(int argc, char **argv) {
       *p2 = '\0';
     }
     while (p1) {
-      if (opt->macoklen>=MACOK_MAX) {
+      if (_options.macoklen>=MACOK_MAX) {
 	log_err(0,"Too many addresses in macallowed %s!",
 		args_info.macallowed_arg);
       }
@@ -650,16 +601,16 @@ int main(int argc, char **argv) {
 	}
 	else {
 
-	  if (opt->debug & DEBUG_CONF) {
+	  if (_options.debug & DEBUG_CONF) {
 	    log_dbg("Macallowed address #%d: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X\n", 
-		   opt->macoklen,
+		   _options.macoklen,
 		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 	  }
 
 	  for (i = 0; i < 6; i++)
-	    opt->macok[opt->macoklen][i] = (unsigned char) mac[i]; 
+	    _options.macok[_options.macoklen][i] = (unsigned char) mac[i]; 
 
-	  opt->macoklen++;
+	  _options.macoklen++;
 	}
       }
       
@@ -677,126 +628,126 @@ int main(int argc, char **argv) {
   }
 
   /** string parameters **/
-  if (opt->routeif) free(opt->routeif);
-  opt->routeif = STRDUP(args_info.routeif_arg);
+  if (_options.routeif) free(_options.routeif);
+  _options.routeif = STRDUP(args_info.routeif_arg);
 
-  if (opt->wwwdir) free(opt->wwwdir);
-  opt->wwwdir = STRDUP(args_info.wwwdir_arg);
+  if (_options.wwwdir) free(_options.wwwdir);
+  _options.wwwdir = STRDUP(args_info.wwwdir_arg);
 
-  if (opt->wwwbin) free(opt->wwwbin);
-  opt->wwwbin = STRDUP(args_info.wwwbin_arg);
+  if (_options.wwwbin) free(_options.wwwbin);
+  _options.wwwbin = STRDUP(args_info.wwwbin_arg);
 
-  if (opt->uamui) free(opt->uamui);
-  opt->uamui = STRDUP(args_info.uamui_arg);
+  if (_options.uamui) free(_options.uamui);
+  _options.uamui = STRDUP(args_info.uamui_arg);
 
-  if (opt->localusers) free(opt->localusers);
-  opt->localusers = STRDUP(args_info.localusers_arg);
+  if (_options.localusers) free(_options.localusers);
+  _options.localusers = STRDUP(args_info.localusers_arg);
 
 #ifdef HAVE_OPENSSL
-  if (opt->sslkeyfile) free(opt->sslkeyfile);
-  opt->sslkeyfile = STRDUP(args_info.sslkeyfile_arg);
+  if (_options.sslkeyfile) free(_options.sslkeyfile);
+  _options.sslkeyfile = STRDUP(args_info.sslkeyfile_arg);
 
-  if (opt->sslcertfile) free(opt->sslcertfile);
-  opt->sslcertfile = STRDUP(args_info.sslcertfile_arg);
+  if (_options.sslcertfile) free(_options.sslcertfile);
+  _options.sslcertfile = STRDUP(args_info.sslcertfile_arg);
 #endif
 
-  if (opt->uamurl) free(opt->uamurl);
-  opt->uamurl = STRDUP(args_info.uamserver_arg);
+  if (_options.uamurl) free(_options.uamurl);
+  _options.uamurl = STRDUP(args_info.uamserver_arg);
 
-  if (opt->uamaaaurl) free(opt->uamaaaurl);
-  opt->uamaaaurl = STRDUP(args_info.uamaaaurl_arg);
+  if (_options.uamaaaurl) free(_options.uamaaaurl);
+  _options.uamaaaurl = STRDUP(args_info.uamaaaurl_arg);
 
-  if (opt->uamhomepage) free(opt->uamhomepage);
-  opt->uamhomepage = STRDUP(args_info.uamhomepage_arg);
+  if (_options.uamhomepage) free(_options.uamhomepage);
+  _options.uamhomepage = STRDUP(args_info.uamhomepage_arg);
 
-  if (opt->wisprlogin) free(opt->wisprlogin);
-  opt->wisprlogin = STRDUP(args_info.wisprlogin_arg);
+  if (_options.wisprlogin) free(_options.wisprlogin);
+  _options.wisprlogin = STRDUP(args_info.wisprlogin_arg);
 
-  if (opt->uamsecret) free(opt->uamsecret);
-  opt->uamsecret = STRDUP(args_info.uamsecret_arg);
+  if (_options.uamsecret) free(_options.uamsecret);
+  _options.uamsecret = STRDUP(args_info.uamsecret_arg);
 
-  if (opt->proxysecret) free(opt->proxysecret);
+  if (_options.proxysecret) free(_options.proxysecret);
   if (!args_info.proxysecret_arg) {
-    opt->proxysecret = STRDUP(args_info.radiussecret_arg);
+    _options.proxysecret = STRDUP(args_info.radiussecret_arg);
   }
   else {
-    opt->proxysecret = STRDUP(args_info.proxysecret_arg);
+    _options.proxysecret = STRDUP(args_info.proxysecret_arg);
   }
 
-  if (opt->macsuffix) free(opt->macsuffix);
-  opt->macsuffix = STRDUP(args_info.macsuffix_arg);
+  if (_options.macsuffix) free(_options.macsuffix);
+  _options.macsuffix = STRDUP(args_info.macsuffix_arg);
 
-  if (opt->macpasswd) free(opt->macpasswd);
-  opt->macpasswd = STRDUP(args_info.macpasswd_arg);
+  if (_options.macpasswd) free(_options.macpasswd);
+  _options.macpasswd = STRDUP(args_info.macpasswd_arg);
 
-  if (opt->adminuser) free(opt->adminuser);
-  opt->adminuser = STRDUP(args_info.adminuser_arg);
+  if (_options.adminuser) free(_options.adminuser);
+  _options.adminuser = STRDUP(args_info.adminuser_arg);
 
-  if (opt->adminpasswd) free(opt->adminpasswd);
-  opt->adminpasswd = STRDUP(args_info.adminpasswd_arg);
+  if (_options.adminpasswd) free(_options.adminpasswd);
+  _options.adminpasswd = STRDUP(args_info.adminpasswd_arg);
 
-  if (opt->adminupdatefile) free(opt->adminupdatefile);
-  opt->adminupdatefile = STRDUP(args_info.adminupdatefile_arg);
+  if (_options.adminupdatefile) free(_options.adminupdatefile);
+  _options.adminupdatefile = STRDUP(args_info.adminupdatefile_arg);
 
-  if (opt->rtmonfile) free(opt->rtmonfile);
-  opt->rtmonfile = STRDUP(args_info.rtmonfile_arg);
+  if (_options.rtmonfile) free(_options.rtmonfile);
+  _options.rtmonfile = STRDUP(args_info.rtmonfile_arg);
 
-  if (opt->ssid) free(opt->ssid);
-  opt->ssid = STRDUP(args_info.ssid_arg);
+  if (_options.ssid) free(_options.ssid);
+  _options.ssid = STRDUP(args_info.ssid_arg);
 
-  if (opt->vlan) free(opt->vlan);
-  opt->vlan = STRDUP(args_info.vlan_arg);
+  if (_options.vlan) free(_options.vlan);
+  _options.vlan = STRDUP(args_info.vlan_arg);
 
-  if (opt->nasmac) free(opt->nasmac);
-  opt->nasmac = STRDUP(args_info.nasmac_arg);
+  if (_options.nasmac) free(_options.nasmac);
+  _options.nasmac = STRDUP(args_info.nasmac_arg);
 
-  if (opt->nasip) free(opt->nasip);
-  opt->nasip = STRDUP(args_info.nasip_arg);
+  if (_options.nasip) free(_options.nasip);
+  _options.nasip = STRDUP(args_info.nasip_arg);
 
-  if (opt->tundev) free(opt->tundev);
-  opt->tundev = STRDUP(args_info.tundev_arg);
+  if (_options.tundev) free(_options.tundev);
+  _options.tundev = STRDUP(args_info.tundev_arg);
 
-  if (opt->radiusnasid) free(opt->radiusnasid);
-  opt->radiusnasid = STRDUP(args_info.radiusnasid_arg);
+  if (_options.radiusnasid) free(_options.radiusnasid);
+  _options.radiusnasid = STRDUP(args_info.radiusnasid_arg);
 
-  if (opt->radiuslocationid) free(opt->radiuslocationid);
-  opt->radiuslocationid = STRDUP(args_info.radiuslocationid_arg);
+  if (_options.radiuslocationid) free(_options.radiuslocationid);
+  _options.radiuslocationid = STRDUP(args_info.radiuslocationid_arg);
 
-  if (opt->radiuslocationname) free(opt->radiuslocationname);
-  opt->radiuslocationname = STRDUP(args_info.radiuslocationname_arg);
+  if (_options.radiuslocationname) free(_options.radiuslocationname);
+  _options.radiuslocationname = STRDUP(args_info.radiuslocationname_arg);
 
-  if (opt->locationname) free(opt->locationname);
-  opt->locationname = STRDUP(args_info.locationname_arg);
+  if (_options.locationname) free(_options.locationname);
+  _options.locationname = STRDUP(args_info.locationname_arg);
 
-  if (opt->radiussecret) free(opt->radiussecret);
-  opt->radiussecret = STRDUP(args_info.radiussecret_arg);
+  if (_options.radiussecret) free(_options.radiussecret);
+  _options.radiussecret = STRDUP(args_info.radiussecret_arg);
 
-  if (opt->cmdsocket) free(opt->cmdsocket);
-  opt->cmdsocket = STRDUP(args_info.cmdsocket_arg);
+  if (_options.cmdsocket) free(_options.cmdsocket);
+  _options.cmdsocket = STRDUP(args_info.cmdsocket_arg);
 
-  if (opt->domain) free(opt->domain);
-  opt->domain = STRDUP(args_info.domain_arg);
+  if (_options.domain) free(_options.domain);
+  _options.domain = STRDUP(args_info.domain_arg);
 
-  if (opt->ipup) free(opt->ipup);
-  opt->ipup = STRDUP(args_info.ipup_arg);
+  if (_options.ipup) free(_options.ipup);
+  _options.ipup = STRDUP(args_info.ipup_arg);
 
-  if (opt->ipdown) free(opt->ipdown);
-  opt->ipdown = STRDUP(args_info.ipdown_arg);
+  if (_options.ipdown) free(_options.ipdown);
+  _options.ipdown = STRDUP(args_info.ipdown_arg);
 
-  if (opt->conup) free(opt->conup);
-  opt->conup = STRDUP(args_info.conup_arg);
+  if (_options.conup) free(_options.conup);
+  _options.conup = STRDUP(args_info.conup_arg);
 
-  if (opt->condown) free(opt->condown);
-  opt->condown = STRDUP(args_info.condown_arg);
+  if (_options.condown) free(_options.condown);
+  _options.condown = STRDUP(args_info.condown_arg);
 
-  if (opt->pidfile) free(opt->pidfile);
-  opt->pidfile = STRDUP(args_info.pidfile_arg);
+  if (_options.pidfile) free(_options.pidfile);
+  _options.pidfile = STRDUP(args_info.pidfile_arg);
 
-  if (opt->statedir) free(opt->statedir);
-  opt->statedir = STRDUP(args_info.statedir_arg);
+  if (_options.statedir) free(_options.statedir);
+  _options.statedir = STRDUP(args_info.statedir_arg);
 
-  if (opt->usestatusfile) free(opt->usestatusfile);
-  opt->usestatusfile = STRDUP(args_info.usestatusfile_arg);
+  if (_options.usestatusfile) free(_options.usestatusfile);
+  _options.usestatusfile = STRDUP(args_info.usestatusfile_arg);
 
   ret = 0;
 
