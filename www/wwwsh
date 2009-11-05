@@ -21,10 +21,6 @@ if [ -z "$haserl" ]; then
     exit
 fi
 
-ppid=$$
-(sleep 60; kill $ppid) &
-cpid=$!
-
 if [ ${CONTENT_LENGTH:-0} -gt 0 ]; then
     POST_FILE=/tmp/post.$$
     export POST_FILE
@@ -34,5 +30,3 @@ if [ ${CONTENT_LENGTH:-0} -gt 0 ]; then
 else
     $haserl $file
 fi
-
-kill $cpid

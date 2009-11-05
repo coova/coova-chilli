@@ -29,9 +29,7 @@
 
 #if defined(__linux__)
 
-/*#define USE_MMAP 1/**/
-
-#ifdef USE_MMAP
+#ifdef USING_MMAP
 # ifdef TPACKET_HDRLEN
 #  define HAVE_PACKET_RING
 #  ifdef PACKET_RX_RING
@@ -75,7 +73,7 @@ typedef struct _net_interface {
   pcap_t *pd;
 #endif
 
-#ifdef USE_MMAP
+#ifdef USING_MMAP
   int cc;
   int offset;
   int snapshot;

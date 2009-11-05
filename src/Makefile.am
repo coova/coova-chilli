@@ -12,6 +12,15 @@ chilli_proxy_LDADD += -lcurl -lz
 endif
 endif
 
+if WITH_CHILLIREDIR
+sbin_PROGRAMS += chilli_redir
+chilli_redir_SOURCES = main-redir.c 
+chilli_redir_LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBOPENSSL} ${LIBPCAP}
+if WITH_CURL
+chilli_redir_LDADD += -lcurl -lz 
+endif
+endif
+
 if WITH_RTMON
 sbin_PROGRAMS += chilli_rtmon
 chilli_rtmon_SOURCES = main-rtmon.c 

@@ -234,6 +234,9 @@
 /* Define if you have curl enabled */
 #undef USING_CURL
 
+/* Define if you have mmap enabled */
+#undef USING_MMAP
+
 /* Define if you have pcap enabled */
 #undef USING_PCAP
 

@@ -2282,7 +2282,6 @@ int redir_main(struct redir_t *redir,
     log_dbg("---->>> resetting challenge: %s", hexchal); \
   }
 
-
 #ifdef MSG_IPC_UNIX
 #define redir_msg_send(msgopt) \
   msg.mdata.opt = msgopt; \

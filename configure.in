@@ -136,6 +136,12 @@ AS_IF([test x"$with_curl" != xno],
 
 AM_CONDITIONAL(WITH_CURL, [test x"$with_curl" != xno])
 
+AC_ARG_WITH([mmap],
+ [AS_HELP_STRING([--with-mmap], [enable support for mmap])],[],[with_mmap=no])
+
+AS_IF([test x"$with_mmap" != xno],
+  [AC_DEFINE([USING_MMAP], [1], [Define if you have mmap enabled])])
+
 AC_ARG_ENABLE(binstatusfile, [AC_HELP_STRING([--enable-binstatusfile],[Enable support for binary status file])], 
   enable_binstatfile=$enableval, enable_binstatfile=no)
 
@@ -158,6 +164,15 @@ if test x"$enable_chilliproxy" = xyes; then
 fi
 
 AM_CONDITIONAL(WITH_CHILLIPROXY, [test x"$enable_chilliproxy" = xyes])
+
+AC_ARG_ENABLE(chilliredir, [AC_HELP_STRING([--enable-chilliredir],[Enable support for Redir server])], 
+  enable_chilliredir=$enableval, enable_chilliredir=no)
+
+if test x"$enable_chilliredir" = xyes; then
+   AC_DEFINE(ENABLE_CHILLIREDIR,1,[Define to enable Redir server])
+fi
+
+AM_CONDITIONAL(WITH_CHILLIREDIR, [test x"$enable_chilliredir" = xyes])
 
 AC_ARG_ENABLE(rtmon, [AC_HELP_STRING([--enable-rtmon],[Enable support for route monitoring deamon])], 
   enable_rtmon=$enableval, enable_rtmon=no)

@@ -35,6 +35,8 @@ hs_longitude=$(getconfig longitude)
 USERS=@ETCCHILLI@/localusers
 FORM_userurl=${FORM_userurl:-http://www.coova.org/}
 
+COOVA_USERURL=$COOKIE_COOVA_USERURL
+
 if [ "$FORM_uamip" != "" ]; then
     QS=$(echo $QUERY_STRING | sed 's/&md=[^&=]*$//')
     URL="http://$SERVER_NAME/$REQUEST_URI?$QS"
@@ -45,8 +47,7 @@ if [ "$FORM_uamip" != "" ]; then
     #echo "$CHECK_MD5" >> /tmp/debug
     #echo "$FORM_md" >> /tmp/debug
     if [ "$CHECK_MD5" = "$FORM_md" ]; then
-	COOVA_SESSIONID=$FORM_sessionid
-	COOVA_CHALLENGE=$FORM_challenge
+	COOVA_USERURL=$FORM_userurl
     else
 	http_redirect "/www/error.chi"
     fi
@@ -60,6 +61,7 @@ http_redirect2() {
     echo "HTTP/1.0 302 Redirect"
     echo "Location: $1"
     echo "Set-Cookie: PORTAL_SESSIONID=$PORTAL_SESSIONID"
+    echo "Set-Cookie: COOVA_USERURL=$COOVA_USERURL"
     echo "Connection: close"
     echo ""
     exit
@@ -85,9 +87,8 @@ http_header() {
     
     echo "HTTP/1.0 200 OK"
     echo "Content-Type: text/html"
-    echo "Set-Cookie: COOVA_SESSIONID=$COOVA_SESSIONID"
-    echo "Set-Cookie: COOVA_CHALLENGE=$COOVA_CHALLENGE"
     echo "Set-Cookie: PORTAL_SESSIONID=$PORTAL_SESSIONID"
+    echo "Set-Cookie: COOVA_USERURL=$COOVA_USERURL"
     echo "Connection: close"
     echo "Cache: none"
     echo ""
@@ -154,8 +155,20 @@ loginform() {
     esac
 }
 
-authtarget() {
-    echo ""
+local_login_url() {
+    if [ "$HS_USELOCALUSERS" = "on" ]; then
+	line=$(head -1 $USERS)
+	if [ "$line" = "" ]; then
+	    echo "tos:$(echo '$$$(date)'|md5sum|cut -f1)" >> $USERS
+	    line=$(head -1 $USERS)
+	fi
+	if [ "$line" != "" ]; then
+	    user=$(echo "$line" | cut -f1 -d:)
+	    pass=$(echo "$line" | cut -f2 -d:)
+	    response=$($CHILLI_RESPONSE "$CHI_CHALLENGE" "$hs_uamsecret" "$pass")
+	    echo -n "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=${user}&response=${response}&userurl=${COOVA_USERURL}"
+	fi
+    fi
 }
 
 reply_message() {
@@ -168,6 +181,12 @@ reply_message() {
 	   echo "$FORM_reply"
 	   ;;
     esac
+}
+
+image() {
+    ext=$(echo "$1"|awk -v FS=. '{ print tolower($NF) }')
+    base=$(echo "$1"|awk -v FS=/ '{ gsub(/[^a-zA-Z0-9_\/-]/,""); print tolower($NF) }')
+    echo -n "img-$base.$ext"
 }
 
 registerform() {
