@@ -1,6 +1,10 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+* Support for Linux Packet MMAP RX/TX ring buffer packet interfaces
+* Support for poll/epoll as alternative to select (use with configure ''-with-poll'')
+* Added new compile time feature ''--enable-chilliredir'' which will build and use a forked server for handling redirects
+* With the above option also enabled, regular expression based walled garden can be set with one or more ''--uamregex spec''	
 * Added the '''miniportal''' project to CoovaChilli, for a light-weight haserl/shell captive portal
 * Added support for SSL redirecting (with SSL cert violation, of course) and SSL on the local UAM sockets
 * Added compile-type option ''--enable-chilliproxy'' to have the new ''chilli_proxy'' server built
@@ -18,6 +22,7 @@
 * New option ''seskeepalive'' to be used with above compile type option to indicate chilli should not stop sessions on shutdown
 * Added VLAN-Id RADIUS attribute to accounting. 
 * Bug fix for HEX conversion error
+* Bug fix for VLAN ID in RADIUS
 
 == ChangeLog (Coova Chilli v1.0.14 svn revision 208) ==
 

@@ -29,7 +29,8 @@
 #include "chilli.h"
 #include "options.h"
 
-int pass_through_add(pass_through *ptlist, size_t ptlen, size_t *ptcnt, pass_through *pt) {
+int pass_through_add(pass_through *ptlist, size_t ptlen,
+		     size_t *ptcnt, pass_through *pt) {
   size_t cnt = *ptcnt;
   int i;
 
@@ -57,7 +58,8 @@ int pass_through_add(pass_through *ptlist, size_t ptlen, size_t *ptcnt, pass_thr
   return 0;
 }
 
-int pass_throughs_from_string(pass_through *ptlist, size_t ptlen, size_t *ptcnt, char *s) {
+int pass_throughs_from_string(pass_through *ptlist, size_t ptlen, 
+			      size_t *ptcnt, char *s) {
   struct hostent *host;
   pass_through pt;
   char *t, *p1 = NULL, *p2 = NULL;
@@ -147,3 +149,31 @@ int pass_throughs_from_string(pass_through *ptlist, size_t ptlen, size_t *ptcnt,
   return 0;
 }
 
+#ifdef ENABLE_CHILLIREDIR
+int regex_pass_throughs_from_string(regex_pass_through *ptlist, size_t ptlen, 
+				    size_t *ptcnt, char *s) {
+  size_t cnt = *ptcnt;
+  regex_pass_through pt;
+  char *p, *st;
+  int stage = 0;
+
+  memset(&pt, 0, sizeof(pt));
+
+  for (st = s; (p = strtok(st, "::")); st = 0, stage++) {
+    int is_wild = !strcmp(p,"*");
+    if (!is_wild) {
+      int is_negate = (*p == '!');
+      if (is_negate) p++;
+      switch (stage) {
+      case 0: strncpy(pt.regex_host, p, sizeof(pt.regex_host)-1); pt.neg_host = is_negate; break;
+      case 1: strncpy(pt.regex_path, p, sizeof(pt.regex_path)-1); pt.neg_path = is_negate; break;
+      case 2: strncpy(pt.regex_qs,   p, sizeof(pt.regex_qs)-1);   pt.neg_qs   = is_negate; break;
+      }
+    }
+  }
+
+  memcpy(&ptlist[cnt], &pt, sizeof(pt));
+  *ptcnt = cnt + 1;
+  return 0;
+}
+#endif

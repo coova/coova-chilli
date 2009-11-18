@@ -40,8 +40,8 @@ int loadstatus() {
   char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
   struct stat statbuf;
   char filedest[512];
-  char header[512], c;
   FILE *file;
+  char c;
 
   struct dhcp_conn_t dhcpconn;
   struct app_conn_t appconn;
@@ -125,7 +125,7 @@ int loadstatus() {
 	  return -1;
 	}
 
-	if (newconn(&aconn) == 0) {
+	if (chilli_new_conn(&aconn) == 0) {
 	  /* set/copy all the pointers/internals */
 	  appconn.unit = aconn->unit;
 	  appconn.next = aconn->next;
@@ -139,7 +139,7 @@ int loadstatus() {
 	  newipm->peer = aconn;
 
 	  if (appconn.natip.s_addr)
-	    assign_snat(aconn, 1);
+	    chilli_assign_snat(aconn, 1);
 
 	  dhcp_set_addrs(conn, 
 			 &newipm->addr, &_options.mask, 

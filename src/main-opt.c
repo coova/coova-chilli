@@ -142,6 +142,7 @@ int main(int argc, char **argv) {
   _options.uamport = args_info.uamport_arg;
   _options.uamuiport = args_info.uamuiport_arg;
   _options.macallowlocal = args_info.macallowlocal_flag;
+  _options.strictmacauth = args_info.strictmacauth_flag;
   _options.no_uamwispr = args_info.nouamwispr_flag;
   _options.wpaguests = args_info.wpaguests_flag;
   _options.openidauth = args_info.openidauth_flag;
@@ -162,6 +163,9 @@ int main(int argc, char **argv) {
   _options.radiusretrysec = args_info.radiusretrysec_arg;
   _options.proxyport = args_info.proxyport_arg;
   _options.txqlen = args_info.txqlen_arg;
+  _options.ringsize = args_info.ringsize_arg;
+  _options.sndbuf = args_info.sndbuf_arg;
+  _options.rcvbuf = args_info.rcvbuf_arg;
   _options.postauth_proxyport = args_info.postauthproxyport_arg;
   _options.pap_always_ok = args_info.papalwaysok_flag;
   _options.mschapv2 = args_info.mschapv2_flag;
@@ -175,6 +179,7 @@ int main(int argc, char **argv) {
   _options.tcpmss = args_info.tcpmss_arg;
   _options.max_clients = args_info.maxclients_arg;
   _options.seskeepalive = args_info.seskeepalive_flag;
+  _options.uamallowpost = args_info.uamallowpost_flag;
 
   if (args_info.dhcpgateway_arg &&
       !inet_aton(args_info.dhcpgateway_arg, &_options.dhcpgwip)) {
@@ -233,7 +238,8 @@ int main(int argc, char **argv) {
 
   if (!args_info.dhcpmac_arg) {
     memset(_options.dhcpmac, 0, PKT_ETH_ALEN);
-    _options.dhcpusemac  = 0;
+    _options.dhcpusemac = 0;
+    _options.dhcpmacset = 0;
   }
   else {
     unsigned int temp[PKT_ETH_ALEN];
@@ -263,7 +269,8 @@ int main(int argc, char **argv) {
     for (i = 0; i < PKT_ETH_ALEN; i++) 
       _options.dhcpmac[i] = temp[i];
 
-    _options.dhcpusemac  = 1;
+    _options.dhcpusemac = 1;
+    _options.dhcpmacset = args_info.dhcpmacset_flag;
   }
 
   if (args_info.net_arg) {
@@ -381,6 +388,28 @@ int main(int argc, char **argv) {
 			      &_options.num_pass_throughs,
 			      args_info.uamallowed_arg[numargs]);
   }
+
+
+#ifdef ENABLE_CHILLIREDIR
+  for (numargs = 0; numargs < MAX_REGEX_PASS_THROUGHS; ++numargs) {
+    if (_options.regex_pass_throughs[numargs].re_host.allocated)
+      regfree(&_options.regex_pass_throughs[numargs].re_host);
+    if (_options.regex_pass_throughs[numargs].re_path.allocated)
+      regfree(&_options.regex_pass_throughs[numargs].re_path);
+    if (_options.regex_pass_throughs[numargs].re_qs.allocated)
+      regfree(&_options.regex_pass_throughs[numargs].re_qs);
+  }
+  
+  memset(_options.regex_pass_throughs, 0, sizeof(_options.regex_pass_throughs));
+  _options.regex_num_pass_throughs = 0;
+  
+  for (numargs = 0; numargs < args_info.uamregex_given; ++numargs) {
+    regex_pass_throughs_from_string(_options.regex_pass_throughs,
+				    MAX_REGEX_PASS_THROUGHS,
+				    &_options.regex_num_pass_throughs,
+				    args_info.uamregex_arg[numargs]);
+  }
+#endif
 
   for (numargs = 0; numargs < MAX_UAM_DOMAINS; ++numargs) {
     if (_options.uamdomains[numargs])
@@ -649,6 +678,11 @@ int main(int argc, char **argv) {
 
   if (_options.sslcertfile) free(_options.sslcertfile);
   _options.sslcertfile = STRDUP(args_info.sslcertfile_arg);
+#endif
+
+#ifdef USING_IPC_UNIX
+  if (_options.unixipc) free(_options.unixipc);
+  _options.unixipc = STRDUP(args_info.unixipc_arg);
 #endif
 
   if (_options.uamurl) free(_options.uamurl);

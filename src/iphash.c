@@ -54,7 +54,7 @@ int iphash_new(struct ippool_t **this, struct ippoolm_t *list, int listsize) {
   
   for (i = 0; i<listsize; i++) {
     
-    (*this)->member[i].inuse = 1; /* TODO */
+    (*this)->member[i].in_use = 1; /* TODO */
     ippool_hashadd(*this, &(*this)->member[i]);
   }
 

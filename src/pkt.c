@@ -37,6 +37,7 @@ int pkt_shape_tcpwin(uint8_t *packet, size_t *length) {
       chksum(iph);
     }
   }
+  return 0;
 }
 
 int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {

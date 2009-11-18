@@ -23,6 +23,7 @@
 
 #include "dhcp.h"
 #include "session.h"
+#include "conn.h"
 
 #define REDIR_TERM_INIT       0  /* Nothing done yet */
 #define REDIR_TERM_GETREQ     1  /* Before calling redir_getreq */
@@ -106,6 +107,27 @@ struct redir_conn_t {
   struct session_state s_state;
 };
 
+/* HTTP request parsing context */
+struct redir_httpreq_t {
+  char allow_post:1;
+  char is_post:1;
+
+  char host[256];
+  char path[256];
+  char qs[REDIR_USERURLSIZE];
+
+  bstring data_in;
+
+  size_t clen;
+};
+
+struct redir_socket_t {
+  int fd[2];
+#ifdef HAVE_OPENSSL
+  openssl_con *sslcon;
+#endif
+};
+
 #define MSG_IPC_UNIX 1
 
 struct redir_t {
@@ -119,34 +141,41 @@ struct redir_t {
   struct in_addr addr;
   int port;
   int uiport;
-
+  
   int starttime;
-
-   char *url;
-   char *homepage;
-   char *secret;
-   char *ssid;
-   char *vlan;
-   char *nasmac;
-   char *nasip;
-   struct in_addr radiuslisten;
-   struct in_addr radiusserver0;
-   struct in_addr radiusserver1;
-   uint16_t radiusauthport;
-   uint16_t radiusacctport;
-   char *radiussecret;
-   char *radiusnasid;
-   char* radiuslocationid;
-   char* radiuslocationname;
-   char* locationname;
-   int radiusnasporttype;
-   int chillixml;     /* Send chilli specific XML along with WISPr */
-   int no_uamwispr;   /* Do not have Chilli return WISPr blocks */
-
+  
+  char *url;
+  char *homepage;
+  char *secret;
+  char *ssid;
+  char *vlan;
+  char *nasmac;
+  char *nasip;
+  struct in_addr radiuslisten;
+  struct in_addr radiusserver0;
+  struct in_addr radiusserver1;
+  uint16_t radiusauthport;
+  uint16_t radiusacctport;
+  char *radiussecret;
+  char *radiusnasid;
+  char* radiuslocationid;
+  char* radiuslocationname;
+  char* locationname;
+  int radiusnasporttype;
+  int chillixml;     /* Send chilli specific XML along with WISPr */
+  int no_uamwispr;   /* Do not have Chilli return WISPr blocks */
+  
   int (*cb_getstate) (struct redir_t *redir, 
 		      struct sockaddr_in *address,
-		      struct sockaddr_in *remaddress,
 		      struct redir_conn_t *conn);
+
+  int (*cb_handle_url) (struct redir_t *redir, 
+			struct redir_conn_t *conn,
+			struct redir_httpreq_t *httpreq,
+			struct redir_socket_t *socket,
+			void *ctx);
+
+  void * cb_handle_url_ctx;
 };
 
 struct redir_msg_data {
@@ -160,6 +189,8 @@ struct redir_msg_t {
   long mtype;
   struct redir_msg_data mdata;
 };
+
+#define REDIR_MSG_STATUS_TYPE 1000
 
 int redir_md_param(bstring str, char *secret, char *amp);
 
@@ -176,17 +207,25 @@ int redir_setchallenge(struct redir_t *redir, struct in_addr *addr, uint8_t *cha
 int redir_set_cb_getstate(struct redir_t *redir,
   int (*cb_getstate) (struct redir_t *redir, 
 		      struct sockaddr_in *address,
-		      struct sockaddr_in *remaddress,
 		      struct redir_conn_t *conn));
 
 int redir_main(struct redir_t *redir, int infd, int outfd, 
 	       struct sockaddr_in *address, 
-	       struct sockaddr_in *remaddress, 
-	       int isui);
+	       int isui, int forked);
 
 int redir_json_fmt_redir(struct redir_conn_t *conn, bstring json, 
 			 char *userurl, char *redirurl, uint8_t *hismac);
 
 int redir_json_fmt_session(struct redir_conn_t *conn, bstring json, int init);
+
+int redir_chartohex(unsigned char *src, char *dst, size_t len);
+
+int redir_urlencode(bstring src, bstring dst);
+
+int redir_listen(struct redir_t *redir);
+
+pid_t redir_fork(int in, int out);
+
+int redir_ipc(struct redir_t *redir);
 
 #endif	/* !_REDIR_H */

@@ -27,7 +27,7 @@ option  "statedir"    - "Directory of nonvolatile data" string no
 option  "uid"         - "UID to run as, after being started as root" int default="0" no
 option  "gid"         - "GID to run as, after being started as root" int default="0" no
 
-# TUN parameters
+# NET/TUN parameters
 option "net"         n "Network"           string default="192.168.182.0/24" no
 option "dhcpstart"   - "Network DHCP Starting IP"      int default="0" no
 option "dhcpend"     - "Network DHCP Ending IP"        int default="0" no
@@ -48,6 +48,9 @@ option "tundev"      - "TUN/TAP Device, as in tun0 or tap1" string no
 option "mtu"         - "MTU given in DHCP" int default="1500" no
 option "autostatip"  - "Auto- static ip assignment" int default="0" no
 
+option "ringsize" - "TX/RX Ring Size (in kbytes; linux only)" int default="0" no
+option "sndbuf" - "SNDBUF size (in kb)" int default="0" no
+option "rcvbuf" - "RCVBUF size (in kb)" int default="0" no
 
 # Radius parameters
 option "radiuslisten"       - "IP address to send from"       string no
@@ -77,7 +80,8 @@ option "proxysecret"   - "Radius proxy shared secret"    string no
 
 # DHCP parameters
 option "dhcpif"      - "Local Ethernet interface"    string no
-option "dhcpmac"     - "Interface MAC address"       string no
+option "dhcpmac"     - "DHCP Interface MAC Address"       string no
+option "dhcpmacset"  - "Option to have dhcpif configured with dhcpmac" flag off
 option "nexthop"     - "Next Hop MAC address"       string no
 option "dhcpradius"  - "Map certain DHCP options to RADIUS attributes" flag off
 option "dhcpgateway" - "DHCP gateway addresss for relay" string no
@@ -99,6 +103,7 @@ option "uamport"      - "TCP port to bind to for authentication requests" int de
 option "uamuiport"    - "TCP port to bind to for UAM UI requests" int default="3991" no
 option "uamallowed"   - "Domain names exempt from access check " string no multiple
 option "uamdomain"    - "Domain name allowed (active dns filtering; one per line!) " string no multiple
+option "uamregex"     - "Regular expression to match URLs (one per line) " string no multiple
 option "uamanydns"    - "Allow client to use any DNS server" flag   off
 option "uamanyip"     - "Allow client to use any IP Address" flag   off
 option "uamnatanyip"  - "Source NAT clients using anyip to an IP of dynip pool" flag off
@@ -123,6 +128,7 @@ option "macallowed"  - "List of allowed MAC addresses" string no multiple
 option "macsuffix"   - "Suffix to add to the MAC address" string no
 option "macpasswd"   - "Password used when performing MAC authentication" string no
 option "macallowlocal" - "Do not use RADIUS for authenticating the macallowed" flag off
+option "strictmacauth" - "Be strict about MAC Auth (no DHCP reply until we get RADIUS reply)" flag off
 
 # "local" content
 option "wwwdir"      - "Local content served by chilli (for splash page, etc)" string no
@@ -170,5 +176,7 @@ option "maxclients"    - "Maximum number of clients/subscribers" int default="51
 option "challengetimeout" - "Timeout in seconds for the generated challenge" int default="600" no
 option "challengetimeout2" - "Timeout in seconds for challenge during login" int default="1200" no
 
-option "sslkeyfile" - "SSL private key file in PEM format" string no
+option "sslkeyfile"  - "SSL private key file in PEM format" string no
 option "sslcertfile" - "SSL certificate file in PEM format" string no
+option "unixipc"     - "The UNIX IPC Filename to use when compiled with --with-unixipc" string no
+option "uamallowpost" - "Enable to allow a HTTP POST to the standard uamport interface" flag off

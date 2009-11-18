@@ -32,6 +32,10 @@
 
 #include "net.h"
 #include "options.h"
+#include "session.h"
+#include "dhcp.h"
+#include "radius.h"
+#include "chilli.h"
 
 struct options_t _options;
 
@@ -252,7 +256,7 @@ void print_ifaces() {
   for (i=0; i < MAX_IFACES; i++) {
     if (_ifaces[i].has_data) {
       unsigned char *u = _ifaces[i].hwaddr;
-      printf("Interface(%d)[%d]: %s\n", i, _ifaces[i].index, _ifaces[i].devname);
+      printf("Interface(%d)[ifindex=%d]: %s\n", i, _ifaces[i].index, _ifaces[i].devname);
       printf("\tIP Address:\t%s\n", inet_ntoa(_ifaces[i].address));
       printf("\tNetwork:\t%s\n", inet_ntoa(_ifaces[i].network));
       printf("\tNetmask:\t%s\n", inet_ntoa(_ifaces[i].netmask));
@@ -269,7 +273,7 @@ void print_routes() {
   int i;
   for (i=0; i < MAX_ROUTES; i++) {
     if (_routes[i].has_data) {
-      printf("Route(%d)[%d]\n", i, _routes[i].if_index);
+      printf("Route(%d)[-> ifindex=%d]\n", i, _routes[i].if_index);
       printf("\tDestination:\t%s\n", inet_ntoa(_routes[i].destination));
       printf("\tNetmask:\t%s\n", inet_ntoa(_routes[i].netmask));
       printf("\tGateway:\t%s\n", inet_ntoa(_routes[i].gateway));
@@ -345,7 +349,7 @@ void check_updates() {
 		  FILE *file = fopen(chilli_conf, "w");
 
 		  if (file) {
-		    fprintf(file, "nexthop %s\n", mactoa(&areq.arp_ha.sa_data));
+		    fprintf(file, "nexthop %s\n", mactoa((uint8_t *)&areq.arp_ha.sa_data));
 		    fclose(file);
 		  }
 
@@ -353,7 +357,7 @@ void check_updates() {
 		    kill(chilli_pid, SIGHUP);
 
 		  if (debug) 
-		    printf("Next Hop %s\n", mactoa(&areq.arp_ha.sa_data));
+		    printf("Next Hop %s\n", mactoa((uint8_t *)&areq.arp_ha.sa_data));
 
 		  break;
 		}
@@ -555,6 +559,7 @@ int read_event(int sock) {
 }
 
 int main(int argc, char *argv[]) {
+  int keep_going = 1;
   int nls = open_netlink();
   int i;
 
@@ -572,6 +577,8 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  chilli_signals(&keep_going);
+
   discover_ifaces();
   discover_routes();
 
@@ -582,7 +589,7 @@ int main(int argc, char *argv[]) {
 
   check_updates();
   
-  while (1) {
+  while (keep_going) {
     read_event(nls);
   }
 

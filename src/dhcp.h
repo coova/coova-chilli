@@ -226,8 +226,8 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
 	       struct in_addr *dns1, struct in_addr *dns2, char *domain);
 
 /* Called whenever a packet arrives */
-int dhcp_decaps(struct dhcp_t *this);
-int dhcp_relay_decaps(struct dhcp_t *this);
+int dhcp_decaps(struct dhcp_t *this, int idx);
+int dhcp_relay_decaps(struct dhcp_t *this, int idx);
 int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhdr);
 uint8_t * dhcp_nexthop(struct dhcp_t *);
 
@@ -283,5 +283,7 @@ int dhcp_filterDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen);
 
 int dhcp_gettag(struct dhcp_packet_t *pack, size_t length,
 		struct dhcp_tag_t **tag, uint8_t tagtype);
+
+int dhcp_hashadd(struct dhcp_t *this, struct dhcp_conn_t *conn);
 
 #endif	/* !_DHCP_H */

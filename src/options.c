@@ -237,6 +237,9 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.sslkeyfile)) return 0;
   if (!option_s_l(bt, &o.sslcertfile)) return 0;
 #endif
+#ifdef USING_IPC_UNIX
+  if (!option_s_l(bt, &o.unixipc)) return 0;
+#endif
 
   if (!option_s_l(bt, &o.adminuser)) return 0;
   if (!option_s_l(bt, &o.adminpasswd)) return 0;
@@ -254,9 +257,20 @@ int options_fromfd(int fd, bstring bt) {
       return 0;
   }
 
+#ifdef ENABLE_CHILLIREDIR
+  for (i = 0; i < MAX_REGEX_PASS_THROUGHS; i++) {
+    if (_options.regex_pass_throughs[i].re_host.allocated)
+      regfree(&_options.regex_pass_throughs[i].re_host);
+    if (_options.regex_pass_throughs[i].re_path.allocated)
+      regfree(&_options.regex_pass_throughs[i].re_path);
+    if (_options.regex_pass_throughs[i].re_qs.allocated)
+      regfree(&_options.regex_pass_throughs[i].re_qs);
+  }
+#endif
+
   if (_options._data) free(_options._data);
   memcpy(&_options, &o, sizeof(o));
-  _options._data = bt->data;
+  _options._data = (char *)bt->data;
 
   return 1;
 }
@@ -267,6 +281,14 @@ int options_save(char *file, bstring bt) {
   int fd, i;
 
   memcpy(&o, &_options, sizeof(o));
+
+#ifdef ENABLE_CHILLIREDIR
+  for (i = 0; i < MAX_REGEX_PASS_THROUGHS; i++) {
+    memset(&o.regex_pass_throughs[i].re_host, 0, sizeof(regex_t));
+    memset(&o.regex_pass_throughs[i].re_path, 0, sizeof(regex_t));
+    memset(&o.regex_pass_throughs[i].re_qs, 0, sizeof(regex_t));
+  }
+#endif
 
   if (!option_s_s(bt, &o.pidfile)) return 0;
   if (!option_s_s(bt, &o.statedir)) return 0;
@@ -308,6 +330,9 @@ int options_save(char *file, bstring bt) {
   if (!option_s_s(bt, &o.sslkeyfile)) return 0;
   if (!option_s_s(bt, &o.sslcertfile)) return 0;
 #endif
+#ifdef USING_IPC_UNIX
+  if (!option_s_s(bt, &o.unixipc)) return 0;
+#endif
 
   if (!option_s_s(bt, &o.adminuser)) return 0;
   if (!option_s_s(bt, &o.adminpasswd)) return 0;
@@ -338,10 +363,13 @@ int options_save(char *file, bstring bt) {
     return 0;
 
   } else {
-    write(fd, &o, sizeof(o));
+    if (write(fd, &o, sizeof(o)) < 0)
+      log_err(errno, "write()");
     size_t len = bt->slen;
-    write(fd, &len, sizeof(len));
-    write(fd, bt->data, len);
+    if (write(fd, &len, sizeof(len)) < 0)
+      log_err(errno, "write()");
+    if (write(fd, bt->data, len) < 0)
+      log_err(errno, "write()");
     close(fd);
   }
 

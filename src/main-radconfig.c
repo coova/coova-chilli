@@ -147,7 +147,7 @@ int static chilliauth() {
 
     if (status > 0) {
       if (FD_ISSET(radius->fd, &fds)) {
-	if (radius_decaps(radius) < 0) {
+	if (radius_decaps(radius, 0) < 0) {
 	  sys_err(LOG_ERR, __FILE__, __LINE__, 0, "radius_ind() failed!");
 	}
 	else {

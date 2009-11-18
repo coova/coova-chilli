@@ -27,26 +27,121 @@
 #include <pcap.h>
 #endif
 
-#if defined(__linux__)
-
 #ifdef USING_MMAP
-# ifdef TPACKET_HDRLEN
-#  define HAVE_PACKET_RING
-#  ifdef PACKET_RX_RING
-#   define HAVE_PACKET_RX_RING
-#  endif
-#  ifdef PACKET_TX_RING
-#   define HAVE_PACKET_TX_RING
-#  endif
-#  ifdef TPACKET2_HDRLEN
-#   define HAVE_TPACKET2
-#  else
-#   define TPACKET_V1 0
-#  endif
-# endif
+#define HAVE_PACKET_RING
+#define HAVE_PACKET_RX_RING
+#define HAVE_PACKET_TX_RING
+#define HAVE_TPACKET2
+
+#ifndef PACKET_TX_RING
+#define PACKET_TX_RING		13
+#define PACKET_LOSS		14
+#define TP_STATUS_AVAILABLE	0x0
+#define TP_STATUS_SEND_REQUEST	0x1
+#define TP_STATUS_SENDING	0x2
+#define TP_STATUS_WRONG_FORMAT	0x4
+#endif 
+
+struct device_stats
+{
+  uint64_t		read_cnt;
+  uint64_t		read_bytes;
+  struct timespec	read_time;
+  uint64_t		write_cnt;
+  uint64_t		write_bytes;
+  struct timespec	write_time;
+  uint32_t		other_cnt;
+  struct timespec	other_time;
+  uint64_t		io_slots;
+  uint64_t		io_runs;
+  uint64_t		queue_length;
+  uint32_t		queue_stall;
+  uint32_t		queue_over;
+  uint32_t		ata_err;
+  uint32_t		proto_err;
+};
+
+struct netif_stats
+{
+  uint64_t		rx_cnt;
+  uint64_t		rx_bytes;
+  uint64_t		rx_runs;
+  uint64_t		tx_cnt;
+  uint64_t		tx_bytes;
+  uint64_t		tx_runs;
+  uint32_t		rx_buffers_full;
+  uint32_t		tx_buffers_full;
+  uint32_t		dropped;
+  uint32_t		ignored;
+  uint32_t		broadcast;
+};
+
+struct device_config
+{
+  char			*path;
+  /* The shelf number is in network byte order */
+  unsigned		shelf;
+  unsigned		slot;
+  int			queue_length;
+  int			direct_io;
+  int			trace_io;
+  int			read_only;
+  int			broadcast;
+  long			max_delay;
+  long			merge_delay;
+};
+
+struct netif_config
+{
+  int			mtu;
+  int			ring_size;
+  int			send_buf_size;
+  int			recv_buf_size;
+};
+
+struct ring
+{
+  /* Total length of the ring buffer */
+  unsigned len;
+  /* Number of frames (packets) in the ring buffer */
+  unsigned cnt;
+  /* The index of the next frame to use */
+  unsigned idx;
+  /* Frame size in the ring buffer */
+  unsigned frame_size;
+  /* Block size of the ring buffer */
+  unsigned block_size;
+  /* Pointers to the individual frames */
+  void **frames;
+};
+
+struct _net_interface;
+struct queue_item
+{
+  struct _net_interface *iface;
+  struct timespec	start;
+  void			*buf;
+  unsigned		bufsize;
+  unsigned		length;
+  
+  unsigned long long	offset;
+  
+  unsigned		hdrlen;
+  union
+  {
+    struct pkt_ethhdr_t	ethhdr;
+    struct pkt_ethhdr8021q_t ethhdr8021q;
+  };
+};
+
+#ifdef ENABLE_LARGELIMITS
+#define DEF_RING_SIZE (6 * 1024)
+#else
+#define DEF_RING_SIZE (256)
 #endif
 
 #endif
+
 
 typedef struct _net_interface {
   uint8_t idx;
@@ -74,16 +169,19 @@ typedef struct _net_interface {
 #endif
 
 #ifdef USING_MMAP
-  int cc;
-  int offset;
-  int snapshot;
-  int buffer_size;
-  int bufsize;
-  int tp_version;
+  int is_active;
+
+  struct netif_config	cfg;
+  struct netif_stats	stats;
+
+  struct ring rx_ring;
+  struct ring tx_ring;
+  /* The address of the memory-mapped rings (first RX, then TX) */
+  void *ring_ptr;
+  /* The length of the mapped area */
+  unsigned ring_len;
+  /* The length of the frame header in the rings */
   int tp_hdrlen;
-  size_t mmapbuflen;
-  char *mmapbuf;
-  char *buffer;
 #endif
 
 #if defined(__linux__)
@@ -99,6 +197,37 @@ typedef struct _net_interface {
 #define NET_ETHHDR  (1<<2)
 } net_interface;
 
+#define MAX_SELECT 32
+#define SELECT_READ 1
+#define SELECT_WRITE 2
+
+typedef void (*select_callback)(void *data, int idx);
+
+typedef struct {
+  int fd;
+  int idx;
+  char evts;
+  select_callback cb;
+  void *ctx;
+} select_fd;
+
+typedef struct {
+  int count;
+  select_fd desc[MAX_SELECT];
+#ifdef USING_POLL
+#ifdef HAVE_SYS_EPOLL_H
+  int efd;
+  struct epoll_event events[MAX_SELECT];
+#else
+  struct pollfd pfds[MAX_SELECT];
+#endif
+#else
+  int maxfd;
+  fd_set rfds, wfds, efds;
+  struct timeval idleTime;
+#endif
+} select_ctx;
+
 typedef int (*net_handler)(void *ctx, void *data, size_t len);
 
 #define net_sflags(n,f) dev_set_flags((n)->devname, (f))
@@ -111,24 +240,46 @@ int net_init(net_interface *netif, char *ifname, uint16_t protocol, int promisc,
 int net_route(struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask, int delete);
 int net_set_mtu(net_interface *netif, size_t mtu);
 
+int net_select_init(select_ctx *sctx);
+int net_select_prepare(select_ctx *sctx);
+int net_select(select_ctx *sctx);
+int net_run_selected(select_ctx *sctx, int status);
+
 ssize_t net_read(net_interface *netif, void *d, size_t slen);
 ssize_t net_write(net_interface *netif, void *d, size_t slen);
+ssize_t net_write2(net_interface *netif, void *d, size_t dlen, struct sockaddr_ll *dest);
 
 ssize_t net_read_dispatch(net_interface *netif, net_handler func, void *ctx);
 
-#define fd_zero(fds)        FD_ZERO((fds));
-#define fd_set(fd,fds)      if ((fd) > 0) FD_SET((fd), (fds))
-#define fd_isset(fd,fds)    ((fd) > 0) && FD_ISSET((fd), (fds))
-#define fd_max(fd,max)      (max) = (max) > (fd) ? (max) : (fd)
+int net_select_reg(select_ctx *sctx, int fd, char evts, select_callback cb, void *ctx, int idx);
 
-#define net_maxfd(this,max) (max) = (max) > (this)->fd ? (max) : (this)->fd
-#define net_fdset(this,fds) if ((this)->fd > 0) FD_SET((this)->fd, (fds))
-#define net_isset(this,fds) ((this)->fd > 0) && FD_ISSET((this)->fd, (fds))
+int net_close(net_interface *netif);
+
+/*
+#ifdef USING_POLL
+#define fd_setR(sfd,fds)   if ((sfd) > 0) { (fds)->pfds[(fds)->count].fd = (sfd); (fds)->pfds[(fds)->count++].events = POLLIN; }
+#define fd_setW(sfd,fds)   if ((sfd) > 0) { (fds)->pfds[(fds)->count].fd = (sfd); (fds)->pfds[(fds)->count++].events = POLLOUT; }
+#define fd_issetR(fd,fds)  ((fd) > 0 && (fds)->rfds & (1<<fd))
+#else
+#define net_maxfd(this,max)  fd_max((this)->fd,(max))
+#endif
+#define net_fdsetR(this,fds) fd_setR((this)->fd, (fds))
+#define net_fdsetW(this,fds) fd_setW((this)->fd, (fds))
+#define net_issetR(this,fds) fd_issetR((this)->fd, (fds))
+#define net_issetW(this,fds) fd_issetW((this)->fd, (fds))
+
 #if defined(USING_PCAP)
 #define net_close(this)     if ((this)->pd) pcap_close((this)->pd); (this)->pd=0; (this)->fd=0
 #else
 #define net_close(this)     if ((this)->fd > 0) close((this)->fd); (this)->fd=0
 #endif
+*/
+
+#define fd_zero(fds)       FD_ZERO((fds));
+#define fd_set(fd,fds)     if ((fd) > 0) FD_SET((fd), (fds))
+#define fd_isset(fd,fds)   ((fd) > 0) && FD_ISSET((fd), (fds))
+#define fd_max(fd,max)     (max) = (max) > (fd) ? (max) : (fd)
+
 #define net_add_route(dst,gw,mask) net_route(dst,gw,mask,0)
 #define net_del_route(dst,gw,mask) net_route(dst,gw,mask,1)
 
@@ -139,5 +290,7 @@ int dev_set_addr(char const *devname, struct in_addr *addr,
 
 int net_set_address(net_interface *netif, struct in_addr *address, 
 		    struct in_addr *gateway, struct in_addr *netmask);
+
+void net_run(net_interface *iface);
 
 #endif

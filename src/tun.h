@@ -24,12 +24,6 @@
 #include "pkt.h"
 #include "net.h"
 
-#define PACKET_MAX      8196 /* Maximum packet size we receive */
-#define TUN_SCRIPTSIZE   512
-#define TUN_ADDRSIZE     128
-#define TUN_NLBUFSIZE   1024
-#define TUN_MAX_INTERFACES 16
-
 /* ***********************************************************
  * Information storage for each tun instance
  *************************************************************/
@@ -70,11 +64,21 @@ int tun_runscript(struct tun_t *tun, char* script);
 net_interface *tun_nextif(struct tun_t *tun);
 int tun_name2idx(struct tun_t *tun, char *name);
 
-#define tun_maxfd(tun,max) {int i; for (i=0; i<(tun)->_interface_count; i++) net_maxfd(&(tun)->_interfaces[i], (max));}
-#define tun_fdset(tun,fds) {int i; for (i=0; i<(tun)->_interface_count; i++) net_fdset(&(tun)->_interfaces[i], (fds));}
-#define tun_ckset(tun,fds) {int i; for (i=0; i<(tun)->_interface_count; i++) { \
-  if (net_isset(&(tun)->_interfaces[i], (fds)) && tun_decaps((tun), i) < 0) log_err(0, "tun_decaps()"); } }
-#define tun_close(tun) {int i; for (i=0; i<(tun)->_interface_count; i++) net_close(&(tun)->_interfaces[i]);}
+#define tun_fdsetR(tun,fds) {\
+  int i; \
+  for (i=0; i<(tun)->_interface_count; i++) \
+    net_fdsetR(&(tun)->_interfaces[i], (fds));\
+}
 
+#define tun_ckread(tun,fds) {\
+  int i;\
+  for (i=0; i<(tun)->_interface_count; i++) {\
+    if (net_issetR(&(tun)->_interfaces[i], (fds)) &&\
+        tun_decaps((tun), i) < 0)\
+      log_err(0, "tun_decaps()");\
+  }\
+}
+
+#define tun_close(tun) {int i; for (i=0; i<(tun)->_interface_count; i++) net_close(&(tun)->_interfaces[i]);}
 
 #endif	/* !_TUN_H */

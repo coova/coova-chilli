@@ -27,7 +27,7 @@ chilli_rtmon_SOURCES = main-rtmon.c
 endif
 
 # add -pg to enable gprof
-AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fstrict-aliasing \
+AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fno-strict-aliasing \
   -O2 -fomit-frame-pointer -funroll-loops -pipe \
  -DDEFCHILLICONF='"$(sysconfdir)/chilli.conf"'\
  -DDEFPIDFILE='"$(localstatedir)/run/chilli.pid"'\
@@ -44,7 +44,8 @@ iphash.c iphash.h lookup3.c sfhash.c lookup.c lookup.h \
 system.h cmdsock.c cmdsock.h radius_wispr.h radius_chillispot.h \
 chilli.h options.h util.c garden.c garden.h ssl.h ssl.c \
 dns.c dns.h session.c session.h limits.h pkt.h pkt.c \
-chksum.c net.h net.c ms_chap.c options.c statusfile.c
+chksum.c net.h net.c ms_chap.c options.c statusfile.c \
+conn.h conn.c
 
 # AM_LDFLAGS = -lchilli
 
@@ -56,10 +57,12 @@ chilli_opt_SOURCES = main-opt.c ${cmdline_sources}
 #test_radius_SOURCES = test-radius.c 
 #test_dhcp_SOURCES = test-dhcp.c 
 
-LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la 
+LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBRT}
 if WITH_OPENSSL
 LDADD += ${LIBOPENSSL}
 endif
 if WITH_PCAP
 LDADD += ${LIBPCAP}
 endif
+
+

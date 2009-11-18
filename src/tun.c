@@ -70,10 +70,11 @@ int tun_discover(struct tun_t *this) {
     return -1;
   }
     
-  len = (ic.ifc_len/sizeof(struct ifreq));
+  len = (ic.ifc_len / sizeof(struct ifreq));
 
   for (i=0; i<len; ++i) {
     struct ifreq *ifr = (struct ifreq *)&ic.ifc_req[i];
+
     memset(&netif, 0, sizeof(netif));
 
     /* device name and address */
@@ -84,6 +85,11 @@ int tun_discover(struct tun_t *this) {
 
     if (!strcmp(ifr->ifr_name, _options.dhcpif)) {
       log_dbg("skipping dhcpif %s", _options.dhcpif);
+      continue;
+    }
+
+    if (!strncmp(ifr->ifr_name, "tun", 3) || !strncmp(ifr->ifr_name, "tap", 3)) {
+      log_dbg("skipping tun/tap %s", _options.dhcpif);
       continue;
     }
 
@@ -134,14 +140,12 @@ int tun_discover(struct tun_t *this) {
 #endif /* SIOCGENADDR */
 #endif /* SIOCGIFHWADDR */
 
-
     /* flags */
     if (-1 < ioctl(fd, SIOCGIFFLAGS, (caddr_t)ifr)) {
 
       netif.devflags = ifr->ifr_flags;
 
     } else log_err(errno, "ioctl(SIOCGIFFLAGS)");
-
 
     /* point-to-point gateway */
     if (netif.devflags & IFF_POINTOPOINT) {
@@ -153,7 +157,6 @@ int tun_discover(struct tun_t *this) {
       } else log_err(errno, "ioctl(SIOCGIFDSTADDR)");
     }
 
-
     /* broadcast address */
     if (netif.devflags & IFF_BROADCAST) {
       if (-1 < ioctl(fd, SIOCGIFBRDADDR, (caddr_t)ifr)) {
@@ -164,7 +167,6 @@ int tun_discover(struct tun_t *this) {
       } else log_err(errno, "ioctl(SIOCGIFBRDADDR)");
     }
 
-
     /* mtu */
     if (-1 < ioctl(fd, SIOCGIFMTU, (caddr_t)ifr)) {
       
@@ -173,7 +175,6 @@ int tun_discover(struct tun_t *this) {
       
     } else log_err(errno, "ioctl(SIOCGIFMTU)");
     
-
     /* if (0 == ioctl(fd, SIOCGIFMETRIC, ifr)) */
 
     if (netif.address.s_addr == htonl(INADDR_LOOPBACK) ||
@@ -181,24 +182,21 @@ int tun_discover(struct tun_t *this) {
         netif.address.s_addr == INADDR_NONE)
       continue;
 
-    else {
+    {
       net_interface *newif = tun_nextif(tun);
       
       if (newif) {
 	int idx = newif->idx;
 	memcpy(newif, &netif, sizeof(netif));
 	newif->idx = idx;
-	
-	net_open(newif);
-	
-	switch(newif->idx) {
-	default:
-	  /* memcpy(newif->gwaddr, _options.nexthop, PKT_ETH_ALEN);*/
-	  break;
+
+	if (net_init(newif, 0, ETH_P_ALL, 1, 0) < 0) {
+	  log_err(errno, "net_init");
 	}
 	
 	if (!strcmp(_options.routeif, netif.devname))
 	  tun->routeidx = newif->idx;
+
       } else {
 	log_dbg("no room for interface %s", netif.devname);
       }
@@ -479,7 +477,8 @@ int tuntap_interface(struct _net_interface *netif) {
   memset(&ifr, 0, sizeof(ifr));
 
   /* Tun device, no packet info */
-  ifr.ifr_flags = (_options.usetap ? IFF_TAP|IFF_PROMISC : IFF_TUN) | IFF_NO_PI; 
+  ifr.ifr_flags = (_options.usetap ? IFF_TAP : IFF_TUN) | IFF_NO_PI; 
+
 #if defined(IFF_ONE_QUEUE) && defined(SIOCSIFTXQLEN)
   ifr.ifr_flags |= IFF_ONE_QUEUE;
 #endif
@@ -685,6 +684,14 @@ struct tundecap {
 
 static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
   struct tundecap *c = (struct tundecap *)ctx;
+  if (_options.debug && c->idx == 0)
+    log_dbg("tun_decaps(idx=%d, len=%d)", tun(c->this,c->idx).ifindex, length);
+  if (c->idx > 0) {
+    struct pkt_iphdr_t *iph = iphdr(packet);
+    if ((iph->daddr & _options.mask.s_addr) != _options.net.s_addr) {
+      return -1;
+    }
+  }
   return c->this->cb_ind(c->this, packet, length, c->idx);
 }
 
@@ -787,7 +794,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   if (idx > 0) {
     struct pkt_iphdr_t *iph = iphdr(pack);
     if (iph->daddr == dhcp->uamlisten.s_addr) {
-      log_dbg("OVER wriding route idx");
+      log_dbg("Using route idx == 0 (tun/tap)");
       idx = 0;
     }
   }
@@ -902,7 +909,7 @@ int tun_runscript(struct tun_t *tun, char* script) {
   }
 
   if (execl(script, script, tuntap(tun).devname, saddr, smask, (char *) 0) != 0) {
-    log_err(errno, "execl() did not return 0!");
+    log_err(errno, "execl(%s) did not return 0!",script);
     exit(0);
   }
   
@@ -1005,4 +1012,3 @@ int tun_addroute2(struct tun_t *this,
   return 0;
 }
 */
-

@@ -131,6 +131,15 @@ struct gengetopt_args_info
   int autostatip_arg;	/**< @brief Auto- static ip assignment (default='0').  */
   char * autostatip_orig;	/**< @brief Auto- static ip assignment original value given at command line.  */
   const char *autostatip_help; /**< @brief Auto- static ip assignment help description.  */
+  int ringsize_arg;	/**< @brief TX/RX Ring Size (in kbytes; linux only) (default='0').  */
+  char * ringsize_orig;	/**< @brief TX/RX Ring Size (in kbytes; linux only) original value given at command line.  */
+  const char *ringsize_help; /**< @brief TX/RX Ring Size (in kbytes; linux only) help description.  */
+  int sndbuf_arg;	/**< @brief SNDBUF size (in kb) (default='0').  */
+  char * sndbuf_orig;	/**< @brief SNDBUF size (in kb) original value given at command line.  */
+  const char *sndbuf_help; /**< @brief SNDBUF size (in kb) help description.  */
+  int rcvbuf_arg;	/**< @brief RCVBUF size (in kb) (default='0').  */
+  char * rcvbuf_orig;	/**< @brief RCVBUF size (in kb) original value given at command line.  */
+  const char *rcvbuf_help; /**< @brief RCVBUF size (in kb) help description.  */
   char * radiuslisten_arg;	/**< @brief IP address to send from.  */
   char * radiuslisten_orig;	/**< @brief IP address to send from original value given at command line.  */
   const char *radiuslisten_help; /**< @brief IP address to send from help description.  */
@@ -193,9 +202,11 @@ struct gengetopt_args_info
   char * dhcpif_arg;	/**< @brief Local Ethernet interface.  */
   char * dhcpif_orig;	/**< @brief Local Ethernet interface original value given at command line.  */
   const char *dhcpif_help; /**< @brief Local Ethernet interface help description.  */
-  char * dhcpmac_arg;	/**< @brief Interface MAC address.  */
-  char * dhcpmac_orig;	/**< @brief Interface MAC address original value given at command line.  */
-  const char *dhcpmac_help; /**< @brief Interface MAC address help description.  */
+  char * dhcpmac_arg;	/**< @brief DHCP Interface MAC Address.  */
+  char * dhcpmac_orig;	/**< @brief DHCP Interface MAC Address original value given at command line.  */
+  const char *dhcpmac_help; /**< @brief DHCP Interface MAC Address help description.  */
+  int dhcpmacset_flag;	/**< @brief Option to have dhcpif configured with dhcpmac (default=off).  */
+  const char *dhcpmacset_help; /**< @brief Option to have dhcpif configured with dhcpmac help description.  */
   char * nexthop_arg;	/**< @brief Next Hop MAC address.  */
   char * nexthop_orig;	/**< @brief Next Hop MAC address original value given at command line.  */
   const char *nexthop_help; /**< @brief Next Hop MAC address help description.  */
@@ -248,6 +259,11 @@ struct gengetopt_args_info
   unsigned int uamdomain_min; /**< @brief Domain name allowed (active dns filtering; one per line!) 's minimum occurreces */
   unsigned int uamdomain_max; /**< @brief Domain name allowed (active dns filtering; one per line!) 's maximum occurreces */
   const char *uamdomain_help; /**< @brief Domain name allowed (active dns filtering; one per line!)  help description.  */
+  char ** uamregex_arg;	/**< @brief Regular expression to match URLs (one per line) .  */
+  char ** uamregex_orig;	/**< @brief Regular expression to match URLs (one per line)  original value given at command line.  */
+  unsigned int uamregex_min; /**< @brief Regular expression to match URLs (one per line) 's minimum occurreces */
+  unsigned int uamregex_max; /**< @brief Regular expression to match URLs (one per line) 's maximum occurreces */
+  const char *uamregex_help; /**< @brief Regular expression to match URLs (one per line)  help description.  */
   int uamanydns_flag;	/**< @brief Allow client to use any DNS server (default=off).  */
   const char *uamanydns_help; /**< @brief Allow client to use any DNS server help description.  */
   int uamanyip_flag;	/**< @brief Allow client to use any IP Address (default=off).  */
@@ -301,6 +317,8 @@ struct gengetopt_args_info
   const char *macpasswd_help; /**< @brief Password used when performing MAC authentication help description.  */
   int macallowlocal_flag;	/**< @brief Do not use RADIUS for authenticating the macallowed (default=off).  */
   const char *macallowlocal_help; /**< @brief Do not use RADIUS for authenticating the macallowed help description.  */
+  int strictmacauth_flag;	/**< @brief Be strict about MAC Auth (no DHCP reply until we get RADIUS reply) (default=off).  */
+  const char *strictmacauth_help; /**< @brief Be strict about MAC Auth (no DHCP reply until we get RADIUS reply) help description.  */
   char * wwwdir_arg;	/**< @brief Local content served by chilli (for splash page, etc).  */
   char * wwwdir_orig;	/**< @brief Local content served by chilli (for splash page, etc) original value given at command line.  */
   const char *wwwdir_help; /**< @brief Local content served by chilli (for splash page, etc) help description.  */
@@ -399,6 +417,11 @@ struct gengetopt_args_info
   char * sslcertfile_arg;	/**< @brief SSL certificate file in PEM format.  */
   char * sslcertfile_orig;	/**< @brief SSL certificate file in PEM format original value given at command line.  */
   const char *sslcertfile_help; /**< @brief SSL certificate file in PEM format help description.  */
+  char * unixipc_arg;	/**< @brief The UNIX IPC Filename to use when compiled with --with-unixipc.  */
+  char * unixipc_orig;	/**< @brief The UNIX IPC Filename to use when compiled with --with-unixipc original value given at command line.  */
+  const char *unixipc_help; /**< @brief The UNIX IPC Filename to use when compiled with --with-unixipc help description.  */
+  int uamallowpost_flag;	/**< @brief Enable to allow a HTTP POST to the standard uamport interface (default=off).  */
+  const char *uamallowpost_help; /**< @brief Enable to allow a HTTP POST to the standard uamport interface help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -433,6 +456,9 @@ struct gengetopt_args_info
   unsigned int tundev_given ;	/**< @brief Whether tundev was given.  */
   unsigned int mtu_given ;	/**< @brief Whether mtu was given.  */
   unsigned int autostatip_given ;	/**< @brief Whether autostatip was given.  */
+  unsigned int ringsize_given ;	/**< @brief Whether ringsize was given.  */
+  unsigned int sndbuf_given ;	/**< @brief Whether sndbuf was given.  */
+  unsigned int rcvbuf_given ;	/**< @brief Whether rcvbuf was given.  */
   unsigned int radiuslisten_given ;	/**< @brief Whether radiuslisten was given.  */
   unsigned int radiusserver1_given ;	/**< @brief Whether radiusserver1 was given.  */
   unsigned int radiusserver2_given ;	/**< @brief Whether radiusserver2 was given.  */
@@ -455,6 +481,7 @@ struct gengetopt_args_info
   unsigned int proxysecret_given ;	/**< @brief Whether proxysecret was given.  */
   unsigned int dhcpif_given ;	/**< @brief Whether dhcpif was given.  */
   unsigned int dhcpmac_given ;	/**< @brief Whether dhcpmac was given.  */
+  unsigned int dhcpmacset_given ;	/**< @brief Whether dhcpmacset was given.  */
   unsigned int nexthop_given ;	/**< @brief Whether nexthop was given.  */
   unsigned int dhcpradius_given ;	/**< @brief Whether dhcpradius was given.  */
   unsigned int dhcpgateway_given ;	/**< @brief Whether dhcpgateway was given.  */
@@ -472,6 +499,7 @@ struct gengetopt_args_info
   unsigned int uamuiport_given ;	/**< @brief Whether uamuiport was given.  */
   unsigned int uamallowed_given ;	/**< @brief Whether uamallowed was given.  */
   unsigned int uamdomain_given ;	/**< @brief Whether uamdomain was given.  */
+  unsigned int uamregex_given ;	/**< @brief Whether uamregex was given.  */
   unsigned int uamanydns_given ;	/**< @brief Whether uamanydns was given.  */
   unsigned int uamanyip_given ;	/**< @brief Whether uamanyip was given.  */
   unsigned int uamnatanyip_given ;	/**< @brief Whether uamnatanyip was given.  */
@@ -492,6 +520,7 @@ struct gengetopt_args_info
   unsigned int macsuffix_given ;	/**< @brief Whether macsuffix was given.  */
   unsigned int macpasswd_given ;	/**< @brief Whether macpasswd was given.  */
   unsigned int macallowlocal_given ;	/**< @brief Whether macallowlocal was given.  */
+  unsigned int strictmacauth_given ;	/**< @brief Whether strictmacauth was given.  */
   unsigned int wwwdir_given ;	/**< @brief Whether wwwdir was given.  */
   unsigned int wwwbin_given ;	/**< @brief Whether wwwbin was given.  */
   unsigned int uamui_given ;	/**< @brief Whether uamui was given.  */
@@ -529,6 +558,8 @@ struct gengetopt_args_info
   unsigned int challengetimeout2_given ;	/**< @brief Whether challengetimeout2 was given.  */
   unsigned int sslkeyfile_given ;	/**< @brief Whether sslkeyfile was given.  */
   unsigned int sslcertfile_given ;	/**< @brief Whether sslcertfile was given.  */
+  unsigned int unixipc_given ;	/**< @brief Whether unixipc was given.  */
+  unsigned int uamallowpost_given ;	/**< @brief Whether uamallowpost was given.  */
 
 } ;
 

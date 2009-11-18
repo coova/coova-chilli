@@ -168,6 +168,11 @@ local_login_url() {
 	    response=$($CHILLI_RESPONSE "$CHI_CHALLENGE" "$hs_uamsecret" "$pass")
 	    echo -n "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=${user}&response=${response}&userurl=${COOVA_USERURL}"
 	fi
+    else
+	user=$REMOTE_MAC
+	pass=$(getconfig admpwd)
+	response=$($CHILLI_RESPONSE "$CHI_CHALLENGE" "$hs_uamsecret" "$pass")
+	echo -n "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=${user}&response=${response}&userurl=${COOVA_USERURL}"
     fi
 }
 

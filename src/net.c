@@ -22,6 +22,19 @@
 #include "options.h"
 #include "net.h"
 
+#ifdef USING_MMAP
+#include <sys/mman.h>
+#include <linux/filter.h>
+int tx_ring_bug = 1;
+static int tx_ring(net_interface *iface, void *packet, size_t length);
+static int rx_ring(net_interface *iface, net_handler func, void *ctx);
+static void set_buffer(net_interface *iface, int what, int size);
+static void setup_rings(net_interface *iface, unsigned size, int mtu);
+static void setup_rings2(net_interface *iface);
+static void destroy_one_ring(net_interface *iface, int what);
+static void setup_filter(net_interface *iface);
+#endif
+
 int dev_set_flags(char const *dev, int flags) {
   struct ifreq ifr;
   int fd;
@@ -148,9 +161,12 @@ int dev_set_address(char const *devname, struct in_addr *address,
 }
 
 int net_init(net_interface *netif, char *ifname, uint16_t protocol, int promisc, uint8_t *mac) {
-  memset(netif, 0, sizeof(net_interface));
-  strncpy(netif->devname, ifname, IFNAMSIZ);
-  netif->devname[IFNAMSIZ] = 0;
+  if (ifname) {
+    memset(netif, 0, sizeof(net_interface));
+    strncpy(netif->devname, ifname, IFNAMSIZ);
+    netif->devname[IFNAMSIZ] = 0;
+  }
+
   netif->protocol = protocol;
 
   if (promisc) {
@@ -184,12 +200,136 @@ int net_reopen(net_interface *netif) {
   return net_open(netif);
 }
 
+int net_close(net_interface *netif) {
+#ifdef USING_PCAP
+  if (netif->pd) pcap_close(netif->pd);
+#endif  
+  if (netif->fd) close(netif->fd);
+  return 0;
+}
+
+int net_select_init(select_ctx *sctx) {
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+  sctx->efd = epoll_create(MAX_SELECT);
+  if (sctx->efd <=0)
+    return -1;
+#endif  
+  return 0;
+}
+
+int net_select_prepare(select_ctx *sctx) {
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+#else
+  int i;
+#ifdef USING_POLL
+  for (i=0; i < MAX_SELECT && sctx->desc[i].fd; i++) {
+    sctx->pfds[i].fd = sctx->desc[i].fd;
+    sctx->pfds[i].events = 0;
+    if (sctx->desc[i].evts & SELECT_READ)
+      sctx->pfds[i].events |= POLLIN;
+    if (sctx->desc[i].evts & SELECT_WRITE)
+      sctx->pfds[i].events |= POLLOUT;
+  }
+#else
+  fd_zero(&sctx->rfds);
+  fd_zero(&sctx->wfds);
+  fd_zero(&sctx->efds);
+  for (i=0; i < MAX_SELECT && sctx->desc[i].fd; i++) {
+    if (sctx->desc[i].evts & SELECT_READ)
+      fd_set(sctx->desc[i].fd, &sctx->rfds);
+    if (sctx->desc[i].evts & SELECT_WRITE)
+      fd_set(sctx->desc[i].fd, &sctx->wfds);
+  }
+#endif
+#endif
+  return 0;
+}
+
+int net_select_reg(select_ctx *sctx, int fd, char evts, 
+		   select_callback cb, void *ctx, int idx) {
+  if (!evts) return -3;
+  if (fd <= 0) return -2;
+  if (sctx->count == MAX_SELECT) return -1;
+  sctx->desc[sctx->count].fd = fd;
+  sctx->desc[sctx->count].cb = cb;
+  sctx->desc[sctx->count].ctx = ctx;
+  sctx->desc[sctx->count].idx = idx;
+  sctx->desc[sctx->count].evts = evts;
+#ifdef USING_POLL
+#ifdef HAVE_SYS_EPOLL_H
+  {
+    struct epoll_event event;
+    
+    memset(&event, 0, sizeof(event));
+    event.events = 0;
+    if (evts & SELECT_READ) event.events |= EPOLLIN;
+    if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
+    event.data.ptr = &sctx->desc[sctx->count];
+    if (epoll_ctl(sctx->efd, EPOLL_CTL_ADD, fd, &event))
+      log_err(errno, "Failed to watch fd");
+  }
+#endif
+#else
+  if (fd > sctx->maxfd) sctx->maxfd = fd;
+#endif
+  sctx->count++;
+  return 0;
+}
+
+int net_select(select_ctx *sctx) {
+  int status;
+#ifdef USING_POLL
+#ifdef HAVE_SYS_EPOLL_H
+  status = epoll_wait(sctx->efd, sctx->events, MAX_SELECT, 1000);
+#else
+  status = poll(sctx->pfds, sctx->count, 1000);
+#endif
+#else
+  sctx->idleTime.tv_sec = 1; /*IDLETIME;*/
+  sctx->idleTime.tv_usec = 0;
+
+  switch (status = select(sctx->maxfd + 1, &sctx->rfds, &sctx->wfds, &sctx->efds, &sctx->idleTime /* NULL */)) {
+  case -1:
+    if (EINTR != errno) {
+      log_err(errno, "select() returned -1!");
+    }
+    break;
+  case 0:
+  default:
+    break;
+  }
+#endif
+  return status;
+}
+
+int net_run_selected(select_ctx *sctx, int status) {
+  int i;
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+  for (i=0; i < status; i++) {
+    select_fd *sfd = (select_fd *)sctx->events[i].data.ptr;
+    sfd->cb(sfd->ctx, sfd->idx);
+  }
+#else
+  for (i=0; i < MAX_SELECT && sctx->desc[i].fd; i++) {
+#ifdef USING_POLL
+    char has_read = !!(sctx->pfds[i].revents & POLLIN);
+#else
+    char has_read = fd_isset(sctx->desc[i].fd, &sctx->rfds);
+#endif
+    if (has_read) {
+      sctx->desc[i].cb(sctx->desc[i].ctx, sctx->desc[i].idx);
+    }
+  }
+#endif
+  return 0;
+}
+
 int net_set_address(net_interface *netif, struct in_addr *address, 
 		    struct in_addr *dstaddr, struct in_addr *netmask) {
   netif->address.s_addr = address->s_addr;
   netif->gateway.s_addr = dstaddr->s_addr;
   netif->netmask.s_addr = netmask->s_addr;
-
+  
   return dev_set_address(netif->devname, address, dstaddr, netmask);
 }
 
@@ -241,10 +381,18 @@ net_read_dispatch(net_interface *netif, net_handler func, void *ctx) {
   }
 #endif  
 
-  uint8_t packet[PKT_BUFFER];
-  ssize_t length = net_read(netif, packet, sizeof(packet));
-  if (length <= 0) return length;
-  return func(ctx, packet, length);
+#ifdef USING_MMAP
+  if (netif->rx_ring.frames) {
+    return rx_ring(netif, func, ctx);
+  }
+#endif
+
+  {
+    uint8_t packet[PKT_MAX_LEN];
+    ssize_t length = net_read(netif, packet, sizeof(packet));
+    if (length <= 0) return length;
+    return func(ctx, packet, length);
+  }
 }
 
 ssize_t 
@@ -266,14 +414,27 @@ net_read(net_interface *netif, void *d, size_t dlen) {
   }
 #endif
 
+#ifdef USING_MMAP
+  if (netif->rx_ring.frames) {
+    log_err(0, "shouldn't be reading a mmap'ed interface this way, use dispatch");
+    return -1;
+  }
+#endif
+
   if (netif->fd) {
-    if ((len = read(netif->fd, d, dlen)) < 0) {
+
+    /*len = recvfrom(netif->fd, d, netif->mtu,
+      MSG_DONTWAIT | MSG_TRUNC, NULL, NULL);*/
+
+    len = read(netif->fd, d, dlen);
+
+    if (len < 0) {
 #ifdef ENETDOWN
       if (errno == ENETDOWN) {
 	net_reopen(netif);
       }
 #endif
-      log_err(errno, "read(fd=%d, len=%d) == %d", netif->fd, dlen, len);
+      log_err(errno, "read(fd=%d, len=%d, mtu=%d) == %d", netif->fd, dlen, netif->mtu, len);
       return -1;
     }
   }
@@ -282,16 +443,41 @@ net_read(net_interface *netif, void *d, size_t dlen) {
 }
 
 ssize_t net_write(net_interface *netif, void *d, size_t dlen) {
+  return net_write2(netif, d, dlen, 0);
+}
+
+ssize_t net_write2(net_interface *netif, void *d, size_t dlen, struct sockaddr_ll *dest) {
   int fd = netif->fd;
   ssize_t len;
 
-  if ((len = write(fd, d, dlen)) < 0) {
+#ifdef USING_MMAP
+  if (netif->tx_ring.frames)
+    return tx_ring(netif, d, dlen);
+#endif
+
+  if (dest) {
+    len = sendto(fd, d, dlen, 0, (struct sockaddr *)dest, sizeof(struct sockaddr_ll));
+  } else {
+    len = write(fd, d, dlen);
+  }
+
+  if (len < 0) {
 #ifdef ENETDOWN
     if (errno == ENETDOWN) {
       net_reopen(netif);
     }
 #endif
-    log_err(errno, "write(fd=%d, len=%d) failed", netif->fd, dlen);
+#ifdef EMSGSIZE
+      if (errno == EMSGSIZE && dlen > netif->mtu) {
+	net_set_mtu(netif, dlen);
+      }
+#endif
+#ifdef ENXIO
+      if (errno == ENXIO) {
+	net_reopen(netif);
+      }
+#endif
+    log_err(errno, "net_write(fd=%d, len=%d) failed", netif->fd, dlen);
     return -1;
   }
 
@@ -450,12 +636,10 @@ int net_open_eth(net_interface *netif) {
   }
 
   if (ifr.ifr_hwaddr.sa_family == ARPHRD_ETHER) {
-
     netif->flags |= NET_ETHHDR;
-
     if ((netif->flags & NET_USEMAC) == 0) {
       memcpy(netif->hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
-    } else {
+    } else if (_options.dhcpmacset) {
       strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
       memcpy(ifr.ifr_hwaddr.sa_data, netif->hwaddr, PKT_ETH_ALEN);
       if (ioctl(netif->fd, SIOCSIFHWADDR, (caddr_t)&ifr) < 0) {
@@ -476,156 +660,6 @@ int net_open_eth(net_interface *netif) {
 }
 
 #elif defined(__linux__)
-
-#ifdef HAVE_PACKET_RX_RING
-#include <sys/mman.h>
-
-union thdr {
-  struct tpacket_hdr      *h1;
-  struct tpacket2_hdr     *h2;
-  void                    *raw;
-};
-
-#define RING_GET_FRAME(h) (((union thdr **)h->buffer)[h->offset])
-
-static union thdr *get_ring_frame(net_interface *netif, int status) {
-  union thdr h;
-  
-  h.raw = RING_GET_FRAME(netif);
-  switch (netif->tp_version) {
-  case TPACKET_V1:
-    if (status != (h.h1->tp_status ? TP_STATUS_USER : TP_STATUS_KERNEL))
-      return NULL;
-    break;
-#ifdef HAVE_TPACKET2
-  case TPACKET_V2:
-    if (status != (h.h2->tp_status ? TP_STATUS_USER : TP_STATUS_KERNEL))
-      return NULL;
-    break;
-#endif
-  }
-  return h.raw;
-}
-
-#ifndef POLLRDHUP
-#define POLLRDHUP 0
-#endif
-
-
-static void
-destroy_ring(net_interface *netif)
-{
-  struct tpacket_req req;
-  memset(&req, 0, sizeof(req));
-  setsockopt(netif->fd, SOL_PACKET, PACKET_RX_RING,
-	     (void *) &req, sizeof(req));
-  
-  if (netif->mmapbuf) {
-    munmap(netif->mmapbuf, netif->mmapbuflen);
-    netif->mmapbuf = NULL;
-  }
-}
-
-static int
-create_ring(net_interface *netif) {
-  unsigned i, j, frames_per_block;
-  struct tpacket_req req;
-  
-  /* Note that with large snapshot (say 64K) only a few frames 
-   * will be available in the ring even with pretty large ring size
-   * (and a lot of memory will be unused). 
-   * The snap len should be carefully chosen to achive best
-   * performance */
-  req.tp_frame_size = TPACKET_ALIGN(netif->snapshot +
-				    TPACKET_ALIGN(netif->tp_hdrlen) +
-				    sizeof(struct sockaddr_ll));
-
-  req.tp_frame_nr = netif->buffer_size / req.tp_frame_size;
-  
-  /* compute the minumum block size that will handle this frame. 
-   * The block has to be page size aligned. 
-   * The max block size allowed by the kernel is arch-dependent and 
-   * it's not explicitly checked here. */
-  req.tp_block_size = getpagesize();
-  while (req.tp_block_size < req.tp_frame_size) 
-    req.tp_block_size <<= 1;
-  
-  frames_per_block = req.tp_block_size / req.tp_frame_size;
-  
-  /* ask the kernel to create the ring */
- retry:
-  req.tp_block_nr = req.tp_frame_nr / frames_per_block;
-  
-  /* req.tp_frame_nr is requested to match frames_per_block*req.tp_block_nr */
-  req.tp_frame_nr = req.tp_block_nr * frames_per_block;
-
-  log_dbg("tp_block_size: %d", req.tp_block_size);
-  log_dbg("tp_block_nr: %d", req.tp_block_nr);
-  log_dbg("tp_frame_size: %d", req.tp_frame_size);
-  log_dbg("tp_frame_nr: %d", req.tp_frame_nr);
-  
-  if (setsockopt(netif->fd, SOL_PACKET, PACKET_RX_RING, (void *) &req, sizeof(req))) {
-    if ((errno == ENOMEM) && (req.tp_block_nr > 1)) {
-      /*
-       * Memory failure; try to reduce the requested ring
-       * size.
-       *
-       * We used to reduce this by half -- do 5% instead.
-       * That may result in more iterations and a longer
-       * startup, but the user will be much happier with
-       * the resulting buffer size.
-       */
-      if (req.tp_frame_nr < 20)
-	req.tp_frame_nr -= 1;
-      else
-	req.tp_frame_nr -= req.tp_frame_nr / 20;
-      goto retry;
-    }
-    if (errno == ENOPROTOOPT) {
-      /*
-       * We don't have ring buffer support in this kernel.
-       */
-      log_err(errno, "no ring support in kernel");
-      return 0;
-    }
-    return -1;
-  }
-  
-  /* memory map the rx ring */
-  netif->mmapbuflen = req.tp_block_nr * req.tp_block_size;
-
-  netif->mmapbuf = mmap(0, netif->mmapbuflen,
-			PROT_READ|PROT_WRITE, MAP_SHARED, netif->fd, 0);
-
-  if (netif->mmapbuf == MAP_FAILED) {
-    destroy_ring(netif);
-    return -1;
-  }
-  
-  /* allocate a ring for each frame header pointer*/
-  netif->cc = req.tp_frame_nr;
-  netif->buffer = malloc(netif->cc * sizeof(union thdr *));
-  if (!netif->buffer) {
-    destroy_ring(netif);
-    return -1;
-  }
-  
-  /* fill the header ring with proper frame ptr*/
-  netif->offset = 0;
-  for (i=0; i<req.tp_block_nr; ++i) {
-    void *base = &netif->mmapbuf[i*req.tp_block_size];
-    for (j=0; j<frames_per_block; ++j, ++netif->offset) {
-      RING_GET_FRAME(netif) = base;
-      base += req.tp_frame_size;
-    }
-  }
-  
-  netif->bufsize = req.tp_frame_size;
-  netif->offset = 0;
-  return 1;
-}
-
-#endif
 
 /**
  * Opens an Ethernet interface. As an option the interface can be set in
@@ -652,6 +686,7 @@ int net_open_eth(net_interface *netif) {
     return -1;
   }
 
+#ifndef USING_MMAP
   option = 1;
   if (setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY, &option, sizeof(option)) < 0) {
     log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
@@ -666,52 +701,8 @@ int net_open_eth(net_interface *netif) {
 	    netif->fd, SOL_SOCKET, SO_BROADCAST, sizeof(option));
     return -1;
   }
-
-#ifdef HAVE_PACKET_RX_RING
-  {
-#ifdef HAVE_TPACKET2
-    socklen_t len;
-    int val;
-#endif
-    if (netif->buffer_size == 0) {
-      /* by default request 2M for the ring buffer */
-      netif->buffer_size = 2*1024*1024;
-    }
-    
-    netif->tp_version = TPACKET_V1;
-    netif->tp_hdrlen = sizeof(struct tpacket_hdr);
-
-#ifdef HAVE_TPACKET2
-    val = TPACKET_V2;
-    len = sizeof(val);
-    if (getsockopt(netif->fd, SOL_PACKET, PACKET_HDRLEN, &val, &len) < 0) {
-      if (errno == ENOPROTOOPT)
-	return 1;
-    }      
-
-    netif->tp_hdrlen = val;
-
-    val = TPACKET_V2;
-    if (setsockopt(netif->fd, SOL_PACKET, PACKET_VERSION, &val, sizeof(val)) < 0) {
-      return -1;
-    }
-
-    netif->tp_version = TPACKET_V2;
-
-    /*
-    val = VLAN_TAG_LEN;
-    if (setsockopt(netif->fd, SOL_PACKET, PACKET_RESERVE, &val, sizeof(val)) < 0) {
-      return -1;
-    }*/
 #endif
 
-    netif->bufsize = netif->snapshot = 2500;
-
-    if (create_ring(netif) < 0)
-      log_err(errno, "could not create packet mmap ring");
-  }
-#endif
-  
   /* Get the MAC address of our interface */
   strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFHWADDR, (caddr_t)&ifr) < 0) {
@@ -725,7 +716,7 @@ int net_open_eth(net_interface *netif) {
 
     if ((netif->flags & NET_USEMAC) == 0) {
       memcpy(netif->hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
-    } else {
+    } else if (_options.dhcpmacset) {
       strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
       memcpy(ifr.ifr_hwaddr.sa_data, netif->hwaddr, PKT_ETH_ALEN);
       if (ioctl(netif->fd, SIOCSIFHWADDR, (caddr_t)&ifr) < 0) {
@@ -747,10 +738,11 @@ int net_open_eth(net_interface *netif) {
     log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCGIFMTU);
     return -1;
   }
-  if (ifr.ifr_mtu != ETH_DATA_LEN) {
-    log_err(0, "MTU does not match EHT_DATA_LEN: %d %d", ifr.ifr_mtu, ETH_DATA_LEN);
+  if (ifr.ifr_mtu > PKT_BUFFER) {
+    log_err(0, "MTU is larger than PKT_BUFFER: %d > %d", ifr.ifr_mtu, PKT_BUFFER);
     return -1;
   }
+  netif->mtu = ifr.ifr_mtu;
   
   /* Get ifindex */
   strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
@@ -759,6 +751,10 @@ int net_open_eth(net_interface *netif) {
   }
   netif->ifindex = ifr.ifr_ifindex;
   
+  log_dbg("device %s ifindex %d", netif->devname, netif->ifindex);
+
+#ifndef USING_MMAP
+
   /* Set interface in promisc mode */
   if (netif->flags & NET_PROMISC) {
 
@@ -783,6 +779,11 @@ int net_open_eth(net_interface *netif) {
       return -1;
     }
   }
+#endif
+
+#ifdef USING_MMAP
+  setup_rings(netif, _options.ringsize?_options.ringsize:DEF_RING_SIZE, netif->mtu);
+#endif
 
   /* Bind to particular interface */
   memset(&sa, 0, sizeof(sa));
@@ -802,10 +803,15 @@ int net_open_eth(net_interface *netif) {
   netif->dest.sll_ifindex = netif->ifindex;
 #endif
 
-#ifdef HAVE_PACKET_TX_RING
-  if (setsockopt(netif->fd, SOL_PACKET, PACKET_TX_RING, (void *) &tp_req, sizeof(tp_req))) {
-    log_err(errno, "setsockopt(%d, PACKET_RX_RING) failed", netif->fd);
-  }
+#ifdef USING_MMAP
+  setup_rings2(netif);
+  /*setup_filter(netif);*/
+
+  if (_options.sndbuf)
+    set_buffer(netif, SO_SNDBUF, _options.sndbuf * 1024);
+
+  if (_options.rcvbuf)
+    set_buffer(netif, SO_RCVBUF, _options.rcvbuf * 1024);
 #endif
 
   return 0;
@@ -963,3 +969,430 @@ int net_open_eth(net_interface *netif) {
 
 #endif
 
+void net_run(net_interface *iface) {
+#ifdef USING_MMAP
+  if (iface->is_active) {
+    int ret = send(iface->fd, NULL, 0, MSG_DONTWAIT | MSG_NOSIGNAL);
+    
+    if (ret == -1 && errno != EAGAIN)
+      log_err(0, "Async write error");
+    else
+      ++iface->stats.tx_runs;
+    
+    iface->is_active = 0;
+  }
+#endif
+}
+
+#ifdef USING_MMAP
+
+/*
+ *  Credits: Based on that of http://code.google.com/p/ggaoed/
+ */
+
+static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
+  unsigned cnt, was_drop;
+  struct tpacket2_hdr *h;
+  /*  struct timespec tv;*/
+  void *data;
+
+  was_drop = 0;
+  for (cnt = 0; cnt < iface->rx_ring.cnt; ++cnt) {
+    data = h = iface->rx_ring.frames[iface->rx_ring.idx];
+    if (!h->tp_status)
+      break;
+    
+    if (++iface->rx_ring.idx >= iface->rx_ring.cnt)
+      iface->rx_ring.idx = 0;
+    
+    if (h->tp_snaplen < (int)sizeof(struct pkt_ethhdr_t)) {
+      log_err(0, "Packet too short");
+      ++iface->stats.dropped;
+      goto next;
+    }
+    
+    /* Use the receiving time of the packet as the start time of
+     * the request 
+    tv.tv_sec = h->tp_sec;
+    tv.tv_nsec = h->tp_nsec;*/
+    
+    /* The AoE header also contains the ethernet header, so we have
+     * start from h->tp_mac instead of h->tp_net */
+
+    log_dbg("RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
+
+    func(ctx, data + h->tp_mac, h->tp_snaplen);
+
+    was_drop |= h->tp_status & TP_STATUS_LOSING;
+    
+  next:
+    h->tp_status = TP_STATUS_KERNEL;
+    /* Make sure other CPUs know about the status change */
+    /*AO_nop_full();*/
+  }
+
+  if (cnt >= iface->rx_ring.cnt)
+    ++iface->stats.rx_buffers_full;
+  
+  if (was_drop) {
+    struct tpacket_stats stats;
+    socklen_t len;
+    
+    len = sizeof(stats);
+    if (!getsockopt(iface->fd, SOL_PACKET, PACKET_STATISTICS, &stats, &len))
+      iface->stats.dropped += stats.tp_drops;
+
+    log_dbg("RX drops %d", iface->stats.dropped);
+  }
+  
+  ++iface->stats.rx_runs;
+
+  return 1;
+}
+
+static int tx_ring(net_interface *iface, void *packet, size_t length) {
+  struct tpacket2_hdr *h;
+  unsigned cnt;
+  void *data;
+
+  /*int hdrlen = sizeofeth(packet);*/
+
+  /* This may happen if the MTU changes while requests are
+   * in flight */
+#if (0)
+  if (length > (unsigned)iface->mtu) {
+    /*drop_request(q);*/
+    log_err(0, "dropping packet len=%d", length);
+    /*return -1;*/
+  }
+#endif
+  
+  for (cnt = 0; cnt < iface->tx_ring.cnt; ++cnt) {
+    h = iface->tx_ring.frames[iface->tx_ring.idx++];
+    if (iface->tx_ring.idx >= iface->tx_ring.cnt)
+      iface->tx_ring.idx = 0;
+    if (h->tp_status == TP_STATUS_AVAILABLE ||
+	h->tp_status == TP_STATUS_WRONG_FORMAT)
+      break;
+  }
+  if (cnt >= iface->tx_ring.cnt) {
+    ++iface->stats.tx_buffers_full;
+    /*g_ptr_array_add(iface->deferred, q);
+      if (!iface->congested)
+      {
+      modify_fd(iface->fd, &iface->event_ctx, EPOLLIN | EPOLLOUT);
+      iface->congested = TRUE;
+      }
+    */
+    log_dbg("dropped packet, buffer full");
+    return -1;
+  }
+  
+  /* Should not happen */
+  if (h->tp_status == TP_STATUS_WRONG_FORMAT)
+    log_err(0, "Bad packet format on send");
+  
+  /* Fill the frame */
+  data = (void *)h + iface->tp_hdrlen;
+  memcpy(data, packet, length);
+  h->tp_len = length;
+  
+  iface->stats.tx_bytes += h->tp_len;
+  ++iface->stats.tx_cnt;
+  
+  /*drop_request(q);*/
+  
+  /* Make sure buffer writes are stable before we update the status */
+  /*AO_nop_write();*/
+  h->tp_status = TP_STATUS_SEND_REQUEST;
+  /* Make sure other CPUs know about the status change */
+  /*AO_nop_full();*/
+
+
+  log_dbg("TX sent=%d (idx %d)", length, iface->ifindex);
+  
+  if (!iface->is_active) {
+    iface->is_active = 1;
+  }
+
+  return length;
+}
+
+static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, int what) {
+  unsigned page_size, max_blocks;
+  struct tpacket_req req;
+  struct ring *ring;
+  const char *name;
+  int ret;
+  
+  name = what == PACKET_RX_RING ? "RX" : "TX";
+  ring = what == PACKET_RX_RING ? &iface->rx_ring : &iface->tx_ring;
+
+  log_dbg("Creating %s ring: ring_size=%d; mtu=%d", name, ring_size, mtu);
+  
+  /* For RX, the frame looks like:
+   * - struct tpacket2_hdr
+   * - padding to 16-byte boundary (this is included in iface->tp_hdrlen)
+   * - padding: 16 - sizeof(struct ether_hdr)
+   * - raw packet
+   * - padding to 16-byte boundary
+   *
+   * So the raw packet is aligned so that the data part starts on a
+   * 16-byte boundary, not the packet header. This means we need an extra
+   * 16 bytes for the frame size.
+   *
+   * The TX frame is simpler:
+   * - struct tpacket2_hdr
+   * - padding to 16-byte boundary (this is included in iface->tp_hdrlen)
+   * - raw packet
+   * - padding to 16-byte boundary 
+   */
+  ring->frame_size = TPACKET_ALIGN(iface->tp_hdrlen) + TPACKET_ALIGN(mtu);
+
+  if (what == PACKET_RX_RING)
+    ring->frame_size += TPACKET_ALIGNMENT;
+  
+  if (what == PACKET_TX_RING && tx_ring_bug) {
+    unsigned maxsect;
+    
+    /* Kernel 2.6.31 has a bug and it requires a larger frame size
+     * than what is in fact used */
+    maxsect = (mtu - sizeof(struct pkt_ethhdr_t)) / 512;
+    ring->frame_size = TPACKET_ALIGN(sizeof(struct pkt_ethhdr_t) +
+				     maxsect * 512 + /*576 + 32*/1000);
+  }
+  
+  req.tp_frame_size = ring->frame_size;
+  
+  /* The number of blocks is limited by the kernel implementation */
+  page_size = sysconf(_SC_PAGESIZE);
+  max_blocks = page_size / sizeof(void *);
+  
+  /* Start with a large block size and if that fails try to lower it */
+#ifdef ENABLE_LARGELIMITS
+  req.tp_block_size = 64 * 1024;
+#else
+  req.tp_block_size = 4 * 1024;
+#endif
+
+  ret = -1;
+  while (req.tp_block_size > req.tp_frame_size && req.tp_block_size >= page_size) {
+    req.tp_block_nr = ring_size / req.tp_block_size;
+
+    if (req.tp_block_nr > max_blocks)
+      req.tp_block_nr = max_blocks;
+    
+    req.tp_frame_nr = (req.tp_block_size / req.tp_frame_size) * req.tp_block_nr;
+    
+    ret = setsockopt(iface->fd, SOL_PACKET, what, &req, sizeof(req));
+    if (!ret)
+      break;
+
+    req.tp_block_size >>= 1;
+  }
+  if (ret) {
+    log_err(errno, "Failed to set up the %s ring buffer; "
+	    "block_sz=%d block_nr=%d frame_sz=%d frame_nr=%d page_size=%d", name,
+	    req.tp_block_size, req.tp_block_nr, req.tp_frame_size, req.tp_frame_nr, page_size);
+    memset(ring, 0, sizeof(*ring));
+    return;
+  }
+
+  ring->len = req.tp_block_size * req.tp_block_nr;
+  ring->block_size = req.tp_block_size;
+  ring->cnt = req.tp_frame_nr;
+  ring->frames = calloc(sizeof(void *), req.tp_frame_nr);
+
+  log_dbg("Created %s ring: len=%d; block size=%d; frame size=%d, cnt=%d", 
+	  name, ring->len, req.tp_block_size, req.tp_frame_size, ring->cnt);
+}
+
+static void destroy_one_ring(net_interface *iface, int what) {
+  struct tpacket_req req;
+  struct ring *ring;
+  
+  ring = what == PACKET_RX_RING ? &iface->rx_ring : &iface->tx_ring;
+  
+  memset(&req, 0, sizeof(req));
+  setsockopt(iface->fd, SOL_PACKET, what, &req, sizeof(req));
+  free(ring->frames);
+  memset(ring, 0, sizeof(*ring));
+}
+
+/* Set up pointers to the individual frames */
+static void setup_frames(struct ring *ring, void *data) {
+  unsigned i, j, cnt, blocks, frames;
+  
+  /* Number of blocks in the ring */
+  blocks = ring->len / ring->block_size;
+  /* Number of frames in a block */
+  frames = ring->block_size / ring->frame_size;
+  
+  for (i = cnt = 0; i < blocks; i++)
+    for (j = 0; j < frames; j++)
+      ring->frames[cnt++] = data + i * ring->block_size + j * ring->frame_size;
+}
+
+/* Allocate and map the shared ring buffer */
+static void setup_rings(net_interface *iface, unsigned size, int mtu) {
+  const char *unit;
+  socklen_t len;
+  int ret, val;
+  
+  /* The function can be called on MTU change, so destroy the previous ring
+   * if any */
+  if (iface->ring_ptr) {
+    munmap(iface->ring_ptr, iface->ring_len);
+    iface->ring_ptr = NULL;
+    iface->ring_len = 0;
+    destroy_one_ring(iface, PACKET_RX_RING);
+    destroy_one_ring(iface, PACKET_TX_RING);
+  }
+  
+  if (!size)
+    return;
+  
+  /* We want version 2 ring buffers to avoid 64-bit uncleanness */
+  val = TPACKET_V2;
+  ret = setsockopt(iface->fd, SOL_PACKET, PACKET_VERSION, &val, sizeof(val));
+
+  if (ret) {
+    log_err(errno, "Failed to set version 2 ring buffer format");
+    return;
+  }
+  
+  val = TPACKET_V2;
+  len = sizeof(val);
+  ret = getsockopt(iface->fd, SOL_PACKET, PACKET_HDRLEN, &val, &len);
+
+  if (ret) {
+    log_err(errno, "Failed to determine the header length of the ring buffer");
+    return;
+  }
+
+  iface->tp_hdrlen = TPACKET_ALIGN(val);
+  
+  /* Drop badly formatted packets */
+  val = 1;
+  ret = setsockopt(iface->fd, SOL_PACKET, PACKET_LOSS, &val, sizeof(val));
+
+  if (ret)
+    log_err(errno, "Failed to set packet drop mode");
+  
+  /* The RX and TX rings share the memory mapped area, so give
+   * half the requested size to each */
+  setup_one_ring(iface, size * 1024 / 2, mtu, PACKET_RX_RING);
+  setup_one_ring(iface, size * 1024 / 2, mtu, PACKET_TX_RING);
+  
+  /* Both rings must be mapped using a single mmap() call */
+  iface->ring_len = iface->rx_ring.len + iface->tx_ring.len;
+}
+
+static void setup_rings2(net_interface *iface) {
+  socklen_t len;
+
+  if (!iface->ring_len)
+    return;
+
+  iface->ring_ptr = mmap(NULL, iface->ring_len, PROT_READ | PROT_WRITE,
+			 MAP_SHARED, iface->fd, 0);
+
+  if (iface->ring_ptr == MAP_FAILED) {
+    log_err(errno, "Failed to mmap the ring buffer");
+    destroy_one_ring(iface, PACKET_RX_RING);
+    destroy_one_ring(iface, PACKET_TX_RING);
+    iface->ring_ptr = NULL;
+    iface->ring_len = 0;
+    return;
+  }
+  
+  len = 0;
+
+  if (iface->rx_ring.len) {
+    setup_frames(&iface->rx_ring, iface->ring_ptr);
+    len = iface->rx_ring.len;
+  }
+
+  if (iface->tx_ring.len)
+    setup_frames(&iface->tx_ring, iface->ring_ptr + len);
+  
+  /*len = human_format(iface->ring_len, &unit);*/
+  log_info("Set up ring buffer (%u RX/%u TX packets)",
+	   iface->rx_ring.cnt, iface->tx_ring.cnt);
+}
+
+/* Setting SO_SNDBUF/SO_RCVBUF is just advisory, so report the real value being
+ * used */
+static void set_buffer(net_interface *iface, int what, int size) {
+  const char *unit;
+  socklen_t len;
+  int ret, val;
+  
+  ret = setsockopt(iface->fd, SOL_SOCKET, what, &size, sizeof(size));
+  if (ret) {
+    log_err(errno, "Failed to set the %s buffer size",
+	    what == SO_SNDBUF ? "send" : "receive");
+    return;
+  }
+  
+  len = sizeof(val);
+  if (getsockopt(iface->fd, SOL_SOCKET, what, &val, &len))
+    val = size;
+
+  /*ret = human_format(val, &unit);
+  log_info("The %s buffer is %d %s",
+  what == SO_SNDBUF ? "send" : "receive", ret, unit);*/
+}
+
+static void setup_filter(net_interface *iface) {
+
+  if (iface->idx > 0) {
+
+    static struct sock_filter filter[] = {
+
+{ 0x28, 0, 0, 0x0000000c },
+{ 0x15, 0, 6, 0x00000800 },
+{ 0x20, 0, 0, 0x0000001e },
+{ 0x54, 0, 0, 0xff000000 },
+{ 0x15, 11, 0, 0x0a000000 },
+{ 0x20, 0, 0, 0x0000001e },
+{ 0x54, 0, 0, 0xff000000 },
+{ 0x15, 8, 9, 0x65000000 },
+{ 0x15, 1, 0, 0x00000806 },
+{ 0x15, 0, 7, 0x00008035 },
+{ 0x20, 0, 0, 0x00000026 },
+{ 0x54, 0, 0, 0xff000000 },
+{ 0x15, 3, 0, 0x0a000000 },
+{ 0x20, 0, 0, 0x00000026 },
+{ 0x54, 0, 0, 0xff000000 },
+{ 0x15, 0, 1, 0x65000000 },
+{ 0x6, 0, 0, 0x00000800 },
+
+      /* Load the type into register */
+      /*BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),*/
+      /* Does it match AoE (0x88a2)? */
+      /*BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0x88a2, 0, 4),*/
+      /* Load the flags into register */
+      /*BPF_STMT(BPF_LD+BPF_B+BPF_ABS, 14),*/
+      /* Check to see if the Resp flag is set */
+      /*BPF_STMT(BPF_ALU+BPF_AND+BPF_K, (1 << 3)),*/
+      /* Yes, goto INVALID */
+      /*BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, 0, 0, 1),*/
+      /* VALID: return -1 (allow the packet to be read) */
+      /*BPF_STMT(BPF_RET+BPF_K, -1),*/
+      /* INVALID: return 0 (ignore the packet) */
+      /*BPF_STMT(BPF_RET+BPF_K, 0),*/
+    };
+    
+    static struct sock_fprog prog = {
+      .filter = filter,
+      .len = sizeof(filter) / sizeof(struct sock_filter)
+    };
+    
+    if (setsockopt(iface->fd, SOL_SOCKET, SO_ATTACH_FILTER, &prog, sizeof(prog)))
+      log_err(errno, "Failed to set up the socket filter");
+  }
+}
+
+
+#endif

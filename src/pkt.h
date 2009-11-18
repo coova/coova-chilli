@@ -57,8 +57,8 @@
 #define DHCP_MIN_LEN   28+16+64+128 /* Length of packet excluding options */
 #define DHCP_LEN  (DHCP_MIN_LEN+DHCP_OPTIONS_LEN)
 
-#define PKT_BUFFER (PKT_IP_PLEN+PKT_ETH_HLEN+4)
-
+/*#define PKT_BUFFER (PKT_IP_PLEN + PKT_ETH_HLEN + 4)*/
+#define PKT_BUFFER 2048
 
 struct pkt_ethhdr_t {
   uint8_t  dst[PKT_ETH_ALEN];

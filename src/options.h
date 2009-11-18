@@ -57,6 +57,10 @@ struct options_t {
   char * condown;                /* Script to run after session/connection-down */
   int txqlen;
 
+  int ringsize;
+  int sndbuf;
+  int rcvbuf;
+
   /* Radius parameters */
   struct in_addr radiuslisten;   /* IP address to listen to */
   struct in_addr radiusserver1;  /* IP address of radius server 1 */
@@ -155,10 +159,18 @@ struct options_t {
   uint8_t ieee8021q:1;              /* check for VLAN tags */
   uint8_t dhcp_broadcast:1;         /* always broadcast DHCP (when not relaying) */
   uint8_t seskeepalive:1;           /* Keep sessions alive during shutdown */
+  uint8_t strictmacauth:1;          /* Be strict about DHCP macauth (don't reply DHCP until we get RADIUS) */
+  uint8_t dhcpmacset:1;             /* Set the dhcpif interface with the dhcpmac */
+  uint8_t uamallowpost:1;           /* Set to true if the UAMPORT is allowed to access a POST */
   /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
   size_t num_pass_throughs;
+
+#ifdef ENABLE_CHILLIREDIR
+  regex_pass_through regex_pass_throughs[MAX_REGEX_PASS_THROUGHS];
+  size_t regex_num_pass_throughs;
+#endif
 
   char* uamdomains[MAX_UAM_DOMAINS];
 
@@ -204,6 +216,10 @@ struct options_t {
 
   /* Command-Socket */
   char *cmdsocket;
+
+#ifdef MSG_IPC_UNIX
+  char *unixipc;
+#endif
 
   char * _data; /* actual data buffer for loaded options */
 };

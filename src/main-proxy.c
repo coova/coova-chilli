@@ -30,15 +30,12 @@
 #include "options.h"
 #include "cmdsock.h"
 #include "md5.h"
+#include "conn.h"
 
 #ifdef USING_CURL
 #include <curl/curl.h>
 #include <curl/types.h>
 #include <curl/easy.h>
-#else
-#ifdef HAVE_OPENSSL
-#include "ssl.h"
-#endif
 #endif
 
 /*
@@ -58,29 +55,26 @@ struct options_t _options;
 typedef struct _proxy_request {
   int index;
 
-  char reserved:6;
+  char reserved:4;
   char authorized:1;
   char inuse:1;
+  char past_headers:1;
+  char nline:1;
 
   bstring url;
   bstring data;
   bstring post;
+  bstring wbuf;
 
   struct radius_packet_t radius_req;
   struct radius_packet_t radius_res;
 
-  struct sockaddr_in peer;
-
 #ifdef USING_CURL
   CURL *curl;
-#else
-  int sock;
-  bstring write_buf;
-  int write_pos;
-#ifdef HAVE_OPENSSL
-  openssl_con * sslcon;
 #endif
-#endif
+
+  struct conn_t conn;
+
   struct radius_t *radius;
 
   struct _proxy_request *prev, *next;
@@ -150,12 +144,188 @@ static int radius_reply(struct radius_t *this,
 }
 
 static void close_request(proxy_request *req) {
+
+  if (req->url)  bdestroy(req->url);
+  if (req->data) bdestroy(req->data);
+  if (req->post) bdestroy(req->post);
+  if (req->wbuf) bdestroy(req->wbuf);
+
+  req->url =
+    req->data = 
+    req->post = 
+    req->wbuf = 0;
+
   req->inuse = 0;
   if (requests_free) {
     requests_free->prev = req;
     req->next = requests_free;
   }
   requests_free = req;
+}
+
+static int http_aaa_finish(proxy_request *req) {
+
+  struct radius_t *radius = req->radius;
+
+#ifdef USING_CURL
+  curl_multi_remove_handle(curl_multi, req->curl);
+  curl_easy_cleanup(req->curl);
+  req->curl = 0;
+#else
+  conn_close(&req->conn);
+#endif
+
+  if (req->data->slen) {
+    log_dbg("Received: %s\n",req->data->data);
+    req->authorized = !memcmp(req->data->data, "Auth: 1", 7);
+  }
+
+  /* initialize response packet */
+  switch(req->radius_req.code) {
+  case RADIUS_CODE_ACCOUNTING_REQUEST:
+    log_dbg("Accounting-Response");
+    radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCOUNTING_RESPONSE);
+    break;
+    
+  case RADIUS_CODE_ACCESS_REQUEST:
+    log_dbg("Access-%s", req->authorized ? "Accept" : "Reject");
+    if (req->authorized) {
+      radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCESS_ACCEPT);
+      break;
+    }
+
+  default:
+    radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCESS_REJECT);
+    break;
+  }
+
+  req->radius_res.id = req->radius_req.id;
+
+  /* process attributes */
+  if (req->data->slen) {
+    char *parse = (char *) req->data->data;
+    if (parse) {
+      char *ptr;
+      while ((ptr = strtok(parse,"\n"))) {
+	parse = 0;
+
+	struct {
+	  char *n;
+	  int a;
+	  int v;
+	  int va;
+	  char t;
+	} attrs[] = {
+	  { "Idle-Timeout:", RADIUS_ATTR_IDLE_TIMEOUT, 0, 0, 0 },
+	  { "Reply-Message:", RADIUS_ATTR_REPLY_MESSAGE, 0, 0, 1 },
+	  { "Session-Timeout:", RADIUS_ATTR_SESSION_TIMEOUT, 0, 0, 0 },
+	  { "Acct-Interim-Interval:", RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 0, 0, 0 },
+	  { "ChilliSpot-Version:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_VERSION, 1 },
+	  { "ChilliSpot-Config:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_CONFIG, 1 },
+	  { "ChilliSpot-Bandwidth-Max-Up:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0 },
+	  { "ChilliSpot-Bandwidth-Max-Down:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0 },
+	  { "ChilliSpot-Max-Input-Octets:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0 },
+	  { "ChilliSpot-Max-Output-Octets:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0 },
+	  { "ChilliSpot-Max-Total-Octets:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0 },
+	  { "ChilliSpot-Max-Input-Gigawords:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS, 0 },
+	  { "ChilliSpot-Max-Output-Gigawords:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS, 0 },
+	  { "ChilliSpot-Max-Total-Gigawords:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
+	    RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS, 0 },
+	  { "WISPr-Bandwidth-Max-Up:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, 
+	    RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0 },
+	  { "WISPr-Bandwidth-Max-Down:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, 
+	    RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0 },
+	  { "WISPr-Redirection-URL:", 
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, 
+	    RADIUS_ATTR_WISPR_REDIRECTION_URL, 1 },
+	  { 0 }
+	};
+	
+	int i;
+	for (i=0; attrs[i].n; i++) {
+	  if (!strncmp(ptr,attrs[i].n,strlen(attrs[i].n))) {
+	    switch(attrs[i].t) {
+	    case 0:
+	      {
+		uint32_t v = (uint32_t) atoi(ptr+strlen(attrs[i].n));
+		if (v > 0) {
+		  radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, v, NULL, 0);
+		  log_dbg("Setting %s = %d", attrs[i].n, v);
+		}
+	      }
+	      break;
+	    case 1:
+	      {
+		radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, 0, 
+			       (uint8_t *)ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
+		log_dbg("Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
+	      }
+	      break;
+	    }
+	  }
+	}
+      }
+    }
+  }
+
+  /* finish off RADIUS response */
+  switch(req->radius_req.code) {
+    
+  case RADIUS_CODE_ACCESS_REQUEST:
+    {
+      struct radius_attr_t *ma = NULL;
+      
+      radius_addattr(radius, &req->radius_res, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+		     0, 0, 0, NULL, RADIUS_MD5LEN);
+      
+      memset(req->radius_res.authenticator, 0, RADIUS_AUTHLEN);
+      memcpy(req->radius_res.authenticator, req->radius_req.authenticator, RADIUS_AUTHLEN);
+      
+      if (!radius_getattr(&req->radius_res, &ma, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 0,0,0)) {
+	radius_hmac_md5(radius, &req->radius_res, radius->secret, radius->secretlen, ma->v.t);
+      }
+      
+      radius_authresp_authenticator(radius, &req->radius_res, 
+				    req->radius_req.authenticator,
+				    radius->secret,
+				    radius->secretlen);
+    }
+    break;
+    
+  case RADIUS_CODE_ACCOUNTING_REQUEST:
+    radius_authresp_authenticator(radius, &req->radius_res, 
+				  req->radius_req.authenticator,
+				  radius->secret,
+				  radius->secretlen);
+    break;
+  }
+
+  radius_reply(req->radius, &req->radius_res, &req->conn.peer);
+
+  close_request(req);
+
+  return 0;
 }
 
 #ifdef USING_CURL
@@ -260,6 +430,32 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
   return result;
 }
 #else
+
+static int http_conn_finish(struct conn_t *conn, void *ctx) {
+  return http_aaa_finish((proxy_request *)ctx);
+}
+
+static int http_conn_read(struct conn_t *conn, void *ctx) {
+  proxy_request *req = (proxy_request *)ctx;
+  char c[1];
+  int r = read(conn->sock, c, 1);
+  if (r == 1) {
+    switch (c[0]) {
+    case '\r': break;
+    case '\n': 
+      if (req->nline) {
+	conn_bstring_readhandler(conn, req->data);
+      }
+      req->nline = 1;
+      break;
+    default:
+      req->nline = 0;
+      break;
+    }
+  }
+  return 0;
+}
+
 static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
   /*
    *  - parse url
@@ -267,64 +463,32 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
    *  - connect() (non-blocking)
    *  - return
    */
-  struct sockaddr_in server;
-  struct hostent *host;
   char hostname[256];
   int port = 0, uripos;
-  int sock;
 
   req->radius = radius;
+  req->past_headers = 0;
+  req->nline = 0;
 
-  if (get_urlparts(req->url->data, hostname, sizeof(hostname), &port, &uripos))
+  if (get_urlparts((char *) req->url->data, hostname, sizeof(hostname), &port, &uripos))
     return -1;
 
-  if (!req->write_buf) 
-    req->write_buf = bfromcstr("");
+  if (!req->wbuf) 
+    req->wbuf = bfromcstr("");
 
-  req->write_pos = 0;
-  bassignformat(req->write_buf, 
-		"GET %s\n"
+  bassignformat(req->wbuf, 
+		"GET %s HTTP/1.1\n"
 		"Host: %s\n"
-		"User-Agent: CoovaChilli " VERSION 
-		"\n\n",
+		"User-Agent: CoovaChilli " VERSION "\n"
+		"Connection: close\n"
+		"\n",
 		req->url->data + uripos, hostname);
 
-  memset(&server, 0, sizeof(server));
-  server.sin_family = AF_INET;
-  server.sin_port = htons(port);
-  
-  if (!(host = gethostbyname(hostname))) {
-    log_err(0, "Could not resolve IP address of uamserver: %s! [%s]", 
-	    hostname, strerror(errno));
+  if (conn_setup(&req->conn, hostname, port, req->wbuf))
     return -1;
-  }
-  else {
-    if (host->h_addr_list[0]) {
-      server.sin_addr.s_addr = ((struct in_addr *)host->h_addr_list[0])->s_addr;
-    }
-  }
 
-  if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) > 0) {
-    int ret, flags = fcntl(sock, F_GETFL, 0);
-
-    if (flags < 0) flags = 0;
-
-    ret = fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-
-    if (ret < 0) {
-      log_err(errno, "could not set non-blocking");
-    }
- 
-    if (connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0) {
-      if (errno != EINPROGRESS) {
-	log_err(errno, "could not connect to %s:%d", inet_ntoa(server.sin_addr), port);
-	close(sock);
-	return -1;
-      }
-    }
-  }
-
-  req->sock = sock;
+  conn_set_readhandler(&req->conn, http_conn_read, req);
+  conn_set_donehandler(&req->conn, http_conn_finish, req);
 
   return 0;
 }
@@ -345,174 +509,6 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
   }
 
   return -1;
-}
-
-static int http_aaa_finish(proxy_request *req) {
-
-  struct radius_t *radius = req->radius;
-
-#ifdef USING_CURL
-  curl_multi_remove_handle(curl_multi, req->curl);
-  curl_easy_cleanup(req->curl);
-  req->curl = 0;
-#else
-  close(req->sock);
-#ifdef HAVE_OPENSSL
-  if (req->sslcon) {
-    openssl_shutdown(req->sslcon, 2);
-    openssl_free(req->sslcon);
-  }
-#endif
-#endif
-
-  if (req->data->slen) {
-    log_dbg("Received: %s\n",req->data->data);
-    req->authorized = !memcmp(req->data->data, "Auth: 1", 7);
-  }
-
-  /* initialize response packet */
-  switch(req->radius_req.code) {
-  case RADIUS_CODE_ACCOUNTING_REQUEST:
-    log_dbg("Accounting-Response");
-    radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCOUNTING_RESPONSE);
-    break;
-    
-  case RADIUS_CODE_ACCESS_REQUEST:
-    log_dbg("Access-%s", req->authorized ? "Accept" : "Reject");
-    if (req->authorized) {
-      radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCESS_ACCEPT);
-      break;
-    }
-
-  default:
-    radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCESS_REJECT);
-    break;
-  }
-
-  req->radius_res.id = req->radius_req.id;
-
-  /* process attributes */
-  if (req->data->slen) {
-    char *parse = req->data->data;
-    if (parse) {
-      char *s, *ptr;
-      while ((ptr = strtok(parse,"\n"))) {
-	parse = 0;
-
-	struct {
-	  char *n;
-	  int a;
-	  int v;
-	  int va;
-	  char t;
-	} attrs[] = {
-	  { "Idle-Timeout:", RADIUS_ATTR_IDLE_TIMEOUT, 0, 0, 0 },
-	  { "Reply-Message:", RADIUS_ATTR_REPLY_MESSAGE, 0, 0, 1 },
-	  { "Session-Timeout:", RADIUS_ATTR_SESSION_TIMEOUT, 0, 0, 0 },
-	  { "Acct-Interim-Interval:", RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 0, 0, 0 },
-	  { "ChilliSpot-Config:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-	    RADIUS_ATTR_CHILLISPOT_CONFIG, 1 },
-	  { "ChilliSpot-Bandwidth-Max-Up:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-	    RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0 },
-	  { "ChilliSpot-Bandwidth-Max-Down:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-	    RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0 },
-	  { "ChilliSpot-Max-Input-Octets:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-	    RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0 },
-	  { "ChilliSpot-Max-Output-Octets:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-	    RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0 },
-	  { "ChilliSpot-Max-Total-Octets:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-	    RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0 },
-	  { "ChilliSpot-Max-Input-Gigawords:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-	    RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS, 0 },
-	  { "ChilliSpot-Max-Output-Gigawords:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-	    RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS, 0 },
-	  { "ChilliSpot-Max-Total-Gigawords:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-	    RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS, 0 },
-	  { "WISPr-Bandwidth-Max-Up:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, 
-	    RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0 },
-	  { "WISPr-Bandwidth-Max-Down:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, 
-	    RADIUS_ATTR_WISPR_BANDWIDTH_MAX_DOWN, 0 },
-	  { "WISPr-Redirection-URL:", 
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR, 
-	    RADIUS_ATTR_WISPR_REDIRECTION_URL, 1 },
-	  { 0 }
-	};
-	
-	int i;
-	for (i=0; attrs[i].n; i++) {
-	  if (!strncmp(ptr,attrs[i].n,strlen(attrs[i].n))) {
-	    switch(attrs[i].t) {
-	    case 0:
-	      {
-		uint32_t v = (uint32_t) atoi(ptr+strlen(attrs[i].n));
-		if (v > 0) {
-		  radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, v, NULL, 0);
-		  log_dbg("Setting %s = %d", attrs[i].n, v);
-		}
-	      }
-	      break;
-	    case 1:
-	      {
-		radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, 0, 
-			       ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
-		log_dbg("Setting %s = %s", attrs[i].n, ptr);
-	      }
-	      break;
-	    }
-	  }
-	}
-      }
-    }
-  }
-
-  /* finish off RADIUS response */
-  switch(req->radius_req.code) {
-    
-  case RADIUS_CODE_ACCESS_REQUEST:
-    {
-      struct radius_attr_t *ma = NULL;
-      
-      radius_addattr(radius, &req->radius_res, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
-		     0, 0, 0, NULL, RADIUS_MD5LEN);
-      
-      memset(req->radius_res.authenticator, 0, RADIUS_AUTHLEN);
-      memcpy(req->radius_res.authenticator, req->radius_req.authenticator, RADIUS_AUTHLEN);
-      
-      if (!radius_getattr(&req->radius_res, &ma, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 0,0,0)) {
-	radius_hmac_md5(radius, &req->radius_res, radius->secret, radius->secretlen, ma->v.t);
-      }
-      
-      radius_authresp_authenticator(radius, &req->radius_res, 
-				    req->radius_req.authenticator,
-				    radius->secret,
-				    radius->secretlen);
-    }
-    break;
-    
-  case RADIUS_CODE_ACCOUNTING_REQUEST:
-    radius_authresp_authenticator(radius, &req->radius_res, 
-				  req->radius_req.authenticator,
-				  radius->secret,
-				  radius->secretlen);
-    break;
-  }
-
-  radius_reply(req->radius, &req->radius_res, &req->peer);
-
-  close_request(req);
-
-  return 0;
 }
 
 static void http_aaa_register(int argc, char **argv, int i) {
@@ -607,7 +603,8 @@ static void http_aaa_register(int argc, char **argv, int i) {
   }
 
   if (req.data->slen)
-    write(1, req.data->data, req.data->slen);
+    if (write(1, req.data->data, req.data->slen) < 0)
+      log_err(errno, "write()");
 
   bdestroy(req.url);
   bdestroy(req.data);
@@ -618,7 +615,8 @@ static void http_aaa_register(int argc, char **argv, int i) {
 #ifdef USING_CURL
   curl_global_cleanup();
 #else
-  bdestroy(req.write_buf);
+  if (req.wbuf)
+    bdestroy(req.wbuf);
 #endif
   exit(0);
 }
@@ -645,7 +643,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
   if (!req->url) req->url = bfromcstr("");
   if (!req->data) req->data = bfromcstr("");
 
-  memcpy(&req->peer, peer, sizeof(req->peer));
+  memcpy(&req->conn.peer, peer, sizeof(req->conn.peer));
   memcpy(&req->radius_req, pack, sizeof(struct radius_packet_t));
   memset(&req->radius_res, '0', sizeof(struct radius_packet_t));
 
@@ -801,36 +799,43 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
       bconcat(req->url, tmp);
     }
 
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 0)) {
+      uint32_t val = ntohl(attr->v.i);
+      bassignformat(tmp, "&vlan=%d", val);
+      bconcat(req->url, tmp);
+    }
+
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INPUT_OCTETS, 0,0,0)) {
       char *direction = _options.swapoctets ? "up" : "down";
-      uint32_t val = ntohl(attr->v.i);
+      uint64_t val = ntohl(attr->v.i);
       uint64_t input = val;
       if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INPUT_GIGAWORDS, 0,0,0)) {
-	val = ntohl(attr->v.i);
+	val = (uint64_t) ntohl(attr->v.i);
 	input |= (val << 32);
       }
       bassignformat(tmp, "&bytes_%s=%ld", direction, input);
       bconcat(req->url, tmp);
       if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INPUT_PACKETS, 0,0,0)) {
-	val = ntohl(attr->v.i);
-	bassignformat(tmp, "&pkts_%s=%ld", direction, val);
+	uint32_t sval = ntohl(attr->v.i);
+	bassignformat(tmp, "&pkts_%s=%ld", direction, sval);
 	bconcat(req->url, tmp);
       }
     }
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_OUTPUT_OCTETS, 0,0,0)) {
       char *direction = _options.swapoctets ? "down" : "up";
-      uint32_t val = ntohl(attr->v.i);
+      uint64_t val = (uint64_t) ntohl(attr->v.i);
       uint64_t output = val;
       if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_OUTPUT_GIGAWORDS, 0,0,0)) {
-	val = ntohl(attr->v.i);
+	val = (uint64_t) ntohl(attr->v.i);
 	output |= (val << 32);
       }
       bassignformat(tmp, "&bytes_%s=%ld", direction, output);
       bconcat(req->url, tmp);
       if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_OUTPUT_PACKETS, 0,0,0)) {
-	val = ntohl(attr->v.i);
-	bassignformat(tmp, "&pkts_%s=%ld", direction, val);
+	uint32_t sval = ntohl(attr->v.i);
+	bassignformat(tmp, "&pkts_%s=%ld", direction, sval);
 	bconcat(req->url, tmp);
       }
     }
@@ -870,12 +875,13 @@ int main(int argc, char **argv) {
 #ifdef USING_CURL
   CURLMsg *msg;
   int msgs_left;
-#else
-  proxy_request * request;
-  int ret;
 #endif
 
+  int keep_going = 1;
+
   options_init();
+
+  chilli_signals(&keep_going);
 
   /*
    *  Support a --register mode whereby all subsequent arguments are 
@@ -913,7 +919,7 @@ int main(int argc, char **argv) {
   radius_set(radius_auth, 0, 0);
   radius_set(radius_acct, 0, 0);
 
-  while (1) {
+  while (keep_going) {
     FD_ZERO(&fdread);
     FD_ZERO(&fdwrite);
     FD_ZERO(&fdexcep);
@@ -925,17 +931,7 @@ int main(int argc, char **argv) {
     curl_multi_fdset(curl_multi, &fdread, &fdwrite, &fdexcep, &maxfd);
 #else
     for (idx=0; idx < max_requests; idx++) {
-      proxy_request *request = &requests[idx];
-
-      if (request->inuse) {
-	FD_SET(request->sock, &fdread);
-	if (request->write_pos < request->write_buf->slen) {
-	  FD_SET(request->sock, &fdwrite);
-	}
-	FD_SET(request->sock, &fdexcep);
-	if (request->sock > maxfd) 
-	  maxfd = request->sock;
-      }
+      conn_fd(&requests[idx].conn, &fdread, &fdwrite, &fdexcep, &maxfd);
     }
 #endif
 
@@ -1014,58 +1010,9 @@ int main(int argc, char **argv) {
 	}
       }
 #else
-    for (idx=0; idx < max_requests; idx++) {
-      proxy_request *request = &requests[idx];
-
-      if (request->inuse) {
-	if (FD_ISSET(request->sock, &fdread)) {
-	  log_dbg("socket readable!");
-	  ballocmin(request->data, request->data->slen + 56);
-	  ret = read(request->sock, 
-		     request->data->data + request->data->slen,
-		     request->data->mlen - request->data->slen);
-	  if (ret > 0) {
-	    log_dbg("read: %d bytes [%s]", ret, request->data->data);
-	    request->data->slen += ret;
-	  } else {
-	    log_dbg("socket closed!");
-	    http_aaa_finish(request);
-	  }
-	}
-	if (FD_ISSET(request->sock, &fdwrite)) {
-	  log_dbg("socket writeable!");
-	  if (request->write_pos == 0) {
-	    int err;
-	    socklen_t errlen = sizeof(err);
-	    if (getsockopt(request->sock, SOL_SOCKET, SO_ERROR, &err, &errlen) || (err != 0)) {
-	      log_err(errno, "not connected");
-	      http_aaa_finish(request);
-	      continue;
-	    } else {
-	      int flags = fcntl(request->sock, F_GETFL, 0);
-	      fcntl(request->sock, F_SETFL, flags & ~O_NONBLOCK);
-	    }
-	  }
-	  if (request->write_pos < request->write_buf->slen) {
-	    ret = write(request->sock, 
-			request->write_buf->data + request->write_pos,
-			request->write_buf->slen - request->write_pos);
-	    if (ret > 0) {
-	      log_dbg("write: %d bytes", ret);
-	      request->write_pos += ret;
-	    } else if (ret < 0) {
-	      log_dbg("socket closed!");
-	      http_aaa_finish(request);
-	    }
-	  } else {
-	    shutdown(request->sock, SHUT_WR);
-	  }
-	}
-	if (FD_ISSET(request->sock, &fdexcep)) {
-	  log_dbg("socket exception!");
-	}
+      for (idx=0; idx < max_requests; idx++) {
+	conn_update(&requests[idx].conn, &fdread, &fdwrite, &fdexcep);
       }
-    }
 #endif
 
       break;
@@ -1076,4 +1023,6 @@ int main(int argc, char **argv) {
   curl_multi_cleanup(curl_multi);
   curl_global_cleanup();
 #endif
+
+  return 0;
 }

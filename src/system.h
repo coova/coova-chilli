@@ -78,6 +78,10 @@
 #include <sys/sysinfo.h>
 #endif
 
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
+
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
@@ -100,6 +104,14 @@
 
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
+#endif
+
+#ifdef HAVE_POLL_H
+#include <poll.h>
+#endif
+
+#ifdef HAVE_SYS_EPOLL_H
+#include <sys/epoll.h>
 #endif
 
 #if defined(__linux__)
@@ -227,5 +239,9 @@
 int bstring_fromfd(bstring s, int fd);
 
 void copy_mac6(uint8_t *, uint8_t *);
+
+#ifndef USING_IPC_MSG
+#define USING_IPC_UNIX
+#endif
 
 #endif

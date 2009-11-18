@@ -1462,7 +1462,7 @@ int radius_acctcheck(struct radius_t *this, struct radius_packet_t *pack)
  * radius_decaps()
  * Read and process a received radius packet.
  */
-int radius_decaps(struct radius_t *this) {
+int radius_decaps(struct radius_t *this, int idx) {
   ssize_t status;
   struct radius_packet_t pack;
   struct radius_packet_t pack_req;
@@ -1594,7 +1594,7 @@ int radius_decaps(struct radius_t *this) {
  * radius_proxy_ind()
  * Read and process a received radius packet.
  */
-int radius_proxy_ind(struct radius_t *this) {
+int radius_proxy_ind(struct radius_t *this, int idx) {
   ssize_t status;
   struct radius_packet_t pack;
   struct sockaddr_in addr;

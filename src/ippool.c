@@ -40,9 +40,9 @@ int ippool_printaddr(struct ippool_t *this) {
   printf("Listsize %d\n",  this->listsize);
 
   for (n=0; n<this->listsize; n++) {
-    printf("Unit %d inuse %d prev %d next %d addr %s %x\n", 
+    printf("Unit %d inuse %s prev %d next %d addr %s %x\n", 
 	   n,
-	   this->member[n].inuse,
+	   this->member[n].in_use ? "Y" : "N",
 	   this->member[n].prev - this->member,
 	   this->member[n].next - this->member,
 	   inet_ntoa(this->member[n].addr),	
@@ -248,7 +248,7 @@ int ippool_new(struct ippool_t **this,
   
   (*this)->firstdyn = NULL;
   (*this)->lastdyn = NULL;
-  for (i = 0; i<dynsize; i++) {
+  for (i = 0; i < dynsize; i++) {
 
     naddr.s_addr = htonl(ntohl(addr.s_addr) + i + start);
     if (naddr.s_addr == _options.uamlisten.s_addr) {
@@ -257,7 +257,8 @@ int ippool_new(struct ippool_t **this,
     }
 
     (*this)->member[i].addr.s_addr = naddr.s_addr;
-    (*this)->member[i].inuse = 0;
+    (*this)->member[i].in_use = 0;
+    (*this)->member[i].is_static = 0;
 
     /* Insert into list of unused */
     (*this)->member[i].prev = (*this)->lastdyn;
@@ -277,7 +278,8 @@ int ippool_new(struct ippool_t **this,
   (*this)->laststat = NULL;
   for (i = dynsize; i<listsize; i++) {
     (*this)->member[i].addr.s_addr = 0;
-    (*this)->member[i].inuse = 0;
+    (*this)->member[i].in_use = 0;
+    (*this)->member[i].is_static = 1;
 
     /* Insert into list of unused */
     (*this)->member[i].prev = (*this)->laststat;
@@ -291,7 +293,9 @@ int ippool_new(struct ippool_t **this,
     (*this)->member[i].next = NULL; /* Redundant */
   }
   
-  if (0) ippool_printaddr(*this);
+  /*if (0) 
+    ippool_printaddr(*this);*/
+
   return 0;
 }
 
@@ -314,7 +318,7 @@ int ippool_getip(struct ippool_t *this, struct ippoolm_t **member,
   /* Find in hash table */
   hash = ippool_hash4(addr) & this->hashmask;
   for (p = this->hash[hash]; p; p = p->nexthash) {
-    if ((p->addr.s_addr == addr->s_addr) && (p->inuse)) {
+    if ((p->addr.s_addr == addr->s_addr) && (p->in_use)) {
       if (member) *member = p;
       return 0;
     }
@@ -353,7 +357,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
 
   /*if(0)(void)ippool_printaddr(this);*/
 
-  /* First check to see if this type of address is allowed */
+  /* First, check to see if this type of address is allowed */
   if ((addr) && (addr->s_addr) && statip) { /* IP address given */
     if (!_options.uamanyip) {
       if (!this->allowstat) {
@@ -372,7 +376,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
       return -1; 
     }
   }
-
+  
   /* If IP address given try to find it in address pool */
   if ((addr) && (addr->s_addr)) { /* IP address given */
     /* Find in hash table */
@@ -386,14 +390,14 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
   }
 
   /* if anyip is set and statip return the same ip */
-  if (statip && _options.uamanyip && p2 && p2->inuse == 2) {
+  if (statip && _options.uamanyip && p2 && p2->is_static) {
     log_dbg("Found already allocated static ip");
     *member = p2;
     return 0;
   }
 
   /* If IP was already allocated we can not use it */
-  if ((!statip) && (p2) && (p2->inuse)) {
+  if ((!statip) && (p2) && (p2->in_use)) {
     p2 = NULL; 
   }
 
@@ -408,7 +412,7 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
   }
   
   if (p2) { /* Was allocated from dynamic address pool */
-    if (p2->inuse) {
+    if (p2->in_use) {
       log_err(0, "IP address allready in use");
       return -1; /* Allready in use / Should not happen */
     }
@@ -426,10 +430,13 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
 
     p2->next = NULL;
     p2->prev = NULL;
-    p2->inuse = 1; /* Dynamic address in use */
+    p2->in_use = 1; /* Dynamic address in use */
     
     *member = p2;
-    if (0) (void)ippool_printaddr(this);
+
+    /*if (_options.debug) 
+      (void)ippool_printaddr(this);*/
+
     return 0; /* Success */
   }
 
@@ -457,7 +464,8 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
 
     p2->next = NULL;
     p2->prev = NULL;
-    p2->inuse = 2; /* Static address in use */
+    p2->in_use = 1; /* Static address in use */
+    p2->is_static = 1; /* to be sure */
     memcpy(&p2->addr, addr, sizeof(addr));
     *member = p2;
 
@@ -465,7 +473,9 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
 
     ippool_hashadd(this, *member);
 
-    if (0) (void)ippool_printaddr(this);
+    /*if (_options.debug) 
+      (void)ippool_printaddr(this);*/
+
     return 0; /* Success */
   }
 
@@ -475,42 +485,19 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
 
 int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
   
-  if (0) ippool_printaddr(this);
+  /*if (0)
+    ippool_printaddr(this);*/
 
-  if (!member->inuse) {
+  if (!member->in_use) {
     log_err(0, "Address not in use");
     return -1; /* Not in use: Should not happen */
   }
 
-  switch (member->inuse) {
+  if (member->is_static) {
 
-  case 0: /* Not in use: Should not happen */
-    log_err(0, "Address not in use");
-    return -1;
-
-  case 1: /* Allocated from dynamic address space */
-    /* Insert into list of unused */
-    member->prev = this->lastdyn;
-
-    if (this->lastdyn) {
-      this->lastdyn->next = member;
-    }
-    else {
-      this->firstdyn = member;
-    }
-
-    this->lastdyn = member;
-    
-    member->inuse = 0;
-    member->peer = NULL;
-    if (0) (void)ippool_printaddr(this);
-    return 0;
-
-  case 2: /* Allocated from static address space */
     if (ippool_hashdel(this, member))
       return -1;
 
-    /* Insert into list of unused */
     member->prev = this->laststat;
 
     if (this->laststat) {
@@ -522,17 +509,33 @@ int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
 
     this->laststat = member;
     
-    member->inuse = 0;
+    member->in_use = 0;
     member->addr.s_addr = 0;
     member->peer = NULL;
     member->nexthash = NULL;
-    if (0) (void)ippool_printaddr(this);
-    return 0;
 
-  default: /* Should not happen */
-    log_err(0, "Could not free IP address");
-    return -1;
+  } else {
+
+    member->prev = this->lastdyn;
+
+    if (this->lastdyn) {
+      this->lastdyn->next = member;
+    }
+    else {
+      this->firstdyn = member;
+    }
+
+    this->lastdyn = member;
+    
+    member->in_use = 0;
+    member->peer = NULL;
+
   }
+
+  /*if (0)
+    (void)ippool_printaddr(this);*/
+
+  return 0;
 }
 
 

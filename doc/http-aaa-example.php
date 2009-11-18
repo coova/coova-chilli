@@ -143,6 +143,32 @@ function set_max_bandwidth_down_mbyte_sec (&$a, $v, $o = true) { set_attribute('
 function set_limit_interval(&$a, $v, $o = true) { set_attribute('Meta-Interval',$a,$v,$o); }
 function set_limit_value(&$a, $v, $o = true) { set_attribute('Meta-Interval-Value',$a,$v,$o); }
 
+function check_validity($t, &$obj, &$a) {
+
+  if ($obj['valid_from'] == '') {
+    db_query('UPDATE '.$t.' SET valid_from = now()', false);
+    $obj['valid_from'] =  date('Y-m-d H:i:s', time());
+  }
+
+  if ($obj['valid_until'] != '') {
+    $d = strtotime($obj['valid_until']);
+    $n = time();
+
+    if ($d < $n) {
+      if ($obj['repeat_interval']) {
+	db_query('UPDATE '.$t.' SET valid_from = now(), valid_until = null', false);
+	$obj['valid_from'] =  date('Y-m-d H:i:s', time());
+	$obj['valid_until'] = '';
+      } else {
+	set_reply_message($a, 'Expired', false);
+	return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 function proc_attributes(&$a) {
   global $aaa_config;
   global $hotspot_user;
@@ -154,25 +180,30 @@ function proc_attributes(&$a) {
   $interval_value = $a['Meta-Interval-Value'];
   if ($interval_value == '') $interval_value = 1;
 
-  $since = '';
   $t = null;
- 
+
   switch($login_type) {
   case 'device': 
-    $sum = get_device_summary($obj = $hotspot_device, $since);
+    $obj = $hotspot_device;
     $t = db_table('devices');
+    if (!check_validity($t, $obj, $a)) return false;
+    $sum = get_device_summary($obj);
     break;
   case 'user': 
-    $sum = get_user_summary($obj = $hotspot_user, $since);
+    $obj = $hotspot_user;
     $t = db_table('users');
+    if (!check_validity($t, $obj, $a)) return false;
+    $sum = get_user_summary($obj);
     if ($obj['id'] != $hotspot_device['owner_id']) {
       $sql = 'UPDATE '.db_table('devices').' SET owner_id = '.$obj['id'].' WHERE id = '.$hotspot_device['id'];
       db_query($sql, false);
     }
     break;
   case 'code': 
-    $sum = get_code_summary($obj = $hotspot_code, $since);
     $t = db_table('codes');
+    $obj = $hotspot_code;
+    if (!check_validity($t, $obj, $a)) return false;
+    $sum = get_code_summary($obj);
     if ($obj['device_id'] != $hotspot_device['id']) {
       $sql = 'UPDATE '.$t.' SET device_id = '.$hotspot_device['id'].' WHERE id = '.$obj['id'];
       db_query($sql, false);
@@ -182,31 +213,17 @@ function proc_attributes(&$a) {
     return false;
   }
 
-  if ($obj['valid_from'] == '') {
-    db_query('UPDATE '.$t.' SET valid_from = now()', false);
-  }
-
   switch($interval) {
-  case 'hourly':
+  case 'minute':
+  case 'hour':
+  case 'day':
+  case 'month':
+  case 'year':
     if ($obj['valid_until'] == '') {
-      db_query('UPDATE '.$t.' SET valid_until = DATE_ADD(valid_from, INTERVAL '.$interval_value.' HOUR)', false);
+      db_query('UPDATE '.$t.' SET valid_until = DATE_ADD(valid_from, INTERVAL '.$interval_value.' '.$interval.')', false);
     }
     break;
-  case 'daily':
-    if ($obj['valid_until'] == '') {
-      db_query('UPDATE '.$t.' SET valid_until = DATE_ADD(valid_from, INTERVAL '.$interval_value.' DAY)', false);
-    }
-    break;
-  case 'monthly':
-    if ($obj['valid_until'] == '') {
-      db_query('UPDATE '.$t.' SET valid_until = DATE_ADD(valid_from, INTERVAL '.$interval_value.' MONTH)', false);
-    }
-    break;
-  case 'yearly':
-    if ($obj['valid_until'] == '') {
-      db_query('UPDATE '.$t.' SET valid_until = DATE_ADD(valid_from, INTERVAL '.$interval_value.' YEAR)', false);
-    }
-    break;
+
   default:
     break;
   }
@@ -367,6 +384,24 @@ function do_macauth_service(&$attrs) {
 function do_login_service(&$attrs) {
   $device = get_device();
 
+
+  if ($_GET['user'] == $_GET['mac']) {
+    $password = 'admpwd';
+    if (isset($_GET['chap_id'])) {
+      // CHAP Challenge/Response Validation
+      $chal = pack('H32', $_GET['chap_chal']);
+      $check = md5("\0" . $password . $chal);
+      
+      if ($check == $_GET['chap_pass']) {
+	return login_device($attrs);
+      }
+    }
+    else if ($user_or_code['password'] == $_GET['pass']) {
+      return login_device($attrs);
+    }
+  }
+
+
   $login_func = 'login_user';
   $user_or_code = get_user();
 
@@ -397,6 +432,21 @@ function do_login_service(&$attrs) {
 
 function do_admin_service(&$attrs) {
   set_interim_interval($attrs, 300);
+
+  echo "Auth: 1\n";
+  echo "Acct-Interim-Interval:3600\n";
+  echo "ChilliSpot-Config:uamanyip\n";
+  echo "ChilliSpot-Config:uamnatanyip\n";
+  echo "ChilliSpot-Config:seskeepalive\n";
+  echo "ChilliSpot-Config:usestatusfile=chilli.status\n";
+  echo "ChilliSpot-Config:statip 5.0.0.0/24\n";
+  echo "ChilliSpot-Config:txqlen 1000\n";
+  echo "ChilliSpot-Config:tcpmss 1460\n";
+  echo "ChilliSpot-Config:acctupdate\n";
+  echo "ChilliSpot-Config:macreauth\n";
+  //  echo "ChilliSpot-Config:usetap\n";
+  exit;
+
   return do_auth_accept($attrs);
 }
 
@@ -472,7 +522,7 @@ create table networks (
   defcode_idle_timeout integer unsigned,
   defcode_kbps_down integer unsigned,
   defcode_kbps_up integer unsigned,
-  defcode_limit_interval varchar(10), -- values: hourly, daily, weekly, monthly
+  defcode_limit_interval varchar(10), -- values: minute, hour, day, week, month
   defcode_limit_value integer unsigned, -- times limit_interval
   defcode_repeat_interval boolean default false,
   defcode_session_time integer unsigned,
@@ -484,7 +534,7 @@ create table networks (
   defuser_idle_timeout integer unsigned,
   defuser_kbps_down integer unsigned,
   defuser_kbps_up integer unsigned,
-  defuser_limit_interval varchar(10), -- values: hourly, daily, weekly, monthly
+  defuser_limit_interval varchar(10), -- values: minute, hour, day, week, month
   defuser_limit_value integer unsigned, -- times limit_interval
   defuser_repeat_interval boolean default false,
   defuser_session_time integer unsigned,
@@ -497,7 +547,7 @@ create table networks (
   defdev_idle_timeout integer unsigned,
   defdev_kbps_down integer unsigned,
   defdev_kbps_up integer unsigned,
-  defdev_limit_interval varchar(10), -- values: hourly, daily, weekly, monthly
+  defdev_limit_interval varchar(10), -- values: minute, hour, day, week, month
   defdev_limit_value integer unsigned, -- times limit_interval
   defdev_repeat_interval boolean default false,
   defdev_session_time integer unsigned,
@@ -524,7 +574,7 @@ create table users (
   idle_timeout integer unsigned,
   kbps_down integer unsigned,
   kbps_up integer unsigned,
-  limit_interval varchar(10), -- values: daily, weekly, monthly
+  limit_interval varchar(10), -- values: minute, hour, day, week, month
   limit_value integer unsigned, -- times limit_interval
   repeat_interval boolean default false,
   session_time integer unsigned,
@@ -559,7 +609,7 @@ create table devices (
   idle_timeout integer unsigned,
   kbps_down integer unsigned,
   kbps_up integer unsigned,
-  limit_interval varchar(10), -- values: daily, weekly, monthly
+  limit_interval varchar(10), -- values: minute, hour, day, week, month
   limit_value integer unsigned, -- times limit_interval
   repeat_interval boolean default false,
   session_time integer unsigned,
@@ -590,7 +640,7 @@ create table codes (
   idle_timeout integer unsigned,
   kbps_down integer unsigned,
   kbps_up integer unsigned,
-  limit_interval varchar(10), -- values: daily, weekly, monthly
+  limit_interval varchar(10), -- values: minute, hour, day, week, month
   limit_value integer unsigned, -- times limit_interval
   repeat_interval boolean default false,
   session_time integer unsigned,
@@ -836,6 +886,7 @@ function get_network() {
 }
 
 function get_session_summary($col, $obj, $since = '') {
+
   if ($obj['valid_from']) {
     $since = $obj['valid_from'];
   }
@@ -850,16 +901,16 @@ function get_session_summary($col, $obj, $since = '') {
   foreach (db_query($sql) as $n) return $n;
 }
 
-function get_user_summary(&$user, $since) {
-  return get_session_summary('user_id', $user, $since);
+function get_user_summary(&$user) {
+  return get_session_summary('user_id', $user);
 }
 
-function get_code_summary(&$code, $since) {
-  return get_session_summary('code_id', $code, $since);
+function get_code_summary(&$code) {
+  return get_session_summary('code_id', $code);
 }
 
-function get_device_summary(&$device, $since) {
-  return get_session_summary('device_id', $device, $since);
+function get_device_summary(&$device) {
+  return get_session_summary('device_id', $device);
 }
 
 function get_attributes($id, $tbl, &$array) {

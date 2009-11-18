@@ -16,6 +16,8 @@
  * 
  */
 
+#ifndef _SSL_H_
+#define _SSL_H_
 #include "system.h"
 #ifdef HAVE_OPENSSL
 #include <openssl/buffer.h>
@@ -68,4 +70,5 @@ void openssl_free(openssl_con *con);
 void openssl_env_free(openssl_env *env);
 int openssl_pending(openssl_con *con);
 
+#endif
 #endif

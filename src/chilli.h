@@ -139,14 +139,25 @@ int printstatus();
 int loadstatus();
 #endif
 
+void chilli_signals(int *with_term);
+
+int chilli_new_conn(struct app_conn_t **conn);
+
+int chilli_assign_snat(struct app_conn_t *appconn, int force);
+
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause);
 void config_radius_session(struct session_params *params, 
 			   struct radius_packet_t *pack, 
 			   struct dhcp_conn_t *dhcpconn,
 			   int reconfig);
+
+int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos);
+
 int cmdsock_init();
 
+time_t mainclock_tick();
 time_t mainclock_now();
+time_t mainclock_rt();
 int mainclock_diff(time_t past);
 uint32_t mainclock_diffu(time_t past);
 

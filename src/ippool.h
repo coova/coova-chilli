@@ -64,7 +64,8 @@ struct ippoolm_t {
 #else
   struct in_addr addr;           /* IP address of this member */
 #endif
-  int inuse;                     /* 0=available; 1= dynamic; 2 = static */
+  char in_use:1;                 /* 0=available; 1= used */
+  char is_static:1;              /* 0= dynamic; 1 = static */
   struct ippoolm_t *nexthash;    /* Linked list part of hash table */
   struct ippoolm_t *prev, *next; /* Linked list of free dynamic or static */
   void *peer;                    /* Pointer to peer protocol handler */
