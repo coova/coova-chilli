@@ -95,7 +95,15 @@ struct dhcp_t; /* Forward declaration */
 
 #define DHCP_DOMAIN_LEN      30
 
-#define DHCP_DNAT_MAX        64
+#define DHCP_DNAT_MAX       128
+
+struct dhcp_nat_t {
+  uint8_t mac[PKT_ETH_ALEN];
+  uint32_t dst_ip;
+  uint16_t dst_port;
+  uint32_t src_ip;
+  uint16_t src_port;
+};
 
 struct dhcp_conn_t {
   struct dhcp_conn_t *nexthash; /* Linked list part of hash table */
@@ -118,10 +126,7 @@ struct dhcp_conn_t {
   uint8_t auth_cp;             /* Authenticated codepoint */
   int nextdnat;                /* Next location to use for DNAT */
   uint32_t dnatdns;            /* Destination NAT for dns mapping */
-  uint32_t dnatip[DHCP_DNAT_MAX]; /* Destination NAT destination IP address */
-  uint16_t dnatport[DHCP_DNAT_MAX]; /* Destination NAT source port */
-  uint8_t dnatstate[DHCP_DNAT_MAX]; /* Destination NAT source port */
-  uint8_t dnatmac[DHCP_DNAT_MAX][PKT_ETH_ALEN]; /* Destination NAT source mac */
+  struct dhcp_nat_t dnat[DHCP_DNAT_MAX]; /* Destination NAT */
   uint16_t mtu;                /* Maximum transfer unit */
 
   uint8_t noc2c;               /* Prevent client to client access using /32 subnets */

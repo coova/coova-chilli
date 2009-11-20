@@ -1286,24 +1286,32 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
   
   /* read whatever the client send to us */
   while (!done && (redir->starttime + REDIR_HTTP_MAX_TIME) > mainclock_now()) {
-    FD_ZERO(&fds);
-    FD_SET(fd, &fds);
 
-    idleTime.tv_sec = 0;
-    idleTime.tv_usec = REDIR_HTTP_SELECT_TIME;
-
-    switch (status = select(fd + 1, &fds, NULL, NULL, &idleTime)) {
+    do {
+      
+      FD_ZERO(&fds);
+      FD_SET(fd, &fds);
+      
+      idleTime.tv_sec = 0;
+      idleTime.tv_usec = REDIR_HTTP_SELECT_TIME;
+      
+      status = select(fd + 1, &fds, NULL, NULL, &idleTime);
+      
+    } while (status == -1 && errno == EINTR);
+    
+    switch(status) {
     case -1:
-      log_err(errno,"select() returned -1!");
+      log_err(errno,"select()");
       return -1;
     case 0:
       log_dbg("HTTP request timeout!");
-      return -1;
+      done = 1;
     default:
       break;
     }
-
+    
     if ((status > 0) && FD_ISSET(fd, &fds)) {
+
       if (buflen + 2 >= sizeof(buffer)) { /* ensure space for a least one more byte + null */
         log_err(0, "Too much data in http request!");
         return -1;

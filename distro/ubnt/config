@@ -1,0 +1,30 @@
+
+getcfg() { echo $(grep "$1=" /tmp/system.cfg|sed "s/$1=//"); }
+
+HS_LANIF=ath0
+HS_USELOCALUSERS=on
+HS_RADIUS=$(getcfg hotspot.radius1)
+HS_RADIUS2=$(getcfg hotspot.radius2)
+HS_RADAUTH=$(getcfg hotspot.authport)
+HS_RADACCT=$(getcfg hotspot.acctport)
+HS_RADSECRET=$(getcfg hotspot.radsecret)
+HS_UAMSECRET=$(getcfg hotspot.uamsecret)
+HS_UAMAAAURL=$(getcfg hotspot.uamaaaurl)
+HS_ADMUSR=$(getcfg hotspot.adminuser)
+HS_ADMPWD=$(getcfg hotspot.adminpasswd)
+HS_NASID=$(getcfg hotspot.nasid)
+HS_SSID=$(getcfg wireless.1.ssid)
+HS_UAMALLOW=$(getcfg hotspot.uamallow)
+HS_UAMDOMAINS=$(getcfg hotspot.uamdomain)
+HS_UAMFORMAT=$(getcfg hotspot.uamformat)
+HS_UAMSERVER=$(getcfg hotspot.uamserver)
+
+if [ "$(getcfg hotspot.miniportal)" = "enabled" ]; then
+   HS_UAMFORMAT="http://\$HS_UAMLISTEN:\$HS_UAMUIPORT/www/login.chi"
+fi
+
+if [ "$(getcfg hotspot.uamaaaurl)" != "" ]; then
+   HS_RADIUS=localhost
+   HS_RADIUS2=localhost
+fi
+

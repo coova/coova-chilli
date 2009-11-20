@@ -35,6 +35,30 @@ static void destroy_one_ring(net_interface *iface, int what);
 static void setup_filter(net_interface *iface);
 #endif
 
+int safe_connect(int s, struct sockaddr *sock, size_t len) {
+  int ret;
+  do {
+    ret = connect(s, sock, len);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+int safe_read(int s, void *b, size_t blen) {
+  int ret;
+  do {
+    ret = read(s, b, blen);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+int safe_write(int s, void *b, size_t blen) {
+  int ret;
+  do {
+    ret = write(s, b, blen);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
 int dev_set_flags(char const *dev, int flags) {
   struct ifreq ifr;
   int fd;
@@ -288,16 +312,11 @@ int net_select(select_ctx *sctx) {
   sctx->idleTime.tv_sec = 1; /*IDLETIME;*/
   sctx->idleTime.tv_usec = 0;
 
-  switch (status = select(sctx->maxfd + 1, &sctx->rfds, &sctx->wfds, &sctx->efds, &sctx->idleTime /* NULL */)) {
-  case -1:
-    if (EINTR != errno) {
-      log_err(errno, "select() returned -1!");
-    }
-    break;
-  case 0:
-  default:
-    break;
-  }
+  do {
+    status = select(sctx->maxfd + 1, &sctx->rfds, &sctx->wfds, &sctx->efds, &sctx->idleTime /* NULL */);
+    if (status == -1) net_select_prepare(sctx); /* reset */
+  } while (status == -1 && errno == EINTR);
+
 #endif
   return status;
 }

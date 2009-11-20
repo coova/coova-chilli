@@ -1,0 +1,52 @@
+#!/bin/sh
+
+. /etc/chilli/functions
+
+check_required
+
+case $1 in
+    start)
+        echo -n "Starting $prog: "
+
+	brctl delif br0 ath0
+
+	insmod tun
+	insmod ip_tables
+	insmod iptable_filter
+	insmod ip_conntrack
+	insmod iptable_nat
+	insmod ipt_MASQUERADE
+
+        echo 1 > /proc/sys/net/ipv4/ip_forward
+
+	iptables -t nat -I POSTROUTING -o br0 -j MASQUERADE 
+
+	[ -e /dev/net/tun ] || {
+	    (cd /dev; 
+		mkdir net; 
+		cd net; 
+		mknod tun c 10 200)
+	}
+
+	writeconfig
+        radiusconfig
+	
+	ifconfig $HS_LANIF 0.0.0.0
+        chilli --pidfile /tmp/chilli.pid
+        echo
+	;;
+    
+    stop)
+        echo -n $"Shutting down $prog: "
+        [ -f /tmp/chilli.pid ] && { 
+	    kill $(cat /tmp/chilli.pid)
+	}
+        echo
+	;;
+    
+    *)
+        echo "Usage: $0 {start|stop}"
+        exit 1
+esac
+
+exit $?

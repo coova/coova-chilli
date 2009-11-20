@@ -141,19 +141,19 @@ sock_redir_getstate(struct redir_t *redir,
 
   len = offsetof(struct sockaddr_un, sun_path) + strlen(remote.sun_path);
 
-  if (connect(s, (struct sockaddr *)&remote, len) == -1) {
+  if (safe_connect(s, (struct sockaddr *)&remote, len) == -1) {
     log_err(errno, "could not connect to %s", remote.sun_path);
     close(s);
     return -1;
   }
   
-  if (write(s, &msg, sizeof(msg)) != sizeof(msg)) {
+  if (safe_write(s, &msg, sizeof(msg)) != sizeof(msg)) {
     log_err(errno, "could not write to %s", remote.sun_path);
     close(s);
     return -1;
   }
 
-  if (read(s, conn, sizeof(*conn)) != sizeof(*conn)) {
+  if (safe_read(s, conn, sizeof(*conn)) != sizeof(*conn)) {
     log_err(errno, "could not read from %s", remote.sun_path);
     close(s);
     return -1;

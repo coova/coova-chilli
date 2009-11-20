@@ -74,7 +74,7 @@ net		$HS_NETWORK/$HS_NETMASK
 uamlisten	$HS_UAMLISTEN
 uamport         $HS_UAMPORT
 dhcpif		$HS_LANIF
-uamallowed	"www.coova.org,$HS_UAMSERVER,$HS_RADIUS$webadmin$uamallow"
+uamallowed	"www.coova.org,${HS_UAMSERVER:+$HS_UAMSERVER,}$webadmin$uamallow"
 uamanydns
 $configs1
 EOF
@@ -204,11 +204,11 @@ writeconfig() {
 }
 
 files_equal() {    # returns 0 for equal, 1 for not-equal
-    [ "$(which cmp)" != "" ] && {
+    [ -x /usr/bin/cmp ] || [ -x /bin/cmp ] && {
 	cmp -s $1 $2 && return 0;
 	return 1;
     }
-    [ "$(which md5sum)" != "" ] && {
+    [ -x /usr/bin/md5sum ] || [ -x /bin/md5sum ] && {
 	[ "$(md5sum $1 | cut -f1 -d' ')" = "$(md5sum $2 | cut -f1 -d' ')" ] && return 0;
 	return 1;
     }

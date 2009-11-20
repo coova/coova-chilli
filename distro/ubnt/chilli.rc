@@ -1,0 +1,9 @@
+#!/bin/sh
+
+getcfg() { echo $(grep "$1=" /tmp/system.cfg|sed "s/$1=//"); }
+
+if [ "$(getcfg hotspot.status)" = "enabled" ]; then
+    if [ "$(getcfg hotspot.onboot)" = "enabled" ]; then
+	sh /usr/etc/init.d/chilli start
+    fi
+fi

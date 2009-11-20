@@ -68,17 +68,9 @@ enum {
 #define __NR_ioprio_set         1274
 #define __NR_ioprio_get         1275
 #else
-#error "Unsupported arch"
+#warning "ioprio not supported"
 #endif
 #endif
-
-static int ioprio_set(int which, int who, int ioprio) {
-  return syscall(__NR_ioprio_set, which, who, ioprio);
-}
-
-static int ioprio_get(int which, int who) {
-  return syscall(__NR_ioprio_get, which, who);
-}
 #endif
 
 int main(int argc, char **argv)
@@ -97,11 +89,13 @@ int main(int argc, char **argv)
     }
   }    
 
+#ifdef __NR_ioprio_set
   if ((ev = getenv("CHILLI_IOPRIO_RT")) != NULL) {
-    if (ioprio_set(IOPRIO_WHO_PROCESS, getpid(), atoi(ev) | IOPRIO_CLASS_RT << IOPRIO_CLASS_SHIFT) == -1) {
+    if (syscall(__NR_ioprio_set, IOPRIO_WHO_PROCESS, getpid(), atoi(ev) | IOPRIO_CLASS_RT << IOPRIO_CLASS_SHIFT) == -1) {
       perror("ioprio_set");
     }
   }
+#endif
 #endif
 
   ret = chilli_main(argc, argv);

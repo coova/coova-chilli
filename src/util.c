@@ -20,13 +20,14 @@
 #include "system.h"
 #include "redir.h"
 #include "syserr.h"
+#include "net.h"
 
 int bstring_fromfd(bstring s, int fd) {
   int len = 128;
   int rd;
   while (1) {
     ballocmin(s, s->slen + len);
-    rd = read(fd, s->data + s->slen, len);
+    rd = safe_read(fd, s->data + s->slen, len);
     if (rd <= 0) break;
     s->slen += rd;
   }

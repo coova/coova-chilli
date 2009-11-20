@@ -64,6 +64,17 @@ struct in_addr ipv4ll_mask;
 /* Forward declarations */
 static int acct_req(struct app_conn_t *conn, uint8_t status_type);
 
+#ifdef ENABLE_RTMON
+static pid_t rtmon_pid = 0;
+#endif
+
+#ifdef ENABLE_CHILLIPROXY
+static pid_t proxy_pid = 0;
+#endif
+
+#ifdef ENABLE_CHILLIREDIR
+static pid_t redir_pid = 0;
+#endif
 
 static void _sigchld(int signum) { 
   /* catches falling childs and eliminates zombies */
@@ -4019,18 +4030,6 @@ int chilli_main(int argc, char **argv) {
   int cmdsock = -1;
 
   pid_t cpid = getpid();
-
-#ifdef ENABLE_RTMON
-  pid_t rtmon_pid = 0;
-#endif
-
-#ifdef ENABLE_CHILLIPROXY
-  pid_t proxy_pid = 0;
-#endif
-
-#ifdef ENABLE_CHILLIREDIR
-  pid_t redir_pid = 0;
-#endif
 
 #ifdef USING_IPC_MSG
   struct redir_msg_t msg;

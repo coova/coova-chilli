@@ -37,6 +37,13 @@ case $1 in
         /sbin/modprobe tun >/dev/null 2>&1
         echo 1 > /proc/sys/net/ipv4/ip_forward
 
+	[ -e /dev/net/tun ] || {
+	    (cd /dev; 
+		mkdir net; 
+		cd net; 
+		mknod tun c 10 200)
+	}
+
 	writeconfig
         radiusconfig
 	

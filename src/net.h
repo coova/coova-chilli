@@ -233,6 +233,10 @@ typedef int (*net_handler)(void *ctx, void *data, size_t len);
 #define net_sflags(n,f) dev_set_flags((n)->devname, (f))
 #define net_gflags(n) dev_get_flags((n)->devname, &(n)->devflags)
 
+int safe_connect(int s, struct sockaddr *sock, size_t len);
+int safe_write(int s, void *b, size_t blen);
+int safe_read(int s, void *b, size_t blen);
+
 int net_open(net_interface *netif);
 int net_open_eth(net_interface *netif);
 int net_reopen(net_interface *netif);

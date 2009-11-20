@@ -100,7 +100,7 @@ int loadstatus() {
     memcpy(conn, &dhcpconn, sizeof(struct dhcp_conn_t));
 
     for (n=0; n < DHCP_DNAT_MAX; n++) {
-      memset(conn->dnatmac[n], 0, PKT_ETH_ALEN); 
+      memset(conn->dnat[n].mac, 0, PKT_ETH_ALEN); 
     }
 
     /* add into ippool */

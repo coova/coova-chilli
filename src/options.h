@@ -128,6 +128,8 @@ struct options_t {
   int max_clients;               /* Max subscriber/clients */
 
   struct in_addr uamlogout;      /* IP address of HTTP auto-logout */
+  struct in_addr uamalias;       /* IP address of UAM Alias */
+  char *uamaliasname;            /* Simple hostname (no dots) DNS name for uamalias */
 
   /* booleans */
   uint8_t allowdyn:1;               /* Allow dynamic address allocation */

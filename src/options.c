@@ -176,13 +176,13 @@ int options_fromfd(int fd, bstring bt) {
   size_t len;
   int i;
   
-  int rd = read(fd, &o, sizeof(o));
+  int rd = safe_read(fd, &o, sizeof(o));
 
   if (rd == sizeof(o)) {
-    rd = read(fd, &len, sizeof(len));
+    rd = safe_read(fd, &len, sizeof(len));
     if (rd == sizeof(len)) {
       ballocmin(bt, len);
-      rd = read(fd, bt->data, len);
+      rd = safe_read(fd, bt->data, len);
       if (rd == len) {
 	has_error = 0;
       }
@@ -251,6 +251,8 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.nasmac)) return 0;
   if (!option_s_l(bt, &o.nasip)) return 0;
   if (!option_s_l(bt, &o.cmdsocket)) return 0;
+
+  if (!option_s_l(bt, &o.uamaliasname)) return 0;
   
   for (i=0; i < MAX_UAM_DOMAINS; i++) {
     if (!option_s_l(bt, &o.uamdomains[i])) 
@@ -345,6 +347,8 @@ int options_save(char *file, bstring bt) {
   if (!option_s_s(bt, &o.nasip)) return 0;
   if (!option_s_s(bt, &o.cmdsocket)) return 0;
 
+  if (!option_s_s(bt, &o.uamaliasname)) return 0;
+
   for (i = 0; i < MAX_UAM_DOMAINS; i++) {
     if (!option_s_s(bt, &o.uamdomains[i])) 
       return 0;
@@ -363,12 +367,12 @@ int options_save(char *file, bstring bt) {
     return 0;
 
   } else {
-    if (write(fd, &o, sizeof(o)) < 0)
+    if (safe_write(fd, &o, sizeof(o)) < 0)
       log_err(errno, "write()");
     size_t len = bt->slen;
-    if (write(fd, &len, sizeof(len)) < 0)
+    if (safe_write(fd, &len, sizeof(len)) < 0)
       log_err(errno, "write()");
-    if (write(fd, bt->data, len) < 0)
+    if (safe_write(fd, bt->data, len) < 0)
       log_err(errno, "write()");
     close(fd);
   }

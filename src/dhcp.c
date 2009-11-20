@@ -897,6 +897,75 @@ int _filterDNSresp(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen) {
   return 1;
 }
 
+static int
+dhcp_uam_nat(struct dhcp_conn_t *conn,
+	     struct pkt_ethhdr_t *ethh,
+	     struct pkt_iphdr_t  *iph,
+	     struct pkt_tcphdr_t *tcph,
+	     struct in_addr *addr, 
+	     uint16_t port) {
+  int n;
+  int pos = -1;
+  
+  for (n=0; n < DHCP_DNAT_MAX; n++) {
+    if (conn->dnat[n].src_ip == iph->saddr && 
+	conn->dnat[n].src_port == tcph->src) {
+      pos = n;
+      break;
+    }
+  }
+  
+  if (pos == -1) {
+    if (_options.usetap) {
+      memcpy(conn->dnat[conn->nextdnat].mac, ethh->dst, PKT_ETH_ALEN); 
+    }
+    conn->dnat[conn->nextdnat].dst_ip = iph->daddr; 
+    conn->dnat[conn->nextdnat].src_ip = iph->saddr; 
+    conn->dnat[conn->nextdnat].src_port = tcph->src;
+    conn->dnat[conn->nextdnat].dst_port = tcph->dst;
+    conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
+  }
+  
+  if (_options.usetap) {
+    memcpy(ethh->dst, tuntap(tun).hwaddr, PKT_ETH_ALEN); 
+  }
+  
+  iph->daddr = addr->s_addr;
+  tcph->dst = htons(port);
+  
+  chksum(iph);
+  
+  return 0;
+}
+
+
+static int
+dhcp_uam_unnat(struct dhcp_conn_t *conn,
+	       struct pkt_ethhdr_t *ethh,
+	       struct pkt_iphdr_t  *iph,
+	       struct pkt_tcphdr_t *tcph) {
+  int n;
+  for (n=0; n < DHCP_DNAT_MAX; n++) {
+
+    if (iph->daddr == conn->dnat[n].src_ip && 
+	tcph->dst == conn->dnat[n].src_port) {
+
+      if (_options.usetap) {
+	memcpy(ethh->src, conn->dnat[n].mac, PKT_ETH_ALEN);
+      }
+
+      iph->saddr = conn->dnat[n].dst_ip;
+      tcph->src = conn->dnat[n].dst_port;
+      
+      chksum(iph);
+      
+      return 0; 
+    }
+  }
+  return 0; 
+}
+
+
 
 /**
  * dhcp_doDNAT()
@@ -984,43 +1053,8 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 	) {
       /* Was it a http request for another server? */
       /* We are changing dest IP and dest port to local UAM server */
-      int n;
-      int pos=-1;
-      
-      for (n=0; n < DHCP_DNAT_MAX; n++) {
-	if ((conn->dnatip[n] == iph->daddr) && 
-	    (conn->dnatport[n] == tcph->src)) {
-	  pos = n;
-	  break;
-	}
-      }
 
-      if (pos == -1) { /* Save for undoing */
-	if (_options.usetap) {
-	  memcpy(conn->dnatmac[conn->nextdnat], ethh->dst, PKT_ETH_ALEN); 
-	}
-	conn->dnatip[conn->nextdnat] = iph->daddr; 
-	conn->dnatport[conn->nextdnat] = tcph->src;
-	conn->dnatstate[conn->nextdnat] = 0;
-#ifdef HAVE_OPENSSL
-	if (tcph->dst == htons(DHCP_HTTPS)) {
-	  log_dbg("HTTPS Redirect");
-	  conn->dnatstate[conn->nextdnat] = 1;
-	}
-#endif
-	conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
-      }
-      
-      if (_options.usetap) {
-	memcpy(ethh->dst, tuntap(tun).hwaddr, PKT_ETH_ALEN); 
-      }
-      
-      iph->daddr = this->uamlisten.s_addr;
-      tcph->dst = htons(this->uamport);
-      
-      chksum(iph);
-
-      return 0;
+      return dhcp_uam_nat(conn, ethh, iph, tcph, &this->uamlisten, this->uamport);
 
     } else {
       /* otherwise, RESET and drop */
@@ -1038,26 +1072,23 @@ static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, siz
   struct pkt_iphdr_t  *iph  = iphdr(pack);
   struct pkt_tcphdr_t *tcph = tcphdr(pack);
 
+  if (isreturn) {
+    /* We check here (we also do this in dhcp_dounDNAT()) for UAM */
+    if ((iph->saddr == this->uamlisten.s_addr) &&
+	(iph->protocol == PKT_IP_PROTO_TCP) &&
+	(tcph->src == htons(dhcp->uamport))) {
+      
+      dhcp_uam_unnat(conn, ethh, iph, tcph);
+    }
+  }
+
   if (_options.postauth_proxyport > 0) {
     if (isreturn) {
       if ((iph->protocol == PKT_IP_PROTO_TCP) &&
 	  (iph->saddr == _options.postauth_proxyip.s_addr) &&
 	  (tcph->src == htons(_options.postauth_proxyport))) {
-	int n;
-	for (n=0; n<DHCP_DNAT_MAX; n++) {
-	  if (tcph->dst == conn->dnatport[n]) {
-	    if (_options.usetap) {
-	      memcpy(ethh->src, conn->dnatmac[n], PKT_ETH_ALEN);
-	    }
-	    iph->saddr = conn->dnatip[n];
-	    tcph->src = htons(conn->dnatstate[n] ? DHCP_HTTPS : DHCP_HTTP);
 
-	    chksum(iph);
-
-	    return 0; /* It was a DNAT reply */
-	  }
-	}
-	return 0; 
+	return dhcp_uam_unnat(conn, ethh, iph, tcph);
       }
     }
     else {
@@ -1069,45 +1100,16 @@ static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, siz
 	   )) {
 
 	int n;
-	int pos=-1;
 
-	for (n = 0; n<this->authiplen; n++)
+	for (n = 0; n < this->authiplen; n++)
 	  if ((iph->daddr == this->authip[n].s_addr))
 	      return 0;
-	
-	for (n=0; n<DHCP_DNAT_MAX; n++) {
-	  if ((conn->dnatip[n] == iph->daddr) && 
-	      (conn->dnatport[n] == tcph->src)) {
-	    pos = n;
-	    break;
-	  }
-	}
-	
-	if (pos==-1) { /* Save for undoing */
-	  if (_options.usetap) {
-	    memcpy(conn->dnatmac[conn->nextdnat], ethh->dst, PKT_ETH_ALEN); 
-	  }
-	  conn->dnatip[conn->nextdnat] = iph->daddr; 
-	  conn->dnatport[conn->nextdnat] = tcph->src;
-#ifdef HAVE_OPENSSL
-	  if (tcph->dst == htons(DHCP_HTTPS)) {
-	    log_dbg("HTTPS Redirect");
-	    conn->dnatstate[conn->nextdnat] = 1;
-	  }
-#endif
-	  conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
-	}
-	
+
 	log_dbg("rewriting packet for post-auth proxy %s:%d",
 		inet_ntoa(_options.postauth_proxyip),
 		_options.postauth_proxyport);
 	
-	iph->daddr = _options.postauth_proxyip.s_addr;
-	tcph->dst = htons(_options.postauth_proxyport);
-
-	chksum(iph);
-
-	return 0;
+	return dhcp_uam_nat(conn, ethh, iph, tcph, &_options.postauth_proxyip, _options.postauth_proxyport);
       }
     }
   }
@@ -1183,24 +1185,8 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t 
   if ((iph->saddr == this->uamlisten.s_addr) &&
       (iph->protocol == PKT_IP_PROTO_TCP) &&
       (tcph->src == htons(this->uamport))) {
-    int n;
 
-    for (n=0; n < DHCP_DNAT_MAX; n++) {
-      if (tcph->dst == conn->dnatport[n]) {
-
-	if (_options.usetap) {
-	  memcpy(ethh->src, conn->dnatmac[n], PKT_ETH_ALEN); 
-	}
-
-	iph->saddr = conn->dnatip[n];
-	tcph->src = htons(conn->dnatstate[n] ? DHCP_HTTPS : DHCP_HTTP);
-
-	chksum(iph);
-
-	return 0; /* It was a DNAT reply */
-      }
-    }
-    return 0; /* It was a normal reply from redir server */
+    return dhcp_uam_unnat(conn, ethh, iph, tcph);
   }
   
   /* Was it a normal http or https reply from authentication server? */
@@ -1239,6 +1225,23 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t 
   return -1; /* Something else */
 }
 
+static int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
+  blen = snprintf((char *)b, blen,
+		  "%c%s%c%s", strlen(name), name, 
+		  strlen(_options.domain), _options.domain);
+  
+  if (!memcmp(r, b, blen + 1))
+    return 1;
+  
+  blen -= strlen(_options.domain) + 1;
+  b[blen]=0;
+
+  if (!memcmp(r, b, blen + 1))
+    return 1;
+
+  return 0;
+}
+
 /**
  * dhcp_localDNS()
  * Check if it was request for known domain name.
@@ -1253,14 +1256,13 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct pkt_udphdr_t *udph = udphdr(pack);
   struct dns_packet_t *dnsp = dnspkt(pack);
 
-  uint8_t *p = NULL;
   size_t length;
   size_t udp_len;
   uint8_t query[256];
   size_t query_len = 0;
   int n;
 
-  char *aliasname = "coova";
+  char *aliasname = _options.uamaliasname;
 
   log_dbg("DNS ID:    %d", ntohs(dnsp->id));
   log_dbg("DNS flags: %d", ntohs(dnsp->flags));
@@ -1272,37 +1274,35 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
       (ntohs(dnsp->arcount) == 0x0000)) {
 
     int match = 0;
+    uint8_t reply[4];
 
-    p = dnsp->records;
+    uint8_t *p = dnsp->records;
 
-    query_len = snprintf((char *)query, sizeof(query), 
-			 "%c%s%c%s", 
-			 strlen(aliasname), aliasname, 
-			 strlen(_options.domain), _options.domain);
-
-    if (!memcmp(dnsp->records, query, query_len + 1))
-      match = 1;
-
-    if (!match) {
-      query_len -= strlen(_options.domain) + 1;
-      query[query_len]=0;
-      if (!memcmp(dnsp->records, query, query_len + 1))
-	match = 1;
+    match = dhcp_matchDNS(dnsp->records, query, sizeof(query), "logout");
+    if (match) {
+      memcpy(reply, &_options.uamlogout.s_addr, 4);
     }
 
+    if (!match && aliasname) {
+      match = dhcp_matchDNS(dnsp->records, query, sizeof(query), aliasname);
+      if (match) {
+	memcpy(reply, &_options.uamalias.s_addr, 4);
+      }
+    }
+      
     if (match) {
-
+      
       uint8_t answer[PKT_BUFFER];
-
+      
       struct pkt_ethhdr_t *answer_ethh;
       struct pkt_iphdr_t  *answer_iph;
       struct pkt_udphdr_t *answer_udph;
       struct dns_packet_t *answer_dns;
-
+      
       query_len = 0;
-
+      
       log_dbg("It was a matching query!\n");
-
+      
       do {
 	if (query_len < 256)
 	  query[query_len++] = *p;
@@ -1325,11 +1325,11 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
       query[query_len++] = 0x2c;
       query[query_len++] = 0x00;
       query[query_len++] = 0x04;
-      memcpy(&query[query_len], &conn->ourip.s_addr, 4);
+      memcpy(query + query_len, reply, 4);
       query_len += 4;
       
       memcpy(answer, pack, len); /* TODO */
-
+      
       answer_ethh = ethhdr(answer);
       answer_iph = iphdr(answer);
       answer_udph = udphdr(answer);
@@ -2187,10 +2187,8 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 
   conn->lasttime = mainclock_now();
 
-  if (((pack_iph->daddr == conn->dns1.s_addr) ||
-       (pack_iph->daddr == conn->dns2.s_addr)) &&
-      (pack_iph->protocol == PKT_IP_PROTO_UDP) &&
-      (pack_udph->dst == htons(DHCP_DNS))) {
+  if (pack_iph->protocol == PKT_IP_PROTO_UDP &&
+      pack_udph->dst == htons(DHCP_DNS)) {
     if (dhcp_localDNS(conn, pack, len)) 
       return 0;
   }
@@ -2207,6 +2205,11 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	appconn->uamexit = 1;
       }
     }
+  }
+
+  if (_options.uamalias.s_addr && 
+      pack_iph->daddr == _options.uamalias.s_addr) {
+    dhcp_uam_nat(conn, pack_ethh, pack_iph, pack_tcph, &this->uamlisten, this->uamport);
   }
 
   switch (conn->authstate) {

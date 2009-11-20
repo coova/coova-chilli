@@ -317,28 +317,31 @@ int main(int argc, char **argv) {
       log_err(0, "Failed to parse uamserver: %s!", args_info.uamserver_arg);
       goto end_processing;
     }
-  
-    if (!(host = gethostbyname(hostname))) {
-      log_err(0, "Could not resolve IP address of uamserver: %s! [%s]", 
-	      args_info.uamserver_arg, strerror(errno));
-      goto end_processing;
-    }
-    else {
-      int j = 0;
-      while (host->h_addr_list[j] != NULL) {
-	if (_options.debug & DEBUG_CONF) {
-	  log_dbg("Uamserver IP address #%d: %s\n", j,
-		 inet_ntoa(*(struct in_addr*) host->h_addr_list[j]));
-	}
-	if (_options.uamserverlen>=UAMSERVER_MAX) {
-	  log_err(0,
-		  "Too many IPs in uamserver %s!",
-		  args_info.uamserver_arg);
-	  goto end_processing;
-	}
-	else {
-	  _options.uamserver[_options.uamserverlen++] = 
-	    *((struct in_addr*) host->h_addr_list[j++]);
+
+    if (!args_info.uamaliasname_arg ||
+	strcmp(args_info.uamaliasname_arg, hostname)) {
+      if (!(host = gethostbyname(hostname))) {
+	log_err(0, "Could not resolve IP address of uamserver: %s! [%s]", 
+		args_info.uamserver_arg, strerror(errno));
+	goto end_processing;
+      }
+      else {
+	int j = 0;
+	while (host->h_addr_list[j] != NULL) {
+	  if (_options.debug & DEBUG_CONF) {
+	    log_dbg("Uamserver IP address #%d: %s\n", j,
+		    inet_ntoa(*(struct in_addr*) host->h_addr_list[j]));
+	  }
+	  if (_options.uamserverlen>=UAMSERVER_MAX) {
+	    log_err(0,
+		    "Too many IPs in uamserver %s!",
+		    args_info.uamserver_arg);
+	    goto end_processing;
+	  }
+	  else {
+	    _options.uamserver[_options.uamserverlen++] = 
+	      *((struct in_addr*) host->h_addr_list[j++]);
+	  }
 	}
       }
     }
@@ -351,22 +354,25 @@ int main(int argc, char **argv) {
       goto end_processing;
     }
 
-    if (!(host = gethostbyname(hostname))) {
-      log_err(0,"Invalid uamhomepage: %s! [%s]", 
-	      args_info.uamhomepage_arg, strerror(errno));
-      goto end_processing;
-    }
-    else {
-      int j = 0;
-      while (host->h_addr_list[j] != NULL) {
-	if (_options.uamserverlen>=UAMSERVER_MAX) {
-	  log_err(0,"Too many IPs in uamhomepage %s!",
-		  args_info.uamhomepage_arg);
-	  goto end_processing;
-	}
-	else {
-	  _options.uamserver[_options.uamserverlen++] = 
-	    *((struct in_addr*) host->h_addr_list[j++]);
+    if (!args_info.uamaliasname_arg ||
+	strcmp(args_info.uamaliasname_arg, hostname)) {
+      if (!(host = gethostbyname(hostname))) {
+	log_err(0,"Invalid uamhomepage: %s! [%s]", 
+		args_info.uamhomepage_arg, strerror(errno));
+	goto end_processing;
+      }
+      else {
+	int j = 0;
+	while (host->h_addr_list[j] != NULL) {
+	  if (_options.uamserverlen>=UAMSERVER_MAX) {
+	    log_err(0,"Too many IPs in uamhomepage %s!",
+		    args_info.uamhomepage_arg);
+	    goto end_processing;
+	  }
+	  else {
+	    _options.uamserver[_options.uamserverlen++] = 
+	      *((struct in_addr*) host->h_addr_list[j++]);
+	  }
 	}
       }
     }
@@ -519,6 +525,16 @@ int main(int argc, char **argv) {
     }
     else {
       memcpy(&_options.uamlogout.s_addr, host->h_addr, host->h_length);
+    }
+  }
+
+  if (args_info.uamaliasip_arg) {
+    if (!(host = gethostbyname(args_info.uamaliasip_arg))) {
+      log_warn(0, "Invalid uamaliasip address: %s! [%s]", 
+	       args_info.uamlogoutip_arg, strerror(errno));
+    }
+    else {
+      memcpy(&_options.uamalias.s_addr, host->h_addr, host->h_length);
     }
   }
 
@@ -782,6 +798,9 @@ int main(int argc, char **argv) {
 
   if (_options.usestatusfile) free(_options.usestatusfile);
   _options.usestatusfile = STRDUP(args_info.usestatusfile_arg);
+
+  if (_options.uamaliasname) free(_options.uamaliasname);
+  _options.uamaliasname = STRDUP(args_info.uamaliasname_arg);
 
   ret = 0;
 
