@@ -1,0 +1,305 @@
+--- SDK.UBNT.v3.4.4416.orig/apps/web/common/lib/hotspot_enabled.tmpl	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v3.4.4416/apps/web/common/lib/hotspot_enabled.tmpl	2009-11-20 09:49:38.000000000 +0100
+@@ -0,0 +1,36 @@
++<? $hidden_style = "display:none;";>
++
++<table width="100%">
++<tr><td valign="top">
++
++<div id="hotspotSetupHidden" style="display:block"> 
++<table class="linktable" cellspacing="0"> 
++<tr><th colspan="2"><a href="#" onClick="javascript:return toggle_hotspot();"><? echo dict_translate("Setup"); ></a></th></tr>
++</table>
++</div>
++
++<? include("lib/hotspot_settings.tmpl");>
++
++</td><td valign="top" width="90%">
++
++<table class="linktable" cellspacing="0"> 
++<tr><th><? echo dict_translate("Status"); ></th></tr>
++<tr><td>
++<?
++
++  exec("/sbin/chilli_query list", $lines, $res);
++
++  if ($res == 0) {
++    echo "chilli is running. <a href='?chilli=stop'>stop</a><p>";
++  } else {
++    echo "chilli not running. <a href='?chilli=start'>start</a><p>";
++  }
++
++  echo "<pre>";
++  echo $lines;  
++  echo "</pre>";
++
++>
++</td></tr></table>
++
++</td></tr></table>
+--- SDK.UBNT.v3.4.4416.orig/apps/web/common/lib/hotspot.inc	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v3.4.4416/apps/web/common/lib/hotspot.inc	2009-11-19 18:03:01.000000000 +0100
+@@ -0,0 +1,4 @@
++<?
++
++
++>
+\ No newline at end of file
+--- SDK.UBNT.v3.4.4416.orig/apps/web/common/lib/hotspot_settings.tmpl	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v3.4.4416/apps/web/common/lib/hotspot_settings.tmpl	2009-11-20 11:13:06.000000000 +0100
+@@ -0,0 +1,123 @@
++<div id="hotspotSetup" style="<? echo $hidden_style;>"> 
++	<form enctype="multipart/form-data" action="services.cgi" method="POST" onSubmit="return validateStandard(this, 'error');">
++        <table class="linktable" cellspacing="0"> 
++        <?if ($hotspot_status == "enabled") { echo "<tr><th colspan='3'><a href='#' onClick='javascript:return toggle_hotspot();'>" + dict_translate("Setup") + "</a></th></tr>"; }>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("Enable Hotspot:"); ></strong></td>
++	<td><input type="checkbox" name="hotspot_status" value="enabled" id="hotspot_status" <? if ($hotspot_status=="enabled") { echo "checked"; }> onClick="hotspotStatusClicked();"></td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("Start on boot:"); ></strong></td>
++	<td><input type="checkbox" name="hotspot_onboot" value="enabled" id="hotspot_onboot" <? if ($hotspot_onboot=="enabled") { echo "checked"; }> onClick="hotspotStatusClicked();"></td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("Embedded Portal:"); ></strong></td>
++	<td><input type="checkbox" name="hotspot_miniportal" value="enabled" id="hotspot_miniportal" <? if ($hotspot_miniportal=="enabled") { echo "checked"; }> onClick="hotspotStatusClicked();"></td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("RADIUS Server 1:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_radius1" id="hotspot_radius1" 
++        	realname="<? echo dict_translate("RADIUS Server 1:");>" required="1" 
++                value="<?echo $hotspot_radius1>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("RADIUS Server 2:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_radius2" id="hotspot_radius2" 
++        	realname="<? echo dict_translate("RADIUS Server 2:");>" required="1" 
++                value="<?echo $hotspot_radius2>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("RADIUS Shared Secret:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_radsecret" id="hotspot_radsecret" 
++        	realname="<? echo dict_translate("RADIUS Shared Secret:");>" required="1" 
++                value="<?echo $hotspot_radsecret>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("RADIUS Auth Port:");></strong></td>
++        <td><input maxlen="6" size="6" type="text" name="hotspot_authport" id="hotspot_authport" 
++        	realname="<? echo dict_translate("RADIUS Auth Port:");>" required="1" 
++                value="<?echo $hotspot_authport>" minvalue="1" maxvalue="65535">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("RADIUS Acct Port:");></strong></td>
++        <td><input maxlen="6" size="6" type="text" name="hotspot_acctport" id="hotspot_acctport" 
++        	realname="<? echo dict_translate("RADIUS Acct Port:");>" required="1" 
++                value="<?echo $hotspot_acctport>" minvalue="1" maxvalue="65535">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("RADIUS Admin-User Username:");></strong></td>
++        <td><input maxlen="56" size="15" type="text" name="hotspot_adminuser" id="hotspot_adminuser" 
++        	realname="<? echo dict_translate("RADIUS Admin-User:");>" 
++                value="<?echo $hotspot_adminuser>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("RADIUS Admin-User Password:");></strong></td>
++        <td><input maxlen="56" size="15" type="text" name="hotspot_adminpasswd" id="hotspot_adminpasswd" 
++        	realname="<? echo dict_translate("RADIUS Admin-User Password:");>" 
++                value="<?echo $hotspot_adminpasswd>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("HTTP AAA URL:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_uamaaaurl" id="hotspot_uamaaaurl" 
++        	realname="<? echo dict_translate("HTTP AAA URL:");>" 
++                value="<?echo $hotspot_uamaaaurl>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("UAM Portal URL:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_uamformat" id="hotspot_uamformat" 
++        	realname="<? echo dict_translate("UAM Portal URL:");>" required="1" 
++                value="<?echo $hotspot_uamformat>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("UAM Secret:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_uamsecret" id="hotspot_uamsecret" 
++        	realname="<? echo dict_translate("UAM Secret:");>" required="1" 
++                value="<?echo $hotspot_uamsecret>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("UAM Allow Hosts:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_uamallow" id="hotspot_uamallow" 
++        	realname="<? echo dict_translate("UAM Allow Hosts:");>" 
++                value="<?echo $hotspot_uamallow>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("UAM Allow Domains:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_uamdomain" id="hotspot_uamdomain" 
++        	realname="<? echo dict_translate("UAM Allow Domains:");>"
++                value="<?echo $hotspot_uamdomain>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	  <td class="f">&nbsp;<input type="hidden" name="action" value="chhotspot"></td>
++	  <td><input type="submit" value="<? echo dict_translate("Change"); >">&nbsp;</td>
++	  <td class="f">&nbsp; </td>
++	</tr>
++	</table>
++	</form>
++</div>
+--- SDK.UBNT.v3.4.4416.orig/apps/web/common/lib/services.tmpl	2008-11-17 16:42:54.000000000 +0100
++++ SDK.UBNT.v3.4.4416/apps/web/common/lib/services.tmpl	2009-11-20 09:37:02.000000000 +0100
+@@ -18,9 +18,23 @@
+                 httpsStatusClicked();
+                 telnetStatusClicked();
+                 sshStatusClicked();
++                hotspotStatusClicked();
+                 syslogStatusClicked();
+         }
+         window.onload=init;
++
++function toggle_vis(id) {
++  var e = document.getElementById(id);
++  if  (e.style.display == 'block')
++       e.style.display = 'none';
++  else e.style.display = 'block';
++}
++
++function toggle_hotspot() {
++  toggle_vis('hotspotSetup');
++  toggle_vis('hotspotSetupHidden');
++}
++
+ </script>
+ </head>
+ 
+@@ -32,6 +46,16 @@
+     <?if (cfg_is_modified($cfg_file)) { include("lib/modified.tmpl"); }>
+     <div id="error" <?if (isset($error_msg)) { echo "class=\"error\""; }>><?echo $error_msg></div>
+     <br class="zero">
++
++    <table class="linktable" cellspacing="0"> 
++    <tr><th><? echo dict_translate("CoovaChilli Hotspot"); ></th></tr>
++    <tr><td>
++    <? $hidden_style = "";>
++    <? $hidden_link = "";>
++    <?if ($hotspot_status == "enabled") { include("lib/hotspot_enabled.tmpl"); } else { include("lib/hotspot_settings.tmpl"); }>
++    </td></tr>
++    </table>
++
+ 	<form enctype="multipart/form-data" action="services.cgi" method="POST" onSubmit="return validatePwdog(this, 'error');">
+ 	<table class="linktable" cellspacing="0"> 
+ 	<tr><th colspan="3"><? echo dict_translate("Ping Watchdog"); ></th></tr>
+--- SDK.UBNT.v3.4.4416.orig/apps/web/common/services.cgi	2008-09-30 17:09:13.000000000 +0200
++++ SDK.UBNT.v3.4.4416/apps/web/common/services.cgi	2009-11-20 10:26:43.000000000 +0100
+@@ -117,6 +117,30 @@
+                 }
+ 		cfg_save($cfg, $cfg_file);
+ 		cfg_set_modified($cfg_file);
++	} elseif ($action == "chhotspot") {
++		if ($hotspot_status != "enabled") {
++			$hotspot_status = "disabled";
++		}
++		cfg_set($cfg, "hotspot.status", $hotspot_status);
++                if ($hotspot_status == "enabled") {
++			cfg_set($cfg, "hotspot.miniportal", $hotspot_miniportal);
++			cfg_set($cfg, "hotspot.onboot", $hotspot_onboot);
++			cfg_set($cfg, "hotspot.radius1", $hotspot_radius1);
++			cfg_set($cfg, "hotspot.radius2", $hotspot_radius2);
++			cfg_set($cfg, "hotspot.radsecret", $hotspot_radsecret);
++			cfg_set($cfg, "hotspot.uamsecret", $hotspot_uamsecret);
++			cfg_set($cfg, "hotspot.uamserver", $hotspot_uamserver);
++			cfg_set($cfg, "hotspot.adminuser", $hotspot_adminuser);
++			cfg_set($cfg, "hotspot.adminpasswd", $hotspot_adminpasswd);
++			cfg_set($cfg, "hotspot.authport", $hotspot_authport);
++			cfg_set($cfg, "hotspot.acctport", $hotspot_acctport);
++			cfg_set($cfg, "hotspot.uamaaaurl", $hotspot_uamaaaurl);
++			cfg_set($cfg, "hotspot.uamformat", $hotspot_uamformat);
++			cfg_set($cfg, "hotspot.uamallow", $hotspot_uamallow);
++			cfg_set($cfg, "hotspot.uamdomain", $hotspot_uamdomain);
++                }
++		cfg_save($cfg, $cfg_file);
++		cfg_set_modified($cfg_file);
+ 	} elseif ($action == "chsyslog") {
+ 		if ($syslog_status != "enabled") {
+ 			$syslog_status = "disabled";
+@@ -180,6 +204,9 @@
+ $https_status = cfg_get_def($cfg, "httpd.https.status", $https_status);
+ $telnetd_status = cfg_get_def($cfg, "telnetd.status", $telnetd_status);
+ $ssh_status = cfg_get_def($cfg, "sshd.status", $ssh_status);
++$hotspot_status = cfg_get_def($cfg, "hotspot.status", $hotspot_status);
++$hotspot_miniportal = cfg_get_def($cfg, "hotspot.miniportal", $hotspot_miniportal);
++$hotspot_onboot = cfg_get_def($cfg, "hotspot.onboot", $hotspot_onboot);
+ $syslog_status = cfg_get_def($cfg, "syslog.status", $syslog_status);
+ $rsyslog_status = cfg_get_def($cfg, "syslog.remote.status", $rsyslog_status);
+ $httpport = cfg_get_def($cfg, "httpd.port", "80");
+@@ -198,6 +225,29 @@
+ if (strlen($sshport) == 0) {
+ 	$sshport = "22";
+ }
++
++if ($chilli == "start") {
++  exec("/usr/etc/init.d/chilli start");
++} elseif ($chilli == "stop") {
++  exec("/usr/etc/init.d/chilli stop");
++}
++
++$hotspot_radius1 = cfg_get_def($cfg, "hotspot.radius1", "");
++$hotspot_radius2 = cfg_get_def($cfg, "hotspot.radius2", "");
++$hotspot_radsecret = cfg_get_def($cfg, "hotspot.radsecret", "");
++$hotspot_uamsecret = cfg_get_def($cfg, "hotspot.uamsecret", "");
++$hotspot_uamserver = cfg_get_def($cfg, "hotspot.uamserver", "");
++$hotspot_adminuser = cfg_get_def($cfg, "hotspot.adminuser", "");
++$hotspot_adminpasswd = cfg_get_def($cfg, "hotspot.adminpasswd", "");
++$hotspot_uamaaaurl = cfg_get_def($cfg, "hotspot.uamaaaurl", "");
++$hotspot_uamformat = cfg_get_def($cfg, "hotspot.uamformat", "");
++$hotspot_uamallow = cfg_get_def($cfg, "hotspot.uamallow", "");
++$hotspot_uamdomain = cfg_get_def($cfg, "hotspot.uamdomain", "");
++$hotspot_authport = cfg_get_def($cfg, "hotspot.authport", "1812");
++if (strlen($hotspot_authport) == 0) { $hotspot_authport = "1812"; }
++$hotspot_acctport = cfg_get_def($cfg, "hotspot.acctport", "1813");
++if (strlen($hotspot_acctport) == 0) { $hotspot_acctport = "1813"; }
++
+ $syslogport = cfg_get_def($cfg, "syslog.remote.port", "514");
+ $syslogip = cfg_get_def($cfg, "syslog.remote.ip", $syslogip);
+ if (strlen($syslogport) == 0) {
+--- SDK.UBNT.v3.4.4416.orig/apps/web/common/system.js	2008-10-08 16:44:17.000000000 +0200
++++ SDK.UBNT.v3.4.4416/apps/web/common/system.js	2009-11-20 11:06:45.000000000 +0100
+@@ -80,6 +80,13 @@
+ var c=document.getElementById('ssh_status');
+ statusClicked(c,new Array('sshport'));
+ }
++function hotspotStatusClicked() {
++var c=document.getElementById('hotspot_status');
++statusClicked(c,new Array('hotspot_miniportal','hotspot_radius1','hotspot_radius2','hotspot_radsecret',
++			  'hotspot_onboot','hotspot_authport','hotspot_acctport','hotspot_adminuser',
++			  'hotspot_adminpasswd','hotspot_uamserver','hotspot_uamsecret',
++			  'hotspot_uamaaaurl', 'hotspot_uamformat','hotspot_uamallow','hotspot_uamdomain'));
++}
+ function syslogStatusClicked() {
+ var c=document.getElementById('syslog_status');
+ var r=document.getElementById('rsyslog_status');
