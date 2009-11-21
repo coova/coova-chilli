@@ -162,11 +162,9 @@ int options_load(int argc, char **argv, bstring bt) {
     }
   }
 
-  if (fd <= 0) {
-    return 0;
-  } else {
-    return options_fromfd(fd, bt);
-  }
+  if (fd <= 0) return 0;
+
+  return options_fromfd(fd, bt);
 }
 
 int options_fromfd(int fd, bstring bt) {
@@ -189,14 +187,13 @@ int options_fromfd(int fd, bstring bt) {
     }
   }
   
+  close(fd);
+
   if (has_error) {
     log_err(errno, "could not read configuration");
-    close(fd);
     return 0;
   }
   
-  close(fd);
-
   if (!option_s_l(bt, &o.pidfile)) return 0;
   if (!option_s_l(bt, &o.statedir)) return 0;
   if (!option_s_l(bt, &o.usestatusfile)) return 0;
@@ -273,6 +270,14 @@ int options_fromfd(int fd, bstring bt) {
   if (_options._data) free(_options._data);
   memcpy(&_options, &o, sizeof(o));
   _options._data = (char *)bt->data;
+
+  /* 
+   *  We took the buffer and this bt will be destroyed.
+   *  Give the bstring a bogus buffer so that bdestroy() works.
+   */
+  bt->data = strdup("");
+  bt->mlen = 1;
+  bt->slen = 0;
 
   return 1;
 }
@@ -401,7 +406,7 @@ int process_options(int argc, char **argv, int minimal) {
 	while (fd > 0) {
 	  bstring bt = bfromcstr("");
 	  int ok = options_fromfd(fd, bt);
-	  if (!ok) bdestroy(bt);
+	  bdestroy(bt);
 	  return ok;
 	}
       }
@@ -425,7 +430,11 @@ void reprocess_options(int argc, char **argv) {
 int reload_options(int argc, char **argv) {
   bstring bt = bfromcstr("");
   int ok = options_load(argc, argv, bt);
-  if (!ok) bdestroy(bt);
+  bdestroy(bt);
   return ok;
 }
 
+void options_destroy() {
+  if (_options._data) 
+    free(_options._data);
+}

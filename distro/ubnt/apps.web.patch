@@ -1,6 +1,6 @@
---- SDK.UBNT.v3.4.4416.orig/apps/web/common/lib/hotspot_enabled.tmpl	1970-01-01 01:00:00.000000000 +0100
-+++ SDK.UBNT.v3.4.4416/apps/web/common/lib/hotspot_enabled.tmpl	2009-11-20 09:49:38.000000000 +0100
-@@ -0,0 +1,36 @@
+--- SDK.UBNT.v3.5.4499.orig/apps/web/common/lib/hotspot_enabled.tmpl	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v3.5.4499/apps/web/common/lib/hotspot_enabled.tmpl	2009-11-21 11:08:25.000000000 +0100
+@@ -0,0 +1,42 @@
 +<? $hidden_style = "display:none;";>
 +
 +<table width="100%">
@@ -30,23 +30,29 @@
 +  }
 +
 +  echo "<pre>";
-+  echo $lines;  
++  $c = count($lines);
++  $i = 0;
++  while ($i < $c) {
++     echo $lines[$i] + "\n";
++     $i++;
++  }
++
 +  echo "</pre>";
 +
 +>
 +</td></tr></table>
 +
 +</td></tr></table>
---- SDK.UBNT.v3.4.4416.orig/apps/web/common/lib/hotspot.inc	1970-01-01 01:00:00.000000000 +0100
-+++ SDK.UBNT.v3.4.4416/apps/web/common/lib/hotspot.inc	2009-11-19 18:03:01.000000000 +0100
+--- SDK.UBNT.v3.5.4499.orig/apps/web/common/lib/hotspot.inc	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v3.5.4499/apps/web/common/lib/hotspot.inc	2009-11-21 07:44:31.000000000 +0100
 @@ -0,0 +1,4 @@
 +<?
 +
 +
 +>
 \ No newline at end of file
---- SDK.UBNT.v3.4.4416.orig/apps/web/common/lib/hotspot_settings.tmpl	1970-01-01 01:00:00.000000000 +0100
-+++ SDK.UBNT.v3.4.4416/apps/web/common/lib/hotspot_settings.tmpl	2009-11-20 11:13:06.000000000 +0100
+--- SDK.UBNT.v3.5.4499.orig/apps/web/common/lib/hotspot_settings.tmpl	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v3.5.4499/apps/web/common/lib/hotspot_settings.tmpl	2009-11-21 07:44:31.000000000 +0100
 @@ -0,0 +1,123 @@
 +<div id="hotspotSetup" style="<? echo $hidden_style;>"> 
 +	<form enctype="multipart/form-data" action="services.cgi" method="POST" onSubmit="return validateStandard(this, 'error');">
@@ -171,8 +177,8 @@
 +	</table>
 +	</form>
 +</div>
---- SDK.UBNT.v3.4.4416.orig/apps/web/common/lib/services.tmpl	2008-11-17 16:42:54.000000000 +0100
-+++ SDK.UBNT.v3.4.4416/apps/web/common/lib/services.tmpl	2009-11-20 09:37:02.000000000 +0100
+--- SDK.UBNT.v3.5.4499.orig/apps/web/common/lib/services.tmpl	2008-11-17 16:42:54.000000000 +0100
++++ SDK.UBNT.v3.5.4499/apps/web/common/lib/services.tmpl	2009-11-21 07:44:31.000000000 +0100
 @@ -18,9 +18,23 @@
                  httpsStatusClicked();
                  telnetStatusClicked();
@@ -214,8 +220,8 @@
  	<form enctype="multipart/form-data" action="services.cgi" method="POST" onSubmit="return validatePwdog(this, 'error');">
  	<table class="linktable" cellspacing="0"> 
  	<tr><th colspan="3"><? echo dict_translate("Ping Watchdog"); ></th></tr>
---- SDK.UBNT.v3.4.4416.orig/apps/web/common/services.cgi	2008-09-30 17:09:13.000000000 +0200
-+++ SDK.UBNT.v3.4.4416/apps/web/common/services.cgi	2009-11-20 10:26:43.000000000 +0100
+--- SDK.UBNT.v3.5.4499.orig/apps/web/common/services.cgi	2008-09-30 17:09:13.000000000 +0200
++++ SDK.UBNT.v3.5.4499/apps/web/common/services.cgi	2009-11-21 07:44:31.000000000 +0100
 @@ -117,6 +117,30 @@
                  }
  		cfg_save($cfg, $cfg_file);
@@ -287,8 +293,8 @@
  $syslogport = cfg_get_def($cfg, "syslog.remote.port", "514");
  $syslogip = cfg_get_def($cfg, "syslog.remote.ip", $syslogip);
  if (strlen($syslogport) == 0) {
---- SDK.UBNT.v3.4.4416.orig/apps/web/common/system.js	2008-10-08 16:44:17.000000000 +0200
-+++ SDK.UBNT.v3.4.4416/apps/web/common/system.js	2009-11-20 11:06:45.000000000 +0100
+--- SDK.UBNT.v3.5.4499.orig/apps/web/common/system.js	2008-10-08 16:44:17.000000000 +0200
++++ SDK.UBNT.v3.5.4499/apps/web/common/system.js	2009-11-21 07:44:31.000000000 +0100
 @@ -80,6 +80,13 @@
  var c=document.getElementById('ssh_status');
  statusClicked(c,new Array('sshport'));

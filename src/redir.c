@@ -2196,6 +2196,7 @@ static int _redir_close(int infd, int outfd) {
 
 static int _redir_close_exit(int infd, int outfd) {
   _redir_close(infd,outfd);
+  options_destroy();
   exit(0);
 }
 

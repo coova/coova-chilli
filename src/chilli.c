@@ -4544,5 +4544,7 @@ int chilli_main(int argc, char **argv) {
     kill(redir_pid, SIGTERM);
 #endif
 
+  options_destroy();
+
   return 0;
 }

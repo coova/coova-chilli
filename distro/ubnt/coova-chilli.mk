@@ -45,6 +45,8 @@ coova-chilli-install: coova-chilli
 	cp -f $(coova_chilli_version)/distro/ubnt/chilli.init $(build_install_directory)/usr/etc/init.d/chilli
 	cp -f $(coova_chilli_version)/distro/ubnt/wwwsh $(build_install_directory)/usr/etc/chilli/
 	cp -f $(coova_chilli_version)/distro/ubnt/config $(build_install_directory)/usr/etc/chilli/
+	cp -f $(coova_chilli_version)/distro/ubnt/ipup.sh $(build_install_directory)/usr/etc/chilli/
+	cp -f $(coova_chilli_version)/distro/ubnt/ipdown.sh $(build_install_directory)/usr/etc/chilli/
 	cp -f $(coova_chilli_version)/distro/ubnt/chilli.rc $(build_install_directory)/usr/etc/chilli/rc
 	if [ "$(grep chilli $startuplist)" = "" ]; then \
 		echo "chilli" >> $startuplist; \
