@@ -1,0 +1,37 @@
+.\" * chilli_rtmon
+.\" * Copyright (C) 2007-2009 Coova Technologies, LLC.
+.\" * All rights reserved.
+
+.TH chilli_proxy 1 "November 2009"
+.SH NAME
+chilli_proxy \-  Chilli HTTP API Proxy
+
+.SH SYNOPSIS
+.B chilli_proxy
+-b <path-to-binary-config> [other chilli options]
+
+.SH DESCRIPTION
+.B chilli_proxy
+is a utility server typically started by the 
+.B chilli
+deamon to handle RADIUS to/from HTTP AAA conversion.
+
+.SH "SEE ALSO"
+.BR chilli(8)
+.BR chilli.conf(5)
+
+
+.SH NOTES 
+.LP
+
+See
+.I http://www.coova.org/
+for further documentation and community support.
+
+.SH AUTHORS
+
+David Bird, Coova Technologies, LLC.
+.I http://www.coova.com/
+
+CoovaChilli is licensed under the GNU General Public License.
+

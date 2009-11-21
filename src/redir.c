@@ -2806,6 +2806,8 @@ int redir_main(struct redir_t *redir,
 
     if (redir_buildurl(&conn, url, redir, resp, 0, hexchal, NULL,
 		       conn.s_state.redir.userurl, NULL, NULL, conn.hismac, &conn.hisip) == -1) {
+      bdestroy(url);
+      bdestroy(urlenc);
       log_err(errno, "redir_buildurl failed!");
       return redir_main_exit(redir, &httpreq, &socket, forked);
     }
