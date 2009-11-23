@@ -403,19 +403,25 @@ int main(int argc, char **argv) {
   redir->cb_handle_url_ctx = 0;
 
   if (!_options.nasmac) {
-    char hwaddr[6], mac[32];
+    /*
+     *  We need to configure this here to be the MAC address of the
+     *  local interface, something done normally in add_calledstation
+     *  but we don't have the dhcpif tapped when running chilli_redir.
+     */
+    uint8_t hwaddr[6], mac[32];
     struct ifreq ifr;
-
+    
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
-
+    
     strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
-
+    
     if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
       memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
-      sprintf(mac, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
-	      hwaddr[0],hwaddr[1],hwaddr[2],
-	      hwaddr[3],hwaddr[4],hwaddr[5]);
-
+      
+      snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+	       hwaddr[0], hwaddr[1], hwaddr[2],
+	       hwaddr[3], hwaddr[4], hwaddr[5]);
+      
       _options.nasmac = strdup(mac);
     }
       

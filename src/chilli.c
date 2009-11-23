@@ -3937,18 +3937,6 @@ static int cmdsock_accept(void *nullData, int sock) {
   return rval;
 }
 
-static void fixup_options() {
-  /*
-   *   If we have no nasmac configured, lets default it here, after creating the dhcp
-   */
-  if (!_options.nasmac) {
-    sprintf(_options.ourmac, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
-	    dhcp->rawif.hwaddr[0],dhcp->rawif.hwaddr[1],dhcp->rawif.hwaddr[2],
-	    dhcp->rawif.hwaddr[3],dhcp->rawif.hwaddr[4],dhcp->rawif.hwaddr[5]);
-    _options.nasmac = _options.ourmac;
-  }
-}
-
 #if XXX_IO_DAEMON 
 int chilli_io(int fd_ctrl_r, int fd_ctrl_w, int fd_pkt_r, int fd_pkt_w) {
   int maxfd = 0;
@@ -4190,8 +4178,6 @@ int chilli_main(int argc, char **argv) {
     exit(1);
   }
   
-  fixup_options();
-  
   /* Create an instance of radius */
   if (radius_new(&radius,
 		 &_options.radiuslisten, _options.coaport, _options.coanoipcheck,
@@ -4411,8 +4397,6 @@ int chilli_main(int argc, char **argv) {
 
     if (reload_config) {
       reload_options(argc, argv);
-
-      fixup_options();
 
       reload_config = 0;
 

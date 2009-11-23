@@ -32,7 +32,9 @@ case $1 in
         radiusconfig
 	
 	ifconfig $HS_LANIF 0.0.0.0
-        chilli --pidfile /tmp/chilli.pid &
+        chilli --usetap \
+	    --uamalias coova \
+	    --pidfile /tmp/chilli.pid &
         echo
 	;;
     

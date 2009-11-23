@@ -47,16 +47,16 @@ void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
 }
 
 void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pack)  {
-  uint8_t b[24];
-  uint8_t *mac= (uint8_t*)"";
+  uint8_t b[32];
+  uint8_t *mac= 0;
 
   if (_options.nasmac)
     mac = (uint8_t *)_options.nasmac;
   else 
-    sprintf((char*)(mac=b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
-	    radius->nas_hwaddr[0],radius->nas_hwaddr[1],radius->nas_hwaddr[2],
-	    radius->nas_hwaddr[3],radius->nas_hwaddr[4],radius->nas_hwaddr[5]);
-
+    snprintf((char*)(mac = b), sizeof(b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+	     radius->nas_hwaddr[0], radius->nas_hwaddr[1], radius->nas_hwaddr[2],
+	     radius->nas_hwaddr[3], radius->nas_hwaddr[4], radius->nas_hwaddr[5]);
+  
   radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen((char*)mac)); 
 }
 

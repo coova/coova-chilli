@@ -191,8 +191,6 @@ struct options_t {
   unsigned int challengetimeout;
   unsigned int challengetimeout2;
 
-  char ourmac[32];
-
 #ifdef HAVE_OPENSSL
   char *sslkeyfile;
   char *sslcertfile;

@@ -268,6 +268,18 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
     }
   }
  
+  bcatcstr(str, amp);
+  bcatcstr(str, "called=");
+  if (_options.nasmac)
+    bassigncstr(bt, _options.nasmac);
+  else 
+    bassignformat(bt, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+		  radius->nas_hwaddr[0], radius->nas_hwaddr[1], radius->nas_hwaddr[2],
+		  radius->nas_hwaddr[3], radius->nas_hwaddr[4], radius->nas_hwaddr[5]);
+
+  redir_urlencode(bt, bt2);
+  bconcat(str, bt2);
+
   if (uid) {
     bcatcstr(str, amp);
     bcatcstr(str, "uid=");
@@ -314,14 +326,6 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   }
-
-  if (redir->nasmac) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "called=");
-    bassigncstr(bt, redir->nasmac);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
-  } 
 
   if (redir->radiusnasid) {
     bcatcstr(str, amp);
