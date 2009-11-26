@@ -428,6 +428,12 @@ struct gengetopt_args_info
   const char *unixipc_help; /**< @brief The UNIX IPC Filename to use when compiled with --with-unixipc help description.  */
   int uamallowpost_flag;	/**< @brief Enable to allow a HTTP POST to the standard uamport interface (default=off).  */
   const char *uamallowpost_help; /**< @brief Enable to allow a HTTP POST to the standard uamport interface help description.  */
+  char * natip_arg;	/**< @brief IP to use when doing nat on WAN (routeidx).  */
+  char * natip_orig;	/**< @brief IP to use when doing nat on WAN (routeidx) original value given at command line.  */
+  const char *natip_help; /**< @brief IP to use when doing nat on WAN (routeidx) help description.  */
+  int natport_arg;	/**< @brief Port to use when oding nat on the WAN (routeidx) (default='0').  */
+  char * natport_orig;	/**< @brief Port to use when oding nat on the WAN (routeidx) original value given at command line.  */
+  const char *natport_help; /**< @brief Port to use when oding nat on the WAN (routeidx) help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -568,6 +574,8 @@ struct gengetopt_args_info
   unsigned int sslcertfile_given ;	/**< @brief Whether sslcertfile was given.  */
   unsigned int unixipc_given ;	/**< @brief Whether unixipc was given.  */
   unsigned int uamallowpost_given ;	/**< @brief Whether uamallowpost was given.  */
+  unsigned int natip_given ;	/**< @brief Whether natip was given.  */
+  unsigned int natport_given ;	/**< @brief Whether natport was given.  */
 
 } ;
 

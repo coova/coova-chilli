@@ -1,4 +1,4 @@
-# -*- /bin/sh -*-
+# -*- mode: shell-script; -*-
 #
 #   Coova-Chilli Default Configurations. 
 #   To customize, copy this file to @ETCCHILLI@/config
@@ -37,6 +37,20 @@ HS_RADIUS2=localhost
 HS_UAMALLOW=www.coova.org
 HS_RADSECRET=testing123    # Set to be your RADIUS shared secret
 HS_UAMSECRET=change-me     # Set to be your UAM secret
+
+
+#  Configure RADIUS proxy support (for 802.1x + captive portal support)
+# HS_RADPROXY=on
+# HS_RADPROXY_LISTEN=127.0.0.1
+# HS_RADPROXY_CLIENT=127.0.0.1
+# HS_RADPROXY_PORT=1645
+# HS_RADPROXY_SECRET=$HS_RADSECRET
+#  Example OpenWrt /etc/config/wireless entry for hostapd
+#    option encryption wpa2
+#    option server $HS_RADPROXY_LISTEN
+#    option port $HS_RADPROXY_PORT
+#    option key $HS_RADPROXY_SECRET
+
 
 #   To alternatively use a HTTP URL for AAA instead of RADIUS:
 # HS_UAMAAAURL=http://my-site/script.php

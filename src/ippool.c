@@ -238,7 +238,7 @@ int ippool_new(struct ippool_t **this,
   (*this)->hashmask = (*this)->hashsize -1;
   
   /* Allocate hash table */
-  if (!((*this)->hash = calloc(sizeof(struct ippoolm_t), (*this)->hashsize))){
+  if (!((*this)->hash = calloc(sizeof(struct ippoolm_t *), (*this)->hashsize))){
     log_err(0, "Failed to allocate memory for hash members in ippool");
     return -1;
   }

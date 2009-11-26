@@ -101,6 +101,9 @@ struct options_t {
 
   /* XXX */
   uint8_t nexthop[PKT_ETH_ALEN];
+#ifdef ENABLE_NETNAT
+  struct in_addr natip;
+#endif
 
   uint16_t mtu;                  /* Max MTU */
 

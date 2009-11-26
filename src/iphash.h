@@ -21,18 +21,34 @@
 #ifndef _IPHASH_H
 #define _IPHASH_H
 
-#include "ippool.h"
+struct iphash_t;
+struct iphashm_t;
 
-/* IP hash functions are used to generate a hash table of IP addresses.
-   The functions build on ippool.c.
-   ippool_getip() is used to check if an address is in the hash table. */
+typedef int (*iphash_callback)(int, struct iphash_t *, struct iphashm_t *);
 
-/* Create new address pool */
-extern 
-int iphash_new(struct ippool_t **this, struct ippoolm_t *list, int listsize);
+struct iphash_t {
+  int listsize;                  /* Total number of addresses */
+  int hashsize;                  /* Size of hash table */
+  int hashlog;                   /* Log2 size of hash table */
+  int hashmask;                  /* Bitmask for calculating hash */
+  struct iphashm_t ** member;    /* Listsize array of members */
+  struct iphashm_t ** hash;      /* Hashsize array of pointer to member */
+  struct iphashm_t  * first;     /* Pointer to first free member */
+  struct iphashm_t  * last;      /* Pointer to last free member */
+  iphash_callback callback;
+};
 
-/* Delete existing address pool */
-extern int iphash_free(struct ippool_t *this);
+#define IPHASH_INUSE (1<<0)
 
+struct iphashm_t {
+  struct in_addr addr;           /* IP address of this member */
+  uint16_t port;                 /* port */
+  uint8_t flags;                 /* flags */
+  struct iphashm_t *nexthash;    /* Linked list part of hash table */
+  struct iphashm_t *prev, *next; /* Linked list of free dynamic or static */
+  time_t last_used;              /* Last used timestamp */
+};
+
+int iphash_new(struct iphash_t **this, struct iphashm_t **member, int listsize, iphash_callback callback);
 
 #endif	/* !_IPHASH_H */

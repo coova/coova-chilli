@@ -682,16 +682,29 @@ struct tundecap {
   int idx;
 };
 
+
+
 static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
   struct tundecap *c = (struct tundecap *)ctx;
+
   if (_options.debug && c->idx == 0)
     log_dbg("tun_decaps(idx=%d, len=%d)", tun(c->this,c->idx).ifindex, length);
+
   if (c->idx > 0) {
     struct pkt_iphdr_t *iph = iphdr(packet);
+#ifdef ENABLE_NETNAT
+    struct pkt_udphdr_t *udph = udphdr(packet);
+    if (iph->daddr == tun(c->this, c->idx).address.s_addr &&
+	ntohs(udph->dst) > 10000 && ntohs(udph->dst) < 30000) {
+      if (nat_undo(c->this, c->idx, packet, length))
+	return -1;
+    } else 
+#endif
     if ((iph->daddr & _options.mask.s_addr) != _options.net.s_addr) {
       return -1;
     }
   }
+
   return c->this->cb_ind(c->this, packet, length, c->idx);
 }
 
@@ -793,11 +806,20 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
   if (idx > 0) {
     struct pkt_iphdr_t *iph = iphdr(pack);
-    if (iph->daddr == dhcp->uamlisten.s_addr) {
+    if ((iph->daddr & _options.mask.s_addr) == _options.net.s_addr ||
+	iph->daddr == dhcp->uamlisten.s_addr) {
       log_dbg("Using route idx == 0 (tun/tap)");
       idx = 0;
     }
   }
+
+#ifdef ENABLE_NETNAT
+  if (idx > 0) {
+    if (nat_do(tun, idx, pack, len)) {
+      log_err(0, "unable to nat packet!");
+    }
+  }
+#endif
 
   if (tun(tun, idx).flags & NET_ETHHDR) {
     uint8_t *gwaddr = _options.nexthop; /*tun(tun, idx).gwaddr;*/

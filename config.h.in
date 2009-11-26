@@ -30,6 +30,9 @@
 /* Define to enable Coova miniportal */
 #undef ENABLE_MINIPORTAL
 
+/* Define to enable network interface nat */
+#undef ENABLE_NETNAT
+
 /* Define to enable route monitoring deamon */
 #undef ENABLE_RTMON
 

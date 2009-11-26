@@ -213,6 +213,17 @@ if test x"$enable_ewtapi" = xyes; then
    AC_DEFINE(ENABLE_EWTAPI,1,[Define to enable CoovaEWT API])
 fi
 
+
+AC_ARG_ENABLE(netnat, [AC_HELP_STRING([--enable-netnat],[Enable net interface nat (experimental)])], 
+  enable_netnat=$enableval, enable_netnat=no)
+
+if test x"$enable_netnat" = xyes ; then
+   AC_DEFINE(ENABLE_NETNAT,1,[Define to enable network interface nat])
+fi
+
+AM_CONDITIONAL(WITH_NETNAT, [test x"$enable_netnat" = xyes])
+
+
 AC_CHECK_LIB(rt, clock_gettime)
 
 AC_SUBST(sysconfdir)
@@ -223,10 +234,7 @@ AC_CONFIG_FILES([Makefile
 		 doc/Makefile
 		 conf/Makefile 
 		 debian/Makefile
+		 miniportal/Makefile
 		 coova-chilli.spec])
-
-if test x"$enable_miniportal" = xyes ; then
-AC_CONFIG_FILES([miniportal/Makefile])
-fi
 
 AC_OUTPUT

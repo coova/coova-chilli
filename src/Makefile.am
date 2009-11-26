@@ -3,6 +3,16 @@ AUTOMAKE_OPTIONS=foreign
 lib_LTLIBRARIES = libchilli.la
 sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt
 
+libchilli_la_SOURCES = \
+chilli.c tun.c tun.h ippool.c ippool.h radius.h radius.c \
+md5.c md5.h redir.h redir.c dhcp.c dhcp.h syserr.c syserr.h \
+iphash.c iphash.h lookup3.c sfhash.c lookup.c lookup.h \
+system.h cmdsock.c cmdsock.h radius_wispr.h radius_chillispot.h \
+chilli.h options.h util.c garden.c garden.h ssl.h ssl.c \
+dns.c dns.h session.c session.h limits.h pkt.h pkt.c \
+chksum.c net.h net.c ms_chap.c options.c statusfile.c \
+conn.h conn.c 
+
 if WITH_CHILLIPROXY
 sbin_PROGRAMS += chilli_proxy
 chilli_proxy_SOURCES = main-proxy.c 
@@ -22,8 +32,9 @@ endif
 endif
 
 if WITH_RTMON
-sbin_PROGRAMS += chilli_rtmon
-chilli_rtmon_SOURCES = main-rtmon.c 
+#sbin_PROGRAMS += chilli_rtmon
+#chilli_rtmon_SOURCES = main-rtmon.c 
+libchilli_la_SOURCES += rtmon.c rtmon.h
 endif
 
 # add -pg to enable gprof
@@ -37,15 +48,9 @@ AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fno-strict-aliasing \
 
 cmdline_sources=cmdline.c cmdline.h 
 
-libchilli_la_SOURCES = \
-chilli.c tun.c tun.h ippool.c ippool.h radius.h radius.c \
-md5.c md5.h redir.h redir.c dhcp.c dhcp.h syserr.c syserr.h \
-iphash.c iphash.h lookup3.c sfhash.c lookup.c lookup.h \
-system.h cmdsock.c cmdsock.h radius_wispr.h radius_chillispot.h \
-chilli.h options.h util.c garden.c garden.h ssl.h ssl.c \
-dns.c dns.h session.c session.h limits.h pkt.h pkt.c \
-chksum.c net.h net.c ms_chap.c options.c statusfile.c \
-conn.h conn.c
+if WITH_NETNAT
+libchilli_la_SOURCES += nat.c nat.h
+endif
 
 # AM_LDFLAGS = -lchilli
 

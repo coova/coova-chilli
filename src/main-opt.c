@@ -518,6 +518,18 @@ int main(int argc, char **argv) {
     _options.radiuslisten.s_addr = htonl(INADDR_ANY);
   }
 
+#ifdef ENABLE_NETNAT
+  if (args_info.natip_arg) {
+    if (!(host = gethostbyname(args_info.natip_arg))) {
+      log_warn(0, "Invalid natip address: %s! [%s]", 
+	       args_info.natip_arg, strerror(errno));
+    }
+    else {
+      memcpy(&_options.natip.s_addr, host->h_addr, host->h_length);
+    }
+  }
+#endif
+
   if (args_info.uamlogoutip_arg) {
     if (!(host = gethostbyname(args_info.uamlogoutip_arg))) {
       log_warn(0, "Invalid uamlogoutup address: %s! [%s]", 

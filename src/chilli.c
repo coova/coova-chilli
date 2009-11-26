@@ -39,6 +39,10 @@ struct radius_t *radius;          /* Radius client instance */
 struct dhcp_t *dhcp = NULL;       /* DHCP instance */
 struct redir_t *redir = NULL;     /* Redir instance */
 
+#ifdef ENABLE_RTMON
+#include "rtmon.h"
+#endif
+
 static int connections=0;
 struct app_conn_t *firstfreeconn=0; /* First free in linked list */
 struct app_conn_t *lastfreeconn=0;  /* Last free in linked list */
@@ -64,7 +68,7 @@ struct in_addr ipv4ll_mask;
 /* Forward declarations */
 static int acct_req(struct app_conn_t *conn, uint8_t status_type);
 
-#ifdef ENABLE_RTMON
+#ifdef ENABLE_RTMON_
 static pid_t rtmon_pid = 0;
 #endif
 
@@ -1435,7 +1439,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
   struct ippoolm_t *ipm;
   struct app_conn_t *appconn;
   struct pkt_ipphdr_t *ipph;
-
+  
   int ethhdr = (tun(tun, idx).flags & NET_ETHHDR) != 0;
 
   if (ethhdr) {
@@ -1978,8 +1982,8 @@ int access_request(struct radius_packet_t *pack,
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     appconn = (struct app_conn_t *)dhcpconn->peer;
-    /*if (appconn->dnprot == DNPROT_DHCP_NONE)
-    appconn->dnprot = DNPROT_WPA;*/
+    /*if (appconn->dnprot == DNPROT_DHCP_NONE)*/
+    appconn->dnprot = DNPROT_WPA;
   }
   else {
     log_err(0, "Framed IP address or Calling Station ID is missing from radius request");
@@ -1997,7 +2001,9 @@ int access_request(struct radius_packet_t *pack,
       return 0;
     }
   }
-  
+
+  dhcpconn->lasttime = mainclock_now();
+
   /* Password */
   if (!radius_getattr(pack, &pwdattr, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0)) {
     if (radius_pwdecode(radius, (uint8_t*) pwd, RADIUS_ATTR_VLEN, &pwdlen, 
@@ -3838,14 +3844,20 @@ static int cmdsock_accept(void *nullData, int sock) {
       int err = 0;
       if (write(csock, b->data, b->slen) == b->slen) {
 	for (i=0; !err && i<tun->_interface_count; i++) {
-	  bassignformat(b, "idx: %d dev: %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %.2X-%.2X-%.2X-%.2X-%.2X-%.2X%s\n", 
+	  char gw[56];
+
+	  strncpy(gw, inet_ntoa(tun->_interfaces[i].gateway), sizeof(gw)-1);
+
+	  bassignformat(b, "idx: %d dev: %s %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X%s\n", 
 			i, tun->_interfaces[i].devname,
+			inet_ntoa(tun->_interfaces[i].address),
 			tun->_interfaces[i].hwaddr[0],
 			tun->_interfaces[i].hwaddr[1],
 			tun->_interfaces[i].hwaddr[2],
 			tun->_interfaces[i].hwaddr[3],
 			tun->_interfaces[i].hwaddr[4],
 			tun->_interfaces[i].hwaddr[5],
+			gw,
 			tun->_interfaces[i].gwaddr[0],
 			tun->_interfaces[i].gwaddr[1],
 			tun->_interfaces[i].gwaddr[2],
@@ -3853,6 +3865,7 @@ static int cmdsock_accept(void *nullData, int sock) {
 			tun->_interfaces[i].gwaddr[4],
 			tun->_interfaces[i].gwaddr[5],
 			i == 0 ? " (tun/tap)":"");
+
 	  if (write(csock, b->data, b->slen) < 0)
 	    err = 1;
 	}
@@ -4003,6 +4016,45 @@ int static redir_msg(struct redir_t *this) {
 }
 #endif
 
+#ifdef ENABLE_RTMON
+static int rtmon_proc_route(struct rtmon_t *rtmon, 
+			    struct rtmon_iface *iface,
+			    struct rtmon_route *route) {
+  int i;
+  for (i=0; i < tun->_interface_count; i++) {
+    if (tun->_interfaces[i].ifindex == route->if_index) {
+      memcpy(tun->_interfaces[i].gwaddr, route->gwaddr, sizeof(tun->_interfaces[i].gwaddr));
+      tun->_interfaces[i].gateway.s_addr = route->gateway.s_addr;
+    }
+  }
+
+  return 0;
+}
+
+static int rtmon_init(struct rtmon_t *rtmon) {
+  rtmon->fd = rtmon_open_netlink();
+  if (rtmon->fd > 0) {
+    discover_ifaces(rtmon);
+    discover_routes(rtmon);
+    
+    if (_options.debug) {
+      print_ifaces(rtmon);
+      print_routes(rtmon);
+    }
+    
+    check_updates(rtmon, rtmon_proc_route);
+    return 0;
+  }
+  return -1;
+}
+
+static int rtmon_accept(struct rtmon_t *rtmon, int idx) {
+  if (rtmon_read_event(rtmon, rtmon_proc_route))
+    log_err(errno, "error reading netlink message");
+  return 0;
+}
+#endif
+
 #ifdef HAVE_LIBRT
 struct timespec startup_real;
 struct timespec startup_mono;
@@ -4032,6 +4084,10 @@ int chilli_main(int argc, char **argv) {
   int ctrl_io_to_main[2];  /* 0/1 read/write - control messages from io -> main */
   int pkt_main_to_io[2];
   int pkt_io_to_main[2];
+#endif
+
+#ifdef ENABLE_RTMON
+  struct rtmon_t _rtmon;
 #endif
 
   int i;
@@ -4254,7 +4310,7 @@ int chilli_main(int argc, char **argv) {
   }
   
   if (_options.usetap && _options.rtmonfile) {
-#ifdef ENABLE_RTMON
+#ifdef ENABLE_RTMON_
     pid_t p = fork();
     if (p < 0) {
       perror("fork");
@@ -4390,6 +4446,12 @@ int chilli_main(int argc, char **argv) {
   net_select_reg(&sctx, redir->fd[1], SELECT_READ, (select_callback)redir_accept, redir, 1);
 #endif
 
+#ifdef ENABLE_RTMON
+  if (!rtmon_init(&_rtmon)) {
+    net_select_reg(&sctx, _rtmon.fd, SELECT_READ, (select_callback)rtmon_accept, &_rtmon, 0);
+  }
+#endif
+
   net_select_reg(&sctx, cmdsock, SELECT_READ, (select_callback)cmdsock_accept, 0, cmdsock);
 
   mainclock_tick();
@@ -4513,7 +4575,7 @@ int chilli_main(int argc, char **argv) {
     if (rmdir(file)) log_err(errno, file);
   }
 
-#ifdef ENABLE_RTMON
+#ifdef ENABLE_RTMON_
   if (rtmon_pid > 0)
     kill(rtmon_pid, SIGTERM);
 #endif

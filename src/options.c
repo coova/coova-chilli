@@ -30,9 +30,17 @@
 #include "cmdline.h"
 #include "chilli.h"
 #include "options.h"
+#include "md5.h"
 
 void options_init() {
   memset(&_options, 0, sizeof(_options));
+}
+
+static inline void options_md5(struct options_t *o, uint8_t *cksum) {
+  MD5_CTX context;
+  MD5Init(&context);
+  MD5Update(&context, (uint8_t *)o, sizeof(struct options_t));
+  MD5Final(cksum, &context);
 }
 
 /* Get IP address and mask */
@@ -168,7 +176,7 @@ int options_load(int argc, char **argv, bstring bt) {
 }
 
 int options_fromfd(int fd, bstring bt) {
-
+  uint8_t cksum[16], cksum_check[16];
   struct options_t o;
   char has_error = 1;
   size_t len;
@@ -183,6 +191,15 @@ int options_fromfd(int fd, bstring bt) {
       rd = safe_read(fd, bt->data, len);
       if (rd == len) {
 	has_error = 0;
+      }
+      rd = safe_read(fd, cksum_check, sizeof(cksum_check));
+      if (rd != sizeof(cksum_check)) {
+	has_error = 1;
+      } else {
+	options_md5(&o, cksum);
+	if (memcmp(cksum, cksum_check, sizeof(cksum))) {
+	  has_error = 1;
+	}
       }
     }
   }
@@ -283,6 +300,7 @@ int options_fromfd(int fd, bstring bt) {
 }
 
 int options_save(char *file, bstring bt) {
+  uint8_t cksum[16];
   struct options_t o;
   mode_t oldmask;
   int fd, i;
@@ -374,10 +392,18 @@ int options_save(char *file, bstring bt) {
   } else {
     if (safe_write(fd, &o, sizeof(o)) < 0)
       log_err(errno, "write()");
+
     size_t len = bt->slen;
+
     if (safe_write(fd, &len, sizeof(len)) < 0)
       log_err(errno, "write()");
+
     if (safe_write(fd, bt->data, len) < 0)
+      log_err(errno, "write()");
+
+    options_md5(&o, cksum);
+
+    if (safe_write(fd, cksum, sizeof(cksum)) < 0)
       log_err(errno, "write()");
     close(fd);
   }

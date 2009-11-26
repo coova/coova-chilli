@@ -54,10 +54,7 @@ case $1 in
         ) | crontab - 2>&-
 	
 	ifconfig $HS_LANIF 0.0.0.0
-        $daemon @SBINDIR@/chilli
-        RETVAL=$?
-
-        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/chilli 2>/dev/null
+        $daemon @SBINDIR@/chilli &
         echo
 	;;
     
@@ -89,27 +86,15 @@ case $1 in
 	    kill $(cat @VARRUN@/chilli.pid)
 	    RETVAL=$
 	    [ $RETVAL = 0 ] && {
-		rm -f /var/lock/subsys/chilli @VARRUN@/chilli.pid 2>/dev/null
+		rm -f @VARRUN@/chilli.pid 2>/dev/null
 	    }
 	}
 	$killproc chilli
         echo
 	;;
     
-    condrestart)
-        if [ -f /var/lock/subsys/chilli ] ; then
-	    $0 restart
-            RETVAL=$?
-        fi
-        ;;
-    
-    status)
-        status chilli
-        RETVAL=$?
-        ;;
-
     *)
-        echo "Usage: $0 {start|stop|restart|condrestart|status|reload|radconfig}"
+        echo "Usage: $0 {start|stop|restart|reload|radconfig}"
         exit 1
 esac
 

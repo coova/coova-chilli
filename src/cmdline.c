@@ -171,6 +171,8 @@ const char *gengetopt_args_info_help[] = {
   "      --sslcertfile=STRING      SSL certificate file in PEM format",
   "      --unixipc=STRING          The UNIX IPC Filename to use when compiled with \n                                  --with-unixipc",
   "      --uamallowpost            Enable to allow a HTTP POST to the standard \n                                  uamport interface  (default=off)",
+  "      --natip=STRING            IP to use when doing nat on WAN (routeidx)",
+  "      --natport=INT             Port to use when oding nat on the WAN \n                                  (routeidx)  (default=`0')",
     0
 };
 
@@ -362,6 +364,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->sslcertfile_given = 0 ;
   args_info->unixipc_given = 0 ;
   args_info->uamallowpost_given = 0 ;
+  args_info->natip_given = 0 ;
+  args_info->natport_given = 0 ;
 }
 
 static
@@ -608,6 +612,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->unixipc_arg = NULL;
   args_info->unixipc_orig = NULL;
   args_info->uamallowpost_flag = 0;
+  args_info->natip_arg = NULL;
+  args_info->natip_orig = NULL;
+  args_info->natport_arg = 0;
+  args_info->natport_orig = NULL;
   
 }
 
@@ -763,6 +771,8 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->sslcertfile_help = gengetopt_args_info_help[136] ;
   args_info->unixipc_help = gengetopt_args_info_help[137] ;
   args_info->uamallowpost_help = gengetopt_args_info_help[138] ;
+  args_info->natip_help = gengetopt_args_info_help[139] ;
+  args_info->natport_help = gengetopt_args_info_help[140] ;
   
 }
 
@@ -1055,6 +1065,9 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->sslcertfile_orig));
   free_string_field (&(args_info->unixipc_arg));
   free_string_field (&(args_info->unixipc_orig));
+  free_string_field (&(args_info->natip_arg));
+  free_string_field (&(args_info->natip_orig));
+  free_string_field (&(args_info->natport_orig));
   
   
 
@@ -1367,6 +1380,10 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "unixipc", args_info->unixipc_orig, 0);
   if (args_info->uamallowpost_given)
     write_into_file(outfile, "uamallowpost", 0, 0 );
+  if (args_info->natip_given)
+    write_into_file(outfile, "natip", args_info->natip_orig, 0);
+  if (args_info->natport_given)
+    write_into_file(outfile, "natport", args_info->natport_orig, 0);
   
 
   i = EXIT_SUCCESS;
@@ -2075,6 +2092,8 @@ cmdline_parser_internal (
         { "sslcertfile",	1, NULL, 0 },
         { "unixipc",	1, NULL, 0 },
         { "uamallowpost",	0, NULL, 0 },
+        { "natip",	1, NULL, 0 },
+        { "natport",	1, NULL, 0 },
         { 0,  0, 0, 0 }
       };
 
@@ -3936,6 +3955,34 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->uamallowpost_flag), 0, &(args_info->uamallowpost_given),
                 &(local_args_info.uamallowpost_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "uamallowpost", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* IP to use when doing nat on WAN (routeidx).  */
+          else if (strcmp (long_options[option_index].name, "natip") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->natip_arg), 
+                 &(args_info->natip_orig), &(args_info->natip_given),
+                &(local_args_info.natip_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "natip", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Port to use when oding nat on the WAN (routeidx).  */
+          else if (strcmp (long_options[option_index].name, "natport") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->natport_arg), 
+                 &(args_info->natport_orig), &(args_info->natport_given),
+                &(local_args_info.natport_given), optarg, 0, "0", ARG_INT,
+                check_ambiguity, override, 0, 0,
+                "natport", '-',
                 additional_error))
               goto failure;
           

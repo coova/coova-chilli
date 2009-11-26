@@ -801,7 +801,7 @@ int net_open_eth(net_interface *netif) {
 #endif
 
 #ifdef USING_MMAP
-  setup_rings(netif, _options.ringsize?_options.ringsize:DEF_RING_SIZE, netif->mtu);
+  setup_rings(netif, _options.ringsize?_options.ringsize:DEF_RING_SIZE, netif->mtu + 20);
 #endif
 
   /* Bind to particular interface */
@@ -1038,7 +1038,8 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
     /* The AoE header also contains the ethernet header, so we have
      * start from h->tp_mac instead of h->tp_net */
 
-    log_dbg("RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
+    if (_options.logfacility > 100)
+      log_dbg("RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
 
     func(ctx, data + h->tp_mac, h->tp_snaplen);
 
@@ -1061,7 +1062,8 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
     if (!getsockopt(iface->fd, SOL_PACKET, PACKET_STATISTICS, &stats, &len))
       iface->stats.dropped += stats.tp_drops;
 
-    log_dbg("RX drops %d", iface->stats.dropped);
+    if (_options.logfacility > 100)
+      log_dbg("RX drops %d", iface->stats.dropped);
   }
   
   ++iface->stats.rx_runs;
@@ -1103,7 +1105,7 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
       iface->congested = TRUE;
       }
     */
-    log_dbg("dropped packet, buffer full");
+    log_warn(0, "dropped packet, buffer full");
     return -1;
   }
   
@@ -1128,7 +1130,8 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
   /*AO_nop_full();*/
 
 
-  log_dbg("TX sent=%d (idx %d)", length, iface->ifindex);
+  if (_options.logfacility > 100)
+    log_dbg("TX sent=%d (idx %d)", length, iface->ifindex);
   
   if (!iface->is_active) {
     iface->is_active = 1;
@@ -1222,8 +1225,8 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   ring->cnt = req.tp_frame_nr;
   ring->frames = calloc(sizeof(void *), req.tp_frame_nr);
 
-  log_dbg("Created %s ring: len=%d; block size=%d; frame size=%d, cnt=%d", 
-	  name, ring->len, req.tp_block_size, req.tp_frame_size, ring->cnt);
+  log_info("Created %s ring: len=%d; block size=%d; frame size=%d, cnt=%d", 
+	   name, ring->len, req.tp_block_size, req.tp_frame_size, ring->cnt);
 }
 
 static void destroy_one_ring(net_interface *iface, int what) {

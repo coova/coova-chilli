@@ -435,11 +435,9 @@ int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause)
   if (this->cb_disconnect)
     this->cb_disconnect(conn, term_cause);
 
-  if (this->debug)
-    log_dbg("DHCP freeconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
-	    conn->hismac[0], conn->hismac[1], conn->hismac[2],
-	    conn->hismac[3], conn->hismac[4], conn->hismac[5]);
-
+  log_dbg("DHCP freeconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
+	  conn->hismac[0], conn->hismac[1], conn->hismac[2],
+	  conn->hismac[3], conn->hismac[4], conn->hismac[5]);
 
   /* Application specific code */
   /* First remove from hash table */
@@ -491,7 +489,7 @@ int dhcp_checkconn(struct dhcp_t *this)
 
   while (conn) {
     if (mainclock_diff(conn->lasttime) > (int) this->lease) {
-      if (this->debug) log_dbg("DHCP timeout: Removing connection");
+      log_dbg("DHCP timeout: Removing connection");
       dhcp_freeconn(conn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
       return 0; /* Returning after first deletion */
     }
@@ -946,14 +944,14 @@ dhcp_uam_unnat(struct dhcp_conn_t *conn,
 	       struct pkt_tcphdr_t *tcph) {
   int n;
   for (n=0; n < DHCP_DNAT_MAX; n++) {
-
+    
     if (iph->daddr == conn->dnat[n].src_ip && 
 	tcph->dst == conn->dnat[n].src_port) {
-
+      
       if (_options.usetap) {
 	memcpy(ethh->src, conn->dnat[n].mac, PKT_ETH_ALEN);
       }
-
+      
       iph->saddr = conn->dnat[n].dst_ip;
       tcph->src = conn->dnat[n].dst_port;
       
@@ -964,7 +962,6 @@ dhcp_uam_unnat(struct dhcp_conn_t *conn,
   }
   return 0; 
 }
-
 
 
 /**
@@ -1226,14 +1223,34 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t 
 }
 
 static int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
-  blen = snprintf((char *)b, blen,
-		  "%c%s%c%s", strlen(name), name, 
-		  strlen(_options.domain), _options.domain);
-  
+  int name_len = strlen(name);
+  int domain_len = strlen(_options.domain);
+
+  blen = snprintf((char *)b, blen, "%c%s%c%s", 
+		  (char)name_len, name, 
+		  (char)domain_len, _options.domain);
+
+  if (_options.debug) {
+    char bb[blen+56];
+    int c = 0;
+    int i;
+    for (i=0; i < blen; i++) {
+      if (c == 0) {
+	c = (int)b[i];
+	bb[i] = '0' + c;
+      } else {
+	bb[i] = b[i];
+	c--;
+      }
+    }
+    bb[i]=b[i];
+    log_dbg("Checking (%d) %s", blen, bb);
+  }
+
   if (!memcmp(r, b, blen + 1))
     return 1;
   
-  blen -= strlen(_options.domain) + 1;
+  blen -= domain_len + 1;
   b[blen]=0;
 
   if (!memcmp(r, b, blen + 1))

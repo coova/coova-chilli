@@ -30,17 +30,12 @@ HS_RADIUS=${HS_RADIUS:-$HS_UAMSERVER}
 HS_RADSECRET=${HS_RADSECRET:-$HS_UAMSECRET}
 HS_RADAUTH=${HS_RADAUTH:-1812}
 HS_RADACCT=${HS_RADACCT=1813}
-#HS_ADMUSR=${HS_ADMUSR:-chillispot}
-#HS_ADMPWD=${HS_ADMPWD:-chillispot}
 HS_ADMINUPDATEFILE=${HS_ADMINUPDATEFILE:-$LOCAL_CONF}
 HS_ADMINTERVAL=${HS_ADMINTERVAL:-60}
 HS_RADCONF=${HS_RADCONF:-off}
 HS_RADCONF_SERVERS=${HS_RADCONF_SERVERS:+$(echo "$HS_RADCONF_SERVERS"|sed 's/[;, ]/ /g')}
-#HS_RADCONF_SECRET=${HS_RADCONF_SECRET:-coova-anonymous}
 HS_RADCONF_AUTHPORT=${HS_RADCONF_AUTHPORT:-1812}
 HS_RADCONF_ACCTPORT=${HS_RADCONF_ACCTPORT:-1813}
-#HS_RADCONF_USER=${HS_RADCONF_USER:-coovachilli}
-#HS_RADCONF_PWD=${HS_RADCONF_PWD:-coovachilli}
 HS_DNS_DOMAIN=${HS_DNS_DOMAIN:-lan}
 HS_MACAUTHMODE=${HS_MACAUTHMODE:-off}
 HS_USELOCALUSERS=${HS_USELOCALUSERS:-off}
@@ -133,6 +128,7 @@ writeconfig() {
     [ "$HS_WEB_ADMIN" = "https" ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:443"
     [ "$HS_LOCAL" = "on" ] && webadmin="$webadmin,$HS_UAMLISTEN:$HS_LOCAL_PORT"
     [ "$HS_MACAUTHMODE" = "local" ] && addconfig1 "macallowlocal"
+
     [ "$HS_USELOCALUSERS" = "on" ] && {
 	touch $CHILLI/localusers
 	addconfig1 "localusers $CHILLI/localusers"
@@ -175,15 +171,24 @@ writeconfig() {
 	[ -n "$HS_UAMAAAURL" ] && addconfig2 "uamaaaurl \"$HS_UAMAAAURL\""
 	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile \"$HS_ADMINUPDATEFILE\""
 	[ -n "$HS_UAMSECRET" ] && addconfig2 "uamsecret \"$HS_UAMSECRET\""
+
 	test ${HS_DEFSESSIONTIMEOUT:-0} -gt 0 && addconfig2 "defsessiontimeout $HS_DEFSESSIONTIMEOUT"
 	test ${HS_DEFIDLETIMEOUT:-0} -gt 0 && addconfig2 "defidletimeout $HS_DEFIDLETIMEOUT"
 	test ${HS_DEFBANDWIDTHMAXDOWN:-0} -gt 0 && addconfig2 "defbandwidthmaxdown $HS_DEFBANDWIDTHMAXDOWN"
 	test ${HS_DEFBANDWIDTHMAXUP:-0} -gt 0 && addconfig2 "defbandwidthmaxup $HS_DEFBANDWIDTHMAXUP"
 	test ${HS_DEFINTERIMINTERVAL:-0} -gt 0 && addconfig2 "definteriminterval $HS_DEFINTERIMINTERVAL"
 	test ${HS_COAPORT:-0} -gt 0 && addconfig2 "coaport $HS_COAPORT"
+
 	[ -n "$HS_POSTAUTH_PROXY" -a -n "$HS_POSTAUTH_PROXYPORT" ] && {
 	    addconfig2 "postauthproxy $HS_POSTAUTH_PROXY"
 	    addconfig2 "postauthproxyport $HS_POSTAUTH_PROXYPORT"
+	}
+
+	[ "$HS_RADPROXY" = "on" ] && {
+	    addconfig2 "proxylisten ${HS_RADPROXY_LISTEN:-127.0.0.1}"
+	    addconfig2 "proxyclient ${HS_RADPROXY_CLIENT:-127.0.0.1}"
+	    addconfig2 "proxyport ${HS_RADPROXY_PORT:-1645}"
+	    addconfig2 "proxysecret ${HS_RADPROXY_SECRET:-$HS_RADSECRET}"
 	}
 
 	# these are settings you would typically get from a centralized source
