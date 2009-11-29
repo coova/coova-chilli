@@ -844,9 +844,9 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     copy_mac6(ethh->dst, gwaddr);
 
     if (_options.debug)
-      log_dbg("writing to tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
+      log_dbg("writing to tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x len=%d",
 	      ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
-	      ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5]);
+	      ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5], len);
     
   } else {
     size_t ethlen = sizeofeth(pack);
@@ -854,7 +854,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     len  -= ethlen;
   }
 
-  /* log_dbg("tun_encaps(%d) %s",len,tun(tun,idx).devname);*/
+  /*log_dbg("tun_encaps(%s) len=%d", tun(tun,idx).devname, len);*/
 
   return tun_write(tun, pack, len, idx);
 }

@@ -1679,10 +1679,11 @@ int cb_redir_getstate(struct redir_t *redir,
   {
     int n;
     for (n=0; n < DHCP_DNAT_MAX; n++) {
-      if (dhcpconn->dnatport[n] == address->sin_port) {
-	if (dhcpconn->dnatstate[n])
+      if (dhcpconn->dnat[n].src_port == address->sin_port) {
+	if (dhcpconn->dnat[n].dst_port == htons(DHCP_HTTPS)) {
 	  flags |= USING_SSL;
-	break;
+	  break;
+	}
       }
     }
   }
@@ -4239,11 +4240,12 @@ int chilli_main(int argc, char **argv) {
 		 &_options.radiuslisten, _options.coaport, _options.coanoipcheck,
 		 &_options.proxylisten, _options.proxyport,
 		 &_options.proxyaddr, &_options.proxymask,
-		 _options.proxysecret)) {
+		 _options.proxysecret) ||
+      radius_init_q(radius, 0)) {
     log_err(0, "Failed to create radius");
     return -1;
   }
-  
+
   radius_set(radius, dhcp ? dhcp->rawif.hwaddr : 0, (_options.debug & DEBUG_RADIUS));
   radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
   radius_set_cb_coa_ind(radius, cb_radius_coa_ind);

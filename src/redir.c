@@ -1716,7 +1716,8 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   if (radius_new(&radius,
 		 &redir->radiuslisten, 0, 0,
-		 NULL, 0, NULL, NULL, NULL)) {
+		 NULL, 0, NULL, NULL, NULL) ||
+      radius_init_q(radius, 4)) {
     log_err(0, "Failed to create radius");
     return -1;
   }

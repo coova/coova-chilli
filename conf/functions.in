@@ -101,6 +101,7 @@ writeconfig() {
     addconfig1 ${HS_DNS_DOMAIN:+"domain \"$HS_DNS_DOMAIN\""}
     addconfig1 ${HS_DNS1:+"dns1 \"$HS_DNS1\""}
     addconfig1 ${HS_DNS2:+"dns2 \"$HS_DNS2\""}
+    addconfig1 ${HS_TCPMSS:+"tcpmss \"$HS_TCPMSS\""}
 
     addconfig1 ${HS_UAMHOMEPAGE:+"uamhomepage $(eval echo $HS_UAMHOMEPAGE)"}
     addconfig1 ${HS_WISPRLOGIN:+"wisprlogin $HS_WISPRLOGIN"}
@@ -168,6 +169,9 @@ writeconfig() {
 	[ "$HS_OPENIDAUTH" = "on" ] && addconfig2 "openidauth"
 	[ "$HS_ACCTUPDATE" = "on" ] && addconfig2 "acctupdate"
 	[ "$HS_DNSPARANOIA" = "on" ] && addconfig2 "dnsparanoia"
+	[ "$HS_UAMALLOWPOST" = "on" ] && addconfig2 "uamallowpost"
+	[ "$HS_IEEE8021Q" = "on" ] && addconfig2 "ieee8021q"
+	[ -n "$HS_UAMALIASNAME" ] && addconfig2 "uamaliasname \"$HS_UAMALIASNAME\""
 	[ -n "$HS_UAMAAAURL" ] && addconfig2 "uamaaaurl \"$HS_UAMAAAURL\""
 	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile \"$HS_ADMINUPDATEFILE\""
 	[ -n "$HS_UAMSECRET" ] && addconfig2 "uamsecret \"$HS_UAMSECRET\""

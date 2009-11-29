@@ -187,6 +187,8 @@ static inline int dhcp_send(struct dhcp_t *this, struct _net_interface *netif,
     }
 #endif
 
+    /*log_dbg("dhcp_send() len=%d", length);*/
+
     return net_write2(netif, packet, length, &netif->dest);
   }
 #elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)

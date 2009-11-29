@@ -201,6 +201,7 @@ struct radius_queue_t {      /* Holder for queued packets */
   int this;                  /* Pointer to myself */
 };
 
+typedef struct radius_queue_t * radius_queue;
 
 struct radius_t {
   int fd;                        /* Socket file descriptor */
@@ -226,7 +227,8 @@ struct radius_t {
 
   int debug;                     /* Print debug messages */
 
-  struct radius_queue_t queue[RADIUS_QUEUESIZE]; /* Outstanding replies */
+  radius_queue queue;            /* Outstanding replies */
+  uint8_t qsize;                 /* Queue length */
   uint8_t next;                  /* Next location in queue to use */
   int first;                     /* First packet in queue (oldest timeout) */
   int last;                      /* Last packet in queue (youngest timeout) */
@@ -235,6 +237,7 @@ struct radius_t {
   int hashsize;                  /* Size of hash table */
   int hashlog;                   /* Log2 size of hash table */
   int hashmask;                  /* Bitmask for calculating hash */
+
   int (*cb_ind)  (struct radius_t *radius, struct radius_packet_t *pack,
 		  struct sockaddr_in *peer);
   int (*cb_auth_conf) (struct radius_t *radius, struct radius_packet_t *pack,
@@ -283,6 +286,8 @@ int radius_new(struct radius_t **this,
 	       struct in_addr *proxylisten, uint16_t proxyport,
 	       struct in_addr *proxyaddr, struct in_addr *proxymask,
 	       char* proxysecret);
+
+int radius_init_q(struct radius_t *this, int size);
 
 /* Delete existing radius instance */
 int radius_free(struct radius_t *this);

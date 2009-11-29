@@ -487,14 +487,14 @@ ssize_t net_write2(net_interface *netif, void *d, size_t dlen, struct sockaddr_l
     }
 #endif
 #ifdef EMSGSIZE
-      if (errno == EMSGSIZE && dlen > netif->mtu) {
-	net_set_mtu(netif, dlen);
-      }
+    if (errno == EMSGSIZE && dlen > netif->mtu) {
+      net_set_mtu(netif, dlen);
+    }
 #endif
 #ifdef ENXIO
-      if (errno == ENXIO) {
-	net_reopen(netif);
-      }
+    if (errno == ENXIO) {
+      net_reopen(netif);
+    }
 #endif
     log_err(errno, "net_write(fd=%d, len=%d) failed", netif->fd, dlen);
     return -1;

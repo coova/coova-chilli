@@ -246,6 +246,9 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
 
   this->next++; /* next = next % RADIUS_QUEUESIZE */
 
+  if (this->qsize) 
+    this->next %= this->qsize;
+
   if (this->debug) {
     printf("radius_queue_out end\n");
     radius_printqueue(this);
@@ -1086,13 +1089,13 @@ int radius_new(struct radius_t **this,
   }
 
   /* Initialise queue */
+  new_radius->queue = 0;
   new_radius->next = 0;
   new_radius->first = -1;
   new_radius->last = -1;
   
-  if ((new_radius->urandom_fp = fopen("/dev/urandom", "r")) < 0) {
+  if ((new_radius->urandom_fp = fopen("/dev/urandom", "r")) == 0) {
     log_err(errno, "fopen(/dev/urandom, r) failed");
-    free(new_radius);
     return -1;
   }
   
@@ -1103,7 +1106,7 @@ int radius_new(struct radius_t **this,
     free(new_radius);
     return -1;
   }
-
+  
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_addr = new_radius->ouraddr;
@@ -1149,6 +1152,17 @@ int radius_new(struct radius_t **this,
   return 0;
 }
 
+int radius_init_q(struct radius_t *this, int size) {
+  if (size <= 0 || size > RADIUS_QUEUESIZE)
+    size = RADIUS_QUEUESIZE;
+  else 
+    this->qsize = size;
+
+  if (!(this->queue = calloc(sizeof(struct radius_queue_t), size)))
+    return -1;
+
+  return 0;
+}
 
 /* 
  * radius_free()
@@ -1157,8 +1171,13 @@ int radius_new(struct radius_t **this,
 int 
 radius_free(struct radius_t *this)
 {
-  if (fclose(this->urandom_fp)) {
-    log_err(errno, "fclose() failed!");
+  if (this->queue) {
+    free(this->queue);
+  }
+  if (this->urandom_fp) {
+    if (fclose(this->urandom_fp)) {
+      log_err(errno, "fclose() failed!");
+    }
   }
   if (close(this->fd)) {
     log_err(errno, "close() failed!");
