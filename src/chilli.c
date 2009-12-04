@@ -156,20 +156,21 @@ time_t mainclock_now() {
 }
 
 time_t mainclock_rt() {
+  time_t rt = 0;
 #ifdef HAVE_LIBRT
   struct timespec ts;
   clockid_t cid = CLOCK_REALTIME;
   if (clock_gettime(cid, &ts) < 0) {
     log_err(errno, "time()");
   } else {
-    mainclock = ts.tv_sec;
+    rt = ts.tv_sec;
   }
 #else
-  if (time(&mainclock) == (time_t)-1) {
+  if (time(&rt) == (time_t)-1) {
     log_err(errno, "time()");
   }
 #endif
-  return mainclock;
+  return rt;
 }
 
 int mainclock_diff(time_t past) {
@@ -442,8 +443,7 @@ static int newip(struct ippoolm_t **ipm, struct in_addr *hisip, uint8_t *hismac)
  * A few functions to manage connections 
  */
 
-static int initconn()
-{
+static int initconn() {
   checktime = rereadtime = mainclock;
   return 0;
 }
@@ -638,14 +638,15 @@ void session_interval(struct app_conn_t *conn) {
   }
 }
 
-static int checkconn()
-{
+static int checkconn() {
   struct app_conn_t *conn;
   struct dhcp_conn_t* dhcpconn;
   uint32_t checkdiff;
   uint32_t rereaddiff;
 
   checkdiff = mainclock_diffu(checktime);
+
+  /*log_dbg("checkconn: %d %d %d", checktime, checkdiff, CHECK_INTERVAL);*/
 
   if (checkdiff < CHECK_INTERVAL)
     return 0;
@@ -1675,7 +1676,7 @@ int cb_redir_getstate(struct redir_t *redir,
   conn->ourip = appconn->ourip;
   conn->hisip = appconn->hisip;
 
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
   {
     int n;
     for (n=0; n < DHCP_DNAT_MAX; n++) {
@@ -4066,7 +4067,7 @@ int chilli_main(int argc, char **argv) {
   int status;
 
   /*  struct itimerval itval; */
-  int lastSecond = 0, thisSecond;
+  int lastSecond = 0;
 
   int cmdsock = -1;
 
@@ -4484,14 +4485,17 @@ int chilli_main(int argc, char **argv) {
 	chilliauth_radius(radius);
     }
 
-    if (lastSecond != (thisSecond = mainclock) /*do_timeouts*/) {
+    if (lastSecond != mainclock) {
+      /*
+       *  Every second, more or less
+       */
       radius_timeout(radius);
 
       if (dhcp) 
 	dhcp_timeout(dhcp);
       
       checkconn();
-      lastSecond = thisSecond;
+      lastSecond = mainclock;
       /*do_timeouts = 0;*/
     }
 
