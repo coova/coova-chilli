@@ -434,6 +434,10 @@ struct gengetopt_args_info
   int natport_arg;	/**< @brief Port to use when oding nat on the WAN (routeidx) (default='0').  */
   char * natport_orig;	/**< @brief Port to use when oding nat on the WAN (routeidx) original value given at command line.  */
   const char *natport_help; /**< @brief Port to use when oding nat on the WAN (routeidx) help description.  */
+  int redirssl_flag;	/**< @brief Enable redirection of SSL/HTTP port (requires SSL support) (default=off).  */
+  const char *redirssl_help; /**< @brief Enable redirection of SSL/HTTP port (requires SSL support) help description.  */
+  int uamuissl_flag;	/**< @brief Enable SSL/HTTPS support on the uamuiport (default=off).  */
+  const char *uamuissl_help; /**< @brief Enable SSL/HTTPS support on the uamuiport help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -576,6 +580,8 @@ struct gengetopt_args_info
   unsigned int uamallowpost_given ;	/**< @brief Whether uamallowpost was given.  */
   unsigned int natip_given ;	/**< @brief Whether natip was given.  */
   unsigned int natport_given ;	/**< @brief Whether natport was given.  */
+  unsigned int redirssl_given ;	/**< @brief Whether redirssl was given.  */
+  unsigned int uamuissl_given ;	/**< @brief Whether uamuissl was given.  */
 
 } ;
 

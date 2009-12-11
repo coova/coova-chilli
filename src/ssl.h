@@ -19,6 +19,21 @@
 #ifndef _SSL_H_
 #define _SSL_H_
 #include "system.h"
+
+#ifdef HAVE_SSL
+
+#ifdef HAVE_MATRIXSSL
+#include "matrixssl.h"
+
+typedef struct {
+
+  sslKeys_t* keys;
+  char ready;
+
+} openssl_env;
+
+#endif
+
 #ifdef HAVE_OPENSSL
 #include <openssl/buffer.h>
 #include <openssl/bio.h>
@@ -45,7 +60,10 @@ typedef struct {
   SSL_CTX *ctx;
   ENGINE *engine;
   void *tmpKeys[OPENSSL_TMPKEY_MAX];
+  char ready;
 } openssl_env;
+
+#endif
 
 typedef struct {
   openssl_env *env;
@@ -64,8 +82,8 @@ openssl_con *openssl_connect_fd(openssl_env *env, int fd, int timeout);
 openssl_con *openssl_accept_fd(openssl_env *env, int fd, int timeout);
 int openssl_error(openssl_con *con, int ret, char *func);
 void openssl_shutdown(openssl_con *con, int state);
-int openssl_read(openssl_con *con, char *b, int l);
-int openssl_write(openssl_con *con, char *b, int l);
+int openssl_read(openssl_con *con, char *b, int l, int t);
+int openssl_write(openssl_con *con, char *b, int l, int t);
 void openssl_free(openssl_con *con);
 void openssl_env_free(openssl_env *env);
 int openssl_pending(openssl_con *con);

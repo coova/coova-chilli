@@ -184,4 +184,6 @@ option "unixipc"     - "The UNIX IPC Filename to use when compiled with --with-u
 option "uamallowpost" - "Enable to allow a HTTP POST to the standard uamport interface" flag off
 option "natip"     - "IP to use when doing nat on WAN (routeidx)" string no
 option "natport"   - "Port to use when oding nat on the WAN (routeidx)" int default="0" no
+option "redirssl"  - "Enable redirection of SSL/HTTP port (requires SSL support)" flag off
+option "uamuissl"  - "Enable SSL/HTTPS support on the uamuiport" flag off
 

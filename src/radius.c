@@ -1308,7 +1308,9 @@ int radius_req(struct radius_t *this,
     addr.sin_port = htons(this->acctport);
   else
     addr.sin_port = htons(this->authport);
-      
+
+  if (_options.debug)
+    log_dbg("RADIUS to %s:%d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
   
   if (sendto(this->fd, pack, len, 0,
 	     (struct sockaddr *) &addr, sizeof(addr)) < 0) {

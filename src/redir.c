@@ -339,7 +339,7 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
   if (conn->s_state.tag8021q) {
     bcatcstr(str, amp);
     bcatcstr(str, "vlan=");
-    bassignformat(bt, "%d", ntohs(conn->s_state.tag8021q & 0x0FFF));
+    bassignformat(bt, "%d", (int)(ntohs(conn->s_state.tag8021q) & 0x0FFF));
     bconcat(str, bt);
   } else 
 #endif
@@ -745,9 +745,9 @@ tcp_write(struct redir_socket_t *sock, char *buf, size_t len) {
   ssize_t c;
   size_t r = 0;
   while (r < len) {
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
     if (sock->sslcon) {
-      c = openssl_write(sock->sslcon, buf, len);
+      c = openssl_write(sock->sslcon, buf, len, 0);
     } else 
 #endif
     c = tcp_write_timeout(timeout, sock, buf+r, len-r);
@@ -1284,6 +1284,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
   int i, lines=0, done=0;
   char *eol;
 
+  char read_waiting;
+
   char *path = httpreq->path;
 
   memset(buffer, 0, sizeof(buffer));
@@ -1291,30 +1293,52 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
   /* read whatever the client send to us */
   while (!done && (redir->starttime + REDIR_HTTP_MAX_TIME) > mainclock_now()) {
 
-    do {
-      
-      FD_ZERO(&fds);
-      FD_SET(fd, &fds);
-      
-      idleTime.tv_sec = 0;
-      idleTime.tv_usec = REDIR_HTTP_SELECT_TIME;
-      
-      status = select(fd + 1, &fds, NULL, NULL, &idleTime);
-      
-    } while (status == -1 && errno == EINTR);
-    
-    switch(status) {
-    case -1:
-      log_err(errno,"select()");
-      return -1;
-    case 0:
-      log_dbg("HTTP request timeout!");
-      done = 1;
-    default:
-      break;
+    read_waiting = 0;
+
+#ifdef HAVE_SSL
+    if (sock->sslcon) {
+      read_waiting = (openssl_pending(sock->sslcon) > 0);
     }
+#endif
     
-    if ((status > 0) && FD_ISSET(fd, &fds)) {
+    if (!read_waiting) {
+
+      /*
+       *  If not already with data from the SSL layer, wait for it. 
+       */
+      
+      do {
+	
+	FD_ZERO(&fds);
+	FD_SET(fd, &fds);
+	
+	idleTime.tv_sec = 0;
+	idleTime.tv_usec = REDIR_HTTP_SELECT_TIME;
+	
+	status = select(fd + 1, &fds, NULL, NULL, &idleTime);
+	
+      } while (status == -1 && errno == EINTR);
+      
+      switch(status) {
+      case -1:
+	log_err(errno,"select()");
+	return -1;
+      case 0:
+	log_dbg("HTTP request timeout!");
+	done = 1;
+      default:
+	break;
+      }
+    
+      if ((status > 0) && FD_ISSET(fd, &fds)) {
+	/*
+	 *  We have data pending a read
+	 */
+	read_waiting = 1;
+      }
+    }
+
+    if (read_waiting) {
 
       if (buflen + 2 >= sizeof(buffer)) { /* ensure space for a least one more byte + null */
         log_err(0, "Too much data in http request!");
@@ -1322,10 +1346,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       }
 
       /* if post is allowed, we do not buffer on the read (to not eat post data) */
-#ifdef HAVE_OPENSSL
-      if (sock->sslcon) 
-	recvlen = openssl_read(sock->sslcon, buffer + buflen, httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen);
-      else
+#ifdef HAVE_SSL
+      if (sock->sslcon) {
+	recvlen = openssl_read(sock->sslcon, buffer + buflen, httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 0);
+      } else
 #endif
       recvlen = recv(fd, buffer + buflen, httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 0);
 
@@ -1912,7 +1936,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   if (conn->s_state.tag8021q)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
-		   ntohl(conn->s_state.tag8021q & 0x0FFF), 0, 0);
+		   (uint32_t)(ntohl(conn->s_state.tag8021q) & 0x0FFF), 0, 0);
 #endif
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
@@ -2374,10 +2398,12 @@ int redir_main(struct redir_t *redir,
 
   redir->starttime = mainclock_now();
 
+  /*
   if (set_nonblocking(socket.fd[0])) {
     log_err(errno, "fcntl() failed");
     return redir_main_exit(redir, &httpreq, &socket, forked);
   }
+  */
 
   if (optionsdebug) 
     log_dbg("Calling redir_getstate()");
@@ -2397,7 +2423,8 @@ int redir_main(struct redir_t *redir,
   state = redir->cb_getstate(redir, address,  &conn);
 
   if (state == -1) {
-    return redir_main_exit(redir, &httpreq, &socket, forked);
+    if (!_options.debug || !isui)
+      return redir_main_exit(redir, &httpreq, &socket, forked);
   }
 
   splash = (conn.s_params.flags & REQUIRE_UAM_SPLASH) == REQUIRE_UAM_SPLASH;
@@ -2408,12 +2435,15 @@ int redir_main(struct redir_t *redir,
   if (optionsdebug) 
     log_dbg("Receiving HTTP%s Request", conn.flags & USING_SSL ? "S" : "");
 
-#ifdef HAVE_OPENSSL
-  if (conn.flags & USING_SSL) {
+#ifdef HAVE_SSL
+  if (_options.uamuissl && isui) {
+    socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 30);
+  }
+  else if (conn.flags & USING_SSL) {
     socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 30);
   }
 #endif
-  
+
   termstate = REDIR_TERM_GETREQ;
   if (redir_getreq(redir, &socket, &conn, &httpreq)) {
     log_dbg("Error calling get_req. Terminating\n");
@@ -2611,13 +2641,13 @@ int redir_main(struct redir_t *redir,
       termstate = REDIR_TERM_RADIUS;
 
       if (optionsdebug) 
-	log_dbg("redir_accept: Sending radius request\n");
+	log_dbg("redir_accept: Sending RADIUS request");
 
       redir_radius(redir, &address->sin_addr, &conn, reauth);
       termstate = REDIR_TERM_REPLY;
 
       if (optionsdebug) 
-	log_dbg("Received radius reply\n");
+	log_dbg("Received RADIUS reply");
     }
 
     if (conn.response == REDIR_SUCCESS) { /* Accept-Accept */

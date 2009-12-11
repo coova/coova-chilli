@@ -490,6 +490,10 @@ int dhcp_checkconn(struct dhcp_t *this)
   struct dhcp_conn_t *conn = this->firstusedconn;
 
   while (conn) {
+    /*
+    if (_options.debug)
+      log_dbg("dhcp_checkconn: %d %d", mainclock_diff(conn->lasttime), (int) this->lease);
+    */
     if (mainclock_diff(conn->lasttime) > (int) this->lease) {
       log_dbg("DHCP timeout: Removing connection");
       dhcp_freeconn(conn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
@@ -1021,10 +1025,15 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   }
 
   /* Was it a request for local redirection server? */
-  if ((iph->daddr == this->uamlisten.s_addr) &&
-      (iph->protocol == PKT_IP_PROTO_TCP) &&
-      (tcph->dst == htons(this->uamport)))
+  if ( (iph->protocol == PKT_IP_PROTO_TCP) &&
+       (iph->daddr == this->uamlisten.s_addr) &&
+       (tcph->dst == htons(this->uamport)) )
     return 0; /* Destination was local redir server */
+
+  if ( (iph->protocol == PKT_IP_PROTO_TCP) &&
+       (_options.uamalias.s_addr) &&
+       (iph->daddr == _options.uamalias.s_addr) )
+    return 0; 
 
   /* Was it a request for a pass-through entry? */
   if (check_garden(_options.pass_throughs, _options.num_pass_throughs, pack, 1))
@@ -1046,8 +1055,8 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   if (iph->protocol == PKT_IP_PROTO_TCP) {
 
     if (tcph->dst == htons(DHCP_HTTP)
-#ifdef HAVE_OPENSSL
-	|| tcph->dst == htons(DHCP_HTTPS)
+#ifdef HAVE_SSL
+	|| (_options.redirssl && tcph->dst == htons(DHCP_HTTPS))
 #endif
 	) {
       /* Was it a http request for another server? */
@@ -1093,8 +1102,8 @@ static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, siz
     else {
       if ((iph->protocol == PKT_IP_PROTO_TCP) &&
 	  (tcph->dst == htons(DHCP_HTTP) 
-#ifdef HAVE_OPENSSL
-	   || tcph->dst == htons(DHCP_HTTPS)
+#ifdef HAVE_SSL
+	   || (_options.redirssl && tcph->dst == htons(DHCP_HTTPS))
 #endif
 	   )) {
 
@@ -1181,9 +1190,10 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t 
   }
 
   /* Was it a reply from redir server? */
-  if ((iph->saddr == this->uamlisten.s_addr) &&
-      (iph->protocol == PKT_IP_PROTO_TCP) &&
-      (tcph->src == htons(this->uamport))) {
+  if ( (iph->saddr == this->uamlisten.s_addr) &&
+       (iph->protocol == PKT_IP_PROTO_TCP) &&
+       (tcph->src == htons(this->uamport) || 
+	(_options.uamuiport && tcph->src == htons(_options.uamuiport))) ) {
 
     return dhcp_uam_unnat(conn, ethh, iph, tcph);
   }
@@ -1227,15 +1237,28 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t 
 static int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
   int name_len = strlen(name);
   int domain_len = strlen(_options.domain);
+  uint8_t * l_sz = 0;
+  int i;
 
-  blen = snprintf((char *)b, blen, "%c%s%c%s", 
+  blen = snprintf((char *)b, blen, "%c%s.%s", 
 		  (char)name_len, name, 
-		  (char)domain_len, _options.domain);
+		  _options.domain);
+
+  for (i=1; i < blen; i++) {
+    if (b[i] == '.') {
+      if (l_sz) {
+	*l_sz = (int)(&b[i] - l_sz - 1);
+      }
+      l_sz = &b[i];
+    }
+  }
+  if (l_sz) {
+    *l_sz = (int)(&b[i-1] - l_sz);
+  }
 
   if (_options.debug) {
     char bb[blen+56];
     int c = 0;
-    int i;
     for (i=0; i < blen; i++) {
       if (c == 0) {
 	c = (int)b[i];
@@ -1298,6 +1321,7 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     uint8_t *p = dnsp->records;
 
     match = dhcp_matchDNS(dnsp->records, query, sizeof(query), "logout");
+
     if (match) {
       memcpy(reply, &_options.uamlogout.s_addr, 4);
     }
@@ -2228,7 +2252,10 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 
   if (_options.uamalias.s_addr && 
       pack_iph->daddr == _options.uamalias.s_addr) {
-    dhcp_uam_nat(conn, pack_ethh, pack_iph, pack_tcph, &this->uamlisten, this->uamport);
+
+    dhcp_uam_nat(conn, pack_ethh, pack_iph, pack_tcph, &this->uamlisten,
+		 _options.uamuiport ? _options.uamuiport : this->uamport);
+
   }
 
   switch (conn->authstate) {

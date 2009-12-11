@@ -666,6 +666,28 @@ automatically add to the walled garden. This is done by the inspecting of
 DNS packets being sent back to the subscriber. 
 
 .TP
+.BI uamregex " host-pattern::path-pattern::qs-pattern"
+When chilli is built with the 
+.B --enable-chilliredir
+option given to the configure script, the 
+.B uamregex
+option is available. The value should be a
+.B ::
+separated list of three values; the regex patterns to match the Host header, the URL path, and the query string of the request. The patterns follow the 
+.BR regex(7)
+syntax with the addition of 
+.BI *
+meaning anything (or to not check that field) and any pattern starting with 
+.BI !
+will be negated in meaning. 
+
+Examples:
+
+.I --uamregex='.google.com$::!^mail/::*'
+
+This will allow all requests to a .google.com host except if the URL starts with mail (links to Gmail). 
+
+.TP
 .BI uamlogoutip " ipaddress"
 Use this IP address to instantly logout a client accessing it (defaults to 1.1.1.1).
 

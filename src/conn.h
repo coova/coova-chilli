@@ -21,7 +21,7 @@
 
 #include "system.h"
 #include "net.h"
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
 #include "ssl.h"
 #endif
 
@@ -36,7 +36,7 @@ struct conn_t {
   bstring write_buf;
   int write_pos;
 
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
   openssl_con * sslcon;
 #endif
 

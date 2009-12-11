@@ -78,7 +78,7 @@ int session_json_fmt(struct session_state *state,
 #ifdef ENABLE_IEEE8021Q
   if (state->tag8021q) {
     bcatcstr(json,",\"vlan\":");
-    bassignformat(tmp, "%d", ntohl(state->tag8021q & 0x0FFF));
+    bassignformat(tmp, "%d", (int)(ntohl(state->tag8021q) & 0x0FFF));
     bconcat(json, tmp);
   }
 #endif

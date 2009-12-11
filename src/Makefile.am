@@ -13,31 +13,6 @@ dns.c dns.h session.c session.h limits.h pkt.h pkt.c \
 chksum.c net.h net.c ms_chap.c options.c statusfile.c \
 conn.h conn.c 
 
-if WITH_CHILLIPROXY
-sbin_PROGRAMS += chilli_proxy
-chilli_proxy_SOURCES = main-proxy.c 
-chilli_proxy_LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBOPENSSL} ${LIBPCAP}
-if WITH_CURL
-chilli_proxy_LDADD += -lcurl -lz 
-endif
-endif
-
-if WITH_CHILLIREDIR
-sbin_PROGRAMS += chilli_redir
-chilli_redir_SOURCES = main-redir.c 
-chilli_redir_LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBOPENSSL} ${LIBPCAP}
-if WITH_CURL
-chilli_redir_LDADD += -lcurl -lz 
-endif
-endif
-
-if WITH_RTMON
-#sbin_PROGRAMS += chilli_rtmon
-#chilli_rtmon_SOURCES = main-rtmon.c 
-libchilli_la_SOURCES += rtmon.c rtmon.h
-endif
-
-# add -pg to enable gprof
 AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fno-strict-aliasing \
   -O2 -fomit-frame-pointer -funroll-loops -pipe \
  -DDEFCHILLICONF='"$(sysconfdir)/chilli.conf"'\
@@ -48,12 +23,6 @@ AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fno-strict-aliasing \
 
 cmdline_sources=cmdline.c cmdline.h 
 
-if WITH_NETNAT
-libchilli_la_SOURCES += nat.c nat.h
-endif
-
-# AM_LDFLAGS = -lchilli
-
 chilli_SOURCES= main.c
 chilli_radconfig_SOURCES = main-radconfig.c 
 chilli_response_SOURCES = main-response.c 
@@ -63,11 +32,52 @@ chilli_opt_SOURCES = main-opt.c ${cmdline_sources}
 #test_dhcp_SOURCES = test-dhcp.c 
 
 LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBRT}
+
 if WITH_OPENSSL
-LDADD += ${LIBOPENSSL}
+LDADD += ${LIBSSL}
 endif
+
+if WITH_MATRIXSSL
+libchilli_la_SOURCES += matrixssl.c matrixssl.h
+#LDADD += ${LIBSSL}
+LDADD += $(top_builddir)/src/libmatrixsslstatic.a
+endif
+
+if WITH_NETFILTER_QUEUE
+libchilli_la_SOURCES += queue.c
+LDADD += ${LIBNETFILTER_QUEUE}
+endif
+
+# add -pg to enable gprof
+if WITH_NETNAT
+libchilli_la_SOURCES += nat.c nat.h
+endif
+
 if WITH_PCAP
 LDADD += ${LIBPCAP}
 endif
 
+if WITH_RTMON
+#sbin_PROGRAMS += chilli_rtmon
+#chilli_rtmon_SOURCES = main-rtmon.c 
+libchilli_la_SOURCES += rtmon.c rtmon.h
+endif
+
+if WITH_CHILLIPROXY
+sbin_PROGRAMS += chilli_proxy
+chilli_proxy_SOURCES = main-proxy.c 
+chilli_proxy_LDADD = ${LDADD}
+if WITH_CURL
+chilli_proxy_LDADD += -lcurl -lz 
+endif
+endif
+
+if WITH_CHILLIREDIR
+sbin_PROGRAMS += chilli_redir
+chilli_redir_SOURCES = main-redir.c 
+chilli_redir_LDADD = ${LDADD}
+if WITH_CURL
+chilli_redir_LDADD += -lcurl -lz 
+endif
+endif
 

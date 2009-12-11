@@ -180,6 +180,8 @@ int main(int argc, char **argv) {
   _options.max_clients = args_info.maxclients_arg;
   _options.seskeepalive = args_info.seskeepalive_flag;
   _options.uamallowpost = args_info.uamallowpost_flag;
+  _options.redirssl = args_info.redirssl_flag;
+  _options.uamuissl = args_info.uamuissl_flag;
 
   if (args_info.dhcpgateway_arg &&
       !inet_aton(args_info.dhcpgateway_arg, &_options.dhcpgwip)) {
@@ -700,7 +702,7 @@ int main(int argc, char **argv) {
   if (_options.localusers) free(_options.localusers);
   _options.localusers = STRDUP(args_info.localusers_arg);
 
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
   if (_options.sslkeyfile) free(_options.sslkeyfile);
   _options.sslkeyfile = STRDUP(args_info.sslkeyfile_arg);
 

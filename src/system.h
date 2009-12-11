@@ -244,4 +244,8 @@ void copy_mac6(uint8_t *, uint8_t *);
 #define USING_IPC_UNIX
 #endif
 
+#if defined(HAVE_OPENSSL) || defined(HAVE_MATRIXSSL)
+#define HAVE_SSL 1
+#endif
+
 #endif

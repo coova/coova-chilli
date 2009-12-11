@@ -123,7 +123,7 @@ struct redir_httpreq_t {
 
 struct redir_socket_t {
   int fd[2];
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
   openssl_con *sslcon;
 #endif
 };

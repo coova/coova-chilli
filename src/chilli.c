@@ -803,7 +803,7 @@ int static auth_radius(struct app_conn_t *appconn,
   if (dhcpconn->tag8021q)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
-		   (uint32_t)ntohs(dhcpconn->tag8021q & 0x0FFF), 0, 0);
+		   (uint32_t)(ntohs(dhcpconn->tag8021q) & 0x0FFF), 0, 0);
 #endif
 
   if (_options.dhcpradius && dhcp_pkt) {
@@ -1087,7 +1087,7 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
       if (conn->s_state.tag8021q)
 	radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		       RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
-		       (uint32_t)ntohs(conn->s_state.tag8021q & 0x0FFF), 0, 0);
+		       (uint32_t)(ntohs(conn->s_state.tag8021q) & 0x0FFF), 0, 0);
 #endif
       
     }
@@ -3297,7 +3297,7 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
 #ifdef ENABLE_IEEE8021Q
       /* adding: vlan, if one */
       if (appconn->s_state.tag8021q) {
-	bassignformat(tmp, " vlan=%d", ntohs(appconn->s_state.tag8021q & 0x0FFF));
+	bassignformat(tmp, " vlan=%d", (int)(ntohs(appconn->s_state.tag8021q) & 0x0FFF));
 	bconcat(b, tmp);
       }
 #endif

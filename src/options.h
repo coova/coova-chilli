@@ -167,6 +167,8 @@ struct options_t {
   uint8_t strictmacauth:1;          /* Be strict about DHCP macauth (don't reply DHCP until we get RADIUS) */
   uint8_t dhcpmacset:1;             /* Set the dhcpif interface with the dhcpmac */
   uint8_t uamallowpost:1;           /* Set to true if the UAMPORT is allowed to access a POST */
+  uint8_t redirssl:1;               /* Enable redirection of SSL/HTTPS port (requires SSL support) */
+  uint8_t uamuissl:1;               /* Enable SSL/HTTPS on uamuiport (requires SSL support) */
   /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
@@ -194,7 +196,7 @@ struct options_t {
   unsigned int challengetimeout;
   unsigned int challengetimeout2;
 
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
   char *sslkeyfile;
   char *sslcertfile;
 #endif

@@ -16,7 +16,7 @@
  * 
  */
 #include "system.h"
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
 #include "syserr.h"
 #include "radius.h"
 #include "radius_wispr.h"
@@ -32,15 +32,20 @@ static openssl_env * sslenv = 0;
 
 openssl_env * initssl() {
   if (sslenv == 0) {
+#ifdef HAVE_OPENSSL
     SSL_library_init();
     if (_options.debug) SSL_load_error_strings();
     SSLeay_add_all_algorithms();
     SSLeay_add_ssl_algorithms();
+#else
+    matrixSslOpen();
+#endif
     openssl_env_init(sslenv = calloc(1, sizeof(openssl_env)), 0);
   }
   return sslenv;
 }
 
+#ifdef HAVE_OPENSSL
 static int
 openssl_verify_peer_cb(int ok, X509_STORE_CTX *ctx) {
   int err = X509_STORE_CTX_get_error(ctx);
@@ -196,69 +201,120 @@ _openssl_env_init(openssl_env *env, char *engine, int server) {
   }
   return 1;
 }
+#endif
 
 int
 openssl_env_init(openssl_env *env, char *engine) {
+#ifdef HAVE_OPENSSL
   int err = _openssl_env_init(env, engine, 1);
 
   if (!openssl_use_certificate(env, _options.sslcertfile) ||
       !openssl_use_privatekey(env, _options.sslkeyfile))
     return 0;
 
+  env->ready = 1;
   return err;
+#else
+  if ( matrixSslReadKeys( &env->keys, _options.sslcertfile, _options.sslkeyfile, NULL, NULL ) < 0 ) {
+    log_dbg("cert: %s",_options.sslcertfile);
+    log_dbg("key: %s",_options.sslkeyfile);
+    log_err(errno, "could not load ssl certificate or and/or key file");
+    return 0;
+  }
+
+  env->ready = 1;
+  return 1;
+#endif
 }
+
+#ifdef HAVE_MATRIXSSL
+static int certValidator(sslCertInfo_t *t, void *arg) {
+  return 1;
+}
+#endif
 
 openssl_con *
 openssl_connect_fd(openssl_env *env, int fd, int timeout) {
   openssl_con *c = (openssl_con *)calloc(1, sizeof(*c));
   if (!c) return 0;
   c->env = env;
+#ifdef HAVE_OPENSSL
   c->con = (SSL *)SSL_new(env->ctx); 
+#else
+  c->con = (SSL *)SSL_new(env->keys, 0); 
+#endif
   c->sock = fd;
   c->timeout = timeout;
 
+  SSL_set_fd(c->con, c->sock);
+
+#ifdef HAVE_OPENSSL  
   SSL_set_app_data(c->con, c);
-  if (!SSL_set_fd(c->con, c->sock)) /* error */;
   SSL_set_connect_state(c->con);
   if (!SSL_connect(c->con)) /* error */;
+#else
+  if (!SSL_connect(c->con, certValidator, c)) /* error */;
+#endif
+
   return c;
 }
 
 openssl_con *
 openssl_accept_fd(openssl_env *env, int fd, int timeout) {
   openssl_con *c = (openssl_con *)calloc(1, sizeof(*c));
+#ifdef HAVE_OPENSSL  
   X509 *peer_cert;
+#endif
   int rc;
 
   if (!c) return 0;
+
+  if (!env || !env->ready) {
+    log_err(0, "SSL not available!");
+    return 0;
+  }
+
   c->env = env;
+#ifdef HAVE_OPENSSL
   c->con = (SSL *)SSL_new(env->ctx); 
+#else
+  c->con = (SSL *)SSL_new(env->keys, SSL_FLAGS_SERVER); 
+#endif
   c->sock = fd;
   c->timeout = timeout;
 
+  SSL_set_fd(c->con, c->sock);
+
+#ifdef HAVE_OPENSSL  
   SSL_clear(c->con);
 
   SSL_set_app_data(c->con, c);
-  if (!SSL_set_fd(c->con, c->sock)) /* error */;
   SSL_set_accept_state(c->con);
 
   SSL_set_verify_result(c->con, X509_V_OK);
 
   while (!SSL_is_init_finished(c->con)) {
+
     if ((rc = SSL_accept(c->con)) <= 0) {
+
       if (SSL_get_error(c->con, rc) == SSL_ERROR_ZERO_RETURN) {
+
 	log_err(errno, "SSL handshake stopped: connection was closed\n");
 	SSL_set_shutdown(c->con, SSL_RECEIVED_SHUTDOWN);
 	openssl_free(c);
 	return 0;
+
 	/*      } else if (ERR_GET_REASON(ERR_peek_error()) == SSL_R_HTTP_REQUEST) { */
       } else if (SSL_get_error(c->con, rc) == SSL_ERROR_SYSCALL) {
+
 	if (errno == EINTR)
 	  continue;
+
 	if (errno > 0)
 	  log_err(errno, "SSL handshake interrupted by system [Hint: Stop button pressed in browser?!]");
 	else
 	  log_err(errno, "Spurious SSL handshake interrupt [Hint: Usually just one of those OpenSSL confusions!?]");
+
 	SSL_set_shutdown(c->con, SSL_RECEIVED_SHUTDOWN);
 	openssl_free(c);
 	return 0;
@@ -266,8 +322,9 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout) {
       break; 
     }
   }
-  
+
   peer_cert = SSL_get_peer_certificate(c->con);
+
   if (peer_cert) {
     char subj[1024];
 
@@ -301,11 +358,26 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout) {
 
     X509_free(peer_cert);
   }
+#else
+  
+  clear_nonblocking(c->sock);
+
+  if ((rc = SSL_accept(c->con)) <= 0) {
+    log_err(errno, "SSL accept failure");
+    /*openssl_free(c);*/
+    return 0;
+  }
+
+  /* set_nonblocking(c->sock);*/
+  
+#endif
+
   return c;
 }
 
 int
 openssl_error(openssl_con *con, int ret, char *func) {
+#ifdef HAVE_OPENSSL  
   int err = -1;
   if (con->con) {
     err = SSL_get_error(con->con, ret);
@@ -339,10 +411,15 @@ openssl_error(openssl_con *con, int ret, char *func) {
     return 1;
   }
   return err;
+#else
+  log_err(errno, "ssl error in %s", func);
+  return 0;
+#endif
 }
 
 void
 openssl_shutdown(openssl_con *con, int state) {
+#ifdef HAVE_OPENSSL
   int i;
   /*
    * state is the same as in shutdown(2)
@@ -353,10 +430,11 @@ openssl_shutdown(openssl_con *con, int state) {
   case 2: SSL_set_shutdown(con->con, SSL_RECEIVED_SHUTDOWN|SSL_SENT_SHUTDOWN); break;
   }
   for (i = 0; i < 4; i++) if (SSL_shutdown(con->con)) break;
+#endif
 }
   
 int
-openssl_read(openssl_con *con, char *b, int l) {
+openssl_read(openssl_con *con, char *b, int l, int t) {
   int rbytes = 0;
   int err;
 
@@ -364,12 +442,12 @@ openssl_read(openssl_con *con, char *b, int l) {
 
  repeat_read:
 
-  if (con->timeout && !(SSL_pending(con->con))) {
+  if (t && !(openssl_pending(con))) {
     fd_set rfds;
     struct timeval tv;
     int fd = con->sock;
 
-    tv.tv_sec = con->timeout;
+    tv.tv_sec = t;
     tv.tv_usec = 0;
     FD_ZERO(&rfds);
     FD_SET(fd, &rfds);
@@ -380,24 +458,26 @@ openssl_read(openssl_con *con, char *b, int l) {
     
   rbytes = SSL_read(con->con, b, l);
 
-  err = openssl_error(con, rbytes, "openssl_read");
+  if (rbytes <= 0)
+    err = openssl_error(con, rbytes, "openssl_read");
+
   if (rbytes > 0) return rbytes;
   if (err > 0) goto repeat_read;
   return (err == -1)? -1: 0;
 }
 
 int
-openssl_write(openssl_con *con, char *b, int l) {
+openssl_write(openssl_con *con, char *b, int l, int t) {
   int sent = 0;
   int wrt;
   int err;
 
-  if (con->timeout) {
+  if (t) {
     fd_set wfds;
     struct timeval tv;
     int fd = con->sock;
     
-    tv.tv_sec = con->timeout;
+    tv.tv_sec = t;
     tv.tv_usec = 0;
     
     FD_ZERO(&wfds);
@@ -430,7 +510,9 @@ void
 openssl_free(openssl_con *con) {
   SSL *c = con->con;
   if (c) {
+#ifdef HAVE_OPENSSL
     SSL_set_connect_state(c); 
+#endif
     SSL_free(c); 
     con->con = 0; 
   }
@@ -439,14 +521,17 @@ openssl_free(openssl_con *con) {
 
 void
 openssl_env_free(openssl_env *env) {
+#ifdef HAVE_OPENSSL
   if (env->ctx) SSL_CTX_free(env->ctx);
   if (env->engine) ENGINE_free(env->engine);
+#endif
   free(env);
 }
 
 int 
 openssl_pending(openssl_con *con) {
-  if (con->con) return SSL_pending(con->con);
+  if (con->con) 
+    return SSL_pending(con->con);
   return 0;
 }
 

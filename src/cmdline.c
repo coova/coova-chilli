@@ -173,6 +173,8 @@ const char *gengetopt_args_info_help[] = {
   "      --uamallowpost            Enable to allow a HTTP POST to the standard \n                                  uamport interface  (default=off)",
   "      --natip=STRING            IP to use when doing nat on WAN (routeidx)",
   "      --natport=INT             Port to use when oding nat on the WAN \n                                  (routeidx)  (default=`0')",
+  "      --redirssl                Enable redirection of SSL/HTTP port (requires \n                                  SSL support)  (default=off)",
+  "      --uamuissl                Enable SSL/HTTPS support on the uamuiport  \n                                  (default=off)",
     0
 };
 
@@ -366,6 +368,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamallowpost_given = 0 ;
   args_info->natip_given = 0 ;
   args_info->natport_given = 0 ;
+  args_info->redirssl_given = 0 ;
+  args_info->uamuissl_given = 0 ;
 }
 
 static
@@ -616,6 +620,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->natip_orig = NULL;
   args_info->natport_arg = 0;
   args_info->natport_orig = NULL;
+  args_info->redirssl_flag = 0;
+  args_info->uamuissl_flag = 0;
   
 }
 
@@ -773,6 +779,8 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->uamallowpost_help = gengetopt_args_info_help[138] ;
   args_info->natip_help = gengetopt_args_info_help[139] ;
   args_info->natport_help = gengetopt_args_info_help[140] ;
+  args_info->redirssl_help = gengetopt_args_info_help[141] ;
+  args_info->uamuissl_help = gengetopt_args_info_help[142] ;
   
 }
 
@@ -1384,6 +1392,10 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "natip", args_info->natip_orig, 0);
   if (args_info->natport_given)
     write_into_file(outfile, "natport", args_info->natport_orig, 0);
+  if (args_info->redirssl_given)
+    write_into_file(outfile, "redirssl", 0, 0 );
+  if (args_info->uamuissl_given)
+    write_into_file(outfile, "uamuissl", 0, 0 );
   
 
   i = EXIT_SUCCESS;
@@ -2094,6 +2106,8 @@ cmdline_parser_internal (
         { "uamallowpost",	0, NULL, 0 },
         { "natip",	1, NULL, 0 },
         { "natport",	1, NULL, 0 },
+        { "redirssl",	0, NULL, 0 },
+        { "uamuissl",	0, NULL, 0 },
         { 0,  0, 0, 0 }
       };
 
@@ -3983,6 +3997,30 @@ cmdline_parser_internal (
                 &(local_args_info.natport_given), optarg, 0, "0", ARG_INT,
                 check_ambiguity, override, 0, 0,
                 "natport", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Enable redirection of SSL/HTTP port (requires SSL support).  */
+          else if (strcmp (long_options[option_index].name, "redirssl") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->redirssl_flag), 0, &(args_info->redirssl_given),
+                &(local_args_info.redirssl_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "redirssl", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Enable SSL/HTTPS support on the uamuiport.  */
+          else if (strcmp (long_options[option_index].name, "uamuissl") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->uamuissl_flag), 0, &(args_info->uamuissl_given),
+                &(local_args_info.uamuissl_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "uamuissl", '-',
                 additional_error))
               goto failure;
           

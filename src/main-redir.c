@@ -492,7 +492,7 @@ int main(int argc, char **argv) {
 	      char b[1500];
 	      int r;
 
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
 #endif
 	      r = read(fd, b, sizeof(b));
 

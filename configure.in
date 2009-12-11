@@ -98,7 +98,7 @@ AC_ARG_WITH([openssl],
 OPENSSL=
 AS_IF([test x"$with_openssl" != xno],
   [AC_CHECK_LIB([crypto], [CRYPTO_malloc],
-              [AC_SUBST([LIBOPENSSL], ["-lssl -lcrypto"])
+              [AC_SUBST([LIBSSL], ["-lssl -lcrypto"])
                AC_DEFINE([HAVE_OPENSSL], [1],
                          [Define if you have openssl])
               ],
@@ -107,6 +107,36 @@ AS_IF([test x"$with_openssl" != xno],
               [-lssl -lcrypto])])
 
 AM_CONDITIONAL(WITH_OPENSSL, [test x"$with_openssl" != xno])
+
+AC_ARG_WITH([matrixssl],
+ [AS_HELP_STRING([--with-matrixssl], [enable support for matrixssl])],[],[with_matrixssl=no])
+
+AS_IF([test x"$with_matrixssl" != xno],
+  [AC_CHECK_LIB([matrixssl], [matrixSslOpen],
+              [AC_SUBST([LIBSSL], ["-lmatrixssl"])
+               AC_DEFINE([HAVE_MATRIXSSL], [1],
+                         [Define if you have matrixssl])
+              ],
+              [AC_MSG_FAILURE(
+                 [--with-matrixssl was given, but test for matrixssl failed])],
+              [-lmatrixssl])])
+
+AM_CONDITIONAL(WITH_MATRIXSSL, [test x"$with_matrixssl" != xno])
+
+AC_ARG_WITH([netfilter_queue],
+ [AS_HELP_STRING([--with-netfilter_queue], [enable support for netfilter_queue])],[],[with_netfilter_queue=no])
+
+AS_IF([test x"$with_netfilter_queue" != xno],
+  [AC_CHECK_LIB([netfilter_queue], [nfq_open],
+              [AC_SUBST([LIBNETFILTER_QUEUE], ["-lnetfilter_queue"])
+               AC_DEFINE([HAVE_NETFILTER_QUEUE], [1],
+                         [Define if you have netfilter_queue])
+              ],
+              [AC_MSG_FAILURE(
+                 [--with-netfilter_queue was given, but test for netfilter_queue failed])],
+              [-lnetfilter_queue])])
+
+AM_CONDITIONAL(WITH_NETFILTER_QUEUE, [test x"$with_netfilter_queue" != xno])
 
 AC_ARG_WITH([pcap],
  [AS_HELP_STRING([--with-pcap], [enable support for pcap])],[],[with_pcap=no])

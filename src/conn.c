@@ -192,7 +192,7 @@ void conn_set_donehandler(struct conn_t *conn, conn_handler handler, void *ctx) 
 
 int conn_close(struct conn_t *conn) {
   if (conn->sock) close(conn->sock);
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
   if (conn->sslcon) {
     openssl_shutdown(conn->sslcon, 2);
     openssl_free(conn->sslcon);

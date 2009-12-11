@@ -87,6 +87,9 @@
 /* Define to 1 if you have the `rt' library (-lrt). */
 #undef HAVE_LIBRT
 
+/* Define if you have matrixssl */
+#undef HAVE_MATRIXSSL
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
 
@@ -95,6 +98,9 @@
 
 /* Define to 1 if you have the <netdb.h> header file. */
 #undef HAVE_NETDB_H
+
+/* Define if you have netfilter_queue */
+#undef HAVE_NETFILTER_QUEUE
 
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #undef HAVE_NETINET_IN_H

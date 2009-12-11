@@ -247,7 +247,7 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.wwwbin)) return 0;
   if (!option_s_l(bt, &o.uamui)) return 0;
   if (!option_s_l(bt, &o.localusers)) return 0;
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
   if (!option_s_l(bt, &o.sslkeyfile)) return 0;
   if (!option_s_l(bt, &o.sslcertfile)) return 0;
 #endif
@@ -351,7 +351,7 @@ int options_save(char *file, bstring bt) {
   if (!option_s_s(bt, &o.wwwbin)) return 0;
   if (!option_s_s(bt, &o.uamui)) return 0;
   if (!option_s_s(bt, &o.localusers)) return 0;
-#ifdef HAVE_OPENSSL
+#ifdef HAVE_SSL
   if (!option_s_s(bt, &o.sslkeyfile)) return 0;
   if (!option_s_s(bt, &o.sslcertfile)) return 0;
 #endif
