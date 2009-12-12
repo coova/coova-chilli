@@ -55,11 +55,11 @@ time_t mainclock;
 time_t checktime;
 time_t rereadtime;
 
-static int keep_going = 1;
 static int *p_keep_going = 0;
+static int *p_reload_config = 0;
 /*static int do_timeouts = 1;*/
 static int do_interval = 0;
-static int reload_config = 0;
+
 
 /* some IPv4LL/APIPA(rfc 3927) specific stuff for uamanyip */
 struct in_addr ipv4ll_ip;
@@ -90,8 +90,6 @@ static void _sigterm(int signum) {
     log_dbg("SIGTERM: shutdown");
   if (p_keep_going)
     *p_keep_going = 0;
-  else
-    keep_going = 0;
 }
 
 static void _sigvoid(int signum) {
@@ -99,25 +97,42 @@ static void _sigvoid(int signum) {
     log_dbg("received %d signal", signum);
 }
 
+static void _sigusr1(int signum) {
+  if (_options.debug) 
+    log_dbg("SIGUSR1: reloading configuration");
+
+  if (p_reload_config)
+    *p_reload_config = 1;
+
+  if (redir_pid) kill(redir_pid, SIGUSR1);
+  if (proxy_pid) kill(proxy_pid, SIGUSR1);
+}
+
 static void _sighup(int signum) {
   if (_options.debug) 
     log_dbg("SIGHUP: rereading configuration");
+
   do_interval = 1;
-  reload_config = 1;
 }
 
-void chilli_signals(int *with_term) {
+void chilli_signals(int *with_term, int *with_hup) {
   struct sigaction act;
   memset(&act, 0, sizeof(act));
   
   act.sa_handler = _sigchld;
   sigaction(SIGCHLD, &act, NULL);
   
-  act.sa_handler = _sighup;
-  sigaction(SIGHUP, &act, NULL);
-
   act.sa_handler = _sigvoid;
   sigaction(SIGPIPE, &act, NULL);
+
+  if (with_hup) {
+    p_reload_config = with_hup;
+    act.sa_handler = _sighup;
+    sigaction(SIGHUP, &act, NULL);
+
+    act.sa_handler = _sigusr1;
+    sigaction(SIGUSR1, &act, NULL);
+  }
 
   if (with_term) {
     p_keep_going = with_term;
@@ -3930,7 +3945,7 @@ static int cmdsock_accept(void *nullData, int sock) {
     break;
 
   case CMDSOCK_RELOAD:
-    reload_config = 1;
+    _sigusr1(SIGUSR1);
     break;
 
 #ifdef ENABLE_STATFILE
@@ -4094,13 +4109,17 @@ int chilli_main(int argc, char **argv) {
 
   int i;
 
+  int keep_going = 1;
+  int reload_config = 0;
+
+
   /* open a connection to the syslog daemon */
   /*openlog(PACKAGE, LOG_PID, LOG_DAEMON);*/
   openlog(PACKAGE, (LOG_PID | LOG_PERROR), LOG_DAEMON);
 
   options_init();
 
-  chilli_signals(&keep_going);
+  chilli_signals(&keep_going, &reload_config);
 
   /* Process options given in configuration file and command line */
   if (process_options(argc, argv, 0))
@@ -4374,7 +4393,7 @@ int chilli_main(int argc, char **argv) {
   }
 
 #ifdef ENABLE_CHILLIREDIR
-  if (!_options.debug) { /* XXX: Turned off during debug, for now! */
+  { /* if (!_options.debug) { /* XXX: Turned off during debug, for now! */
     pid_t p = fork();
     if (p < 0) {
       perror("fork");
@@ -4479,8 +4498,9 @@ int chilli_main(int argc, char **argv) {
     if (do_interval) {
       reprocess_options(argc, argv);
 
+      log_dbg("doing interval reprocess_options");
       do_interval = 0;
-
+      
       if (_options.adminuser)
 	chilliauth_radius(radius);
     }

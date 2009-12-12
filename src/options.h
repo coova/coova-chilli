@@ -34,6 +34,7 @@ struct options_t {
   int interval;
   char *pidfile;
   char *statedir;
+  char *binconfig;
 
   /* TUN parameters */
   struct in_addr net;            /* Network IP address */

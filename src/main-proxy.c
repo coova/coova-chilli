@@ -878,10 +878,11 @@ int main(int argc, char **argv) {
 #endif
 
   int keep_going = 1;
+  int reload_config = 1;
 
   options_init();
 
-  chilli_signals(&keep_going);
+  chilli_signals(&keep_going, &reload_config);
 
   /*
    *  Support a --register mode whereby all subsequent arguments are 

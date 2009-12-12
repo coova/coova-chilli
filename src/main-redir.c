@@ -38,16 +38,16 @@ struct options_t _options;
 
 typedef struct _redir_request {
   int index;
-
+  
   char inuse:1;
-
+  
   bstring url;
   bstring data;
   bstring post;
   bstring wbuf;
 
   struct conn_t conn;
-
+  
   int socket_fd;
 
   struct _redir_request *prev, *next;
@@ -376,10 +376,11 @@ int main(int argc, char **argv) {
   struct redir_t *redir;
 
   int keep_going = 1;
+  int reload_config = 0;
 
   options_init();
 
-  chilli_signals(&keep_going);
+  chilli_signals(&keep_going, &reload_config);
   
   process_options(argc, argv, 1);
   
@@ -434,6 +435,11 @@ int main(int argc, char **argv) {
     FD_ZERO(&fdexcep);
 
     active = 0;
+
+    if (reload_config) {
+      reload_options(argc, argv);
+      reload_config = 0;
+    }
 
     if (redir->fd[0])
       fd_set(redir->fd[0], &fdread);

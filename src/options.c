@@ -142,6 +142,8 @@ static int opt_run(int argc, char **argv, int reload) {
   newargs[i++] = file;
   newargs[i++] = reload ? "-r" : NULL;
 
+  log_dbg("running chilli_opt on %s", file);
+
   if (execv(SBINDIR "/chilli_opt", newargs) != 0) {
     log_err(errno, "execl() did not return 0!");
     exit(0);
@@ -152,10 +154,15 @@ static int opt_run(int argc, char **argv, int reload) {
 
 
 int options_load(int argc, char **argv, bstring bt) {
-  char file[128];
+  char fileb[128];
+  char *file = _options.binconfig;
   int fd;
 
-  snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",getpid());
+  if (!file) {
+    file = fileb;
+    snprintf(fileb,sizeof(fileb),"/tmp/chilli-%d/config.bin", getpid());
+  }
+
   fd = open(file, O_RDONLY);
 
   while (fd <= 0) {
@@ -172,6 +179,7 @@ int options_load(int argc, char **argv, bstring bt) {
 
   if (fd <= 0) return 0;
 
+  log_dbg("rereading binary file %s", file);
   return options_fromfd(fd, bt);
 }
 
@@ -207,10 +215,11 @@ int options_fromfd(int fd, bstring bt) {
   close(fd);
 
   if (has_error) {
-    log_err(errno, "could not read configuration");
+    log_err(errno, "could not read configuration, some kind of mismatch fd=%d", fd);
     return 0;
   }
   
+  if (!option_s_l(bt, &o.binconfig)) return 0;
   if (!option_s_l(bt, &o.pidfile)) return 0;
   if (!option_s_l(bt, &o.statedir)) return 0;
   if (!option_s_l(bt, &o.usestatusfile)) return 0;
@@ -315,6 +324,7 @@ int options_save(char *file, bstring bt) {
   }
 #endif
 
+  if (!option_s_s(bt, &o.binconfig)) return 0;
   if (!option_s_s(bt, &o.pidfile)) return 0;
   if (!option_s_s(bt, &o.statedir)) return 0;
   if (!option_s_s(bt, &o.usestatusfile)) return 0;
@@ -456,6 +466,7 @@ void reprocess_options(int argc, char **argv) {
 int reload_options(int argc, char **argv) {
   bstring bt = bfromcstr("");
   int ok = options_load(argc, argv, bt);
+  log_dbg("reloaded binary options file");
   bdestroy(bt);
   return ok;
 }

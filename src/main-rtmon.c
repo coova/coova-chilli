@@ -45,6 +45,7 @@ static char * chilli_conf = "/tmp/local.conf";
 
 int main(int argc, char *argv[]) {
   int keep_going = 1;
+  int reload_config = 1;
   int nls = open_netlink();
   int i;
 
@@ -62,7 +63,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  chilli_signals(&keep_going);
+  chilli_signals(&keep_going, &reload_config);
 
   discover_ifaces();
   discover_routes();

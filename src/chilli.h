@@ -139,7 +139,7 @@ int printstatus();
 int loadstatus();
 #endif
 
-void chilli_signals(int *with_term);
+void chilli_signals(int *with_term, int *with_hup);
 
 int chilli_new_conn(struct app_conn_t **conn);
 

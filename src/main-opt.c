@@ -816,11 +816,14 @@ int main(int argc, char **argv) {
   if (_options.uamaliasname) free(_options.uamaliasname);
   _options.uamaliasname = STRDUP(args_info.uamaliasname_arg);
 
+  if (_options.binconfig) free(_options.binconfig);
+  _options.binconfig = STRDUP(args_info.bin_arg);
+
   ret = 0;
 
-  if (args_info.bin_arg) { /* save out the configuration */
+  if (_options.binconfig) { /* save out the configuration */
     bstring bt = bfromcstr("");
-    int ok = options_save(args_info.bin_arg, bt);
+    int ok = options_save(_options.binconfig, bt);
     if (!ok) log_err(0, "could not save configuration options!");
     bdestroy(bt);
   }
