@@ -41,8 +41,8 @@ char credits[] =
 "controller developed by the community at <a href=\"http://www.coova.org\">www.coova.org</a>. "
 "It is licensed under the GNU General Public License (GPL). ";
 
-static unsigned char redir_radius_id=0;
 static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst);
+static uint8_t radius_packet_id = 0;
 extern time_t mainclock;
 
 /* Termination handler for clean shutdown */
@@ -1746,7 +1746,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
     return -1;
   }
 
-  radius->next = redir_radius_id;
+  radius->nextid = radius_packet_id;
 
   if (radius->fd > maxfd)
     maxfd = radius->fd;
@@ -2164,12 +2164,12 @@ int redir_accept(struct redir_t *redir, int idx) {
     return 0;
   }
 
+  radius_packet_id++;
+
   /* This forks a new process. The child really should close all
      unused file descriptors and free memory allocated. This however
      is performed when the process exits, so currently we don't
      care */
-
-  redir_radius_id++;
 
   if ((status = redir_fork(new_socket, new_socket)) < 0) {
     log_err(errno, "fork() returned -1!");

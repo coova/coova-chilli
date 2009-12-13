@@ -201,6 +201,9 @@ struct radius_queue_t {      /* Holder for queued packets */
   int this;                  /* Pointer to myself */
 };
 
+struct radius_q {
+};
+
 typedef struct radius_queue_t * radius_queue;
 
 struct radius_t {
@@ -227,9 +230,10 @@ struct radius_t {
 
   int debug;                     /* Print debug messages */
 
+  uint8_t nextid;                /* Next RADIUS id */
   radius_queue queue;            /* Outstanding replies */
   uint8_t qsize;                 /* Queue length */
-  uint8_t next;                  /* Next location in queue to use */
+  uint8_t qnext;                 /* Next location in queue to use */
   int first;                     /* First packet in queue (oldest timeout) */
   int last;                      /* Last packet in queue (youngest timeout) */
 

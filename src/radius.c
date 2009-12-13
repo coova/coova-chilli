@@ -28,7 +28,6 @@
 #include "radius_wispr.h"
 #include "radius_chillispot.h"
 
-
 void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   struct in_addr inaddr;
   struct in_addr *paddr = 0;
@@ -63,7 +62,7 @@ void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pa
 int radius_printqueue(struct radius_t *this) {
   int n;
   printf("next %d, first %d, last %d\n", 
-	 this->next, this->first, this ->last);
+	 this->qnext, this->first, this ->last);
 
   for(n=0; n<256; n++) {
     if (this->queue[n].state) {
@@ -198,19 +197,44 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
   struct timeval *tv;
   struct radius_attr_t *ma = NULL; /* Message authenticator */
 
+  int qnext = this->qnext;
+  int attempt = 0;
+
   if (this->debug) {
-    log_dbg("radius_queue_in");
     radius_printqueue(this);
   }
 
-  if (this->queue[this->next].state == 1) {
-    log_err(0, "radius queue is full!");
-    /* Queue is not really full. It only means that the next space
-       in queue is not available, but there might be space elsewhere */
-    return -1;
+ try_again:
+
+  if (this->qsize == 0) {
+
+    /*
+     * using the full-queue-size
+     */
+    qnext = pack->id = this->qnext;
+
+  } else {
+
+    pack->id = this->nextid++;
+
   }
 
-  pack->id = this->next;
+  if (this->queue[qnext].state == 1) {
+
+    log_err(0, "radius queue is full!");
+
+    if (attempt++ < (this->qsize ? this->qsize : 255)) {
+
+      this->qnext++;
+      
+      if (this->qsize) 
+	this->qnext %= this->qsize;
+
+      goto try_again;
+    }
+
+    return -1;
+  }
 
   /* If packet contains message authenticator: Calculate it! */
   if (!radius_getattr(pack, &ma, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 0,0,0)) {
@@ -218,57 +242,90 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
   }
   
   /* If accounting request: Calculate authenticator */
-  if (pack->code == RADIUS_CODE_ACCOUNTING_REQUEST)
+  if (pack->code == RADIUS_CODE_ACCOUNTING_REQUEST) {
     radius_acctreq_authenticator(this, pack);
+  }
 
-  memcpy(&this->queue[this->next].p, pack, RADIUS_PACKSIZE);
-  this->queue[this->next].state = 1;
-  this->queue[this->next].cbp = cbp;
-  this->queue[this->next].retrans = 0;
+  memcpy(&this->queue[qnext].p, pack, RADIUS_PACKSIZE);
+  this->queue[qnext].state = 1;
+  this->queue[qnext].cbp = cbp;
+  this->queue[qnext].retrans = 0;
 
-  tv = &this->queue[this->next].timeout;
+  tv = &this->queue[qnext].timeout;
   gettimeofday(tv, NULL);
 
   tv->tv_sec += _options.radiustimeout;
 
-  this->queue[this->next].lastsent = this->lastreply;
+  this->queue[qnext].lastsent = this->lastreply;
 
   /* Insert in linked list for handling timeouts */
-  this->queue[this->next].next = -1;         /* Last in queue */
-  this->queue[this->next].prev = this->last; /* Link to previous */
+  this->queue[qnext].next = -1;         /* Last in queue */
+  this->queue[qnext].prev = this->last; /* Link to previous */
 
   if (this->last != -1)
-    this->queue[this->last].next=this->next; /* Link previous to us */
-  this->last = this->next;                   /* End of queue */
+    this->queue[this->last].next = qnext; /* Link previous to us */
+
+  this->last = qnext;  /* End of queue */
 
   if (this->first == -1)
-    this->first = this->next; /* First and last */
+    this->first = qnext; /* First and last */
 
-  this->next++; /* next = next % RADIUS_QUEUESIZE */
+  this->qnext++;
 
-  if (this->qsize) 
-    this->next %= this->qsize;
-
+  if (this->qsize) {
+    /*
+     *  Note that if this value isn't set, then we are using the full 255.
+     *  We don't need to mod 255 since qnext is uint8_t and will simply rollover. 
+     */
+    this->qnext %= this->qsize;
+  }
+  
   if (this->debug) {
-    printf("radius_queue_out end\n");
     radius_printqueue(this);
   }
 
   return 0;
 }
 
+static int radius_queue_idx(struct radius_t *this, int id) {
+  int idx = id;
+
+  if (id < 0 || id >= RADIUS_QUEUESIZE) {
+    log_err(0, "bad id (%d)", id);
+    return -1;
+  }
+
+  if (this->qsize) {
+    int cnt = this->qsize;
+    while (cnt--) {
+      idx %= this->qsize;
+      if (this->queue[idx].state == 1 && this->queue[idx].p.id == id)
+	return idx;
+      idx++;
+    }
+  } else {
+    return id;
+  }
+
+  return -1;
+}
 
 /* 
  * radius_queue_in()
  * Remove data from queue.
  */
-int radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
+int radius_queue_out(struct radius_t *this, 
+		     struct radius_packet_t *pack,
 		     int id, void **cbp) {
+  int idx = radius_queue_idx(this, id);
 
-  if (this->debug) if (this->debug) printf("radius_queue_out\n");
+  if (idx < 0) {
+    log_err(0, "bad idx (%d)", idx);
+    return -1;
+  }
 
-  if (this->queue[id].state != 1) {
-    log_err(0, "No such id in radius queue: %d!", id);
+  if (this->queue[idx].state != 1) {
+    log_err(0, "No such id in radius queue: id=%d!", id);
     return -1;
   }
 
@@ -277,21 +334,21 @@ int radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
     radius_printqueue(this);
   }
   
-  memcpy(pack, &this->queue[id].p, RADIUS_PACKSIZE);
-  *cbp = this->queue[id].cbp;
+  memcpy(pack, &this->queue[idx].p, RADIUS_PACKSIZE);
+  *cbp = this->queue[idx].cbp;
 
-  this->queue[id].state = 0;
+  this->queue[idx].state = 0;
 
   /* Remove from linked list */
-  if (this->queue[id].next == -1) /* Are we the last in queue? */
-    this->last = this->queue[id].prev;
+  if (this->queue[idx].next == -1) /* Are we the last in queue? */
+    this->last = this->queue[idx].prev;
   else
-    this->queue[this->queue[id].next].prev = this->queue[id].prev;
+    this->queue[this->queue[idx].next].prev = this->queue[idx].prev;
     
-  if (this->queue[id].prev == -1) /* Are we the first in queue? */
-    this->first = this->queue[id].next;
+  if (this->queue[idx].prev == -1) /* Are we the first in queue? */
+    this->first = this->queue[idx].next;
   else
-    this->queue[this->queue[id].prev].next = this->queue[id].next;
+    this->queue[this->queue[idx].prev].next = this->queue[idx].next;
 
   if (this->debug) {
     log_dbg("radius_queue_out end");
@@ -308,17 +365,15 @@ int radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
 int radius_queue_reschedule(struct radius_t *this, int id) {
   struct timeval *tv;
 
-  /* sanity check */
-  if (id < 0 || id >= RADIUS_QUEUESIZE) {
-    log_err(0, "bad id (%d)", id);
+  int idx = radius_queue_idx(this, id);
+
+  if (idx < 0) {
+    log_err(0, "bad idx (%d)", idx);
     return -1;
   }
 
-  if (this->debug) 
-    log_dbg("radius_queue_reschedule");
-
-  if (this->queue[id].state != 1) {
-    log_err(0, "No such id in radius queue: %d!", id);
+  if (this->queue[idx].state != 1) {
+    log_err(0, "No such id in radius queue: id=%d!", id);
     return -1;
   }
 
@@ -327,40 +382,40 @@ int radius_queue_reschedule(struct radius_t *this, int id) {
     radius_printqueue(this);
   }
 
-  this->queue[id].retrans++;
+  this->queue[idx].retrans++;
 
-  tv = &this->queue[id].timeout;
+  tv = &this->queue[idx].timeout;
   gettimeofday(tv, NULL);
 
   tv->tv_sec += _options.radiustimeout;
 
   /* Remove from linked list */
-  if (this->queue[id].next == -1) /* Are we the last in queue? */
-    this->last = this->queue[id].prev;
+  if (this->queue[idx].next == -1) /* Are we the last in queue? */
+    this->last = this->queue[idx].prev;
   else
-    this->queue[this->queue[id].next].prev = this->queue[id].prev;
-    
-  if (this->queue[id].prev == -1) /* Are we the first in queue? */
-    this->first = this->queue[id].next;
+    this->queue[this->queue[idx].next].prev = this->queue[idx].prev;
+  
+  if (this->queue[idx].prev == -1) /* Are we the first in queue? */
+    this->first = this->queue[idx].next;
   else
-    this->queue[this->queue[id].prev].next = this->queue[id].next;
-
+    this->queue[this->queue[idx].prev].next = this->queue[idx].next;
+  
   /* Insert in linked list for handling timeouts */
-  this->queue[id].next = -1;         /* Last in queue */
-  this->queue[id].prev = this->last; /* Link to previous (could be -1) */
-
+  this->queue[idx].next = -1;         /* Last in queue */
+  this->queue[idx].prev = this->last; /* Link to previous (could be -1) */
+  
   if (this->last != -1)
-    this->queue[this->last].next=id; /* If not empty: link previous to us */
-
-  this->last = id;                   /* End of queue */
-
+    this->queue[this->last].next = idx; /* If not empty: link previous to us */
+  
+  this->last = idx; /* End of queue */
+  
   if (this->first == -1)
-    this->first = id;                /* First and last */
-
+    this->first = idx;  /* First and last */
+  
   if (this->debug) {
     radius_printqueue(this);
   }
-
+  
   return 0;
 }
 
@@ -1090,7 +1145,7 @@ int radius_new(struct radius_t **this,
 
   /* Initialise queue */
   new_radius->queue = 0;
-  new_radius->next = 0;
+  new_radius->qnext = 0;
   new_radius->first = -1;
   new_radius->last = -1;
   
@@ -1153,11 +1208,13 @@ int radius_new(struct radius_t **this,
 }
 
 int radius_init_q(struct radius_t *this, int size) {
-  if (size <= 0 || size > RADIUS_QUEUESIZE)
+  if (size <= 0 || size > RADIUS_QUEUESIZE) {
     size = RADIUS_QUEUESIZE;
-  else 
+    this->qsize = 0;
+  } else {
     this->qsize = size;
-
+  }
+  
   if (!(this->queue = calloc(sizeof(struct radius_queue_t), size)))
     return -1;
 

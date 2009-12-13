@@ -1033,10 +1033,12 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     return 0; /* Destination was local redir server */
   }
 
+  /* shouldn't ever get here
   if ( (iph->protocol == PKT_IP_PROTO_TCP) &&
        (_options.uamalias.s_addr) &&
        (iph->daddr == _options.uamalias.s_addr) )
     return 0; 
+  */
 
   /* Was it a request for a pass-through entry? */
   if (check_garden(_options.pass_throughs, _options.num_pass_throughs, pack, 1))
@@ -1085,9 +1087,10 @@ static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, siz
 
   if (isreturn) {
     /* We check here (we also do this in dhcp_dounDNAT()) for UAM */
-    if ((iph->saddr == this->uamlisten.s_addr) &&
-	(iph->protocol == PKT_IP_PROTO_TCP) &&
-	(tcph->src == htons(dhcp->uamport))) {
+    if ( ( iph->saddr == this->uamlisten.s_addr ) &&
+	 ( iph->protocol == PKT_IP_PROTO_TCP )    &&
+	 ( tcph->src == htons(dhcp->uamport) ||
+	   ( _options.uamuiport && tcph->src == htons(_options.uamuiport))) ) {
       
       dhcp_uam_unnat(conn, ethh, iph, tcph);
     }

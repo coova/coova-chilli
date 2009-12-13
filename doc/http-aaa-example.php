@@ -437,11 +437,11 @@ function do_admin_service(&$attrs) {
   echo "Acct-Interim-Interval:3600\n";
   echo "ChilliSpot-Config:uamanyip\n";
   echo "ChilliSpot-Config:uamnatanyip\n";
-  echo "ChilliSpot-Config:seskeepalive\n";
-  echo "ChilliSpot-Config:usestatusfile=chilli.status\n";
-  echo "ChilliSpot-Config:statip 5.0.0.0/24\n";
-  echo "ChilliSpot-Config:txqlen 1000\n";
-  echo "ChilliSpot-Config:tcpmss 1460\n";
+  //echo "ChilliSpot-Config:seskeepalive\n";
+  //echo "ChilliSpot-Config:usestatusfile=chilli.status\n";
+  //echo "ChilliSpot-Config:statip 5.0.0.0/24\n";
+  //echo "ChilliSpot-Config:txqlen 1000\n";
+  //echo "ChilliSpot-Config:tcpmss 1460\n";
   echo "ChilliSpot-Config:acctupdate\n";
   echo "ChilliSpot-Config:macreauth\n";
   //  echo "ChilliSpot-Config:usetap\n";
