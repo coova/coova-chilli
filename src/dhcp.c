@@ -1025,10 +1025,13 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   }
 
   /* Was it a request for local redirection server? */
-  if ( (iph->protocol == PKT_IP_PROTO_TCP) &&
-       (iph->daddr == this->uamlisten.s_addr) &&
-       (tcph->dst == htons(this->uamport)) )
+  if ( ( iph->protocol == PKT_IP_PROTO_TCP )    &&
+       ( iph->daddr == this->uamlisten.s_addr ) &&
+       ( tcph->dst == htons(this->uamport) || 
+	 ( _options.uamuiport && tcph->dst == htons(_options.uamuiport)) ) ) {
+
     return 0; /* Destination was local redir server */
+  }
 
   if ( (iph->protocol == PKT_IP_PROTO_TCP) &&
        (_options.uamalias.s_addr) &&
@@ -2252,7 +2255,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 
   if (_options.uamalias.s_addr && 
       pack_iph->daddr == _options.uamalias.s_addr) {
-
+    
     dhcp_uam_nat(conn, pack_ethh, pack_iph, pack_tcph, &this->uamlisten,
 		 _options.uamuiport ? _options.uamuiport : this->uamport);
 

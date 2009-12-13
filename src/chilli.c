@@ -104,8 +104,12 @@ static void _sigusr1(int signum) {
   if (p_reload_config)
     *p_reload_config = 1;
 
+#ifdef ENABLE_CHILLIREDIR
   if (redir_pid) kill(redir_pid, SIGUSR1);
+#endif
+#ifdef ENABLE_CHILLIPROXY
   if (proxy_pid) kill(proxy_pid, SIGUSR1);
+#endif
 }
 
 static void _sighup(int signum) {
