@@ -68,6 +68,8 @@ struct in_addr ipv4ll_mask;
 /* Forward declarations */
 static int acct_req(struct app_conn_t *conn, uint8_t status_type);
 
+static pid_t chilli_pid = 0;
+
 #ifdef ENABLE_RTMON_
 static pid_t rtmon_pid = 0;
 #endif
@@ -105,10 +107,12 @@ static void _sigusr1(int signum) {
     *p_reload_config = 1;
 
 #ifdef ENABLE_CHILLIREDIR
-  if (redir_pid) kill(redir_pid, SIGUSR1);
+  if (redir_pid) 
+    kill(redir_pid, SIGUSR1);
 #endif
 #ifdef ENABLE_CHILLIPROXY
-  if (proxy_pid) kill(proxy_pid, SIGUSR1);
+  if (proxy_pid) 
+    kill(proxy_pid, SIGUSR1);
 #endif
 }
 
@@ -146,6 +150,16 @@ void chilli_signals(int *with_term, int *with_hup) {
   }
 }
 
+int chilli_binconfig(char *file, size_t flen, pid_t pid) {
+  char * bc = _options.binconfig;
+  if (bc) {
+    return snprintf(file, flen, "%s", bc);
+  } else {
+    if (pid == 0) pid = chilli_pid;
+    if (pid == 0) pid = getpid();
+  }
+  return snprintf(file, flen, "/tmp/chilli-%d/config.bin", pid);
+}
 
 time_t mainclock_tick() {
 #ifdef HAVE_LIBRT
@@ -4151,14 +4165,14 @@ int chilli_main(int argc, char **argv) {
       mode_t process_mask = umask(0077);
       char file[128];
       char file2[128];
-      
+
       snprintf(file2,sizeof(file2),"/tmp/chilli-%d",getpid());
       
       if (mkdir(file2, S_IRWXU | S_IRWXG | S_IRWXO))
 	log_err(errno, file2);
 
-      snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",cpid);
-      snprintf(file2,sizeof(file2),"/tmp/chilli-%d/config.bin",getpid());
+      chilli_binconfig(file, sizeof(file), cpid);
+      chilli_binconfig(file2, sizeof(file2), getpid());
 
       rename(file, file2);
 
@@ -4177,7 +4191,6 @@ int chilli_main(int argc, char **argv) {
 
   openlog(PACKAGE, LOG_PID, (_options.logfacility<<3));
 
-
 #if XXX_IO_DAEMON 
   pipe(ctrl_main_to_io);
   pipe(ctrl_io_to_main);
@@ -4195,12 +4208,11 @@ int chilli_main(int argc, char **argv) {
 		     pkt_io_to_main[1]);
 #endif
 
+
+  chilli_pid = getpid();
   
   /* This has to be done after we have our final pid */
   log_pid((_options.pidfile && *_options.pidfile) ? _options.pidfile : DEFPIDFILE);
-
-  if (_options.debug) 
-    log_dbg("ChilliSpot version %s started.\n", VERSION);
 
   syslog(LOG_INFO, "CoovaChilli(ChilliSpot) %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
 	 "Copyright 2006-2009 Coova Technologies, LLC <support@coova.com>. Licensed under GPL. "
@@ -4376,7 +4388,7 @@ int chilli_main(int argc, char **argv) {
       char file[128];
 
       i=0;
-      snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",cpid);
+      chilli_binconfig(file, sizeof(file), cpid);
 
       newargs[i++] = "[chilli_proxy]";
       newargs[i++] = "-b";
@@ -4397,7 +4409,7 @@ int chilli_main(int argc, char **argv) {
   }
 
 #ifdef ENABLE_CHILLIREDIR
-  { /* if (!_options.debug) { /* XXX: Turned off during debug, for now! */
+  { 
     pid_t p = fork();
     if (p < 0) {
       perror("fork");
@@ -4406,7 +4418,7 @@ int chilli_main(int argc, char **argv) {
       char file[128];
 
       i=0;
-      snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",cpid);
+      chilli_binconfig(file, sizeof(file), cpid);
       
       newargs[i++] = "[chilli_redir]";
       newargs[i++] = "-b";
@@ -4502,7 +4514,6 @@ int chilli_main(int argc, char **argv) {
     if (do_interval) {
       reprocess_options(argc, argv);
 
-      log_dbg("doing interval reprocess_options");
       do_interval = 0;
       
       if (_options.adminuser)
@@ -4560,8 +4571,7 @@ int chilli_main(int argc, char **argv) {
     
   } /* while(keep_going) */
   
-  if (_options.debug) 
-    log_dbg("Terminating ChilliSpot!");
+  log_info("CoovaChilli shutting down");
   
   if (_options.seskeepalive) {
 #ifdef ENABLE_BINSTATFILE
@@ -4598,7 +4608,7 @@ int chilli_main(int argc, char **argv) {
   { /* clean up run-time files */
     char file[128];
 
-    snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",getpid());
+    chilli_binconfig(file, sizeof(file), getpid());
     if (remove(file)) log_err(errno, file);
 
     snprintf(file,sizeof(file),"/tmp/chilli-%d",getpid());

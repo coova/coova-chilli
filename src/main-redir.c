@@ -236,9 +236,9 @@ redir_handle_url(struct redir_t *redir,
     
     int matches = 1;
 
-    if (!_options.regex_pass_throughs[i].regex_host[0] &&
-	!_options.regex_pass_throughs[i].regex_path[0] &&
-	!_options.regex_pass_throughs[i].regex_qs[0])
+    if ( ! _options.regex_pass_throughs[i].regex_host[0] &&
+	 ! _options.regex_pass_throughs[i].regex_path[0] &&
+	 ! _options.regex_pass_throughs[i].regex_qs[0] )
       break;
 
     log_dbg("REGEX host=[%s] path=[%s] qs=[%s]",

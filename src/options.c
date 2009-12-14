@@ -120,7 +120,9 @@ static int opt_run(int argc, char **argv, int reload) {
   int status;
   int i;
 
-  snprintf(file,sizeof(file),"/tmp/chilli-%d/config.bin",getpid());
+  chilli_binconfig(file, sizeof(file), 0);
+
+  log_dbg("(Re)processing options [%s]", file);
 
   if ((status = fork()) < 0) {
     log_err(errno, "fork() returned -1!");
@@ -154,14 +156,10 @@ static int opt_run(int argc, char **argv, int reload) {
 
 
 int options_load(int argc, char **argv, bstring bt) {
-  char fileb[128];
-  char *file = _options.binconfig;
+  char file[128];
   int fd;
 
-  if (!file) {
-    file = fileb;
-    snprintf(fileb,sizeof(fileb),"/tmp/chilli-%d/config.bin", getpid());
-  }
+  chilli_binconfig(file, sizeof(file), 0);
 
   fd = open(file, O_RDONLY);
 
@@ -172,7 +170,7 @@ int options_load(int argc, char **argv, bstring bt) {
     if (WIFEXITED(status) && WEXITSTATUS(status) == 2) exit(0);
     fd = open(file, O_RDONLY);
     if (fd <= 0) {
-      log_warn(0, "could not generate configuration, sleeping one second");
+      log_warn(0, "could not generate configuration (%s), sleeping one second", file);
       sleep(1);
     }
   }

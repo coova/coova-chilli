@@ -921,6 +921,12 @@ int main(int argc, char **argv) {
   radius_set(radius_acct, 0, 0);
 
   while (keep_going) {
+
+    if (reload_config) {
+      reload_options(argc, argv);
+      reload_config = 0;
+    }
+
     FD_ZERO(&fdread);
     FD_ZERO(&fdwrite);
     FD_ZERO(&fdexcep);
@@ -936,8 +942,11 @@ int main(int argc, char **argv) {
     }
 #endif
 
-    if (radius_auth->fd > maxfd) maxfd = radius_auth->fd;
-    if (radius_acct->fd > maxfd) maxfd = radius_acct->fd;
+    if (radius_auth->fd > maxfd)
+      maxfd = radius_auth->fd;
+
+    if (radius_acct->fd > maxfd) 
+      maxfd = radius_acct->fd;
     
     timeout.tv_sec = 1;
     timeout.tv_usec = 0;
@@ -946,7 +955,9 @@ int main(int argc, char **argv) {
 
     switch (status) {
     case -1:
-      log_err(errno, "select() returned -1!");
+      if (EINTR != errno) {
+	log_err(errno, "select() returned -1!");
+      }
       break;  
 
     case 0:
