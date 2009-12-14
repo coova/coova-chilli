@@ -156,6 +156,7 @@ static int opt_run(int argc, char **argv, int reload) {
 
 
 int options_load(int argc, char **argv, bstring bt) {
+  static char done_before = 0;
   char file[128];
   int fd;
 
@@ -171,11 +172,13 @@ int options_load(int argc, char **argv, bstring bt) {
     fd = open(file, O_RDONLY);
     if (fd <= 0) {
       log_warn(0, "could not generate configuration (%s), sleeping one second", file);
+      if (done_before) break;
       sleep(1);
     }
   }
 
   if (fd <= 0) return 0;
+  done_before = 1;
 
   log_dbg("rereading binary file %s", file);
   return options_fromfd(fd, bt);

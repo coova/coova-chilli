@@ -4137,8 +4137,6 @@ int chilli_main(int argc, char **argv) {
 
   options_init();
 
-  chilli_signals(&keep_going, &reload_config);
-
   /* Process options given in configuration file and command line */
   if (process_options(argc, argv, 0))
     exit(1);
@@ -4190,6 +4188,8 @@ int chilli_main(int argc, char **argv) {
   closelog(); 
 
   openlog(PACKAGE, LOG_PID, (_options.logfacility<<3));
+
+  chilli_signals(&keep_going, &reload_config);
 
 #if XXX_IO_DAEMON 
   pipe(ctrl_main_to_io);

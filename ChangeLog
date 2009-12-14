@@ -1,7 +1,17 @@
 
 == ChangeLog (Coova Chilli current svn revision) ==
 
+* Added option ''--uamaliasip'' (which defaults to 1.0.0.1) that defines a special IP - will always redir
+* Added option ''--uamaliasname'' which defines a word hostname (combined with --domain) that is a DNS alias for ''uamaliasip''
+* Added option ''--redirssl'' to turn on redirection of HTTPS (when used with OpenSSL or MatrixSSL)
+* Added option ''--uamuissl'' to turn on SSL on the ''uamuiport'' instead of simple HTTP (requires SSL)
+* Added option ''--sslkeyfile'' to set the SSL private key (in PEM) to use in hijack/uamuissl
+* Added option ''--sslcertfile'' to set the SSL certificate (in PEM) to use in hijack/uamuissl
+* Added support for MatrixSSL as an alternate to OpenSSL when compiled with ''--with-matrixssl''
+* Change to RADIUS subsystem whereby the allocation of the queue is optional, as is the queue size
+* Using the librt functions for clock management; faster than using time() and will never go backwards
 * Support for Linux Packet MMAP RX/TX ring buffer packet interfaces
+* Added option ''--anyipexclude'' (from forum) to define a network that is excluded from ''uamanyip''
 * Support for poll/epoll as alternative to select (use with configure ''-with-poll'')
 * Added new compile time feature ''--enable-chilliredir'' which will build and use a forked server for handling redirects
 * With the above option also enabled, regular expression based walled garden can be set with one or more ''--uamregex spec''	
@@ -9,6 +19,8 @@
 * Added support for SSL redirecting (with SSL cert violation, of course) and SSL on the local UAM sockets
 * Added compile-type option ''--enable-chilliproxy'' to have the new ''chilli_proxy'' server built
 * Added ''chilli_proxy'' to perform a RADIUS to/from HTTP translation for networks not wanting to use RADIUS
+* Added compile-type option ''--with-curl'' to enable cURL library support instead of native chilli client
+* Improved signgal handling and delegation to child processes (proxy/redir)
 * Added Content-Type and Content-Length to chilli HTTP responses (redirect) - needed for some smart-clients (iPASS)
 * Added option to ''chilli_query'' to have a session login with a certain username/password, (e.g. ''chilli_query login sessionid xxx username test password test'')
 * Added example HTTP AAA PHP script, see doc/http-aaa-example.php
@@ -17,12 +29,12 @@
 * Bug fix for when setting bandwidth limitations using chilli_query
 * Changes default uamlogoutip from 1.1.1.1 to 1.0.0.0 because of reports it disconnects VPN connections. 
 * Added some compile time options to remove certain features (see configure script).
-* Changed ''usestatusfile'' option from flag to an argument that takes a string (filename)
+* Changed ''--usestatusfile'' option from flag to an argument that takes a string (filename)
 * Compile-time option ''--enable-binstatusfile'' to enable the writing/reading of a binary status file
 * New option ''seskeepalive'' to be used with above compile type option to indicate chilli should not stop sessions on shutdown
 * Added VLAN-Id RADIUS attribute to accounting. 
+* Bug fix for VLAN ID in RADIUS and redirect URL
 * Bug fix for HEX conversion error
-* Bug fix for VLAN ID in RADIUS
 
 == ChangeLog (Coova Chilli v1.0.14 svn revision 208) ==
 
