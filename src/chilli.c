@@ -4170,9 +4170,9 @@ int chilli_main(int argc, char **argv) {
 	log_err(errno, file2);
 
       chilli_binconfig(file, sizeof(file), cpid);
-      chilli_binconfig(file2, sizeof(file2), getpid());
+      snprintf(file2, sizeof(file2), "/tmp/chilli-%d/config.bin", getpid());
 
-      rename(file, file2);
+      if (rename(file, file2)) log_err(errno, file);
 
       umask(process_mask);
 
