@@ -1064,7 +1064,7 @@ int radius_pwencode(struct radius_t *this,
     *dstlen = srclen;                 /* No padding */
 
   /* Is dstsize too small ? */
-  if (dstsize <= *dstlen) {
+  if (dstsize < *dstlen) {
     *dstlen = 0;
     return -1;
   }

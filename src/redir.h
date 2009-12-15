@@ -79,6 +79,7 @@ struct redir_conn_t {
   int response; /* 0: No radius response yet; 1:Reject; 2:Accept; 3:Timeout */
   uint8_t chappassword[RADIUS_CHAPSIZE];
   uint8_t password[RADIUS_PWSIZE];
+  int password_len;
   uint8_t chap_ident;
   
   /* 

@@ -60,14 +60,15 @@ static void redir_alarm(int signum) {
 /* Generate a 16 octet random challenge */
 static int redir_challenge(unsigned char *dst) {
   FILE *file;
-
+  
   if ((file = fopen("/dev/urandom", "r")) == NULL) {
-    log_err(errno, "fopen(/dev/urandom, r) failed");
+    log_err(errno, "fopen(/dev/urandom)");
     return -1;
   }
   
   if (fread(dst, 1, REDIR_MD5LEN, file) != REDIR_MD5LEN) {
     log_err(errno, "fread() failed");
+    fclose(file);
     return -1;
   }
   
@@ -85,10 +86,8 @@ int redir_hextochar(unsigned char *src, unsigned char * dst, int len) {
     x[1] = src[n*2+1];
     x[2] = 0;
     if (sscanf(x, "%2x", &y) != 1) {
-      /*log_err(0, "HEX conversion failed!");
-	return -1;*/
-      dst[n] = 0;
-      break;
+      log_err(0, "HEX conversion failed!");
+      return -1;
     }
     dst[n] = (unsigned char) y;
   }
@@ -404,8 +403,9 @@ int redir_md_param(bstring str, char *secret, char *amp) {
   MD5Final(cksum, &context);
   
   hex[0]=0;
-  for (i=0; i<16; i++)
-    sprintf(hex+strlen(hex), "%.2X", cksum[i]);
+  for (i=0; i<16; i++) {
+    sprintf(hex+2*i, "%.2X", cksum[i]);
+  }
   
   bcatcstr(str, amp);
   bcatcstr(str, "md=");
@@ -1570,8 +1570,11 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	conn->password[0] = 0;
       }
       else if (!redir_getparam(redir, httpreq->qs, "password", bt)) {
-	redir_hextochar(bt->data, conn->password, RADIUS_PWSIZE);
-	conn->password[RADIUS_PWSIZE-1]=0;
+	conn->password_len = bt->slen / 2;
+	log_dbg("Password length: %d",conn->password_len);
+	if (conn->password_len > RADIUS_PWSIZE)
+	  conn->password_len = RADIUS_PWSIZE;
+	redir_hextochar(bt->data, conn->password, conn->password_len);
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
       } else {
@@ -1798,7 +1801,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
       for (n=0; n < REDIR_MD5LEN; m++, n++)
 	user_password[m] = conn->password[m] ^ chap_challenge[n];
     
-    user_password[strlen((char *)conn->password)] = 0;
+    user_password[conn->password_len] = 0;
 
 #ifdef HAVE_OPENSSL
     if (_options.mschapv2) {
@@ -1810,7 +1813,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
       
       GenerateNTResponse(chap_challenge, /*peer*/chap_challenge,
 			 conn->s_state.redir.username, strlen(conn->s_state.redir.username),
-			 user_password, strlen(user_password),
+			 user_password, conn->password_len,
 			 ntresponse);
       
       /* peer challenge - same as auth challenge */
@@ -1831,7 +1834,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 #endif
       
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		     user_password, strlen((char*)user_password));
+		     user_password, conn->password_len);
 
 #ifdef HAVE_OPENSSL
     }
