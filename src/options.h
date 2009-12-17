@@ -223,7 +223,7 @@ struct options_t {
   /* Command-Socket */
   char *cmdsocket;
 
-#ifdef MSG_IPC_UNIX
+#ifdef USING_IPC_UNIX
   char *unixipc;
 #endif
 

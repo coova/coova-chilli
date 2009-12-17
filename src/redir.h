@@ -129,12 +129,10 @@ struct redir_socket_t {
 #endif
 };
 
-#define MSG_IPC_UNIX 1
-
 struct redir_t {
   int fd[2];             /* File descriptors */
   int debug;
-#if MSG_IPC_UNIX
+#if defined(USING_IPC_UNIX)
   int msgfd;
 #else
   int msgid;             /* Message Queue */

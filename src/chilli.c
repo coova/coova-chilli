@@ -151,12 +151,14 @@ void chilli_signals(int *with_term, int *with_hup) {
 }
 
 int chilli_binconfig(char *file, size_t flen, pid_t pid) {
-  char * bc = _options.binconfig;
-  if (bc) {
-    return snprintf(file, flen, "%s", bc);
-  } else {
-    if (pid == 0) pid = chilli_pid;
-    if (pid == 0) pid = getpid();
+  if (pid == 0) {
+    char * bc = _options.binconfig;
+    if (bc) {
+      return snprintf(file, flen, "%s", bc);
+    } else {
+      if (pid == 0) pid = chilli_pid;
+      if (pid == 0) pid = getpid();
+    }
   }
   return snprintf(file, flen, "/tmp/chilli-%d/config.bin", pid);
 }
@@ -4170,7 +4172,7 @@ int chilli_main(int argc, char **argv) {
 	log_err(errno, file2);
 
       chilli_binconfig(file, sizeof(file), cpid);
-      snprintf(file2, sizeof(file2), "/tmp/chilli-%d/config.bin", getpid());
+      chilli_binconfig(file2, sizeof(file2), getpid());
 
       if (rename(file, file2)) log_err(errno, file);
 
@@ -4608,10 +4610,10 @@ int chilli_main(int argc, char **argv) {
   { /* clean up run-time files */
     char file[128];
 
-    chilli_binconfig(file, sizeof(file), getpid());
+    chilli_binconfig(file, sizeof(file), cpid);
     if (remove(file)) log_err(errno, file);
 
-    snprintf(file,sizeof(file),"/tmp/chilli-%d",getpid());
+    snprintf(file,sizeof(file),"/tmp/chilli-%d", cpid);
     if (rmdir(file)) log_err(errno, file);
   }
 
