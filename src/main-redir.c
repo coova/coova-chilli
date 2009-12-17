@@ -378,11 +378,30 @@ int main(int argc, char **argv) {
   int keep_going = 1;
   int reload_config = 0;
 
+  uint8_t hwaddr[6], mac[32];
+  struct ifreq ifr;
+  
+  int fd = socket(AF_INET, SOCK_DGRAM, 0);
+
   options_init();
 
   chilli_signals(&keep_going, &reload_config);
   
   process_options(argc, argv, 1);
+  
+  strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
+  
+  if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
+    memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
+    
+    snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+	     hwaddr[0], hwaddr[1], hwaddr[2],
+	     hwaddr[3], hwaddr[4], hwaddr[5]);
+    
+    _options.nasmac = strdup(mac);
+  }
+  
+  close(fd);
   
   /* create an instance of redir */
   if (redir_new(&redir, &_options.uamlisten, _options.uamport, _options.uamuiport)) {
@@ -397,37 +416,11 @@ int main(int argc, char **argv) {
 
   if (redir->fd[0] > maxfd) maxfd = redir->fd[0];
   if (redir->fd[1] > maxfd) maxfd = redir->fd[1];
-  redir_set(redir, (_options.debug));
+  redir_set(redir, hwaddr, (_options.debug));
   redir_set_cb_getstate(redir, sock_redir_getstate);
 
   redir->cb_handle_url = redir_handle_url;
   redir->cb_handle_url_ctx = 0;
-
-  if (!_options.nasmac) {
-    /*
-     *  We need to configure this here to be the MAC address of the
-     *  local interface, something done normally in add_calledstation
-     *  but we don't have the dhcpif tapped when running chilli_redir.
-     */
-    uint8_t hwaddr[6], mac[32];
-    struct ifreq ifr;
-    
-    int fd = socket(AF_INET, SOCK_DGRAM, 0);
-    
-    strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
-    
-    if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
-      memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
-      
-      snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
-	       hwaddr[0], hwaddr[1], hwaddr[2],
-	       hwaddr[3], hwaddr[4], hwaddr[5]);
-      
-      _options.nasmac = strdup(mac);
-    }
-      
-    close(fd);
-  }
 
   while (keep_going) {
     FD_ZERO(&fdread);
@@ -439,6 +432,8 @@ int main(int argc, char **argv) {
     if (reload_config) {
       reload_options(argc, argv);
       reload_config = 0;
+
+      redir_set(redir, hwaddr, _options.debug);
     }
 
     if (redir->fd[0])

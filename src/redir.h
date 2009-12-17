@@ -163,6 +163,7 @@ struct redir_t {
   int radiusnasporttype;
   int chillixml;     /* Send chilli specific XML along with WISPr */
   int no_uamwispr;   /* Do not have Chilli return WISPr blocks */
+  unsigned char nas_hwaddr[6];   /* Hardware address of NAS */
   
   int (*cb_getstate) (struct redir_t *redir, 
 		      struct sockaddr_in *address,
@@ -197,7 +198,7 @@ int redir_new(struct redir_t **redir, struct in_addr *addr, int port, int uiport
 
 int redir_free(struct redir_t *redir);
 
-void redir_set(struct redir_t *redir, int debug);
+void redir_set(struct redir_t *redir, uint8_t *hwaddr, int debug);
 
 int redir_accept(struct redir_t *redir, int idx);
 

@@ -273,8 +273,8 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
     bassigncstr(bt, _options.nasmac);
   else 
     bassignformat(bt, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
-		  radius->nas_hwaddr[0], radius->nas_hwaddr[1], radius->nas_hwaddr[2],
-		  radius->nas_hwaddr[3], radius->nas_hwaddr[4], radius->nas_hwaddr[5]);
+		  redir->nas_hwaddr[0], redir->nas_hwaddr[1], redir->nas_hwaddr[2],
+		  redir->nas_hwaddr[3], redir->nas_hwaddr[4], redir->nas_hwaddr[5]);
 
   redir_urlencode(bt, bt2);
   bconcat(str, bt2);
@@ -1211,7 +1211,7 @@ int redir_free(struct redir_t *redir) {
 }
 
 /* Set redir parameters */
-void redir_set(struct redir_t *redir, int debug) { 
+void redir_set(struct redir_t *redir, uint8_t *hwaddr, int debug) { 
   optionsdebug = debug; /* TODO: Do not change static variable from instance */
   redir->debug = debug;
 
@@ -1234,6 +1234,10 @@ void redir_set(struct redir_t *redir, int debug) {
   redir->radiuslocationname  = _options.radiuslocationname;
   redir->locationname  = _options.locationname;
   redir->radiusnasporttype = _options.radiusnasporttype;
+
+  if (hwaddr)
+    memcpy(redir->nas_hwaddr, hwaddr, sizeof(redir->nas_hwaddr));
+
   return;
 }
 

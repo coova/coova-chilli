@@ -4325,7 +4325,7 @@ int chilli_main(int argc, char **argv) {
     return -1;
   }
   
-  redir_set(redir, (_options.debug));
+  redir_set(redir, dhcp->rawif.hwaddr, (_options.debug));
 
   /* not really needed for chilliredir */
   redir_set_cb_getstate(redir, cb_redir_getstate);
@@ -4507,10 +4507,10 @@ int chilli_main(int argc, char **argv) {
 	dhcp_set(dhcp, (_options.debug & DEBUG_DHCP));
       
       /* Reinit RADIUS parameters */
-      radius_set(radius, dhcp ? dhcp->rawif.hwaddr : 0, (_options.debug & DEBUG_RADIUS));
+      radius_set(radius, dhcp->rawif.hwaddr, (_options.debug & DEBUG_RADIUS));
       
       /* Reinit Redir parameters */
-      redir_set(redir, _options.debug);
+      redir_set(redir, dhcp->rawif.hwaddr, _options.debug);
     }
 
     if (do_interval) {
