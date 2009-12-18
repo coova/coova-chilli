@@ -173,16 +173,22 @@ time_t mainclock_tick() {
 #else
   clockid_t cid = CLOCK_REALTIME;
 #endif
-  if (clock_gettime(cid, &ts) < 0) {
+  int res = clock_gettime(cid, &ts);
+  if (res == -1 && errno == EINVAL) {
+    cid = CLOCK_REALTIME;
+    res = clock_gettime(cid, &ts);
+  }
+  if (res == -1) {
     log_err(errno, "clock_gettime()");
+    /* drop through to old time() */
   } else {
     mainclock = ts.tv_sec;
+    return mainclock;
   }
-#else
+#endif
   if (time(&mainclock) == (time_t)-1) {
     log_err(errno, "time()");
   }
-#endif
   return mainclock;
 }
 
@@ -196,15 +202,16 @@ time_t mainclock_rt() {
   struct timespec ts;
   clockid_t cid = CLOCK_REALTIME;
   if (clock_gettime(cid, &ts) < 0) {
-    log_err(errno, "time()");
+    log_err(errno, "clock_gettime()");
+    /* drop through to old time() */
   } else {
     rt = ts.tv_sec;
+    return rt;
   }
-#else
+#endif
   if (time(&rt) == (time_t)-1) {
     log_err(errno, "time()");
   }
-#endif
   return rt;
 }
 
