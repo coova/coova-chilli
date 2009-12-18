@@ -166,9 +166,9 @@ int chilli_binconfig(char *file, size_t flen, pid_t pid) {
 time_t mainclock_tick() {
 #ifdef HAVE_LIBRT
   struct timespec ts;
-#ifdef CLOCK_SECOND
+#if defined(CLOCK_SECOND)
   clockid_t cid = CLOCK_SECOND;
-#elif CLOCK_MONOTONIC
+#elif defined(CLOCK_MONOTONIC)
   clockid_t cid = CLOCK_MONOTONIC;
 #else
   clockid_t cid = CLOCK_REALTIME;

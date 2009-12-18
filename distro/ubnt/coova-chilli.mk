@@ -21,7 +21,6 @@ $(coova_chilli_version)/.configured:
 	  --build=i686-linux \
 	  --enable-shared \
 	  --enable-chilliproxy \
-	  --enable-chilliredir \
 	  --enable-miniportal \
 	  --enable-binstatusfile \
          && touch .configured)
