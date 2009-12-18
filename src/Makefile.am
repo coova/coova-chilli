@@ -40,7 +40,7 @@ endif
 if WITH_MATRIXSSL
 libchilli_la_SOURCES += matrixssl.c matrixssl.h
 #LDADD += ${LIBSSL}
-LDADD += $(top_builddir)/src/libmatrixsslstatic.a
+LDADD += -lmatrixssl
 endif
 
 if WITH_NETFILTER_QUEUE
