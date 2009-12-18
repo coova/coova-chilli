@@ -4139,7 +4139,6 @@ int chilli_main(int argc, char **argv) {
   int keep_going = 1;
   int reload_config = 0;
 
-
   /* open a connection to the syslog daemon */
   /*openlog(PACKAGE, LOG_PID, LOG_DAEMON);*/
   openlog(PACKAGE, (LOG_PID | LOG_PERROR), LOG_DAEMON);
@@ -4167,27 +4166,61 @@ int chilli_main(int argc, char **argv) {
        *  We switched PID when we forked. 
        *  To keep things nice and tity, lets move the
        *  binary configuration file to the new directory. 
+       *
+       *  TODO: This process isn't ideal. But, the goal remains
+       *  that we don't need cmdline.o in the running chilli. We may
+       *  want to move away from gengetopt as it isn't exactly the most
+       *  flexible or light-weight. 
        */
 
       mode_t process_mask = umask(0077);
       char file[128];
       char file2[128];
+      int ok;
 
-      snprintf(file2,sizeof(file2),"/tmp/chilli-%d",getpid());
-      
+      pid_t new_pid = getpid();
+
+      bstring bt = bfromcstr("");
+
+      /*
+       * Create the new temporary directory.
+       */
+      snprintf(file2, sizeof(file2), "/tmp/chilli-%d", new_pid);
       if (mkdir(file2, S_IRWXU | S_IRWXG | S_IRWXO))
 	log_err(errno, file2);
 
+      /*
+       * Format the filename of the current (cpid) and new binconfig files.
+       */
       chilli_binconfig(file, sizeof(file), cpid);
-      chilli_binconfig(file2, sizeof(file2), getpid());
+      chilli_binconfig(file2, sizeof(file2), new_pid);
 
-      if (rename(file, file2)) log_err(errno, file);
+      /*
+       * Reset the binconfig option and save current setttings.
+       */
+      _options.binconfig = file2;
+      ok = options_save(file2, bt);
 
+      if (!ok) {
+	log_err(errno, "could not save configuration options! [%s]", file2);
+	exit(1);
+      }
+
+      /*
+       * Reset binconfig (since file2 is a local variable)
+       */
+      _options.binconfig = 0;
+
+      /* 
+       * Remove old file
+       */
+      unlink(file);
+      snprintf(file, sizeof(file), "/tmp/chilli-%d", cpid);
+      if (rmdir(file)) log_err(errno, file);
       umask(process_mask);
 
-      snprintf(file,sizeof(file),"/tmp/chilli-%d",cpid);
-      if (rmdir(file)) log_err(errno, file);
-      cpid = getpid();
+      cpid = new_pid;
+      bdestroy(bt);
     }
   } 
 
