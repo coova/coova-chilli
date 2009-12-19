@@ -89,6 +89,7 @@ EOF
 }
 
 writeconfig() {
+    [ "$HS_USETAP" = "on" ] && addconfig1 "usetap"
     [ "$HS_ANYIP" = "on" ] && addconfig1 "uamanyip"
     [ "$HS_NATANYIP" = "on" ] && addconfig1 "uamnatanyip"
     [ "$HS_NOC2C" = "on" ] && addconfig1 "noc2c"
@@ -171,6 +172,8 @@ writeconfig() {
 	[ "$HS_DNSPARANOIA" = "on" ] && addconfig2 "dnsparanoia"
 	[ "$HS_UAMALLOWPOST" = "on" ] && addconfig2 "uamallowpost"
 	[ "$HS_IEEE8021Q" = "on" ] && addconfig2 "ieee8021q"
+	[ "$HS_UAMUISSL" = "on" ] && addconfig2 "uamuissl"
+	[ "$HS_REDIRSSL" = "on" ] && addconfig2 "redirssl"
 	[ -n "$HS_UAMALIASNAME" ] && addconfig2 "uamaliasname \"$HS_UAMALIASNAME\""
 	[ -n "$HS_UAMAAAURL" ] && addconfig2 "uamaaaurl \"$HS_UAMAAAURL\""
 	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile \"$HS_ADMINUPDATEFILE\""
@@ -183,6 +186,11 @@ writeconfig() {
 	test ${HS_DEFINTERIMINTERVAL:-0} -gt 0 && addconfig2 "definteriminterval $HS_DEFINTERIMINTERVAL"
 	test ${HS_COAPORT:-0} -gt 0 && addconfig2 "coaport $HS_COAPORT"
 
+	[ -n "$HS_SSLKEYFILE" -a -n "$HS_SSLCERTFILE" ] && {
+	    addconfig2 "sslkeyfile $HS_SSLKEYFILE"
+	    addconfig2 "sslcertfile $HS_SSLCERTFILE"
+	}
+
 	[ -n "$HS_POSTAUTH_PROXY" -a -n "$HS_POSTAUTH_PROXYPORT" ] && {
 	    addconfig2 "postauthproxy $HS_POSTAUTH_PROXY"
 	    addconfig2 "postauthproxyport $HS_POSTAUTH_PROXYPORT"
@@ -192,7 +200,7 @@ writeconfig() {
 	    addconfig2 "proxylisten ${HS_RADPROXY_LISTEN:-127.0.0.1}"
 	    addconfig2 "proxyclient ${HS_RADPROXY_CLIENT:-127.0.0.1}"
 	    addconfig2 "proxyport ${HS_RADPROXY_PORT:-1645}"
-	    addconfig2 "proxysecret ${HS_RADPROXY_SECRET:-$HS_RADSECRET}"
+	    addconfig2 "proxysecret \"${HS_RADPROXY_SECRET:-$HS_RADSECRET}\""
 	}
 
 	# these are settings you would typically get from a centralized source

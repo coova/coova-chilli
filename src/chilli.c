@@ -904,6 +904,8 @@ int static radius_access_challenge(struct app_conn_t *conn) {
   size_t offset = 0;
   size_t eaplen = 0;
 
+  log_dbg("Sending RADIUS AccessChallenge to client");
+
   conn->radiuswait = 0;
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_CHALLENGE)){
@@ -926,7 +928,8 @@ int static radius_access_challenge(struct app_conn_t *conn) {
       return -1;
     }
     offset += eaplen;
-  } while (offset < conn->challen);
+  }
+  while (offset < conn->challen);
   
   if (conn->s_state.redir.statelen) {
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_STATE, 0, 0, 0,

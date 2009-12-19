@@ -1466,27 +1466,37 @@ radius_default_pack(struct radius_t *this,
     return -1;
   }
 
-  /* always add the chillispot version to requests */
-  radius_addattr(this, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VERSION, 
-		 0, (uint8_t*)VERSION, strlen(VERSION));
+  switch (code) {
+  case RADIUS_CODE_ACCESS_REJECT:
+  case RADIUS_CODE_ACCESS_ACCEPT:
+  case RADIUS_CODE_ACCESS_REQUEST:
+  case RADIUS_CODE_ACCOUNTING_REQUEST:
 
-  if (code == RADIUS_CODE_ACCOUNTING_REQUEST) {
+    radius_addattr(this, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VERSION, 
+		   0, (uint8_t*)VERSION, strlen(VERSION));
 
-    /*
-     * For accounting, always indicate the "direction" of accounting
-     * up / down data measurements.
-     */
+    if (code == RADIUS_CODE_ACCOUNTING_REQUEST) {
 
-    uint32_t v = _options.swapoctets ? 
-      RADIUS_VALUE_CHILLISPOT_NAS_VIEWPOINT :
-      RADIUS_VALUE_CHILLISPOT_CLIENT_VIEWPOINT;
+      /*
+       * For accounting, always indicate the "direction" of accounting
+       * up / down data measurements.
+       */
       
-    radius_addattr(this, pack, 
-		   RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT,
-		   RADIUS_ATTR_CHILLISPOT_ACCT_VIEW_POINT, 
-		   v, 0, 0);
+      uint32_t v = _options.swapoctets ? 
+	RADIUS_VALUE_CHILLISPOT_NAS_VIEWPOINT :
+	RADIUS_VALUE_CHILLISPOT_CLIENT_VIEWPOINT;
+      
+      radius_addattr(this, pack, 
+		     RADIUS_ATTR_VENDOR_SPECIFIC,
+		     RADIUS_VENDOR_CHILLISPOT,
+		     RADIUS_ATTR_CHILLISPOT_ACCT_VIEW_POINT, 
+		     v, 0, 0);
+    }
+    break;
+
+  default:
+    break;
   }
   
   return 0;
@@ -1710,8 +1720,10 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
     /* Any of the two servers or from one of the clients */
     if ((addr.sin_addr.s_addr & this->proxymask.s_addr)!= 
 	this->proxyaddr.s_addr) {
+
       log_warn(0, "Received radius request from wrong address %.8x!",
 	       addr.sin_addr.s_addr);
+
       return -1;
     }
     
