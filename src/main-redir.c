@@ -297,8 +297,6 @@ redir_handle_url(struct redir_t *redir,
   return 1;
 }
 
-static unsigned char redir_radius_id=0;
-
 int redir_accept2(struct redir_t *redir, int idx) {
   int status;
   int new_socket;
@@ -327,8 +325,6 @@ int redir_accept2(struct redir_t *redir, int idx) {
     log_err(errno, "could not set socket flags");
   }
   
-  redir_radius_id++;
-
   if (idx == 1 && _options.uamui) {
     
     if ((status = redir_fork(new_socket, new_socket)) < 0) {
@@ -393,12 +389,9 @@ int main(int argc, char **argv) {
   
   if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
     memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
-    
-    snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
-	     hwaddr[0], hwaddr[1], hwaddr[2],
-	     hwaddr[3], hwaddr[4], hwaddr[5]);
-    
-    _options.nasmac = strdup(mac);
+  } else {
+    log_err(errno, "could not get MAC address");
+    return -1;
   }
   
   close(fd);
