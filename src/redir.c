@@ -76,18 +76,26 @@ static int redir_challenge(unsigned char *dst) {
   return 0;
 }
 
-int redir_hextochar(unsigned char *src, unsigned char * dst, int len) {
+static int redir_hextochar(unsigned char *src, int slen, unsigned char * dst, int len) {
   char x[3];
   int n;
+  int i;
   int y;
   
   for (n=0; n < len; n++) {
-    x[0] = src[n*2+0];
-    x[1] = src[n*2+1];
-    x[2] = 0;
-    if (sscanf(x, "%2x", &y) != 1) {
-      log_err(0, "HEX conversion failed!");
-      return -1;
+    i = n * 2;
+    y = 0;
+    if (i < slen) {
+      x[0] = src[i];
+      x[1] = src[i+1];
+      x[2] = 0;
+      switch (sscanf(x, "%2x", &y)) {
+      case 0:  y = 0;
+      case 1:  break;
+      default:
+	log_err(errno, "HEX conversion failed (src='%s', len=%d, n=%d, y=%d)!", src, len, n, y);
+	return -1;
+      }
     }
     dst[n] = (unsigned char) y;
   }
@@ -1564,12 +1572,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       }
       
       if (!redir_getparam(redir, httpreq->qs, "ntresponse", bt)) {
-	redir_hextochar(bt->data, conn->chappassword, 24);
+	redir_hextochar(bt->data, bt->slen, conn->chappassword, 24);
 	conn->chap = 2;
 	conn->password[0] = 0;
       }
       else if (!redir_getparam(redir, httpreq->qs, "response", bt)) {
-	redir_hextochar(bt->data, conn->chappassword, RADIUS_CHAPSIZE);
+	redir_hextochar(bt->data, bt->slen, conn->chappassword, RADIUS_CHAPSIZE);
 	conn->chap = 1;
 	conn->password[0] = 0;
       }
@@ -1578,7 +1586,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	log_dbg("Password length: %d",conn->password_len);
 	if (conn->password_len > RADIUS_PWSIZE)
 	  conn->password_len = RADIUS_PWSIZE;
-	redir_hextochar(bt->data, conn->password, conn->password_len);
+	redir_hextochar(bt->data, bt->slen, conn->password, conn->password_len);
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
       } else {
@@ -2831,7 +2839,8 @@ int redir_main(struct redir_t *redir,
 
   log_dbg("---->>> challenge: %s", hexchal);
 
-  if (_options.macreauth) {
+  if (_options.macreauth && 
+      !conn.s_state.authenticated) {
     msg.mtype = REDIR_MACREAUTH;
     redir_msg_send(0);
   }

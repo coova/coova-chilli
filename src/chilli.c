@@ -261,7 +261,6 @@ static inline int leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint6
 	    octetsup, octetsdown);
   
   if (conn->s_params.bandwidthmaxup) {
-    /* subtract what the leak since last time we visited */
     uint64_t bytes = (timediff * conn->s_params.bandwidthmaxup) / 8;
 
     if (!conn->s_state.bucketupsize) {

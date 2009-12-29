@@ -687,8 +687,10 @@ struct tundecap {
 static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
   struct tundecap *c = (struct tundecap *)ctx;
 
+  /*
   if (_options.debug && c->idx == 0)
     log_dbg("tun_decaps(idx=%d, len=%d)", tun(c->this,c->idx).ifindex, length);
+  */
 
   if (c->idx > 0) {
     struct pkt_iphdr_t *iph = iphdr(packet);
@@ -731,8 +733,10 @@ int tun_decaps(struct tun_t *this, int idx) {
     return -1;
   }
 
+  /*
   if (this->debug)  
     log_dbg("tun_decaps(%d) %s",status,tun(tun,idx).devname);
+  */
 
    if (this->cb_ind)
 #if defined (__OpenBSD__)
@@ -843,10 +847,12 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
     copy_mac6(ethh->dst, gwaddr);
 
+    /*
     if (_options.debug)
       log_dbg("writing to tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x len=%d",
 	      ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
 	      ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5], len);
+    */
     
   } else {
     size_t ethlen = sizeofeth(pack);

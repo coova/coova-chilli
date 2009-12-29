@@ -866,20 +866,24 @@ int radius_keydecode(struct radius_t *this,
   MD5Final(b, &context);
 
   if ((src[2] ^ b[0]) > dstsize) {
-    log_err(0,"radius_keydecode dstsize too small");
+    log_err(0,"radius_keydecode dstsize too small (%d > %d)",
+	    (src[2] ^ b[0]), dstlen);
     return -1; 
   }
 
-  if ((src[2] ^ b[0]) > (srclen - 3)) {
-    log_err(0,"radius_keydecode dstlen > srclen - 3");
+  if ((src[2] ^ b[0]) > (srclen - 2)) {
+    log_err(0,"radius_keydecode dstlen (%d) > srclen - 2 (%d)", 
+	    (src[2] ^ b[0]), (srclen - 2));
     return -1; 
   }
 
   *dstlen = (size_t)(src[2] ^ b[0]);
 
-  for (i = 1; i < RADIUS_MD5LEN; i++)
-    if ((i-1) < (int)*dstlen)
+  for (i = 1; i < RADIUS_MD5LEN; i++) {
+    if ((i-1) < (int)*dstlen) {
       dst[i-1] = src[i+2] ^ b[i];
+    }
+  }
 
   /* Next blocks of 16 octets */
   for (n=1; n < blocks; n++) {
@@ -887,9 +891,11 @@ int radius_keydecode(struct radius_t *this,
     MD5Update(&context, (uint8_t *)secret, secretlen);
     MD5Update(&context, &src[2 + ((n-1) * RADIUS_MD5LEN)], RADIUS_MD5LEN);
     MD5Final(b, &context);
-    for (i = 0; i < RADIUS_MD5LEN; i++)
-      if ((i-1+n*RADIUS_MD5LEN) < (int)*dstlen)
+    for (i = 0; i < RADIUS_MD5LEN; i++) {
+      if ((i-1+n*RADIUS_MD5LEN) < (int)*dstlen) {
 	dst[i-1+n*RADIUS_MD5LEN] = src[i+2+n*RADIUS_MD5LEN] ^ b[i];
+      }
+    }
   }
 
   return 0;

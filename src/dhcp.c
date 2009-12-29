@@ -1338,6 +1338,37 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 	memcpy(reply, &_options.uamalias.s_addr, 4);
       }
     }
+
+    if (!match /* && wildard option */) {
+      int domain_len = strlen(_options.domain) + 1;
+      uint8_t * l_sz = 0;
+      int i;
+
+      snprintf((char *)query, sizeof(query), ".%s", _options.domain);
+
+      for (i=0; i < domain_len; i++) {
+	if (query[i] == '.') {
+	  if (l_sz) {
+	    *l_sz = (int)(&query[i] - l_sz - 1);
+	  }
+	  l_sz = &query[i];
+	}
+      }
+      if (l_sz) {
+	*l_sz = (int)(&query[i-1] - l_sz);
+      }
+
+      if (!memcmp(dnsp->records + strlen((char *)dnsp->records) - domain_len, query, domain_len)) {
+	
+	/*
+	 * count (recent) dns requests vs responses to get an overall picture of on-line status.
+	 * 
+	 */
+
+	memcpy(reply, &_options.uamalias.s_addr, 4);
+	match = 1;
+      }
+    }
       
     if (match) {
       
@@ -1355,7 +1386,8 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
       do {
 	if (query_len < 256)
 	  query[query_len++] = *p;
-      } while (*p++ != 0); /* TODO */
+      }
+      while (*p++ != 0); /* TODO */
       
       for (n=0; n<4; n++) {
 	if (query_len < 256)
@@ -2333,6 +2365,7 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
     prot = ntohs(ethh->prot);
   }
 
+  /*
   if (_options.debug) {
     struct pkt_ethhdr_t *ethh = ethhdr(packet);
     log_dbg("dhcp_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x len=%d",
@@ -2340,6 +2373,7 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
 	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
 	    prot, length);
   }
+  */
 
   switch (prot) {
   case PKT_ETH_PROTO_EAPOL: return dhcp_receive_eapol(this, packet);
@@ -2892,6 +2926,7 @@ int dhcp_eapol_ind(struct dhcp_t *this) {
   if ((length = net_read(&this->rawif, packet, sizeof(packet))) < 0) 
     return -1;
 
+  /*
   if (_options.debug) {
     struct pkt_ethhdr_t *ethh = ethhdr(packet);
     log_dbg("eapol_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x",
@@ -2899,6 +2934,7 @@ int dhcp_eapol_ind(struct dhcp_t *this) {
 	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
 	    ntohs(ethh->prot));
   }
+  */
 
   return dhcp_receive_eapol(this, packet);
 }
