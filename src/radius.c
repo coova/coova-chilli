@@ -28,6 +28,8 @@
 #include "radius_wispr.h"
 #include "radius_chillispot.h"
 
+#define _debug_ 0
+
 void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   struct in_addr inaddr;
   struct in_addr *paddr = 0;
@@ -59,6 +61,7 @@ void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pa
   radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen((char*)mac)); 
 }
 
+#if(_debug_)
 int radius_printqueue(struct radius_t *this) {
   int n;
   printf("next %d, first %d, last %d\n", 
@@ -78,6 +81,7 @@ int radius_printqueue(struct radius_t *this) {
 
   return 0;
 }
+#endif
 
 /* 
  * radius_hmac_md5()
@@ -200,9 +204,11 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
   int qnext = this->qnext;
   int attempt = 0;
 
-  if (this->debug) {
+#if(_debug_)
+  if (_options.debug) {
     radius_printqueue(this);
   }
+#endif
 
  try_again:
 
@@ -214,9 +220,9 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
     qnext = pack->id = this->qnext;
 
   } else {
-
     pack->id = this->nextid++;
-
+    if (pack->id == 0) /* bump based zero */
+      pack->id = this->nextid++;
   }
 
   if (this->queue[qnext].state == 1) {
@@ -247,6 +253,7 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
   }
 
   memcpy(&this->queue[qnext].p, pack, RADIUS_PACKSIZE);
+
   this->queue[qnext].state = 1;
   this->queue[qnext].cbp = cbp;
   this->queue[qnext].retrans = 0;
@@ -280,9 +287,11 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
     this->qnext %= this->qsize;
   }
   
-  if (this->debug) {
+#if(_debug_)
+  if (_options.debug) {
     radius_printqueue(this);
   }
+#endif
 
   return 0;
 }
@@ -299,7 +308,7 @@ static int radius_queue_idx(struct radius_t *this, int id) {
     int cnt = this->qsize;
     while (cnt--) {
       idx %= this->qsize;
-      if (this->queue[idx].state == 1 && this->queue[idx].p.id == id)
+      if (this->queue[idx].p.id == id)
 	return idx;
       idx++;
     }
@@ -307,6 +316,7 @@ static int radius_queue_idx(struct radius_t *this, int id) {
     return id;
   }
 
+  log_err(0, "bad id (%d)", id);
   return -1;
 }
 
@@ -329,10 +339,12 @@ int radius_queue_out(struct radius_t *this,
     return -1;
   }
 
-  if (this->debug) {
+#if(_debug_)
+  if (_options.debug) {
     log_dbg("radius_queue_out");
     radius_printqueue(this);
   }
+#endif
   
   memcpy(pack, &this->queue[idx].p, RADIUS_PACKSIZE);
   *cbp = this->queue[idx].cbp;
@@ -350,10 +362,12 @@ int radius_queue_out(struct radius_t *this,
   else
     this->queue[this->queue[idx].prev].next = this->queue[idx].next;
 
-  if (this->debug) {
+#if(_debug_)
+  if (_options.debug) {
     log_dbg("radius_queue_out end");
     radius_printqueue(this);
   }
+#endif
 
   return 0;
 }
@@ -369,6 +383,7 @@ int radius_queue_reschedule(struct radius_t *this, int id) {
 
   if (idx < 0) {
     log_err(0, "bad idx (%d)", idx);
+exit(1);
     return -1;
   }
 
@@ -377,10 +392,12 @@ int radius_queue_reschedule(struct radius_t *this, int id) {
     return -1;
   }
 
-  if (this->debug) {
+#if(_debug_)
+  if (_options.debug) {
     log_dbg("radius_reschedule");
     radius_printqueue(this);
   }
+#endif
 
   this->queue[idx].retrans++;
 
@@ -412,9 +429,11 @@ int radius_queue_reschedule(struct radius_t *this, int id) {
   if (this->first == -1)
     this->first = idx;  /* First and last */
   
-  if (this->debug) {
+#if(_debug_)
+  if (_options.debug) {
     radius_printqueue(this);
   }
+#endif
   
   return 0;
 }
@@ -540,8 +559,8 @@ int radius_timeout(struct radius_t *this) {
 
   gettimeofday(&now, NULL);
 
-#if(1)
-  if (this->debug) {
+#if(_debug_)
+  if (_options.debug) {
     log_dbg("radius_timeout %8d %8d", (int)now.tv_sec, (int)now.tv_usec);
     radius_printqueue(this);
   }
@@ -607,7 +626,8 @@ int radius_timeout(struct radius_t *this) {
     }    
   }
   
-  if (this->debug) {
+#if(_debug_)
+  if (_options.debug) {
     printf("radius_timeout\n");
     if (this->first > 0) {
       printf("first %d, timeout %8d %8d\n", this->first, 
@@ -616,6 +636,7 @@ int radius_timeout(struct radius_t *this) {
     }
     radius_printqueue(this);
   }
+#endif
 
   return 0;
 }

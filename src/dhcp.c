@@ -2552,7 +2552,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
     size_t hdrlen = sizeofeth2(tag);
     memcpy(packet + hdrlen, pack, len);
     length += hdrlen;
-    log_dbg("adding %d to IP frame", hdrlen);
+    /*log_dbg("adding %d to IP frame", hdrlen);*/
   }
 
   dhcp_ethhdr(conn, pkt, conn->hismac, dhcp_nexthop(this), PKT_ETH_PROTO_IP);
