@@ -63,13 +63,18 @@ void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pa
 
 #if(_debug_)
 int radius_printqueue(struct radius_t *this) {
+  int mx = 256;
   int n;
-  printf("next %d, first %d, last %d\n", 
+
+  if (this->qsize)
+    mx = this->qsize;
+
+  log_dbg("next %d, first %d, last %d", 
 	 this->qnext, this->first, this ->last);
 
-  for(n=0; n<256; n++) {
+  for(n=0; n < mx; n++) {
     if (this->queue[n].state) {
-      printf("%3d %3d %3d %3d %8d %8d %d\n",
+      log_dbg("%3d %3d %3d %3d %8d %8d %d",
 	     n, this->queue[n].state,
 	     this->queue[n].next,
 	     this->queue[n].prev,
@@ -211,19 +216,6 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
 #endif
 
  try_again:
-
-  if (this->qsize == 0) {
-
-    /*
-     * using the full-queue-size
-     */
-    qnext = pack->id = this->qnext;
-
-  } else {
-    pack->id = this->nextid++;
-    if (pack->id == 0) /* bump based zero */
-      pack->id = this->nextid++;
-  }
 
   if (this->queue[qnext].state == 1) {
 
@@ -383,7 +375,6 @@ int radius_queue_reschedule(struct radius_t *this, int id) {
 
   if (idx < 0) {
     log_err(0, "bad idx (%d)", idx);
-exit(1);
     return -1;
   }
 
@@ -449,11 +440,13 @@ radius_cmptv(struct timeval *tv1, struct timeval *tv2)
 {
   struct timeval diff;
 
+  /*
   if (0) {
     printf("tv1 %8d %8d tv2 %8d %8d\n", 
 	   (int) tv1->tv_sec, (int) tv1->tv_usec, 
 	   (int) tv2->tv_sec, (int) tv2->tv_usec);
   }
+  */
   
   /* First take the difference with |usec| < 1000000 */
   diff.tv_sec = (tv1->tv_usec  - tv2->tv_usec) / 1000000 +
@@ -461,12 +454,14 @@ radius_cmptv(struct timeval *tv1, struct timeval *tv2)
 
   diff.tv_usec = (tv1->tv_usec - tv2->tv_usec) % 1000000;
 
+  /*
   if (0) {
     printf("tv1 %8d %8d tv2 %8d %8d diff %8d %8d\n", 
 	   (int) tv1->tv_sec, (int) tv1->tv_usec, 
 	   (int) tv2->tv_sec, (int) tv2->tv_usec, 
 	   (int) diff.tv_sec, (int) diff.tv_usec);
   }
+  */
 
   /* If sec and usec have different polarity add or subtract 1 second */
   if ((diff.tv_sec > 0) & (diff.tv_usec < 0)) {
@@ -477,19 +472,33 @@ radius_cmptv(struct timeval *tv1, struct timeval *tv2)
     diff.tv_sec++;
     diff.tv_usec -= 1000000;
   }
+
+  /*
   if (0) {
     printf("tv1 %8d %8d tv2 %8d %8d diff %8d %8d\n", 
 	   (int) tv1->tv_sec, (int) tv1->tv_usec, 
 	   (int) tv2->tv_sec, (int) tv2->tv_usec, 
 	   (int) diff.tv_sec, (int) diff.tv_usec);
   }
+  */
 
-  if (diff.tv_sec < 0) {if (0) printf("-1\n"); return -1; }
-  if (diff.tv_sec > 0) {if (0) printf("1\n"); return  1; }
-
-  if (diff.tv_usec < 0) {if (0) printf("-1\n"); return -1;}
-  if (diff.tv_usec > 0) {if (0) printf("1\n"); return  1;}
-  if (0) printf("0 \n");
+  if (diff.tv_sec < 0) {
+    /*if (0) printf("-1\n"); */
+    return -1; 
+  }
+  if (diff.tv_sec > 0) {
+    /*if (0) printf("1\n"); */
+    return  1; 
+  }
+  if (diff.tv_usec < 0) {
+    /*if (0) printf("-1\n"); */
+    return -1;
+  }
+  if (diff.tv_usec > 0) {
+    /*if (0) printf("1\n"); */
+    return  1;
+  }
+  /*if (0) printf("0 \n");*/
   return 0;
 
 }
@@ -628,9 +637,9 @@ int radius_timeout(struct radius_t *this) {
   
 #if(_debug_)
   if (_options.debug) {
-    printf("radius_timeout\n");
+    log_dbg("radius_timeout");
     if (this->first > 0) {
-      printf("first %d, timeout %8d %8d\n", this->first, 
+      log_dbg("first %d, timeout %8d %8d", this->first, 
 	     (int) this->queue[this->first].timeout.tv_sec, 
 	     (int) this->queue[this->first].timeout.tv_usec); 
     }
@@ -769,19 +778,23 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
   size_t offset = *roffset;
   int count = 0;
 
+  /*
   if (0) {
     printf("radius_getattr payload(len=%d,off=%d) %.2x %.2x %.2x %.2x\n",
 	   len, offset, pack->payload[offset], pack->payload[offset+1], 
 	   pack->payload[offset+2], pack->payload[offset+3]);
   }
+  */
 
   while (offset < len) {
     t = (struct radius_attr_t *)(&pack->payload[offset]);
 
+    /*
     if (0) {
       printf("radius_getattr %d %d %d %.2x %.2x \n", t->t, t->l, 
 	     ntohl(t->v.vv.i), (int) t->v.vv.t, (int) t->v.vv.l);
     }
+    */
 
     offset +=  t->l;
 
@@ -801,8 +814,10 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 	*attr = (struct radius_attr_t *) &t->v.vv.t;
       else
 	*attr = t;
-      
+
+      /*
       if (0) printf("Found %.*s\n", (*attr)->l - 2, (char *)(*attr)->v.t);
+      */
       
       *roffset = offset;
       return 0;
@@ -835,7 +850,7 @@ radius_countattr(struct radius_packet_t *pack, uint8_t type) {
     offset +=  2 + t->l;
   } while (offset < ntohs(pack->length));
   
-  if (0) printf("Count %d\n", count);
+  /*if (0) printf("Count %d\n", count);*/
   return count;
 }
 
@@ -1007,6 +1022,7 @@ int radius_pwdecode(struct radius_t *this,
 
   *dstlen = srclen;
 
+  /*
   if (this->debug) {
     printf("pwdecode srclen %d\n", srclen);
     for (n=0; n< srclen; n++) {
@@ -1032,6 +1048,7 @@ int radius_pwdecode(struct radius_t *this,
     }
     printf("\n");
   }
+  */
 
   /* Get MD5 hash on secret + authenticator */
   MD5Init(&context);
@@ -1053,6 +1070,7 @@ int radius_pwdecode(struct radius_t *this,
       dst[i + n] = src[i + n] ^ output[i];
   }    
 
+  /*
   if (this->debug) {
     printf("pwdecode dest \n");
     for (n=0; n< 32; n++) {
@@ -1062,6 +1080,7 @@ int radius_pwdecode(struct radius_t *this,
     }
     printf("\n");
   }
+  */
 
   return 0;
 }
@@ -1373,13 +1392,12 @@ int radius_req(struct radius_t *this,
 
   /* Place packet in queue */
   if (radius_queue_in(this, pack, cbp)) {
+    log_err(0, "could not put in queue");
     return -1;
   }
 
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
-
-  if (this->debug) printf("Lastreply: %d\n", this->lastreply);
 
   if (!this->lastreply) {
     addr.sin_addr = this->hisaddr0;
@@ -1485,9 +1503,19 @@ radius_default_pack(struct radius_t *this,
 {
   memset(pack, 0, RADIUS_PACKSIZE);
   pack->code = code;
-  pack->id = 0; /* Let the send procedure queue the packet and assign id */
   pack->length = htons(RADIUS_HDRSIZE);
-  
+
+  if (this->qsize == 0) {
+    /*
+     * using the full-queue-size
+     */
+    pack->id = this->qnext;
+  } else {
+    pack->id = this->nextid++;
+    if (pack->id == 0) /* bump based zero */
+      pack->id = this->nextid++;
+  }
+
   if (fread(pack->authenticator, 1, RADIUS_AUTHLEN, this->urandom_fp) != RADIUS_AUTHLEN) {
     log_err(errno, "fread() failed");
     return -1;
