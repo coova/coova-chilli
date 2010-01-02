@@ -21,10 +21,10 @@ endif
 config.status: configure
 	dh_testdir
 	# Add here commands to configure the package.
-	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info --sysconfdir=/etc --localstatedir=/var
+	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info --sysconfdir=/etc --localstatedir=/var --enable-miniportal --enable-chilliredir --enable-chilliproxy --with-openssl 
 
 configure:
-	@test -f configure || ./bootstrap
+	@test -f configure || ./bootstrap2
 
 build: config.status
 	dh_testdir
@@ -33,15 +33,11 @@ build: config.status
 
 clean:
 	dh_testdir
-
-	# Add here commands to clean up after the build process.
 	-$(MAKE) distclean
 	-test -r /usr/share/misc/config.sub && \
 	  cp -f /usr/share/misc/config.sub config.sub
 	-test -r /usr/share/misc/config.guess && \
 	  cp -f /usr/share/misc/config.guess config.guess
-
-
 	dh_clean
 
 install: build
@@ -49,9 +45,7 @@ install: build
 	dh_testroot
 	dh_clean -k
 	dh_installdirs
-
-	# Add here commands to install the package into debian/chillispot.
-	$(MAKE) install prefix=$(CURDIR)/debian/coova-chilli/usr sysconfdir=$(CURDIR)/debian/coova-chilli/etc
+	$(MAKE) install prefix=$(CURDIR)/debian/tmp/usr sysconfdir=$(CURDIR)/debian/tmp/etc
 
 # Build architecture-independent files here.
 binary-indep: build install

@@ -1,6 +1,6 @@
 Summary:   Coova-Chilli is a Wireless LAN Access Point Controller
 Name:      @PACKAGE@
-Version:   1.0.15-pre1
+Version:   1.2.0
 Release:   1
 URL:       http://www.coova.org/
 Source0:   %{name}-%{version}.tar.gz
@@ -22,7 +22,7 @@ your favorite radius server. Read more at http://www.coova.org/.
 
 %build
 
-%configure --enable-static-exec
+%configure --enable-miniportal --enable-chilliredir --enable-chilliproxy --with-openssl
 
 make
 
@@ -50,9 +50,11 @@ fi
 %defattr(-,root,root)
 %{_sbindir}/*
 %{_libdir}/*.so*
+%{_libdir}/python/CoovaChilliLib.py
 %{_sysconfdir}/init.d/chilli
 %doc AUTHORS COPYING ChangeLog INSTALL README doc/dictionary.chillispot doc/hotspotlogin.cgi
 %config %{_sysconfdir}/chilli.conf
+%config %{_sysconfdir}/chilli/gui-config-default.ini
 %config(noreplace) %{_sysconfdir}/chilli/defaults
 %dir %{_sysconfdir}/chilli
 %dir %{_sysconfdir}/chilli/www
@@ -66,6 +68,8 @@ fi
 %{_mandir}/man8/*.8*
 
 %changelog
+* Sat Jan 2 2010 <david@coova.com>
+- 1.2.0 release
 * Thu Sep 30 2007 <david@coova.com>
 - 1.0.8 release 
 * Thu Aug 20 2007 <david@coova.com>

@@ -1,9 +1,9 @@
-coova-chilli (1.0.15~pre1) unstable; urgency=low
+coova-chilli (1.2.0) unstable; urgency=low
 
    * See ChangeLog
    * Use debhelper compat level 7.
 
- -- Coova <support@coova.com>  Tue, 7 Apr 2009 22:25:00 +0200
+ -- Coova <support@coova.com>  Fri, 1 Jan 2010 00:00:00 +0200
  
 coova-chilli (1.0.12-2) unstable; urgency=low
 

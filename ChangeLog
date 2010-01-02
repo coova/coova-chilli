@@ -1,6 +1,9 @@
 
-== ChangeLog (Coova Chilli current svn revision) ==
+== ChangeLog (CoovaChilli current svn revision) ==
 
+== ChangeLog (CoovaChilli-v1.2.0 svn revision 271) ==
+
+* Bumped version to 1.2.0 (passing 1.1.0 to avoid confusion w/chillispot 1.1.0)
 * Added option ''--uamaliasip'' (which defaults to 1.0.0.1) that defines a special IP - will always redir
 * Added option ''--uamaliasname'' which defines a word hostname (combined with --domain) that is a DNS alias for ''uamaliasip''
 * Added option ''--redirssl'' to turn on redirection of HTTPS (when used with OpenSSL or MatrixSSL)
@@ -36,7 +39,7 @@
 * Bug fix for VLAN ID in RADIUS and redirect URL
 * Bug fix for HEX conversion error
 
-== ChangeLog (Coova Chilli v1.0.14 svn revision 208) ==
+== ChangeLog (CoovaChilli-v1.0.14 svn revision 208) ==
 
 * Major reduction in initial memory usage as the MAC session pool will grow as needed.	
 * Separation of configuration from running server (experimental!! report problems!)
@@ -51,7 +54,7 @@
 * Added logoutURL to the JSON redir block
 * WISPr LoginURL bug fix      
 	
-== ChangeLog (Coova Chilli v1.0.13 svn revision 199) ==
+== ChangeLog (CoovaChilli-v1.0.13 svn revision 199) ==
 
 * Accepts the parameter ''ntresponse'' in the ''logon'' which is used in MS-CHAPv2 (does not require the mschapv2 option, but simply passes through the ntresponse into the MSCHAPv2-Response
 * Added option ''mschapv2'' (requiring OpenSSL enabled with --with-openssl) to support MS-CHAPv2 authentication during what would otherwise be PAP authentication (doesn't impact CHAP authentication)
@@ -74,7 +77,7 @@
 * Added ''tcpwin'' option to adjust all TCP windows coming and going
 * More parameters sent to the WISPr login URL.
 	
-== ChangeLog (Coova Chilli v1.0.12 svn revision 171) ==
+== ChangeLog (CoovaChilli-v1.0.12 svn revision 171) ==
 
 * Bug fix in RADIUS timeout, note that option ''radiustimeout'' is in '''seconds'''!	
 * Fix for dnsparanoia whereby chilli will reply with a host not found error instead of dropping the packet [http://coova.org/lists/?0::166 suggest by nextime]
@@ -86,18 +89,18 @@
 * Anyip fixes by Gunther, thanks. 
 * Code cleanups
 	
-== ChangeLog (Coova Chilli v1.0.11 svn revision 147) ==
+== ChangeLog (CoovaChilli-v1.0.11 svn revision 147) ==
 
 * Bug fix for RADIUS VSAs being sent
 
-== ChangeLog (Coova Chilli v1.0.10 svn revision 144) ==
+== ChangeLog (CoovaChilli-v1.0.10 svn revision 144) ==
 
 * Renamed packed network stack structures and put them in pkt.h
 * Bug fix for DHCP relay (RFC 1542)
 * Bug fix in IPC handling
 * Memory leak fix in logging
 	
-== ChangeLog (Coova Chilli v1.0.9 svn revision 133) ==
+== ChangeLog (CoovaChilli-v1.0.9 svn revision 133) ==
 
 * Bug fix whereby the mac address of packets from the chilli redirect are overwritten	
 * Bug fix for 'leaky bucket' timediff calculations
@@ -110,7 +113,7 @@
 * Local web content filenames served by chilli now able to have mixed capitalization
 * chilliController support for older IE browsers
 
-== ChangeLog (Coova Chilli v1.0.8 svn revision 124) ==
+== ChangeLog (CoovaChilli-v1.0.8 svn revision 124) ==
 
 * New option ''uamdomain'' whereby entire domains, one per use of option, can be white-listed.
 * New option ''dnsparanoia'' to drop DNS responses (pre-authentication) containing any non- A, CNAME, SOA, or MX records
@@ -122,7 +125,7 @@
 * Fix in 64-bit portability - thx ccesario for helping out
 * Fix for use with DHCP Relay clients
 	
-== ChangeLog (Coova Chilli v1.0.7 svn revision 95) ==
+== ChangeLog (CoovaChilli-v1.0.7 svn revision 95) ==
 
 * First version of JSON interface, see [[CoovaChilli/JSON]]
 * Improved build environment installing complete default configuration (based on build config --prefix)
@@ -136,7 +139,7 @@
 * Sending ChilliSpot-Version attribute in access request
 * Added option ''wisprlogin'' to specifically set the WISPr LoginURL
 
-== ChangeLog (Coova Chilli v1.0.6 svn revision 66) ==
+== ChangeLog (CoovaChilli-v1.0.6 svn revision 66) ==
 
 * Updated hashing algorithm to lookup3 by Bob Jenkins
 * Using [http://bstring.sourceforge.net/ bstring] in certain places instead of large, but static character arrays
@@ -148,13 +151,13 @@
 * Added option ''defsessiontimeout'' to define a session time when not otherwise set by RADIUS
 * Added option ''defidletimeout'' to define a session idle timeout when not otherwise set by RADIUS
 	
-== ChangeLog (Coova Chilli v1.0.5 svn revision 60) ==
+== ChangeLog (CoovaChilli-v1.0.5 svn revision 60) ==
 
 * Allow certain ICMP packets from external interface into chilli LAN for proper MTU negotiation - includes ICMP types 0, 3, 5, 11.
 * Fixups in WPA RADIUS proxy code - allow for change of credentials (logging out previous session) and drop fewer authentication requests.
 * Bug fix for when using local MAC authentication	
 
-== ChangeLog (Coova Chilli v1.0.4 svn revision 51) ==
+== ChangeLog (CoovaChilli-v1.0.4 svn revision 51) ==
 
 * Merged a version of the ''Any IP'' patch as option ''uamanyip''
 * Fixed issue with userurl being truncated (no query string)
@@ -163,7 +166,7 @@
 * Fixed session-id not in access-request for UAM login bug
 * Experimenting with new option ''usetap'' to use a TAP instead of TUN
 
-== ChangeLog (Coova Chilli v1.0.3 svn revision 39) ==
+== ChangeLog (CoovaChilli-v1.0.3 svn revision 39) ==
 
 * The [http://www.gnu.org/software/gengetopt/gengetopt.html gengetopt] project accepted our changes to allow 'include <file>' in config files. The new cmdline.c is generated with gengetopt v2.19 or higher
 * Added the ''wpaguests'' option to allow anonymous WPA access w/captive-portal
@@ -181,7 +184,7 @@
 * New options ''postauthproxy'' and ''postauthproxyport'' to configure an upstream transparent proxy to use post-authentication for http traffic
 * Option ''papalwaysok'' to allow back-ward compatibility with UAM back-end's using PAP authentication (with ''password'') even when configured with a ''uamsecret''
 
-== ChangeLog (Coova Chilli v1.0.2 svn revision 17) ==
+== ChangeLog (CoovaChilli-v1.0.2 svn revision 17) ==
 
 * Configurable TX queue length (option ''txqlen'') on the tun/tap tunnel (Linux only)
 * Added option ''swapoctets'' to swap the meaning of input/output octets/packets 
@@ -197,7 +200,7 @@
 * Renamed and swapped meaning of config param ''uamwispr'' (mentioned below) to ''nouamwispr'' which defaults to ''off'' for compatibility - turn on this option to ''not'' have chilli send WISPr XML, but rather assume the UAM server is taking care of that.
 * Renamed and swapped meaning of config param ''uamsuccess'' (mentioned below) to ''nouamsuccess'' which defaults to ''off'' for compatibility - turn on this feature to ''not'' return the user to the UAM server on login, but their original url instead.
 
-== ChangeLog (Coova Chilli v1.0.1 svn revision 2) ==
+== ChangeLog (CoovaChilli-v1.0.1 svn revision 2) ==
 
 * Added the ability to use ''include <filename>'' in configuration files to include others. Using gengetopt version 2.16 and a patch is applied to the generated source.
 * A ''chilli_radconfig'' utility to perform a NAS Administrative-User RADIUS login in order to collect configurations (using the new ChilliSpot-Config VSA).
@@ -220,4 +223,3 @@
 * Rearranged some code to improve the building process and reduce the memory footprint of the additional utilities.
 * (Re)Configuration memory leak fixed. 
 
-	
