@@ -215,8 +215,13 @@ time_t mainclock_rt() {
   return rt;
 }
 
+int mainclock_rtdiff(time_t past) {
+  time_t rt = mainclock_rt();
+  return (int) difftime(rt, past);
+}
+
 int mainclock_diff(time_t past) {
-  return (int) difftime(mainclock, past);
+  return (int) (mainclock - past);
 }
 
 uint32_t mainclock_diffu(time_t past) {
@@ -653,7 +658,7 @@ void session_interval(struct app_conn_t *conn) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.sessionterminatetime) && 
-	   (mainclock_diff(conn->s_params.sessionterminatetime) > 0)) {
+	   (mainclock_rtdiff(conn->s_params.sessionterminatetime) > 0)) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.idletimeout) && 
@@ -2851,7 +2856,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
   }
 
   if (appconn->s_params.sessionterminatetime) {
-    if (mainclock_diff(appconn->s_params.sessionterminatetime) > 0) {
+    if (mainclock_rtdiff(appconn->s_params.sessionterminatetime) > 0) {
       log(LOG_WARNING, "WISPr-Session-Terminate-Time in the past received, rejecting");
       return dnprot_reject(appconn);
     }
