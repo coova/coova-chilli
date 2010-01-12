@@ -112,7 +112,11 @@ struct dhcp_conn_t {
   struct dhcp_t *parent;        /* Parent of all connections */
   void *peer;                   /* Peer protocol handler */
 
-  int inuse;                   /* Free = 0; Inuse = 1 */
+  uint8_t inuse:1;             /* Free = 0; Inuse = 1 */
+  uint8_t noc2c:1;             /* Prevent client to client access using /32 subnets */
+  uint8_t is_reserved:1;       /* If this is a static/reserved mapping */
+  uint8_t padding:5;
+
   time_t lasttime;             /* Last time we heard anything from client */
   uint8_t hismac[PKT_ETH_ALEN];/* Peer's MAC address */
   struct in_addr ourip;        /* IP address to listen to */
@@ -129,13 +133,12 @@ struct dhcp_conn_t {
   struct dhcp_nat_t dnat[DHCP_DNAT_MAX]; /* Destination NAT */
   uint16_t mtu;                /* Maximum transfer unit */
 
-  uint8_t noc2c;               /* Prevent client to client access using /32 subnets */
 
 #ifdef ENABLE_IEEE8021Q
   uint16_t tag8021q;
 #endif
 
-  /*XXX: optional*/
+  /* XXX: optional */
   struct {
     uint8_t sname[DHCP_SNAME_LEN];     /* 64 Optional server host name, null terminated string.*/
     uint8_t file[DHCP_FILE_LEN];       /* 128 Boot file name, null terminated string; "generic" name */
@@ -215,7 +218,7 @@ int dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 	 struct in_addr *uamlisten, uint16_t uamport, 
 	 int useeapol, int noc2c);
 
-int dhcp_set(struct dhcp_t *dhcp, int debug);
+int dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug);
 
 int dhcp_free(struct dhcp_t *dhcp);
 

@@ -227,6 +227,7 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.tundev)) return 0;
   if (!option_s_l(bt, &o.dynip)) return 0;
   if (!option_s_l(bt, &o.statip)) return 0;
+  if (!option_s_l(bt, &o.ethers)) return 0;
 
   if (!option_s_l(bt, &o.domain)) return 0;
   if (!option_s_l(bt, &o.ipup)) return 0;
@@ -332,6 +333,7 @@ int options_save(char *file, bstring bt) {
   if (!option_s_s(bt, &o.tundev)) return 0;
   if (!option_s_s(bt, &o.dynip)) return 0;
   if (!option_s_s(bt, &o.statip)) return 0;
+  if (!option_s_s(bt, &o.ethers)) return 0;
 
   if (!option_s_s(bt, &o.domain)) return 0;
   if (!option_s_s(bt, &o.ipup)) return 0;

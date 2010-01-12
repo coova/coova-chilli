@@ -1,6 +1,11 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+* Fix for when using WISPr-Session-Terminate-Time 
+* Fix for honoring WISPr-Redirection-URL in AccessAccept
+* Fix making *.''domain'' optionally "local DNS" instead of default
+* New option ''--ethers'' that specifies a file with MAC Address and IP Address mappings
+	
 == ChangeLog (CoovaChilli-v1.2.0 svn revision 271) ==
 
 * Bumped version to 1.2.0 (passing 1.1.0 to avoid confusion w/chillispot 1.1.0)

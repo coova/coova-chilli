@@ -36,7 +36,7 @@ static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
 char credits[] =
 "<H1>CoovaChilli(ChilliSpot) " VERSION "</H1>"
 "<p>Copyright 2002-2005 Mondru AB</p>"
-"<p>Copyright 2006-2009 Coova Technologies, LLC</p>"
+"<p>Copyright 2006-2010 Coova Technologies, LLC</p>"
 "ChilliSpot is an Open Source captive portal or wireless LAN access point "
 "controller developed by the community at <a href=\"http://www.coova.org\">www.coova.org</a>. "
 "It is licensed under the GNU General Public License (GPL). ";
@@ -973,7 +973,13 @@ static int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
     bcatcstr(buffer, "Location: ");
     
     if (url) {
+
       bconcat(buffer, url);
+
+    } else if (redirurl && *redirurl) {
+
+      bcatcstr(buffer, redirurl);
+
     } else {
       bt = bfromcstralloc(1024,"");
       if (redir_buildurl(conn, bt, redir, resp, timeleft, hexchal, 
@@ -982,6 +988,7 @@ static int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 	bdestroy(buffer);
 	return -1;
       }
+      
       log_dbg("here: %s\n", bt->data);
       bconcat(buffer, bt);
       bdestroy(bt);
@@ -1243,8 +1250,9 @@ void redir_set(struct redir_t *redir, uint8_t *hwaddr, int debug) {
   redir->locationname  = _options.locationname;
   redir->radiusnasporttype = _options.radiusnasporttype;
 
-  if (hwaddr)
+  if (hwaddr) {
     memcpy(redir->nas_hwaddr, hwaddr, sizeof(redir->nas_hwaddr));
+  }
 
   return;
 }
@@ -2627,9 +2635,11 @@ int redir_main(struct redir_t *redir,
 	reauth = 1;
       } else {
 	log_dbg("redir_accept: already logged on");
+
 	redir_reply(redir, &socket, &conn, REDIR_ALREADY, NULL, 0, 
 		    NULL, NULL, conn.s_state.redir.userurl, NULL,
-		    NULL, conn.hismac, &conn.hisip, httpreq.qs);
+		    (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
+	
 	return redir_main_exit(redir, &httpreq, &socket, forked);
       }
     }
@@ -2644,7 +2654,7 @@ int redir_main(struct redir_t *redir,
 
       redir_reply(redir, &socket, &conn, REDIR_FAILED_OTHER, NULL, 
 		  0, hexchal, NULL, NULL, NULL, 
-		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
+		  0, conn.hismac, &conn.hisip, httpreq.qs);
 
       return redir_main_exit(redir, &httpreq, &socket, forked);
     }
@@ -2739,7 +2749,7 @@ int redir_main(struct redir_t *redir,
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ALREADY, 
 		  NULL, 0, NULL, NULL, conn.s_state.redir.userurl, NULL,
-		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
+		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
     }
     else {
       redir_reply(redir, &socket, &conn, REDIR_NOTYET, 
@@ -2791,7 +2801,7 @@ int redir_main(struct redir_t *redir,
 
       redir_reply(redir, &socket, &conn, REDIR_STATUS, NULL, timeleft,
 		  hexchal, conn.s_state.redir.username, conn.s_state.redir.userurl, conn.reply, 
-		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
+		  0, conn.hismac, &conn.hisip, httpreq.qs);
       
       return redir_main_exit(redir, &httpreq, &socket, forked);
     }
@@ -2881,7 +2891,7 @@ int redir_main(struct redir_t *redir,
   else if (state == 1) {
     redir_reply(redir, &socket, &conn, splash ? REDIR_SPLASH : REDIR_ALREADY, NULL, 0, 
 		splash ? hexchal : NULL, NULL, conn.s_state.redir.userurl, NULL,
-		NULL, conn.hismac, &conn.hisip, httpreq.qs);
+		(char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
   }
   else {
     redir_reply(redir, &socket, &conn, splash ? REDIR_SPLASH : REDIR_NOTYET, NULL, 

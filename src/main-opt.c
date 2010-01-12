@@ -38,8 +38,8 @@ static const char *description =
   "  http://www.coova.org/\n";
 
 static const char *copyright = 
-  "Copyright (c) 2003-2005 Mondru AB., 2006-2009 Coova Technologies LLC, and others.\n"
-  "Licensed under the Gnu Public License (GPL).\n";
+  "Copyright (c) 2003-2005 Mondru AB., 2006-2010 Coova Technologies LLC, and others.\n"
+  "Licensed under the Gnu General Public License (GPL).\n";
 
 static const char *usage = \
   "Usage: chilli [OPTIONS]...\n";
@@ -182,6 +182,7 @@ int main(int argc, char **argv) {
   _options.uamallowpost = args_info.uamallowpost_flag;
   _options.redirssl = args_info.redirssl_flag;
   _options.uamuissl = args_info.uamuissl_flag;
+  _options.domaindnslocal = args_info.domaindnslocal_flag;
 
   if (args_info.dhcpgateway_arg &&
       !inet_aton(args_info.dhcpgateway_arg, &_options.dhcpgwip)) {
@@ -818,6 +819,9 @@ int main(int argc, char **argv) {
 
   if (_options.binconfig) free(_options.binconfig);
   _options.binconfig = STRDUP(args_info.bin_arg);
+
+  if (_options.ethers) free(_options.ethers);
+  _options.ethers = STRDUP(args_info.ethers_arg);
 
   ret = 0;
 

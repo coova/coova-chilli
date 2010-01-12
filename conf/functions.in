@@ -234,7 +234,6 @@ files_equal() {    # returns 0 for equal, 1 for not-equal
 
 update_new_file() {
     files_equal $1 $2 || {
-	echo "updating $2"
 	cp -f $1 $2
 	return 0;
     }
@@ -245,7 +244,6 @@ checkforoutage() {
     rm -f $RUN_D/chilli.failsafe
     [ -s $HS_TEMP ] || {
 	[ -n "$HS_RADCONF_FAILSAFE" ] && {
-	    echo "updating $HS_TEMP with $HS_RADCONF_FAILSAFE"
 	    touch $RUN_D/chilli.failsafe
 	    cp -f $HS_RADCONF_FAILSAFE $HS_TEMP
 	}
@@ -254,7 +252,6 @@ checkforoutage() {
 
 checkfornew() {
     update_new_file $HS_TEMP $HS_CONF && {
-	echo "reconfiguring chilli"
 	killall -HUP chilli 2>/dev/null >/dev/null
     }
 }

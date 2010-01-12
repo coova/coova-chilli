@@ -289,6 +289,8 @@ struct gengetopt_args_info
   char * uamaaaurl_arg;	/**< @brief UAM AAA URL specifying the URL to use for the Chilli HTTP AAA.  */
   char * uamaaaurl_orig;	/**< @brief UAM AAA URL specifying the URL to use for the Chilli HTTP AAA original value given at command line.  */
   const char *uamaaaurl_help; /**< @brief UAM AAA URL specifying the URL to use for the Chilli HTTP AAA help description.  */
+  int domaindnslocal_flag;	/**< @brief Option to consider all hostnames in domain as local (default=off).  */
+  const char *domaindnslocal_help; /**< @brief Option to consider all hostnames in domain as local help description.  */
   long defsessiontimeout_arg;	/**< @brief Default session-timeout if not returned by RADIUS (default='0').  */
   char * defsessiontimeout_orig;	/**< @brief Default session-timeout if not returned by RADIUS original value given at command line.  */
   const char *defsessiontimeout_help; /**< @brief Default session-timeout if not returned by RADIUS help description.  */
@@ -346,6 +348,9 @@ struct gengetopt_args_info
   char * rtmonfile_arg;	/**< @brief File to update with routing settings.  */
   char * rtmonfile_orig;	/**< @brief File to update with routing settings original value given at command line.  */
   const char *rtmonfile_help; /**< @brief File to update with routing settings help description.  */
+  char * ethers_arg;	/**< @brief File containing a mapping of MAC addresses to static IP addresses.  */
+  char * ethers_orig;	/**< @brief File containing a mapping of MAC addresses to static IP addresses original value given at command line.  */
+  const char *ethers_help; /**< @brief File containing a mapping of MAC addresses to static IP addresses help description.  */
   char * nasmac_arg;	/**< @brief Unique MAC address of the NAS (called-station-id).  */
   char * nasmac_orig;	/**< @brief Unique MAC address of the NAS (called-station-id) original value given at command line.  */
   const char *nasmac_help; /**< @brief Unique MAC address of the NAS (called-station-id) help description.  */
@@ -526,6 +531,7 @@ struct gengetopt_args_info
   unsigned int uamaliasip_given ;	/**< @brief Whether uamaliasip was given.  */
   unsigned int uamaliasname_given ;	/**< @brief Whether uamaliasname was given.  */
   unsigned int uamaaaurl_given ;	/**< @brief Whether uamaaaurl was given.  */
+  unsigned int domaindnslocal_given ;	/**< @brief Whether domaindnslocal was given.  */
   unsigned int defsessiontimeout_given ;	/**< @brief Whether defsessiontimeout was given.  */
   unsigned int defidletimeout_given ;	/**< @brief Whether defidletimeout was given.  */
   unsigned int defbandwidthmaxdown_given ;	/**< @brief Whether defbandwidthmaxdown was given.  */
@@ -546,6 +552,7 @@ struct gengetopt_args_info
   unsigned int adminpasswd_given ;	/**< @brief Whether adminpasswd was given.  */
   unsigned int adminupdatefile_given ;	/**< @brief Whether adminupdatefile was given.  */
   unsigned int rtmonfile_given ;	/**< @brief Whether rtmonfile was given.  */
+  unsigned int ethers_given ;	/**< @brief Whether ethers was given.  */
   unsigned int nasmac_given ;	/**< @brief Whether nasmac was given.  */
   unsigned int nasip_given ;	/**< @brief Whether nasip was given.  */
   unsigned int ssid_given ;	/**< @brief Whether ssid was given.  */

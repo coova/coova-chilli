@@ -66,6 +66,7 @@ struct ippoolm_t {
 #endif
   char in_use:1;                 /* 0=available; 1= used */
   char is_static:1;              /* 0= dynamic; 1 = static */
+  char is_reserved:1;            /* 0= normal; 1 = reserved */
   struct ippoolm_t *nexthash;    /* Linked list part of hash table */
   struct ippoolm_t *prev, *next; /* Linked list of free dynamic or static */
   void *peer;                    /* Pointer to peer protocol handler */

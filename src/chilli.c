@@ -3102,16 +3102,16 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
   if (_options.uamanyip && addr && addr->s_addr) {
     if ((addr->s_addr & ipv4ll_mask.s_addr) == ipv4ll_ip.s_addr) {
       /* clients with an IPv4LL ip normally have no default gw assigned, rendering uamanyip useless
-      They must rather get a proper dynamic ip via dhcp */
+	 They must rather get a proper dynamic ip via dhcp */
       log_dbg("IPv4LL/APIPA address requested, ignoring");
       return -1;
     }
   }
-
+  
   appconn->reqip.s_addr = addr->s_addr; /* Save for MAC auth later */
-
+  
   if (appconn->uplink) {
-
+    
     /*
      *  IP Address is already known and allocated.
      */
@@ -3119,51 +3119,53 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 
   } else {
 
-    if ((_options.macoklen) && 
-	(appconn->dnprot == DNPROT_DHCP_NONE) &&
-	!maccmp(conn->hismac)) {
-      
-      /*
-       *  When using macallowed option, and hismac matches.
-       */
-      appconn->dnprot = DNPROT_MAC;
-      
-      if (_options.macallowlocal) {
+    if ( ! conn->is_reserved) {
+      if ((_options.macoklen) && 
+	  (appconn->dnprot == DNPROT_DHCP_NONE) &&
+	  !maccmp(conn->hismac)) {
 	
 	/*
-	 *  Local MAC allowed list, authenticate without RADIUS.
+	 *  When using macallowed option, and hismac matches.
 	 */
-	upprot_getip(appconn, &appconn->reqip, 0);
-
-	dnprot_accept(appconn);
-
-	log_info("Granted MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X with IP=%s access without radius auth" ,
-		 conn->hismac[0], conn->hismac[1],
-		 conn->hismac[2], conn->hismac[3],
-		 conn->hismac[4], conn->hismac[5],
-		 inet_ntoa(appconn->hisip));
-
-	ipm = (struct ippoolm_t*) appconn->uplink;
-
-      } else {
+	appconn->dnprot = DNPROT_MAC;
+	
+	if (_options.macallowlocal) {
+	  
+	  /*
+	   *  Local MAC allowed list, authenticate without RADIUS.
+	   */
+	  upprot_getip(appconn, &appconn->reqip, 0);
+	  
+	  dnprot_accept(appconn);
+	  
+	  log_info("Granted MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X with IP=%s access without radius auth" ,
+		   conn->hismac[0], conn->hismac[1],
+		   conn->hismac[2], conn->hismac[3],
+		   conn->hismac[4], conn->hismac[5],
+		   inet_ntoa(appconn->hisip));
+	  
+	  ipm = (struct ippoolm_t*) appconn->uplink;
+	  
+	} else {
+	  /*
+	   *  Otherwise, authenticate with RADIUS.
+	   */
+	  auth_radius(appconn, 0, 0, dhcp_pkt, dhcp_len);
+	  allocate = !_options.strictmacauth;
+	}
+	
+      } else if ((_options.macauth) && 
+		 (appconn->dnprot == DNPROT_DHCP_NONE)) {
+	
 	/*
-	 *  Otherwise, authenticate with RADIUS.
+	 *  Using macauth option to authenticate via RADIUS.
 	 */
+	appconn->dnprot = DNPROT_MAC;
+	
 	auth_radius(appconn, 0, 0, dhcp_pkt, dhcp_len);
+	
 	allocate = !_options.strictmacauth;
       }
-      
-    } else if ((_options.macauth) && 
-	       (appconn->dnprot == DNPROT_DHCP_NONE)) {
-      
-      /*
-       *  Using macauth option to authenticate via RADIUS.
-       */
-      appconn->dnprot = DNPROT_MAC;
-      
-      auth_radius(appconn, 0, 0, dhcp_pkt, dhcp_len);
-      
-      allocate = !_options.strictmacauth;
     }
   }
 
@@ -3173,6 +3175,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 
     if (appconn->dnprot != DNPROT_DHCP_NONE) {
       log_warn(0, "Requested IP address when already allocated");
+      appconn->reqip.s_addr = appconn->hisip.s_addr;
     }
     
     /* Allocate dynamic IP address */
@@ -3430,10 +3433,12 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
       }
     }
 
-    if (ippool_freeip(ippool, (struct ippoolm_t *) appconn->uplink)) {
-      log_err(0, "ippool_freeip() failed!");
+    if (!conn->is_reserved) {
+      if (ippool_freeip(ippool, (struct ippoolm_t *) appconn->uplink)) {
+	log_err(0, "ippool_freeip() failed!");
+      }
     }
-
+    
     if (_options.usetap) {
       /*
        *    USETAP ARP
@@ -3458,7 +3463,9 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
     }
   }
   
-  freeconn(appconn);
+  if (!conn->is_reserved) {
+    freeconn(appconn);
+  }
 
 #ifdef ENABLE_BINSTATFILE
   printstatus();
@@ -4264,7 +4271,7 @@ int chilli_main(int argc, char **argv) {
   log_pid((_options.pidfile && *_options.pidfile) ? _options.pidfile : DEFPIDFILE);
 
   syslog(LOG_INFO, "CoovaChilli(ChilliSpot) %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006-2009 Coova Technologies, LLC <support@coova.com>. Licensed under GPL. "
+	 "Copyright 2006-2010 Coova Technologies, LLC <support@coova.com>. Licensed under GPL. "
 	 "See http://www.coova.org/ for details.", VERSION);
 
   memset(&sctx, 0, sizeof(sctx));
@@ -4298,6 +4305,18 @@ int chilli_main(int argc, char **argv) {
   
   if (_options.ipup) tun_runscript(tun, _options.ipup);
   
+  /* Allocate ippool for dynamic IP address allocation */
+  if (ippool_new(&ippool, 
+		 _options.dynip, 
+		 _options.dhcpstart, 
+		 _options.dhcpend, 
+		 _options.statip, 
+		 _options.allowdyn, 
+		 _options.allowstat)) {
+    log_err(0, "Failed to allocate IP pool!");
+    exit(1);
+  }
+  
   /* Create an instance of dhcp */
   if (dhcp_new(&dhcp, _options.max_clients, _options.dhcpif,
 	       _options.dhcpusemac, _options.dhcpmac, 1, 
@@ -4315,7 +4334,9 @@ int chilli_main(int argc, char **argv) {
   dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
   dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
   
-  if (dhcp_set(dhcp, (_options.debug & DEBUG_DHCP))) {
+  if (dhcp_set(dhcp, 
+	       _options.ethers, 
+	       (_options.debug & DEBUG_DHCP))) {
     log_err(0, "Failed to set DHCP parameters");
     exit(1);
   }
@@ -4341,18 +4362,6 @@ int chilli_main(int argc, char **argv) {
   
   /* Initialise connections */
   initconn();
-  
-  /* Allocate ippool for dynamic IP address allocation */
-  if (ippool_new(&ippool, 
-		 _options.dynip, 
-		 _options.dhcpstart, 
-		 _options.dhcpend, 
-		 _options.statip, 
-		 _options.allowdyn, 
-		 _options.allowstat)) {
-    log_err(0, "Failed to allocate IP pool!");
-    exit(1);
-  }
   
   /* Create an instance of redir */
   if (redir_new(&redir, &_options.uamlisten, _options.uamport, _options.uamuiport)) {
@@ -4550,8 +4559,11 @@ int chilli_main(int argc, char **argv) {
       reload_config = 0;
 
       /* Reinit DHCP parameters */
-      if (dhcp)
-	dhcp_set(dhcp, (_options.debug & DEBUG_DHCP));
+      if (dhcp) {
+	dhcp_set(dhcp, 
+		 _options.ethers,
+		 (_options.debug & DEBUG_DHCP));
+      }
       
       /* Reinit RADIUS parameters */
       radius_set(radius, dhcp->rawif.hwaddr, (_options.debug & DEBUG_RADIUS));

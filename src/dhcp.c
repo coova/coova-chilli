@@ -437,6 +437,9 @@ int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause)
   if (this->cb_disconnect)
     this->cb_disconnect(conn, term_cause);
 
+  if (conn->is_reserved)
+    return 0;
+
   log_dbg("DHCP freeconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
 	  conn->hismac[0], conn->hismac[1], conn->hismac[2],
 	  conn->hismac[3], conn->hismac[4], conn->hismac[5]);
@@ -494,7 +497,7 @@ int dhcp_checkconn(struct dhcp_t *this)
     if (_options.debug)
       log_dbg("dhcp_checkconn: %d %d", mainclock_diff(conn->lasttime), (int) this->lease);
     */
-    if (mainclock_diff(conn->lasttime) > (int) this->lease) {
+    if (!conn->is_reserved && mainclock_diff(conn->lasttime) > (int) this->lease) {
       log_dbg("DHCP timeout: Removing connection");
       dhcp_freeconn(conn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
       return 0; /* Returning after first deletion */
@@ -615,12 +618,104 @@ dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
   return 0;
 }
 
+int dhcp_reserve_ip(uint8_t *mac, struct in_addr *ip) {
+  struct dhcp_conn_t *conn = 0;
+
+  if (dhcp_hashget(dhcp, &conn, mac)) {
+    if (dhcp_newconn(dhcp, &conn, mac, 0)) {
+      log_err(0, "could not allocate connection");
+      return -1;
+    }
+  }
+
+  conn->is_reserved = 1;
+  dhcp->cb_request(conn, ip, 0, 0);
+
+  return 0;
+}
+
+int dhcp_reserve_str(char *b, size_t blen) {
+  uint8_t mac[PKT_ETH_ALEN];
+  unsigned int tmp[PKT_ETH_ALEN];
+  struct in_addr ip;
+  int state = 0;
+  int newline;
+  
+  char *bp = b;
+  char *t;
+  int i;
+  
+  for (i=0; state >= 0 && i < blen; i++) {
+    newline = 0;
+    switch(b[i]) {
+    case '\r': case '\n': case ',':
+      {
+	newline = 1;
+      }
+    case ' ': case '\t': case '=':
+      {
+	b[i]=0;
+	switch (state) {
+	case 0:
+	  {
+	    for (t=bp; *t; t++) 
+	      if (!isxdigit(*t)) 
+		*t = 0x20;
+	    
+	    if (sscanf (bp, "%2x %2x %2x %2x %2x %2x", 
+			&tmp[0], &tmp[1], &tmp[2], 
+			&tmp[3], &tmp[4], &tmp[5]) != 6) {	
+	      log_err(0, "MAC conversion failed!");
+	      state = -1;
+	    } else {
+	      mac[0] = (uint8_t) tmp[0];
+	      mac[1] = (uint8_t) tmp[1];
+	      mac[2] = (uint8_t) tmp[2];
+	      mac[3] = (uint8_t) tmp[3];
+	      mac[4] = (uint8_t) tmp[4];
+	      mac[5] = (uint8_t) tmp[5];
+	      state = 1;
+	    }
+	  }
+	  break;
+	case 1:
+	  {
+	    if (!inet_aton(bp, &ip)) {	
+	      log_err(0, "Bad IP address!");
+	      state = -1;
+	    } else {
+	      state = 2;
+	    }
+	  }
+	  break;
+	}
+	
+	if (newline || state == 2) {
+	  dhcp_reserve_ip(mac, &ip);
+	  state = 0;
+	}
+	
+	while (i < blen && (b[i] == 0 || 
+			    b[i] == '\r' || 
+			    b[i] == '\n' || 
+			    b[i] == ' ' || 
+			    b[i] == '\t')) i++;
+	bp = b + (size_t) i;
+	i--;
+      }
+      break;
+    }
+  }
+
+  return 0;
+}
+
 /**
  * dhcp_set()
  * Set dhcp parameters which can be altered at runtime.
  **/
 int
-dhcp_set(struct dhcp_t *dhcp, int debug) {
+dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug) {
   dhcp->debug = debug;
   dhcp->anydns = _options.uamanydns;
 
@@ -635,6 +730,35 @@ dhcp_set(struct dhcp_t *dhcp, int debug) {
   }
   
   memcpy(dhcp->authip, &_options.uamserver, sizeof(struct in_addr) * _options.uamserverlen);
+
+  if (ethers && *ethers) {
+    int fd = open(ethers, O_RDONLY);
+    if (fd > 0) {
+      struct stat buf;
+      int r, blen;
+      char *b;
+
+      fstat(fd, &buf);
+      blen = buf.st_size;
+
+      if (blen > 0) {
+	b = malloc(blen);
+	if (b) {
+	  r = read(fd, b, blen);
+	  if (r == blen) {
+	    dhcp_reserve_str(b, blen);
+	  } else {
+	    log_err(0, "bad ethers file %s", ethers);
+	  }
+	  free(b);
+	}      
+      }
+
+      close(fd);
+    } else {
+      log_err(0, "could not open ethers file %s", ethers);
+    }
+  }
 
   return 0;
 }
@@ -1339,7 +1463,7 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
       }
     }
 
-    if (!match /* && wildard option */) {
+    if (!match && _options.domaindnslocal) {
       int domain_len = strlen(_options.domain) + 1;
       uint8_t * l_sz = 0;
       int i;

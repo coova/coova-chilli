@@ -35,6 +35,7 @@ struct options_t {
   char *pidfile;
   char *statedir;
   char *binconfig;
+  char *ethers;
 
   /* TUN parameters */
   struct in_addr net;            /* Network IP address */
@@ -170,6 +171,7 @@ struct options_t {
   uint8_t uamallowpost:1;           /* Set to true if the UAMPORT is allowed to access a POST */
   uint8_t redirssl:1;               /* Enable redirection of SSL/HTTPS port (requires SSL support) */
   uint8_t uamuissl:1;               /* Enable SSL/HTTPS on uamuiport (requires SSL support) */
+  uint8_t domaindnslocal:1;         /* Wildcard option to consider all hostnames *.domain local */
   /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
