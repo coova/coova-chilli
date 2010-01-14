@@ -1,6 +1,7 @@
 
 chi_files=\
-contact.chi login.chi map.chi register.chi terms.chi tos.chi payment.chi
+contact.chi login.chi map.chi register.chi terms.chi tos.chi payment.chi \
+error.chi
 
 tmpl_files=\
 contact_form.tmpl    email_visitor.tmpl  login_map.tmpl       register_form.tmpl \
@@ -8,7 +9,7 @@ contact_thanks.tmpl  footer.tmpl         login_register.tmpl  register.tmpl \
 contact.tmpl         header.tmpl         login_success.tmpl   terms_form.tmpl \
 css.tmpl             js.tmpl             login.tmpl           terms.tmpl \
 email_contact.tmpl   login_footer.tmpl   map.tmpl             title.tmpl \
-email_owner.tmpl     login_form.tmpl     openid_form.tmpl 
+email_owner.tmpl     login_form.tmpl     openid_form.tmpl error.tmpl
 
 sh_files=config-local.sh functions.sh payment.sh uam.sh
 
@@ -66,6 +67,11 @@ tos.chi: Makefile tos.chi.in
 	rm -f tos.chi tos.chi.tmp
 	$(edit) tos.chi.in >tos.chi.tmp
 	mv tos.chi.tmp tos.chi
+
+error.chi: Makefile error.chi.in
+	rm -f error.chi error.chi.tmp
+	$(edit) error.chi.in >error.chi.tmp
+	mv error.chi.tmp error.chi
 
 functions.sh: Makefile functions.sh.in
 	rm -f functions.sh functions.sh.tmp

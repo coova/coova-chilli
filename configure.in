@@ -123,20 +123,20 @@ AS_IF([test x"$with_matrixssl" != xno],
 
 AM_CONDITIONAL(WITH_MATRIXSSL, [test x"$with_matrixssl" != xno])
 
-AC_ARG_WITH([netfilter_queue],
- [AS_HELP_STRING([--with-netfilter_queue], [enable support for netfilter_queue])],[],[with_netfilter_queue=no])
+AC_ARG_WITH([nfqueue],
+ [AS_HELP_STRING([--with-nfqueue], [enable support for netfilter_queue])],[],[with_nfqueue=no])
 
-AS_IF([test x"$with_netfilter_queue" != xno],
+AS_IF([test x"$with_nfqueue" != xno],
   [AC_CHECK_LIB([netfilter_queue], [nfq_open],
               [AC_SUBST([LIBNETFILTER_QUEUE], ["-lnetfilter_queue"])
                AC_DEFINE([HAVE_NETFILTER_QUEUE], [1],
                          [Define if you have netfilter_queue])
               ],
               [AC_MSG_FAILURE(
-                 [--with-netfilter_queue was given, but test for netfilter_queue failed])],
+                 [--with-nfqueue was given, but test for netfilter_queue failed])],
               [-lnetfilter_queue])])
 
-AM_CONDITIONAL(WITH_NETFILTER_QUEUE, [test x"$with_netfilter_queue" != xno])
+AM_CONDITIONAL(WITH_NETFILTER_QUEUE, [test x"$with_nfqueue" != xno])
 
 AC_ARG_WITH([pcap],
  [AS_HELP_STRING([--with-pcap], [enable support for pcap])],[],[with_pcap=no])

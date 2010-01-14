@@ -83,25 +83,23 @@ static pid_t redir_pid = 0;
 #endif
 
 static void _sigchld(int signum) { 
+  log_dbg("received %d signal", signum);
   /* catches falling childs and eliminates zombies */
   while (wait3(NULL, WNOHANG, NULL) > 0);
 }
 
 static void _sigterm(int signum) {
-  if (_options.debug) 
-    log_dbg("SIGTERM: shutdown");
+  log_dbg("SIGTERM: shutdown");
   if (p_keep_going)
     *p_keep_going = 0;
 }
 
 static void _sigvoid(int signum) {
-  if (_options.debug) 
-    log_dbg("received %d signal", signum);
+  log_dbg("received %d signal", signum);
 }
 
 static void _sigusr1(int signum) {
-  if (_options.debug) 
-    log_dbg("SIGUSR1: reloading configuration");
+  log_dbg("SIGUSR1: reloading configuration");
 
   if (p_reload_config)
     *p_reload_config = 1;
@@ -117,8 +115,7 @@ static void _sigusr1(int signum) {
 }
 
 static void _sighup(int signum) {
-  if (_options.debug) 
-    log_dbg("SIGHUP: rereading configuration");
+  log_dbg("SIGHUP: rereading configuration");
 
   do_interval = 1;
 }
@@ -1729,6 +1726,9 @@ int cb_redir_getstate(struct redir_t *redir,
   {
     int n;
     for (n=0; n < DHCP_DNAT_MAX; n++) {
+
+      log_dbg("%d(%d) == %d",ntohs(dhcpconn->dnat[n].src_port),ntohs(dhcpconn->dnat[n].dst_port),ntohs(address->sin_port));
+
       if (dhcpconn->dnat[n].src_port == address->sin_port) {
 	if (dhcpconn->dnat[n].dst_port == htons(DHCP_HTTPS)) {
 	  flags |= USING_SSL;
@@ -4059,11 +4059,13 @@ int static redir_msg(struct redir_t *this) {
       if (msg.mtype == REDIR_MSG_STATUS_TYPE) {
 	struct redir_conn_t conn;
 	struct sockaddr_in address;
-	address.sin_addr = msg.mdata.addr;
+	address.sin_port = msg.mdata.port;
+	address.sin_addr.s_addr = msg.mdata.addr.s_addr;
 	memset(&conn, 0, sizeof(conn));
 	cb_redir_getstate(redir, &address, &conn);
-	if (write(socket, &conn, sizeof(conn)) < 0)
+	if (write(socket, &conn, sizeof(conn)) < 0) {
 	  log_err(errno, "redir_msg");
+	}
       } else {
 	uam_msg(&msg);
       }
@@ -4386,21 +4388,6 @@ int chilli_main(int argc, char **argv) {
   /* not really needed for chilliredir */
   redir_set_cb_getstate(redir, cb_redir_getstate);
   
-  memset(&admin_session, 0, sizeof(admin_session));
-  
-#ifdef ENABLE_BINSTATFILE
-  if (loadstatus() != 0) /* Only indicate a fresh start-up if we didn't load keepalive sessions */
-#endif
-    acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
-  
-  if (_options.adminuser) {
-    admin_session.is_adminsession = 1;
-    strncpy(admin_session.s_state.redir.username, 
-	    _options.adminuser, sizeof(admin_session.s_state.redir.username));
-    set_sessionid(&admin_session);
-    chilliauth_radius(radius);
-  }
-  
   if (_options.cmdsocket) {
     cmdsock = cmdsock_init();
   }
@@ -4501,6 +4488,26 @@ int chilli_main(int argc, char **argv) {
   if (_options.debug) 
     log_dbg("Waiting for client request...");
 
+
+  /*
+   * Administrative-User session
+   */
+  memset(&admin_session, 0, sizeof(admin_session));
+  
+#ifdef ENABLE_BINSTATFILE
+  if (loadstatus() != 0) /* Only indicate a fresh start-up if we didn't load keepalive sessions */
+#endif
+    acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
+  
+  if (_options.adminuser) {
+    admin_session.is_adminsession = 1;
+    strncpy(admin_session.s_state.redir.username, 
+	    _options.adminuser, 
+	    sizeof(admin_session.s_state.redir.username));
+    set_sessionid(&admin_session);
+    chilliauth_radius(radius);
+  }
+  
 
   /******************************************************************/
   /* Main select loop                                               */

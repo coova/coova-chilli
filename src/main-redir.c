@@ -123,7 +123,8 @@ sock_redir_getstate(struct redir_t *redir,
 	   _options.unixipc ? _options.unixipc : "chilli.ipc");
 
   msg.mtype = REDIR_MSG_STATUS_TYPE;
-  msg.mdata.addr = address->sin_addr;
+  msg.mdata.addr.s_addr = address->sin_addr.s_addr;
+  msg.mdata.port = address->sin_port;
 
   if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     perror("socket");

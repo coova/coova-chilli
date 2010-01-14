@@ -404,7 +404,7 @@ int redir_md_param(bstring str, char *secret, char *amp) {
   unsigned char cksum[16];
   char hex[32+1];
   int i;
-  
+
   MD5Init(&context);
   MD5Update(&context, (uint8_t *)str->data, str->slen);
   MD5Update(&context, (uint8_t *)secret, strlen(secret));
@@ -759,7 +759,7 @@ tcp_write(struct redir_socket_t *sock, char *buf, size_t len) {
     } else 
 #endif
     c = tcp_write_timeout(timeout, sock, buf+r, len-r);
-    if (c <= 0) return (ssize_t)r;
+    if (c <= 0) return (ssize_t) r;
     r += (size_t)c;
   }
   return (ssize_t)r;
@@ -989,7 +989,6 @@ static int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 	return -1;
       }
       
-      log_dbg("here: %s\n", bt->data);
       bconcat(buffer, bt);
       bdestroy(bt);
     }
@@ -1368,7 +1367,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       /* if post is allowed, we do not buffer on the read (to not eat post data) */
 #ifdef HAVE_SSL
       if (sock->sslcon) {
-	recvlen = openssl_read(sock->sslcon, buffer + buflen, httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 0);
+	recvlen = openssl_read(sock->sslcon, 
+			       buffer + buflen, 
+			       httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 
+			       0);
       } else
 #endif
       recvlen = recv(fd, buffer + buflen, httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 0);
@@ -1402,17 +1404,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	char *p1 = buffer;
 	char *p2;
 
-	if (optionsdebug)
-	  log_dbg("http-request: %s", buffer);
-
 	if      (!strncmp("GET ",  p1, 4)) { p1 += 4; }
 	else if (!strncmp("HEAD ", p1, 5)) { p1 += 5; }
 	else if (httpreq->allow_post && !strncmp("POST ", p1, 5)) { 
 	  p1 += 5; 
 	  httpreq->is_post = 1; 
 	} else { 
-	  if (optionsdebug)
-	    log_dbg("Unhandled http request: %s", buffer);
+	  log_dbg("Unhandled http request: %s", buffer);
 	  return -1;
 	}
 
@@ -1431,8 +1429,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
 	strncpy(path, p1, dstlen);
 
-	if (optionsdebug)
-	  log_dbg("The path: %s", path); 
+	log_dbg("The path: %s", path); 
 
 	/* TODO: Should also check the Host: to make sure we are talking directly to uamlisten */
 
@@ -1480,8 +1477,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
 	    strncpy(httpreq->qs, p1, dstlen);
 
-	    if (optionsdebug)
-	      log_dbg("Query string: %s", httpreq->qs); 
+	    log_dbg("Query string: %s", httpreq->qs); 
 	  }
 	}
       } else if (linelen == 0) { 
@@ -1502,16 +1498,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    len = sizeof(httpreq->host)-1;
 	  strncpy(httpreq->host, p, len);
 	  httpreq->host[len]=0;
-	  if (optionsdebug)
-	    log_dbg("Host: %s",httpreq->host);
+	  log_dbg("Host: %s",httpreq->host);
 	} 
 	else if (!strncasecmp(buffer,"Content-Length:",15)) {
 	  p = buffer + 15;
 	  while (*p && isspace(*p)) p++;
 	  len = strlen(p);
 	  if (len > 0) httpreq->clen = atoi(p);
-	  if (optionsdebug)
-	    log_dbg("Content-Length: %s",p);
+	  log_dbg("Content-Length: %s",p);
 	}
 	else if (!strncasecmp(buffer,"User-Agent:",11)) {
 	  p = buffer + 11;
@@ -1521,8 +1515,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    len = sizeof(conn->useragent)-1;
 	  strncpy(conn->useragent, p, len);
 	  conn->useragent[len]=0;
-	  if (optionsdebug)
-	    log_dbg("User-Agent: %s",conn->useragent);
+	  log_dbg("User-Agent: %s",conn->useragent);
 	}
 	else if (!strncasecmp(buffer,"Cookie:",7)) {
 	  p = buffer + 7;
@@ -1532,8 +1525,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    len = sizeof(conn->httpcookie)-1;
 	  strncpy(conn->httpcookie, p, len);
 	  conn->httpcookie[len]=0;
-	  if (optionsdebug)
-	    log_dbg("Cookie: %s",conn->httpcookie);
+	  log_dbg("Cookie: %s",conn->httpcookie);
 	}
       }
 
@@ -1574,8 +1566,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	bstring bt2 = bfromcstr("");
 	redir_urldecode(bt, bt2);
 	bstrtocstr(bt2, conn->s_state.redir.userurl, sizeof(conn->s_state.redir.userurl));
-	if (optionsdebug) 
-	  log_dbg("-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
+	log_dbg("-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
 	bdestroy(bt2);
       }
       
@@ -1598,7 +1589,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
       } else {
-	if (optionsdebug) log_dbg("No password found!");
+	log_dbg("No password found!");
 	bdestroy(bt);
 	return -1;
       }
@@ -1614,8 +1605,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	bstring bt2 = bfromcstr("");
 	redir_urldecode(bt, bt2);
 	bstrtocstr(bt2, conn->s_state.redir.userurl, sizeof(conn->s_state.redir.userurl));
-	if (optionsdebug) 
-	  log_dbg("-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
+	log_dbg("-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
 	bdestroy(bt2);
       }
       bdestroy(bt);
@@ -1628,8 +1618,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       bstring bt2 = bfromcstr("");
       redir_urldecode(bt, bt2);
       bstrtocstr(bt2,conn->wwwfile, sizeof(conn->wwwfile));
-      if (optionsdebug) 
-	log_dbg("Serving file %s", conn->wwwfile);
+      log_dbg("Serving file %s", conn->wwwfile);
       bdestroy(bt2);
       bdestroy(bt);
     } 
@@ -1642,8 +1631,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       snprintf(conn->s_state.redir.userurl, sizeof(conn->s_state.redir.userurl), "http://%s/%s%s%s", 
 	       httpreq->host, httpreq->path, httpreq->qs[0] ? "?" : "", httpreq->qs[0] ? httpreq->qs : "");
 
-      if (optionsdebug) 
-	log_dbg("-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
+      log_dbg("-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
     }
     break;
 
@@ -1662,8 +1650,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   struct radius_attr_t *attr = NULL;
   char attrs[RADIUS_ATTR_VLEN+1];
 
-  if (optionsdebug)
-    log_dbg("Received access request confirmation from radius server\n");
+  log_dbg("Received access request confirmation from radius server\n");
   
   if (!conn) {
     log_err(0, "No peer protocol defined");
@@ -1703,7 +1690,6 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   if (!radius_getattr(pack, &classattr, RADIUS_ATTR_CLASS, 0, 0, 0)) {
     conn->s_state.redir.classlen = classattr->l-2;
     memcpy(conn->s_state.redir.classbuf, classattr->v.t, classattr->l-2);
-    log_dbg("!!!! CLASSLEN = %d !!!!", conn->s_state.redir.classlen);
   }
   /*else {
     log_dbg("!!!! RESET CLASSLEN !!!!");
@@ -1780,9 +1766,8 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST);
   
-  if (optionsdebug) 
-    log_dbg("created radius packet (code=%d, id=%d, len=%d)\n",
-	    radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
+  log_dbg("created radius packet (code=%d, id=%d, len=%d)\n",
+	  radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
 		 (uint8_t*) conn->s_state.redir.username, strlen(conn->s_state.redir.username));
@@ -1919,7 +1904,6 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
 		 (uint8_t*) conn->s_state.sessionid, REDIR_SESSIONID_LEN-1);
 
-  log_dbg("!!!! CLASSLEN = %d !!!!", conn->s_state.redir.classlen);
   if (conn->s_state.redir.classlen) {
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
 		   conn->s_state.redir.classbuf,
@@ -1965,9 +1949,8 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
 
-  if (optionsdebug) 
-    log_dbg("sending radius packet (code=%d, id=%d, len=%d)\n",
-	    radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
+  log_dbg("sending radius packet (code=%d, id=%d, len=%d)\n",
+	  radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
 
   radius_req(radius, &radius_pack, conn);
 
@@ -2247,6 +2230,7 @@ static int _redir_close(int infd, int outfd) {
 }
 
 static int _redir_close_exit(int infd, int outfd) {
+  log_dbg("close_exit");
   _redir_close(infd,outfd);
   options_destroy();
   exit(0);
@@ -2305,9 +2289,10 @@ pid_t redir_fork(int in, int out) {
 
     memset(&act, 0, sizeof(act));
 
-    act.sa_handler = redir_termination;
-    sigaction(SIGTERM, &act, &oldact);
-    sigaction(SIGINT, &act, &oldact);
+    /*act.sa_handler = redir_termination;
+      sigaction(SIGTERM, &act, &oldact);
+      sigaction(SIGINT, &act, &oldact);*/
+
     act.sa_handler = redir_alarm;
     sigaction(SIGALRM, &act, &oldact);
 
@@ -2339,6 +2324,13 @@ int redir_main_exit(struct redir_t *redir, struct redir_httpreq_t *httpreq,
   if (httpreq->data_in) bdestroy(httpreq->data_in);
   if (forked) _redir_close_exit(socket->fd[0], socket->fd[1]);
   return _redir_close(socket->fd[0], socket->fd[1]);
+}
+
+static int redir_close_on_signal[2]={0,0};
+static int redir_signal(int sig) {
+  close(redir_close_on_signal[0]);
+  close(redir_close_on_signal[1]);
+  log_dbg("signal(%d)=%d", getpid(),sig);
 }
 
 int redir_main(struct redir_t *redir, 
@@ -2382,14 +2374,13 @@ int redir_main(struct redir_t *redir,
   redir_chartohex(challenge, hexchal, REDIR_MD5LEN); \
   msg.mtype = msgtype; \
   memcpy(conn.s_state.redir.uamchal, challenge, REDIR_MD5LEN); \
-  if (_options.debug) { \
-    log_dbg("---->>> resetting challenge: %s", hexchal); \
-  }
+  log_dbg("---->>> resetting challenge: %s", hexchal)
 
 #ifdef USING_IPC_UNIX
 #define redir_msg_send(msgopt) \
   msg.mdata.opt = msgopt; \
-  msg.mdata.addr = address->sin_addr; \
+  msg.mdata.port = address->sin_port; \
+  msg.mdata.addr.s_addr = address->sin_addr.s_addr; \
   memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
   if (redir_send_msg(redir, &msg) < 0) { \
@@ -2399,7 +2390,8 @@ int redir_main(struct redir_t *redir,
 #else
 #define redir_msg_send(msgopt) \
   msg.mdata.opt = msgopt; \
-  msg.mdata.addr = address->sin_addr; \
+  msg.mdata.port = address->sin_port; \
+  msg.mdata.addr.s_addr = address->sin_addr.s_addr; \
   memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
   if (msgsnd(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0) < 0) { \
@@ -2428,8 +2420,7 @@ int redir_main(struct redir_t *redir,
   }
   */
 
-  if (optionsdebug) 
-    log_dbg("Calling redir_getstate()");
+  log_dbg("Calling redir_getstate()");
 
   /*
    *  Fetch the state of the client
@@ -2455,14 +2446,11 @@ int redir_main(struct redir_t *redir,
   /*
    *  Parse the request, updating the status
    */
-  if (optionsdebug) 
-    log_dbg("Receiving HTTP%s Request", conn.flags & USING_SSL ? "S" : "");
+  log_dbg("Receiving HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
 
 #ifdef HAVE_SSL
-  if (_options.uamuissl && isui) {
-    socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 30);
-  }
-  else if (conn.flags & USING_SSL) {
+  if (( _options.uamuissl && isui ) || 
+      ( conn.flags & USING_SSL )) {
     socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 30);
   }
 #endif
@@ -2473,8 +2461,7 @@ int redir_main(struct redir_t *redir,
     return redir_main_exit(redir, &httpreq, &socket, forked);
   }
 
-  if (optionsdebug) 
-    log_dbg("Process HTTP Request");
+  log_dbg("Process HTTP Request");
   
   if (conn.type == REDIR_WWW) {
     pid_t forkpid;
@@ -2523,7 +2510,7 @@ int redir_main(struct redir_t *redir,
 	 *  before doing the chroot(), chrdir(), and so on..
 	 */
 	forkpid = redir_fork(infd, outfd);
-	if (forkpid) { /* parent */
+	if (forkpid) { /* parent or error */
 	  return redir_main_exit(redir, &httpreq, &socket, forked);
 	}
       }
@@ -2539,10 +2526,99 @@ int redir_main(struct redir_t *redir,
 	  log_err(errno, "fcntl() failed");
 	}
 
+#ifdef HAVE_SSL
+	if (socket.sslcon) {
+
+	  /*
+	   * If the connection is SSL, we need to fork again. The child will do the exec
+	   * while the parent will provide the SSL wrapping.
+	   */
+	  int ptoc[2];
+	  int ctop[2];
+
+	  struct sigaction act;
+	  memset(&act, 0, sizeof(act));
+	  
+	  if (pipe(ptoc) == -1 || pipe(ctop) == -1) {
+	    log_err(errno, "pipe() failed");
+	    return redir_main_exit(redir, &httpreq, &socket, forked);
+	  }
+
+	  forkpid = redir_fork(ptoc[0], ctop[1]);
+
+	  act.sa_handler = redir_signal;
+	  sigaction(SIGCHLD, &act, NULL);
+	  
+	  act.sa_handler = redir_signal;
+	  sigaction(SIGPIPE, &act, NULL);
+
+	  if (forkpid < 0) {
+	    log_err(errno, "fork() failed");
+	    return redir_main_exit(redir, &httpreq, &socket, forked);
+	  }
+
+	  forked = 1;
+	  if (forkpid) { 
+	    /* parent */
+
+	    int clen = httpreq.clen;
+
+	    close(ptoc[0]);
+	    close(ctop[1]);
+
+	    redir_close_on_signal[0]=ptoc[1];
+	    redir_close_on_signal[1]=ctop[0];
+
+	    log_dbg("ssl_wrapper(%d)", getpid());
+
+	    while (clen > 0) {
+	      if ((buflen = openssl_read(socket.sslcon, buffer, bufsize, 1)) > 0) {
+		if (write(ptoc[1], buffer, (size_t) buflen) < 0) {
+		  log_err(errno, "tcp_write() failed!");
+		  return redir_main_exit(redir, &httpreq, &socket, forked);
+		}
+		clen -= buflen;
+	      }
+	    }
+
+	    while (1) {
+	      log_dbg("script_read");
+	      if ((buflen = read(ctop[0], buffer, bufsize)) > 0) {
+		log_dbg("script_read(%d)",buflen);
+		if (tcp_write(&socket, buffer, (size_t) buflen) < 0) {
+		  log_err(errno, "tcp_write() failed!");
+		  break;
+		}
+		log_dbg("ssl_write(%d)",buflen);
+	      } else {
+		log_dbg("done");
+		break;
+	      }
+	    }
+	    
+	    close(ptoc[1]);
+ 	    close(ctop[0]);
+	    
+	    return redir_main_exit(redir, &httpreq, &socket, forked);
+	  }
+
+	  close(ptoc[1]);
+	  close(ctop[0]);
+	  /* child */
+	  log_dbg("script(%d)", getpid());
+	}
+#endif
+
 	/* XXX: Todo: look for malicious content! */
 	
 	{
 	  char *binqqargs[3] = { _options.wwwbin, buffer, 0 } ;
+
+#ifdef HAVE_SSL
+	  if (socket.sslcon) {
+	    setenv("HTTPS", "on", 1);
+	  }
+#endif
 
 	  sprintf(buffer,"%d", httpreq.clen > 0 ? httpreq.clen : 0);
 	  setenv("CONTENT_LENGTH", buffer, 1);
@@ -2556,9 +2632,11 @@ int redir_main(struct redir_t *redir,
 	  sprintf(buffer, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 		  conn.hismac[0], conn.hismac[1], conn.hismac[2], 
 		  conn.hismac[3], conn.hismac[4], conn.hismac[5]);
-	  
 	  setenv("REMOTE_MAC", buffer, 1);
-	  setenv("AUTHENTICATED", conn.s_state.authenticated ? "1" : "0", 1);
+
+	  setenv("AUTHENTICATED", conn.s_state.authenticated && 
+		 (conn.s_params.flags&REQUIRE_UAM_SPLASH)==0 ? "1" : "0", 1);
+
 	  setenv("CHI_SESSION_ID", conn.s_state.sessionid, 1);
 	  setenv("CHI_USERNAME", conn.s_state.redir.username, 1);
 	  setenv("CHI_USERURL", conn.s_state.redir.userurl, 1);

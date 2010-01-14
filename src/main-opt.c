@@ -470,7 +470,9 @@ int main(int argc, char **argv) {
 
   /* anyipexclude */
   if (args_info.anyipexclude_arg) {
-    if (option_aton(&opt->anyipexclude_addr, &opt->anyipexclude_mask, args_info.anyipexclude_arg, 0)) {
+    if (option_aton(&_options.anyipexclude_addr, 
+		    &_options.anyipexclude_mask, 
+		    args_info.anyipexclude_arg, 0)) {
       log_err(0, "Failed to parse anyip exclude network!");
       return -1;
     }

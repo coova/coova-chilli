@@ -4,6 +4,10 @@
 * Fix for when using WISPr-Session-Terminate-Time 
 * Fix for honoring WISPr-Redirection-URL in AccessAccept
 * Fix making *.''domain'' optionally "local DNS" instead of default
+* Fix for OpenSSL - cert file should not require full cert chain
+* Fix for SSL when using chilliredir server, add port to mdata
+* Bug fix for option ''--anyipexclude'' which stopped working (due to chilli_opt)
+* Extended redir to support script content (miniportal) under SSL
 * New option ''--ethers'' that specifies a file with MAC Address and IP Address mappings
 	
 == ChangeLog (CoovaChilli-v1.2.0 svn revision 271) ==

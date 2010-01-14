@@ -35,6 +35,9 @@ static void destroy_one_ring(net_interface *iface, int what);
 static void setup_filter(net_interface *iface);
 #endif
 
+#ifdef HAVE_NETFILTER_QUEUE
+#endif
+
 int safe_connect(int s, struct sockaddr *sock, size_t len) {
   int ret;
   do {
@@ -801,7 +804,9 @@ int net_open_eth(net_interface *netif) {
 #endif
 
 #ifdef USING_MMAP
-  setup_rings(netif, _options.ringsize?_options.ringsize:DEF_RING_SIZE, netif->mtu + 20);
+  setup_rings(netif,
+	      _options.ringsize ? _options.ringsize : DEF_RING_SIZE, 
+	      netif->mtu + 20);
 #endif
 
   /* Bind to particular interface */

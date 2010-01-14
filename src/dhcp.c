@@ -38,12 +38,12 @@ static int connections = 0;
 
 char *dhcp_state2name(int authstate) {
   switch(authstate) {
-  case DHCP_AUTH_NONE: return "none";
-  case DHCP_AUTH_DROP: return "drop";
-  case DHCP_AUTH_PASS: return "pass";
-  case DHCP_AUTH_DNAT: return "dnat";
+  case DHCP_AUTH_NONE:   return "none";
+  case DHCP_AUTH_DROP:   return "drop";
+  case DHCP_AUTH_PASS:   return "pass";
+  case DHCP_AUTH_DNAT:   return "dnat";
   case DHCP_AUTH_SPLASH: return "splash";
-  default: return "unknown";
+  default:               return "unknown";
   }
 }
 
@@ -1098,7 +1098,7 @@ dhcp_uam_unnat(struct dhcp_conn_t *conn,
  * dhcp_doDNAT()
  * Change destination address to authentication server.
  **/
-int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
+int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, char do_reset) {
   struct dhcp_t *this = conn->parent;
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
@@ -1193,7 +1193,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
       return dhcp_uam_nat(conn, ethh, iph, tcph, &this->uamlisten, this->uamport);
 
-    } else {
+    } else if (do_reset) {
       /* otherwise, RESET and drop */
       log_dbg("Resetting connection on port %d->%d", ntohs(tcph->src), ntohs(tcph->dst));
       dhcp_sendRESET(conn, pack, 1);
@@ -1259,7 +1259,7 @@ static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, siz
  * dhcp_undoDNAT()
  * Change source address back to original server
  **/
-static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen) {
+static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen, char do_reset) {
   struct dhcp_t *this = conn->parent;
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
@@ -1353,7 +1353,7 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t 
   }
 #endif
 
-  if (iph->protocol == PKT_IP_PROTO_TCP) {
+  if (do_reset && iph->protocol == PKT_IP_PROTO_TCP) {
     log_dbg("Resetting connection on port %d->%d", ntohs(tcph->src), ntohs(tcph->dst));
     dhcp_sendRESET(conn, pack, 0);
     if (conn->peer) {
@@ -2439,12 +2439,12 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     break;
 
   case DHCP_AUTH_SPLASH:
-    dhcp_doDNAT(conn, pack, len);
+    dhcp_doDNAT(conn, pack, len, 0);
     break;
 
   case DHCP_AUTH_DNAT:
     /* Destination NAT if request to unknown web server */
-    if (dhcp_doDNAT(conn, pack, len)) {
+    if (dhcp_doDNAT(conn, pack, len, 1)) {
       log_dbg("dropping packet; not nat'ed");
       return 0; /* drop */
     }
@@ -2690,12 +2690,12 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
 
   case DHCP_AUTH_SPLASH:
   case DHCP_AUTH_UNAUTH_TOS:
-    dhcp_undoDNAT(conn, pkt, &length);
+    dhcp_undoDNAT(conn, pkt, &length, 0);
     break;
 
   case DHCP_AUTH_DNAT:
     /* undo destination NAT */
-    if (dhcp_undoDNAT(conn, pkt, &length)) { 
+    if (dhcp_undoDNAT(conn, pkt, &length, 1)) { 
       if (this->debug) log_dbg("dhcp_undoDNAT() returns true");
       return 0;
     }

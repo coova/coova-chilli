@@ -174,6 +174,8 @@ writeconfig() {
 	[ "$HS_IEEE8021Q" = "on" ] && addconfig2 "ieee8021q"
 	[ "$HS_UAMUISSL" = "on" ] && addconfig2 "uamuissl"
 	[ "$HS_REDIRSSL" = "on" ] && addconfig2 "redirssl"
+	[ "$HS_DHCPRADIUS" = "on" ] && addconfig2 "dhcpradius"
+	[ "$HS_RADIUSORIGINALURL" = "on" ] && addconfig2 "radiusoriginalurl"
 	[ -n "$HS_UAMALIASNAME" ] && addconfig2 "uamaliasname \"$HS_UAMALIASNAME\""
 	[ -n "$HS_UAMAAAURL" ] && addconfig2 "uamaaaurl \"$HS_UAMAAAURL\""
 	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile \"$HS_ADMINUPDATEFILE\""

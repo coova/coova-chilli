@@ -37,22 +37,6 @@ FORM_userurl=${FORM_userurl:-http://www.coova.org/}
 
 COOVA_USERURL=$COOKIE_COOVA_USERURL
 
-if [ "$FORM_uamip" != "" ]; then
-    QS=$(echo $QUERY_STRING | sed 's/&md=[^&=]*$//')
-    URL="http://$SERVER_NAME/$REQUEST_URI?$QS"
-    CHECK="$URL$hs_uamsecret"
-    CHECK_MD5=$(echo -n "$CHECK" |md5sum|cut -d' ' -f1|tr 'a-z' 'A-Z');
-    #echo "$URL" >> /tmp/debug
-    #echo "$CHECK" >> /tmp/debug
-    #echo "$CHECK_MD5" >> /tmp/debug
-    #echo "$FORM_md" >> /tmp/debug
-    if [ "$CHECK_MD5" = "$FORM_md" ]; then
-	COOVA_USERURL=$FORM_userurl
-    else
-	http_redirect "/www/error.chi"
-    fi
-fi
-
 COOVA_SESSIONID=$CHI_SESSION_ID
 COOVA_CHALLENGE=$CHI_CHALLENGE
 PORTAL_SESSIONID=${COOKIE_PORTAL_SESSIONID:-$SESSIONID}
@@ -239,4 +223,23 @@ domail() {
 	echo) | /usr/sbin/sendmail -t -f "$from" && return 0
     return 1;
 }
+
+
+if [ "$FORM_uamip" != "" ]; then
+    QS=$(echo $QUERY_STRING | sed 's/&md=[^&=]*$//')
+    HTTP="http"
+    [ "$HTTPS" == "on" ] && HTTP="https"
+    URL="$HTTP://$SERVER_NAME/$REQUEST_URI?$QS"
+    CHECK="$URL$hs_uamsecret"
+    CHECK_MD5=$(echo -n "$CHECK" |md5sum|cut -d' ' -f1|tr 'a-z' 'A-Z');
+    #echo "$URL" >> /tmp/debug
+    #echo "$CHECK" >> /tmp/debug
+    #echo "$CHECK_MD5" >> /tmp/debug
+    #echo "$FORM_md" >> /tmp/debug
+    if [ "$CHECK_MD5" = "$FORM_md" ]; then
+	COOVA_USERURL=$FORM_userurl
+    else
+	http_redirect "/www/error.chi"
+    fi
+fi
 

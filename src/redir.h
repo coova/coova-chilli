@@ -180,6 +180,7 @@ struct redir_t {
 
 struct redir_msg_data {
   uint16_t opt;
+  uint16_t port;
   struct in_addr addr;
   struct redir_state redir;
   struct session_params params;

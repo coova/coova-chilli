@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2009 Coova Technologies, LLC.
+ * Copyright (C) 2009-2010 Coova Technologies, LLC.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ openssl_verify_peer(openssl_env *env, int mode) {
 int
 openssl_use_certificate(openssl_env *env, char *file) {
   if (file)
-    if (SSL_CTX_use_certificate_chain_file(env->ctx, file) > 0)
+    if (SSL_CTX_use_certificate_file(env->ctx, file, SSL_FILETYPE_PEM) > 0)
       return 1;
   log_err(errno, "could not load certificate file %s\n",file);
   return 0;
@@ -463,13 +463,13 @@ openssl_read(openssl_con *con, char *b, int l, int t) {
 
   if (rbytes > 0) return rbytes;
   if (err > 0) goto repeat_read;
-  return (err == -1)? -1: 0;
+  return (err == -1) ? -1: 0;
 }
 
 int
 openssl_write(openssl_con *con, char *b, int l, int t) {
-  int sent = 0;
-  int wrt;
+  size_t sent = 0;
+  ssize_t wrt;
   int err;
 
   if (t) {
