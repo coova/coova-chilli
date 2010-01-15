@@ -110,9 +110,10 @@ static void close_request(redir_request *req) {
 static int 
 sock_redir_getstate(struct redir_t *redir, 
 		    struct sockaddr_in *address,
+		    struct sockaddr_in *baddress,
 		    struct redir_conn_t *conn) {
   struct redir_msg_t msg;
-  struct sockaddr_un remote; 
+  struct sockaddr_un remote;
   size_t len = sizeof(remote);
   int s;
 
@@ -123,8 +124,8 @@ sock_redir_getstate(struct redir_t *redir,
 	   _options.unixipc ? _options.unixipc : "chilli.ipc");
 
   msg.mtype = REDIR_MSG_STATUS_TYPE;
-  msg.mdata.addr.s_addr = address->sin_addr.s_addr;
-  msg.mdata.port = address->sin_port;
+  memcpy(&msg.mdata.address, address, sizeof(msg.mdata.address));
+  memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress));
 
   if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     perror("socket");
@@ -302,6 +303,7 @@ int redir_accept2(struct redir_t *redir, int idx) {
   int status;
   int new_socket;
   struct sockaddr_in address;
+  struct sockaddr_in baddress;
   socklen_t addrlen;
   char buffer[128];
   int flags;
@@ -313,6 +315,12 @@ int redir_accept2(struct redir_t *redir, int idx) {
       log_err(errno, "accept()");
 
     return 0;
+  }
+
+  addrlen = sizeof(struct sockaddr_in);
+
+  if (getsockname(new_socket, (struct sockaddr *)&baddress, &addrlen) < 0) {
+    log_warn(errno, "getsockname() failed!");
   }
 
   flags = fcntl(new_socket, F_GETFL, 0);
@@ -352,7 +360,7 @@ int redir_accept2(struct redir_t *redir, int idx) {
     
   } else {
     
-    return redir_main(redir, new_socket, new_socket, &address, idx, 0);
+    return redir_main(redir, new_socket, new_socket, &address, &baddress, idx, 0);
 
   }
 
@@ -375,7 +383,7 @@ int main(int argc, char **argv) {
   int keep_going = 1;
   int reload_config = 0;
 
-  uint8_t hwaddr[6], mac[32];
+  uint8_t hwaddr[6];
   struct ifreq ifr;
   
   int fd = socket(AF_INET, SOCK_DGRAM, 0);

@@ -1377,7 +1377,11 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
       if (recvlen < 0) {
 	if (errno != ECONNRESET)
-	  log_err(errno, "redir read() failed!");
+	  log_err(errno, "%s_read() failed!", 
+#ifdef HAVE_SSL
+		  sock->sslcon ? "SSL" : 
+#endif
+		  "redir");
 	return -1;
       }
 
@@ -2159,6 +2163,7 @@ int redir_accept(struct redir_t *redir, int idx) {
   int status;
   int new_socket;
   struct sockaddr_in address;
+  struct sockaddr_in baddress;
   socklen_t addrlen;
   char buffer[128];
 
@@ -2168,6 +2173,12 @@ int redir_accept(struct redir_t *redir, int idx) {
     if (errno != ECONNABORTED)
       log_err(errno, "accept() failed!");
     return 0;
+  }
+
+  addrlen = sizeof(struct sockaddr_in);
+
+  if (getsockname(redir->fd[idx], (struct sockaddr *)&baddress, &addrlen) < 0) {
+    log_warn(errno, "getsockname() failed!");
   }
 
   radius_packet_id++;
@@ -2203,7 +2214,7 @@ int redir_accept(struct redir_t *redir, int idx) {
 
   } else {
 
-    return redir_main(redir, 0, 1, &address, idx, 1);
+    return redir_main(redir, 0, 1, &address, &baddress, idx, 1);
 
   }
 
@@ -2336,6 +2347,7 @@ static int redir_signal(int sig) {
 int redir_main(struct redir_t *redir, 
 	       int infd, int outfd, 
 	       struct sockaddr_in *address, 
+	       struct sockaddr_in *baddress,
 	       int isui, int forked) {
   char hexchal[1+(2*REDIR_MD5LEN)];
   unsigned char challenge[REDIR_MD5LEN];
@@ -2379,8 +2391,8 @@ int redir_main(struct redir_t *redir,
 #ifdef USING_IPC_UNIX
 #define redir_msg_send(msgopt) \
   msg.mdata.opt = msgopt; \
-  msg.mdata.port = address->sin_port; \
-  msg.mdata.addr.s_addr = address->sin_addr.s_addr; \
+  memcpy(&msg.mdata.address, address, sizeof(msg.mdata.address)); \
+  memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress)); \
   memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
   if (redir_send_msg(redir, &msg) < 0) { \
@@ -2390,8 +2402,8 @@ int redir_main(struct redir_t *redir,
 #else
 #define redir_msg_send(msgopt) \
   msg.mdata.opt = msgopt; \
-  msg.mdata.port = address->sin_port; \
-  msg.mdata.addr.s_addr = address->sin_addr.s_addr; \
+  memcpy(&msg.mdata.address, address, sizeof(msg.mdata.address)); \
+  memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress)); \
   memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
   if (msgsnd(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0) < 0) { \
@@ -2434,7 +2446,7 @@ int redir_main(struct redir_t *redir,
   }
 
   /* get_state returns 0 for unauth'ed and 1 for auth'ed */
-  state = redir->cb_getstate(redir, address,  &conn);
+  state = redir->cb_getstate(redir, address, baddress, &conn);
 
   if (state == -1) {
     if (!_options.debug || !isui)
@@ -2449,8 +2461,7 @@ int redir_main(struct redir_t *redir,
   log_dbg("Receiving HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
 
 #ifdef HAVE_SSL
-  if (( _options.uamuissl && isui ) || 
-      ( conn.flags & USING_SSL )) {
+  if ((conn.flags & USING_SSL) == USING_SSL) {
     socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 30);
   }
 #endif
@@ -2985,6 +2996,7 @@ int redir_main(struct redir_t *redir,
 int redir_set_cb_getstate(struct redir_t *redir,
   int (*cb_getstate) (struct redir_t *redir, 
 		      struct sockaddr_in *address, 
+		      struct sockaddr_in *baddress,
 		      struct redir_conn_t *conn)) {
   redir->cb_getstate = cb_getstate;
   return 0;

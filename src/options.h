@@ -185,19 +185,19 @@ struct options_t {
   char* uamdomains[MAX_UAM_DOMAINS];
 
   /* MAC Authentication */
-  unsigned char macok[MACOK_MAX][PKT_ETH_ALEN]; /* Allowed MACs */
+  uint8_t macok[MACOK_MAX][PKT_ETH_ALEN]; /* Allowed MACs */
   int macoklen;                   /* Number of MAC addresses */
   char* macsuffix;               /* Suffix to add to MAC address */
   char* macpasswd;               /* Password to use for MAC authentication */  
 
-  unsigned long defsessiontimeout;
-  unsigned int defbandwidthmaxdown;
-  unsigned int defbandwidthmaxup;
-  unsigned int defidletimeout;
-  unsigned short definteriminterval;
+  uint64_t defsessiontimeout;
+  uint64_t defbandwidthmaxdown;
+  uint64_t defbandwidthmaxup;
+  uint32_t defidletimeout;
+  uint16_t definteriminterval;
 
-  unsigned int challengetimeout;
-  unsigned int challengetimeout2;
+  uint32_t challengetimeout;
+  uint32_t challengetimeout2;
 
 #ifdef HAVE_SSL
   char *sslkeyfile;

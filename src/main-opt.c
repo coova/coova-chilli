@@ -74,7 +74,6 @@ char *STRDUP(char *s) {
 
 int main(int argc, char **argv) {
   struct gengetopt_args_info args_info;
-  struct options_t *opt;
   struct hostent *host;
   char hostname[USERURLSIZE];
   int numargs;
@@ -322,10 +321,10 @@ int main(int argc, char **argv) {
     }
 
     if (!args_info.uamaliasname_arg ||
-	strcmp(args_info.uamaliasname_arg, hostname)) {
+	strncmp(args_info.uamaliasname_arg, hostname, strlen(args_info.uamaliasname_arg))) {
       if (!(host = gethostbyname(hostname))) {
-	log_err(0, "Could not resolve IP address of uamserver: %s! [%s]", 
-		args_info.uamserver_arg, strerror(errno));
+	log_err(0, "Could not resolve IP address of uamserver: %s!", 
+		args_info.uamserver_arg);
 	goto end_processing;
       }
       else {
@@ -353,16 +352,17 @@ int main(int argc, char **argv) {
   if (args_info.uamhomepage_arg) {
     if (get_urlparts(args_info.uamhomepage_arg, hostname, USERURLSIZE, 
 		     &_options.uamhomepageport, 0)) {
-      log_err(0,"Failed to parse uamhomepage: %s!", args_info.uamhomepage_arg);
+      log_err(0,"Failed to parse uamhomepage: %s!", 
+	      args_info.uamhomepage_arg);
       goto end_processing;
     }
 
     if (!args_info.uamaliasname_arg ||
-	strcmp(args_info.uamaliasname_arg, hostname)) {
+	strncmp(args_info.uamaliasname_arg, hostname, strlen(args_info.uamaliasname_arg))) {
       if (!(host = gethostbyname(hostname))) {
-	log_err(0,"Invalid uamhomepage: %s! [%s]", 
-		args_info.uamhomepage_arg, strerror(errno));
-	goto end_processing;
+	log_err(0,"Could not resolve uamhomepage server IP %s!", 
+		args_info.uamhomepage_arg);
+	/*goto end_processing;*/
       }
       else {
 	int j = 0;

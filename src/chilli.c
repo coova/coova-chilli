@@ -1699,6 +1699,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 
 int cb_redir_getstate(struct redir_t *redir, 
 		      struct sockaddr_in *address,
+		      struct sockaddr_in *baddress,
 		      struct redir_conn_t *conn) {
   struct in_addr *addr = &address->sin_addr;
   struct ippoolm_t *ipm;
@@ -1723,7 +1724,9 @@ int cb_redir_getstate(struct redir_t *redir,
   conn->hisip = appconn->hisip;
 
 #ifdef HAVE_SSL
-  {
+  if (_options.uamuissl && ntohs(baddress->sin_port) == _options.uamuiport) {
+    flags |= USING_SSL;
+  } else {
     int n;
     for (n=0; n < DHCP_DNAT_MAX; n++) {
 
@@ -3681,9 +3684,9 @@ int static uam_msg(struct redir_msg_t *msg) {
   struct app_conn_t *appconn = NULL;
   struct dhcp_conn_t* dhcpconn;
 
-  if (ippool_getip(ippool, &ipm, &msg->mdata.addr)) {
+  if (ippool_getip(ippool, &ipm, &msg->mdata.address.sin_addr)) {
     if (_options.debug) 
-      log_dbg("UAM login with unknown IP address: %s", inet_ntoa(msg->mdata.addr));
+      log_dbg("UAM login with unknown IP address: %s", inet_ntoa(msg->mdata.address.sin_addr));
     return 0;
   }
 
@@ -4058,11 +4061,11 @@ int static redir_msg(struct redir_t *this) {
     if (msgresult == sizeof(msg)) {
       if (msg.mtype == REDIR_MSG_STATUS_TYPE) {
 	struct redir_conn_t conn;
-	struct sockaddr_in address;
-	address.sin_port = msg.mdata.port;
-	address.sin_addr.s_addr = msg.mdata.addr.s_addr;
 	memset(&conn, 0, sizeof(conn));
-	cb_redir_getstate(redir, &address, &conn);
+	cb_redir_getstate(redir, 
+			  &msg.mdata.address, 
+			  &msg.mdata.baddress, 
+			  &conn);
 	if (write(socket, &conn, sizeof(conn)) < 0) {
 	  log_err(errno, "redir_msg");
 	}

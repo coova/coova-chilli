@@ -167,6 +167,7 @@ struct redir_t {
   
   int (*cb_getstate) (struct redir_t *redir, 
 		      struct sockaddr_in *address,
+		      struct sockaddr_in *baddress,
 		      struct redir_conn_t *conn);
 
   int (*cb_handle_url) (struct redir_t *redir, 
@@ -180,8 +181,8 @@ struct redir_t {
 
 struct redir_msg_data {
   uint16_t opt;
-  uint16_t port;
-  struct in_addr addr;
+  struct sockaddr_in address;
+  struct sockaddr_in baddress;
   struct redir_state redir;
   struct session_params params;
 };
@@ -208,10 +209,12 @@ int redir_setchallenge(struct redir_t *redir, struct in_addr *addr, uint8_t *cha
 int redir_set_cb_getstate(struct redir_t *redir,
   int (*cb_getstate) (struct redir_t *redir, 
 		      struct sockaddr_in *address,
+		      struct sockaddr_in *baddress,
 		      struct redir_conn_t *conn));
 
 int redir_main(struct redir_t *redir, int infd, int outfd, 
 	       struct sockaddr_in *address, 
+	       struct sockaddr_in *baddress,
 	       int isui, int forked);
 
 int redir_json_fmt_redir(struct redir_conn_t *conn, bstring json, 
