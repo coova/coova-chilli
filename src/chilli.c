@@ -1724,20 +1724,30 @@ int cb_redir_getstate(struct redir_t *redir,
   conn->hisip = appconn->hisip;
 
 #ifdef HAVE_SSL
-  if (_options.uamuissl && ntohs(baddress->sin_port) == _options.uamuiport) {
-    flags |= USING_SSL;
-  } else {
+  /*
+   *  Determine if the connection is SSL or not.
+   */
+  {
     int n;
     for (n=0; n < DHCP_DNAT_MAX; n++) {
-
-      log_dbg("%d(%d) == %d",ntohs(dhcpconn->dnat[n].src_port),ntohs(dhcpconn->dnat[n].dst_port),ntohs(address->sin_port));
-
+      /*
+       *  First, search the dnat list to see if we are tracking the port.
+       */
+      /*log_dbg("%d(%d) == %d",ntohs(dhcpconn->dnat[n].src_port),ntohs(dhcpconn->dnat[n].dst_port),ntohs(address->sin_port));*/
       if (dhcpconn->dnat[n].src_port == address->sin_port) {
 	if (dhcpconn->dnat[n].dst_port == htons(DHCP_HTTPS)) {
 	  flags |= USING_SSL;
-	  break;
 	}
+	break;
       }
+    }
+    /*
+     *  If not in dnat, if uamuissl is enabled, and this is indeed that 
+     *  port, then we also know it is SSL (directly to https://uamlisten:uamuiport). 
+     */
+    if (n == DHCP_DNAT_MAX && _options.uamuissl && 
+	ntohs(baddress->sin_port) == _options.uamuiport) {
+      flags |= USING_SSL;
     }
   }
 #endif
