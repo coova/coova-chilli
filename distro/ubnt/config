@@ -18,9 +18,18 @@ HS_UAMALLOW=$(getcfg hotspot.uamallow)
 HS_UAMDOMAINS=$(getcfg hotspot.uamdomain)
 HS_UAMFORMAT=$(getcfg hotspot.uamformat)
 HS_UAMSERVER=$(getcfg hotspot.uamserver)
+HS_NASID=$(getcfg hotspot.nasid)
+HS_UAMALIASNAME=coova
+HS_DNS_DOMAIN=local
+HS_DOMAINDNSLOCAL=on
+
+HS_UAMHOMEPAGE="http://coova.local/www/coova.html"
+
+[ "$(getcfg hotspot.macauth)" = "enabled" ] && HS_MACAUTH=on
+[ "$(getcfg hotspot.swapoctets)" = "enabled" ] && HS_SWAPOCTETS=on
 
 if [ "$(getcfg hotspot.miniportal)" = "enabled" ]; then
-   HS_UAMFORMAT="http://\$HS_UAMLISTEN:\$HS_UAMUIPORT/www/login.chi"
+   HS_UAMFORMAT="http://coova.local/www/login.chi"
 fi
 
 if [ "$(getcfg hotspot.uamaaaurl)" != "" ]; then

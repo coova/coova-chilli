@@ -176,6 +176,8 @@ writeconfig() {
 	[ "$HS_REDIRSSL" = "on" ] && addconfig2 "redirssl"
 	[ "$HS_DHCPRADIUS" = "on" ] && addconfig2 "dhcpradius"
 	[ "$HS_RADIUSORIGINALURL" = "on" ] && addconfig2 "radiusoriginalurl"
+	[ "$HS_SWAPOCTETS" = "on" ] && addconfig2 "swapoctets"
+	[ "$HS_DOMAINDNSLOCAL" = "on" ] && addconfig2 "domaindnslocal"
 	[ -n "$HS_UAMALIASNAME" ] && addconfig2 "uamaliasname \"$HS_UAMALIASNAME\""
 	[ -n "$HS_UAMAAAURL" ] && addconfig2 "uamaaaurl \"$HS_UAMAAAURL\""
 	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile \"$HS_ADMINUPDATEFILE\""

@@ -52,8 +52,8 @@
 +>
 \ No newline at end of file
 --- SDK.UBNT.v3.5.4499.orig/apps/web/common/lib/hotspot_settings.tmpl	1970-01-01 01:00:00.000000000 +0100
-+++ SDK.UBNT.v3.5.4499/apps/web/common/lib/hotspot_settings.tmpl	2009-11-21 07:44:31.000000000 +0100
-@@ -0,0 +1,123 @@
++++ SDK.UBNT.v3.5.4499/apps/web/common/lib/hotspot_settings.tmpl	2010-01-16 14:42:54.000000000 +0100
+@@ -0,0 +1,149 @@
 +<div id="hotspotSetup" style="<? echo $hidden_style;>"> 
 +	<form enctype="multipart/form-data" action="services.cgi" method="POST" onSubmit="return validateStandard(this, 'error');">
 +        <table class="linktable" cellspacing="0"> 
@@ -73,6 +73,40 @@
 +	<td><input type="checkbox" name="hotspot_miniportal" value="enabled" id="hotspot_miniportal" <? if ($hotspot_miniportal=="enabled") { echo "checked"; }> onClick="hotspotStatusClicked();"></td>
 +	<td class="f">&nbsp;</td>
 +	</tr>
++
++	<tr>
++	<td class="f"><strong><? echo dict_translate("UAM Portal URL:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_uamformat" id="hotspot_uamformat" 
++        	realname="<? echo dict_translate("UAM Portal URL:");>" required="1" 
++                value="<?echo $hotspot_uamformat>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("UAM Secret:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_uamsecret" id="hotspot_uamsecret" 
++        	realname="<? echo dict_translate("UAM Secret:");>" required="1" 
++                value="<?echo $hotspot_uamsecret>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("UAM Allow Hosts:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_uamallow" id="hotspot_uamallow" 
++        	realname="<? echo dict_translate("UAM Allow Hosts:");>" 
++                value="<?echo $hotspot_uamallow>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++	<tr>
++	<td class="f"><strong><? echo dict_translate("UAM Allow Domains:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_uamdomain" id="hotspot_uamdomain" 
++        	realname="<? echo dict_translate("UAM Allow Domains:");>"
++                value="<?echo $hotspot_uamdomain>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++
 +	<tr>
 +	<td class="f"><strong><? echo dict_translate("RADIUS Server 1:");></strong></td>
 +        <td><input maxlen="56" size="20" type="text" name="hotspot_radius1" id="hotspot_radius1" 
@@ -113,6 +147,16 @@
 +        </td>
 +	<td class="f">&nbsp;</td>
 +	</tr>
++
++	<tr>
++	<td class="f"><strong><? echo dict_translate("RADIUS NAS ID:");></strong></td>
++        <td><input maxlen="56" size="20" type="text" name="hotspot_nasid" id="hotspot_nasid" 
++        	realname="<? echo dict_translate("RADIUS NAS ID:");>" 
++                value="<?echo $hotspot_nasid>">
++        </td>
++	<td class="f">&nbsp;</td>
++	</tr>
++
 +	<tr>
 +	<td class="f"><strong><? echo dict_translate("RADIUS Admin-User Username:");></strong></td>
 +        <td><input maxlen="56" size="15" type="text" name="hotspot_adminuser" id="hotspot_adminuser" 
@@ -129,6 +173,19 @@
 +        </td>
 +	<td class="f">&nbsp;</td>
 +	</tr>
++
++	<tr>
++	<td class="f"><strong><? echo dict_translate("Enable MAC Auth:"); ></strong></td>
++	<td><input type="checkbox" name="hotspot_macauth" value="enabled" id="hotspot_macauth" <? if ($hotspot_macauth=="enabled") { echo "checked"; }>></td>
++	<td class="f">&nbsp;</td>
++	</tr>
++
++	<tr>
++	<td class="f"><strong><? echo dict_translate("Swap Octets (accounting):"); ></strong></td>
++	<td><input type="checkbox" name="hotspot_swapoctets" value="enabled" id="hotspot_swapoctets" <? if ($hotspot_swapoctets=="enabled") { echo "checked"; }>></td>
++	<td class="f">&nbsp;</td>
++	</tr>
++
 +	<tr>
 +	<td class="f"><strong><? echo dict_translate("HTTP AAA URL:");></strong></td>
 +        <td><input maxlen="56" size="20" type="text" name="hotspot_uamaaaurl" id="hotspot_uamaaaurl" 
@@ -137,38 +194,7 @@
 +        </td>
 +	<td class="f">&nbsp;</td>
 +	</tr>
-+	<tr>
-+	<td class="f"><strong><? echo dict_translate("UAM Portal URL:");></strong></td>
-+        <td><input maxlen="56" size="20" type="text" name="hotspot_uamformat" id="hotspot_uamformat" 
-+        	realname="<? echo dict_translate("UAM Portal URL:");>" required="1" 
-+                value="<?echo $hotspot_uamformat>">
-+        </td>
-+	<td class="f">&nbsp;</td>
-+	</tr>
-+	<tr>
-+	<td class="f"><strong><? echo dict_translate("UAM Secret:");></strong></td>
-+        <td><input maxlen="56" size="20" type="text" name="hotspot_uamsecret" id="hotspot_uamsecret" 
-+        	realname="<? echo dict_translate("UAM Secret:");>" required="1" 
-+                value="<?echo $hotspot_uamsecret>">
-+        </td>
-+	<td class="f">&nbsp;</td>
-+	</tr>
-+	<tr>
-+	<td class="f"><strong><? echo dict_translate("UAM Allow Hosts:");></strong></td>
-+        <td><input maxlen="56" size="20" type="text" name="hotspot_uamallow" id="hotspot_uamallow" 
-+        	realname="<? echo dict_translate("UAM Allow Hosts:");>" 
-+                value="<?echo $hotspot_uamallow>">
-+        </td>
-+	<td class="f">&nbsp;</td>
-+	</tr>
-+	<tr>
-+	<td class="f"><strong><? echo dict_translate("UAM Allow Domains:");></strong></td>
-+        <td><input maxlen="56" size="20" type="text" name="hotspot_uamdomain" id="hotspot_uamdomain" 
-+        	realname="<? echo dict_translate("UAM Allow Domains:");>"
-+                value="<?echo $hotspot_uamdomain>">
-+        </td>
-+	<td class="f">&nbsp;</td>
-+	</tr>
++
 +	<tr>
 +	  <td class="f">&nbsp;<input type="hidden" name="action" value="chhotspot"></td>
 +	  <td><input type="submit" value="<? echo dict_translate("Change"); >">&nbsp;</td>
@@ -221,8 +247,8 @@
  	<table class="linktable" cellspacing="0"> 
  	<tr><th colspan="3"><? echo dict_translate("Ping Watchdog"); ></th></tr>
 --- SDK.UBNT.v3.5.4499.orig/apps/web/common/services.cgi	2008-09-30 17:09:13.000000000 +0200
-+++ SDK.UBNT.v3.5.4499/apps/web/common/services.cgi	2009-11-21 07:44:31.000000000 +0100
-@@ -117,6 +117,30 @@
++++ SDK.UBNT.v3.5.4499/apps/web/common/services.cgi	2010-01-16 14:18:23.000000000 +0100
+@@ -117,6 +117,36 @@
                  }
  		cfg_save($cfg, $cfg_file);
  		cfg_set_modified($cfg_file);
@@ -232,6 +258,7 @@
 +		}
 +		cfg_set($cfg, "hotspot.status", $hotspot_status);
 +                if ($hotspot_status == "enabled") {
++			cfg_set($cfg, "bridge.1.port.2.status", "disabled");
 +			cfg_set($cfg, "hotspot.miniportal", $hotspot_miniportal);
 +			cfg_set($cfg, "hotspot.onboot", $hotspot_onboot);
 +			cfg_set($cfg, "hotspot.radius1", $hotspot_radius1);
@@ -247,23 +274,30 @@
 +			cfg_set($cfg, "hotspot.uamformat", $hotspot_uamformat);
 +			cfg_set($cfg, "hotspot.uamallow", $hotspot_uamallow);
 +			cfg_set($cfg, "hotspot.uamdomain", $hotspot_uamdomain);
-+                }
++			cfg_set($cfg, "hotspot.macauth", $hotspot_macauth);
++			cfg_set($cfg, "hotspot.swapoctets", $hotspot_swapoctets);
++			cfg_set($cfg, "hotspot.nasid", $hotspot_nasid);
++                } else {
++			cfg_set($cfg, "bridge.1.port.2.status", "enabled");
++		}
 +		cfg_save($cfg, $cfg_file);
 +		cfg_set_modified($cfg_file);
  	} elseif ($action == "chsyslog") {
  		if ($syslog_status != "enabled") {
  			$syslog_status = "disabled";
-@@ -180,6 +204,9 @@
+@@ -180,6 +210,11 @@
  $https_status = cfg_get_def($cfg, "httpd.https.status", $https_status);
  $telnetd_status = cfg_get_def($cfg, "telnetd.status", $telnetd_status);
  $ssh_status = cfg_get_def($cfg, "sshd.status", $ssh_status);
 +$hotspot_status = cfg_get_def($cfg, "hotspot.status", $hotspot_status);
 +$hotspot_miniportal = cfg_get_def($cfg, "hotspot.miniportal", $hotspot_miniportal);
 +$hotspot_onboot = cfg_get_def($cfg, "hotspot.onboot", $hotspot_onboot);
++$hotspot_macauth = cfg_get_def($cfg, "hotspot.macauth", $hotspot_macauth);
++$hotspot_swapoctets = cfg_get_def($cfg, "hotspot.swapoctets", $hotspot_swapoctets);
  $syslog_status = cfg_get_def($cfg, "syslog.status", $syslog_status);
  $rsyslog_status = cfg_get_def($cfg, "syslog.remote.status", $rsyslog_status);
  $httpport = cfg_get_def($cfg, "httpd.port", "80");
-@@ -198,6 +225,29 @@
+@@ -198,6 +233,30 @@
  if (strlen($sshport) == 0) {
  	$sshport = "22";
  }
@@ -285,6 +319,7 @@
 +$hotspot_uamformat = cfg_get_def($cfg, "hotspot.uamformat", "");
 +$hotspot_uamallow = cfg_get_def($cfg, "hotspot.uamallow", "");
 +$hotspot_uamdomain = cfg_get_def($cfg, "hotspot.uamdomain", "");
++$hotspot_nasid = cfg_get_def($cfg, "hotspot.nasid", "");
 +$hotspot_authport = cfg_get_def($cfg, "hotspot.authport", "1812");
 +if (strlen($hotspot_authport) == 0) { $hotspot_authport = "1812"; }
 +$hotspot_acctport = cfg_get_def($cfg, "hotspot.acctport", "1813");
