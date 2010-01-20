@@ -31,6 +31,7 @@ hs_use_map=$(getconfig use_map)
 [ "$hs_use_map" = "on" ] && usemap=1
 hs_latitude=$(getconfig latitude)
 hs_longitude=$(getconfig longitude)
+hs_rad_proto=$(getconfig rad_proto)
 
 USERS=@ETCCHILLI@/localusers
 FORM_userurl=${FORM_userurl:-http://www.coova.org/}
@@ -149,14 +150,12 @@ local_login_url() {
 	if [ "$line" != "" ]; then
 	    user=$(echo "$line" | cut -f1 -d:)
 	    pass=$(echo "$line" | cut -f2 -d:)
-	    response=$($CHILLI_RESPONSE "$CHI_CHALLENGE" "$hs_uamsecret" "$pass")
-	    echo -n "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=${user}&response=${response}&userurl=${COOVA_USERURL}"
+	    echo -n $(chi_login_url "$user" "$pass")
 	fi
     else
 	user=$REMOTE_MAC
 	pass=$(getconfig admpwd)
-	response=$($CHILLI_RESPONSE "$CHI_CHALLENGE" "$hs_uamsecret" "$pass")
-	echo -n "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=${user}&response=${response}&userurl=${COOVA_USERURL}"
+	echo -n $(chi_login_url "$user" "$pass")
     fi
 }
 
@@ -194,11 +193,29 @@ runlogin() {
     out=$($CHILLI_QUERY login sessionid "$COOVA_SESSIONID" username "$1" password "$2")
 }
 
+chi_login_url() {
+    case "$hs_rad_proto" in
+	pap)
+	    response=$($CHILLI_RESPONSE -pap "$CHI_CHALLENGE" "$hs_uamsecret" "$2")
+	    echo -n "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=$1&password=${response}&userurl=${3:-$COOVA_USERURL}"
+	    ;;
+	mschapv2)
+	    response=$($CHILLI_RESPONSE -nt "$CHI_CHALLENGE" "$hs_uamsecret" "$1" "$2")
+	    echo -n "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=$1&ntresponse=${response}&userurl=${3:-$COOVA_USERURL}"
+	    ;;
+	*)
+	    response=$($CHILLI_RESPONSE "$CHI_CHALLENGE" "$hs_uamsecret" "$2")
+	    echo -n "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=$1&response=${response}&userurl=${3:-$COOVA_USERURL}"
+	    ;;
+    esac
+}
+
+
 dologin() {
-   response=$($CHILLI_RESPONSE "$COOVA_CHALLENGE" "$hs_uamsecret" "$FORM_password")
-   cat <<ENDHTML
+    url=$(chi_login_url "$FORM_username" "$FORM_password" "$FORM_userurl")
+    cat <<ENDHTML
 <html><head>
-<meta http-equiv="refresh" content="0;url=http://$(getconfig uamlisten):$(getconfig uamport)/login?username=${FORM_username}&response=${response}&userurl=${FORM_userurl}">
+<meta http-equiv="refresh" content="0;url=$url">
 </head></html>
 <!--
 <WISPAccessGatewayParam
@@ -207,7 +224,7 @@ dologin() {
 <AuthenticationReply>
 <MessageType>120</MessageType>
 <ResponseCode>201</ResponseCode>
-<LoginResultsURL>http://$(getconfig uamlisten):$(getconfig uamport)/login?username=${FORM_username}&amp;response=${response}&amp;userurl=${FORM_userurl}</LoginResultsURL>
+<LoginResultsURL>$(echo "$url" | sed 's/\&/&amp;/g')</LoginResultsURL>
 </AuthenticationReply>
 </WISPAccessGatewayParam>
 -->

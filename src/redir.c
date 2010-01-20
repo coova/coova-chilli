@@ -1806,9 +1806,11 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
     /*
      * decode password - encoded by the UAM portal/script. 
      */
-    for (m=0; m < RADIUS_PWSIZE;) 
-      for (n=0; n < REDIR_MD5LEN; m++, n++)
+    for (m=0; m < RADIUS_PWSIZE;) {
+      for (n=0; n < REDIR_MD5LEN; m++, n++) {
 	user_password[m] = conn->password[m] ^ chap_challenge[n];
+      }
+    }
     
     user_password[conn->password_len] = 0;
 
@@ -1976,7 +1978,6 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
       log_err(errno, "select() returned -1!");
       break;  
     case 0:
-      /*log_dbg("Select returned 0");*/
       radius_timeout(radius);
       break; 
     default:
@@ -1994,15 +1995,16 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 	log_err(0, "radius_proxy_ind() failed!");
       }
     }
-  
+    
     if (conn->response) {
       radius_free(radius);
       return 0;
     }
-
+    
     now = mainclock_now();
   }
 
+  radius_free(radius);
   return 0;
 }
 

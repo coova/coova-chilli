@@ -1278,7 +1278,11 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t 
        (iph->saddr == conn->dns2.s_addr)) &&
       (iph->protocol == PKT_IP_PROTO_UDP && udph->src == htons(DHCP_DNS))) {
 
-    if (this->anydns && conn->dnatdns && iph->saddr != conn->dnatdns) {
+    if (this->anydns && 
+	conn->dnatdns && 
+	iph->saddr != conn->dns1.s_addr && 
+	iph->saddr != conn->dns2.s_addr &&
+	iph->saddr != conn->dnatdns) {
       iph->saddr = conn->dnatdns;
       chksum(iph);
     }

@@ -28,7 +28,7 @@
 #include "radius_wispr.h"
 #include "radius_chillispot.h"
 
-#define _debug_ 0
+#define _debug_ 1
 
 void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   struct in_addr inaddr;
@@ -222,12 +222,12 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
     log_err(0, "radius queue is full!");
 
     if (attempt++ < (this->qsize ? this->qsize : 255)) {
-
+      
       this->qnext++;
       
       if (this->qsize) 
 	this->qnext %= this->qsize;
-
+      
       goto try_again;
     }
 
@@ -261,13 +261,18 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
   this->queue[qnext].next = -1;         /* Last in queue */
   this->queue[qnext].prev = this->last; /* Link to previous */
 
-  if (this->last != -1)
-    this->queue[this->last].next = qnext; /* Link previous to us */
+  if (this->last != -1) {
+    /* Link previous to us */
+    this->queue[this->last].next = qnext; 
+  }
 
-  this->last = qnext;  /* End of queue */
+  /* End of queue */
+  this->last = qnext;  
 
-  if (this->first == -1)
-    this->first = qnext; /* First and last */
+  if (this->first == -1) {
+    /* First and last */
+    this->first = qnext; 
+  }
 
   this->qnext++;
 
@@ -292,7 +297,6 @@ static int radius_queue_idx(struct radius_t *this, int id) {
   int idx = id;
 
   if (id < 0 || id >= RADIUS_QUEUESIZE) {
-    log_err(0, "bad id (%d)", id);
     return -1;
   }
 
@@ -316,9 +320,10 @@ static int radius_queue_idx(struct radius_t *this, int id) {
  * radius_queue_in()
  * Remove data from queue.
  */
-int radius_queue_out(struct radius_t *this, 
-		     struct radius_packet_t *pack,
-		     int id, void **cbp) {
+static int 
+radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
+		 int id, void **cbp) {
+  
   int idx = radius_queue_idx(this, id);
 
   if (idx < 0) {
@@ -368,18 +373,11 @@ int radius_queue_out(struct radius_t *this,
  * radius_queue_reschedule()
  * Recalculate the timeout value of a packet in the queue.
  */
-int radius_queue_reschedule(struct radius_t *this, int id) {
+static int radius_queue_reschedule(struct radius_t *this, int idx) {
   struct timeval *tv;
 
-  int idx = radius_queue_idx(this, id);
-
-  if (idx < 0) {
-    log_err(0, "bad idx (%d)", idx);
-    return -1;
-  }
-
   if (this->queue[idx].state != 1) {
-    log_err(0, "No such id in radius queue: id=%d!", id);
+    log_err(0, "No such id in radius queue: id=%d!", idx);
     return -1;
   }
 
@@ -412,13 +410,15 @@ int radius_queue_reschedule(struct radius_t *this, int id) {
   this->queue[idx].next = -1;         /* Last in queue */
   this->queue[idx].prev = this->last; /* Link to previous (could be -1) */
   
-  if (this->last != -1)
+  if (this->last != -1) {
     this->queue[this->last].next = idx; /* If not empty: link previous to us */
+  }
   
   this->last = idx; /* End of queue */
   
-  if (this->first == -1)
+  if (this->first == -1) {
     this->first = idx;  /* First and last */
+  }
   
 #if(_debug_)
   if (_options.debug) {
@@ -515,7 +515,7 @@ radius_timeleft(struct radius_t *this, struct timeval *timeout)
 {
   struct timeval now, later, diff;
 
-  if (this->first == -1) /* Queue is empty */
+  if (this->first == -1)
     return 0;
 
   gettimeofday(&now, NULL);
@@ -523,8 +523,8 @@ radius_timeleft(struct radius_t *this, struct timeval *timeout)
   later.tv_usec = this->queue[this->first].timeout.tv_usec;
 
   /* First take the difference with |usec| < 1000000 */
-  diff.tv_sec = (later.tv_usec  - now.tv_usec) / 1000000 +
-                (later.tv_sec   - now.tv_sec);
+  diff.tv_sec  = (later.tv_usec  - now.tv_usec) / 1000000 +
+                 (later.tv_sec   - now.tv_sec);
   diff.tv_usec = (later.tv_usec - now.tv_usec) % 1000000;
 
   /* If sec and usec have different polarity add or subtract 1 second */
@@ -570,13 +570,14 @@ int radius_timeout(struct radius_t *this) {
 
 #if(_debug_)
   if (_options.debug) {
-    log_dbg("radius_timeout %8d %8d", (int)now.tv_sec, (int)now.tv_usec);
+    log_dbg("radius_timeout(%d) %8d %8d", this->first, 
+	    (int)now.tv_sec, (int)now.tv_usec);
     radius_printqueue(this);
   }
 #endif
-
-  while (this->first != -1 && 
-	 radius_cmptv(&now, &this->queue[this->first].timeout) >= 0) {
+  
+  if (this->first != -1 && 
+      radius_cmptv(&now, &this->queue[this->first].timeout) >= 0) {
     
     if (this->queue[this->first].retrans < _options.radiusretry) {
       memset(&addr, 0, sizeof(addr));
@@ -612,23 +613,28 @@ int radius_timeout(struct radius_t *this) {
       if (sendto(this->fd, &this->queue[this->first].p,
 		 ntohs(this->queue[this->first].p.length), 0,
 		 (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+
 	log_err(errno, "sendto() failed!");
 	radius_queue_reschedule(this, this->first);
 	return -1;
       }
 
-      radius_queue_reschedule(this, this->first);
-    }
-    else { /* Finished retrans */
-      if (radius_queue_out(this, &pack_req, this->first, &cbp)) {
+      if (radius_queue_reschedule(this, this->first)) {
 	log_warn(0, "Matching request was not found in queue: %d!", this->first);
 	return -1;
       }
-
+    }
+    else { /* Finished retrans */
+      if (radius_queue_out(this, &pack_req, 
+			   this->queue[this->first].p.id, &cbp)) {
+	log_warn(0, "Matching request was not found in queue: %d!", this->first);
+	return -1;
+      }
+      
       if ((pack_req.code == RADIUS_CODE_ACCOUNTING_REQUEST) &&
 	  (this->cb_acct_conf))
 	  return this->cb_acct_conf(this, NULL, &pack_req, cbp);
-
+      
       if ((pack_req.code == RADIUS_CODE_ACCESS_REQUEST) &&
 	  (this->cb_auth_conf))
 	return this->cb_auth_conf(this, NULL, &pack_req, cbp);

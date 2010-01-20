@@ -29,6 +29,7 @@ struct options_t _options;
 
 static int usage(char *program) {
   fprintf(stderr, "Usage: %s <challenge> <uamsecret> <password>\n", program);
+  fprintf(stderr, "       %s -pap <challenge> <uamsecret> <password>\n", program);
   fprintf(stderr, "       %s -nt <challenge> <uamsecret> <username> <password>\n", program);
   return 1;
 }
@@ -66,14 +67,14 @@ static int chartohex(unsigned char *src, char *dst, int len) {
 }
 
 int main(int argc, char **argv) {
-  unsigned char chap_ident = 0;
-  unsigned char challenge[32];
-  unsigned char response[32];
-  char buffer[128];
+  uint8_t chap_ident = 0;
+  uint8_t challenge[32];
+  char buffer[512];
   MD5_CTX context;
 
   int idx = 0;
   int usent = 0;
+  int usepap = 0;
 
   if (argc < 2)
     return usage(argv[0]);
@@ -83,6 +84,15 @@ int main(int argc, char **argv) {
     argc--;
     idx++;
   }
+
+  if (!strcmp(argv[1],"-pap")) {
+    usepap = 1;
+    argc--;
+    idx++;
+  }
+
+  if (usent && usepap)
+    return usage(argv[0]);
 
   if (argc < 4)
     return usage(argv[0]);
@@ -101,8 +111,25 @@ int main(int argc, char **argv) {
   MD5Update(&context, (uint8_t*)argv[idx+2], strlen(argv[idx+2]));
   MD5Final(challenge, &context);
 
-  if (usent) {
-
+  if (usepap) {
+    uint8_t user_password[RADIUS_PWSIZE + 1];
+    uint8_t p[RADIUS_PWSIZE + 1];
+    int m, n, plen = strlen(argv[idx+3]);
+    
+    memset(p, 0, sizeof(p));
+    strncpy((char *)p, argv[idx+3], RADIUS_PWSIZE);
+    
+    for (m=0; m < plen;) {
+      for (n=0; n < REDIR_MD5LEN; m++, n++) {
+	user_password[m] = p[m] ^ challenge[n];
+      }
+    }
+    
+    chartohex(user_password, buffer, plen);
+    printf("%s\n", buffer);
+    
+  } else if (usent) {
+    
 #ifdef HAVE_OPENSSL
     uint8_t ntresponse[24];
 
@@ -123,6 +150,7 @@ int main(int argc, char **argv) {
 #endif
 
   } else {
+    uint8_t response[32];
 
     /* password - argv 3 */
     MD5Init(&context);
