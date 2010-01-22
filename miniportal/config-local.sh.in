@@ -245,7 +245,7 @@ domail() {
 if [ "$FORM_uamip" != "" ]; then
     QS=$(echo $QUERY_STRING | sed 's/&md=[^&=]*$//')
     HTTP="http"
-    [ "$HTTPS" == "on" ] && HTTP="https"
+    [ "$HTTPS" = "on" ] && HTTP="https"
     URL="$HTTP://$SERVER_NAME/$REQUEST_URI?$QS"
     CHECK="$URL$hs_uamsecret"
     CHECK_MD5=$(echo -n "$CHECK" |md5sum|cut -d' ' -f1|tr 'a-z' 'A-Z');

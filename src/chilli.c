@@ -1281,7 +1281,7 @@ int static dnprot_reject(struct app_conn_t *appconn) {
     return 0;
 
   case DNPROT_UAM:
-    log_err(0, "Rejecting UAM");
+    log_dbg(0, "Rejecting UAM");
     return 0;
 
   case DNPROT_WPA:

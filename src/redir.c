@@ -2335,10 +2335,20 @@ pid_t redir_fork(int in, int out) {
 int redir_main_exit(struct redir_t *redir, struct redir_httpreq_t *httpreq, 
 		    struct redir_socket_t *socket, int forked) {
   if (httpreq->data_in) bdestroy(httpreq->data_in);
+#ifdef HAVE_SSL
+  if (socket->sslcon) {
+    openssl_shutdown(socket->sslcon, 2);
+    openssl_free(socket->sslcon);
+    socket->sslcon=0;
+  }
+#endif
   if (forked) _redir_close_exit(socket->fd[0], socket->fd[1]);
   return _redir_close(socket->fd[0], socket->fd[1]);
 }
 
+static int redir_signal2(int sig) {
+  log_dbg("signal(%d)=%d", getpid(),sig);
+}
 static int redir_close_on_signal[2]={0,0};
 static int redir_signal(int sig) {
   close(redir_close_on_signal[0]);
@@ -2559,7 +2569,7 @@ int redir_main(struct redir_t *redir,
 
 	  forkpid = redir_fork(ptoc[0], ctop[1]);
 
-	  act.sa_handler = redir_signal;
+	  act.sa_handler = redir_signal2;
 	  sigaction(SIGCHLD, &act, NULL);
 	  
 	  act.sa_handler = redir_signal;
@@ -2617,6 +2627,7 @@ int redir_main(struct redir_t *redir,
 
 	  close(ptoc[1]);
 	  close(ctop[0]);
+
 	  /* child */
 	  log_dbg("script(%d)", getpid());
 	}

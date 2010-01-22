@@ -1,6 +1,8 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+* Fix memory leak when using SSL
+
 == ChangeLog (CoovaChilli-v1.2.1 svn revision 281) ==
 
 * Fix for when using WISPr-Session-Terminate-Time 
