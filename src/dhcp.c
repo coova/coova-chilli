@@ -1369,52 +1369,22 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t 
 }
 
 static int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
+  int r_len = strlen((char *)r);
   int name_len = strlen(name);
-  int domain_len = strlen(_options.domain);
-  uint8_t * l_sz = 0;
-  int i;
-
-  blen = snprintf((char *)b, blen, "%c%s.%s", 
-		  (char)name_len, name, 
-		  _options.domain);
-
-  for (i=1; i < blen; i++) {
-    if (b[i] == '.') {
-      if (l_sz) {
-	*l_sz = (int)(&b[i] - l_sz - 1);
-      }
-      l_sz = &b[i];
-    }
-  }
-  if (l_sz) {
-    *l_sz = (int)(&b[i-1] - l_sz);
-  }
-
-  if (_options.debug) {
-    char bb[blen+56];
-    int c = 0;
-    for (i=0; i < blen; i++) {
-      if (c == 0) {
-	c = (int)b[i];
-	bb[i] = '0' + c;
-      } else {
-	bb[i] = b[i];
-	c--;
-      }
-    }
-    bb[i]=b[i];
-    log_dbg("Checking (%d) %s", blen, bb);
-  }
-
-  if (!memcmp(r, b, blen + 1))
-    return 1;
+  int domain_len = _options.domain ? strlen(_options.domain) : 0;
   
-  blen -= domain_len + 1;
-  b[blen]=0;
-
-  if (!memcmp(r, b, blen + 1))
+  if (r_len == name_len && !memcmp(r, name, name_len)) {
     return 1;
-
+  }
+  
+  if (domain_len > 0 && 
+      r_len == (name_len + domain_len + 1) &&
+      !memcmp(r, name, name_len) &&
+      !memcmp(r + name_len + 1, _options.domain, domain_len) &&
+      r[name_len] == '.') {
+    return 1;
+  }
+  
   return 0;
 }
 
@@ -1449,55 +1419,82 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
       (ntohs(dnsp->nscount) == 0x0000) &&
       (ntohs(dnsp->arcount) == 0x0000)) {
 
+    uint8_t name[256];
+
     int match = 0;
     uint8_t reply[4];
 
     uint8_t *p = dnsp->records;
+    size_t plen = len - DHCP_DNS_HLEN - sizeofudp(pack);
+    size_t olen = plen;
 
-    match = dhcp_matchDNS(dnsp->records, query, sizeof(query), "logout");
+    uint16_t type;
+    uint16_t class;
+    uint16_t us;
+    
+    if (dns_getname(&p, &plen, 0, 128, 0) || 
+	plen < 4) {
+      log_dbg("failed parsing DNS packet"); 
+      return -1; 
+    }
+    
+    memcpy(&us, p, sizeof(us));
+    type = ntohs(us);
+    p += 2;
+    plen -= 2;
+    
+    memcpy(&us, p, sizeof(us));
+    class = ntohs(us);
+    p += 2;
+    plen -= 2;
+    
+    log_dbg("LocalDNS: It was a dns record type: %d class: %d", type, class);
 
+    memset(name, 0, sizeof(name));
+    
+    dns_fullname(name, sizeof(name), dnsp->records, (uint8_t *)dnsp, olen, 0);
+    
+    log_dbg("LocalDNS: Q: %s", name);
+    
+    switch (type) {
+    case 1:   break;
+    default:  return 0;
+    }
+    
+    match = dhcp_matchDNS(name, query, sizeof(query), "logout");
+    
     if (match) {
       memcpy(reply, &_options.uamlogout.s_addr, 4);
     }
-
+    
     if (!match && aliasname) {
-      match = dhcp_matchDNS(dnsp->records, query, sizeof(query), aliasname);
+      match = dhcp_matchDNS(name, query, sizeof(query), aliasname);
+
       if (match) {
 	memcpy(reply, &_options.uamalias.s_addr, 4);
       }
     }
+    
+    if (!match && _options.domaindnslocal && _options.domain) {
+      int name_len = strlen((char *)name);
+      int domain_len = strlen(_options.domain);
+      
+      if (name_len > (domain_len + 1)) {
+	int off = name_len - domain_len;
 
-    if (!match && _options.domaindnslocal) {
-      int domain_len = strlen(_options.domain) + 1;
-      uint8_t * l_sz = 0;
-      int i;
-
-      snprintf((char *)query, sizeof(query), ".%s", _options.domain);
-
-      for (i=0; i < domain_len; i++) {
-	if (query[i] == '.') {
-	  if (l_sz) {
-	    *l_sz = (int)(&query[i] - l_sz - 1);
-	  }
-	  l_sz = &query[i];
+	if (!memcmp(name + off, _options.domain, domain_len) &&
+	    name[off - 1] == '.') {
+	  
+	  /*
+	   * count (recent) dns requests vs responses to get an overall picture of on-line status.
+	   */
+	  
+	  memcpy(reply, &_options.uamalias.s_addr, 4);
+	  match = 1;
 	}
       }
-      if (l_sz) {
-	*l_sz = (int)(&query[i-1] - l_sz);
-      }
-
-      if (!memcmp(dnsp->records + strlen((char *)dnsp->records) - domain_len, query, domain_len)) {
-	
-	/*
-	 * count (recent) dns requests vs responses to get an overall picture of on-line status.
-	 * 
-	 */
-
-	memcpy(reply, &_options.uamalias.s_addr, 4);
-	match = 1;
-      }
     }
-      
+    
     if (match) {
       
       uint8_t answer[PKT_BUFFER];
@@ -1506,6 +1503,8 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
       struct pkt_iphdr_t  *answer_iph;
       struct pkt_udphdr_t *answer_udph;
       struct dns_packet_t *answer_dns;
+
+      p = dnsp->records;
       
       query_len = 0;
       
@@ -1584,6 +1583,7 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
       return dhcp_send(this, &this->rawif, conn->hismac, answer, length);
     }
   }
+
   return 0; /* Something else */
 }
 

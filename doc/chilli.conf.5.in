@@ -580,6 +580,12 @@ will listen for EAP authentication requests on the interface specified by
 EAP messages received on this interface are forwarded to the radius server.
 
 .TP
+.B ieee8021q
+Option to enable support for 802.1Q/VLAN network on the
+.B dhcpif
+interface. 
+
+.TP
 .BI uamserver " url"
 URL of web server to use for authenticating clients.
 
@@ -587,6 +593,14 @@ URL of web server to use for authenticating clients.
 .BI uamhomepage " url"
 URL of homepage to redirect unauthenticated users to. If not specified this defaults to 
 .B uamserver.
+
+.TP
+.BI uamaaaurl " url"
+When chilli is built with the 
+.I --enable-chilliproxy
+compile-time option, this configuration option can be used to define 
+a URL to use for the HTTP AAA protocol described here:
+http://www.coova.org/CoovaChilli/Proxy
 
 .TP
 .BI wisprlogin " url"
@@ -688,10 +702,6 @@ Examples:
 This will allow all requests to a .google.com host except if the URL starts with mail (links to Gmail). 
 
 .TP
-.BI uamlogoutip " ipaddress"
-Use this IP address to instantly logout a client accessing it (defaults to 1.1.1.1).
-
-.TP
 .BI defsessiontimeout " seconds"
 Default session timeout (max session time) unless otherwise set by RADIUS
 (defaults to 0, meaning unlimited).
@@ -705,6 +715,14 @@ Default idle timeout (max idle time) unless otherwise set by RADIUS
 .BI definteriminterval " seconds"
 Default interim-interval for RADIUS accounting unless otherwise set by RADIUS
 (defaults to 0, meaning unlimited).
+
+.TP
+.BI defbandwidthmaxdown
+Default bandwidth max down set in bps, same as WISPr-Bandwidth-Max-Down.
+
+.TP
+.BI defbandwidthmaxup
+Default bandwidth max up set in bps, same as WISPr-Bandwidth-Max-Up.
 
 .TP
 .B acctupdate
@@ -741,14 +759,42 @@ options. If the
 .B uamanydns
 option is given ChilliSpot will allow the client to use all DNS
 servers. This is convenient for clients which are configured to
-use a fixed set of DNS servers. For security reasons this option
-should be combined with a destination NAT firewall rule which forwards
-all DNS requests to a given DNS server.
+use a fixed set of DNS servers. Since the server may not be available,
+requests are forwarded to the 
+.B dns1
+server.
+
+.TP
+.BI uamlogoutip " ipaddress"
+Use this IP address to instantly logout a client accessing it (defaults to 1.0.0.0).
+
+.TP
+.BI uamaliasip " ipaddress"
+A special IP address that will always get hijacked to the UAM server
+(either to the uamuiport, if defined, otherwise uamport; defaults to 1.0.0.1). 
+
+.TP
+.BI uamaliasname " name"
+A hostname that is used as a DNS alias for the
+.B uamaliasip
+defined above. Any DNS request for this hostname, or this hostname under the 
+.B domain
+will be returned with the
+.B uamaliasip
+IP address. 
 
 .TP
 .B dnsparanoia
 Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX
 records (to prevent dns tunnels; experimental). 
+
+.TP
+.B domaindnslocal
+Option to have chilli return the 
+.B uamaliasip
+for all DNS requests for a hostname under the 
+.B domain
+that is configured.
 
 .TP
 .B uamanyip
@@ -821,6 +867,15 @@ Password used when performing MAC authentication. (default = password)
 An option to allow MAC authentication based on
 .B macallowed
 without the use of RADIUS authentication.
+
+.TP
+.BI ethers " file"
+A file containing MAC address and IP address mappings for DHCP allocation.
+The file should be formatted as:
+
+.RS
+00-XX-XX-XX-XX-XX  IP.IP.IP.IP
+.RE
 
 .TP
 .BI localusers " file"

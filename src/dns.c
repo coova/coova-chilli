@@ -68,27 +68,46 @@ dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, 
 }
 
 int dns_getname(uint8_t **pktp, size_t *left, char *name, size_t namesz, size_t *nameln) {
-  size_t namelen = *nameln;
+  size_t namelen = 0;
   uint8_t *p_pkt = *pktp;
   size_t len = *left;
   uint8_t l;
   
-  namelen = 0;
-  while (len-- && (l = name[namelen++] = *p_pkt++) != 0) {
+  while (len-- > 0) {
+
+    l = *p_pkt++;
+
+    if (name) {
+      name[namelen] = l;
+    }
+
+    namelen++;
+
+    if (l == 0) {
+      break;
+    }
+
     if ((l & 0xC0) == 0xC0) {
-      if (namelen >= namesz) {
+      if (namesz > 0 && namelen >= namesz) {
 	log_err(0, "name too long in DNS packet");
-	break;
+	return -1;
       }
-      name[namelen++] = *p_pkt++;
+      if (name) {
+	name[namelen] = *p_pkt;
+      }
+      namelen++;
+      p_pkt++;
       len--;
       break;
     }
   }
   
   *pktp = p_pkt;
-  *nameln = namelen;
   *left = len;
+
+  if (nameln) {
+    *nameln = namelen;
+  }
   
   if (!len) {
     log_err(0, "failed to parse DNS packet");
@@ -172,17 +191,17 @@ dns_copy_res(int q,
       break;
     default:
       if (_options.debug) switch(type) {
-      case 6:  log_dbg("SOA record"); break;
-      case 12: log_dbg("PTR record"); break;
-      case 15: log_dbg("MX record");  break;
-      case 16: log_dbg("TXT record"); break;
-      default: log_dbg("Record type %d", type); break;
-      }
+	case 6:  log_dbg("SOA record"); break;
+	case 12: log_dbg("PTR record"); break;
+	case 15: log_dbg("MX record");  break;
+	case 16: log_dbg("TXT record"); break;
+	default: log_dbg("Record type %d", type); break;
+	}
       log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, namelen);
       return -1;
     }
   }
-
+  
   if (q) {
     dns_fullname(question, qsize, *pktp, opkt, olen, 0);
     
