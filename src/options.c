@@ -278,6 +278,7 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.cmdsocket)) return 0;
 
   if (!option_s_l(bt, &o.uamaliasname)) return 0;
+  if (!option_s_l(bt, &o.uamhostname)) return 0;
   
   for (i=0; i < MAX_UAM_DOMAINS; i++) {
     if (!option_s_l(bt, &o.uamdomains[i])) 
@@ -384,6 +385,7 @@ int options_save(char *file, bstring bt) {
   if (!option_s_s(bt, &o.cmdsocket)) return 0;
 
   if (!option_s_s(bt, &o.uamaliasname)) return 0;
+  if (!option_s_s(bt, &o.uamhostname)) return 0;
 
   for (i = 0; i < MAX_UAM_DOMAINS; i++) {
     if (!option_s_s(bt, &o.uamdomains[i])) 

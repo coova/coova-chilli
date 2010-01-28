@@ -1735,7 +1735,8 @@ int cb_redir_getstate(struct redir_t *redir,
        */
       /*log_dbg("%d(%d) == %d",ntohs(dhcpconn->dnat[n].src_port),ntohs(dhcpconn->dnat[n].dst_port),ntohs(address->sin_port));*/
       if (dhcpconn->dnat[n].src_port == address->sin_port) {
-	if (dhcpconn->dnat[n].dst_port == htons(DHCP_HTTPS)) {
+	if (dhcpconn->dnat[n].dst_port == htons(DHCP_HTTPS) ||
+	    (_options.uamuissl && dhcpconn->dnat[n].dst_port == htons(_options.uamuiport))) {
 	  flags |= USING_SSL;
 	}
 	break;

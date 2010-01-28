@@ -113,6 +113,7 @@ option "nouamwispr"   - "Do not send WISPr XML from ChilliSpot, assume back-end 
 option "uamlogoutip"  - "HTTP Auto-Logout IP Address" string default="1.0.0.0" no
 option "uamaliasip"   - "Special IP Address aliased (redirect) to uamlisten/uamport" string default="1.0.0.1" no
 option "uamaliasname" - "Special simple hostname (no dots) to be resolved to uamaliasip" string no
+option "uamhostname"  - "Special simple hostname (no dots) to be resolved to uamlisten" string no
 
 option "uamaaaurl"    - "UAM AAA URL specifying the URL to use for the Chilli HTTP AAA" string no
 option "domaindnslocal" - "Option to consider all hostnames in domain as local" flag   off

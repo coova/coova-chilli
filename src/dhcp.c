@@ -1408,6 +1408,7 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   size_t query_len = 0;
   int n;
 
+  char *hostname = _options.uamhostname;
   char *aliasname = _options.uamaliasname;
 
   log_dbg("DNS ID:    %d", ntohs(dnsp->id));
@@ -1467,6 +1468,14 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
       memcpy(reply, &_options.uamlogout.s_addr, 4);
     }
     
+    if (!match && hostname) {
+      match = dhcp_matchDNS(name, query, sizeof(query), hostname);
+
+      if (match) {
+	memcpy(reply, &_options.uamlisten.s_addr, 4);
+      }
+    }
+
     if (!match && aliasname) {
       match = dhcp_matchDNS(name, query, sizeof(query), aliasname);
 

@@ -3,6 +3,7 @@
 
 * Changed the generated cmdline.c (Makefile will apply patch) to be more forgiving of multiple uses of the same configuration entry.
 * Added DHCP RADIUS values to the HTTP AAA protocol proxy
+* Added option ''--uamhostname'' that will resolve (Local DNS) to ''uamlisten'' IP
 * Fix memory leak when using SSL
 
 == ChangeLog (CoovaChilli-v1.2.1 svn revision 281) ==

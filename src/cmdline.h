@@ -286,6 +286,9 @@ struct gengetopt_args_info
   char * uamaliasname_arg;	/**< @brief Special simple hostname (no dots) to be resolved to uamaliasip.  */
   char * uamaliasname_orig;	/**< @brief Special simple hostname (no dots) to be resolved to uamaliasip original value given at command line.  */
   const char *uamaliasname_help; /**< @brief Special simple hostname (no dots) to be resolved to uamaliasip help description.  */
+  char * uamhostname_arg;	/**< @brief Special simple hostname (no dots) to be resolved to uamlisten.  */
+  char * uamhostname_orig;	/**< @brief Special simple hostname (no dots) to be resolved to uamlisten original value given at command line.  */
+  const char *uamhostname_help; /**< @brief Special simple hostname (no dots) to be resolved to uamlisten help description.  */
   char * uamaaaurl_arg;	/**< @brief UAM AAA URL specifying the URL to use for the Chilli HTTP AAA.  */
   char * uamaaaurl_orig;	/**< @brief UAM AAA URL specifying the URL to use for the Chilli HTTP AAA original value given at command line.  */
   const char *uamaaaurl_help; /**< @brief UAM AAA URL specifying the URL to use for the Chilli HTTP AAA help description.  */
@@ -530,6 +533,7 @@ struct gengetopt_args_info
   unsigned int uamlogoutip_given ;	/**< @brief Whether uamlogoutip was given.  */
   unsigned int uamaliasip_given ;	/**< @brief Whether uamaliasip was given.  */
   unsigned int uamaliasname_given ;	/**< @brief Whether uamaliasname was given.  */
+  unsigned int uamhostname_given ;	/**< @brief Whether uamhostname was given.  */
   unsigned int uamaaaurl_given ;	/**< @brief Whether uamaaaurl was given.  */
   unsigned int domaindnslocal_given ;	/**< @brief Whether domaindnslocal was given.  */
   unsigned int defsessiontimeout_given ;	/**< @brief Whether defsessiontimeout was given.  */

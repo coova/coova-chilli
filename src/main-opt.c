@@ -819,6 +819,9 @@ int main(int argc, char **argv) {
   if (_options.uamaliasname) free(_options.uamaliasname);
   _options.uamaliasname = STRDUP(args_info.uamaliasname_arg);
 
+  if (_options.uamhostname) free(_options.uamhostname);
+  _options.uamhostname = STRDUP(args_info.uamhostname_arg);
+
   if (_options.binconfig) free(_options.binconfig);
   _options.binconfig = STRDUP(args_info.bin_arg);
 
