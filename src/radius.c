@@ -28,7 +28,7 @@
 #include "radius_wispr.h"
 #include "radius_chillispot.h"
 
-#define _debug_ 1
+#define _debug_ 0
 
 void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   struct in_addr inaddr;

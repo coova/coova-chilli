@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2009-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -266,7 +266,7 @@ static int http_aaa_finish(proxy_request *req) {
 	for (i=0; attrs[i].n; i++) {
 	  if (!strncmp(ptr,attrs[i].n,strlen(attrs[i].n))) {
 	    switch(attrs[i].t) {
-	    case 0:
+	    case 0: /*integer*/
 	      {
 		uint32_t v = (uint32_t) atoi(ptr+strlen(attrs[i].n));
 		if (v > 0) {
@@ -275,7 +275,7 @@ static int http_aaa_finish(proxy_request *req) {
 		}
 	      }
 	      break;
-	    case 1:
+	    case 1: /*string*/
 	      {
 		radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, 0, 
 			       (uint8_t *)ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
@@ -839,13 +839,66 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 	bconcat(req->url, tmp);
       }
     }
+
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, 
+			RADIUS_VENDOR_CHILLISPOT,
+			RADIUS_ATTR_CHILLISPOT_DHCP_HOSTNAME, 0)) {
+      bcatcstr(req->url, "&dhcp_host=");
+      bassignblk(tmp, attr->v.t, attr->l-2);
+      redir_urlencode(tmp, tmp2);
+      bconcat(req->url, tmp2);
+    }
+
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, 
+			RADIUS_VENDOR_CHILLISPOT,
+			RADIUS_ATTR_CHILLISPOT_DHCP_PARAMETER_REQUEST_LIST, 0)) {
+      uint8_t l = attr->l;
+      if (l > 2) {
+	uint8_t *p = attr->v.t;
+	l -= 2;
+	bcatcstr(req->url, "&dhcp_pql=");
+	while (l--) {
+	  bassignformat(tmp, "%.2X", *p++);
+	  bconcat(req->url, tmp);
+	}
+      }
+    }
+
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, 
+			RADIUS_VENDOR_CHILLISPOT,
+			RADIUS_ATTR_CHILLISPOT_DHCP_VENDOR_CLASS_ID, 0)) {
+      uint8_t l = attr->l;
+      if (l > 2) {
+	uint8_t *p = attr->v.t;
+	l -= 2;
+	bcatcstr(req->url, "&dhcp_vcid=");
+	while (l--) {
+	  bassignformat(tmp, "%.2X", *p++);
+	  bconcat(req->url, tmp);
+	}
+      }
+    }
+
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, 
+			RADIUS_VENDOR_CHILLISPOT,
+			RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_ID, 0)) {
+      uint8_t l = attr->l;
+      if (l > 2) {
+	uint8_t *p = attr->v.t;
+	l -= 2;
+	bcatcstr(req->url, "&dhcp_cid=");
+	while (l--) {
+	  bassignformat(tmp, "%.2X", *p++);
+	  bconcat(req->url, tmp);
+	}
+      }
+    }
   }
 
   if (!error) {
     redir_md_param(req->url, _options.uamsecret, "&");
-  
-    log_dbg("==> %s", req->url->data);
     
+    log_dbg("==> %s", req->url->data);
     http_aaa(radius, req);
     
   } else {

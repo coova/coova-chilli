@@ -81,3 +81,6 @@ chilli_redir_LDADD += -lcurl -lz
 endif
 endif
 
+cmdline.c cmdline.h: cmdline.ggo cmdline.patch
+	gengetopt -C < cmdline.ggo 
+	patch -p0 < cmdline.patch

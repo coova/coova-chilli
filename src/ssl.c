@@ -530,8 +530,11 @@ openssl_env_free(openssl_env *env) {
 
 int 
 openssl_pending(openssl_con *con) {
-  if (con->con) 
-    return SSL_pending(con->con);
+  if (con->con) {
+    int pending = SSL_pending(con->con);
+    /*log_dbg("openssl_pending(%d)", pending);*/
+    return pending;
+  }
   return 0;
 }
 

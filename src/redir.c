@@ -884,7 +884,6 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
     bcatcstr(json, ")");
   }
 
-
   redir_http(s, "200 OK");
 
   bcatcstr(s, "Content-Length: ");
@@ -1369,7 +1368,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       if (sock->sslcon) {
 	recvlen = openssl_read(sock->sslcon, 
 			       buffer + buflen, 
-			       httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 
+			       httpreq->allow_post ? 1 : (sizeof(buffer) - 1 - buflen), 
 			       0);
       } else
 #endif
@@ -1486,7 +1485,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	}
       } else if (linelen == 0) { 
 	/* end of headers */
-	/*log_dbg("end of http-request");*/
+	log_dbg("end of http-request");
 	done = 1;
 	break;
       } else { 
@@ -2484,7 +2483,7 @@ int redir_main(struct redir_t *redir,
     return redir_main_exit(redir, &httpreq, &socket, forked);
   }
 
-  log_dbg("Process HTTP Request");
+  log_dbg("Processing HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
   
   if (conn.type == REDIR_WWW) {
     pid_t forkpid;
@@ -2581,10 +2580,10 @@ int redir_main(struct redir_t *redir,
 	  }
 
 	  forked = 1;
-	  if (forkpid) { 
+	  if (forkpid > 0) { 
 	    /* parent */
 
-	    int clen = httpreq.clen;
+	    int rd, clen = httpreq.clen;
 
 	    close(ptoc[0]);
 	    close(ctop[1]);
@@ -2595,7 +2594,9 @@ int redir_main(struct redir_t *redir,
 	    log_dbg("ssl_wrapper(%d)", getpid());
 
 	    while (clen > 0) {
-	      if ((buflen = openssl_read(socket.sslcon, buffer, bufsize, 1)) > 0) {
+	      rd = clen > bufsize ? bufsize : clen;
+	      log_dbg("reading(%d)", rd);
+	      if ((buflen = openssl_read(socket.sslcon, buffer, rd, 0)) > 0) {
 		if (write(ptoc[1], buffer, (size_t) buflen) < 0) {
 		  log_err(errno, "tcp_write() failed!");
 		  return redir_main_exit(redir, &httpreq, &socket, forked);
@@ -2618,6 +2619,8 @@ int redir_main(struct redir_t *redir,
 		break;
 	      }
 	    }
+
+	    log_dbg("ssl_wrapper(%d) done", getpid());
 	    
 	    close(ptoc[1]);
  	    close(ctop[0]);
@@ -2641,6 +2644,7 @@ int redir_main(struct redir_t *redir,
 #ifdef HAVE_SSL
 	  if (socket.sslcon) {
 	    setenv("HTTPS", "on", 1);
+	    sleep(1);
 	  }
 #endif
 
