@@ -5,6 +5,7 @@
 * Added DHCP RADIUS values to the HTTP AAA protocol proxy
 * Added option ''--uamhostname'' that will resolve (Local DNS) to ''uamlisten'' IP
 * Fix memory leak when using SSL
+* Bug fix for ''--framedservice'' option
 
 == ChangeLog (CoovaChilli-v1.2.1 svn revision 281) ==
 

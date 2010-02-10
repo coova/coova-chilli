@@ -374,6 +374,21 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
     bconcat(str, bt2);
   }
 
+  if (_options.uamuissl && _options.uamuiport) {
+    /*
+     *  When we have uamuissl, a key/cert, and a uamuiport,
+     *  then let's inform the captive portal of an SSL enabled
+     *  services. 
+     */
+    bcatcstr(str, amp);
+    bcatcstr(str, "ssl=");
+    bassignformat(bt, "https://%s:%d/", 
+		  inet_ntoa(_options.uamalias),
+		  _options.uamuiport);
+    redir_urlencode(bt, bt2);
+    bconcat(str, bt2);
+  }
+
   if (redirurl) {
     bcatcstr(str, amp);
     bcatcstr(str, "redirurl=");

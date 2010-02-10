@@ -1,5 +1,7 @@
 AUTOMAKE_OPTIONS=foreign
 
+EXTRA_DIST = cmdline.ggo cmdline.patch
+
 lib_LTLIBRARIES = libchilli.la
 sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt
 
@@ -70,6 +72,12 @@ chilli_proxy_LDADD = ${LDADD}
 if WITH_CURL
 chilli_proxy_LDADD += -lcurl -lz 
 endif
+endif
+
+if WITH_CHILLIRADSEC
+sbin_PROGRAMS += chilli_radsec
+chilli_radsec_SOURCES = main-radsec.c 
+chilli_radsec_LDADD = ${LDADD}
 endif
 
 if WITH_CHILLIREDIR

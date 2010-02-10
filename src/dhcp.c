@@ -1105,7 +1105,6 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, char do_res
   struct pkt_tcphdr_t *tcph = tcphdr(pack);
   struct pkt_udphdr_t *udph = udphdr(pack);
   int i;
-
   /* Allow localhost through network... */
   if (iph->daddr == INADDR_LOOPBACK)
     return 0;
@@ -1116,11 +1115,12 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, char do_res
       return 0;
 
   /* Was it a DNS request? */
-  if (((this->anydns) ||
-       (iph->daddr == conn->dns1.s_addr) ||
-       (iph->daddr == conn->dns2.s_addr)) &&
-      (iph->protocol == PKT_IP_PROTO_UDP && udph->dst == htons(DHCP_DNS))) {
-
+  if ((this->anydns ||
+       iph->daddr == conn->dns1.s_addr ||
+       iph->daddr == conn->dns2.s_addr) &&
+      iph->protocol == PKT_IP_PROTO_UDP && 
+      udph->dst == htons(DHCP_DNS)) {
+    
     if (this->anydns && 
 	iph->daddr != conn->dns1.s_addr && 
 	iph->daddr != conn->dns2.s_addr) {
@@ -1273,11 +1273,12 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t 
     return 0;
 
   /* Was it a DNS reply? */
-  if (((this->anydns) ||
-       (iph->saddr == conn->dns1.s_addr) ||
-       (iph->saddr == conn->dns2.s_addr)) &&
-      (iph->protocol == PKT_IP_PROTO_UDP && udph->src == htons(DHCP_DNS))) {
-
+  if ((this->anydns ||
+       iph->saddr == conn->dns1.s_addr ||
+       iph->saddr == conn->dns2.s_addr) &&
+      iph->protocol == PKT_IP_PROTO_UDP && 
+      udph->src == htons(DHCP_DNS)) {
+    
     if (this->anydns && 
 	conn->dnatdns && 
 	iph->saddr != conn->dns1.s_addr && 

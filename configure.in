@@ -209,6 +209,15 @@ fi
 
 AM_CONDITIONAL(WITH_CHILLIPROXY, [test x"$enable_chilliproxy" = xyes])
 
+AC_ARG_ENABLE(chilliradsec, [AC_HELP_STRING([--enable-chilliradsec],[Enable support for RadSec AAA Proxy])], 
+  enable_chilliradsec=$enableval, enable_chilliradsec=no)
+
+if test x"$enable_chilliradsec" = xyes; then
+   AC_DEFINE(ENABLE_CHILLIRADSEC,1,[Define to enable RadSec AAA Proxy])
+fi
+
+AM_CONDITIONAL(WITH_CHILLIRADSEC, [test x"$enable_chilliradsec" = xyes])
+
 AC_ARG_ENABLE(chilliredir, [AC_HELP_STRING([--enable-chilliredir],[Enable support for Redir server])], 
   enable_chilliredir=$enableval, enable_chilliredir=no)
 

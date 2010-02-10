@@ -6,6 +6,9 @@
 /* Define to enable HTTP AAA Proxy */
 #undef ENABLE_CHILLIPROXY
 
+/* Define to enable RadSec AAA Proxy */
+#undef ENABLE_CHILLIRADSEC
+
 /* Define to enable Redir server */
 #undef ENABLE_CHILLIREDIR
 
