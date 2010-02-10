@@ -182,6 +182,7 @@ int main(int argc, char **argv) {
   _options.redirssl = args_info.redirssl_flag;
   _options.uamuissl = args_info.uamuissl_flag;
   _options.domaindnslocal = args_info.domaindnslocal_flag;
+  _options.framedservice = args_info.framedservice_flag;
 
   if (args_info.dhcpgateway_arg &&
       !inet_aton(args_info.dhcpgateway_arg, &_options.dhcpgwip)) {
