@@ -3187,8 +3187,9 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 
     if (!allocate) return -1;
 
-    if (appconn->dnprot != DNPROT_DHCP_NONE) {
-      log_warn(0, "Requested IP address when already allocated");
+    if (appconn->dnprot != DNPROT_DHCP_NONE && appconn->hisip.s_addr) {
+      log_warn(0, "Requested IP address when already allocated (hisip %s)",
+	       inet_ntoa(appconn->hisip));
       appconn->reqip.s_addr = appconn->hisip.s_addr;
     }
     
