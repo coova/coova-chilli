@@ -1,25 +1,24 @@
 .\" * chilli_rtmon
-.\" * Copyright (C) 2007-2009 Coova Technologies, LLC.
+.\" * Copyright (C) 2007-2010 Coova Technologies, LLC.
 .\" * All rights reserved.
 
-.TH chilli_proxy 1 "November 2009"
+.TH chilli_radsec 1 "February 2010"
 .SH NAME
-chilli_proxy \-  Chilli HTTP API Proxy
+chilli_radsec \-  Chilli RadSec Tunnel Server
 
 .SH SYNOPSIS
-.B chilli_proxy
+.B chilli_radsec
 -b <path-to-binary-config> [other chilli options]
 
 .SH DESCRIPTION
-.B chilli_proxy
+.B chilli_radsec
 is a utility server typically started by the 
 .B chilli
-daemon to handle RADIUS to/from HTTP AAA conversion.
+daemon to handle RadSec tunneling of RADIUS.
 
 .SH "SEE ALSO"
 .BR chilli(8)
 .BR chilli.conf(5)
-
 
 .SH NOTES 
 .LP

@@ -1,10 +1,10 @@
 .\" * chilli_rtmon
-.\" * Copyright (C) 2007-2009 Coova Technologies, LLC.
+.\" * Copyright (C) 2007-2010 Coova Technologies, LLC.
 .\" * All rights reserved.
 
 .TH chilli_redir 1 "November 2009"
 .SH NAME
-chilli_redir \-  Chilli Redirection Server
+chilli_redir \-  Chilli Redirection/Portal Server
 
 .SH SYNOPSIS
 .B chilli_redir
@@ -14,12 +14,11 @@ chilli_redir \-  Chilli Redirection Server
 .B chilli_redir
 is a utility server typically started by the 
 .B chilli
-deamon to handle UAM requests and rediration.
+daemon to handle UAM requests and rediration.
 
 .SH "SEE ALSO"
 .BR chilli(8)
 .BR chilli.conf(5)
-
 
 .SH NOTES 
 .LP
@@ -30,8 +29,9 @@ for further documentation and community support.
 
 .SH AUTHORS
 
-David Bird, Coova Technologies, LLC.
-.I http://www.coova.com/
+David Bird <david@coova.com>
+
+Copyright (C) 2006-2010 Coova Technologies, LLC. All rights reserved.
 
 CoovaChilli is licensed under the GNU General Public License.
 

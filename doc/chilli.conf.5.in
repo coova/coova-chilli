@@ -902,6 +902,53 @@ Human readable location name used in JSON interface.
 .B papalwaysok
 (now depreciated; always on) Was used to allow PAP authentication.
 
+.SH SSL OPTIONS
+
+The following options are available when chilli is built with SSL support. 
+
+.TP
+.BI sslkeyfile " filename"
+Defines the location of the PEM formatted private key file.
+
+.TP
+.BI sslkeypass " password"
+The password (if any) that protects the private key.
+
+.TP
+.BI sslcertfile " filename"
+Defines the location of the PEM formatted certificate file.
+
+.TP
+.BI sslcafile " filename"
+Defines the location of the PEM formatted CA certificate file.
+
+.TP
+.B redirssl
+When set, HTTPS requests by unauthorized clients get hijacked instead of dropped.
+Requires at least
+.B sslkeyfile
+and
+.B sslcertfile
+to be defined.
+
+.TP
+.B uamuissl
+When set, the uamuiport is enabled with SSL. Requires at least
+.B sslkeyfile
+and
+.B sslcertfile
+to be defined.
+
+.TP
+.B radsec
+When set, a RadSec RADIUS tunnel is establised. Requires at least
+.B sslkeyfile
+,
+.B sslcertfile
+, and
+.B sslcafile
+to be defined.
+
 .SH FILES
 .I @SYSCONFDIR@/chilli.conf
 .RS
@@ -988,6 +1035,8 @@ The original ChilliSpot project homepage is/was at www.chillispot.org.
 
 .SH AUTHORS
 
-Copyright (C) 2002-2005 by Mondru AB., 2006-2009 Coova Technologies, LLC. All rights reserved.
+David Bird <david@coova.com>
+
+Copyright (C) 2002-2005 by Mondru AB., 2006-2010 Coova Technologies, LLC. All rights reserved.
 
 CoovaChilli is licensed under the GNU General Public License.

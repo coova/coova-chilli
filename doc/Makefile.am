@@ -1,6 +1,6 @@
 man_MANS = chilli.8 chilli.conf.5 chilli_query.1 chilli_response.1 \
 chilli_radconfig.1 chilli-radius.5 chilli_opt.1 chilli_rtmon.1 \
-chilli_redir.1 chilli_proxy.1
+chilli_redir.1 chilli_proxy.1 chilli_radsec.1
 
 man_aux = $(man_MANS:=.in)
 EXTRA_DIST = $(man_aux) \
@@ -64,5 +64,10 @@ chilli_proxy.1: Makefile chilli_proxy.1.in
 	rm -f chilli_proxy.1 chilli_proxy.1.tmp
 	$(edit) chilli_proxy.1.in >chilli_proxy.1.tmp
 	mv chilli_proxy.1.tmp chilli_proxy.1
+
+chilli_radsec.1: Makefile chilli_radsec.1.in
+	rm -f chilli_radsec.1 chilli_radsec.1.tmp
+	$(edit) chilli_radsec.1.in >chilli_radsec.1.tmp
+	mv chilli_radsec.1.tmp chilli_radsec.1
 
 

@@ -65,7 +65,9 @@ for further documentation and community support.
 
 .SH AUTHORS
 
-David Bird, Coova Technologies, LLC.
-.I http://www.coova.com/
+David Bird <david@coova.com>
+
+Copyright (C) 2006-2010 Coova Technologies, LLC. All rights reserved.
 
 CoovaChilli is licensed under the GNU General Public License.
+

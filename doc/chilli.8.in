@@ -303,6 +303,8 @@ for information on how to install and configure the TUN/TAP driver.
 
 .SH AUTHORS
 
-Copyright (C) 2002-2005 by Mondru AB., 2006-2009 Coova Technologies, LLC. All rights reserved.
+David Bird <david@coova.com>
+
+Copyright (C) 2002-2005 by Mondru AB., 2006-2010 Coova Technologies, LLC. All rights reserved.
 
 CoovaChilli is licensed under the GNU General Public License.

@@ -1,7 +1,8 @@
 #!/bin/sh
 #
-# Copyright (c) 2006 David Bird <david@coova.com>
-# Licensed under GPL. See http://www.coova.org/
+# Copyright (c) 2006-2010 Coova Technologies, LLC.
+# Licensed under Gnu General Public License. 
+# http://www.coova.org/
 #
 
 IPTABLES=/sbin/iptables
@@ -10,20 +11,26 @@ IFCONFIG=/sbin/ifconfig
 CHILLI=@ETCCHILLI@
 RUN_D=@VARRUN@
 SBIN=@SBINDIR@
-ARPCHECK=$RUN_D/chilli.arp
-LKFILE=$RUN_D/chilli.run
-MAIN_CONF=$CHILLI/main.conf
-LOCAL_CONF=$CHILLI/local.conf
-HS_CONF=$CHILLI/hs.conf
-HS_TEMP=/tmp/hs.conf
-MAIN_TEMP=/tmp/main.conf
-CMDSOCK=$RUN_D/chilli.sock
-PIDFILE=$RUN_D/chilli.pid
+
+[ -f /etc/sysconfig/chilli ] && . /etc/sysconfig/chilli
 
 [ -f $CHILLI/defaults ] && . $CHILLI/defaults
 [ -f $CHILLI/config ]   && . $CHILLI/config
 
-[ -f /etc/sysconfig/chilli ] && . /etc/sysconfig/chilli
+[ -n "$DHCPIF" ] && [ -d "$CHILLI/$DHCPIF" ] && {
+    CHILLI=$CHILLI/$DHCPIF
+    HS_LANIF=$DHCPIF
+
+    [ -f $CHILLI/config ] && . $CHILLI/config
+}
+
+MAIN_CONF=$CHILLI/main.conf
+LOCAL_CONF=$CHILLI/local.conf
+HS_CONF=$CHILLI/hs.conf
+HS_TEMP=/tmp/hs.conf.$HS_LANIF
+MAIN_TEMP=/tmp/main.conf.$HS_LANIF
+CMDSOCK=$RUN_D/chilli.$HS_LANIF.sock
+PIDFILE=$RUN_D/chilli.$HS_LANIF.pid
 
 HS_UAMPORT=${HS_UAMPORT:-3990}
 HS_RADIUS=${HS_RADIUS:-$HS_UAMSERVER}

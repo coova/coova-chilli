@@ -351,6 +351,11 @@ function session_key() {
 function do_macauth_service(&$attrs) {
   $device = get_device();
 
+#  echo "Auth: 1\n";
+#  echo "Acct-Interim-Interval:3600\n";
+#  echo "ChilliSpot-Config:splash\n";
+#exit;
+
   if ($device['always_reject']) {
     return do_auth_reject($attrs);
   } 
@@ -384,6 +389,12 @@ function do_macauth_service(&$attrs) {
 function do_login_service(&$attrs) {
   $device = get_device();
 
+echo "Auth: 1
+WISPr-Redirection-URL: http://www.glimmertrain.com
+Acct-Interim-Interval: 1440
+Session-Timeout: 1800
+Idle-Timeout: 1800
+";
 
   if ($_GET['user'] == $_GET['mac']) {
     $password = 'admpwd';
@@ -435,16 +446,15 @@ function do_admin_service(&$attrs) {
 
   echo "Auth: 1\n";
   echo "Acct-Interim-Interval:3600\n";
-  //echo "ChilliSpot-Config:uamanyip\n";
-  //echo "ChilliSpot-Config:uamnatanyip\n";
+  echo "ChilliSpot-Config:uamanyip\n";
+  echo "ChilliSpot-Config:uamnatanyip\n";
   //echo "ChilliSpot-Config:seskeepalive\n";
   //echo "ChilliSpot-Config:usestatusfile=chilli.status\n";
-  //echo "ChilliSpot-Config:statip 5.0.0.0/24\n";
+  echo "ChilliSpot-Config:statip 5.0.0.0/24\n";
   //echo "ChilliSpot-Config:txqlen 1000\n";
   //echo "ChilliSpot-Config:tcpmss 1460\n";
   echo "ChilliSpot-Config:acctupdate\n";
   echo "ChilliSpot-Config:macreauth\n";
-  //  echo "ChilliSpot-Config:usetap\n";
   exit;
 
   return do_auth_accept($attrs);

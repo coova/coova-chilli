@@ -3,7 +3,7 @@
 sysconf_DATA = chilli.conf 
 
 chillidir = $(sysconfdir)/chilli
-chilli_SCRIPTS = functions up.sh down.sh
+chilli_SCRIPTS = functions up.sh down.sh newmulti.sh
 chilli_DATA = defaults gui-config-default.ini
 
 pythondir = $(libdir)/python
@@ -46,6 +46,12 @@ down.sh: Makefile down.sh.in
 	$(edit) down.sh.in >down.sh.tmp
 	chmod +x down.sh.tmp
 	mv down.sh.tmp down.sh
+
+newmulti.sh: Makefile newmulti.sh.in
+	rm -f newmulti.sh newmulti.sh.tmp
+	$(edit) newmulti.sh.in >newmulti.sh.tmp
+	chmod +x newmulti.sh.tmp
+	mv newmulti.sh.tmp newmulti.sh
 
 chilli: Makefile chilli.in
 	rm -f chilli chilli.tmp
