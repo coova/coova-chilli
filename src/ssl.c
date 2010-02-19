@@ -28,10 +28,11 @@
 #include "options.h"
 #include "ssl.h"
 
-static openssl_env * sslenv = 0;
+static openssl_env * sslenv_svr = 0;
+static openssl_env * sslenv_cli = 0;
 
 openssl_env * initssl() {
-  if (sslenv == 0) {
+  if (sslenv_svr == 0) {
 #ifdef HAVE_OPENSSL
     SSL_library_init();
     if (_options.debug) SSL_load_error_strings();
@@ -40,9 +41,24 @@ openssl_env * initssl() {
 #else
     matrixSslOpen();
 #endif
-    openssl_env_init(sslenv = calloc(1, sizeof(openssl_env)), 0);
+    openssl_env_init(sslenv_svr = calloc(1, sizeof(openssl_env)), 0, 1);
   }
-  return sslenv;
+  return sslenv_svr;
+}
+
+openssl_env * initssl_cli() {
+  if (sslenv_cli == 0) {
+#ifdef HAVE_OPENSSL
+    SSL_library_init();
+    if (_options.debug) SSL_load_error_strings();
+    SSLeay_add_all_algorithms();
+    SSLeay_add_ssl_algorithms();
+#else
+    matrixSslOpen();
+#endif
+    openssl_env_init(sslenv_cli = calloc(1, sizeof(openssl_env)), 0, 0);
+  }
+  return sslenv_cli;
 }
 
 #ifdef HAVE_OPENSSL
@@ -77,10 +93,11 @@ int
 openssl_use_privatekey(openssl_env *env, char *file) {
   int err1=-1, err2=-1;
   BIO *bio_err = NULL;
-  if (file)
+  if (file) {
     if ((err1 = SSL_CTX_use_PrivateKey_file(env->ctx, file, SSL_FILETYPE_PEM)) > 0 &&
         (err2 = SSL_CTX_check_private_key(env->ctx)))
       return 1;
+  }
   log_err(errno, "could not load private key file %s (%d,%d)\n",file,err1,err2);
   bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
   BIO_printf(bio_err,"unable to set private key file\n");
@@ -203,21 +220,53 @@ _openssl_env_init(openssl_env *env, char *engine, int server) {
 }
 #endif
 
+static int _openssl_passwd(char *buf, int size, int rwflag, void *ud) {
+  strncpy(buf, _options.sslkeypass, size);
+  memset(_options.sslkeypass,'x',strlen(_options.sslkeypass));
+}
+
 int
-openssl_env_init(openssl_env *env, char *engine) {
-#ifdef HAVE_OPENSSL
-  int err = _openssl_env_init(env, engine, 1);
+openssl_env_init(openssl_env *env, char *engine, int server) {
 
-  if (!openssl_use_certificate(env, _options.sslcertfile) ||
-      !openssl_use_privatekey(env, _options.sslkeyfile))
+  if (!_options.sslcertfile || !_options.sslkeyfile) {
+    log_err(0, "options sslcertfile and sslkeyfile are required");
     return 0;
+  }
 
-  env->ready = 1;
-  return err;
+#ifdef HAVE_OPENSSL
+  {
+    int err = _openssl_env_init(env, engine, server);
+
+    if (_options.sslkeypass) {
+      SSL_CTX_set_default_passwd_cb(env->ctx, _openssl_passwd);
+    }
+    
+    if (!openssl_use_certificate(env, _options.sslcertfile) ||
+	!openssl_use_privatekey(env, _options.sslkeyfile)) {
+      log_err(0, "failed reading setup sslcertfile and/or sslkeyfile");
+      return 0;
+    }
+
+    if (_options.sslcafile) {
+      if (!openssl_cacert_location(env, _options.sslcafile, 0)) {
+	log_err(0, "failed reading sslcafile");
+	return 0;
+      }
+    }
+    
+    env->ready = 1;
+    return err;
+  }
 #else
-  if ( matrixSslReadKeys( &env->keys, _options.sslcertfile, _options.sslkeyfile, NULL, NULL ) < 0 ) {
     log_dbg("cert: %s",_options.sslcertfile);
     log_dbg("key: %s",_options.sslkeyfile);
+    log_dbg("pass: %s",_options.sslkeypass?_options.sslkeypass:"null");
+    log_dbg("ca: %s",_options.sslcafile?_options.sslcafile:"null");
+  if ( matrixSslReadKeys( &env->keys,
+			  _options.sslcertfile, 
+			  _options.sslkeyfile, 
+			  _options.sslkeypass, 
+			  _options.sslcafile ) < 0 ) {
     log_err(errno, "could not load ssl certificate or and/or key file");
     return 0;
   }
@@ -251,7 +300,12 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
 #ifdef HAVE_OPENSSL  
   SSL_set_app_data(c->con, c);
   SSL_set_connect_state(c->con);
-  if (!SSL_connect(c->con)) /* error */;
+
+  if (SSL_connect(c->con) <= 0) {
+    unsigned long error;
+    while ((error = ERR_get_error()))
+      log_dbg("TLS: %s", ERR_error_string(error, NULL));
+  }
 #else
   if (!SSL_connect(c->con, certValidator, c)) /* error */;
 #endif
@@ -382,15 +436,15 @@ openssl_error(openssl_con *con, int ret, char *func) {
   if (con->con) {
     err = SSL_get_error(con->con, ret);
 #if (0)
-      fprintf(stderr,"SSL STATUS: (%s()) %s\n", func,
-              ((err == SSL_ERROR_NONE) ? "None": 
-               ((err == SSL_ERROR_ZERO_RETURN) ? "Return!":
-                ((err == SSL_ERROR_WANT_READ) ? "Read (continue)":
-                 ((err == SSL_ERROR_WANT_WRITE) ? "Write (continue)":
-                  ((err == SSL_ERROR_WANT_X509_LOOKUP) ? "Lookup (continue)":
-                   ((err == SSL_ERROR_SYSCALL) ? "Syscall error, abort!":
-                    ((err == SSL_ERROR_SSL) ? "SSL error, abort!":
-                     "Error"))))))));
+    log_dbg("SSL: (%s()) %s", func,
+	    ((err == SSL_ERROR_NONE) ? "None": 
+	     ((err == SSL_ERROR_ZERO_RETURN) ? "Return!":
+	      ((err == SSL_ERROR_WANT_READ) ? "Read (continue)":
+	       ((err == SSL_ERROR_WANT_WRITE) ? "Write (continue)":
+		((err == SSL_ERROR_WANT_X509_LOOKUP) ? "Lookup (continue)":
+		 ((err == SSL_ERROR_SYSCALL) ? "Syscall error, abort!":
+		  ((err == SSL_ERROR_SSL) ? "SSL error, abort!":
+		   "Error"))))))));
 #endif
     switch (err) {
     case SSL_ERROR_NONE: return 0;
@@ -436,30 +490,34 @@ openssl_shutdown(openssl_con *con, int state) {
 int
 openssl_read(openssl_con *con, char *b, int l, int t) {
   int rbytes = 0;
-  int err;
+  int err = 0;
 
   if (!con) return -1;
 
- repeat_read:
-
   if (t && !(openssl_pending(con))) {
     fd_set rfds;
+    fd_set wfds;
     struct timeval tv;
     int fd = con->sock;
 
     tv.tv_sec = t;
     tv.tv_usec = 0;
     FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
     FD_SET(fd, &rfds);
+    FD_SET(fd, &wfds);
 
-    if (select(fd + 1,&rfds,(fd_set *) 0,(fd_set *) 0,&tv) == -1) return -1;
-    if (!FD_ISSET(fd, &rfds)) return 0;
+    if (select(fd + 1,&rfds,&wfds,(fd_set *) 0,&tv) == -1) return -1;
+    if (!FD_ISSET(fd, &rfds) && !FD_ISSET(fd, &wfds)) return 0;
   }
     
+ repeat_read:
+
   rbytes = SSL_read(con->con, b, l);
 
-  if (rbytes <= 0)
+  if (rbytes <= 0) {
     err = openssl_error(con, rbytes, "openssl_read");
+  }
 
   if (rbytes > 0) return rbytes;
   if (err > 0) goto repeat_read;

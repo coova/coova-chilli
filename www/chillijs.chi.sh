@@ -12,6 +12,7 @@ EOF
 . ./config.sh
 
 cat ChilliLibrary.js
+
 echo "chilliController.host = '$hs_uamlisten';"
 echo "chilliController.port = $hs_uamport;"
 [ -n "$hs_uamservice" ] && echo "chilliController.uamService = '$hs_uamservice';"

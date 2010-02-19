@@ -96,7 +96,7 @@ case "$1" in
 	crontab -l 2>&- | grep -v $0 | crontab -
 	
 	
-	start-stop-daemon --oknodo --stop --quiet --pidfile /var/run/$NAME.pid \
+	start-stop-daemon --oknodo --stop --quiet --pidfile /var/run/$NAME.$HS_LANIF.pid \
 	    --exec $DAEMON
 	echo "$NAME."
 	;;

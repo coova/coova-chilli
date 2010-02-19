@@ -183,6 +183,7 @@ int main(int argc, char **argv) {
   _options.uamuissl = args_info.uamuissl_flag;
   _options.domaindnslocal = args_info.domaindnslocal_flag;
   _options.framedservice = args_info.framedservice_flag;
+  _options.radsec = args_info.radsec_flag;
 
   if (args_info.dhcpgateway_arg &&
       !inet_aton(args_info.dhcpgateway_arg, &_options.dhcpgwip)) {
@@ -710,8 +711,14 @@ int main(int argc, char **argv) {
   if (_options.sslkeyfile) free(_options.sslkeyfile);
   _options.sslkeyfile = STRDUP(args_info.sslkeyfile_arg);
 
+  if (_options.sslkeypass) free(_options.sslkeypass);
+  _options.sslkeypass = STRDUP(args_info.sslkeypass_arg);
+
   if (_options.sslcertfile) free(_options.sslcertfile);
   _options.sslcertfile = STRDUP(args_info.sslcertfile_arg);
+
+  if (_options.sslcafile) free(_options.sslcafile);
+  _options.sslcafile = STRDUP(args_info.sslcafile_arg);
 #endif
 
 #ifdef USING_IPC_UNIX

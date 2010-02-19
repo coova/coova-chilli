@@ -20,7 +20,7 @@
  *
  *    - chilliLibrary     Expose API and library versions
  *
- *  For more information http://coova.org/wiki/index.php/CoovaChilli/JSON
+ *  For more information http://www.coova.org/CoovaChilli/JSON
  *
  *  TODO :
  *   - Fine tune level of debug messages
@@ -74,11 +74,12 @@ var chilliLibrary = { revision:'85' , apiVersion:'2.0' } ;
  *           - CHAP logon : CHAP-Password X0Red with UAM SECRET
  *           - PAP  logon : Password XORed with UAM SECRET
  *
- *   For more information http://coova.org/wiki/index.php/CoovaChilli/JSON
+ *   For more information http://www.coova.org/CoovaChilli/JSON
  *
  */
 
-var chilliController = { interval:30 , host:"192.168.182.1" , port:3990 , ident:'00' , ssl:false , uamService: '' };
+if (!chilliController.host)
+var chilliController = { interval:30 , host:"192.168.1.1" , port:false , ident:'00' , ssl:false , uamService: false };
 
 /* Define clientState numerical code constants  */
 chilliController.stateCodes = { UNKNOWN:-1 , NOT_AUTH:0 , AUTH:1 , AUTH_PENDING:2 , AUTH_SPLASH:3 } ;
@@ -98,7 +99,7 @@ chilliController.autorefreshTimer = 0  ;
 /* This method returns the root URL for commands */
 chilliController.urlRoot = function () {
 	var protocol = ( chilliController.ssl ) ? "https" : "http" ;
-	var urlRoot = protocol + "://" + chilliController.host + ":" + chilliController.port.toString() + "/json/" ;
+	var urlRoot = protocol + "://" + chilliController.host + (chilliController.port ? ":" + chilliController.port.toString() : "") + "/json/" ;
 	return urlRoot;
 };
 
@@ -264,7 +265,6 @@ chilliController.logonStep2 = function ( resp ) {
 	else {
 		/* TODO: Should check if challenge has expired and possibly get a new one */
         	/*       OR always call status first to get a fresh challenge             */
-
 
 		/* Calculate MD5 CHAP at the client side */
 		var myMD5 = new ChilliMD5();

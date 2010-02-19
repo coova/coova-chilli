@@ -4438,7 +4438,35 @@ int chilli_main(int argc, char **argv) {
 #endif
   }
 
-  if (_options.uamaaaurl) {
+  if (_options.radsec) {
+#ifdef ENABLE_CHILLIRADSEC
+    pid_t p = fork();
+    if (p < 0) {
+      perror("fork");
+    } else if (p == 0) {
+      char *newargs[16];
+      char file[128];
+      
+      i=0;
+      chilli_binconfig(file, sizeof(file), cpid);
+      
+      newargs[i++] = "[chilli_radsec]";
+      newargs[i++] = "-b";
+      newargs[i++] = file;
+      newargs[i++] = NULL;
+      
+      if (execv(SBINDIR "/chilli_radsec", newargs) != 0) {
+	log_err(errno, "execl() did not return 0!");
+	exit(0);
+      }
+      
+    } else {
+      proxy_pid = p;
+    }
+#else
+    log_err(0, "Feature is not supported; use --enable-chilliradsec");
+#endif
+  } else if (_options.uamaaaurl) {
 #ifdef ENABLE_CHILLIPROXY
     pid_t p = fork();
     if (p < 0) {

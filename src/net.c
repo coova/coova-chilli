@@ -499,7 +499,8 @@ ssize_t net_write2(net_interface *netif, void *d, size_t dlen, struct sockaddr_l
       net_reopen(netif);
     }
 #endif
-    log_err(errno, "net_write(fd=%d, len=%d) failed", netif->fd, dlen);
+    log_err(errno, "net_write(fd=%d, len=%d) failed", 
+	    netif->fd, dlen);
     return -1;
   }
 
@@ -513,7 +514,8 @@ int net_set_mtu(net_interface *netif, size_t mtu) {
   strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   ifr.ifr_mtu = mtu;
   if (ioctl(netif->fd, SIOCSIFMTU, &ifr) < 0) {
-    log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCSIFMTU);
+    log_err(errno, "could not set MTU on fd %d",
+	    netif->fd);
     return -1;
   }
 #endif

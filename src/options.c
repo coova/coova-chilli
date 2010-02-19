@@ -260,7 +260,9 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.localusers)) return 0;
 #ifdef HAVE_SSL
   if (!option_s_l(bt, &o.sslkeyfile)) return 0;
+  if (!option_s_l(bt, &o.sslkeypass)) return 0;
   if (!option_s_l(bt, &o.sslcertfile)) return 0;
+  if (!option_s_l(bt, &o.sslcafile)) return 0;
 #endif
 #ifdef USING_IPC_UNIX
   if (!option_s_l(bt, &o.unixipc)) return 0;
@@ -367,7 +369,9 @@ int options_save(char *file, bstring bt) {
   if (!option_s_s(bt, &o.localusers)) return 0;
 #ifdef HAVE_SSL
   if (!option_s_s(bt, &o.sslkeyfile)) return 0;
+  if (!option_s_s(bt, &o.sslkeypass)) return 0;
   if (!option_s_s(bt, &o.sslcertfile)) return 0;
+  if (!option_s_s(bt, &o.sslcafile)) return 0;
 #endif
 #ifdef USING_IPC_UNIX
   if (!option_s_s(bt, &o.unixipc)) return 0;

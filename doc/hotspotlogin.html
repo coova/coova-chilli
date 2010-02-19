@@ -1,3 +1,43 @@
+<html>
+<head>
+<!--
+      A purely HTML based captive portal using the JSON interface of CoovaChilli
+-->
+<title>coova hotspot</title>
+<style><!--
+body,td,a,p,h{
+  font-family:arial,sans-serif;
+}
+body {
+  text-align: center;
+  padding-top: 30px;
+  margin: auto;
+  width: 50%;
+}
+#Chilli {
+  background: url("http://chilli/www/coova.jpg") right top no-repeat;
+  margin: auto;
+  text-align: left;
+  padding: 10px 0 30px 0;
+}
+#locationName {
+  height: 50px;
+  font-size: 120%;
+  font-weight: bold;
+}
+#chilliPage {
+  border: 1px solid orange;
+  padding: 20px 20px 20px 20px;
+  margin-top: 20px;
+}
+#signUpRow {
+  display: inline;
+}
+-->
+</style>
+</head>
+<body>
+
 <div id="Chilli">
 <div id="locationName"></div>
 
@@ -7,7 +47,7 @@
 
 <!--
 <div id="openIDSelect" style="font-size:70%;padding-top:4px;float:right;display:none;">
-<a href="#" onclick="javascript:return openID();"><img border="0" src="CHILLIWWW/www/openid.gif"/></a>
+<a href="#" onclick="javascript:return openID();"><img border="0" src="http://chilli/www/openid.gif"/></a>
 </div>
 
 <div id="openIDForm"
@@ -91,7 +131,7 @@ Sign up for an account...
 </div>
 
 <div id="waitPage" style="">
-<img src="CHILLIWWW/www/wait.gif"/> Please wait...
+<img src="http://chilli/www/wait.gif"/> Please wait...
 </div>
 
 <div id="errorPage" style="display:none;">
@@ -104,3 +144,10 @@ Sign up for an account...
 </div-->
 </div>
 
+<script language="javascript" type="text/javascript">
+var chilliController = { interval:30 , host:"chilli" , port:false , ident:'00' , ssl:false , uamService: false };
+</script>
+<script language="javascript" type="text/javascript" src="http://chilli/www/ChilliLibrary.js"></script>
+<script language="javascript" type="text/javascript" src="http://chilli/www/chilliController.js"></script>
+</body>
+</html>

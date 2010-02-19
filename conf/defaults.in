@@ -37,7 +37,7 @@ HS_RADIUS2=localhost
 HS_UAMALLOW=www.coova.org
 HS_RADSECRET=testing123    # Set to be your RADIUS shared secret
 HS_UAMSECRET=change-me     # Set to be your UAM secret
-
+HS_UAMALIASNAME=chilli
 
 #  Configure RADIUS proxy support (for 802.1x + captive portal support)
 # HS_RADPROXY=on

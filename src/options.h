@@ -173,6 +173,7 @@ struct options_t {
   uint8_t redirssl:1;               /* Enable redirection of SSL/HTTPS port (requires SSL support) */
   uint8_t uamuissl:1;               /* Enable SSL/HTTPS on uamuiport (requires SSL support) */
   uint8_t domaindnslocal:1;         /* Wildcard option to consider all hostnames *.domain local */
+  uint8_t radsec:1;                 /* Use RadSec tunneling */
   /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
@@ -202,7 +203,9 @@ struct options_t {
 
 #ifdef HAVE_SSL
   char *sslkeyfile;
+  char *sslkeypass;
   char *sslcertfile;
+  char *sslcafile;
 #endif
 
   /* local content */

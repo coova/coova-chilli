@@ -117,6 +117,7 @@ option "uamhostname"  - "Special simple hostname (no dots) to be resolved to uam
 
 option "uamaaaurl"    - "UAM AAA URL specifying the URL to use for the Chilli HTTP AAA" string no
 option "domaindnslocal" - "Option to consider all hostnames in domain as local" flag   off
+option "radsec" - "Use RadSec tunning (requires SSL; not compatible with uamaaaurl)" flag   off
 
 option "defsessiontimeout" - "Default session-timeout if not returned by RADIUS" long default="0" no
 option "defidletimeout" - "Default idle-timeout if not returned by RADIUS" int default="0" no
@@ -183,7 +184,9 @@ option "challengetimeout" - "Timeout in seconds for the generated challenge" int
 option "challengetimeout2" - "Timeout in seconds for challenge during login" int default="1200" no
 
 option "sslkeyfile"  - "SSL private key file in PEM format" string no
+option "sslkeypass"  - "SSL private key password" string no
 option "sslcertfile" - "SSL certificate file in PEM format" string no
+option "sslcafile"   - "SSL CA certificate file in PEM format" string no
 option "unixipc"     - "The UNIX IPC Filename to use when compiled with --with-unixipc" string no
 option "uamallowpost" - "Enable to allow a HTTP POST to the standard uamport interface" flag off
 option "natip"     - "IP to use when doing nat on WAN (routeidx)" string no

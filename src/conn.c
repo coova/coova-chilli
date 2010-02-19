@@ -20,28 +20,14 @@
 #include "options.h"
 #include "syserr.h"
 
-int conn_setup(struct conn_t *conn, char *hostname, int port, bstring bwrite) {
+int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
   struct sockaddr_in server;
-  struct hostent *host;
   int sock;
-
-  conn->write_pos = 0;
-  conn->write_buf = bwrite;
 
   memset(&server, 0, sizeof(server));
   server.sin_family = AF_INET;
   server.sin_port = htons(port);
-  
-  if (!(host = gethostbyname(hostname))) {
-    log_err(0, "Could not resolve IP address of uamserver: %s! [%s]", 
-	    hostname, strerror(errno));
-    return -1;
-  }
-  else {
-    if (host->h_addr_list[0]) {
-      server.sin_addr.s_addr = ((struct in_addr *)host->h_addr_list[0])->s_addr;
-    }
-  }
+  server.sin_addr.s_addr = addr->s_addr;
   
   if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) > 0) {
     int ret, flags = fcntl(sock, F_GETFL, 0);
@@ -74,6 +60,21 @@ int conn_setup(struct conn_t *conn, char *hostname, int port, bstring bwrite) {
   conn->sock = sock;
 
   return 0;
+}
+
+int conn_setup(struct conn_t *conn, char *hostname, int port, bstring bwrite) {
+  struct hostent *host;
+
+  conn->write_pos = 0;
+  conn->write_buf = bwrite;
+
+  if (!(host = gethostbyname(hostname)) || !host->h_addr_list[0]) {
+    log_err(0, "Could not resolve IP address of uamserver: %s! [%s]", 
+	    hostname, strerror(errno));
+    return -1;
+  }
+
+  return conn_sock(conn, (struct in_addr *)host->h_addr_list[0], port);
 }
 
 int conn_fd(struct conn_t *conn, fd_set *r, fd_set *w, fd_set *e, int *m) {

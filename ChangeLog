@@ -1,6 +1,9 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+== ChangeLog (CoovaChilli-v1.2.2 svn revision 291) ==
+
+* Added support for RadSec secure (SSL/TLS) RADIUS tunneling
 * Changed the generated cmdline.c (Makefile will apply patch) to be more forgiving of multiple uses of the same configuration entry.
 * Added DHCP RADIUS values to the HTTP AAA protocol proxy
 * Added option ''--uamhostname'' that will resolve (Local DNS) to ''uamlisten'' IP

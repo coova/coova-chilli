@@ -77,7 +77,7 @@ int openssl_verify_peer(openssl_env *env, int mode);
 int openssl_use_certificate(openssl_env *env, char *file);
 int openssl_use_privatekey(openssl_env *env, char *file);
 int openssl_cacert_location(openssl_env *env, char *file, char *dir);
-int openssl_env_init(openssl_env *env, char *engine);
+int openssl_env_init(openssl_env *env, char *engine, int server);
 openssl_con *openssl_connect_fd(openssl_env *env, int fd, int timeout);
 openssl_con *openssl_accept_fd(openssl_env *env, int fd, int timeout);
 int openssl_error(openssl_con *con, int ret, char *func);

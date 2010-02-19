@@ -121,6 +121,7 @@ const char *gengetopt_args_info_help[] = {
   "      --uamhostname=STRING      Special simple hostname (no dots) to be \n                                  resolved to uamlisten",
   "      --uamaaaurl=STRING        UAM AAA URL specifying the URL to use for the \n                                  Chilli HTTP AAA",
   "      --domaindnslocal          Option to consider all hostnames in domain as \n                                  local  (default=off)",
+  "      --radsec                  Use RadSec tunning (requires SSL; not \n                                  compatible with uamaaaurl)  (default=off)",
   "      --defsessiontimeout=LONG  Default session-timeout if not returned by \n                                  RADIUS  (default=`0')",
   "      --defidletimeout=INT      Default idle-timeout if not returned by RADIUS  \n                                  (default=`0')",
   "      --defbandwidthmaxdown=LONG\n                                Default WISPr-Bandwidth-Max-Down if not \n                                  returned by RADIUS  (default=`0')",
@@ -171,7 +172,9 @@ const char *gengetopt_args_info_help[] = {
   "      --challengetimeout=INT    Timeout in seconds for the generated challenge  \n                                  (default=`600')",
   "      --challengetimeout2=INT   Timeout in seconds for challenge during login  \n                                  (default=`1200')",
   "      --sslkeyfile=STRING       SSL private key file in PEM format",
+  "      --sslkeypass=STRING       SSL private key password",
   "      --sslcertfile=STRING      SSL certificate file in PEM format",
+  "      --sslcafile=STRING        SSL CA certificate file in PEM format",
   "      --unixipc=STRING          The UNIX IPC Filename to use when compiled with \n                                  --with-unixipc",
   "      --uamallowpost            Enable to allow a HTTP POST to the standard \n                                  uamport interface  (default=off)",
   "      --natip=STRING            IP to use when doing nat on WAN (routeidx)",
@@ -319,6 +322,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamhostname_given = 0 ;
   args_info->uamaaaurl_given = 0 ;
   args_info->domaindnslocal_given = 0 ;
+  args_info->radsec_given = 0 ;
   args_info->defsessiontimeout_given = 0 ;
   args_info->defidletimeout_given = 0 ;
   args_info->defbandwidthmaxdown_given = 0 ;
@@ -369,7 +373,9 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->challengetimeout_given = 0 ;
   args_info->challengetimeout2_given = 0 ;
   args_info->sslkeyfile_given = 0 ;
+  args_info->sslkeypass_given = 0 ;
   args_info->sslcertfile_given = 0 ;
+  args_info->sslcafile_given = 0 ;
   args_info->unixipc_given = 0 ;
   args_info->uamallowpost_given = 0 ;
   args_info->natip_given = 0 ;
@@ -540,6 +546,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->uamaaaurl_arg = NULL;
   args_info->uamaaaurl_orig = NULL;
   args_info->domaindnslocal_flag = 0;
+  args_info->radsec_flag = 0;
   args_info->defsessiontimeout_arg = 0;
   args_info->defsessiontimeout_orig = NULL;
   args_info->defidletimeout_arg = 0;
@@ -622,8 +629,12 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->challengetimeout2_orig = NULL;
   args_info->sslkeyfile_arg = NULL;
   args_info->sslkeyfile_orig = NULL;
+  args_info->sslkeypass_arg = NULL;
+  args_info->sslkeypass_orig = NULL;
   args_info->sslcertfile_arg = NULL;
   args_info->sslcertfile_orig = NULL;
+  args_info->sslcafile_arg = NULL;
+  args_info->sslcafile_orig = NULL;
   args_info->unixipc_arg = NULL;
   args_info->unixipc_orig = NULL;
   args_info->uamallowpost_flag = 0;
@@ -736,65 +747,68 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->uamhostname_help = gengetopt_args_info_help[86] ;
   args_info->uamaaaurl_help = gengetopt_args_info_help[87] ;
   args_info->domaindnslocal_help = gengetopt_args_info_help[88] ;
-  args_info->defsessiontimeout_help = gengetopt_args_info_help[89] ;
-  args_info->defidletimeout_help = gengetopt_args_info_help[90] ;
-  args_info->defbandwidthmaxdown_help = gengetopt_args_info_help[91] ;
-  args_info->defbandwidthmaxup_help = gengetopt_args_info_help[92] ;
-  args_info->definteriminterval_help = gengetopt_args_info_help[93] ;
-  args_info->macauth_help = gengetopt_args_info_help[94] ;
-  args_info->macreauth_help = gengetopt_args_info_help[95] ;
-  args_info->macauthdeny_help = gengetopt_args_info_help[96] ;
-  args_info->macallowed_help = gengetopt_args_info_help[97] ;
+  args_info->radsec_help = gengetopt_args_info_help[89] ;
+  args_info->defsessiontimeout_help = gengetopt_args_info_help[90] ;
+  args_info->defidletimeout_help = gengetopt_args_info_help[91] ;
+  args_info->defbandwidthmaxdown_help = gengetopt_args_info_help[92] ;
+  args_info->defbandwidthmaxup_help = gengetopt_args_info_help[93] ;
+  args_info->definteriminterval_help = gengetopt_args_info_help[94] ;
+  args_info->macauth_help = gengetopt_args_info_help[95] ;
+  args_info->macreauth_help = gengetopt_args_info_help[96] ;
+  args_info->macauthdeny_help = gengetopt_args_info_help[97] ;
+  args_info->macallowed_help = gengetopt_args_info_help[98] ;
   args_info->macallowed_min = 0;
   args_info->macallowed_max = 0;
-  args_info->macsuffix_help = gengetopt_args_info_help[98] ;
-  args_info->macpasswd_help = gengetopt_args_info_help[99] ;
-  args_info->macallowlocal_help = gengetopt_args_info_help[100] ;
-  args_info->strictmacauth_help = gengetopt_args_info_help[101] ;
-  args_info->wwwdir_help = gengetopt_args_info_help[102] ;
-  args_info->wwwbin_help = gengetopt_args_info_help[103] ;
-  args_info->uamui_help = gengetopt_args_info_help[104] ;
-  args_info->adminuser_help = gengetopt_args_info_help[105] ;
-  args_info->adminpasswd_help = gengetopt_args_info_help[106] ;
-  args_info->adminupdatefile_help = gengetopt_args_info_help[107] ;
-  args_info->rtmonfile_help = gengetopt_args_info_help[108] ;
-  args_info->ethers_help = gengetopt_args_info_help[109] ;
-  args_info->nasmac_help = gengetopt_args_info_help[110] ;
-  args_info->nasip_help = gengetopt_args_info_help[111] ;
-  args_info->ssid_help = gengetopt_args_info_help[112] ;
-  args_info->vlan_help = gengetopt_args_info_help[113] ;
-  args_info->ieee8021q_help = gengetopt_args_info_help[114] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[115] ;
-  args_info->radiusoriginalurl_help = gengetopt_args_info_help[116] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[117] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[118] ;
-  args_info->localusers_help = gengetopt_args_info_help[119] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[120] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[121] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[122] ;
-  args_info->openidauth_help = gengetopt_args_info_help[123] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[124] ;
-  args_info->mschapv2_help = gengetopt_args_info_help[125] ;
-  args_info->chillixml_help = gengetopt_args_info_help[126] ;
-  args_info->acctupdate_help = gengetopt_args_info_help[127] ;
-  args_info->dnsparanoia_help = gengetopt_args_info_help[128] ;
-  args_info->seskeepalive_help = gengetopt_args_info_help[129] ;
-  args_info->usetap_help = gengetopt_args_info_help[130] ;
-  args_info->routeif_help = gengetopt_args_info_help[131] ;
-  args_info->framedservice_help = gengetopt_args_info_help[132] ;
-  args_info->tcpwin_help = gengetopt_args_info_help[133] ;
-  args_info->tcpmss_help = gengetopt_args_info_help[134] ;
-  args_info->maxclients_help = gengetopt_args_info_help[135] ;
-  args_info->challengetimeout_help = gengetopt_args_info_help[136] ;
-  args_info->challengetimeout2_help = gengetopt_args_info_help[137] ;
-  args_info->sslkeyfile_help = gengetopt_args_info_help[138] ;
-  args_info->sslcertfile_help = gengetopt_args_info_help[139] ;
-  args_info->unixipc_help = gengetopt_args_info_help[140] ;
-  args_info->uamallowpost_help = gengetopt_args_info_help[141] ;
-  args_info->natip_help = gengetopt_args_info_help[142] ;
-  args_info->natport_help = gengetopt_args_info_help[143] ;
-  args_info->redirssl_help = gengetopt_args_info_help[144] ;
-  args_info->uamuissl_help = gengetopt_args_info_help[145] ;
+  args_info->macsuffix_help = gengetopt_args_info_help[99] ;
+  args_info->macpasswd_help = gengetopt_args_info_help[100] ;
+  args_info->macallowlocal_help = gengetopt_args_info_help[101] ;
+  args_info->strictmacauth_help = gengetopt_args_info_help[102] ;
+  args_info->wwwdir_help = gengetopt_args_info_help[103] ;
+  args_info->wwwbin_help = gengetopt_args_info_help[104] ;
+  args_info->uamui_help = gengetopt_args_info_help[105] ;
+  args_info->adminuser_help = gengetopt_args_info_help[106] ;
+  args_info->adminpasswd_help = gengetopt_args_info_help[107] ;
+  args_info->adminupdatefile_help = gengetopt_args_info_help[108] ;
+  args_info->rtmonfile_help = gengetopt_args_info_help[109] ;
+  args_info->ethers_help = gengetopt_args_info_help[110] ;
+  args_info->nasmac_help = gengetopt_args_info_help[111] ;
+  args_info->nasip_help = gengetopt_args_info_help[112] ;
+  args_info->ssid_help = gengetopt_args_info_help[113] ;
+  args_info->vlan_help = gengetopt_args_info_help[114] ;
+  args_info->ieee8021q_help = gengetopt_args_info_help[115] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[116] ;
+  args_info->radiusoriginalurl_help = gengetopt_args_info_help[117] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[118] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[119] ;
+  args_info->localusers_help = gengetopt_args_info_help[120] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[121] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[122] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[123] ;
+  args_info->openidauth_help = gengetopt_args_info_help[124] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[125] ;
+  args_info->mschapv2_help = gengetopt_args_info_help[126] ;
+  args_info->chillixml_help = gengetopt_args_info_help[127] ;
+  args_info->acctupdate_help = gengetopt_args_info_help[128] ;
+  args_info->dnsparanoia_help = gengetopt_args_info_help[129] ;
+  args_info->seskeepalive_help = gengetopt_args_info_help[130] ;
+  args_info->usetap_help = gengetopt_args_info_help[131] ;
+  args_info->routeif_help = gengetopt_args_info_help[132] ;
+  args_info->framedservice_help = gengetopt_args_info_help[133] ;
+  args_info->tcpwin_help = gengetopt_args_info_help[134] ;
+  args_info->tcpmss_help = gengetopt_args_info_help[135] ;
+  args_info->maxclients_help = gengetopt_args_info_help[136] ;
+  args_info->challengetimeout_help = gengetopt_args_info_help[137] ;
+  args_info->challengetimeout2_help = gengetopt_args_info_help[138] ;
+  args_info->sslkeyfile_help = gengetopt_args_info_help[139] ;
+  args_info->sslkeypass_help = gengetopt_args_info_help[140] ;
+  args_info->sslcertfile_help = gengetopt_args_info_help[141] ;
+  args_info->sslcafile_help = gengetopt_args_info_help[142] ;
+  args_info->unixipc_help = gengetopt_args_info_help[143] ;
+  args_info->uamallowpost_help = gengetopt_args_info_help[144] ;
+  args_info->natip_help = gengetopt_args_info_help[145] ;
+  args_info->natport_help = gengetopt_args_info_help[146] ;
+  args_info->redirssl_help = gengetopt_args_info_help[147] ;
+  args_info->uamuissl_help = gengetopt_args_info_help[148] ;
   
 }
 
@@ -1087,8 +1101,12 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->challengetimeout2_orig));
   free_string_field (&(args_info->sslkeyfile_arg));
   free_string_field (&(args_info->sslkeyfile_orig));
+  free_string_field (&(args_info->sslkeypass_arg));
+  free_string_field (&(args_info->sslkeypass_orig));
   free_string_field (&(args_info->sslcertfile_arg));
   free_string_field (&(args_info->sslcertfile_orig));
+  free_string_field (&(args_info->sslcafile_arg));
+  free_string_field (&(args_info->sslcafile_orig));
   free_string_field (&(args_info->unixipc_arg));
   free_string_field (&(args_info->unixipc_orig));
   free_string_field (&(args_info->natip_arg));
@@ -1307,6 +1325,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "uamaaaurl", args_info->uamaaaurl_orig, 0);
   if (args_info->domaindnslocal_given)
     write_into_file(outfile, "domaindnslocal", 0, 0 );
+  if (args_info->radsec_given)
+    write_into_file(outfile, "radsec", 0, 0 );
   if (args_info->defsessiontimeout_given)
     write_into_file(outfile, "defsessiontimeout", args_info->defsessiontimeout_orig, 0);
   if (args_info->defidletimeout_given)
@@ -1406,8 +1426,12 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "challengetimeout2", args_info->challengetimeout2_orig, 0);
   if (args_info->sslkeyfile_given)
     write_into_file(outfile, "sslkeyfile", args_info->sslkeyfile_orig, 0);
+  if (args_info->sslkeypass_given)
+    write_into_file(outfile, "sslkeypass", args_info->sslkeypass_orig, 0);
   if (args_info->sslcertfile_given)
     write_into_file(outfile, "sslcertfile", args_info->sslcertfile_orig, 0);
+  if (args_info->sslcafile_given)
+    write_into_file(outfile, "sslcafile", args_info->sslcafile_orig, 0);
   if (args_info->unixipc_given)
     write_into_file(outfile, "unixipc", args_info->unixipc_orig, 0);
   if (args_info->uamallowpost_given)
@@ -2080,6 +2104,7 @@ cmdline_parser_internal (
         { "uamhostname",	1, NULL, 0 },
         { "uamaaaurl",	1, NULL, 0 },
         { "domaindnslocal",	0, NULL, 0 },
+        { "radsec",	0, NULL, 0 },
         { "defsessiontimeout",	1, NULL, 0 },
         { "defidletimeout",	1, NULL, 0 },
         { "defbandwidthmaxdown",	1, NULL, 0 },
@@ -2130,7 +2155,9 @@ cmdline_parser_internal (
         { "challengetimeout",	1, NULL, 0 },
         { "challengetimeout2",	1, NULL, 0 },
         { "sslkeyfile",	1, NULL, 0 },
+        { "sslkeypass",	1, NULL, 0 },
         { "sslcertfile",	1, NULL, 0 },
+        { "sslcafile",	1, NULL, 0 },
         { "unixipc",	1, NULL, 0 },
         { "uamallowpost",	0, NULL, 0 },
         { "natip",	1, NULL, 0 },
@@ -3341,6 +3368,18 @@ cmdline_parser_internal (
               goto failure;
           
           }
+          /* Use RadSec tunning (requires SSL; not compatible with uamaaaurl).  */
+          else if (strcmp (long_options[option_index].name, "radsec") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->radsec_flag), 0, &(args_info->radsec_given),
+                &(local_args_info.radsec_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "radsec", '-',
+                additional_error))
+              goto failure;
+          
+          }
           /* Default session-timeout if not returned by RADIUS.  */
           else if (strcmp (long_options[option_index].name, "defsessiontimeout") == 0)
           {
@@ -4002,6 +4041,20 @@ cmdline_parser_internal (
               goto failure;
           
           }
+          /* SSL private key password.  */
+          else if (strcmp (long_options[option_index].name, "sslkeypass") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->sslkeypass_arg), 
+                 &(args_info->sslkeypass_orig), &(args_info->sslkeypass_given),
+                &(local_args_info.sslkeypass_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "sslkeypass", '-',
+                additional_error))
+              goto failure;
+          
+          }
           /* SSL certificate file in PEM format.  */
           else if (strcmp (long_options[option_index].name, "sslcertfile") == 0)
           {
@@ -4012,6 +4065,20 @@ cmdline_parser_internal (
                 &(local_args_info.sslcertfile_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "sslcertfile", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* SSL CA certificate file in PEM format.  */
+          else if (strcmp (long_options[option_index].name, "sslcafile") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->sslcafile_arg), 
+                 &(args_info->sslcafile_orig), &(args_info->sslcafile_given),
+                &(local_args_info.sslcafile_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "sslcafile", '-',
                 additional_error))
               goto failure;
           

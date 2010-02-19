@@ -405,7 +405,8 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
     bconcat(str, bt2);
   }
 
-  if (redir->secret && *redir->secret) { /* take the md5 of the url+uamsecret as a checksum */
+  if (redir->secret && *redir->secret) { 
+    /* take the md5 of the url+uamsecret as a checksum */
     redir_md_param(str, redir->secret, amp);
   }
 
@@ -1084,14 +1085,14 @@ int redir_listen(struct redir_t *redir) {
 
   for (n = 0; n < 2 && redir->fd[n]; n++) {
 
+    address.sin_addr.s_addr = redir->addr.s_addr;
     switch(n) {
     case 0:
-      address.sin_addr.s_addr = redir->addr.s_addr;
       address.sin_port = htons(redir->port);
       break;
     case 1:
       /* XXX: binding to 0.0.0.0:uiport (should be configurable?) */
-      address.sin_addr.s_addr = INADDR_ANY;
+      /*address.sin_addr.s_addr = INADDR_ANY;*/
       address.sin_port = htons(redir->uiport);
       break;
     }

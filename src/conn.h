@@ -40,6 +40,9 @@ struct conn_t {
   openssl_con * sslcon;
 #endif
 
+  uint8_t connected:1;
+  uint8_t error:1;
+
   conn_handler read_handler;
   void * read_handler_ctx;
   conn_handler done_handler;
@@ -51,6 +54,7 @@ void conn_bstring_readhandler(struct conn_t *conn, bstring data);
 void conn_set_readhandler(struct conn_t *conn, conn_handler handler, void *ctx);
 void conn_set_donehandler(struct conn_t *conn, conn_handler handler, void *ctx);
 
+int conn_sock(struct conn_t *conn, struct in_addr *addr, int port);
 int conn_setup(struct conn_t *conn, char *hostname, int port, bstring bwrite);
 void conn_finish(struct conn_t *conn);
 

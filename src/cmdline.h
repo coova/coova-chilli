@@ -294,6 +294,8 @@ struct gengetopt_args_info
   const char *uamaaaurl_help; /**< @brief UAM AAA URL specifying the URL to use for the Chilli HTTP AAA help description.  */
   int domaindnslocal_flag;	/**< @brief Option to consider all hostnames in domain as local (default=off).  */
   const char *domaindnslocal_help; /**< @brief Option to consider all hostnames in domain as local help description.  */
+  int radsec_flag;	/**< @brief Use RadSec tunning (requires SSL; not compatible with uamaaaurl) (default=off).  */
+  const char *radsec_help; /**< @brief Use RadSec tunning (requires SSL; not compatible with uamaaaurl) help description.  */
   long defsessiontimeout_arg;	/**< @brief Default session-timeout if not returned by RADIUS (default='0').  */
   char * defsessiontimeout_orig;	/**< @brief Default session-timeout if not returned by RADIUS original value given at command line.  */
   const char *defsessiontimeout_help; /**< @brief Default session-timeout if not returned by RADIUS help description.  */
@@ -428,9 +430,15 @@ struct gengetopt_args_info
   char * sslkeyfile_arg;	/**< @brief SSL private key file in PEM format.  */
   char * sslkeyfile_orig;	/**< @brief SSL private key file in PEM format original value given at command line.  */
   const char *sslkeyfile_help; /**< @brief SSL private key file in PEM format help description.  */
+  char * sslkeypass_arg;	/**< @brief SSL private key password.  */
+  char * sslkeypass_orig;	/**< @brief SSL private key password original value given at command line.  */
+  const char *sslkeypass_help; /**< @brief SSL private key password help description.  */
   char * sslcertfile_arg;	/**< @brief SSL certificate file in PEM format.  */
   char * sslcertfile_orig;	/**< @brief SSL certificate file in PEM format original value given at command line.  */
   const char *sslcertfile_help; /**< @brief SSL certificate file in PEM format help description.  */
+  char * sslcafile_arg;	/**< @brief SSL CA certificate file in PEM format.  */
+  char * sslcafile_orig;	/**< @brief SSL CA certificate file in PEM format original value given at command line.  */
+  const char *sslcafile_help; /**< @brief SSL CA certificate file in PEM format help description.  */
   char * unixipc_arg;	/**< @brief The UNIX IPC Filename to use when compiled with --with-unixipc.  */
   char * unixipc_orig;	/**< @brief The UNIX IPC Filename to use when compiled with --with-unixipc original value given at command line.  */
   const char *unixipc_help; /**< @brief The UNIX IPC Filename to use when compiled with --with-unixipc help description.  */
@@ -536,6 +544,7 @@ struct gengetopt_args_info
   unsigned int uamhostname_given ;	/**< @brief Whether uamhostname was given.  */
   unsigned int uamaaaurl_given ;	/**< @brief Whether uamaaaurl was given.  */
   unsigned int domaindnslocal_given ;	/**< @brief Whether domaindnslocal was given.  */
+  unsigned int radsec_given ;	/**< @brief Whether radsec was given.  */
   unsigned int defsessiontimeout_given ;	/**< @brief Whether defsessiontimeout was given.  */
   unsigned int defidletimeout_given ;	/**< @brief Whether defidletimeout was given.  */
   unsigned int defbandwidthmaxdown_given ;	/**< @brief Whether defbandwidthmaxdown was given.  */
@@ -586,7 +595,9 @@ struct gengetopt_args_info
   unsigned int challengetimeout_given ;	/**< @brief Whether challengetimeout was given.  */
   unsigned int challengetimeout2_given ;	/**< @brief Whether challengetimeout2 was given.  */
   unsigned int sslkeyfile_given ;	/**< @brief Whether sslkeyfile was given.  */
+  unsigned int sslkeypass_given ;	/**< @brief Whether sslkeypass was given.  */
   unsigned int sslcertfile_given ;	/**< @brief Whether sslcertfile was given.  */
+  unsigned int sslcafile_given ;	/**< @brief Whether sslcafile was given.  */
   unsigned int unixipc_given ;	/**< @brief Whether unixipc was given.  */
   unsigned int uamallowpost_given ;	/**< @brief Whether uamallowpost was given.  */
   unsigned int natip_given ;	/**< @brief Whether natip was given.  */
