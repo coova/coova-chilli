@@ -692,6 +692,24 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
     log_dbg("tun_decaps(idx=%d, len=%d)", tun(c->this,c->idx).ifindex, length);
   */
 
+#ifdef HAVE_NETFILTER_QUEUE
+  if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
+    struct pkt_iphdr_t *iph;
+
+    int ethhdr = (tun(c->this, c->idx).flags & NET_ETHHDR) != 0;
+
+    if (ethhdr)
+      iph = (struct pkt_ipphdr_t *)((char *)packet + PKT_ETH_HLEN);
+    else
+      iph = (struct pkt_ipphdr_t *)packet;
+
+    iph->daddr  = iph->daddr & ~(_options.mask.s_addr);
+    iph->daddr |= _options.dhcplisten.s_addr & _options.mask.s_addr;
+
+    chksum(iph);
+  }
+#endif
+
   if (c->idx > 0) {
     struct pkt_iphdr_t *iph = iphdr(packet);
 #ifdef ENABLE_NETNAT
@@ -734,8 +752,7 @@ int tun_decaps(struct tun_t *this, int idx) {
   }
 
   /*
-  if (this->debug)  
-    log_dbg("tun_decaps(%d) %s",status,tun(tun,idx).devname);
+  log_dbg("tun_decaps(%d) %s",status,tun(tun,idx).devname);
   */
 
    if (this->cb_ind)
@@ -822,6 +839,17 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     if (nat_do(tun, idx, pack, len)) {
       log_err(0, "unable to nat packet!");
     }
+  }
+#endif
+
+#ifdef HAVE_NETFILTER_QUEUE
+  if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
+    struct pkt_iphdr_t *iph = iphdr(pack);
+
+    iph->saddr  = iph->saddr & ~(_options.mask.s_addr);
+    iph->saddr |= _options.uamlisten.s_addr & _options.mask.s_addr;
+
+    chksum(iph);
   }
 #endif
 

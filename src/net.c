@@ -35,8 +35,6 @@ static void destroy_one_ring(net_interface *iface, int what);
 static void setup_filter(net_interface *iface);
 #endif
 
-#ifdef HAVE_NETFILTER_QUEUE
-#endif
 
 int safe_connect(int s, struct sockaddr *sock, size_t len) {
   int ret;
@@ -621,6 +619,57 @@ int net_route(struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask
   return 0;
 #else
 #error  "Unknown platform!"
+#endif
+}
+
+int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
+#ifdef HAVE_NETFILTER_QUEUE
+  netif->h = nfq_open();
+
+  log_dbg("netif nfqueue %d", (int)q);
+  
+  if (!netif->h) {
+    log_err(errno, "nfq_open() failed");
+    return -1;
+  }
+
+  if (nfq_unbind_pf(netif->h, AF_INET) < 0) {
+    log_err(errno, "error during nfq_unbind_pf()");
+    return -1;
+  }
+  
+  if (nfq_bind_pf(netif->h, AF_INET) < 0) {
+    log_err(errno, "error during nfq_bind_pf()");
+    return -1;
+  }
+  
+  netif->qh = nfq_create_queue(netif->h,  q, cb, NULL);
+  if (!netif->qh) {
+    log_err(errno, "error during nfq_create_queue(%d)", (int)q);
+    return -1;
+  }
+  
+  if (nfq_set_mode(netif->qh, NFQNL_COPY_PACKET, 0xffff) < 0) {
+    log_err(errno, "error during nfq_set_mode()");
+    return -1;
+  }
+  
+  netif->fd = nfq_fd(netif->h);
+
+  {
+    int option = 1;
+    if (setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY, &option, sizeof(option)) < 0) {
+      log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
+	      netif->fd, SOL_SOCKET, TCP_NODELAY, sizeof(option));
+      return -1;
+    }
+  }
+
+  fcntl(netif->fd, F_SETFL, fcntl(netif->fd, F_GETFL) | O_NONBLOCK);
+
+  return 0;
+#else
+  log_error(0, "Not implemeneted; build with --with-nfqueue");
 #endif
 }
 

@@ -513,6 +513,152 @@ int dhcp_checkconn(struct dhcp_t *this)
  * Allocates a new instance of the library
  **/
 
+#ifdef HAVE_NETFILTER_QUEUE
+static int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
+			 struct nfq_data *nfa, void *cbdata) {
+  struct nfqnl_msg_packet_hdr *ph;
+  struct nfqnl_msg_packet_hw *hw;
+  u_int32_t mark, ifi; 
+  u_int32_t id;
+  char *data;
+  int ret;
+
+  int result = NF_DROP;
+
+  hw = nfq_get_packet_hw(nfa);
+  ph = nfq_get_msg_packet_hdr(nfa);
+
+  if (ph) {
+    id = ntohl(ph->packet_id);
+  }
+  
+  mark = nfq_get_nfmark(nfa);
+
+  /*
+  ifi = nfq_get_indev(nfa);
+  ifi = nfq_get_outdev(nfa);
+  */
+  
+  ret = nfq_get_payload(nfa, &data);
+
+  if (hw && ret > 0) {
+    struct pkt_iphdr_t  *pack_iph  = (struct pkt_ipphdr_t *)data;
+    struct pkt_tcphdr_t *pack_tcph = (struct pkt_tcphdr_t *)(data + PKT_IP_HLEN);
+    struct pkt_udphdr_t *pack_udph = (struct pkt_udphdr_t *)(data + PKT_IP_HLEN);
+    struct dhcp_conn_t *conn;
+    struct in_addr ourip;
+    struct in_addr addr;
+
+    if (!dhcp_hashget(dhcp, &conn, hw->hw_addr)) {
+      struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+      if (appconn->s_state.authenticated) {
+	if (chilli_acct_fromsub(appconn, (size_t) ret))
+	  result = NF_DROP;
+	else
+	  result = NF_ACCEPT;
+      }
+    }
+
+    if (_options.debug) {
+      addr.s_addr = pack_iph->saddr;
+      log_dbg("NFQUEUE: From %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %s", 
+	      hw->hw_addr[0],hw->hw_addr[1],hw->hw_addr[2],
+	      hw->hw_addr[3],hw->hw_addr[4],hw->hw_addr[5],
+	      inet_ntoa(addr), 
+	      result == NF_ACCEPT ? "Accept" : "Drop");
+      
+      addr.s_addr = pack_iph->daddr;
+      log_dbg("NFQUEUE: To %s %s %d %s", 
+	      inet_ntoa(addr), 
+	      pack_iph->protocol == PKT_IP_PROTO_UDP ? "UDP" : 
+	      pack_iph->protocol == PKT_IP_PROTO_TCP ? "TCP" : "Other",
+	      pack_iph->protocol == PKT_IP_PROTO_UDP ? ntohs(pack_udph->dst) : 
+	      pack_iph->protocol == PKT_IP_PROTO_TCP ? ntohs(pack_tcph->dst) : 0,
+	      result == NF_ACCEPT ? "Accept" : "Drop");
+    }
+  }
+  
+  return nfq_set_verdict(qh, id, result, 0, NULL);
+}
+
+extern struct ippool_t *ippool;
+
+static int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
+			 struct nfq_data *nfa, void *cbdata) {
+  struct nfqnl_msg_packet_hdr *ph;
+  struct nfqnl_msg_packet_hw *hw;
+  u_int32_t id;
+  char *data;
+  int ret;
+
+  int result = NF_DROP;
+
+  ph = nfq_get_msg_packet_hdr(nfa);
+
+  if (ph) {
+    id = ntohl(ph->packet_id);
+  }
+  
+  ret = nfq_get_payload(nfa, &data);
+
+  if (ret > 0) {
+    struct pkt_iphdr_t  *pack_iph  = (struct pkt_ipphdr_t *)data;
+    struct pkt_tcphdr_t *pack_tcph = (struct pkt_tcphdr_t *)(data + PKT_IP_HLEN);
+    struct pkt_udphdr_t *pack_udph = (struct pkt_udphdr_t *)(data + PKT_IP_HLEN);
+    struct dhcp_conn_t *conn;
+    struct in_addr addr;
+
+    struct ippoolm_t *ipm;
+    struct app_conn_t *appconn;
+
+    result = NF_DROP;
+
+    addr.s_addr = pack_iph->daddr;
+
+    if (ippool_getip(ippool, &ipm, &addr)) {
+      
+      if (_options.debug) 
+	log_dbg("dropping packet with unknown destination: %s", inet_ntoa(addr));
+      
+    }
+    else {
+      
+      if ((appconn = (struct app_conn_t *)ipm->peer) == NULL ||
+	  (appconn->dnlink) == NULL) {
+	log_err(0, "No %s protocol defined for %s", appconn ? "dnlink" : "peer", inet_ntoa(addr));
+      }
+      else {
+	
+	if (appconn->s_state.authenticated == 1) {
+	  if (chilli_acct_tosub(appconn, ret))
+	    result = NF_DROP;
+	  else
+	    result = NF_ACCEPT;
+	}
+      }
+    }
+
+    if (_options.debug) {
+      addr.s_addr = pack_iph->saddr;
+      log_dbg("NFQUEUE OUT: From %s %s", 
+	      inet_ntoa(addr), 
+	      result == NF_ACCEPT ? "Accept" : "Drop");
+      
+      addr.s_addr = pack_iph->daddr;
+      log_dbg("NFQUEUE OUT: To %s %s %d %s", 
+	      inet_ntoa(addr), 
+	      pack_iph->protocol == PKT_IP_PROTO_UDP ? "UDP" : 
+	      pack_iph->protocol == PKT_IP_PROTO_TCP ? "TCP" : "Other",
+	      pack_iph->protocol == PKT_IP_PROTO_UDP ? ntohs(pack_udph->dst) : 
+	      pack_iph->protocol == PKT_IP_PROTO_TCP ? ntohs(pack_tcph->dst) : 0,
+	      result == NF_ACCEPT ? "Accept" : "Drop");
+    }
+  }
+  
+  return nfq_set_verdict(qh, id, result, 0, NULL);
+}
+#endif
+
 int
 dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
 	 int usemac, uint8_t *mac, int promisc, 
@@ -530,6 +676,21 @@ dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
     free(dhcp);
     return -1; 
   }
+
+#ifdef HAVE_NETFILTER_QUEUE
+  if (getenv("NFQUEUE_IN") && getenv("NFQUEUE_OUT")) {
+    int q1 = 0, q2 = 1;
+    char *e;
+    if (e = getenv("NFQUEUE_IN")) q1 = atoi(e);
+    if (e = getenv("NFQUEUE_OUT")) q2 = atoi(e);
+    if (net_open_nfqueue(&dhcp->qif_in, q1, nfqueue_cb_in) == -1) {
+      return -1;
+    }
+    if (net_open_nfqueue(&dhcp->qif_out, q2, nfqueue_cb_out) == -1) {
+      return -1;
+    }
+  }
+#endif
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
   { 
@@ -870,7 +1031,9 @@ static
 void tun_sendRESET(struct tun_t *tun, uint8_t *pack, struct app_conn_t *appconn) {
   uint8_t tcp_pack[PKT_BUFFER];
 
+#ifndef HAVE_NETFILTER_QUEUE
   tun_encaps(tun, tcp_pack, tcprst(tcp_pack, pack, 1), appconn->s_params.routeidx);
+#endif
 }
 
 static
@@ -878,7 +1041,9 @@ void dhcp_sendRESET(struct dhcp_conn_t *conn, uint8_t *pack, char reverse) {
   uint8_t tcp_pack[PKT_BUFFER];
   struct dhcp_t *this = conn->parent;
   
+#ifndef HAVE_NETFILTER_QUEUE
   dhcp_send(this, &this->rawif, conn->hismac, tcp_pack, tcprst(tcp_pack, pack, reverse));
+#endif
 }
 
 static
@@ -2325,14 +2490,16 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
    */
   if ((memcmp(pack_ethh->dst, dhcp_nexthop(this), PKT_ETH_ALEN)) && 
       (memcmp(pack_ethh->dst, bmac, PKT_ETH_ALEN))) {
+    /*
     log_dbg("Not for our MAC or broadcast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 	    pack_ethh->dst[0], pack_ethh->dst[1], pack_ethh->dst[2], 
 	    pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
+    */
     return 0;
   }
-
+  
   ourip.s_addr = this->ourip.s_addr;
-
+  
   /* 
    *  DHCP (BOOTPS) packets for broadcast or us specifically
    */
@@ -2345,7 +2512,8 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     log_dbg("dhcp/bootps request being processed");
     return dhcp_getreq(this, pack, len);
   }
-
+  
+  
   /* 
    *  Check to see if we know MAC address
    */
@@ -2355,17 +2523,17 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   }
   else {
     struct in_addr reqaddr;
-
+    
     memcpy(&reqaddr.s_addr, &pack_iph->saddr, PKT_IP_ALEN);
-
+    
     log_dbg("Address not found (%s)", inet_ntoa(reqaddr)); 
-
+    
     /* Do we allow dynamic allocation of IP addresses? */
     if (!this->allowdyn && !_options.uamanyip) {
       log_dbg("dropping packet; no dynamic ip and no anyip");
       return 0; 
     }
-
+    
     /* Allocate new connection */
     if (dhcp_newconn(this, &conn, pack_ethh->src, pack)) {
       log_dbg("dropping packet; out of connections");
@@ -2411,7 +2579,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     if (dhcp_localDNS(conn, pack, len)) 
       return 0;
   }
-
+  
   /* Was it a request for the auto-logout service? */
   if ((pack_iph->daddr == _options.uamlogout.s_addr) &&
       (pack_iph->protocol == PKT_IP_PROTO_TCP) &&
@@ -2425,17 +2593,22 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
       }
     }
   }
-
+  
   if (_options.uamalias.s_addr && 
       pack_iph->daddr == _options.uamalias.s_addr) {
     
     dhcp_uam_nat(conn, pack_ethh, pack_iph, pack_tcph, &this->uamlisten,
 		 _options.uamuiport ? _options.uamuiport : this->uamport);
-
+    
   }
-
+  
   switch (conn->authstate) {
   case DHCP_AUTH_PASS:
+#ifdef HAVE_NETFILTER_QUEUE
+    if (this->qif_in.fd && this->qif_out.fd) {
+      return 1;
+    }
+#endif
     /* Check for post-auth proxy, otherwise pass packets unmodified */
     dhcp_postauthDNAT(conn, pack, len, 0);
     break; 
@@ -2528,7 +2701,30 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
  **/
 int dhcp_decaps(struct dhcp_t *this, int idx) {
   ssize_t length;
-  
+
+#ifdef HAVE_NETFILTER_QUEUE
+  if (idx) {
+    uint8_t buf[1600];
+    net_interface *iface = 0;
+
+    switch (idx) {
+    case 1:
+      iface = &this->qif_in;
+      break;
+    case 2:
+      iface = &this->qif_out;
+      break;
+    }
+    if (iface) {
+      length = recv(iface->fd, buf, sizeof(buf), MSG_DONTWAIT);
+      if (length > 0) {
+	nfq_handle_packet(iface->h, buf, length);
+      }
+      return length;
+    }
+  }
+#endif
+
   if ((length = net_read_dispatch(&this->rawif, dhcp_decaps_cb, this)) < 0) 
     return -1;
 
@@ -2710,7 +2906,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   case DHCP_AUTH_DNAT:
     /* undo destination NAT */
     if (dhcp_undoDNAT(conn, pkt, &length, 1)) { 
-      if (this->debug) log_dbg("dhcp_undoDNAT() returns true");
+      log_dbg("dhcp_undoDNAT() returns true");
       return 0;
     }
     break;
@@ -2770,7 +2966,7 @@ dhcp_sendARP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 	  inet_ntoa(conn->hisip),
 	  conn->hismac[0], conn->hismac[1], conn->hismac[2],
 	  conn->hismac[3], conn->hismac[4], conn->hismac[5]);
-
+  
   /* Ethernet header */
   memcpy(packet_ethh->dst, conn->hismac, PKT_ETH_ALEN);
   memcpy(packet_ethh->src, dhcp_nexthop(this), PKT_ETH_ALEN);

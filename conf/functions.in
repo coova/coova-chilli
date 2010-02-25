@@ -103,9 +103,11 @@ writeconfig() {
     [ "$HS_NATANYIP" = "on" ] && addconfig1 "uamnatanyip"
     [ "$HS_NOC2C" = "on" ] && addconfig1 "noc2c"
 
+    addconfig1 ${HS_TUNDEV:+"tundev \"$HS_TUNDEV\""}
     addconfig1 ${HS_DYNIP:+"dynip $HS_DYNIP/${HS_DYNIP_MASK:-255.255.255.0}"}
     addconfig1 ${HS_STATIP:+"statip $HS_STATIP/${HS_STATIP_MASK:-255.255.255.0}"}
     addconfig1 ${HS_SSID:+"ssid \"$HS_SSID\""}
+    addconfig1 ${HS_VLAN:+"vlan \"$HS_VLAN\""}
     addconfig1 ${HS_NASIP:+"nasip \"$HS_NASIP\""}
     addconfig1 ${HS_NASMAC:+"nasmac \"$HS_NASMAC\""}
     addconfig1 ${HS_DNS_DOMAIN:+"domain \"$HS_DNS_DOMAIN\""}

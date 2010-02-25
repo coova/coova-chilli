@@ -160,6 +160,10 @@ struct dhcp_t {
 
   /* network interfaces */
   struct _net_interface rawif; 
+#ifdef HAVE_NETFILTER_QUEUE
+  struct _net_interface qif_in; 
+  struct _net_interface qif_out; 
+#endif
 
   int numconn;          /* Maximum number of connections */
 #if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)

@@ -30,6 +30,12 @@
 #include <pcap.h>
 #endif
 
+#ifdef HAVE_NETFILTER_QUEUE
+#include <linux/types.h>
+#include <linux/netfilter.h>
+#include <libnetfilter_queue/libnetfilter_queue.h>
+#endif
+
 #ifdef USING_MMAP
 #define HAVE_PACKET_RING
 #define HAVE_PACKET_RX_RING
@@ -167,6 +173,11 @@ typedef struct _net_interface {
   /* socket/descriptor */
   int fd;
 
+#ifdef HAVE_NETFILTER_QUEUE
+  struct nfq_handle *h;
+  struct nfq_q_handle *qh;
+#endif
+
 #ifdef USING_PCAP
   pcap_t *pd;
 #endif
@@ -261,6 +272,8 @@ ssize_t net_write(net_interface *netif, void *d, size_t slen);
 ssize_t net_write2(net_interface *netif, void *d, size_t dlen, struct sockaddr_ll *dest);
 
 ssize_t net_read_dispatch(net_interface *netif, net_handler func, void *ctx);
+
+int net_open_nfqueue(net_interface *netif, uint16_t q, int (*cb)());
 
 int net_select_reg(select_ctx *sctx, int fd, char evts, select_callback cb, void *ctx, int idx);
 

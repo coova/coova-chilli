@@ -1636,58 +1636,29 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 	  (ipph->sport == htons(_options.uamport) ||
 	   ipph->sport == htons(_options.uamuiport)))) {
     if (appconn->s_state.authenticated == 1) {
-
-#ifndef ENABLE_LEAKYBUCKET
-      appconn->s_state.last_time = mainclock;
-#endif
-
-#ifdef ENABLE_LEAKYBUCKET
-#ifndef COUNT_DOWNLINK_DROP
-    if (leaky_bucket(appconn, 0, len)) return 0;
-#endif
-#endif
-    if (_options.swapoctets) {
-      appconn->s_state.last_sent_time = mainclock;
-      appconn->s_state.output_packets++;
-      appconn->s_state.output_octets += len;
-      if (admin_session.s_state.authenticated) {
-        admin_session.s_state.last_sent_time = mainclock;
-	admin_session.s_state.output_packets++;
-	admin_session.s_state.output_octets+=len;
-      }
-    } else {
-      appconn->s_state.input_packets++;
-      appconn->s_state.input_octets += len;
-      if (admin_session.s_state.authenticated) {
-	admin_session.s_state.input_packets++;
-	admin_session.s_state.input_octets+=len;
-      }
-    }
-#ifdef ENABLE_LEAKYBUCKET
-#ifdef COUNT_DOWNLINK_DROP
-    if (leaky_bucket(appconn, 0, len)) return 0;
-#endif
-#endif
+      if (chilli_acct_tosub(appconn, len))
+	return 0;
     }
   }
 
   switch (appconn->dnprot) {
   case DNPROT_NULL:
   case DNPROT_DHCP_NONE:
+    log_dbg("Dropping...");
     break;
-
+    
   case DNPROT_UAM:
   case DNPROT_WPA:
   case DNPROT_MAC:
   case DNPROT_EAPOL:
     dhcp_data_req((struct dhcp_conn_t *)appconn->dnlink, pack, len, ethhdr);
     break;
-
+    
   default:
     log_err(0, "Unknown downlink protocol: %d", appconn->dnprot);
     break;
   }
-
+  
   return 0;
 }
 
@@ -1706,6 +1677,13 @@ int cb_redir_getstate(struct redir_t *redir,
   struct app_conn_t *appconn;
   struct dhcp_conn_t *dhcpconn;
   uint8_t flags = 0;
+
+#ifdef HAVE_NETFILTER_QUEUE
+  if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
+    addr->s_addr  = addr->s_addr & ~(_options.mask.s_addr);
+    addr->s_addr |= _options.dhcplisten.s_addr & _options.mask.s_addr;
+  }
+#endif
 
   if (ippool_getip(ippool, &ipm, addr)) {
     return -1;
@@ -3117,7 +3095,8 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     if ((addr->s_addr & ipv4ll_mask.s_addr) == ipv4ll_ip.s_addr) {
       /* clients with an IPv4LL ip normally have no default gw assigned, rendering uamanyip useless
 	 They must rather get a proper dynamic ip via dhcp */
-      log_dbg("IPv4LL/APIPA address requested, ignoring");
+      log_dbg("IPv4LL/APIPA address requested, ignoring %s", 
+	      inet_ntoa(*addr));
       return -1;
     }
   }
@@ -3547,41 +3526,87 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     return tun_encaps(tun, pack, len, 0);
   
   if (appconn->s_state.authenticated == 1) {
-
-#ifndef ENABLE_LEAKYBUCKET
-    appconn->s_state.last_time = mainclock;
-#endif
-
-#ifdef ENABLE_LEAKYBUCKET
-#ifndef COUNT_UPLINK_DROP
-    if (leaky_bucket(appconn, len, 0)) return 0;
-#endif
-#endif
-    if (_options.swapoctets) {
-      appconn->s_state.input_packets++;
-      appconn->s_state.input_octets +=len;
-      if (admin_session.s_state.authenticated) {
-	admin_session.s_state.input_packets++;
-	admin_session.s_state.input_octets+=len;
-      }
-    } else {
-      appconn->s_state.last_sent_time = mainclock;
-      appconn->s_state.output_packets++;
-      appconn->s_state.output_octets +=len;
-      if (admin_session.s_state.authenticated) {
-        admin_session.s_state.last_sent_time = mainclock;
-	admin_session.s_state.output_packets++;
-	admin_session.s_state.output_octets+=len;
-      }
-    }
-#ifdef ENABLE_LEAKYBUCKET
-#ifdef COUNT_UPLINK_DROP
-    if (leaky_bucket(appconn, len, 0)) return 0;
-#endif
-#endif
+    if (chilli_acct_fromsub(appconn, len))
+      return 0;
   }
 
   return tun_encaps(tun, pack, len, appconn->s_params.routeidx);
+}
+
+int chilli_acct_fromsub(struct app_conn_t *appconn, size_t len) {
+#ifndef ENABLE_LEAKYBUCKET
+  appconn->s_state.last_time = mainclock;
+#endif
+  
+#ifdef ENABLE_LEAKYBUCKET
+#ifndef COUNT_UPLINK_DROP
+  if (leaky_bucket(appconn, len, 0)) return 1;
+#endif
+#endif
+  
+  if (_options.swapoctets) {
+    appconn->s_state.input_packets++;
+    appconn->s_state.input_octets +=len;
+    if (admin_session.s_state.authenticated) {
+      admin_session.s_state.input_packets++;
+      admin_session.s_state.input_octets+=len;
+    }
+  } else {
+    appconn->s_state.last_sent_time = mainclock;
+    appconn->s_state.output_packets++;
+    appconn->s_state.output_octets +=len;
+    if (admin_session.s_state.authenticated) {
+      admin_session.s_state.last_sent_time = mainclock;
+      admin_session.s_state.output_packets++;
+      admin_session.s_state.output_octets+=len;
+    }
+  }
+
+#ifdef ENABLE_LEAKYBUCKET
+#ifdef COUNT_UPLINK_DROP
+  if (leaky_bucket(appconn, len, 0)) return 1;
+#endif
+#endif
+
+  return 0;
+}
+
+int chilli_acct_tosub(struct app_conn_t *appconn, size_t len) {
+#ifndef ENABLE_LEAKYBUCKET
+  appconn->s_state.last_time = mainclock;
+#endif
+  
+#ifdef ENABLE_LEAKYBUCKET
+#ifndef COUNT_DOWNLINK_DROP
+  if (leaky_bucket(appconn, 0, len)) return 1;
+#endif
+#endif
+  
+  if (_options.swapoctets) {
+    appconn->s_state.last_sent_time = mainclock;
+    appconn->s_state.output_packets++;
+    appconn->s_state.output_octets += len;
+    if (admin_session.s_state.authenticated) {
+      admin_session.s_state.last_sent_time = mainclock;
+      admin_session.s_state.output_packets++;
+      admin_session.s_state.output_octets+=len;
+    }
+  } else {
+    appconn->s_state.input_packets++;
+    appconn->s_state.input_octets += len;
+    if (admin_session.s_state.authenticated) {
+      admin_session.s_state.input_packets++;
+      admin_session.s_state.input_octets+=len;
+    }
+  }
+  
+#ifdef ENABLE_LEAKYBUCKET
+#ifdef COUNT_DOWNLINK_DROP
+  if (leaky_bucket(appconn, 0, len)) return 1;
+#endif
+#endif
+  
+  return 0;
 }
 
 /* Callback for receiving messages from eapol */
@@ -3695,6 +3720,13 @@ int static uam_msg(struct redir_msg_t *msg) {
   struct ippoolm_t *ipm;
   struct app_conn_t *appconn = NULL;
   struct dhcp_conn_t* dhcpconn;
+
+#ifdef HAVE_NETFILTER_QUEUE
+  if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
+    msg->mdata.address.sin_addr.s_addr  = msg->mdata.address.sin_addr.s_addr & ~(_options.mask.s_addr);
+    msg->mdata.address.sin_addr.s_addr |= _options.dhcplisten.s_addr & _options.mask.s_addr;
+  }
+#endif
 
   if (ippool_getip(ippool, &ipm, &msg->mdata.address.sin_addr)) {
     if (_options.debug) 
@@ -4287,6 +4319,10 @@ int chilli_main(int argc, char **argv) {
   /* This has to be done after we have our final pid */
   log_pid((_options.pidfile && *_options.pidfile) ? _options.pidfile : DEFPIDFILE);
 
+  /* setup IPv4LL/APIPA network ip and mask for uamanyip exception */
+  inet_aton("169.254.0.0", &ipv4ll_ip);
+  inet_aton("255.255.0.0", &ipv4ll_mask);
+
   syslog(LOG_INFO, "CoovaChilli(ChilliSpot) %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
 	 "Copyright 2006-2010 Coova Technologies, LLC <support@coova.com>. Licensed under GPL. "
 	 "See http://www.coova.org/ for details.", VERSION);
@@ -4316,7 +4352,7 @@ int chilli_main(int argc, char **argv) {
     exit(1);
   }
   
-  tun_setaddr(tun, &_options.dhcplisten,  &_options.dhcplisten, &_options.mask);
+  tun_setaddr(tun, &_options.uamlisten,  &_options.uamlisten, &_options.mask);
   
   tun_set_cb_ind(tun, cb_tun_ind);
   
@@ -4524,9 +4560,6 @@ int chilli_main(int argc, char **argv) {
   }
 #endif
 
-  /* setup IPv4LL/APIPA network ip and mask for uamanyip exception */
-  inet_aton("169.254.0.0", &ipv4ll_ip);
-  inet_aton("255.255.0.0", &ipv4ll_mask);
 
   if (_options.debug) 
     log_dbg("Waiting for client request...");
@@ -4579,6 +4612,12 @@ int chilli_main(int argc, char **argv) {
 #if defined(__linux__)
   net_select_reg(&sctx, dhcp->relayfd, SELECT_READ, (select_callback)dhcp_relay_decaps, dhcp, 0);
   net_select_reg(&sctx, dhcp->rawif.fd, SELECT_READ, (select_callback)dhcp_decaps, dhcp, 0);
+#ifdef HAVE_NETFILTER_QUEUE
+  if (dhcp->qif_in.fd && dhcp->qif_out.fd) {
+    net_select_reg(&sctx, dhcp->qif_in.fd, SELECT_READ, (select_callback)dhcp_decaps, dhcp, 1);
+    net_select_reg(&sctx, dhcp->qif_out.fd, SELECT_READ, (select_callback)dhcp_decaps, dhcp, 2);
+  }
+#endif
 #elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
   net_select_reg(&sctx, dhcp->rawif.fd, SELECT_READ, (select_callback)dhcp_receive, dhcp, 0);
 #endif
