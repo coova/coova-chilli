@@ -669,7 +669,8 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
 
   return 0;
 #else
-  log_error(0, "Not implemeneted; build with --with-nfqueue");
+  log_err(0, "Not implemeneted; build with --with-nfqueue");
+  return -1;
 #endif
 }
 
