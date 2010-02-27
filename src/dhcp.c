@@ -2599,7 +2599,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     
     dhcp_uam_nat(conn, pack_ethh, pack_iph, pack_tcph, &this->uamlisten,
 		 _options.uamuiport ? _options.uamuiport : this->uamport);
-    
+
   }
   
   switch (conn->authstate) {
@@ -2882,7 +2882,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
     } else {
       pkt = pack;
     }
-  } else {      /* IP packet XXX: is there *any* way to avoid the memcpy? */
+  } else { /* IP packet XXX: is there *any* way to avoid the memcpy? */
     size_t hdrlen = sizeofeth2(tag);
     memcpy(packet + hdrlen, pack, len);
     length += hdrlen;

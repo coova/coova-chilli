@@ -1935,6 +1935,7 @@ int access_request(struct radius_packet_t *pack,
   size_t offset = 0;
   size_t eaplen = 0;
   int instance = 0;
+  int id;
 
   if (_options.debug) 
     log_dbg("RADIUS Access-Request received");
@@ -1944,6 +1945,7 @@ int access_request(struct radius_packet_t *pack,
     return -1;
   }
 
+  id = radius_pack.id;
   radius_pack.id = pack->id;
 
   /* User is identified by either IP address OR MAC address */
@@ -2216,6 +2218,8 @@ int access_request(struct radius_packet_t *pack,
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
 		   (uint8_t*) _options.radiusnasid, strlen(_options.radiusnasid));
   
+  radius_pack.id = id;
+
   return radius_req(radius, &radius_pack, appconn);
 }
 

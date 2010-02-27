@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 #include "radius_wispr.h"
 #include "radius_chillispot.h"
 
-#define _debug_ 0
+#define _debug_ 1
 
 void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   struct in_addr inaddr;
@@ -74,13 +74,15 @@ int radius_printqueue(struct radius_t *this) {
 
   for(n=0; n < mx; n++) {
     if (this->queue[n].state) {
-      log_dbg("%3d %3d %3d %3d %8d %8d %d",
-	     n, this->queue[n].state,
-	     this->queue[n].next,
-	     this->queue[n].prev,
-	     (int) this->queue[n].timeout.tv_sec,
-	     (int) this->queue[n].timeout.tv_usec,
-	     (int) this->queue[n].retrans);
+      log_dbg("n=%3d id=%3d state=%3d next=%3d prev=%3d %8d %8d %d",
+	      n, 
+	      this->queue[n].p.id,
+	      this->queue[n].state,
+	      this->queue[n].next,
+	      this->queue[n].prev,
+	      (int) this->queue[n].timeout.tv_sec,
+	      (int) this->queue[n].timeout.tv_usec,
+	      (int) this->queue[n].retrans);
     }
   }
 
@@ -299,6 +301,8 @@ static int radius_queue_idx(struct radius_t *this, int id) {
   if (id < 0 || id >= RADIUS_QUEUESIZE) {
     return -1;
   }
+
+  log_dbg("id=%d qsize=%d", id, this->qsize);
 
   if (this->qsize) {
     int cnt = this->qsize;

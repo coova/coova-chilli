@@ -635,7 +635,6 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
 
   if (nfq_unbind_pf(netif->h, AF_INET) < 0) {
     log_err(errno, "error during nfq_unbind_pf()");
-    return -1;
   }
   
   if (nfq_bind_pf(netif->h, AF_INET) < 0) {
@@ -649,23 +648,12 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
     return -1;
   }
   
-  if (nfq_set_mode(netif->qh, NFQNL_COPY_PACKET, 0xffff) < 0) {
+  if (nfq_set_mode(netif->qh, NFQNL_COPY_PACKET, 21 /*0xffff*/) < 0) {
     log_err(errno, "error during nfq_set_mode()");
     return -1;
   }
   
   netif->fd = nfq_fd(netif->h);
-
-  {
-    int option = 1;
-    if (setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY, &option, sizeof(option)) < 0) {
-      log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
-	      netif->fd, SOL_SOCKET, TCP_NODELAY, sizeof(option));
-      return -1;
-    }
-  }
-
-  fcntl(netif->fd, F_SETFL, fcntl(netif->fd, F_GETFL) | O_NONBLOCK);
 
   return 0;
 #else
