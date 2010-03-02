@@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS=foreign
 EXTRA_DIST = cmdline.ggo cmdline.patch
 
 lib_LTLIBRARIES = libchilli.la
-sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt queue
+sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt 
 
 libchilli_la_SOURCES = \
 chilli.c tun.c tun.h ippool.c ippool.h radius.h radius.c \
@@ -30,7 +30,7 @@ chilli_radconfig_SOURCES = main-radconfig.c
 chilli_response_SOURCES = main-response.c 
 chilli_query_SOURCES = main-query.c 
 chilli_opt_SOURCES = main-opt.c ${cmdline_sources}
-queue_SOURCES = queue_test.c 
+#queue_SOURCES = queue_test.c 
 #test_radius_SOURCES = test-radius.c 
 #test_dhcp_SOURCES = test-dhcp.c 
 
