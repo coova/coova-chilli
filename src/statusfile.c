@@ -36,6 +36,8 @@ extern struct ippool_t *ippool;
 #define MARK_NEXT  0x34 /* arbitrary */
 
 #ifdef ENABLE_BINSTATFILE
+static int has_loaded = 0;
+
 int loadstatus() {
   char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
   struct stat statbuf;
@@ -45,6 +47,8 @@ int loadstatus() {
 
   struct dhcp_conn_t dhcpconn;
   struct app_conn_t appconn;
+
+  has_loaded = 1;
 
   if (!_options.usestatusfile) 
     return 1;
@@ -72,14 +76,9 @@ int loadstatus() {
   }
 
   while (fread(&dhcpconn, sizeof(struct dhcp_conn_t), 1, file) == 1) {
-    struct dhcp_conn_t *conn=0;
+    struct dhcp_conn_t *conn = 0;
     struct ippoolm_t *newipm;
     int n;
-
-    log_info("Loaded dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	     dhcpconn.hismac[0], dhcpconn.hismac[1],
-	     dhcpconn.hismac[2], dhcpconn.hismac[3],
-	     dhcpconn.hismac[4], dhcpconn.hismac[5]);
 
     /* todo: read a md5 checksum or magic token */
 
@@ -88,71 +87,159 @@ int loadstatus() {
       return -1;
     }
 
-    dhcp_lnkconn(dhcp, &conn);
+    if (dhcp_hashget(dhcp, &conn, dhcpconn.hismac)) {
 
-    /* set/copy all the pointers */
-    dhcpconn.nexthash = conn->nexthash;
-    dhcpconn.next = conn->next;
-    dhcpconn.prev = conn->prev;
-    dhcpconn.parent = dhcp;
+      log_info("Loading dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	       dhcpconn.hismac[0], dhcpconn.hismac[1],
+	       dhcpconn.hismac[2], dhcpconn.hismac[3],
+	       dhcpconn.hismac[4], dhcpconn.hismac[5]);
 
-    /* initialize dhcp_conn_t */
-    memcpy(conn, &dhcpconn, sizeof(struct dhcp_conn_t));
+      /* not already known */
+      dhcp_lnkconn(dhcp, &conn);
+      
+      /* set/copy all the pointers */
+      dhcpconn.nexthash = conn->nexthash;
+      dhcpconn.next = conn->next;
+      dhcpconn.prev = conn->prev;
+      dhcpconn.parent = dhcp;
 
-    for (n=0; n < DHCP_DNAT_MAX; n++) {
-      memset(conn->dnat[n].mac, 0, PKT_ETH_ALEN); 
-    }
-
-    /* add into ippool */
-    if (ippool_newip(ippool, &newipm, &dhcpconn.hisip, 1)) {
-      if (ippool_newip(ippool, &newipm, &dhcpconn.hisip, 0)) {
-	log_err(0, "Failed to allocate either static or dynamic IP address");
-	fclose(file); 
-	return -1;
+      dhcpconn.is_reserved = 0; /* never a reserved ip if added here */
+      
+      /* initialize dhcp_conn_t */
+      memcpy(conn, &dhcpconn, sizeof(struct dhcp_conn_t));
+      
+      for (n=0; n < DHCP_DNAT_MAX; n++) {
+	memset(conn->dnat[n].mac, 0, PKT_ETH_ALEN); 
       }
-    }
-
-    dhcp_hashadd(dhcp, conn);
-
-    if (conn->peer) {
-      conn->peer = 0;
-
-      if (fread(&appconn, sizeof(struct app_conn_t), 1, file) == 1) {
-	struct app_conn_t *aconn = 0;
-
-	if ((c = fgetc(file)) != MARK_NEXT) {
-	  fclose(file); 
-	  return -1;
+      
+      /* add into ippool */
+      if (ippool_getip(ippool, &newipm, &dhcpconn.hisip)) {
+	if (ippool_newip(ippool, &newipm, &dhcpconn.hisip, 1)) {
+	  if (ippool_newip(ippool, &newipm, &dhcpconn.hisip, 0)) {
+	    log_err(0, "Failed to allocate either static or dynamic IP address");
+	    fclose(file); 
+	    return -1;
+	  }
 	}
-
-	if (chilli_new_conn(&aconn) == 0) {
-	  /* set/copy all the pointers/internals */
-	  appconn.unit = aconn->unit;
-	  appconn.next = aconn->next;
-	  appconn.prev = aconn->prev;
-	  appconn.uplink = newipm;
-	  appconn.dnlink = conn;
-
-	  /* initialize app_conn_t */
-	  memcpy(aconn, &appconn, sizeof(struct app_conn_t));
-	  conn->peer = aconn;
-	  newipm->peer = aconn;
-
-	  if (appconn.natip.s_addr)
-	    chilli_assign_snat(aconn, 1);
-
-	  dhcp_set_addrs(conn, 
-			 &newipm->addr, &_options.mask, 
-			 &aconn->ourip, &aconn->mask,
-			 &_options.dns1, &_options.dns2, 
-			 _options.domain);
-	}
-
-	/* todo: read a md5 checksum or magic token */
       }
-      else {
-	log_err(errno, "Problem loading state file %s",filedest);
-	break;
+      
+      dhcp_hashadd(dhcp, conn);
+      
+      if (conn->peer) {
+	conn->peer = 0;
+	
+	if (fread(&appconn, sizeof(struct app_conn_t), 1, file) == 1) {
+	  struct app_conn_t *aconn = 0;
+	  
+	  if ((c = fgetc(file)) != MARK_NEXT) {
+	    fclose(file); 
+	    return -1;
+	  }
+	  
+	  if (chilli_new_conn(&aconn) == 0) {
+	    /* set/copy all the pointers/internals */
+	    appconn.unit = aconn->unit;
+	    appconn.next = aconn->next;
+	    appconn.prev = aconn->prev;
+	    appconn.uplink = newipm;
+	    appconn.dnlink = conn;
+	    
+	    /* initialize app_conn_t */
+	    memcpy(aconn, &appconn, sizeof(struct app_conn_t));
+	    conn->peer = aconn;
+	    newipm->peer = aconn;
+	    
+	    if (appconn.natip.s_addr)
+	      chilli_assign_snat(aconn, 1);
+	    
+	    dhcp_set_addrs(conn, 
+			   &newipm->addr, &_options.mask, 
+			   &aconn->ourip, &aconn->mask,
+			   &_options.dns1, &_options.dns2, 
+			   _options.domain);
+	  }
+	  
+	  /* todo: read a md5 checksum or magic token */
+	}
+	else {
+	  log_err(errno, "Problem loading state file %s",filedest);
+	  break;
+	}
+      }
+
+    } else {
+
+      log_info("Known dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	       dhcpconn.hismac[0], dhcpconn.hismac[1],
+	       dhcpconn.hismac[2], dhcpconn.hismac[3],
+	       dhcpconn.hismac[4], dhcpconn.hismac[5]);
+
+      conn->authstate = dhcpconn.authstate;
+      
+      if (dhcpconn.peer) {
+
+	log_info("Reading appconn (peer)");
+
+	if (fread(&appconn, sizeof(struct app_conn_t), 1, file) == 1) {
+
+	  if ((c = fgetc(file)) != MARK_NEXT) {
+	    fclose(file); 
+	    return -1;
+	  }
+
+	  if (conn->peer) {
+	    /*
+	     * Already have an appconn.
+	     */
+	    struct app_conn_t *aconn = (struct app_conn_t*) conn->peer;
+	    
+	    log_info("Overwriting existing appconn %d", appconn.s_state.authenticated);
+	    
+	    memcpy(&aconn->s_params, &appconn.s_params, sizeof(struct session_params));
+	    memcpy(&aconn->s_state, &appconn.s_state, sizeof(struct session_state));
+	    
+	  } else {
+	    /*
+	     * No peer (appconn), then create it just as above.
+	     */
+	    struct app_conn_t *aconn = 0;
+	    
+	    log_info("Creating new appconn (peer)");
+	    
+	    if (ippool_getip(ippool, &newipm, &conn->hisip)) {
+	      if (ippool_newip(ippool, &newipm, &conn->hisip, 1)) {
+		if (ippool_newip(ippool, &newipm, &conn->hisip, 0)) {
+		  log_err(0, "Failed to allocate either static or dynamic IP address");
+		  fclose(file); 
+		  return -1;
+		}
+	      }
+	    }
+	    
+	    if (chilli_new_conn(&aconn) == 0) {
+	      /* set/copy all the pointers/internals */
+	      appconn.unit = aconn->unit;
+	      appconn.next = aconn->next;
+	      appconn.prev = aconn->prev;
+	      appconn.uplink = newipm;
+	      appconn.dnlink = conn;
+	      
+	      /* initialize app_conn_t */
+	      memcpy(aconn, &appconn, sizeof(struct app_conn_t));
+	      conn->peer = aconn;
+	      newipm->peer = aconn;
+	      
+	      if (appconn.natip.s_addr)
+		chilli_assign_snat(aconn, 1);
+	      
+	      dhcp_set_addrs(conn, 
+			     &newipm->addr, &_options.mask, 
+			     &aconn->ourip, &aconn->mask,
+			     &_options.dns1, &_options.dns2, 
+			     _options.domain);
+	    }
+	  }
+	}
       }
     }
   } 
@@ -170,6 +257,9 @@ int printstatus() {
 
   struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
   struct app_conn_t *appconn;
+
+  if (!has_loaded)
+    return 0;
 
   if (!_options.usestatusfile) 
     return 0;

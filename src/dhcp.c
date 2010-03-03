@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2003, 2004, 2005, 2006 Mondru AB.
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -405,7 +405,8 @@ int dhcp_newconn(struct dhcp_t *this,
   dhcp_hashadd(this, *conn);
 
 #ifdef ENABLE_IEEE8021Q
-  dhcp_checktag(*conn, pkt);
+  if (pkt) 
+    dhcp_checktag(*conn, pkt);
 #endif
   
   /* Inform application that connection was created */
@@ -488,8 +489,7 @@ int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause)
  * dhcp_checkconn()
  * Checks connections to see if the lease has expired
  **/
-int dhcp_checkconn(struct dhcp_t *this)
-{
+int dhcp_checkconn(struct dhcp_t *this) {
   struct dhcp_conn_t *conn = this->firstusedconn;
 
   while (conn) {
@@ -518,7 +518,6 @@ static int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 			 struct nfq_data *nfa, void *cbdata) {
   struct nfqnl_msg_packet_hdr *ph;
   struct nfqnl_msg_packet_hw *hw;
-  u_int32_t mark, ifi; 
   u_int32_t id;
   char *data;
   int ret;
@@ -532,9 +531,8 @@ static int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
     id = ntohl(ph->packet_id);
   }
   
-  mark = nfq_get_nfmark(nfa);
-
   /*
+  mark = nfq_get_nfmark(nfa);
   ifi = nfq_get_indev(nfa);
   ifi = nfq_get_outdev(nfa);
   */
@@ -546,7 +544,6 @@ static int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
     struct pkt_tcphdr_t *pack_tcph = (struct pkt_tcphdr_t *)(data + PKT_IP_HLEN);
     struct pkt_udphdr_t *pack_udph = (struct pkt_udphdr_t *)(data + PKT_IP_HLEN);
     struct dhcp_conn_t *conn;
-    struct in_addr ourip;
     struct in_addr addr;
 
     if (!dhcp_hashget(dhcp, &conn, hw->hw_addr)) {
@@ -586,7 +583,6 @@ extern struct ippool_t *ippool;
 static int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 			 struct nfq_data *nfa, void *cbdata) {
   struct nfqnl_msg_packet_hdr *ph;
-  struct nfqnl_msg_packet_hw *hw;
   u_int32_t id;
   char *data;
   int ret;
@@ -1029,19 +1025,17 @@ size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
 
 static
 void tun_sendRESET(struct tun_t *tun, uint8_t *pack, struct app_conn_t *appconn) {
-  uint8_t tcp_pack[PKT_BUFFER];
-
 #ifndef HAVE_NETFILTER_QUEUE
+  uint8_t tcp_pack[PKT_BUFFER];
   tun_encaps(tun, tcp_pack, tcprst(tcp_pack, pack, 1), appconn->s_params.routeidx);
 #endif
 }
 
 static
 void dhcp_sendRESET(struct dhcp_conn_t *conn, uint8_t *pack, char reverse) {
+#ifndef HAVE_NETFILTER_QUEUE
   uint8_t tcp_pack[PKT_BUFFER];
   struct dhcp_t *this = conn->parent;
-  
-#ifndef HAVE_NETFILTER_QUEUE
   dhcp_send(this, &this->rawif, conn->hismac, tcp_pack, tcprst(tcp_pack, pack, reverse));
 #endif
 }
@@ -2491,7 +2485,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   if ((memcmp(pack_ethh->dst, dhcp_nexthop(this), PKT_ETH_ALEN)) && 
       (memcmp(pack_ethh->dst, bmac, PKT_ETH_ALEN))) {
     /*
-    log_dbg("Not for our MAC or broadcast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+      log_dbg("Not for our MAC or broadcast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 	    pack_ethh->dst[0], pack_ethh->dst[1], pack_ethh->dst[2], 
 	    pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
     */
@@ -2512,7 +2506,6 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     log_dbg("dhcp/bootps request being processed");
     return dhcp_getreq(this, pack, len);
   }
-  
   
   /* 
    *  Check to see if we know MAC address
@@ -2573,6 +2566,12 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   }
 
   conn->lasttime = mainclock_now();
+
+  if (pack_iph->saddr != conn->hisip.s_addr) {
+    log_dbg("Received packet with spoofed source!");
+    /*dhcp_sendRENEW(conn, pack, len);*/
+    return 0;
+  }
 
   if (pack_iph->protocol == PKT_IP_PROTO_UDP &&
       pack_udph->dst == htons(DHCP_DNS)) {

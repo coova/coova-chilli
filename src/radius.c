@@ -28,7 +28,7 @@
 #include "radius_wispr.h"
 #include "radius_chillispot.h"
 
-#define _debug_ 1
+#define _debug_ 0
 
 void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   struct in_addr inaddr;
@@ -301,8 +301,6 @@ static int radius_queue_idx(struct radius_t *this, int id) {
   if (id < 0 || id >= RADIUS_QUEUESIZE) {
     return -1;
   }
-
-  log_dbg("id=%d qsize=%d", id, this->qsize);
 
   if (this->qsize) {
     int cnt = this->qsize;

@@ -63,9 +63,15 @@ int tun_discover(struct tun_t *this) {
     return -1;
   }
 
-  ic.ifc_buf = calloc((size_t)ic.ifc_len, 1);
+  if (!(ic.ifc_buf = calloc((size_t)ic.ifc_len, 1))) {
+    log_err(errno, "calloc(ic.ifc_buf)");
+    close(fd);
+    return -1;
+  }
+
   if (ioctl(fd, SIOCGIFCONF, &ic) < 0) {
     log_err(errno, "ioctl(SIOCGIFCONF)");
+    free(ic.ifc_buf);
     close(fd);
     return -1;
   }
@@ -203,6 +209,7 @@ int tun_discover(struct tun_t *this) {
     }
   }
 
+  free(ic.ifc_buf);
   close(fd);
   return 0;
 }

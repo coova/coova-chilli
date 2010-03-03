@@ -133,6 +133,8 @@ struct dhcp_conn_t {
   struct dhcp_nat_t dnat[DHCP_DNAT_MAX]; /* Destination NAT */
   uint16_t mtu;                /* Maximum transfer unit */
 
+  struct in_addr migrateip;    /* Client IP address to migrate to */
+  time_t last_nak;
 
 #ifdef ENABLE_IEEE8021Q
   uint16_t tag8021q;

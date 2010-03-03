@@ -2269,7 +2269,7 @@ int upprot_getip(struct app_conn_t *appconn,
 
     appconn->hisip.s_addr = ipm->addr.s_addr;
 
-    /* TODO: Too many "listen" and "our" addresses having around */
+    /* TODO: Too many "listen" and "ourip" addresses! */
     appconn->ourip.s_addr = _options.dhcplisten.s_addr;
     
     appconn->uplink = ipm;
@@ -3481,12 +3481,6 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   /*if (_options.debug)
     log_dbg("cb_dhcp_data_ind. Packet received. DHCP authstate: %d\n", 
     conn->authstate);*/
-
-  if (ipph->saddr != conn->hisip.s_addr) {
-    log_dbg("Received packet with spoofed source!");
-    /*dhcp_sendRENEW(conn, pack, len);*/
-    return 0;
-  }
 
   if (!appconn) {
     log_err(0, "No peer protocol defined");

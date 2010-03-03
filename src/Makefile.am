@@ -1,9 +1,12 @@
 AUTOMAKE_OPTIONS=foreign
 
-EXTRA_DIST = cmdline.ggo cmdline.patch
+EXTRA_DIST = cmdline.ggo cmdline.patch \
+linux/Makefile linux/xt_coova.c linux/xt_coova.h \
+linux/ipt_coova.h linux/libxt_coova.c
+
 
 lib_LTLIBRARIES = libchilli.la
-sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt 
+sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt
 
 libchilli_la_SOURCES = \
 chilli.c tun.c tun.h ippool.c ippool.h radius.h radius.c \
@@ -20,7 +23,6 @@ AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fno-strict-aliasing \
  -DDEFCHILLICONF='"$(sysconfdir)/chilli.conf"'\
  -DDEFPIDFILE='"$(localstatedir)/run/chilli.pid"'\
  -DDEFSTATEDIR='"$(localstatedir)/run"'\
- -DDEFCMDSOCK='"$(localstatedir)/run/chilli.sock"'\
  -DSBINDIR='"$(sbindir)"' -I$(top_builddir)/bstring 
 
 cmdline_sources=cmdline.c cmdline.h 
@@ -88,6 +90,11 @@ chilli_redir_LDADD = ${LDADD}
 if WITH_CURL
 chilli_redir_LDADD += -lcurl -lz 
 endif
+endif
+
+if WITH_NETFILTER_COOVA
+SUBDIRS = linux
+libchilli_la_SOURCES += kcoova.c
 endif
 
 cmdline.c cmdline.h: cmdline.ggo cmdline.patch

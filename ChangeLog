@@ -1,6 +1,10 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+* Bug fix for RADIUS (EAP) proxy
+* Preliminary support for Netfilter NFQUEUE usage
+* Support for globbing of cmdsock filename(s) in chilli_query
+	
 == ChangeLog (CoovaChilli-v1.2.2 svn revision 291) ==
 
 * Added support for RadSec secure (SSL/TLS) RADIUS tunneling

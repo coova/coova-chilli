@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,6 +30,10 @@
 #include "chilli.h"
 #include "options.h"
 #include "cmdsock.h"
+
+#ifdef HAVE_GLOB
+#include <glob.h>
+#endif
 
 struct options_t _options;
 
@@ -73,7 +77,13 @@ int main(int argc, char **argv) {
    *   (or maybe this should get the unix-socket from the config file)
    */
 
-  char *cmdsock = DEFCMDSOCK;
+#ifdef HAVE_GLOB
+  char *cmdsock = DEFSTATEDIR"/chilli*.sock";
+  glob_t globbuf;
+  int i;
+#else
+  char *cmdsock = DEFSTATEDIR"/chilli.sock";
+#endif
   int s, len;
   struct sockaddr_un remote;
   struct cmdsock_request request;
@@ -355,6 +365,14 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
+#ifdef HAVE_GLOB
+  globbuf.gl_offs = 0;
+  glob(cmdsock,GLOB_DOOFFS,NULL,&globbuf);
+  
+  for (i=0 ; i < globbuf.gl_pathc; i++) {
+    cmdsock = globbuf.gl_pathv[i];
+#endif
+
   if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     perror("socket");
     exit(1);
@@ -387,6 +405,11 @@ int main(int argc, char **argv) {
 
   shutdown(s,2);
   close(s);
+
+#ifdef HAVE_GLOB
+  }
+  globfree(&globbuf);
+#endif
   
   return 0;
 }
