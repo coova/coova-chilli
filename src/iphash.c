@@ -95,6 +95,7 @@ int iphash_new(struct iphash_t **this, struct iphashm_t **member, int listsize, 
   
   if (!(n->hash = calloc(sizeof(struct iphashm_t *), n->hashsize))){
     log_err(0, "Failed to allocate memory for iphash");
+    free(n);
     return -1;
   }
 

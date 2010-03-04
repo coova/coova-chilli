@@ -4165,6 +4165,21 @@ struct timespec startup_real;
 struct timespec startup_mono;
 #endif
 
+static inline void macauth_reserved() {
+  struct dhcp_conn_t *conn = dhcp->firstusedconn;
+  struct app_conn_t *appconn;
+
+  while (conn) {
+    if (conn->is_reserved && conn->peer) {
+      appconn = (struct app_conn_t *)conn->peer;
+      if (!appconn->s_state.authenticated) {
+	auth_radius((struct app_conn_t *)conn->peer, 0, 0, 0, 0);
+      }
+    }
+    conn = conn->next;
+  }
+}
+
 int chilli_main(int argc, char **argv) {
   select_ctx sctx;
   int status;
@@ -4572,6 +4587,9 @@ int chilli_main(int argc, char **argv) {
   if (loadstatus() != 0) /* Only indicate a fresh start-up if we didn't load keepalive sessions */
 #endif
     acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
+
+  if (_options.ethers && *_options.ethers) 
+    macauth_reserved();
   
   if (_options.adminuser) {
     admin_session.is_adminsession = 1;

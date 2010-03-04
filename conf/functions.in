@@ -175,6 +175,7 @@ writeconfig() {
     if [ "$HS_RADCONF" != "on" -a "$HS_RADCONF" != "url" ]; then 
 	[ "$HS_PAP_OK" = "on" ] && addconfig2 "papalwaysok"
 	[ "$HS_MACAUTH" = "on" ] && addconfig2 "macauth"
+	[ "$HS_MACAUTH" = "on" -a -n "$HS_MACPASSWD" ] && addconfig2 "macpasswd \"$HS_MACPASSWD\""
 	[ "$HS_MACREAUTH" = "on" ] && addconfig2 "macreauth"
 	[ "$HS_MACAUTHDENY" = "on" ] && addconfig2 "macauthdeny"
 	[ "$HS_WPAGUESTS" = "on" ] && addconfig2 "wpaguests"

@@ -4,6 +4,7 @@
 * Bug fix for RADIUS (EAP) proxy
 * Preliminary support for Netfilter NFQUEUE usage
 * Support for globbing of cmdsock filename(s) in chilli_query
+* Improved support for ethers file used with binary status file
 	
 == ChangeLog (CoovaChilli-v1.2.2 svn revision 291) ==
 
