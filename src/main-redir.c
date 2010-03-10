@@ -79,6 +79,15 @@ static redir_request * get_request() {
   }
   
   if (requests_free) {
+    if (_options.debug) {
+      int cnt = 0;
+      req = requests_free;
+      while (req) {
+	req = req->next;
+	cnt++;
+      }
+      log_dbg("redir connections %d", cnt);;
+    }
     req = requests_free;
     requests_free = requests_free->next;
     if (requests_free)
@@ -87,7 +96,7 @@ static redir_request * get_request() {
   
   if (!req) {
     /* problem */
-    log_err(0,"out of connections\n");
+    log_err(0,"out of connections!");
     return 0;
   }
   
@@ -296,6 +305,7 @@ redir_handle_url(struct redir_t *redir,
     }
   }
 
+  redir_conn_finish(&req->conn, req);
   return 1;
 }
 
@@ -461,7 +471,7 @@ int main(int argc, char **argv) {
     */
 
     if (active != active_last) {
-      log_info("active connections: %d", active);
+      log_dbg("active connections: %d", active);
       active_last = active;
     }
 
