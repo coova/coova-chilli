@@ -1301,8 +1301,13 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
   this->debug = debug;
 
   /* Remote radius server parameters */
-  this->hisaddr0.s_addr = _options.radiusserver1.s_addr;
-  this->hisaddr1.s_addr = _options.radiusserver2.s_addr;
+  if (_options.radsec) {
+    inet_aton("127.0.0.1", &this->hisaddr0);
+    this->hisaddr1.s_addr = this->hisaddr0.s_addr;
+  } else {
+    this->hisaddr0.s_addr = _options.radiusserver1.s_addr;
+    this->hisaddr1.s_addr = _options.radiusserver2.s_addr;
+  }
 
   if (_options.radiusauthport) {
     this->authport = _options.radiusauthport;

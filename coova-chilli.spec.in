@@ -22,7 +22,7 @@ your favorite radius server. Read more at http://www.coova.org/.
 
 %build
 
-%configure --enable-miniportal --enable-chilliredir --enable-chilliproxy --with-openssl
+%configure --enable-largelimits --enable-miniportal --enable-chilliredir --enable-chilliproxy --with-openssl
 
 make
 

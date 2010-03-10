@@ -130,6 +130,14 @@ writeconfig() {
 	done
     }
 
+    [ "$HS_AAA" = "http" ] && [ -n "$HS_UAMAAAURL" ] && {
+	HS_RADIUS=localhost
+	HS_RADIUS2=localhost
+	HS_RADAUTH=1812
+	HS_RADACCT=1813
+	addconfig2 "uamaaaurl \"$HS_UAMAAAURL\""
+    }
+
     HS_MACALLOW=$(echo $HS_MACALLOW|sed 's/ /,/g')
     HS_MACALLOW=$(echo $HS_MACALLOW|sed 's/[:-]//g')
     addconfig1 ${HS_MACALLOW:+"macallowed $HS_MACALLOW"}
@@ -191,7 +199,6 @@ writeconfig() {
 	[ "$HS_SWAPOCTETS" = "on" ] && addconfig2 "swapoctets"
 	[ "$HS_DOMAINDNSLOCAL" = "on" ] && addconfig2 "domaindnslocal"
 	[ -n "$HS_UAMALIASNAME" ] && addconfig2 "uamaliasname \"$HS_UAMALIASNAME\""
-	[ -n "$HS_UAMAAAURL" ] && addconfig2 "uamaaaurl \"$HS_UAMAAAURL\""
 	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile \"$HS_ADMINUPDATEFILE\""
 	[ -n "$HS_UAMSECRET" ] && addconfig2 "uamsecret \"$HS_UAMSECRET\""
 

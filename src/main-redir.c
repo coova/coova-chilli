@@ -360,7 +360,8 @@ int redir_accept2(struct redir_t *redir, int idx) {
     
   } else {
     
-    return redir_main(redir, new_socket, new_socket, &address, &baddress, idx, 0);
+    return redir_main(redir, new_socket, new_socket,
+		      &address, &baddress, idx, 0);
 
   }
 
@@ -488,7 +489,9 @@ int main(int argc, char **argv) {
 	    log_err(0, "redir_accept() failed!");
 
 	for (idx=0; idx < max_requests; idx++) {
+
 	  conn_update(&requests[idx].conn, &fdread, &fdwrite, &fdexcep);
+
 	  if (requests[idx].inuse && requests[idx].socket_fd) {
 	    int fd = requests[idx].socket_fd;
 	    if (FD_ISSET(fd, &fdread)) {

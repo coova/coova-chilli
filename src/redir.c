@@ -2785,6 +2785,18 @@ int redir_main(struct redir_t *redir,
        conn.response = REDIR_SUCCESS;
     }
     else {
+
+      if (!forked) {
+	/*
+	 *  When waiting for RADIUS, we need to be forked.
+	 *  TODO: make redir_radius asynchronous.
+	 */
+	pid_t forkpid = redir_fork(infd, outfd);
+	if (forkpid) { /* parent or error */
+	  return redir_main_exit(redir, &httpreq, &socket, forked);
+	}
+      }
+
       termstate = REDIR_TERM_RADIUS;
 
       if (optionsdebug) 

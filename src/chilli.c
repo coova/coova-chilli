@@ -74,7 +74,7 @@ static pid_t chilli_pid = 0;
 static pid_t rtmon_pid = 0;
 #endif
 
-#ifdef ENABLE_CHILLIPROXY
+#if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC)
 static pid_t proxy_pid = 0;
 #endif
 
@@ -108,7 +108,8 @@ static void _sigusr1(int signum) {
   if (redir_pid) 
     kill(redir_pid, SIGUSR1);
 #endif
-#ifdef ENABLE_CHILLIPROXY
+
+#if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC)
   if (proxy_pid) 
     kill(proxy_pid, SIGUSR1);
 #endif
@@ -4781,16 +4782,20 @@ int chilli_main(int argc, char **argv) {
     if (rmdir(file)) log_err(errno, file);
   }
 
+  /*
+   *  Terminate nicely
+   */
+
 #ifdef ENABLE_RTMON_
   if (rtmon_pid > 0)
     kill(rtmon_pid, SIGTERM);
 #endif
-
-#ifdef ENABLE_CHILLIPROXY
+  
+#if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC)
   if (proxy_pid > 0)
     kill(proxy_pid, SIGTERM);
 #endif
-
+  
 #ifdef ENABLE_CHILLIREDIR
   if (redir_pid > 0)
     kill(redir_pid, SIGTERM);

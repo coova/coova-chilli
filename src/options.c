@@ -136,7 +136,7 @@ static int opt_run(int argc, char **argv, int reload) {
   if (!(newargs = calloc(1, sizeof(char *) * (argc + 4)))) {
     return -1;
   }
-  
+
   for (i=1; i < argc; i++) {
     newargs[i] = argv[i];
   }
