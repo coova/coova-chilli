@@ -45,7 +45,7 @@ install: build
 	dh_testroot
 	dh_clean -k
 	dh_installdirs
-	$(MAKE) install prefix=$(CURDIR)/debian/tmp/usr sysconfdir=$(CURDIR)/debian/tmp/etc
+	$(MAKE) install prefix=$(CURDIR)/debian/coova-chilli/usr sysconfdir=$(CURDIR)/debian/coova-chilli/etc
 
 # Build architecture-independent files here.
 binary-indep: build install
