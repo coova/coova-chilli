@@ -5,6 +5,7 @@
 * Preliminary support for Netfilter NFQUEUE usage
 * Support for globbing of cmdsock filename(s) in chilli_query
 * Improved support for ethers file used with binary status file
+* Fix bootstrap: install missing automake files automatically
 	
 == ChangeLog (CoovaChilli-v1.2.2 svn revision 291) ==
 

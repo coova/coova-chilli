@@ -16,7 +16,7 @@ find . -exec chmod go-w '{}' \;
 aclocal
 autoheader
 touch config.h.in
-automake
+automake --add-missing
 autoconf
 ./configure
 make clean
