@@ -4,7 +4,7 @@
 
 # After running this script the directory is ready for distribution as
 # a tarball. It should also be executed before checking milestones
-# into CVS.
+# into subversion.
 
 # After executing this script the project can be build by executing:
 # ./configure
