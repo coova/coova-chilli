@@ -46,12 +46,14 @@ typedef struct _redir_request {
   bstring post;
   bstring wbuf;
 
+  time_t last_active;
+  
   struct conn_t conn;
   
   int socket_fd;
 
   struct _redir_request *prev, *next;
-  
+
 } redir_request;
 
 static int max_requests = 0;
@@ -82,7 +84,7 @@ static redir_request * get_request() {
     if (_options.debug) {
       int cnt = 0;
       req = requests_free;
-      while (req) {
+      while (req) {	
 	req = req->next;
 	cnt++;
       }
@@ -188,6 +190,7 @@ static int redir_conn_finish(struct conn_t *conn, void *ctx) {
 static int redir_conn_read(struct conn_t *conn, void *ctx) {
   redir_request *req = (redir_request *)ctx;
   char b[PKT_MAX_LEN];
+
   int r = read(conn->sock, b, sizeof(b));
 
   /*log_dbg("read: %d", r);*/
@@ -195,7 +198,9 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
   if (r <= 0) {
     redir_conn_finish(conn, ctx);
   } else if (r > 0) {
-    int w = write(req->socket_fd, b, r);
+    int w;
+    req->last_active = mainclock_tick();
+    w = write(req->socket_fd, b, r);
     /*log_dbg("write: %d", w);*/
     if (r != w) {
       log_err(errno, "problem writing what we read");
@@ -236,12 +241,16 @@ redir_handle_url(struct redir_t *redir,
 		 struct redir_conn_t *conn, 
 		 struct redir_httpreq_t *httpreq,
 		 struct redir_socket_t *socket,
+		 struct sockaddr_in *peer, 
 		 void *ctx) {
   redir_request *req = get_request();
   int port = 80;
   int i;
 
   if (!req) return 1;
+
+  req->last_active = mainclock_tick();
+  memcpy(&req->conn.peer, peer, sizeof (struct sockaddr_in));
 
   for (i=0; i < MAX_REGEX_PASS_THROUGHS; i++) {
     
@@ -304,7 +313,7 @@ redir_handle_url(struct redir_t *redir,
       return 0;
     }
   }
-
+  
   redir_conn_finish(&req->conn, req);
   return 1;
 }
@@ -456,12 +465,54 @@ int main(int argc, char **argv) {
       fd_set(redir->fd[1], &fdread);
 
     for (idx=0; idx < max_requests; idx++) {
+
       conn_fd(&requests[idx].conn, &fdread, &fdwrite, &fdexcep, &maxfd);
+
       if (requests[idx].inuse && requests[idx].socket_fd) {
+	time_t now = mainclock_tick();
 	int fd = requests[idx].socket_fd;
-	if (fd > maxfd) maxfd = fd;
-	fd_set(fd, &fdread);
-	active++;
+	int timeout = 120;
+
+	if (now - requests[idx].last_active > timeout) {
+	  redir_conn_finish(&requests[idx].conn, &requests[idx]);
+	} else {
+	  timeout = 0;
+	  if (fd > maxfd) maxfd = fd;
+	  fd_set(fd, &fdread);
+	  active++;
+	}
+	  
+	if (_options.debug) {
+	  struct sockaddr_in address;
+	  socklen_t addrlen = sizeof(address);
+	  
+	  if (getpeername(requests[idx].socket_fd, (struct sockaddr *)&address, &addrlen) >= 0) {
+	    char line[512];
+	    
+	    snprintf(line, sizeof(line),
+		     "#%d %d connection from %s %d",
+		     timeout ? -1 : active, (int) requests[idx].last_active,
+		     inet_ntoa(address.sin_addr),
+		     ntohs(address.sin_port));
+	    
+	    if (requests[idx].conn.sock) {
+	      addrlen = sizeof(address);
+	      if (getpeername(requests[idx].conn.sock, (struct sockaddr *)&address, &addrlen) >= 0) {
+		snprintf(line+strlen(line), sizeof(line)-strlen(line),
+			 " to %s %d",
+			 inet_ntoa(address.sin_addr),
+			 ntohs(address.sin_port));
+	      }
+	    }
+	    
+	    if (timeout) {
+	      snprintf(line+strlen(line), sizeof(line)-strlen(line),
+		       " (timeout)");
+	    }
+
+	    log_dbg("%s", line);
+	  }
+	}
       }
     }
 
@@ -508,8 +559,6 @@ int main(int argc, char **argv) {
 	      char b[1500];
 	      int r;
 
-#ifdef HAVE_SSL
-#endif
 	      r = read(fd, b, sizeof(b));
 
 	      /*log_dbg("read: %d", r);*/
@@ -517,7 +566,9 @@ int main(int argc, char **argv) {
 	      if (r <= 0) {
 		redir_conn_finish(&requests[idx].conn, &requests[idx]);
 	      } else if (r > 0) {
-		int w = write(requests[idx].conn.sock, b, r);
+		int w;
+		requests[idx].last_active = mainclock_tick();
+		w = write(requests[idx].conn.sock, b, r);
 		/*log_dbg("write: %d", w);*/
 		if (r != w) {
 		  log_err(errno, "problem writing what we read");

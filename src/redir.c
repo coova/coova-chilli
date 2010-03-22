@@ -1253,11 +1253,7 @@ void redir_set(struct redir_t *redir, uint8_t *hwaddr, int debug) {
   redir->vlan = _options.vlan;
   redir->nasmac = _options.nasmac;
   redir->nasip = _options.nasip;
-  redir->radiusserver0 = _options.radiusserver1;
-  redir->radiusserver1 = _options.radiusserver2;
-  redir->radiusauthport = _options.radiusauthport;
-  redir->radiusacctport = _options.radiusacctport;
-  redir->radiussecret  = _options.radiussecret;
+
   redir->radiusnasid  = _options.radiusnasid;
   redir->radiuslocationid  = _options.radiuslocationid;
   redir->radiuslocationname  = _options.radiuslocationname;
@@ -1784,6 +1780,10 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   radius_set_cb_auth_conf(radius, redir_cb_radius_auth_conf);
 
   radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST);
+
+#ifdef ENABLE_PROXYVSA
+  radius_addvsa(&radius_pack, &conn->s_state.redir);
+#endif
   
   log_dbg("created radius packet (code=%d, id=%d, len=%d)\n",
 	  radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
@@ -2361,11 +2361,11 @@ int redir_main_exit(struct redir_t *redir, struct redir_httpreq_t *httpreq,
   return _redir_close(socket->fd[0], socket->fd[1]);
 }
 
-static int redir_signal2(int sig) {
+static void redir_signal2(int sig) {
   log_dbg("signal(%d)=%d", getpid(),sig);
 }
 static int redir_close_on_signal[2]={0,0};
-static int redir_signal(int sig) {
+static void redir_signal(int sig) {
   close(redir_close_on_signal[0]);
   close(redir_close_on_signal[1]);
   log_dbg("signal(%d)=%d", getpid(),sig);
@@ -2956,7 +2956,7 @@ int redir_main(struct redir_t *redir,
 
 
   if (redir->cb_handle_url) {
-    switch (redir->cb_handle_url(redir, &conn, &httpreq, &socket, redir->cb_handle_url_ctx)) {
+    switch (redir->cb_handle_url(redir, &conn, &httpreq, &socket, address, redir->cb_handle_url_ctx)) {
     case -1: 
       return redir_main_exit(redir, &httpreq, &socket, forked);
     case 0: 

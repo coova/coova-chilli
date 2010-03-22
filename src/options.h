@@ -174,6 +174,7 @@ struct options_t {
   uint8_t uamuissl:1;               /* Enable SSL/HTTPS on uamuiport (requires SSL support) */
   uint8_t domaindnslocal:1;         /* Wildcard option to consider all hostnames *.domain local */
   uint8_t radsec:1;                 /* Use RadSec tunneling */
+  uint8_t proxymacaccept:1;         /* Auto-accept non-EAP requests on proxy port */
   /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];

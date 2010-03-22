@@ -151,11 +151,7 @@ struct redir_t {
   char *nasmac;
   char *nasip;
   struct in_addr radiuslisten;
-  struct in_addr radiusserver0;
-  struct in_addr radiusserver1;
-  uint16_t radiusauthport;
-  uint16_t radiusacctport;
-  char *radiussecret;
+
   char *radiusnasid;
   char* radiuslocationid;
   char* radiuslocationname;
@@ -174,6 +170,7 @@ struct redir_t {
 			struct redir_conn_t *conn,
 			struct redir_httpreq_t *httpreq,
 			struct redir_socket_t *socket,
+			struct sockaddr_in *peer, 
 			void *ctx);
 
   void * cb_handle_url_ctx;

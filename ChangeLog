@@ -4,6 +4,7 @@
 * Bug fix for RADIUS (EAP) proxy
 * Preliminary support for Netfilter NFQUEUE usage
 * Support for globbing of cmdsock filename(s) in chilli_query
+* Compile option ''--enable-proxyvsa'' to have proxy port sniff out VSAs
 * Improved support for ethers file used with binary status file
 * Fix bootstrap: install missing automake files automatically
 	

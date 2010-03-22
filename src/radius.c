@@ -763,6 +763,20 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
   return 0;
 }
 
+#ifdef ENABLE_PROXYVSA
+int
+radius_addvsa(struct radius_packet_t *pack, struct redir_state *state) {
+  if (state->vsalen) {
+    uint16_t length = ntohs(pack->length);
+    void *m = (void *) pack + (size_t) length;
+    memcpy(m, state->vsa, state->vsalen);
+    length += state->vsalen;
+    pack->length = htons(length);
+    log_dbg("Recalled VSA");
+  }
+  return 0;
+}
+#endif
 
 /* 
  * radius_getattr()
@@ -812,13 +826,13 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
     if (t->t != type) 
       continue;
     
-    if (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && 
+    if (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && vendor_id &&
 	(ntohl(t->v.vv.i) != vendor_id || t->v.vv.t != vendor_type))
       continue;
     
     if (count == instance) {
       
-      if (type == RADIUS_ATTR_VENDOR_SPECIFIC)
+      if (type == RADIUS_ATTR_VENDOR_SPECIFIC && vendor_id)
 	*attr = (struct radius_attr_t *) &t->v.vv.t;
       else
 	*attr = t;
@@ -1304,9 +1318,20 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
   if (_options.radsec) {
     inet_aton("127.0.0.1", &this->hisaddr0);
     this->hisaddr1.s_addr = this->hisaddr0.s_addr;
+
+    this->secretlen = 6;
+    strncpy(this->secret, "radsec", sizeof(this->secret));
   } else {
     this->hisaddr0.s_addr = _options.radiusserver1.s_addr;
     this->hisaddr1.s_addr = _options.radiusserver2.s_addr;
+    
+    if ((this->secretlen = strlen(_options.radiussecret)) > RADIUS_SECRETSIZE) {
+      log_err(0, "Radius secret too long. Truncating to %d characters", 
+	      RADIUS_SECRETSIZE);
+      this->secretlen = RADIUS_SECRETSIZE;
+    }
+    
+    memcpy(this->secret, _options.radiussecret, this->secretlen);
   }
 
   if (_options.radiusauthport) {
@@ -1323,16 +1348,9 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
     this->acctport = RADIUS_ACCTPORT;
   }
 
-  if ((this->secretlen = strlen(_options.radiussecret)) > RADIUS_SECRETSIZE) {
-    log_err(0, "Radius secret too long. Truncating to %d characters", 
-	    RADIUS_SECRETSIZE);
-    this->secretlen = RADIUS_SECRETSIZE;
-  }
-
-  if (hwaddr)
+  if (hwaddr) {
     memcpy(this->nas_hwaddr, hwaddr, sizeof(this->nas_hwaddr));
-
-  memcpy(this->secret, _options.radiussecret, this->secretlen);
+  }
 
   this->lastreply = 0; /* Start out using server 0 */  
   return;
@@ -1659,6 +1677,7 @@ int radius_decaps(struct radius_t *this, int idx) {
   }
 
   if (!coarequest) {
+
     /* Check that reply is from correct address */
     if ((addr.sin_addr.s_addr != this->hisaddr0.s_addr) &&
 	(addr.sin_addr.s_addr != this->hisaddr1.s_addr)) {

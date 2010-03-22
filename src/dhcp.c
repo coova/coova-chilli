@@ -1618,8 +1618,8 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     log_dbg("LocalDNS: Q: %s", name);
     
     switch (type) {
-    case 1:   break;
-    default:  return 0;
+    case 1: break; 
+    default: return 0;
     }
     
     match = dhcp_matchDNS(name, query, sizeof(query), "logout");

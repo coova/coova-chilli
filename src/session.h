@@ -64,6 +64,12 @@ struct redir_state {
   uint8_t statebuf[RADIUS_ATTR_VLEN];
   unsigned char statelen;
 
+#ifdef ENABLE_PROXYVSA
+#define RADIUS_PROXYVSA 128
+  uint8_t vsa[RADIUS_PROXYVSA];
+  size_t vsalen;
+#endif
+
 } __attribute__((packed));
 
 struct session_state {

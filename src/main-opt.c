@@ -184,6 +184,7 @@ int main(int argc, char **argv) {
   _options.domaindnslocal = args_info.domaindnslocal_flag;
   _options.framedservice = args_info.framedservice_flag;
   _options.radsec = args_info.radsec_flag;
+  _options.proxymacaccept = args_info.proxymacaccept_flag;
 
   if (args_info.dhcpgateway_arg &&
       !inet_aton(args_info.dhcpgateway_arg, &_options.dhcpgwip)) {

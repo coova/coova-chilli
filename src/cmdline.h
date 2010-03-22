@@ -199,6 +199,8 @@ struct gengetopt_args_info
   char * proxysecret_arg;	/**< @brief Radius proxy shared secret.  */
   char * proxysecret_orig;	/**< @brief Radius proxy shared secret original value given at command line.  */
   const char *proxysecret_help; /**< @brief Radius proxy shared secret help description.  */
+  int proxymacaccept_flag;	/**< @brief Auto-accept non-EAP requests on proxy port (default=off).  */
+  const char *proxymacaccept_help; /**< @brief Auto-accept non-EAP requests on proxy port help description.  */
   char * dhcpif_arg;	/**< @brief Local Ethernet interface.  */
   char * dhcpif_orig;	/**< @brief Local Ethernet interface original value given at command line.  */
   const char *dhcpif_help; /**< @brief Local Ethernet interface help description.  */
@@ -511,6 +513,7 @@ struct gengetopt_args_info
   unsigned int proxyport_given ;	/**< @brief Whether proxyport was given.  */
   unsigned int proxyclient_given ;	/**< @brief Whether proxyclient was given.  */
   unsigned int proxysecret_given ;	/**< @brief Whether proxysecret was given.  */
+  unsigned int proxymacaccept_given ;	/**< @brief Whether proxymacaccept was given.  */
   unsigned int dhcpif_given ;	/**< @brief Whether dhcpif was given.  */
   unsigned int dhcpmac_given ;	/**< @brief Whether dhcpmac was given.  */
   unsigned int dhcpmacset_given ;	/**< @brief Whether dhcpmacset was given.  */

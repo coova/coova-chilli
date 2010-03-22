@@ -166,4 +166,8 @@ time_t mainclock_rt();
 int mainclock_diff(time_t past);
 uint32_t mainclock_diffu(time_t past);
 
+#ifdef ENABLE_PROXYVSA
+int radius_addvsa(struct radius_packet_t *pack, struct redir_state *state);
+#endif
+
 #endif /*_CHILLI_H */

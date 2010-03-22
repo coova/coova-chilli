@@ -869,6 +869,10 @@ int static auth_radius(struct app_conn_t *appconn,
     maptag( DHCP_OPTION_HOSTNAME,                RADIUS_ATTR_CHILLISPOT_DHCP_HOSTNAME );
 #undef maptag
   }
+
+#ifdef ENABLE_PROXYVSA
+  radius_addvsa(&radius_pack, &appconn->s_state.redir);
+#endif
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
@@ -2028,8 +2032,6 @@ int access_request(struct radius_packet_t *pack,
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     appconn = (struct app_conn_t *)dhcpconn->peer;
-    /*if (appconn->dnprot == DNPROT_DHCP_NONE)*/
-    appconn->dnprot = DNPROT_WPA;
   }
   else {
     log_err(0, "Framed IP address or Calling Station ID is missing from radius request");
@@ -2077,12 +2079,49 @@ int access_request(struct radius_packet_t *pack,
     }
   } while (eapattr);
   
+  if (resplen) {
+    appconn->dnprot = DNPROT_WPA;
+  }
+
+#ifdef ENABLE_PROXYVSA
+  {
+    struct radius_attr_t *attr = NULL;
+    instance=0;
+    appconn->s_state.redir.vsalen = 0;
+    do {
+      attr=NULL;
+      if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, 0, 0, 
+			  instance++)) {
+	
+	if ((appconn->s_state.redir.vsalen + (size_t) attr->l) > RADIUS_PROXYVSA) {
+	  log_warn(0, "VSAs too long");
+	  return radius_resp(radius, &radius_pack, peer, pack->authenticator);
+	}
+	
+	memcpy(appconn->s_state.redir.vsa + appconn->s_state.redir.vsalen, 
+	       (void *)attr, (size_t) attr->l);
+	
+	appconn->s_state.redir.vsalen += (size_t)attr->l;
+
+	log_dbg("Remembering VSA");
+      }
+    } while (attr);
+  }
+#endif
 
   /* Passwd or EAP must be given in request */
   if ((!pwdattr) && (!resplen)) {
     log_err(0, "Password or EAP meaasge is missing from radius request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
+
+#ifdef ENABLE_PROXYVSA
+  if (_options.proxymacaccept && !resplen) {
+    log_info("Accepting MAC login");
+    radius_pack.code = RADIUS_CODE_ACCESS_ACCEPT;
+    return radius_resp(radius, &radius_pack, peer, pack->authenticator);
+  }
+#endif
 
   /* ChilliSpot Notes:
      Dublicate logins should be allowed as it might be the terminal
@@ -2110,8 +2149,7 @@ int access_request(struct radius_packet_t *pack,
 
   /* Radius auth only for DHCP */
   /*if ((appconn->dnprot != DNPROT_UAM) && (appconn->dnprot != DNPROT_WPA))  { */
-    /*return radius_resp(radius, &radius_pack, peer, pack->authenticator);*/
-  appconn->dnprot = DNPROT_WPA;
+  /*return radius_resp(radius, &radius_pack, peer, pack->authenticator);*/
   /*  }*/
 
   /* NAS IP */
@@ -2186,9 +2224,6 @@ int access_request(struct radius_packet_t *pack,
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		     RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
 		     0, (uint8_t*)"allow-wpa-guests", 16);
-
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
-		   0, 0, 0, NULL, RADIUS_MD5LEN);
   }
 
   /* Include his MAC address */
@@ -2218,7 +2253,14 @@ int access_request(struct radius_packet_t *pack,
   if (_options.radiusnasid)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
 		   (uint8_t*) _options.radiusnasid, strlen(_options.radiusnasid));
-  
+
+#ifdef ENABLE_PROXYVSA
+  radius_addvsa(&radius_pack, &appconn->s_state.redir);
+#endif
+
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+		 0, 0, 0, NULL, RADIUS_MD5LEN);
+
   radius_pack.id = id;
 
   return radius_req(radius, &radius_pack, appconn);
@@ -4589,7 +4631,7 @@ int chilli_main(int argc, char **argv) {
 #endif
     acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
 
-  if (_options.ethers && *_options.ethers) 
+  if (_options.ethers && *_options.ethers && _options.macauth) 
     macauth_reserved();
   
   if (_options.adminuser) {

@@ -76,7 +76,7 @@ option "proxylisten"   - "Proxy IP address to listen on"       string no
 option "proxyport"     - "Proxy UDP port to listen on (0 is off)" int default="0" no
 option "proxyclient"   - "IP address of proxy client(s)" string no
 option "proxysecret"   - "Radius proxy shared secret"    string no
-
+option "proxymacaccept" - "Auto-accept non-EAP requests on proxy port" flag off
 
 # DHCP parameters
 option "dhcpif"      - "Local Ethernet interface"    string no
