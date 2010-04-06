@@ -445,6 +445,10 @@ int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause)
 	  conn->hismac[0], conn->hismac[1], conn->hismac[2],
 	  conn->hismac[3], conn->hismac[4], conn->hismac[5]);
 
+#ifdef HAVE_NETFILTER_COOVA
+  kmod_coova_release(conn);
+#endif
+
   /* Application specific code */
   /* First remove from hash table */
   dhcp_hashdel(this, conn);
@@ -1025,7 +1029,7 @@ size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
 
 static
 void tun_sendRESET(struct tun_t *tun, uint8_t *pack, struct app_conn_t *appconn) {
-#ifndef HAVE_NETFILTER_QUEUE
+#if !defined(HAVE_NETFILTER_QUEUE) && !defined(HAVE_NETFILTER_COOVA)
   uint8_t tcp_pack[PKT_BUFFER];
   tun_encaps(tun, tcp_pack, tcprst(tcp_pack, pack, 1), appconn->s_params.routeidx);
 #endif
@@ -1033,7 +1037,7 @@ void tun_sendRESET(struct tun_t *tun, uint8_t *pack, struct app_conn_t *appconn)
 
 static
 void dhcp_sendRESET(struct dhcp_conn_t *conn, uint8_t *pack, char reverse) {
-#ifndef HAVE_NETFILTER_QUEUE
+#if !defined(HAVE_NETFILTER_QUEUE) && !defined(HAVE_NETFILTER_COOVA)
   uint8_t tcp_pack[PKT_BUFFER];
   struct dhcp_t *this = conn->parent;
   dhcp_send(this, &this->rawif, conn->hismac, tcp_pack, tcprst(tcp_pack, pack, reverse));
@@ -1890,8 +1894,8 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req, struct dhcp_conn_t *c
     } else if (req_dhcp->giaddr) {
       pack_iph->daddr = req_dhcp->giaddr; 
       pack_udph->dst = htons(DHCP_BOOTPS);
-    } else if (type == DHCPNAK ||              /* Nak always to broadcast */
-	       req_dhcp->flags[0] & 0x80 ||    /* Broadcast bit set */
+    } else if (type == DHCPNAK ||            /* Nak always to broadcast */
+	       req_dhcp->flags[0] & 0x80 ||  /* Broadcast bit set */
 	       _options.dhcp_broadcast) {    /* Optional always send to broadcast */
       pack_iph->daddr = ~0; 
       pack_udph->dst = htons(DHCP_BOOTPC);
@@ -2608,6 +2612,16 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
       return 1;
     }
 #endif
+#ifdef HAVE_NETFILTER_COOVA
+    if (_options.kname) {
+      if (conn->peer) {
+	struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+	appconn->s_state.last_sent_time =
+	  appconn->s_state.last_time = mainclock_now();
+      }
+      return 1;
+    }
+#endif
     /* Check for post-auth proxy, otherwise pass packets unmodified */
     dhcp_postauthDNAT(conn, pack, len, 0);
     break; 
@@ -2639,7 +2653,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   case DHCP_AUTH_DROP: 
     log_dbg("dropping packet; auth-drop");
     return 0;
-
+    
   default:
     log_dbg("dropping packet; unhandled auth state %d", conn->authstate);
     return 0;

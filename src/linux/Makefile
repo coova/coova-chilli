@@ -1,4 +1,4 @@
-KERNEL_DIR := /usr/src/linux-headers-$(shell uname -r)
+KERNEL_DIR ?= /usr/src/linux-headers-$(shell uname -r)
 
 obj-m += xt_coova.o
 
@@ -18,12 +18,13 @@ clean:
 	rm -f *.o *~ *.ko *.mod.c Module.markers modules.order Module.symvers libxt_coova.so
 
 lib%.so: lib%.o
-	gcc -shared -o $@ $^;
+	$(CC) $(CFLAGS) -shared -o $@ $^;
 
 lib%.o: lib%.c
-	gcc -O2 -Wall -I${KERNEL_DIR}/include -D_INIT=lib$*_init -c -o $@ $<;
+	$(CC) $(CFLAGS) -O2 -Wall -I${KERNEL_DIR}/include -D_INIT=lib$*_init -c -o $@ $<;
 
 install: modules_install libxt_coova.so
-	cp libxt_coova.so /lib/xtables/
+	mkdir -p $(DESTDIR)/lib/xtables/
+	cp libxt_coova.so $(DESTDIR)/lib/xtables/
 
 distdir:

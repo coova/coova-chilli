@@ -202,6 +202,11 @@ struct options_t {
   uint32_t challengetimeout;
   uint32_t challengetimeout2;
 
+#ifdef ENABLE_PROXYVSA
+  uint32_t proxy_loc_attr_vsa;
+  uint8_t proxy_loc_attr;
+#endif
+
 #ifdef HAVE_SSL
   char *sslkeyfile;
   char *sslkeypass;
@@ -232,6 +237,10 @@ struct options_t {
 
 #ifdef USING_IPC_UNIX
   char *unixipc;
+#endif
+
+#ifdef HAVE_NETFILTER_COOVA
+  char *kname;
 #endif
 
   char * _data; /* actual data buffer for loaded options */

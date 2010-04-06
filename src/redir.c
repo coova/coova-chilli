@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -357,6 +357,32 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   }
+
+#ifdef ENABLE_PROXYVSA
+  if (_options.proxy_loc_attr) {
+    if (conn->s_state.redir.vsalen) {
+      uint16_t len = conn->s_state.redir.vsalen;
+      uint16_t offset = 0;
+      struct radius_attr_t *t;
+
+      while (offset < len) {
+	t = (struct radius_attr_t *)(conn->s_state.redir.vsa + offset);
+	offset += t->l;
+	if (t->t == _options.proxy_loc_attr ||
+	    (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && 
+	     ntohl(t->v.vv.i) == _options.proxy_loc_attr_vsa
+	     && t->v.vv.t == _options.proxy_loc_attr)) {
+	  bcatcstr(str, amp);
+	  bcatcstr(str, "loc=");
+	  bassignblk(bt, (void *)t->v.t, t->l - 2);
+	  redir_urlencode(bt, bt2);
+	  bconcat(str, bt2);
+	  break;
+	}
+      }
+    }
+  }
+#endif
 
   if (conn->lang[0]) {
     bcatcstr(str, amp);

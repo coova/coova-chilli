@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 
+#include <linux/netfilter/x_tables.h>
 #include <xtables.h>
 #include "xt_coova.h"
 

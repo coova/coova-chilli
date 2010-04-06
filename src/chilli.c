@@ -605,6 +605,9 @@ int static getconn(struct app_conn_t **conn, uint32_t nasip, uint32_t nasport) {
 
 int static dnprot_terminate(struct app_conn_t *appconn) {
   appconn->s_state.authenticated = 0;
+#ifdef HAVE_NETFILTER_COOVA
+  kmod_coova_update(appconn);
+#endif
   switch (appconn->dnprot) {
   case DNPROT_WPA:
   case DNPROT_EAPOL:
@@ -687,6 +690,10 @@ static int checkconn() {
   struct dhcp_conn_t* dhcpconn;
   uint32_t checkdiff;
   uint32_t rereaddiff;
+
+#ifdef HAVE_NETFILTER_COOVA
+  kmod_coova_sync();
+#endif
 
   checkdiff = mainclock_diffu(checktime);
 
@@ -1458,6 +1465,10 @@ int static dnprot_accept(struct app_conn_t *appconn) {
   if (!(appconn->s_params.flags & REQUIRE_UAM_AUTH)) {
     /* This is the one and only place state is switched to authenticated */
     appconn->s_state.authenticated = 1;
+
+#ifdef HAVE_NETFILTER_COOVA
+    kmod_coova_update(appconn);
+#endif
     
     /* Run connection up script */
     if (_options.conup) {
@@ -1683,7 +1694,7 @@ int cb_redir_getstate(struct redir_t *redir,
   struct dhcp_conn_t *dhcpconn;
   uint8_t flags = 0;
 
-#ifdef HAVE_NETFILTER_QUEUE
+#if defined(HAVE_NETFILTER_QUEUE) || defined(HAVE_NETFILTER_COOVA)
   if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
     addr->s_addr  = addr->s_addr & ~(_options.mask.s_addr);
     addr->s_addr |= _options.dhcplisten.s_addr & _options.mask.s_addr;
@@ -3421,7 +3432,7 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
 int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
   struct app_conn_t *appconn;
 
-  log(LOG_INFO, "DHCP addr released by MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X IP=%s", 
+  log(LOG_INFO, "DHCP Released MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X IP=%s", 
       conn->hismac[0], conn->hismac[1], 
       conn->hismac[2], conn->hismac[3],
       conn->hismac[4], conn->hismac[5], 
@@ -3436,6 +3447,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 #endif
     return 0;
   }
+
   appconn = (struct app_conn_t*) conn->peer;
 
   if ((appconn->dnprot != DNPROT_DHCP_NONE) &&
@@ -3762,7 +3774,7 @@ int static uam_msg(struct redir_msg_t *msg) {
   struct app_conn_t *appconn = NULL;
   struct dhcp_conn_t* dhcpconn;
 
-#ifdef HAVE_NETFILTER_QUEUE
+#if defined(HAVE_NETFILTER_QUEUE) || defined(HAVE_NETFILTER_COOVA)
   if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
     msg->mdata.address.sin_addr.s_addr  = msg->mdata.address.sin_addr.s_addr & ~(_options.mask.s_addr);
     msg->mdata.address.sin_addr.s_addr |= _options.dhcplisten.s_addr & _options.mask.s_addr;
@@ -3909,6 +3921,10 @@ static int cmdsock_accept(void *nullData, int sock) {
     close(csock);
     return -1;
   }
+
+#ifdef HAVE_NETFILTER_COOVA
+  kmod_coova_sync();
+#endif
 
   switch(req.type) {
 
@@ -4629,7 +4645,12 @@ int chilli_main(int argc, char **argv) {
 #ifdef ENABLE_BINSTATFILE
   if (loadstatus() != 0) /* Only indicate a fresh start-up if we didn't load keepalive sessions */
 #endif
+  {
     acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
+#ifdef HAVE_NETFILTER_COOVA
+    kmod_coova_clear();
+#endif
+  }
 
   if (_options.ethers && *_options.ethers && _options.macauth) 
     macauth_reserved();

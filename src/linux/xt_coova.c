@@ -145,6 +145,7 @@ static void coova_entry_remove(struct coova_table *t, struct coova_entry *e)
 
 static void coova_entry_reset(struct coova_entry *e)
 {
+	e->state = 0;
 	e->bytes_in = 0;
 	e->bytes_out = 0;
 	e->pkts_in = 0;
@@ -216,7 +217,7 @@ coova_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	struct coova_entry *e;
 	union nf_inet_addr addr = {};
 	unsigned char *hwaddr = 0;
-	bool ret = 1;
+	bool ret = 0;
 
 	uint16_t p_bytes = 0;
 
@@ -261,21 +262,30 @@ coova_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		if (e == NULL)
 			goto out;
 	}
-	
-	memcpy(e->hwaddr, hwaddr, ETH_ALEN);
 
-	if (info->side == XT_COOVA_DEST) {
-		e->bytes_out += (uint64_t) p_bytes;
-		e->pkts_out ++;
-	} else {
-		e->bytes_in += (uint64_t) p_bytes;
-		e->pkts_in ++;
+	if (hwaddr)
+		memcpy(e->hwaddr, hwaddr, ETH_ALEN);
+
+	if (e->state) {
+		if (info->side == XT_COOVA_DEST) {
+			e->bytes_out += (uint64_t) p_bytes;
+			e->pkts_out ++;
+		} else {
+			e->bytes_in += (uint64_t) p_bytes;
+			e->pkts_in ++;
+		}
 	}
 
 	coova_entry_update(t, e);
+
+	ret = e->state;
 	
  out:
 	spin_unlock_bh(&coova_lock);
+
+	if (info->invert) 
+		ret = !ret;
+
 	return ret;
 }
 
@@ -437,13 +447,13 @@ static int coova_seq_open(struct inode *inode, struct file *file)
 	if (st == NULL)
 		return -ENOMEM;
 
-	st->table    = pde->data;
+	st->table = pde->data;
 	return 0;
 }
 
 static ssize_t
 coova_mt_proc_write(struct file *file, const char __user *input,
-		     size_t size, loff_t *loff)
+		    size_t size, loff_t *loff)
 {
 	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	struct coova_table *t = pde->data;
@@ -452,7 +462,10 @@ coova_mt_proc_write(struct file *file, const char __user *input,
 	const char *c = buf;
 	union nf_inet_addr addr = {};
 	u_int16_t family;
-	bool add, succ;
+	bool auth=false;
+	bool deauth=false;
+	bool release=false;
+	bool succ;
 
 	if (size == 0)
 		return 0;
@@ -470,14 +483,17 @@ coova_mt_proc_write(struct file *file, const char __user *input,
 		coova_table_flush(t);
 		spin_unlock_bh(&coova_lock);
 		return size;
-	case '-': /* remove address */
-		add = false;
+	case '-': 
+		deauth = true;
 		break;
-	case '+': /* add address */
-		add = true;
+	case '+': 
+		auth = true;
+		break;
+	case '*': 
+		release = true;
 		break;
 	default:
-		printk(KERN_INFO KBUILD_MODNAME ": Need +ip, -ip or /\n");
+		printk(KERN_INFO KBUILD_MODNAME ": Need +ip, -ip, or /\n");
 		return -EINVAL;
 	}
 
@@ -498,16 +514,35 @@ coova_mt_proc_write(struct file *file, const char __user *input,
 	}
 
 	spin_lock_bh(&coova_lock);
+
 	e = coova_entry_lookup(t, &addr, family);
-	if (e == NULL) {
-		if (add)
-			coova_entry_init(t, &addr, family);
-	} else {
-		if (add)
-			coova_entry_update(t, e);
-		else
+
+	if (release) {
+
+		if (e != NULL)
 			coova_entry_remove(t, e);
+
+	} else {
+
+		if (e == NULL) {
+			coova_entry_init(t, &addr, family);
+		} 
+
+		e = coova_entry_lookup(t, &addr, family);
+
+		if (e != NULL) {
+			coova_entry_reset(e);
+			
+			if (auth)
+				e->state = 1;
+			else if (deauth)
+				e->state = 0;
+			
+			coova_entry_update(t, e);
+		}
+
 	}
+
 	spin_unlock_bh(&coova_lock);
 	/* Note we removed one above */
 	*loff += size + 1;
@@ -532,7 +567,9 @@ static struct xt_match coova_mt_reg[] __read_mostly = {
 		.checkentry     = coova_mt_check,
 		.destroy        = coova_mt_destroy,
                 .hooks          = (1 << NF_INET_PRE_ROUTING) |
+		                  (1 << NF_INET_POST_ROUTING) |
                                   (1 << NF_INET_LOCAL_IN) |
+                                  (1 << NF_INET_LOCAL_OUT) |
                                   (1 << NF_INET_FORWARD),
                 .me             = THIS_MODULE,
         },
@@ -544,7 +581,9 @@ static struct xt_match coova_mt_reg[] __read_mostly = {
 		.checkentry     = coova_mt_check,
 		.destroy        = coova_mt_destroy,
                 .hooks          = (1 << NF_INET_PRE_ROUTING) |
+		                  (1 << NF_INET_POST_ROUTING) |
                                   (1 << NF_INET_LOCAL_IN) |
+                                  (1 << NF_INET_LOCAL_OUT) |
                                   (1 << NF_INET_FORWARD),
                 .me             = THIS_MODULE,
         },

@@ -186,6 +186,28 @@ int main(int argc, char **argv) {
   _options.radsec = args_info.radsec_flag;
   _options.proxymacaccept = args_info.proxymacaccept_flag;
 
+
+#ifdef ENABLE_PROXYVSA
+  if (args_info.proxylocattr_arg) {
+    unsigned int i[2];
+    switch (sscanf(args_info.proxylocattr_arg, "%u,%u", &i[0], &i[1])) {
+    case 0:
+      log_err(0, "invalid input %s", args_info.proxylocattr_arg);
+      break;
+    case 1:
+      _options.proxy_loc_attr = i[0];
+      break;
+    case 2:
+      _options.proxy_loc_attr_vsa = i[0];
+      _options.proxy_loc_attr = i[1];
+      break;
+    }
+  } else {
+    _options.proxy_loc_attr_vsa = 0;
+    _options.proxy_loc_attr = 0;
+  }
+#endif
+
   if (args_info.dhcpgateway_arg &&
       !inet_aton(args_info.dhcpgateway_arg, &_options.dhcpgwip)) {
     log_err(0, "Invalid DHCP gateway IP address: %s!", args_info.dhcpgateway_arg);
@@ -725,6 +747,11 @@ int main(int argc, char **argv) {
 #ifdef USING_IPC_UNIX
   if (_options.unixipc) free(_options.unixipc);
   _options.unixipc = STRDUP(args_info.unixipc_arg);
+#endif
+
+#ifdef HAVE_NETFILTER_COOVA
+  if (_options.kname) free(_options.kname);
+  _options.kname = STRDUP(args_info.kname_arg);
 #endif
 
   if (_options.uamurl) free(_options.uamurl);

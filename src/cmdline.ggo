@@ -78,6 +78,8 @@ option "proxyclient"   - "IP address of proxy client(s)" string no
 option "proxysecret"   - "Radius proxy shared secret"    string no
 option "proxymacaccept" - "Auto-accept non-EAP requests on proxy port" flag off
 
+option "proxylocattr" - "The attribute in proxy to be used for the loc= query string parameter" string no
+
 # DHCP parameters
 option "dhcpif"      - "Local Ethernet interface"    string no
 option "dhcpmac"     - "DHCP Interface MAC Address"       string no
@@ -194,3 +196,4 @@ option "natport"   - "Port to use when oding nat on the WAN (routeidx)" int defa
 option "redirssl"  - "Enable redirection of SSL/HTTP port (requires SSL support)" flag off
 option "uamuissl"  - "Enable SSL/HTTPS support on the uamuiport" flag off
 
+option "kname" - "Enable the use of the coova kernel module instance of this namem" string no

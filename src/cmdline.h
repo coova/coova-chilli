@@ -201,6 +201,9 @@ struct gengetopt_args_info
   const char *proxysecret_help; /**< @brief Radius proxy shared secret help description.  */
   int proxymacaccept_flag;	/**< @brief Auto-accept non-EAP requests on proxy port (default=off).  */
   const char *proxymacaccept_help; /**< @brief Auto-accept non-EAP requests on proxy port help description.  */
+  char * proxylocattr_arg;	/**< @brief The attribute in proxy to be used for the loc= query string parameter.  */
+  char * proxylocattr_orig;	/**< @brief The attribute in proxy to be used for the loc= query string parameter original value given at command line.  */
+  const char *proxylocattr_help; /**< @brief The attribute in proxy to be used for the loc= query string parameter help description.  */
   char * dhcpif_arg;	/**< @brief Local Ethernet interface.  */
   char * dhcpif_orig;	/**< @brief Local Ethernet interface original value given at command line.  */
   const char *dhcpif_help; /**< @brief Local Ethernet interface help description.  */
@@ -456,6 +459,9 @@ struct gengetopt_args_info
   const char *redirssl_help; /**< @brief Enable redirection of SSL/HTTP port (requires SSL support) help description.  */
   int uamuissl_flag;	/**< @brief Enable SSL/HTTPS support on the uamuiport (default=off).  */
   const char *uamuissl_help; /**< @brief Enable SSL/HTTPS support on the uamuiport help description.  */
+  char * kname_arg;	/**< @brief Enable the use of the coova kernel module instance of this namem.  */
+  char * kname_orig;	/**< @brief Enable the use of the coova kernel module instance of this namem original value given at command line.  */
+  const char *kname_help; /**< @brief Enable the use of the coova kernel module instance of this namem help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -514,6 +520,7 @@ struct gengetopt_args_info
   unsigned int proxyclient_given ;	/**< @brief Whether proxyclient was given.  */
   unsigned int proxysecret_given ;	/**< @brief Whether proxysecret was given.  */
   unsigned int proxymacaccept_given ;	/**< @brief Whether proxymacaccept was given.  */
+  unsigned int proxylocattr_given ;	/**< @brief Whether proxylocattr was given.  */
   unsigned int dhcpif_given ;	/**< @brief Whether dhcpif was given.  */
   unsigned int dhcpmac_given ;	/**< @brief Whether dhcpmac was given.  */
   unsigned int dhcpmacset_given ;	/**< @brief Whether dhcpmacset was given.  */
@@ -607,6 +614,7 @@ struct gengetopt_args_info
   unsigned int natport_given ;	/**< @brief Whether natport was given.  */
   unsigned int redirssl_given ;	/**< @brief Whether redirssl was given.  */
   unsigned int uamuissl_given ;	/**< @brief Whether uamuissl was given.  */
+  unsigned int kname_given ;	/**< @brief Whether kname was given.  */
 
 } ;
 

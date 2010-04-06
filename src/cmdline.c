@@ -89,6 +89,7 @@ const char *gengetopt_args_info_help[] = {
   "      --proxyclient=STRING      IP address of proxy client(s)",
   "      --proxysecret=STRING      Radius proxy shared secret",
   "      --proxymacaccept          Auto-accept non-EAP requests on proxy port  \n                                  (default=off)",
+  "      --proxylocattr=STRING     The attribute in proxy to be used for the loc= \n                                  query string parameter",
   "      --dhcpif=STRING           Local Ethernet interface",
   "      --dhcpmac=STRING          DHCP Interface MAC Address",
   "      --dhcpmacset              Option to have dhcpif configured with dhcpmac  \n                                  (default=off)",
@@ -182,6 +183,7 @@ const char *gengetopt_args_info_help[] = {
   "      --natport=INT             Port to use when oding nat on the WAN \n                                  (routeidx)  (default=`0')",
   "      --redirssl                Enable redirection of SSL/HTTP port (requires \n                                  SSL support)  (default=off)",
   "      --uamuissl                Enable SSL/HTTPS support on the uamuiport  \n                                  (default=off)",
+  "      --kname=STRING            Enable the use of the coova kernel module \n                                  instance of this namem",
     0
 };
 
@@ -291,6 +293,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->proxyclient_given = 0 ;
   args_info->proxysecret_given = 0 ;
   args_info->proxymacaccept_given = 0 ;
+  args_info->proxylocattr_given = 0 ;
   args_info->dhcpif_given = 0 ;
   args_info->dhcpmac_given = 0 ;
   args_info->dhcpmacset_given = 0 ;
@@ -384,6 +387,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->natport_given = 0 ;
   args_info->redirssl_given = 0 ;
   args_info->uamuissl_given = 0 ;
+  args_info->kname_given = 0 ;
 }
 
 static
@@ -493,6 +497,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->proxysecret_arg = NULL;
   args_info->proxysecret_orig = NULL;
   args_info->proxymacaccept_flag = 0;
+  args_info->proxylocattr_arg = NULL;
+  args_info->proxylocattr_orig = NULL;
   args_info->dhcpif_arg = NULL;
   args_info->dhcpif_orig = NULL;
   args_info->dhcpmac_arg = NULL;
@@ -647,6 +653,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->natport_orig = NULL;
   args_info->redirssl_flag = 0;
   args_info->uamuissl_flag = 0;
+  args_info->kname_arg = NULL;
+  args_info->kname_orig = NULL;
   
 }
 
@@ -712,107 +720,109 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->proxyclient_help = gengetopt_args_info_help[54] ;
   args_info->proxysecret_help = gengetopt_args_info_help[55] ;
   args_info->proxymacaccept_help = gengetopt_args_info_help[56] ;
-  args_info->dhcpif_help = gengetopt_args_info_help[57] ;
-  args_info->dhcpmac_help = gengetopt_args_info_help[58] ;
-  args_info->dhcpmacset_help = gengetopt_args_info_help[59] ;
-  args_info->nexthop_help = gengetopt_args_info_help[60] ;
-  args_info->dhcpradius_help = gengetopt_args_info_help[61] ;
-  args_info->dhcpgateway_help = gengetopt_args_info_help[62] ;
-  args_info->dhcpgatewayport_help = gengetopt_args_info_help[63] ;
-  args_info->dhcprelayagent_help = gengetopt_args_info_help[64] ;
-  args_info->lease_help = gengetopt_args_info_help[65] ;
-  args_info->noc2c_help = gengetopt_args_info_help[66] ;
-  args_info->eapolenable_help = gengetopt_args_info_help[67] ;
-  args_info->uamserver_help = gengetopt_args_info_help[68] ;
-  args_info->uamhomepage_help = gengetopt_args_info_help[69] ;
-  args_info->uamsecret_help = gengetopt_args_info_help[70] ;
-  args_info->uamlisten_help = gengetopt_args_info_help[71] ;
-  args_info->dhcplisten_help = gengetopt_args_info_help[72] ;
-  args_info->uamport_help = gengetopt_args_info_help[73] ;
-  args_info->uamuiport_help = gengetopt_args_info_help[74] ;
-  args_info->uamallowed_help = gengetopt_args_info_help[75] ;
+  args_info->proxylocattr_help = gengetopt_args_info_help[57] ;
+  args_info->dhcpif_help = gengetopt_args_info_help[58] ;
+  args_info->dhcpmac_help = gengetopt_args_info_help[59] ;
+  args_info->dhcpmacset_help = gengetopt_args_info_help[60] ;
+  args_info->nexthop_help = gengetopt_args_info_help[61] ;
+  args_info->dhcpradius_help = gengetopt_args_info_help[62] ;
+  args_info->dhcpgateway_help = gengetopt_args_info_help[63] ;
+  args_info->dhcpgatewayport_help = gengetopt_args_info_help[64] ;
+  args_info->dhcprelayagent_help = gengetopt_args_info_help[65] ;
+  args_info->lease_help = gengetopt_args_info_help[66] ;
+  args_info->noc2c_help = gengetopt_args_info_help[67] ;
+  args_info->eapolenable_help = gengetopt_args_info_help[68] ;
+  args_info->uamserver_help = gengetopt_args_info_help[69] ;
+  args_info->uamhomepage_help = gengetopt_args_info_help[70] ;
+  args_info->uamsecret_help = gengetopt_args_info_help[71] ;
+  args_info->uamlisten_help = gengetopt_args_info_help[72] ;
+  args_info->dhcplisten_help = gengetopt_args_info_help[73] ;
+  args_info->uamport_help = gengetopt_args_info_help[74] ;
+  args_info->uamuiport_help = gengetopt_args_info_help[75] ;
+  args_info->uamallowed_help = gengetopt_args_info_help[76] ;
   args_info->uamallowed_min = 0;
   args_info->uamallowed_max = 0;
-  args_info->uamdomain_help = gengetopt_args_info_help[76] ;
+  args_info->uamdomain_help = gengetopt_args_info_help[77] ;
   args_info->uamdomain_min = 0;
   args_info->uamdomain_max = 0;
-  args_info->uamregex_help = gengetopt_args_info_help[77] ;
+  args_info->uamregex_help = gengetopt_args_info_help[78] ;
   args_info->uamregex_min = 0;
   args_info->uamregex_max = 0;
-  args_info->uamanydns_help = gengetopt_args_info_help[78] ;
-  args_info->uamanyip_help = gengetopt_args_info_help[79] ;
-  args_info->uamnatanyip_help = gengetopt_args_info_help[80] ;
-  args_info->wisprlogin_help = gengetopt_args_info_help[81] ;
-  args_info->nouamsuccess_help = gengetopt_args_info_help[82] ;
-  args_info->nouamwispr_help = gengetopt_args_info_help[83] ;
-  args_info->uamlogoutip_help = gengetopt_args_info_help[84] ;
-  args_info->uamaliasip_help = gengetopt_args_info_help[85] ;
-  args_info->uamaliasname_help = gengetopt_args_info_help[86] ;
-  args_info->uamhostname_help = gengetopt_args_info_help[87] ;
-  args_info->uamaaaurl_help = gengetopt_args_info_help[88] ;
-  args_info->domaindnslocal_help = gengetopt_args_info_help[89] ;
-  args_info->radsec_help = gengetopt_args_info_help[90] ;
-  args_info->defsessiontimeout_help = gengetopt_args_info_help[91] ;
-  args_info->defidletimeout_help = gengetopt_args_info_help[92] ;
-  args_info->defbandwidthmaxdown_help = gengetopt_args_info_help[93] ;
-  args_info->defbandwidthmaxup_help = gengetopt_args_info_help[94] ;
-  args_info->definteriminterval_help = gengetopt_args_info_help[95] ;
-  args_info->macauth_help = gengetopt_args_info_help[96] ;
-  args_info->macreauth_help = gengetopt_args_info_help[97] ;
-  args_info->macauthdeny_help = gengetopt_args_info_help[98] ;
-  args_info->macallowed_help = gengetopt_args_info_help[99] ;
+  args_info->uamanydns_help = gengetopt_args_info_help[79] ;
+  args_info->uamanyip_help = gengetopt_args_info_help[80] ;
+  args_info->uamnatanyip_help = gengetopt_args_info_help[81] ;
+  args_info->wisprlogin_help = gengetopt_args_info_help[82] ;
+  args_info->nouamsuccess_help = gengetopt_args_info_help[83] ;
+  args_info->nouamwispr_help = gengetopt_args_info_help[84] ;
+  args_info->uamlogoutip_help = gengetopt_args_info_help[85] ;
+  args_info->uamaliasip_help = gengetopt_args_info_help[86] ;
+  args_info->uamaliasname_help = gengetopt_args_info_help[87] ;
+  args_info->uamhostname_help = gengetopt_args_info_help[88] ;
+  args_info->uamaaaurl_help = gengetopt_args_info_help[89] ;
+  args_info->domaindnslocal_help = gengetopt_args_info_help[90] ;
+  args_info->radsec_help = gengetopt_args_info_help[91] ;
+  args_info->defsessiontimeout_help = gengetopt_args_info_help[92] ;
+  args_info->defidletimeout_help = gengetopt_args_info_help[93] ;
+  args_info->defbandwidthmaxdown_help = gengetopt_args_info_help[94] ;
+  args_info->defbandwidthmaxup_help = gengetopt_args_info_help[95] ;
+  args_info->definteriminterval_help = gengetopt_args_info_help[96] ;
+  args_info->macauth_help = gengetopt_args_info_help[97] ;
+  args_info->macreauth_help = gengetopt_args_info_help[98] ;
+  args_info->macauthdeny_help = gengetopt_args_info_help[99] ;
+  args_info->macallowed_help = gengetopt_args_info_help[100] ;
   args_info->macallowed_min = 0;
   args_info->macallowed_max = 0;
-  args_info->macsuffix_help = gengetopt_args_info_help[100] ;
-  args_info->macpasswd_help = gengetopt_args_info_help[101] ;
-  args_info->macallowlocal_help = gengetopt_args_info_help[102] ;
-  args_info->strictmacauth_help = gengetopt_args_info_help[103] ;
-  args_info->wwwdir_help = gengetopt_args_info_help[104] ;
-  args_info->wwwbin_help = gengetopt_args_info_help[105] ;
-  args_info->uamui_help = gengetopt_args_info_help[106] ;
-  args_info->adminuser_help = gengetopt_args_info_help[107] ;
-  args_info->adminpasswd_help = gengetopt_args_info_help[108] ;
-  args_info->adminupdatefile_help = gengetopt_args_info_help[109] ;
-  args_info->rtmonfile_help = gengetopt_args_info_help[110] ;
-  args_info->ethers_help = gengetopt_args_info_help[111] ;
-  args_info->nasmac_help = gengetopt_args_info_help[112] ;
-  args_info->nasip_help = gengetopt_args_info_help[113] ;
-  args_info->ssid_help = gengetopt_args_info_help[114] ;
-  args_info->vlan_help = gengetopt_args_info_help[115] ;
-  args_info->ieee8021q_help = gengetopt_args_info_help[116] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[117] ;
-  args_info->radiusoriginalurl_help = gengetopt_args_info_help[118] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[119] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[120] ;
-  args_info->localusers_help = gengetopt_args_info_help[121] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[122] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[123] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[124] ;
-  args_info->openidauth_help = gengetopt_args_info_help[125] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[126] ;
-  args_info->mschapv2_help = gengetopt_args_info_help[127] ;
-  args_info->chillixml_help = gengetopt_args_info_help[128] ;
-  args_info->acctupdate_help = gengetopt_args_info_help[129] ;
-  args_info->dnsparanoia_help = gengetopt_args_info_help[130] ;
-  args_info->seskeepalive_help = gengetopt_args_info_help[131] ;
-  args_info->usetap_help = gengetopt_args_info_help[132] ;
-  args_info->routeif_help = gengetopt_args_info_help[133] ;
-  args_info->framedservice_help = gengetopt_args_info_help[134] ;
-  args_info->tcpwin_help = gengetopt_args_info_help[135] ;
-  args_info->tcpmss_help = gengetopt_args_info_help[136] ;
-  args_info->maxclients_help = gengetopt_args_info_help[137] ;
-  args_info->challengetimeout_help = gengetopt_args_info_help[138] ;
-  args_info->challengetimeout2_help = gengetopt_args_info_help[139] ;
-  args_info->sslkeyfile_help = gengetopt_args_info_help[140] ;
-  args_info->sslkeypass_help = gengetopt_args_info_help[141] ;
-  args_info->sslcertfile_help = gengetopt_args_info_help[142] ;
-  args_info->sslcafile_help = gengetopt_args_info_help[143] ;
-  args_info->unixipc_help = gengetopt_args_info_help[144] ;
-  args_info->uamallowpost_help = gengetopt_args_info_help[145] ;
-  args_info->natip_help = gengetopt_args_info_help[146] ;
-  args_info->natport_help = gengetopt_args_info_help[147] ;
-  args_info->redirssl_help = gengetopt_args_info_help[148] ;
-  args_info->uamuissl_help = gengetopt_args_info_help[149] ;
+  args_info->macsuffix_help = gengetopt_args_info_help[101] ;
+  args_info->macpasswd_help = gengetopt_args_info_help[102] ;
+  args_info->macallowlocal_help = gengetopt_args_info_help[103] ;
+  args_info->strictmacauth_help = gengetopt_args_info_help[104] ;
+  args_info->wwwdir_help = gengetopt_args_info_help[105] ;
+  args_info->wwwbin_help = gengetopt_args_info_help[106] ;
+  args_info->uamui_help = gengetopt_args_info_help[107] ;
+  args_info->adminuser_help = gengetopt_args_info_help[108] ;
+  args_info->adminpasswd_help = gengetopt_args_info_help[109] ;
+  args_info->adminupdatefile_help = gengetopt_args_info_help[110] ;
+  args_info->rtmonfile_help = gengetopt_args_info_help[111] ;
+  args_info->ethers_help = gengetopt_args_info_help[112] ;
+  args_info->nasmac_help = gengetopt_args_info_help[113] ;
+  args_info->nasip_help = gengetopt_args_info_help[114] ;
+  args_info->ssid_help = gengetopt_args_info_help[115] ;
+  args_info->vlan_help = gengetopt_args_info_help[116] ;
+  args_info->ieee8021q_help = gengetopt_args_info_help[117] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[118] ;
+  args_info->radiusoriginalurl_help = gengetopt_args_info_help[119] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[120] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[121] ;
+  args_info->localusers_help = gengetopt_args_info_help[122] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[123] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[124] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[125] ;
+  args_info->openidauth_help = gengetopt_args_info_help[126] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[127] ;
+  args_info->mschapv2_help = gengetopt_args_info_help[128] ;
+  args_info->chillixml_help = gengetopt_args_info_help[129] ;
+  args_info->acctupdate_help = gengetopt_args_info_help[130] ;
+  args_info->dnsparanoia_help = gengetopt_args_info_help[131] ;
+  args_info->seskeepalive_help = gengetopt_args_info_help[132] ;
+  args_info->usetap_help = gengetopt_args_info_help[133] ;
+  args_info->routeif_help = gengetopt_args_info_help[134] ;
+  args_info->framedservice_help = gengetopt_args_info_help[135] ;
+  args_info->tcpwin_help = gengetopt_args_info_help[136] ;
+  args_info->tcpmss_help = gengetopt_args_info_help[137] ;
+  args_info->maxclients_help = gengetopt_args_info_help[138] ;
+  args_info->challengetimeout_help = gengetopt_args_info_help[139] ;
+  args_info->challengetimeout2_help = gengetopt_args_info_help[140] ;
+  args_info->sslkeyfile_help = gengetopt_args_info_help[141] ;
+  args_info->sslkeypass_help = gengetopt_args_info_help[142] ;
+  args_info->sslcertfile_help = gengetopt_args_info_help[143] ;
+  args_info->sslcafile_help = gengetopt_args_info_help[144] ;
+  args_info->unixipc_help = gengetopt_args_info_help[145] ;
+  args_info->uamallowpost_help = gengetopt_args_info_help[146] ;
+  args_info->natip_help = gengetopt_args_info_help[147] ;
+  args_info->natport_help = gengetopt_args_info_help[148] ;
+  args_info->redirssl_help = gengetopt_args_info_help[149] ;
+  args_info->uamuissl_help = gengetopt_args_info_help[150] ;
+  args_info->kname_help = gengetopt_args_info_help[151] ;
   
 }
 
@@ -1014,6 +1024,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->proxyclient_orig));
   free_string_field (&(args_info->proxysecret_arg));
   free_string_field (&(args_info->proxysecret_orig));
+  free_string_field (&(args_info->proxylocattr_arg));
+  free_string_field (&(args_info->proxylocattr_orig));
   free_string_field (&(args_info->dhcpif_arg));
   free_string_field (&(args_info->dhcpif_orig));
   free_string_field (&(args_info->dhcpmac_arg));
@@ -1116,6 +1128,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->natip_arg));
   free_string_field (&(args_info->natip_orig));
   free_string_field (&(args_info->natport_orig));
+  free_string_field (&(args_info->kname_arg));
+  free_string_field (&(args_info->kname_orig));
   
   
 
@@ -1268,6 +1282,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "proxysecret", args_info->proxysecret_orig, 0);
   if (args_info->proxymacaccept_given)
     write_into_file(outfile, "proxymacaccept", 0, 0 );
+  if (args_info->proxylocattr_given)
+    write_into_file(outfile, "proxylocattr", args_info->proxylocattr_orig, 0);
   if (args_info->dhcpif_given)
     write_into_file(outfile, "dhcpif", args_info->dhcpif_orig, 0);
   if (args_info->dhcpmac_given)
@@ -1450,6 +1466,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "redirssl", 0, 0 );
   if (args_info->uamuissl_given)
     write_into_file(outfile, "uamuissl", 0, 0 );
+  if (args_info->kname_given)
+    write_into_file(outfile, "kname", args_info->kname_orig, 0);
   
 
   i = EXIT_SUCCESS;
@@ -2078,6 +2096,7 @@ cmdline_parser_internal (
         { "proxyclient",	1, NULL, 0 },
         { "proxysecret",	1, NULL, 0 },
         { "proxymacaccept",	0, NULL, 0 },
+        { "proxylocattr",	1, NULL, 0 },
         { "dhcpif",	1, NULL, 0 },
         { "dhcpmac",	1, NULL, 0 },
         { "dhcpmacset",	0, NULL, 0 },
@@ -2171,6 +2190,7 @@ cmdline_parser_internal (
         { "natport",	1, NULL, 0 },
         { "redirssl",	0, NULL, 0 },
         { "uamuissl",	0, NULL, 0 },
+        { "kname",	1, NULL, 0 },
         { 0,  0, 0, 0 }
       };
 
@@ -2950,6 +2970,20 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->proxymacaccept_flag), 0, &(args_info->proxymacaccept_given),
                 &(local_args_info.proxymacaccept_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "proxymacaccept", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* The attribute in proxy to be used for the loc= query string parameter.  */
+          else if (strcmp (long_options[option_index].name, "proxylocattr") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->proxylocattr_arg), 
+                 &(args_info->proxylocattr_orig), &(args_info->proxylocattr_given),
+                &(local_args_info.proxylocattr_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "proxylocattr", '-',
                 additional_error))
               goto failure;
           
@@ -4176,6 +4210,20 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->uamuissl_flag), 0, &(args_info->uamuissl_given),
                 &(local_args_info.uamuissl_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "uamuissl", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Enable the use of the coova kernel module instance of this namem.  */
+          else if (strcmp (long_options[option_index].name, "kname") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->kname_arg), 
+                 &(args_info->kname_orig), &(args_info->kname_given),
+                &(local_args_info.kname_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "kname", '-',
                 additional_error))
               goto failure;
           

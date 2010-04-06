@@ -43,7 +43,7 @@ COOVA_CHALLENGE=$CHI_CHALLENGE
 PORTAL_SESSIONID=${COOKIE_PORTAL_SESSIONID:-$SESSIONID}
     
 http_redirect2() {
-    echo "HTTP/1.0 302 Redirect"
+    echo "HTTP/1.1 302 Redirect"
     echo "Location: $1"
     echo "Set-Cookie: PORTAL_SESSIONID=$PORTAL_SESSIONID"
     echo "Set-Cookie: COOVA_USERURL=$COOVA_USERURL"
@@ -70,7 +70,7 @@ http_header() {
 	http_redirect "/www/disabled.chi"
     }
     
-    echo "HTTP/1.0 200 OK"
+    echo "HTTP/1.1 200 OK"
     echo "Content-Type: text/html"
     echo "Set-Cookie: PORTAL_SESSIONID=$PORTAL_SESSIONID"
     echo "Set-Cookie: COOVA_USERURL=$COOVA_USERURL"

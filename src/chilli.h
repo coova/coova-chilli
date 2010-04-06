@@ -170,4 +170,11 @@ uint32_t mainclock_diffu(time_t past);
 int radius_addvsa(struct radius_packet_t *pack, struct redir_state *state);
 #endif
 
+#ifdef HAVE_NETFILTER_COOVA
+int kmod_coova_update(struct app_conn_t *appconn);
+int kmod_coova_release(struct dhcp_conn_t *conn);
+int kmod_coova_sync();
+int kmod_coova_clear();
+#endif
+
 #endif /*_CHILLI_H */

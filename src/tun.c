@@ -699,7 +699,7 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
     log_dbg("tun_decaps(idx=%d, len=%d)", tun(c->this,c->idx).ifindex, length);
   */
 
-#ifdef HAVE_NETFILTER_QUEUE
+#if defined(HAVE_NETFILTER_QUEUE) || defined(HAVE_NETFILTER_COOVA)
   if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
     struct pkt_iphdr_t *iph;
 
@@ -849,7 +849,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   }
 #endif
 
-#ifdef HAVE_NETFILTER_QUEUE
+#if defined(HAVE_NETFILTER_QUEUE) || defined(HAVE_NETFILTER_COOVA)
   if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
     struct pkt_iphdr_t *iph = iphdr(pack);
 
