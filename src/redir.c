@@ -360,22 +360,33 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
 
 #ifdef ENABLE_PROXYVSA
   if (_options.proxy_loc_attr) {
+    
+    log_dbg("vsalen %d", conn->s_state.redir.vsalen);
+    
     if (conn->s_state.redir.vsalen) {
       uint16_t len = conn->s_state.redir.vsalen;
       uint16_t offset = 0;
       struct radius_attr_t *t;
 
+      log_dbg("search for attr %d %d", 
+	      (int)_options.proxy_loc_attr_vsa, 
+	      (int)_options.proxy_loc_attr);
+
       while (offset < len) {
 	t = (struct radius_attr_t *)(conn->s_state.redir.vsa + offset);
 	offset += t->l;
-	if (t->t == _options.proxy_loc_attr ||
-	    (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && 
-	     ntohl(t->v.vv.i) == _options.proxy_loc_attr_vsa
-	     && t->v.vv.t == _options.proxy_loc_attr)) {
+	if (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && 
+	    ntohl(t->v.vv.i) == RADIUS_VENDOR_CHILLISPOT &&
+	    t->v.vv.t ==  RADIUS_ATTR_CHILLISPOT_LOCATION) {
+
 	  bcatcstr(str, amp);
 	  bcatcstr(str, "loc=");
-	  bassignblk(bt, (void *)t->v.t, t->l - 2);
+	  bassignblk(bt, (void *) t->v.vv.v.t, t->v.vv.l - 2);
 	  redir_urlencode(bt, bt2);
+
+	  log_dbg("found %.*s",
+		  bt->slen, bt->data);
+	  
 	  bconcat(str, bt2);
 	  break;
 	}
@@ -1329,7 +1340,8 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring
 
 /* Read the an HTTP request from a client */
 static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
-			struct redir_conn_t *conn, struct redir_httpreq_t *httpreq) {
+			struct redir_conn_t *conn, struct redir_httpreq_t *httpreq,
+			int forked) {
   int fd = sock->fd[0];
   fd_set fds;
   struct timeval idleTime;
@@ -1337,7 +1349,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
   ssize_t recvlen = 0;
   size_t buflen = 0;
   char buffer[REDIR_MAXBUFFER];
-  int i, lines=0, done=0;
+  int i, lines=0, done=0, eoh=0;
   char *eol;
 
   char read_waiting;
@@ -1357,7 +1369,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
     }
 #endif
     
-    if (!read_waiting) {
+    if (!read_waiting && forked) {
 
       /*
        *  If not already with data from the SSL layer, wait for it. 
@@ -1394,7 +1406,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       }
     }
 
-    if (read_waiting) {
+    if (read_waiting || !forked) {
 
       if (buflen + 2 >= sizeof(buffer)) { /* ensure space for a least one more byte + null */
         log_err(0, "Too much data in http request!");
@@ -1413,15 +1425,20 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       recvlen = recv(fd, buffer + buflen, httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 0);
 
       if (recvlen < 0) {
-	if (errno != ECONNRESET)
-	  log_err(errno, "%s_read() failed!", 
+	if (errno == EWOULDBLOCK && !forked) {
+	  log_dbg("Continue... (would block)");
+	  recvlen = 0;
+	}
+	else if (errno != ECONNRESET) {
+	  log_err(errno, "%s_read(%d) failed!", 
 #ifdef HAVE_SSL
 		  sock->sslcon ? "SSL" : 
 #endif
-		  "redir");
-	return -1;
+		  "redir", fd);
+	  return -1;
+	}
       }
-
+      
       if (recvlen == 0) done=1;
       else if (httpreq->data_in) {
 	bcatblk(httpreq->data_in, buffer + buflen, recvlen);
@@ -1430,21 +1447,38 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       buflen += recvlen;
       buffer[buflen] = 0;
     }
-
+    
+    if (httpreq->data_in && forked) {
+      log_err(0,"should not happen");
+      exit(1);
+    }
+    
+    if (httpreq->data_in && !forked) {
+      if (httpreq->data_in->slen >= sizeof(buffer)) {
+	log_err(0, "buffer too long (%d)", httpreq->data_in->slen);
+	return -1;
+      } else {
+	buflen = httpreq->data_in->slen;
+	memcpy(buffer, httpreq->data_in->data, buflen);
+	buffer[buflen] = 0;
+      }
+    }
+    
     if (buflen == 0) {
       log_dbg("No data in HTTP request!");
+      if (!forked) return 1;
       return -1;
     }
 
     while ((eol = strstr(buffer, "\r\n"))) {
       size_t linelen = eol - buffer;
       *eol = 0;
-
+      
       if (lines++ == 0) { /* first line */
 	size_t dstlen = 0;
 	char *p1 = buffer;
 	char *p2;
-
+	
 	if      (!strncmp("GET ",  p1, 4)) { p1 += 4; }
 	else if (!strncmp("HEAD ", p1, 5)) { p1 += 5; }
 	else if (httpreq->allow_post && !strncmp("POST ", p1, 5)) { 
@@ -1457,12 +1491,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
 	while (*p1 == ' ') p1++; /* Advance through additional white space */
 	if (*p1 == '/') p1++;
-	else return -1;
+	else { log_err(0, "parse error"); return -1; }
 	
 	/* The path ends with a ? or a space */
 	p2 = strchr(p1, '?');
 	if (!p2) p2 = strchr(p1, ' ');
-	if (!p2) return -1;
+	if (!p2) { log_err(0, "parse error"); return -1; }
 	dstlen = p2 - p1;
 
 	if (dstlen >= sizeof(httpreq->path)-1) 
@@ -1525,6 +1559,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	/* end of headers */
 	log_dbg("end of http-request");
 	done = 1;
+	eoh = 1;
 	break;
       } else { 
 	/* headers */
@@ -1565,7 +1600,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  if (len >= sizeof(conn->httpcookie)-1)
 	    len = sizeof(conn->httpcookie)-1;
 	  strncpy(conn->httpcookie, p, len);
-	  conn->httpcookie[len]=0;
+	  conn->httpcookie[len] = 0;
 	  log_dbg("Cookie: %s",conn->httpcookie);
 	}
       }
@@ -1573,9 +1608,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       /* shift buffer */
       linelen += 2;
       for (i = 0; i < (int)(buflen - linelen); i++)
-	buffer[i] = buffer[(int)linelen+i];
+	buffer[i] = buffer[(int)linelen + i];
 
       buflen -= linelen;
+    }
+
+    if (!forked && !eoh) {
+      log_dbg("Didn't see end of headers, continue...");
+      return 1;
     }
   }
 
@@ -1909,20 +1949,20 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
     /* peer challenge - same as auth challenge */
     memcpy(response + 2, chap_challenge, 16); 
     memcpy(response + 26, conn->chappassword, 24);
-
+    
     radius_addattr(radius, &radius_pack, 
 		   RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP_CHALLENGE, 0,
 		   chap_challenge, 16);
-
+    
     radius_addattr(radius, &radius_pack, 
 		   RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP2_RESPONSE, 0,
 		   response, 50);
   }
-
+  
   radius_addnasip(radius, &radius_pack);
-
+  
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
 		 _options.framedservice ? RADIUS_SERVICE_TYPE_FRAMED :
 		 RADIUS_SERVICE_TYPE_LOGIN, NULL, 0); /* WISPr_V1.0 */
@@ -2257,7 +2297,7 @@ int redir_accept(struct redir_t *redir, int idx) {
 
   } else {
 
-    return redir_main(redir, 0, 1, &address, &baddress, idx, 1);
+    return redir_main(redir, 0, 1, &address, &baddress, idx, 0);
 
   }
 
@@ -2375,7 +2415,7 @@ pid_t redir_fork(int in, int out) {
 
 int redir_main_exit(struct redir_t *redir, struct redir_httpreq_t *httpreq, 
 		    struct redir_socket_t *socket, int forked) {
-  if (httpreq->data_in) bdestroy(httpreq->data_in);
+  /*if (httpreq->data_in) bdestroy(httpreq->data_in);*/
 #ifdef HAVE_SSL
   if (socket->sslcon) {
     openssl_shutdown(socket->sslcon, 2);
@@ -2383,6 +2423,7 @@ int redir_main_exit(struct redir_t *redir, struct redir_httpreq_t *httpreq,
     socket->sslcon=0;
   }
 #endif
+  if (!forked) return 0; /*XXXX*/
   if (forked) _redir_close_exit(socket->fd[0], socket->fd[1]);
   return _redir_close(socket->fd[0], socket->fd[1]);
 }
@@ -2401,7 +2442,8 @@ int redir_main(struct redir_t *redir,
 	       int infd, int outfd, 
 	       struct sockaddr_in *address, 
 	       struct sockaddr_in *baddress,
-	       int isui, int forked) {
+	       int isui, redir_request *rreq) {
+
   char hexchal[1+(2*REDIR_MD5LEN)];
   unsigned char challenge[REDIR_MD5LEN];
   size_t bufsize = REDIR_MAXBUFFER;
@@ -2425,13 +2467,16 @@ int redir_main(struct redir_t *redir,
   struct redir_socket_t socket;
   struct redir_httpreq_t httpreq;
 
+  /* We are forked when the redir_request is null */
+  int forked = (rreq == 0);
+
   memset(&httpreq,0,sizeof(httpreq));
   httpreq.allow_post = isui || _options.uamallowpost;
 
   mainclock_tick();
 
-  if (!forked) {
-    httpreq.data_in = bfromcstr("");
+  if (rreq) {
+    httpreq.data_in = rreq->wbuf;
   }
 
 #define redir_memcopy(msgtype) \
@@ -2519,11 +2564,19 @@ int redir_main(struct redir_t *redir,
   }
 #endif
 
+
   termstate = REDIR_TERM_GETREQ;
-  if (redir_getreq(redir, &socket, &conn, &httpreq)) {
-    log_dbg("Error calling get_req. Terminating\n");
+  switch (state = redir_getreq(redir, &socket, &conn, &httpreq, forked)) {
+  case 0: 
+    break;
+  case 1: 
+    log_dbg("Continue...");
+    return 1;
+  default:
+    log_dbg("Error calling get_req. Terminating %d", state);
     return redir_main_exit(redir, &httpreq, &socket, forked);
   }
+
 
   log_dbg("Processing HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
   
@@ -2578,18 +2631,18 @@ int redir_main(struct redir_t *redir,
 	  return redir_main_exit(redir, &httpreq, &socket, forked);
 	}
       }
-
+      
       if (parse) {
-
+	
 	if (!_options.wwwbin) {
 	  log_err(0, "the 'wwwbin' setting must be configured for CGI use");
 	  return redir_main_exit(redir, &httpreq, &socket, forked);
 	}
-
+	
 	if (clear_nonblocking(socket.fd[0])) {
 	  log_err(errno, "fcntl() failed");
 	}
-
+	
 #ifdef HAVE_SSL
 	if (socket.sslcon) {
 
@@ -2981,12 +3034,15 @@ int redir_main(struct redir_t *redir,
     log_dbg("redir_accept: Original request");
 
 
+  /*
+   *  XXX: chilli_redir
+   */
   if (redir->cb_handle_url) {
-    switch (redir->cb_handle_url(redir, &conn, &httpreq, &socket, address, redir->cb_handle_url_ctx)) {
+    switch (redir->cb_handle_url(redir, &conn, &httpreq, &socket, address, rreq)) {
     case -1: 
-      return redir_main_exit(redir, &httpreq, &socket, forked);
+      return -1;
     case 0: 
-      return 0;
+      return 1;
     default:
       break;
     }

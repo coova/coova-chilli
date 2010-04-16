@@ -106,12 +106,14 @@
 #define MAX_REGEX_PASS_THROUGHS          512 /* Max number of allowed UAM pass-throughs */
 #define MAX_UAM_DOMAINS                   56 /* Max number of allowed UAM domains */
 #define MACOK_MAX                         56
+#define MAX_SELECT                        56
 #else
 #define SESSION_PASS_THROUGH_MAX           8
 #define MAX_PASS_THROUGHS                128 /* Max number of allowed UAM pass-throughs */
 #define MAX_REGEX_PASS_THROUGHS            8 /* Max number of allowed UAM pass-throughs */
 #define MAX_UAM_DOMAINS                   32 /* Max number of allowed UAM domains */
 #define MACOK_MAX                         16
+#define MAX_SELECT                        16
 #endif
 
 #endif

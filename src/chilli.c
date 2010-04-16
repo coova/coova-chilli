@@ -1255,9 +1255,15 @@ int chilli_assign_snat(struct app_conn_t *appconn, int force) {
 
   if (ippool_newip(ippool, &newipm, &appconn->natip, 0)) {
     log_err(0, "Failed to allocate SNAT IP address");
+    /*
+     *  Clean up the static pool listing too, it's misconfigured now.
+     */ 
+    if (appconn->dnlink) {
+      dhcp_freeconn((struct dhcp_conn_t *)appconn->dnlink, 0);
+    }
     return -1;
   }
-
+  
   appconn->natip.s_addr = newipm->addr.s_addr;
   newipm->peer = appconn;
 
@@ -2113,10 +2119,57 @@ int access_request(struct radius_packet_t *pack,
 	       (void *)attr, (size_t) attr->l);
 	
 	appconn->s_state.redir.vsalen += (size_t)attr->l;
-
+	
 	log_dbg("Remembering VSA");
       }
     } while (attr);
+    if (_options.proxy_loc_attr) {
+      struct radius_attr_t nattr;
+      memset(&nattr, 0, sizeof(nattr));
+      nattr.t = RADIUS_ATTR_VENDOR_SPECIFIC;
+      nattr.l = 6;
+      nattr.v.vv.i = htonl(RADIUS_VENDOR_CHILLISPOT);
+      nattr.v.vv.t = RADIUS_ATTR_CHILLISPOT_LOCATION;
+      nattr.v.vv.l = 0;
+      attr = 0;
+      if (!_options.proxy_loc_attr_vsa) {
+	/*
+	 *  We have a loc_attr, but it isn't a VSA (so not included above)
+	 */
+
+	log_dbg("looking for attr %d", _options.proxy_loc_attr);
+
+	if (radius_getattr(pack, &attr, _options.proxy_loc_attr, 
+			   0, 0, 0)) {
+	  log_dbg("didn't find attr %d", _options.proxy_loc_attr);
+	  attr = 0;
+	}
+      } else {
+	/*
+	 *  We have a loc_attr and VSA number (so it is included above).
+	 */
+
+	log_dbg("looking for attr %d/%d", _options.proxy_loc_attr_vsa, _options.proxy_loc_attr);
+
+	if (radius_getattr(pack, &attr, 
+			   RADIUS_ATTR_VENDOR_SPECIFIC, 
+			   _options.proxy_loc_attr_vsa, 
+			   _options.proxy_loc_attr, 0)) {
+	  log_dbg("didn't find attr %d/%d", _options.proxy_loc_attr_vsa, _options.proxy_loc_attr);
+	  attr = 0;
+	}
+      }
+      if (attr) {
+	memcpy(&nattr.v.vv.v.t, attr->v.t, attr->l - 2);
+	nattr.v.vv.l = attr->l;
+	nattr.l += attr->l;
+
+	memcpy(appconn->s_state.redir.vsa + appconn->s_state.redir.vsalen, 
+	       (void *)&nattr, (size_t)nattr.l);
+	
+	appconn->s_state.redir.vsalen += (size_t)nattr.l;
+      }
+    }
   }
 #endif
 
@@ -3465,10 +3518,10 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 		    RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
 
   if (appconn->uplink) {
+    struct ippoolm_t *member = (struct ippoolm_t *) appconn->uplink;
 
     if (_options.uamanyip) {
       if (!appconn->natip.s_addr) {
-        struct ippoolm_t *member = (struct ippoolm_t *) appconn->uplink;
 	if (member->in_use && member->is_static) {
 	  struct in_addr mask;
 	  int res;
@@ -3480,15 +3533,17 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 	struct ippoolm_t *natipm;
 	if (ippool_getip(ippool, &natipm, &appconn->natip) == 0) {
 	  if (ippool_freeip(ippool, natipm)) {
-	    log_err(0, "ippool_freeip() failed for nat ip!");
+	    log_err(0, "ippool_freeip(%s) failed for nat ip!",
+		    inet_ntoa(appconn->natip));
 	  }
 	}
       }
     }
 
-    if (!conn->is_reserved) {
-      if (ippool_freeip(ippool, (struct ippoolm_t *) appconn->uplink)) {
-	log_err(0, "ippool_freeip() failed!");
+    if (member->in_use && !conn->is_reserved) {
+      if (ippool_freeip(ippool, member)) {
+	log_err(0, "ippool_freeip(%s) failed!", 
+		inet_ntoa(member->addr));
       }
     }
     
@@ -3952,6 +4007,10 @@ static int cmdsock_accept(void *nullData, int sock) {
 			LIST_JSON_FMT : LIST_LONG_FMT);
     if (write(csock, s->data, s->slen) < 0)
       log_err(errno, "write()");
+    break;
+
+  case CMDSOCK_LIST_IPPOOL:
+    ippool_print(csock, ippool);
     break;
 
   case CMDSOCK_ENTRY_FOR_IP:

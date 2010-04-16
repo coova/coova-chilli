@@ -495,18 +495,19 @@ int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause)
  **/
 int dhcp_checkconn(struct dhcp_t *this) {
   struct dhcp_conn_t *conn = this->firstusedconn;
+  int cnt = 24; /* to not spend too much time */
 
-  while (conn) {
+  while (conn && cnt--) {
     /*
     if (_options.debug)
       log_dbg("dhcp_checkconn: %d %d", mainclock_diff(conn->lasttime), (int) this->lease);
     */
-    if (!conn->is_reserved && mainclock_diff(conn->lasttime) > (int) this->lease) {
-      log_dbg("DHCP timeout: Removing connection");
-      dhcp_freeconn(conn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
-      return 0; /* Returning after first deletion */
-    }
+    struct dhcp_conn_t *check_conn = conn;
     conn = conn->next;
+    if (!check_conn->is_reserved && mainclock_diff(check_conn->lasttime) > (int) this->lease) {
+      log_dbg("DHCP timeout: Removing connection");
+      dhcp_freeconn(check_conn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
+    }
   }
 
   return 0;

@@ -38,6 +38,7 @@
 #define	RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS      22 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS       23 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_VLAN_ID                   24 /* integer */
+#define	RADIUS_ATTR_CHILLISPOT_LOCATION                  25 /* string */
 
 #define RADIUS_ATTR_CHILLISPOT_SYS_UPTIME                40 /* integer */
 #define RADIUS_ATTR_CHILLISPOT_SYS_LOADAVG               41 /* string */

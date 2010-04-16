@@ -224,6 +224,8 @@ writeconfig() {
 	    addconfig2 "proxyclient ${HS_RADPROXY_CLIENT:-127.0.0.1}"
 	    addconfig2 "proxyport ${HS_RADPROXY_PORT:-1645}"
 	    addconfig2 "proxysecret \"${HS_RADPROXY_SECRET:-$HS_RADSECRET}\""
+	    [ "$HS_RADPROXY_MACACCEPT" = "on" ] && addconfig2 "proxymacaccept"
+	    [ -n "$HS_RADPROXY_LOCATTR" ] && addconfig2 "proxylocattr \"$HS_RADPROXY_LOCATTR\""
 	}
 
 	# these are settings you would typically get from a centralized source

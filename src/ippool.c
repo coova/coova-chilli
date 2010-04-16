@@ -28,27 +28,114 @@
 #include "chilli.h"
 #include "options.h"
 
+/*#define _DEBUG_PRINT_ 1*/
+
 const unsigned int IPPOOL_STATSIZE = 0x10000;
 
-int ippool_printaddr(struct ippool_t *this) {
+int ippool_print(int fd, struct ippool_t *this) {
   int n;
-  printf("ippool_printaddr\n");
-  printf("Firstdyn %d\n", this->firstdyn - this->member);
-  printf("Lastdyn %d\n",  this->lastdyn - this->member);
-  printf("Firststat %d\n", this->firststat - this->member);
-  printf("Laststat %d\n",  this->laststat - this->member);
-  printf("Listsize %d\n",  this->listsize);
+  char line[1024];
+  char useLine[16];
+  char peerLine[128];
 
-  for (n=0; n<this->listsize; n++) {
-    printf("Unit %d inuse %s prev %d next %d addr %s %x\n", 
-	   n,
-	   this->member[n].in_use ? "Y" : "N",
-	   this->member[n].prev - this->member,
-	   this->member[n].next - this->member,
-	   inet_ntoa(this->member[n].addr),	
-	   this->member[n].addr.s_addr
-	   );
+  char * sep = "-- %-15s ------------------------------------------------------------\n";
+
+#define ERR 0
+#define USED 1
+#define FREE 2
+#define LIST 3
+  int dyn[4] = { 0, 0, 0, 0};
+  int stat[4] = { 0, 0, 0, 0};
+
+  snprintf(line, sizeof(line),
+	   "IP Address Pool:\n"
+	   "First available dynamic %d Last %d\n"
+	   "First available static %d Last %d\n"
+	   "List size %d\n",
+	   this->firstdyn ? this->firstdyn - this->member : -1,
+	   this->lastdyn ? this->lastdyn - this->member : -1,
+	   this->firststat ? this->firststat - this->member : -1,
+	   this->laststat ? this->laststat - this->member : -1,
+	   this->listsize);
+  
+  safe_write(fd, line, strlen(line));
+  
+  safe_write(fd, line, snprintf(line, sizeof(line), sep, "Dynamic Pool"));
+
+  for (n=0; n < this->listsize; n++) {
+    int *st = (n >= this->dynsize) ? &stat : &dyn;
+
+    if (this->member[n].in_use) {
+      if (this->member[n].next == 0 && this->member[n].prev == 0) {
+	st[USED]++;
+      } else {
+	st[ERR]++;
+      }
+    } else {
+      if (this->member[n].next == 0 && 
+	  (this->member[n].is_static ? this->laststat : this->lastdyn) != &this->member[n]) {
+	st[ERR]++;
+      } else if (this->member[n].prev == 0 && 
+	  (this->member[n].is_static ? this->firststat : this->firstdyn) != &this->member[n]) {
+	st[ERR]++;
+      } else {
+	st[FREE]++;
+      }
+    }
+
+    if (n == this->dynsize) 
+      safe_write(fd, line, snprintf(line, sizeof(line), sep, "Static Pool"));
+    
+    if (this->member[n].peer) {
+      struct app_conn_t *appconn = (struct app_conn_t *) this->member[n].peer;
+      struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *) appconn->dnlink;
+      snprintf(peerLine, sizeof(peerLine),
+	       "%s mac=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X ip=%s", 
+	       dhcpconn ? dhcpconn->is_reserved ? " reserved" : "" : "",
+	       appconn->hismac[0],appconn->hismac[1],appconn->hismac[2],
+	       appconn->hismac[3],appconn->hismac[4],appconn->hismac[5],
+	       inet_ntoa(appconn->hisip));
+    } else {
+      peerLine[0]=0;
+    }
+
+    if (this->member[n].in_use) {
+      snprintf(useLine, sizeof(useLine), "-inuse-");
+    } else {
+      snprintf(useLine, sizeof(useLine), "%3d/%3d",
+	       this->member[n].prev ? (int)(this->member[n].prev - this->member) : -1,
+	       this->member[n].next ? (int)(this->member[n].next - this->member) : -1);
+    }
+
+    snprintf(line, sizeof(line), 
+	     "Unit %3d : %7s : %15s :%s%s\n", 
+	     n, useLine,
+	     inet_ntoa(this->member[n].addr),	
+	     this->member[n].is_static ? " static" : "",
+	     peerLine
+	     );
+    safe_write(fd, line, strlen(line));
   }
+
+  {
+    struct ippoolm_t *p = this->firstdyn;
+    while (p) { dyn[LIST]++; p = p->next; }
+    p = this->firststat;
+    while (p) { stat[LIST]++; p = p->next; }
+  }
+  
+  snprintf(line, sizeof(line), 
+	   "Dynamic address: free %d, avail %d, used %d, err %d, sum %d/%d%s\n",
+	   dyn[FREE], dyn[LIST], dyn[USED], dyn[ERR], dyn[0]+dyn[1]+dyn[2], this->dynsize,
+	   dyn[FREE] != dyn[LIST] ? " - Problem!" : "");
+  safe_write(fd, line, strlen(line));
+  
+  snprintf(line, sizeof(line), 
+	   "Static address: free %d, avail %d, used %d, err %d, sum %d/%d%s\n",
+	   stat[FREE], stat[LIST], stat[USED], stat[ERR], stat[0]+stat[1]+stat[2], this->statsize,
+	   stat[FREE] != stat[LIST] ? " - Problem!" : "");
+  safe_write(fd, line, strlen(line));
+
   return 0;
 }
 
@@ -221,7 +308,10 @@ int ippool_new(struct ippool_t **this,
   (*this)->stataddr  = stataddr;
   (*this)->statmask  = statmask;
 
-  (*this)->listsize += listsize;
+  (*this)->dynsize   = dynsize;
+  (*this)->statsize  = statsize;
+  (*this)->listsize  = listsize;
+
   if (!((*this)->member = calloc(sizeof(struct ippoolm_t), listsize))){
     log_err(0, "Failed to allocate memory for members in ippool");
     return -1;
@@ -248,6 +338,7 @@ int ippool_new(struct ippool_t **this,
   
   (*this)->firstdyn = NULL;
   (*this)->lastdyn = NULL;
+
   for (i = 0; i < dynsize; i++) {
 
     naddr.s_addr = htonl(ntohl(addr.s_addr) + i + start);
@@ -276,7 +367,7 @@ int ippool_new(struct ippool_t **this,
 
   (*this)->firststat = NULL;
   (*this)->laststat = NULL;
-  for (i = dynsize; i<listsize; i++) {
+  for (i = dynsize; i < listsize; i++) {
     (*this)->member[i].addr.s_addr = 0;
     (*this)->member[i].in_use = 0;
     (*this)->member[i].is_static = 1;
@@ -292,9 +383,11 @@ int ippool_new(struct ippool_t **this,
     (*this)->laststat = &((*this)->member[i]);
     (*this)->member[i].next = NULL; /* Redundant */
   }
-  
-  /*if (0) 
-    ippool_printaddr(*this);*/
+
+#ifdef _DEBUG_PRINT_
+  if (_options.debug)
+    ippool_print(0, *this);
+#endif
 
   return 0;
 }
@@ -310,7 +403,8 @@ int ippool_free(struct ippool_t *this) {
 }
 
 /* Find an IP address in the pool */
-int ippool_getip(struct ippool_t *this, struct ippoolm_t **member,
+int ippool_getip(struct ippool_t *this, 
+		 struct ippoolm_t **member,
 		 struct in_addr *addr) {
   struct ippoolm_t *p;
   uint32_t hash;
@@ -335,12 +429,14 @@ int ippool_getip(struct ippool_t *this, struct ippoolm_t **member,
  * dynamic address space allocate it there, otherwise allocate within static
  * address space.
 **/
-int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
-		 struct in_addr *addr, int statip) {
+int ippool_newip(struct ippool_t *this, 
+		 struct ippoolm_t **member,
+		 struct in_addr *addr, 
+		 int statip) {
   struct ippoolm_t *p;
   struct ippoolm_t *p2 = NULL;
   uint32_t hash;
-
+  
   log_dbg("Requesting new %s ip: %s", statip ? "static" : "dynamic", inet_ntoa(*addr));
 
   /* If static:
@@ -355,7 +451,10 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
    *
    */
 
-  /*if(0)(void)ippool_printaddr(this);*/
+#ifdef _DEBUG_PRINT_
+  if (_options.debug)
+    ippool_print(0, this);
+#endif
 
   /* First, check to see if this type of address is allowed */
   if ((addr) && (addr->s_addr) && statip) { /* IP address given */
@@ -391,33 +490,42 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
 
   /* if anyip is set and statip return the same ip */
   if (statip && _options.uamanyip && p2 && p2->is_static) {
-    log_dbg("Found already allocated static ip");
+    log_dbg("Found already allocated static ip %s", 
+	    inet_ntoa(p2->addr));
     *member = p2;
     return 0;
   }
-
+  
   /* If IP was already allocated we can not use it */
   if ((!statip) && (p2) && (p2->in_use)) {
     p2 = NULL; 
   }
-
+  
   /* If not found yet and dynamic IP then allocate dynamic IP */
   if ((!p2) && (!statip) /*XXX: && (!addr || !addr->s_addr)*/) {
     if (!this->firstdyn) {
-      log_err(0, "No more IP addresses available");
+      log_err(0, "No more dynamic addresses available");
       return -1;
     }
-    else
+    else {
       p2 = this->firstdyn;
+    }
   }
   
   if (p2) { /* Was allocated from dynamic address pool */
+    
     if (p2->in_use) {
-      log_err(0, "IP address allready in use");
-      return -1; /* Allready in use / Should not happen */
+      log_err(0, "IP address already in use");
+      return -1; /* Already in use / Should not happen */
+    }
+    
+    /* Remove from linked list of free dynamic addresses */
+
+    if (p2->is_static) {
+      log_err(0, "Should not happen!");
+      return -1;
     }
 
-    /* Remove from linked list of free dynamic addresses */
     if (p2->prev) 
       p2->prev->next = p2->next;
     else
@@ -427,15 +535,17 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
       p2->next->prev = p2->prev;
     else
       this->lastdyn = p2->prev;
-
+    
     p2->next = NULL;
     p2->prev = NULL;
-    p2->in_use = 1; /* Dynamic address in use */
+    p2->in_use = 1;
     
     *member = p2;
 
-    /*if (_options.debug) 
-      (void)ippool_printaddr(this);*/
+#ifdef _DEBUG_PRINT_
+    if (_options.debug) 
+      ippool_print(0, this);
+#endif
 
     return 0; /* Success */
   }
@@ -444,14 +554,27 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
   /* Try to allocate from static address space */
 
   if ((addr) && (addr->s_addr) && (statip || _options.uamanyip)) { /* IP address given */
+
     if (!this->firststat) {
-      log_err(0, "No more IP addresses available");
+      log_err(0, "No more static addresses available");
       return -1; /* No more available */
     }
-    else
+    else {
       p2 = this->firststat;
-
+    }
+    
     /* Remove from linked list of free static addresses */
+
+    if (p2->in_use) {
+      log_err(0, "IP address already in use");
+      return -1; /* Already in use / Should not happen */
+    }
+    
+    if (!p2->is_static) {
+      log_err(0, "Should not happen!");
+      return -1;
+    }
+
     if (p2->prev) 
       p2->prev->next = p2->next;
     else
@@ -464,17 +587,20 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
 
     p2->next = NULL;
     p2->prev = NULL;
-    p2->in_use = 1; /* Static address in use */
-    p2->is_static = 1; /* to be sure */
-    memcpy(&p2->addr, addr, sizeof(addr));
+    p2->in_use = 1; 
+
+    p2->addr.s_addr = addr->s_addr;
+
     *member = p2;
 
     log_dbg("Assigned a static ip to: %s", inet_ntoa(*addr));
 
     ippool_hashadd(this, *member);
 
-    /*if (_options.debug) 
-      (void)ippool_printaddr(this);*/
+#ifdef _DEBUG_PRINT_
+    if (_options.debug) 
+      ippool_print(0, this);
+#endif
 
     return 0; /* Success */
   }
@@ -485,8 +611,10 @@ int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
 
 int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
   
-  /*if (0)
-    ippool_printaddr(this);*/
+#ifdef _DEBUG_PRINT_
+  if (_options.debug)
+    ippool_print(0, this);
+#endif
 
   if (!member->in_use) {
     log_err(0, "Address not in use");
@@ -529,11 +657,12 @@ int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
     
     member->in_use = 0;
     member->peer = NULL;
-
   }
 
-  /*if (0)
-    (void)ippool_printaddr(this);*/
+#ifdef _DEBUG_PRINT_
+  if (_options.debug)
+    ippool_print(0, this);
+#endif
 
   return 0;
 }

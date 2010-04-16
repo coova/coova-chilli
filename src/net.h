@@ -215,7 +215,6 @@ typedef struct _net_interface {
 #define NET_ETHHDR  (1<<2)
 } net_interface;
 
-#define MAX_SELECT 32
 #define SELECT_READ 1
 #define SELECT_WRITE 2
 

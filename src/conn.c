@@ -91,6 +91,16 @@ int conn_fd(struct conn_t *conn, fd_set *r, fd_set *w, fd_set *e, int *m) {
   return 0;
 }
 
+int conn_select_fd(struct conn_t *conn, select_ctx *sctx) {
+  int evts = SELECT_READ;
+  if (!conn->sock) return -1;
+  if (conn->write_buf &&
+      conn->write_pos < conn->write_buf->slen) 
+    evts |= SELECT_WRITE;
+  net_select_modfd(sctx, conn->sock, evts);
+  return net_select_fd(sctx, conn->sock, evts);
+}
+
 void conn_finish(struct conn_t *conn) {
   if (conn->done_handler) {
     conn->done_handler(conn, conn->done_handler_ctx);
@@ -99,10 +109,61 @@ void conn_finish(struct conn_t *conn) {
   }
 }
 
+void conn_update_write(struct conn_t *conn) {
+  log_dbg("socket writeable!");
+  
+  if (conn->write_pos == 0) {
+    int err;
+    socklen_t errlen = sizeof(err);
+    if (getsockopt(conn->sock, SOL_SOCKET, SO_ERROR, &err, &errlen) || (err != 0)) {
+      log_err(errno, "not connected");
+      conn_finish(conn);
+      return 0;
+    } else {
+      /*int flags = fcntl(conn->sock, F_GETFL, 0);
+	if (fcntl(conn->sock, F_SETFL, flags & (~O_NONBLOCK)) < 0)
+	log_err(errno, "could not un-set non-blocking");
+      */
+    }
+  }
+  
+  if (conn->write_pos < conn->write_buf->slen) {
+    int ret = write(conn->sock, 
+		    conn->write_buf->data + conn->write_pos,
+		    conn->write_buf->slen - conn->write_pos);
+    if (ret > 0) {
+      /*log_dbg("write: %d bytes", ret);*/
+      conn->write_pos += ret;
+    } else if (ret < 0) {
+      log_dbg("socket closed!");
+      conn_finish(conn);
+    }
+  } 
+  
+  /*if (conn->write_pos == conn->write_buf->slen) {
+    shutdown(conn->sock, SHUT_WR);
+    }*/
+}
+
+int conn_select_update(struct conn_t *conn, select_ctx *sctx) {
+  if (conn->sock) {
+    if (net_select_read_fd(sctx, conn->sock)) {
+      if (conn->read_handler) {
+	conn->read_handler(conn, conn->read_handler_ctx);
+      }
+    }
+
+    if (net_select_write_fd(sctx, conn->sock)) {
+      conn_update_write(conn);
+    }
+  }
+
+  return 0;
+}
+
 int conn_update(struct conn_t *conn, fd_set *r, fd_set *w, fd_set *e) {
 
   if (conn->sock) {
-
     if (FD_ISSET(conn->sock, r)) {
       if (conn->read_handler) {
 	conn->read_handler(conn, conn->read_handler_ctx);
@@ -110,40 +171,7 @@ int conn_update(struct conn_t *conn, fd_set *r, fd_set *w, fd_set *e) {
     }
 
     if (FD_ISSET(conn->sock, w)) {
-
-      log_dbg("socket writeable!");
-
-      if (conn->write_pos == 0) {
-	int err;
-	socklen_t errlen = sizeof(err);
-	if (getsockopt(conn->sock, SOL_SOCKET, SO_ERROR, &err, &errlen) || (err != 0)) {
-	  log_err(errno, "not connected");
-	  conn_finish(conn);
-	  return 0;
-	} else {
-	  /*int flags = fcntl(conn->sock, F_GETFL, 0);
-	  if (fcntl(conn->sock, F_SETFL, flags & (~O_NONBLOCK)) < 0)
-	    log_err(errno, "could not un-set non-blocking");
-	  */
-	}
-      }
-      
-      if (conn->write_pos < conn->write_buf->slen) {
-	int ret = write(conn->sock, 
-			conn->write_buf->data + conn->write_pos,
-			conn->write_buf->slen - conn->write_pos);
-	if (ret > 0) {
-	  /*log_dbg("write: %d bytes", ret);*/
-	  conn->write_pos += ret;
-	} else if (ret < 0) {
-	  log_dbg("socket closed!");
-	  conn_finish(conn);
-	}
-      } 
-
-      /*if (conn->write_pos == conn->write_buf->slen) {
-	shutdown(conn->sock, SHUT_WR);
-      }*/
+      conn_update_write(conn);
     }
 
     if (FD_ISSET(conn->sock, e)) {
@@ -151,6 +179,7 @@ int conn_update(struct conn_t *conn, fd_set *r, fd_set *w, fd_set *e) {
       conn_finish(conn);
     }
   }
+
   return 0;
 }
 
@@ -165,7 +194,7 @@ _conn_bstring_readhandler(struct conn_t *conn, void *ctx) {
 	     data->mlen - data->slen);
 
   if (ret > 0) {
-    /*log_dbg("read: %d bytes", ret);*/
+    log_dbg("bstring_read: %d bytes", ret);
     data->slen += ret;
   } else {
     log_dbg("socket closed!");

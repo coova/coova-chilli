@@ -30,6 +30,7 @@ ATTRIBUTE	ChilliSpot-Max-Output-Gigawords	       22	integer
 ATTRIBUTE	ChilliSpot-Max-Total-Gigawords	       23	integer
 
 ATTRIBUTE	ChilliSpot-VLAN-Id		       24	integer
+ATTRIBUTE	ChilliSpot-Location		       25	string
 
 ATTRIBUTE	ChilliSpot-Sys-Uptime		       40	integer
 ATTRIBUTE	ChilliSpot-Sys-LoadAvg		       41	string

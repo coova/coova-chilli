@@ -98,7 +98,7 @@ int iphash_new(struct iphash_t **this, struct iphashm_t **member, int listsize, 
     free(n);
     return -1;
   }
-
+  
   *this = n;
   return 0;
 }

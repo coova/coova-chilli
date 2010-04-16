@@ -481,6 +481,7 @@ int tuntap_interface(struct _net_interface *netif) {
   
   /* Set device flags. For some weird reason this is also the method
      used to obtain the network interface name */
+
   memset(&ifr, 0, sizeof(ifr));
 
   /* Tun device, no packet info */
@@ -508,7 +509,7 @@ int tuntap_interface(struct _net_interface *netif) {
     if ((nfd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) {
       strncpy(nifr.ifr_name, ifr.ifr_name, IFNAMSIZ);
       nifr.ifr_qlen = _options.txqlen;
-
+      
       if (ioctl(nfd, SIOCSIFTXQLEN, (void *) &nifr) >= 0) 
 	log_info("TX queue length set to %d", _options.txqlen);
       else 
@@ -543,7 +544,7 @@ int tuntap_interface(struct _net_interface *netif) {
       close(fd);
     }
   }
-
+  
   return 0;
   
 #elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
@@ -688,8 +689,6 @@ struct tundecap {
   struct tun_t *this;
   int idx;
 };
-
-
 
 static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
   struct tundecap *c = (struct tundecap *)ctx;

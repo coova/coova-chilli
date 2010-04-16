@@ -122,6 +122,31 @@ struct redir_httpreq_t {
   size_t clen;
 };
 
+typedef struct _redir_request {
+  int index;
+
+  int uiidx;
+
+  char inuse:1;
+  char proxy:1;
+  
+  bstring url;
+  bstring data;
+  bstring post;
+  bstring wbuf;
+
+  time_t last_active;
+
+  struct sockaddr_in baddr;
+  
+  struct conn_t conn;
+  
+  int socket_fd;
+
+  struct _redir_request *prev, *next;
+
+} redir_request;
+
 struct redir_socket_t {
   int fd[2];
 #ifdef HAVE_SSL
@@ -171,9 +196,7 @@ struct redir_t {
 			struct redir_httpreq_t *httpreq,
 			struct redir_socket_t *socket,
 			struct sockaddr_in *peer, 
-			void *ctx);
-
-  void * cb_handle_url_ctx;
+			redir_request *rreq);
 };
 
 struct redir_msg_data {
@@ -212,7 +235,7 @@ int redir_set_cb_getstate(struct redir_t *redir,
 int redir_main(struct redir_t *redir, int infd, int outfd, 
 	       struct sockaddr_in *address, 
 	       struct sockaddr_in *baddress,
-	       int isui, int forked);
+	       int isui, redir_request *rreq);
 
 int redir_json_fmt_redir(struct redir_conn_t *conn, bstring json, 
 			 char *userurl, char *redirurl, uint8_t *hismac);

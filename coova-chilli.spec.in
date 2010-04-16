@@ -1,12 +1,14 @@
 Summary:   Coova-Chilli is a Wireless LAN Access Point Controller
 Name:      @PACKAGE@
-Version:   1.2.2
+Version:   1.2.3
 Release:   1
 URL:       http://www.coova.org/
 Source0:   %{name}-%{version}.tar.gz
 License:   GPL
 Group:     System Environment/Daemons
 BuildRoot: %{_tmppath}/%{name}-root
+
+BuildRequires: openssl-devel
 
 %description 
 
@@ -22,7 +24,7 @@ your favorite radius server. Read more at http://www.coova.org/.
 
 %build
 
-%configure --enable-largelimits --enable-miniportal --enable-chilliredir --enable-chilliproxy --with-openssl
+%configure --enable-largelimits --enable-miniportal --enable-chilliredir --enable-chilliproxy --with-openssl --with-poll
 
 make
 

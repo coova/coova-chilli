@@ -42,6 +42,8 @@
 struct ippoolm_t;                /* Forward declaration */
 
 struct ippool_t {
+  int dynsize;                   /* Total number of dynamic addresses */
+  int statsize;                  /* Total number of static addresses */
   int listsize;                  /* Total number of addresses */
   int allowdyn;                  /* Allow dynamic IP address allocation */
   int allowstat;                 /* Allow static IP address allocation */
@@ -64,9 +66,8 @@ struct ippoolm_t {
 #else
   struct in_addr addr;           /* IP address of this member */
 #endif
-  char in_use:1;                 /* 0=available; 1= used */
-  char is_static:1;              /* 0= dynamic; 1 = static */
-  char is_reserved:1;            /* 0= normal; 1 = reserved */
+  char in_use;                   /* 0=available; 1= used */
+  char is_static;                /* 0= dynamic; 1 = static */
   struct ippoolm_t *nexthash;    /* Linked list part of hash table */
   struct ippoolm_t *prev, *next; /* Linked list of free dynamic or static */
   void *peer;                    /* Pointer to peer protocol handler */
@@ -104,6 +105,8 @@ extern int ippool_aton(struct in_addr *addr, struct in_addr *mask,
 		       char *pool, int number);
 
 int ippool_hashadd(struct ippool_t *this, struct ippoolm_t *member);
+
+int ippool_print(int fd, struct ippool_t *this);
 
 #ifndef IPPOOL_NOIP6
 extern uint32_t ippool_hash6(struct in6_addr *addr);

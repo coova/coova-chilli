@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -116,27 +116,27 @@ int dev_set_address(char const *devname, struct in_addr *address,
   struct ifreq ifr;
   int fd;
 
-  memset (&ifr, 0, sizeof (ifr));
+  memset(&ifr, 0, sizeof (ifr));
   ifr.ifr_addr.sa_family = AF_INET;
   ifr.ifr_dstaddr.sa_family = AF_INET;
-
+  
 #if defined(__linux__)
   ifr.ifr_netmask.sa_family = AF_INET;
-
+  
 #elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   ((struct sockaddr_in *) &ifr.ifr_addr)->sin_len = sizeof (struct sockaddr_in);
   ((struct sockaddr_in *) &ifr.ifr_dstaddr)->sin_len = sizeof (struct sockaddr_in);
 #endif
-
+  
   strncpy(ifr.ifr_name, devname, IFNAMSIZ);
   ifr.ifr_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
-
+  
   /* Create a channel to the NET kernel. */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     log_err(errno, "socket() failed");
     return -1;
   }
-
+  
   if (address) { /* Set the interface address */
     ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr = address->s_addr;
     if (ioctl(fd, SIOCSIFADDR, (void *) &ifr) < 0) {
@@ -301,6 +301,91 @@ int net_select_reg(select_ctx *sctx, int fd, char evts,
   return 0;
 }
 
+int net_select_zero(select_ctx *sctx) {
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+  memset(&sctx->events, 0, sizeof(sctx->events));
+#else
+#ifdef USING_POLL
+  memset(&sctx->pfds, 0, sizeof(sctx->pfds));
+  for (i=0; i < MAX_SELECT && sctx->desc[i].fd; i++) {
+    sctx->pfds[i].fd = sctx->desc[i].fd;
+    sctx->pfds[i].events = 0;
+    if (sctx->desc[i].evts & SELECT_READ)
+      sctx->pfds[i].events |= POLLIN;
+    if (sctx->desc[i].evts & SELECT_WRITE)
+      sctx->pfds[i].events |= POLLOUT;
+  }
+#else
+  fd_zero(&sctx->rfds);
+  fd_zero(&sctx->wfds);
+  fd_zero(&sctx->efds);
+#endif
+#endif
+  sctx->count = 0;
+}
+
+int net_select_rmfd(select_ctx *sctx, int fd) {
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+  /*log_dbg("epoll rm %d", fd);*/
+  if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, fd, 0))
+    log_err(errno, "Failed to remove fd %d", fd);
+#endif
+  return 0;
+}
+
+int net_select_addfd(select_ctx *sctx, int fd, int evts) {
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+  struct epoll_event event;
+  memset(&event, 0, sizeof(event));
+  event.data.fd = fd;
+  if (evts & SELECT_READ) event.events |= EPOLLIN;
+  if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
+  /*log_dbg("epoll add %d", fd);*/
+  if (epoll_ctl(sctx->efd, EPOLL_CTL_ADD, fd, &event))
+    log_err(errno, "Failed to watch fd");
+#endif
+  return 0;
+}
+
+int net_select_modfd(select_ctx *sctx, int fd, int evts) {
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+  struct epoll_event event;
+  memset(&event, 0, sizeof(event));
+  event.data.fd = fd;
+  if (evts & SELECT_READ) event.events |= EPOLLIN;
+  if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
+  /*log_dbg("epoll mod %d", fd);*/
+  if (epoll_ctl(sctx->efd, EPOLL_CTL_MOD, fd, &event))
+    log_err(errno, "Failed to watch fd");
+#endif
+  return 0;
+}
+
+int net_select_fd(select_ctx *sctx, int fd, char evts) {
+  if (!evts) return -3;
+  if (fd <= 0) return -2;
+#ifdef USING_POLL
+#ifdef HAVE_SYS_EPOLL_H
+#else
+  sctx->pfds[sctx->count].fd = fd;
+  sctx->pfds[sctx->count].events = 0;
+  if (evts & SELECT_READ)
+    sctx->pfds[sctx->count].events |= POLLIN;
+  if (evts & SELECT_WRITE)
+    sctx->pfds[sctx->count].events |= POLLOUT;
+#endif
+#else
+  if (evts & SELECT_READ)
+    fd_set(fd, &sctx->rfds);
+  if (evts & SELECT_WRITE)
+    fd_set(fd, &sctx->wfds);
+  if (fd > sctx->maxfd) 
+    sctx->maxfd = fd;
+#endif
+  sctx->count++;
+  return 0;
+}
+
 int net_select(select_ctx *sctx) {
   int status;
 #ifdef USING_POLL
@@ -320,6 +405,49 @@ int net_select(select_ctx *sctx) {
 
 #endif
   return status;
+}
+
+int net_select_read_fd(select_ctx *sctx, int fd) {
+#ifdef USING_POLL
+  int idx;
+#ifdef HAVE_SYS_EPOLL_H
+  for (idx=0; idx < MAX_SELECT; idx++)
+    if (sctx->events[idx].data.fd == fd) {
+      log_dbg("read %d", (sctx->events[idx].events & EPOLLIN) != 0);
+      return (sctx->events[idx].events & EPOLLIN) != 0;
+    }
+  return 0;
+#else
+  for (idx=0; idx < MAX_SELECT; idx++)
+    if (sctx->pfds[idx].fd == fd)
+      return (sctx->pfds[idx].events & POLLIN) != 0;
+  return 0;
+#endif
+#else
+  return FD_ISSET(fd, sctx->fdread);
+#endif
+}
+
+int net_select_write_fd(select_ctx *sctx, int fd) {
+#ifdef USING_POLL
+  int idx;
+#ifdef HAVE_SYS_EPOLL_H
+  for (idx=0; idx < MAX_SELECT; idx++)
+    if (sctx->events[idx].data.fd == fd) {
+      log_dbg("write %d", (sctx->events[idx].events & EPOLLOUT) != 0);
+      return (sctx->events[idx].events & EPOLLOUT) != 0;
+    }
+  return 0;
+#else
+  for (idx=0; idx < MAX_SELECT; idx++)
+    if (sctx->pfds[idx].fd == fd) {
+      return (sctx->pfds[idx].events & POLLOUT) != 0;
+    }
+  return 0;
+#endif
+#else
+  return FD_ISSET(fd, sctx->fdwrite);
+#endif
 }
 
 int net_run_selected(select_ctx *sctx, int status) {

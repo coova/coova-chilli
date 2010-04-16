@@ -28,3 +28,5 @@ install: modules_install libxt_coova.so
 	cp libxt_coova.so $(DESTDIR)/lib/xtables/
 
 distdir:
+
+distclean: clean

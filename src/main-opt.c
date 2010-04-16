@@ -186,7 +186,6 @@ int main(int argc, char **argv) {
   _options.radsec = args_info.radsec_flag;
   _options.proxymacaccept = args_info.proxymacaccept_flag;
 
-
 #ifdef ENABLE_PROXYVSA
   if (args_info.proxylocattr_arg) {
     unsigned int i[2];
@@ -202,6 +201,11 @@ int main(int argc, char **argv) {
       _options.proxy_loc_attr = i[1];
       break;
     }
+
+    log_dbg("Proxy location attr %d %d", 
+	    (int)_options.proxy_loc_attr_vsa, 
+	    (int)_options.proxy_loc_attr);
+
   } else {
     _options.proxy_loc_attr_vsa = 0;
     _options.proxy_loc_attr = 0;
