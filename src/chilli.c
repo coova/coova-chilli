@@ -1496,6 +1496,22 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 }
 
 
+/* Can bypass ?
+ * returns 1 if the packet is the the bypass list, so ***CAN*** bypass leaky bucket,
+ * returns 0 if not in the bypass list, so cannot bypass leaky bucket
+ * */
+inline int can_bypass(struct pkt_ipphdr_t *ipph) {
+  int i;
+  for ( i=0; i < _options.bwbypasstoscount; i++)
+    if ( ipph->tos == _options.bwbypasstos[i] )
+      return 1;
+  for ( i=0; i < _options.bwbypasshostcount; i++)
+    if ( ipph->daddr == _options.bwbypasshost[i].s_addr || ipph->saddr == _options.bwbypasshost[i].s_addr )
+      return 1;
+  return 0;
+}
+
+
 /*
  * Tun callbacks
  *
@@ -3427,7 +3443,7 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
 #ifdef ENABLE_LEAKYBUCKET
       /* adding: max-bandwidth-up max-bandwidth-down */
       if (appconn->s_state.bucketupsize) {
-	bassignformat(tmp, " %d/%lld", 
+	bassignformat(tmp, " %d%%/%lld", 
 		      (int) (appconn->s_state.bucketup * 100 / appconn->s_state.bucketupsize),
 		      appconn->s_params.bandwidthmaxup);
 	bconcat(b, tmp);
@@ -3437,7 +3453,7 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
 
 #ifdef ENABLE_LEAKYBUCKET
       if (appconn->s_state.bucketdownsize) {
-	bassignformat(tmp, " %d/%lld ", 
+	bassignformat(tmp, " %d%%/%lld ", 
 		      (int) (appconn->s_state.bucketdown * 100 / appconn->s_state.bucketdownsize),
 		      appconn->s_params.bandwidthmaxdown);
 	bconcat(b, tmp);

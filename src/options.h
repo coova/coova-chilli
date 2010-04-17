@@ -235,6 +235,13 @@ struct options_t {
   /* Command-Socket */
   char *cmdsocket;
 
+#ifdef ENABLE_LEAKYBUCKET
+  uint8_t bwbypasstoscount;             /* Count of TOS values to bypass leaky bucket */
+  unsigned int bwbypasstos[10];       
+  uint8_t bwbypasshostcount;             /* Count of HOST values to bypass leaky bucket */
+  struct in_addr bwbypasshost[10];      
+#endif
+
 #ifdef USING_IPC_UNIX
   char *unixipc;
 #endif

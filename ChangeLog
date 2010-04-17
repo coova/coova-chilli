@@ -11,7 +11,7 @@
 * Improved ''chilli_redir'' main loop to optionally support poll/epoll (''--with-poll'') and no waiting for input
 * Improved support for ethers file used with binary status file
 * New option ''chilli_query listippool'' to list the IP address pool
-* Bug fix in static ip allocation - particularly noticable on 64bit
+* Bug fix in static ip allocation - particularly noticeable on 64bit
 * Fix bootstrap: install missing automake files automatically
 	
 == ChangeLog (CoovaChilli-v1.2.2 svn revision 291) ==

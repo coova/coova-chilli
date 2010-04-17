@@ -316,6 +316,11 @@ struct gengetopt_args_info
   int definteriminterval_arg;	/**< @brief Default interim-interval for accounting if not returned by RADIUS (default='300').  */
   char * definteriminterval_orig;	/**< @brief Default interim-interval for accounting if not returned by RADIUS original value given at command line.  */
   const char *definteriminterval_help; /**< @brief Default interim-interval for accounting if not returned by RADIUS help description.  */
+  char ** bwbypasstos_arg;	/**< @brief .  */
+  char ** bwbypasstos_orig;	/**< @brief  original value given at command line.  */
+  unsigned int bwbypasstos_min; /**< @brief 's minimum occurreces */
+  unsigned int bwbypasstos_max; /**< @brief 's maximum occurreces */
+  const char *bwbypasstos_help; /**< @brief  help description.  */
   int macauth_flag;	/**< @brief Authenticate based on MAC address (default=off).  */
   const char *macauth_help; /**< @brief Authenticate based on MAC address help description.  */
   int macreauth_flag;	/**< @brief Re-Authenticate based on MAC address for every initial URL redirection (default=off).  */
@@ -560,6 +565,7 @@ struct gengetopt_args_info
   unsigned int defbandwidthmaxdown_given ;	/**< @brief Whether defbandwidthmaxdown was given.  */
   unsigned int defbandwidthmaxup_given ;	/**< @brief Whether defbandwidthmaxup was given.  */
   unsigned int definteriminterval_given ;	/**< @brief Whether definteriminterval was given.  */
+  unsigned int bwbypasstos_given ;	/**< @brief Whether bwbypasstos was given.  */
   unsigned int macauth_given ;	/**< @brief Whether macauth was given.  */
   unsigned int macreauth_given ;	/**< @brief Whether macreauth was given.  */
   unsigned int macauthdeny_given ;	/**< @brief Whether macauthdeny was given.  */

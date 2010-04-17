@@ -266,6 +266,14 @@ int net_select_prepare(select_ctx *sctx);
 int net_select(select_ctx *sctx);
 int net_run_selected(select_ctx *sctx, int status);
 
+int net_select_zero(select_ctx *sctx);
+int net_select_addfd(select_ctx *sctx, int fd, int evts);
+int net_select_rmfd(select_ctx *sctx, int fd);
+int net_select_modfd(select_ctx *sctx, int fd, int evts);
+int net_select_fd(select_ctx *sctx, int fd, char evts);
+int net_select_read_fd(select_ctx *sctx, int fd);
+int net_select_write_fd(select_ctx *sctx, int fd);
+
 ssize_t net_read(net_interface *netif, void *d, size_t slen);
 ssize_t net_write(net_interface *netif, void *d, size_t slen);
 ssize_t net_write2(net_interface *netif, void *d, size_t dlen, struct sockaddr_ll *dest);

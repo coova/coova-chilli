@@ -30,12 +30,13 @@
 /* #define COUNT_DOWNLINK_DROP 1 */
 /* #define COUNT_UPLINK_DROP 1 */
 
-/*#define BUCKET_SIZE                   300000 -* Size of leaky bucket (~200 packets) */
+/*#define BUCKET_SIZE 300000 -* Size of leaky bucket (~200 packets) */
 /* Time length of leaky bucket in milliseconds */
 /* Bucket size = BUCKET_TIME * Bandwidth-Max radius attribute */
 /* Not used if BUCKET_SIZE is defined */
-#define BUCKET_TIME                     5000  /* 5 seconds */
-#define BUCKET_SIZE_MIN                15000 /* Minimum size of leaky bucket (~10 packets) */
+#define BUCKET_TIME                     1000 /* 5 seconds */
+#define BUCKET_SIZE_MIN                 5000 /* Minimum size of leaky bucket (~10 packets) */
+
 #define CHECK_INTERVAL                     3 /* Time between checking connections */
 
 /* options */

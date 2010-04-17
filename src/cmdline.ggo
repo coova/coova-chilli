@@ -127,6 +127,8 @@ option "defbandwidthmaxdown" - "Default WISPr-Bandwidth-Max-Down if not returned
 option "defbandwidthmaxup" - "Default WISPr-Bandwidth-Max-Up if not returned by RADIUS" long default="0" no
 option "definteriminterval" - "Default interim-interval for accounting if not returned by RADIUS" int default="300" no
 
+option "bwbypasstos" - "" string no multiple
+
 # MAC authentication
 option "macauth"     - "Authenticate based on MAC address" flag   off
 option "macreauth"   - "Re-Authenticate based on MAC address for every initial URL redirection" flag off

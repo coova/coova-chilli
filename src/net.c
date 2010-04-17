@@ -424,7 +424,7 @@ int net_select_read_fd(select_ctx *sctx, int fd) {
   return 0;
 #endif
 #else
-  return FD_ISSET(fd, sctx->fdread);
+  return FD_ISSET(fd, &sctx->rfds);
 #endif
 }
 
@@ -446,7 +446,7 @@ int net_select_write_fd(select_ctx *sctx, int fd) {
   return 0;
 #endif
 #else
-  return FD_ISSET(fd, sctx->fdwrite);
+  return FD_ISSET(fd, &sctx->wfds);
 #endif
 }
 

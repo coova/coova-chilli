@@ -129,6 +129,7 @@ const char *gengetopt_args_info_help[] = {
   "      --defbandwidthmaxdown=LONG\n                                Default WISPr-Bandwidth-Max-Down if not \n                                  returned by RADIUS  (default=`0')",
   "      --defbandwidthmaxup=LONG  Default WISPr-Bandwidth-Max-Up if not returned \n                                  by RADIUS  (default=`0')",
   "      --definteriminterval=INT  Default interim-interval for accounting if not \n                                  returned by RADIUS  (default=`300')",
+  "      --bwbypasstos=STRING      ",
   "      --macauth                 Authenticate based on MAC address  \n                                  (default=off)",
   "      --macreauth               Re-Authenticate based on MAC address for every \n                                  initial URL redirection  (default=off)",
   "      --macauthdeny             Deny access (even UAM) to MAC addresses given \n                                  Access-Reject  (default=off)",
@@ -333,6 +334,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->defbandwidthmaxdown_given = 0 ;
   args_info->defbandwidthmaxup_given = 0 ;
   args_info->definteriminterval_given = 0 ;
+  args_info->bwbypasstos_given = 0 ;
   args_info->macauth_given = 0 ;
   args_info->macreauth_given = 0 ;
   args_info->macauthdeny_given = 0 ;
@@ -566,6 +568,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->defbandwidthmaxup_orig = NULL;
   args_info->definteriminterval_arg = 300;
   args_info->definteriminterval_orig = NULL;
+  args_info->bwbypasstos_arg = NULL;
+  args_info->bwbypasstos_orig = NULL;
   args_info->macauth_flag = 0;
   args_info->macreauth_flag = 0;
   args_info->macauthdeny_flag = 0;
@@ -766,63 +770,66 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->defbandwidthmaxdown_help = gengetopt_args_info_help[94] ;
   args_info->defbandwidthmaxup_help = gengetopt_args_info_help[95] ;
   args_info->definteriminterval_help = gengetopt_args_info_help[96] ;
-  args_info->macauth_help = gengetopt_args_info_help[97] ;
-  args_info->macreauth_help = gengetopt_args_info_help[98] ;
-  args_info->macauthdeny_help = gengetopt_args_info_help[99] ;
-  args_info->macallowed_help = gengetopt_args_info_help[100] ;
+  args_info->bwbypasstos_help = gengetopt_args_info_help[97] ;
+  args_info->bwbypasstos_min = 0;
+  args_info->bwbypasstos_max = 0;
+  args_info->macauth_help = gengetopt_args_info_help[98] ;
+  args_info->macreauth_help = gengetopt_args_info_help[99] ;
+  args_info->macauthdeny_help = gengetopt_args_info_help[100] ;
+  args_info->macallowed_help = gengetopt_args_info_help[101] ;
   args_info->macallowed_min = 0;
   args_info->macallowed_max = 0;
-  args_info->macsuffix_help = gengetopt_args_info_help[101] ;
-  args_info->macpasswd_help = gengetopt_args_info_help[102] ;
-  args_info->macallowlocal_help = gengetopt_args_info_help[103] ;
-  args_info->strictmacauth_help = gengetopt_args_info_help[104] ;
-  args_info->wwwdir_help = gengetopt_args_info_help[105] ;
-  args_info->wwwbin_help = gengetopt_args_info_help[106] ;
-  args_info->uamui_help = gengetopt_args_info_help[107] ;
-  args_info->adminuser_help = gengetopt_args_info_help[108] ;
-  args_info->adminpasswd_help = gengetopt_args_info_help[109] ;
-  args_info->adminupdatefile_help = gengetopt_args_info_help[110] ;
-  args_info->rtmonfile_help = gengetopt_args_info_help[111] ;
-  args_info->ethers_help = gengetopt_args_info_help[112] ;
-  args_info->nasmac_help = gengetopt_args_info_help[113] ;
-  args_info->nasip_help = gengetopt_args_info_help[114] ;
-  args_info->ssid_help = gengetopt_args_info_help[115] ;
-  args_info->vlan_help = gengetopt_args_info_help[116] ;
-  args_info->ieee8021q_help = gengetopt_args_info_help[117] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[118] ;
-  args_info->radiusoriginalurl_help = gengetopt_args_info_help[119] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[120] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[121] ;
-  args_info->localusers_help = gengetopt_args_info_help[122] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[123] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[124] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[125] ;
-  args_info->openidauth_help = gengetopt_args_info_help[126] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[127] ;
-  args_info->mschapv2_help = gengetopt_args_info_help[128] ;
-  args_info->chillixml_help = gengetopt_args_info_help[129] ;
-  args_info->acctupdate_help = gengetopt_args_info_help[130] ;
-  args_info->dnsparanoia_help = gengetopt_args_info_help[131] ;
-  args_info->seskeepalive_help = gengetopt_args_info_help[132] ;
-  args_info->usetap_help = gengetopt_args_info_help[133] ;
-  args_info->routeif_help = gengetopt_args_info_help[134] ;
-  args_info->framedservice_help = gengetopt_args_info_help[135] ;
-  args_info->tcpwin_help = gengetopt_args_info_help[136] ;
-  args_info->tcpmss_help = gengetopt_args_info_help[137] ;
-  args_info->maxclients_help = gengetopt_args_info_help[138] ;
-  args_info->challengetimeout_help = gengetopt_args_info_help[139] ;
-  args_info->challengetimeout2_help = gengetopt_args_info_help[140] ;
-  args_info->sslkeyfile_help = gengetopt_args_info_help[141] ;
-  args_info->sslkeypass_help = gengetopt_args_info_help[142] ;
-  args_info->sslcertfile_help = gengetopt_args_info_help[143] ;
-  args_info->sslcafile_help = gengetopt_args_info_help[144] ;
-  args_info->unixipc_help = gengetopt_args_info_help[145] ;
-  args_info->uamallowpost_help = gengetopt_args_info_help[146] ;
-  args_info->natip_help = gengetopt_args_info_help[147] ;
-  args_info->natport_help = gengetopt_args_info_help[148] ;
-  args_info->redirssl_help = gengetopt_args_info_help[149] ;
-  args_info->uamuissl_help = gengetopt_args_info_help[150] ;
-  args_info->kname_help = gengetopt_args_info_help[151] ;
+  args_info->macsuffix_help = gengetopt_args_info_help[102] ;
+  args_info->macpasswd_help = gengetopt_args_info_help[103] ;
+  args_info->macallowlocal_help = gengetopt_args_info_help[104] ;
+  args_info->strictmacauth_help = gengetopt_args_info_help[105] ;
+  args_info->wwwdir_help = gengetopt_args_info_help[106] ;
+  args_info->wwwbin_help = gengetopt_args_info_help[107] ;
+  args_info->uamui_help = gengetopt_args_info_help[108] ;
+  args_info->adminuser_help = gengetopt_args_info_help[109] ;
+  args_info->adminpasswd_help = gengetopt_args_info_help[110] ;
+  args_info->adminupdatefile_help = gengetopt_args_info_help[111] ;
+  args_info->rtmonfile_help = gengetopt_args_info_help[112] ;
+  args_info->ethers_help = gengetopt_args_info_help[113] ;
+  args_info->nasmac_help = gengetopt_args_info_help[114] ;
+  args_info->nasip_help = gengetopt_args_info_help[115] ;
+  args_info->ssid_help = gengetopt_args_info_help[116] ;
+  args_info->vlan_help = gengetopt_args_info_help[117] ;
+  args_info->ieee8021q_help = gengetopt_args_info_help[118] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[119] ;
+  args_info->radiusoriginalurl_help = gengetopt_args_info_help[120] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[121] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[122] ;
+  args_info->localusers_help = gengetopt_args_info_help[123] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[124] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[125] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[126] ;
+  args_info->openidauth_help = gengetopt_args_info_help[127] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[128] ;
+  args_info->mschapv2_help = gengetopt_args_info_help[129] ;
+  args_info->chillixml_help = gengetopt_args_info_help[130] ;
+  args_info->acctupdate_help = gengetopt_args_info_help[131] ;
+  args_info->dnsparanoia_help = gengetopt_args_info_help[132] ;
+  args_info->seskeepalive_help = gengetopt_args_info_help[133] ;
+  args_info->usetap_help = gengetopt_args_info_help[134] ;
+  args_info->routeif_help = gengetopt_args_info_help[135] ;
+  args_info->framedservice_help = gengetopt_args_info_help[136] ;
+  args_info->tcpwin_help = gengetopt_args_info_help[137] ;
+  args_info->tcpmss_help = gengetopt_args_info_help[138] ;
+  args_info->maxclients_help = gengetopt_args_info_help[139] ;
+  args_info->challengetimeout_help = gengetopt_args_info_help[140] ;
+  args_info->challengetimeout2_help = gengetopt_args_info_help[141] ;
+  args_info->sslkeyfile_help = gengetopt_args_info_help[142] ;
+  args_info->sslkeypass_help = gengetopt_args_info_help[143] ;
+  args_info->sslcertfile_help = gengetopt_args_info_help[144] ;
+  args_info->sslcafile_help = gengetopt_args_info_help[145] ;
+  args_info->unixipc_help = gengetopt_args_info_help[146] ;
+  args_info->uamallowpost_help = gengetopt_args_info_help[147] ;
+  args_info->natip_help = gengetopt_args_info_help[148] ;
+  args_info->natport_help = gengetopt_args_info_help[149] ;
+  args_info->redirssl_help = gengetopt_args_info_help[150] ;
+  args_info->uamuissl_help = gengetopt_args_info_help[151] ;
+  args_info->kname_help = gengetopt_args_info_help[152] ;
   
 }
 
@@ -1070,6 +1077,7 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->defbandwidthmaxdown_orig));
   free_string_field (&(args_info->defbandwidthmaxup_orig));
   free_string_field (&(args_info->definteriminterval_orig));
+  free_multiple_string_field (args_info->bwbypasstos_given, &(args_info->bwbypasstos_arg), &(args_info->bwbypasstos_orig));
   free_multiple_string_field (args_info->macallowed_given, &(args_info->macallowed_arg), &(args_info->macallowed_orig));
   free_string_field (&(args_info->macsuffix_arg));
   free_string_field (&(args_info->macsuffix_orig));
@@ -1359,6 +1367,7 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "defbandwidthmaxup", args_info->defbandwidthmaxup_orig, 0);
   if (args_info->definteriminterval_given)
     write_into_file(outfile, "definteriminterval", args_info->definteriminterval_orig, 0);
+  write_multiple_into_file(outfile, args_info->bwbypasstos_given, "bwbypasstos", args_info->bwbypasstos_orig, 0);
   if (args_info->macauth_given)
     write_into_file(outfile, "macauth", 0, 0 );
   if (args_info->macreauth_given)
@@ -1728,6 +1737,9 @@ cmdline_parser_required2 (struct gengetopt_args_info *args_info, const char *pro
   if (check_multiple_option_occurrences(prog_name, args_info->uamregex_given, args_info->uamregex_min, args_info->uamregex_max, "'--uamregex'"))
      error = 1;
   
+  if (check_multiple_option_occurrences(prog_name, args_info->bwbypasstos_given, args_info->bwbypasstos_min, args_info->bwbypasstos_max, "'--bwbypasstos'"))
+     error = 1;
+  
   if (check_multiple_option_occurrences(prog_name, args_info->macallowed_given, args_info->macallowed_min, args_info->macallowed_max, "'--macallowed'"))
      error = 1;
   
@@ -2008,6 +2020,7 @@ cmdline_parser_internal (
   struct generic_list * uamallowed_list = NULL;
   struct generic_list * uamdomain_list = NULL;
   struct generic_list * uamregex_list = NULL;
+  struct generic_list * bwbypasstos_list = NULL;
   struct generic_list * macallowed_list = NULL;
   int error = 0;
   struct gengetopt_args_info local_args_info;
@@ -2136,6 +2149,7 @@ cmdline_parser_internal (
         { "defbandwidthmaxdown",	1, NULL, 0 },
         { "defbandwidthmaxup",	1, NULL, 0 },
         { "definteriminterval",	1, NULL, 0 },
+        { "bwbypasstos",	1, NULL, 0 },
         { "macauth",	0, NULL, 0 },
         { "macreauth",	0, NULL, 0 },
         { "macauthdeny",	0, NULL, 0 },
@@ -3503,6 +3517,17 @@ cmdline_parser_internal (
               goto failure;
           
           }
+          /* .  */
+          else if (strcmp (long_options[option_index].name, "bwbypasstos") == 0)
+          {
+          
+            if (update_multiple_arg_temp(&bwbypasstos_list, 
+                &(local_args_info.bwbypasstos_given), optarg, 0, 0, ARG_STRING,
+                "bwbypasstos", '-',
+                additional_error))
+              goto failure;
+          
+          }
           /* Authenticate based on MAC address.  */
           else if (strcmp (long_options[option_index].name, "macauth") == 0)
           {
@@ -4253,6 +4278,10 @@ cmdline_parser_internal (
     &(args_info->uamregex_orig), args_info->uamregex_given,
     local_args_info.uamregex_given, 0,
     ARG_STRING, uamregex_list);
+  update_multiple_arg((void *)&(args_info->bwbypasstos_arg),
+    &(args_info->bwbypasstos_orig), args_info->bwbypasstos_given,
+    local_args_info.bwbypasstos_given, 0,
+    ARG_STRING, bwbypasstos_list);
   update_multiple_arg((void *)&(args_info->macallowed_arg),
     &(args_info->macallowed_orig), args_info->macallowed_given,
     local_args_info.macallowed_given, 0,
@@ -4264,6 +4293,8 @@ cmdline_parser_internal (
   local_args_info.uamdomain_given = 0;
   args_info->uamregex_given += local_args_info.uamregex_given;
   local_args_info.uamregex_given = 0;
+  args_info->bwbypasstos_given += local_args_info.bwbypasstos_given;
+  local_args_info.bwbypasstos_given = 0;
   args_info->macallowed_given += local_args_info.macallowed_given;
   local_args_info.macallowed_given = 0;
   
@@ -4283,6 +4314,7 @@ failure:
   free_list (uamallowed_list, 1 );
   free_list (uamdomain_list, 1 );
   free_list (uamregex_list, 1 );
+  free_list (bwbypasstos_list, 1 );
   free_list (macallowed_list, 1 );
   
   cmdline_parser_release (&local_args_info);
