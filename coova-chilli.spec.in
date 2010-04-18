@@ -7,8 +7,9 @@ Source0:   %{name}-%{version}.tar.gz
 License:   GPL
 Group:     System Environment/Daemons
 BuildRoot: %{_tmppath}/%{name}-root
-
+%if %{!?_without_ssl:1}0
 BuildRequires: openssl-devel
+%endif
 
 %description 
 
@@ -24,7 +25,16 @@ your favorite radius server. Read more at http://www.coova.org/.
 
 %build
 
-%configure --enable-largelimits --enable-miniportal --enable-chilliredir --enable-chilliproxy --with-openssl --with-poll
+%configure \
+	--enable-largelimits \
+	--enable-miniportal \
+	--enable-chilliredir \
+	--enable-chilliproxy \
+	--with-poll \
+%if %{!?_without_ssl:1}0
+	--with-openssl \
+%endif
+
 
 make
 
