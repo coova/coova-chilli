@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,15 +17,7 @@
  * 
  */
 
-#include "system.h"
-#include "syserr.h"
-#include "radius.h"
-#include "md5.h"
-#include "dhcp.h"
-#include "redir.h"
 #include "chilli.h"
-#include "options.h"
-#include "bstrlib.h"
 
 void sys_err(int pri, char *fn, int ln, int en, const char *fmt, ...) {
   if (pri==LOG_DEBUG && !_options.debug) return;

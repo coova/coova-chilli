@@ -16,9 +16,7 @@
  * 
  */
 
-#include "conn.h"
-#include "options.h"
-#include "syserr.h"
+#include "chilli.h"
 
 int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
   struct sockaddr_in server;

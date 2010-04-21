@@ -17,10 +17,7 @@
  * 
  */
 
-#include "system.h"
-#include "syserr.h"
-#include "options.h"
-#include "net.h"
+#include "chilli.h"
 
 #ifdef USING_MMAP
 #include <sys/mman.h>

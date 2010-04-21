@@ -27,19 +27,7 @@
  *
  */
 
-#include "system.h"
-#include "tun.h"
-#include "ippool.h"
-#include "radius.h"
-#include "radius_wispr.h"
-#include "radius_chillispot.h"
-#include "redir.h"
-#include "syserr.h"
-#include "dhcp.h"
-#include "cmdline.h"
 #include "chilli.h"
-#include "options.h"
-#include "net.h"
 
 #define inaddr(x)    (((struct sockaddr_in *)&ifr->x)->sin_addr)
 #define inaddr2(p,x) (((struct sockaddr_in *)&(p)->x)->sin_addr)

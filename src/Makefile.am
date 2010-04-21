@@ -14,7 +14,7 @@ md5.c md5.h redir.h redir.c dhcp.c dhcp.h syserr.c syserr.h \
 iphash.c iphash.h lookup3.c sfhash.c lookup.c lookup.h \
 system.h cmdsock.c cmdsock.h radius_wispr.h radius_chillispot.h \
 chilli.h options.h util.c garden.c garden.h ssl.h ssl.c \
-dns.c dns.h session.c session.h limits.h pkt.h pkt.c \
+dns.c dns.h session.c session.h chilli_limits.h pkt.h pkt.c \
 chksum.c net.h net.c ms_chap.c options.c statusfile.c \
 conn.h conn.c 
 

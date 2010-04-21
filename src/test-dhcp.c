@@ -24,8 +24,6 @@
 #include "cmdline.h"
 #include "dhcp.h"
 #include "radius.h"
-#include "radius_chillispot.h"
-#include "radius_wispr.h"
 #include "redir.h"
 #include "chilli.h"
 #include "options.h"

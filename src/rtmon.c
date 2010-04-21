@@ -28,14 +28,7 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
-#include "net.h"
-#include "options.h"
-#include "session.h"
-#include "dhcp.h"
-#include "radius.h"
 #include "chilli.h"
-#include "syserr.h"
-#include "rtmon.h"
 
 #define MYPROTO NETLINK_ROUTE
 #define MYMGRP RTMGRP_IPV4_ROUTE

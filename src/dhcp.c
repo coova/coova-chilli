@@ -17,20 +17,7 @@
  * 
  */
 
-#include "system.h"
-#include "syserr.h"
-#include "radius.h"
-#include "radius_wispr.h"
-#include "radius_chillispot.h"
-#include "redir.h"
-#include "md5.h"
-#include "dhcp.h"
-#include "dns.h"
-#include "tun.h"
 #include "chilli.h"
-#include "options.h"
-#include "ippool.h"
-#include "lookup.h"
 
 const uint32_t DHCP_OPTION_MAGIC = 0x63825363;
 

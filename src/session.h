@@ -20,7 +20,7 @@
 #ifndef _SESSION_H
 #define _SESSION_H
 
-#include "limits.h"
+#include "chilli_limits.h"
 #include "garden.h"
 
 struct session_params {

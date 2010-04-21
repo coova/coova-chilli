@@ -16,21 +16,7 @@
  * 
  */
 
-#include "system.h"
-#include "tun.h"
-#include "ippool.h"
-#include "radius.h"
-#include "radius_wispr.h"
-#include "radius_chillispot.h"
-#include "redir.h"
-#include "syserr.h"
-#include "dhcp.h"
-#include "cmdline.h"
 #include "chilli.h"
-#include "options.h"
-#include "cmdsock.h"
-#include "net.h"
-
 
 static char * kname_fmt = "/proc/net/coova/%s";
 

@@ -17,16 +17,7 @@
  * 
  */
 
-#include "system.h"
-#include "syserr.h"
-#include "radius.h"
-#include "md5.h"
-#include "dhcp.h"
-#include "redir.h"
 #include "chilli.h"
-#include "options.h"
-#include "radius_wispr.h"
-#include "radius_chillispot.h"
 
 #define _debug_ 0
 

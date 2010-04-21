@@ -18,19 +18,7 @@
 
 #define MAIN_FILE
 
-#include "system.h"
-#include "syserr.h"
-#include "cmdline.h"
-#include "dhcp.h"
-#include "radius.h"
-#include "radius_chillispot.h"
-#include "radius_wispr.h"
-#include "redir.h"
 #include "chilli.h"
-#include "options.h"
-#include "cmdsock.h"
-#include "md5.h"
-#include "conn.h"
 
 #ifdef USING_CURL
 #include <curl/curl.h>

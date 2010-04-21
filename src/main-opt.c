@@ -18,17 +18,7 @@
 
 #define MAIN_FILE
 
-#include "system.h"
-#include "syserr.h"
-#include "cmdline.h"
-#include "dhcp.h"
-#include "radius.h"
-#include "radius_chillispot.h"
-#include "radius_wispr.h"
-#include "redir.h"
 #include "chilli.h"
-#include "options.h"
-#include "cmdsock.h"
 
 struct options_t _options;
 

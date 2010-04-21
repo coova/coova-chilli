@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,17 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
  */
- 
-#include <sys/types.h>
-#include <netinet/in.h> /* in_addr */
-#include <stdlib.h>     /* calloc */
-#include <stdio.h>      /* sscanf */
 
-#include "net.h"
-#include "radius.h"
-#include "session.h"
-#include "options.h"
-#include "syserr.h"
 #include "chilli.h"
 #include "iphash.h"
 

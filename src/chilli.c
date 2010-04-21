@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (C) 2003-2005 Mondru AB., 
  * 
@@ -18,20 +18,7 @@
  * 
  */
 
-#include "system.h"
-#include "tun.h"
-#include "ippool.h"
-#include "radius.h"
-#include "radius_wispr.h"
-#include "radius_chillispot.h"
-#include "redir.h"
-#include "syserr.h"
-#include "dhcp.h"
-#include "cmdline.h"
 #include "chilli.h"
-#include "options.h"
-#include "cmdsock.h"
-#include "net.h"
 
 struct tun_t *tun;                /* TUN instance            */
 struct ippool_t *ippool;          /* Pool of IP addresses */

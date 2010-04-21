@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,16 +16,7 @@
  * 
  */
 
-#include "system.h"
-#include "syserr.h"
-#include "radius.h"
-#include "md5.h"
-#include "dhcp.h"
-#include "dns.h"
-#include "tun.h"
-#include "session.h"
 #include "chilli.h"
-#include "options.h"
 
 int pkt_shape_tcpwin(uint8_t *packet, size_t *length) {
   int optval = _options.tcpwin;

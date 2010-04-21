@@ -16,10 +16,7 @@
  * 
  */
 
-#include "system.h"
-#include "pkt.h"
-#include "options.h"
-#include "syserr.h"
+#include "chilli.h"
 
 #define cksum_wrap(c) (c=(c>>16)+(c&0xffff),(~(c+(c>>16))&0xffff))
 

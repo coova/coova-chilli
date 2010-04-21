@@ -30,11 +30,6 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
-#include "net.h"
-#include "options.h"
-#include "session.h"
-#include "dhcp.h"
-#include "radius.h"
 #include "chilli.h"
 
 struct options_t _options;

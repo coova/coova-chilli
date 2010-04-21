@@ -17,16 +17,7 @@
  */
 #include "system.h"
 #ifdef HAVE_SSL
-#include "syserr.h"
-#include "radius.h"
-#include "radius_wispr.h"
-#include "radius_chillispot.h"
-#include "redir.h"
-#include "md5.h"
-#include "dhcp.h"
 #include "chilli.h"
-#include "options.h"
-#include "ssl.h"
 
 static openssl_env * sslenv_svr = 0;
 static openssl_env * sslenv_cli = 0;
