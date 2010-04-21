@@ -74,6 +74,7 @@ static int connect_ssl(struct in_addr *addr, int port) {
   }
   server.conn.sslcon = openssl_connect_fd(server.env, server.conn.sock, 10);
   if (!server.conn.sslcon) {
+    log_err(errno, "Failed to connect to %s:%d", inet_ntoa(*addr), port);
     return -1;
   }
   return 0;

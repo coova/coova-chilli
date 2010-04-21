@@ -258,10 +258,10 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
     return err;
   }
 #else
-    log_dbg("cert: %s",_options.sslcertfile);
-    log_dbg("key: %s",_options.sslkeyfile);
-    log_dbg("pass: %s",_options.sslkeypass?_options.sslkeypass:"null");
-    log_dbg("ca: %s",_options.sslcafile?_options.sslcafile:"null");
+  log_dbg("cert: %s",_options.sslcertfile);
+  log_dbg("key: %s",_options.sslkeyfile);
+  log_dbg("pass: %s",_options.sslkeypass?_options.sslkeypass:"null");
+  log_dbg("ca: %s",_options.sslcafile?_options.sslcafile:"null");
   if ( matrixSslReadKeys( &env->keys,
 			  _options.sslcertfile, 
 			  _options.sslkeyfile, 
@@ -286,6 +286,7 @@ openssl_con *
 openssl_connect_fd(openssl_env *env, int fd, int timeout) {
   openssl_con *c = (openssl_con *)calloc(1, sizeof(*c));
   if (!c) return 0;
+
   c->env = env;
 #ifdef HAVE_OPENSSL
   c->con = (SSL *)SSL_new(env->ctx); 
@@ -301,13 +302,24 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
   SSL_set_app_data(c->con, c);
   SSL_set_connect_state(c->con);
 
-  if (SSL_connect(c->con) <= 0) {
+  if (SSL_connect(c->con) < 0) {
+    char is_error = 0;
     unsigned long error;
-    while ((error = ERR_get_error()))
+    while ((error = ERR_get_error())) {
       log_dbg("TLS: %s", ERR_error_string(error, NULL));
+      is_error = 1;
+    }
+    if (is_error) {
+      openssl_free(c);
+      return 0;
+    }
   }
 #else
-  if (!SSL_connect(c->con, certValidator, c)) /* error */;
+  if (!SSL_connect(c->con, certValidator, c)) {
+    log_err(errno, "openssl_connect_fd");
+    openssl_free(c);
+    return 0;
+  }
 #endif
 
   return c;
@@ -389,6 +401,7 @@ openssl_check_accept(openssl_con *c) {
 openssl_con *
 openssl_accept_fd(openssl_env *env, int fd, int timeout) {
   openssl_con *c = (openssl_con *)calloc(1, sizeof(*c));
+  int rc;
 
   if (!c) return 0;
 
@@ -416,7 +429,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout) {
 
   SSL_set_verify_result(c->con, X509_V_OK);
 
-  if (openssl_check_accept(c) < 0) {
+  if ((rc = openssl_check_accept(c)) < 0) {
     SSL_set_shutdown(c->con, SSL_RECEIVED_SHUTDOWN);
     openssl_free(c);
     return 0;

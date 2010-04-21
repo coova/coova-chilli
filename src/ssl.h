@@ -87,6 +87,7 @@ int openssl_write(openssl_con *con, char *b, int l, int t);
 void openssl_free(openssl_con *con);
 void openssl_env_free(openssl_env *env);
 int openssl_pending(openssl_con *con);
+int openssl_check_accept(openssl_con *c);
 
 #endif
 #endif
