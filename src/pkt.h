@@ -25,6 +25,7 @@
 #define PKT_ETH_HLEN             14 /* Ethernet Header Length */
 
 #define PKT_ETH_PROTO_IP     0x0800
+#define PKT_ETH_PROTO_IPv6   0x86dd
 #define PKT_ETH_PROTO_ARP    0x0806
 #define PKT_ETH_PROTO_EAPOL  0x888e
 

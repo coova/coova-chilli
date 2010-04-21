@@ -236,6 +236,9 @@ struct options_t {
   char *cmdsocket;
 
 #ifdef ENABLE_LEAKYBUCKET
+  uint32_t bwbucketupsize;
+  uint32_t bwbucketdnsize;
+  uint32_t bwbucketminsize;
   uint8_t bwbypasstoscount;             /* Count of TOS values to bypass leaky bucket */
   unsigned int bwbypasstos[10];       
   uint8_t bwbypasshostcount;             /* Count of HOST values to bypass leaky bucket */

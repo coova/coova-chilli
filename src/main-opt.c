@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -39,10 +39,70 @@ static const char *description =
 
 static const char *copyright = 
   "Copyright (c) 2003-2005 Mondru AB., 2006-2010 Coova Technologies LLC, and others.\n"
-  "Licensed under the Gnu General Public License (GPL).\n";
+  "Licensed under the GNU General Public License (GPL).\n";
 
-static const char *usage = \
+static const char *usage =
   "Usage: chilli [OPTIONS]...\n";
+
+static const char *compile_options = "Compiled with "
+#ifdef ENABLE_BINSTATFILE
+  "ENABLE_BINSTATFILE "
+#endif
+#ifdef ENABLE_CHILLIPROXY
+  "ENABLE_CHILLIPROXY "
+#endif
+#ifdef ENABLE_CHILLIRADSEC
+  "ENABLE_CHILLIRADSEC "
+#endif
+#ifdef ENABLE_CHILLIREDIR
+  "ENABLE_CHILLIREDIR "
+#endif
+#ifdef ENABLE_CHILLIXML
+  "ENABLE_CHILLIXML "
+#endif
+#ifdef ENABLE_EWTAPI
+  "ENABLE_EWTAPI "
+#endif
+#ifdef ENABLE_IEEE8021Q
+  "ENABLE_IEEE8021Q "
+#endif
+#ifdef ENABLE_JSON
+  "ENABLE_JSON "
+#endif
+#ifdef ENABLE_LARGELIMITS
+  "ENABLE_LARGELIMITS "
+#endif
+#ifdef ENABLE_LEAKYBUCKET
+  "ENABLE_LEAKYBUCKET "
+#endif
+#ifdef ENABLE_MINIPORTAL
+  "ENABLE_MINIPORTAL "
+#endif
+#ifdef ENABLE_NETNAT
+  "ENABLE_NETNAT "
+#endif
+#ifdef ENABLE_PROXYVSA
+  "ENABLE_PROXYVSA "
+#endif
+#ifdef ENABLE_RTMON
+  "ENABLE_RTMON "
+#endif
+#ifdef ENABLE_SESSGARDEN
+  "ENABLE_SESSGARDEN "
+#endif
+#ifdef ENABLE_STATFILE
+  "ENABLE_STATFILE "
+#endif
+#ifdef HAVE_MATRIXSSL
+  "HAVE_MATRIXSSL "
+#endif
+#ifdef HAVE_OPENSSL
+  "HAVE_OPENSSL "
+#endif
+#ifdef USING_POLL
+  "USING_POLL "
+#endif
+;
 
 extern const char *gengetopt_args_info_help[];
 
@@ -61,6 +121,8 @@ options_print_help (void) {
 
   while (gengetopt_args_info_help[i])
     printf("%s\n", gengetopt_args_info_help[i++]);
+
+  printf("\n%s\n", compile_options);
 
   printf("\n%s\n", copyright);
 }
@@ -185,6 +247,12 @@ int main(int argc, char **argv) {
   _options.framedservice = args_info.framedservice_flag;
   _options.radsec = args_info.radsec_flag;
   _options.proxymacaccept = args_info.proxymacaccept_flag;
+
+#ifdef ENABLE_LEAKYBUCKET
+  _options.bwbucketupsize = args_info.bwbucketupsize_arg;
+  _options.bwbucketdnsize = args_info.bwbucketdnsize_arg;
+  _options.bwbucketminsize = args_info.bwbucketminsize_arg;
+#endif
 
 #ifdef ENABLE_PROXYVSA
   if (args_info.proxylocattr_arg) {

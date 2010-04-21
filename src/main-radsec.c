@@ -113,7 +113,7 @@ static void process_radius(struct radius_packet_t *pack, ssize_t len) {
     } 
     server.conn.connected = 1;
   }
-
+  
   {
     int l = openssl_write(server.conn.sslcon, (char *)pack, len, 0);
     log_dbg("ssl_write %d",l);

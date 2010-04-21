@@ -316,11 +316,20 @@ struct gengetopt_args_info
   int definteriminterval_arg;	/**< @brief Default interim-interval for accounting if not returned by RADIUS (default='300').  */
   char * definteriminterval_orig;	/**< @brief Default interim-interval for accounting if not returned by RADIUS original value given at command line.  */
   const char *definteriminterval_help; /**< @brief Default interim-interval for accounting if not returned by RADIUS help description.  */
-  char ** bwbypasstos_arg;	/**< @brief .  */
-  char ** bwbypasstos_orig;	/**< @brief  original value given at command line.  */
-  unsigned int bwbypasstos_min; /**< @brief 's minimum occurreces */
-  unsigned int bwbypasstos_max; /**< @brief 's maximum occurreces */
-  const char *bwbypasstos_help; /**< @brief  help description.  */
+  int bwbucketupsize_arg;	/**< @brief Define the up-bound 'leaky bucket' size (default='0').  */
+  char * bwbucketupsize_orig;	/**< @brief Define the up-bound 'leaky bucket' size original value given at command line.  */
+  const char *bwbucketupsize_help; /**< @brief Define the up-bound 'leaky bucket' size help description.  */
+  int bwbucketdnsize_arg;	/**< @brief Define the down-bound 'leaky bucket' size (default='0').  */
+  char * bwbucketdnsize_orig;	/**< @brief Define the down-bound 'leaky bucket' size original value given at command line.  */
+  const char *bwbucketdnsize_help; /**< @brief Define the down-bound 'leaky bucket' size help description.  */
+  int bwbucketminsize_arg;	/**< @brief Define the minimum 'leaky bucket' size (default='0').  */
+  char * bwbucketminsize_orig;	/**< @brief Define the minimum 'leaky bucket' size original value given at command line.  */
+  const char *bwbucketminsize_help; /**< @brief Define the minimum 'leaky bucket' size help description.  */
+  char ** bwbypasstos_arg;	/**< @brief Bypass leaky bucket based on TOS value.  */
+  char ** bwbypasstos_orig;	/**< @brief Bypass leaky bucket based on TOS value original value given at command line.  */
+  unsigned int bwbypasstos_min; /**< @brief Bypass leaky bucket based on TOS value's minimum occurreces */
+  unsigned int bwbypasstos_max; /**< @brief Bypass leaky bucket based on TOS value's maximum occurreces */
+  const char *bwbypasstos_help; /**< @brief Bypass leaky bucket based on TOS value help description.  */
   int macauth_flag;	/**< @brief Authenticate based on MAC address (default=off).  */
   const char *macauth_help; /**< @brief Authenticate based on MAC address help description.  */
   int macreauth_flag;	/**< @brief Re-Authenticate based on MAC address for every initial URL redirection (default=off).  */
@@ -565,6 +574,9 @@ struct gengetopt_args_info
   unsigned int defbandwidthmaxdown_given ;	/**< @brief Whether defbandwidthmaxdown was given.  */
   unsigned int defbandwidthmaxup_given ;	/**< @brief Whether defbandwidthmaxup was given.  */
   unsigned int definteriminterval_given ;	/**< @brief Whether definteriminterval was given.  */
+  unsigned int bwbucketupsize_given ;	/**< @brief Whether bwbucketupsize was given.  */
+  unsigned int bwbucketdnsize_given ;	/**< @brief Whether bwbucketdnsize was given.  */
+  unsigned int bwbucketminsize_given ;	/**< @brief Whether bwbucketminsize was given.  */
   unsigned int bwbypasstos_given ;	/**< @brief Whether bwbypasstos was given.  */
   unsigned int macauth_given ;	/**< @brief Whether macauth was given.  */
   unsigned int macreauth_given ;	/**< @brief Whether macreauth was given.  */

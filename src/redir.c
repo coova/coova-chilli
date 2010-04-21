@@ -149,7 +149,7 @@ static int redir_xmlencode(char *src, int srclen, char *dst, int dstsize) {
 */
 
 static void redir_http(bstring s, char *code) {
-  bassigncstr(s, "HTTP/1.1 ");
+  bassigncstr(s, "HTTP/1.0 ");
   bcatcstr(s, code);
   bcatcstr(s, "\r\n");
   bcatcstr(s, "Connection: close\r\nCache-Control: no-cache, must-revalidate\r\n");
@@ -923,7 +923,7 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   if (flg & FLG_redir) {
     bassignformat(tmp , "http://%s:%d/logoff", 
 		  inet_ntoa(redir->addr), redir->port);
-
+    
     session_redir_json_fmt(json, userurl, redirurl, tmp, hismac);
   }
 
@@ -1615,6 +1615,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
     if (!forked && !eoh) {
       log_dbg("Didn't see end of headers, continue...");
+      log_dbg("%.*s",httpreq->data_in->slen,httpreq->data_in->data);
       return 1;
     }
   }
@@ -2416,6 +2417,7 @@ pid_t redir_fork(int in, int out) {
 int redir_main_exit(struct redir_t *redir, struct redir_httpreq_t *httpreq, 
 		    struct redir_socket_t *socket, int forked) {
   /*if (httpreq->data_in) bdestroy(httpreq->data_in);*/
+  if (!forked) return 0; /*XXXX*/
 #ifdef HAVE_SSL
   if (socket->sslcon) {
     openssl_shutdown(socket->sslcon, 2);
@@ -2423,7 +2425,6 @@ int redir_main_exit(struct redir_t *redir, struct redir_httpreq_t *httpreq,
     socket->sslcon=0;
   }
 #endif
-  if (!forked) return 0; /*XXXX*/
   if (forked) _redir_close_exit(socket->fd[0], socket->fd[1]);
   return _redir_close(socket->fd[0], socket->fd[1]);
 }
@@ -2559,8 +2560,34 @@ int redir_main(struct redir_t *redir,
   log_dbg("Receiving HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
 
 #ifdef HAVE_SSL
-  if ((conn.flags & USING_SSL) == USING_SSL) {
+  if ((!rreq || !rreq->sslcon) && (conn.flags & USING_SSL) == USING_SSL) {
     socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 30);
+    if (rreq) {
+      rreq->sslcon = socket.sslcon;
+      switch(openssl_check_accept(socket.sslcon)) {
+      case -1:
+	return redir_main_exit(redir, &httpreq, &socket, forked);
+      case 1:
+	log_dbg("Continue... SSL pending");
+	return 1;
+      default:
+	break;
+      }
+    } else {
+      int done = 0;
+      while (!done) {
+	switch(openssl_check_accept(socket.sslcon)) {
+	case -1:
+	  return redir_main_exit(redir, &httpreq, &socket, forked);
+	case 0:
+	  done = 1;
+	default:
+	  break;
+	}
+      }
+    }
+  } else if (rreq) {
+    socket.sslcon = rreq->sslcon;
   }
 #endif
 
@@ -2793,7 +2820,7 @@ int redir_main(struct redir_t *redir,
 	  }
 	  
 	  buflen = snprintf(buffer, bufsize,
-			    "HTTP/1.1 200 OK\r\n"
+			    "HTTP/1.0 200 OK\r\n"
 			    "Connection: close\r\n"
 			    "Content-type: %s\r\n\r\n", ctype);
 	  
@@ -3020,7 +3047,7 @@ int redir_main(struct redir_t *redir,
     }
 
   case REDIR_MSDOWNLOAD:
-    buflen = snprintf(buffer, bufsize, "HTTP/1.1 403 Forbidden\r\n\r\n");
+    buflen = snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
     tcp_write(&socket, buffer, buflen);
     return redir_main_exit(redir, &httpreq, &socket, forked);
 

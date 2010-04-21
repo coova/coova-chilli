@@ -313,13 +313,82 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
   return c;
 }
 
+int
+openssl_check_accept(openssl_con *c) {
+#ifdef HAVE_OPENSSL  
+  X509 *peer_cert;
+  int rc;
+
+  if (!c || !c->con) return -1;
+
+  if (!SSL_is_init_finished(c->con)) {
+    
+    if ((rc = SSL_accept(c->con)) <= 0) {
+      
+      if (SSL_get_error(c->con, rc) == SSL_ERROR_ZERO_RETURN) {
+	
+	return -1;
+	
+	/*      } else if (ERR_GET_REASON(ERR_peek_error()) == SSL_R_HTTP_REQUEST) { */
+      } else if (SSL_get_error(c->con, rc) == SSL_ERROR_SYSCALL) {
+	
+	if (errno != EINTR) {
+	  if (errno > 0)
+	    log_err(errno, "SSL handshake interrupted by system [Hint: Stop button pressed in browser?!]");
+	  else
+	    log_err(errno, "Spurious SSL handshake interrupt [Hint: Usually just one of those OpenSSL confusions!?]");
+	  
+	  return -1;
+	}
+      }
+
+      return 1;
+
+    } else {
+      
+      peer_cert = SSL_get_peer_certificate(c->con);
+      
+      if (peer_cert) {
+	char subj[1024];
+	
+	X509_NAME_oneline(X509_get_subject_name(peer_cert),subj,sizeof(subj));
+	
+	if (SSL_get_verify_result(c->con) != X509_V_OK) {
+	  log_dbg("auth_failed: %s\n", subj);
+	  X509_free(peer_cert);
+	  return -1;
+	}
+	
+	log_dbg("auth_success: %s\n", subj);
+	
+	if (_options.debug) {
+	  EVP_PKEY *pktmp = X509_get_pubkey(peer_cert);
+	  SSL_CIPHER *cipher;
+	  char b[512];
+	  log_dbg("Debugging: SSL Information:\n");
+	  cipher = SSL_get_current_cipher(c->con);
+	  log_dbg("  Protocol: %s, %s with %.*s bit key\n", 
+		  SSL_CIPHER_get_version(cipher),
+		  (char*)SSL_CIPHER_get_name(cipher),
+		  sprintf(b, "%d", EVP_PKEY_bits(pktmp)), b);
+	  log_dbg("  Subject:  %s\n", subj);
+	  X509_NAME_oneline(X509_get_issuer_name(peer_cert),b,sizeof(b));
+	  log_dbg("  Issuer:   %s\n", b);
+	  EVP_PKEY_free(pktmp);
+	}
+	
+	X509_free(peer_cert);
+      }
+    }
+  }
+#endif
+
+  return 0;
+}
+
 openssl_con *
 openssl_accept_fd(openssl_env *env, int fd, int timeout) {
   openssl_con *c = (openssl_con *)calloc(1, sizeof(*c));
-#ifdef HAVE_OPENSSL  
-  X509 *peer_cert;
-#endif
-  int rc;
 
   if (!c) return 0;
 
@@ -347,70 +416,10 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout) {
 
   SSL_set_verify_result(c->con, X509_V_OK);
 
-  while (!SSL_is_init_finished(c->con)) {
-
-    if ((rc = SSL_accept(c->con)) <= 0) {
-
-      if (SSL_get_error(c->con, rc) == SSL_ERROR_ZERO_RETURN) {
-
-	log_err(errno, "SSL handshake stopped: connection was closed\n");
-	SSL_set_shutdown(c->con, SSL_RECEIVED_SHUTDOWN);
-	openssl_free(c);
-	return 0;
-
-	/*      } else if (ERR_GET_REASON(ERR_peek_error()) == SSL_R_HTTP_REQUEST) { */
-      } else if (SSL_get_error(c->con, rc) == SSL_ERROR_SYSCALL) {
-
-	if (errno == EINTR)
-	  continue;
-
-	if (errno > 0)
-	  log_err(errno, "SSL handshake interrupted by system [Hint: Stop button pressed in browser?!]");
-	else
-	  log_err(errno, "Spurious SSL handshake interrupt [Hint: Usually just one of those OpenSSL confusions!?]");
-
-	SSL_set_shutdown(c->con, SSL_RECEIVED_SHUTDOWN);
-	openssl_free(c);
-	return 0;
-      }
-      break; 
-    }
-  }
-
-  peer_cert = SSL_get_peer_certificate(c->con);
-
-  if (peer_cert) {
-    char subj[1024];
-
-    X509_NAME_oneline(X509_get_subject_name(peer_cert),subj,sizeof(subj));
-
-    if (SSL_get_verify_result(c->con) != X509_V_OK) {
-      log_dbg("auth_failed: %s\n", subj);
-      X509_free(peer_cert);
-      openssl_shutdown(c, 2); 
-      openssl_free(c);
-      return 0;
-    }
-
-    log_dbg("auth_success: %s\n", subj);
-
-    if (_options.debug) {
-      EVP_PKEY *pktmp = X509_get_pubkey(peer_cert);
-      SSL_CIPHER *cipher;
-      char b[512];
-      log_dbg("Debugging: SSL Information:\n");
-      cipher = SSL_get_current_cipher(c->con);
-      log_dbg("  Protocol: %s, %s with %.*s bit key\n", 
-	      SSL_CIPHER_get_version(cipher),
-	      (char*)SSL_CIPHER_get_name(cipher),
-	      sprintf(b, "%d", EVP_PKEY_bits(pktmp)), b);
-      log_dbg("  Subject:  %s\n", subj);
-      X509_NAME_oneline(X509_get_issuer_name(peer_cert),b,sizeof(b));
-      log_dbg("  Issuer:   %s\n", b);
-      EVP_PKEY_free(pktmp);
-    }
-
-    X509_free(peer_cert);
+  if (openssl_check_accept(c) < 0) {
+    SSL_set_shutdown(c->con, SSL_RECEIVED_SHUTDOWN);
+    openssl_free(c);
+    return 0;
   }
 #else
   
@@ -418,7 +427,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout) {
 
   if ((rc = SSL_accept(c->con)) <= 0) {
     log_err(errno, "SSL accept failure");
-    /*openssl_free(c);*/
+    openssl_free(c);
     return 0;
   }
 
@@ -554,7 +563,10 @@ openssl_write(openssl_con *con, char *b, int l, int t) {
     if (wrt <= 0) {
       err = openssl_error(con, wrt, "openssl_write");
       if (err == -1) return err;
-      else if (err > 0) goto repeat_write;
+      else if (err > 0) {
+	log_dbg("ssl_repeart_write");
+	goto repeat_write;
+      }
       break;
     } 
 

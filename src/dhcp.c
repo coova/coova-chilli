@@ -290,7 +290,7 @@ void dhcp_checktag(struct dhcp_conn_t *conn, uint8_t *pack) {
       log_dbg("IEEE 802.1Q: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x on VLAN %d", 
 	      conn->hismac[0], conn->hismac[1], conn->hismac[2],
 	      conn->hismac[3], conn->hismac[4], conn->hismac[5],
-	      (int)(ntohs(tag) & 0xFF));
+	      (int)(ntohs(tag) & 0x0FFF));
     }
     if (conn->peer) {
       ((struct app_conn_t *)conn->peer)->s_state.tag8021q = conn->tag8021q;
@@ -2704,6 +2704,7 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
   case PKT_ETH_PROTO_EAPOL: return dhcp_receive_eapol(this, packet);
   case PKT_ETH_PROTO_ARP:   return dhcp_receive_arp(this, packet, length);
   case PKT_ETH_PROTO_IP:    return dhcp_receive_ip(this, packet, length);
+  case PKT_ETH_PROTO_IPv6:  return 0;
   default: log_dbg("Layer2 PROT: 0x%.4x dropped", ntohs(prot)); 
   }
   return 0;

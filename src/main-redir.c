@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -83,7 +83,8 @@ static redir_request * get_request() {
     log_err(0,"out of connections!");
     return 0;
   }
-  
+
+  req->state = 0;
   req->next = req->prev = 0;
   req->inuse = 1;
   return req;
@@ -94,6 +95,7 @@ static void close_request(redir_request *req) {
   req->inuse = 0;
   req->proxy = 0;
   req->socket_fd = 0;
+  req->state = 0;
   if (requests_free) {
     requests_free->prev = req;
     req->next = requests_free;
@@ -162,12 +164,23 @@ sock_redir_getstate(struct redir_t *redir,
 
 static int redir_conn_finish(struct conn_t *conn, void *ctx) {
   redir_request *req = (redir_request *)ctx;
+#ifdef HAVE_SSL
+  if (req->sslcon) {
+    openssl_shutdown(req->sslcon, 2);
+    openssl_free(req->sslcon);
+    req->sslcon=0;
+  }
+#endif
   if (req->conn.sock) {
-    net_select_rmfd(&sctx, req->conn.sock);
+    if (req->state & REDIR_CONN_FD) {
+      net_select_rmfd(&sctx, req->conn.sock);
+    }
     conn_close(&req->conn);
   }
   if (req->socket_fd) {
-    net_select_rmfd(&sctx, req->socket_fd);
+    if (req->state & REDIR_SOCKET_FD) {
+      net_select_rmfd(&sctx, req->socket_fd);
+    }
     close(req->socket_fd);
   }
   close_request(req);
@@ -287,6 +300,7 @@ redir_handle_url(struct redir_t *redir,
 	return -1;
       }
 
+      req->state |= REDIR_CONN_FD;
       net_select_addfd(&sctx, req->conn.sock, SELECT_READ);
       
       return 0;
@@ -373,10 +387,11 @@ int redir_accept2(struct redir_t *redir, int idx) {
     conn_set_readhandler(&req->conn, redir_conn_read, req);
     conn_set_donehandler(&req->conn, redir_conn_finish, req);
     
-    switch(redir_main(redir, new_socket, new_socket,
-		      &address, &baddress, idx, req)) {
+    switch (redir_main(redir, new_socket, new_socket,
+		       &address, &baddress, idx, req)) {
     case 1:
       log_dbg("redir queued %s", inet_ntoa(address.sin_addr));
+      req->state |= REDIR_SOCKET_FD;
       net_select_addfd(&sctx, req->socket_fd, SELECT_READ);
       return 1;
     case 0: 
@@ -481,7 +496,7 @@ int main(int argc, char **argv) {
 	  net_select_fd(&sctx, fd, SELECT_READ);
 	  active++;
 	}
-	  
+	
 	if (_options.debug) {
 	  struct sockaddr_in address;
 	  socklen_t addrlen = sizeof(address);
@@ -490,8 +505,8 @@ int main(int argc, char **argv) {
 	    char line[512];
 	    
 	    snprintf(line, sizeof(line),
-		     "#%d %d connection from %s %d",
-		     timeout ? -1 : active, (int) requests[idx].last_active,
+		     "#%d (%d) %d connection from %s %d",
+		     timeout ? -1 : active, fd, (int) requests[idx].last_active,
 		     inet_ntoa(address.sin_addr),
 		     ntohs(address.sin_port));
 	    
@@ -520,17 +535,17 @@ int main(int argc, char **argv) {
       log_dbg("active connections: %d", active);
       active_last = active;
     }
-
+    
     status = net_select(&sctx);
     
-    /*
     log_dbg("epoll %d", status);
     if (status > 0) {
       int i;
       for (i=0; i < status; i++) {
-	log_dbg("epoll fd %d", sctx.events[i].data.fd);
+	log_dbg("epoll fd %d %d", sctx.events[i].data.fd, sctx.events[i].events);
       }
     }
+    /*
     */
 
     switch (status) {
@@ -540,13 +555,8 @@ int main(int argc, char **argv) {
       }
       break;  
 
-    case 0:
-      break;
-
     default:
-
       if (status > 0) {
-
 	if (redir->fd[0])
 	  if (net_select_read_fd(&sctx, redir->fd[0]) && 
 	      redir_accept2(redir, 0) < 0)
@@ -556,57 +566,84 @@ int main(int argc, char **argv) {
 	  if (net_select_read_fd(&sctx, redir->fd[1]) && 
 	      redir_accept2(redir, 1) < 0)
 	    log_err(0, "redir_accept() failed!");
-	
+      
 	for (idx=0; idx < max_requests; idx++) {
 	  
 	  conn_select_update(&requests[idx].conn, &sctx);
-	  
+	
 	  if (requests[idx].inuse && requests[idx].socket_fd) {
 	    int fd = requests[idx].socket_fd;
-	    if (net_select_read_fd(&sctx, fd)) {
-	      char b[1500];
-	      int r;
-	      
-	      r = read(fd, b, sizeof(b));
-	      
-	      log_dbg("redir_main read: %d", r);
-	      
-	      if (r <= 0) {
-		
+	    
+#ifdef HAVE_SSL
+	    if (requests[idx].sslcon) {
+	      if (openssl_check_accept(requests[idx].sslcon) < 0) {
 		redir_conn_finish(&requests[idx].conn, &requests[idx]);
+		continue;
+	      }
+	    }
+#endif
+	    
+	    if (net_select_read_fd(&sctx, fd)) {
+	      
+	      if (requests[idx].proxy) {
+		char b[1500];
+		int r;
 		
-	      } else if (r > 0) {
+#ifdef HAVE_SSL
+		if (requests[idx].sslcon) {
+		  /*
+		  log_dbg("proxy_read_ssl");
+		  */
+		  r = openssl_read(requests[idx].sslcon, 
+				   b, sizeof(b), 0);
+		} else
+#endif
+		  r = recv(fd, b, sizeof(b), 0);
 		
-		if (requests[idx].proxy) {
+		/*
+		log_dbg("proxy_read: %d %d", fd, r);
+		*/
+		
+		if (r <= 0) {
+		  
+		  redir_conn_finish(&requests[idx].conn, &requests[idx]);
+		  
+		} else if (r > 0) {
 		  
 		  int w;
 		  requests[idx].last_active = mainclock_tick();
 		  w = write(requests[idx].conn.sock, b, r);
 		  
-		  /*log_dbg("write: %d", w);*/
+		  /*
+		  log_dbg("proxy_write: %d", w);
+		   */
 		  if (r != w) {
 		    log_err(errno, "problem writing what we read");
 		    redir_conn_finish(&requests[idx].conn, &requests[idx]);
 		  }
-		  
-		} else {
-		  
-		  bcatblk(requests[idx].wbuf, b, r);
-		  
-		  switch(redir_main(redir, fd, fd, 
-				    &requests[idx].conn.peer,
-				    &requests[idx].baddr, 
-				    requests[idx].uiidx, 
-				    &requests[idx])) {
-		  case 1:
-		    break;
-		  case -1: 
-		    log_dbg("redir error");
-		  default:
-		    log_dbg("redir completed");
-		    redir_conn_finish(&requests[idx].conn, &requests[idx]);
-		    break;
-		  }
+		}
+		
+	      } else {
+#ifdef HAVE_SSL
+	      go_again:
+#endif
+		switch (redir_main(redir, fd, fd, 
+				   &requests[idx].conn.peer,
+				   &requests[idx].baddr, 
+				   requests[idx].uiidx, 
+				   &requests[idx])) {
+		case 1:
+#ifdef HAVE_SSL
+		  if (requests[idx].sslcon && openssl_pending(requests[idx].sslcon) > 0)
+		    goto go_again;
+#endif
+		  break;
+		case -1: 
+		  log_dbg("redir error");
+		default:
+		  log_dbg("redir completed");
+		  redir_conn_finish(&requests[idx].conn, &requests[idx]);
+		  break;
 		}
 	      }
 	    }

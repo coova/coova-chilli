@@ -12,7 +12,9 @@
 * Improved support for ethers file used with binary status file
 * New option ''chilli_query listippool'' to list the IP address pool
 * Bug fix in static ip allocation - particularly noticeable on 64bit
+* Added ''Compiled with ...'' section to ''--help'' output to see compile time options
 * Fix bootstrap: install missing automake files automatically
+* Fixes for RadSec support
 	
 == ChangeLog (CoovaChilli-v1.2.2 svn revision 291) ==
 

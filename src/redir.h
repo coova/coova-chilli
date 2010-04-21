@@ -141,7 +141,14 @@ typedef struct _redir_request {
   
   struct conn_t conn;
   
+#ifdef HAVE_SSL
+  openssl_con *sslcon;
+#endif
   int socket_fd;
+
+#define REDIR_SOCKET_FD (1<<0)
+#define REDIR_CONN_FD   (1<<1)
+  char state;
 
   struct _redir_request *prev, *next;
 

@@ -864,6 +864,11 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     struct pkt_ethhdr_t *ethh = (struct pkt_ethhdr_t *)pack;
     /* memcpy(ethh->src, tun(tun, idx).hwaddr, PKT_ETH_ALEN); */
 
+    /*
+     * TODO: When using ieee8021q, the vlan tag has to be stripped
+     * off for the non-vlan WAN.
+     */
+
     if (gwaddr[0] == 0 && gwaddr[1] == 0 && gwaddr[2] == 0 && 
 	gwaddr[3] == 0 && gwaddr[4] == 0 && gwaddr[5] == 0) {
       /*  

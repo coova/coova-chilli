@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ in_cksum(uint16_t *addr, size_t len)
   uint32_t    sum = 0;
   uint16_t  * w = addr;
   
-  while (nleft > 1)  {
+  while (nleft > 1) {
     sum += *w++;
     nleft -= 2;
   }
@@ -61,7 +61,7 @@ int chksum(struct pkt_iphdr_t *iph) {
       if (len < 20) return -1;  /* too short? */
       
       tcph->check = 0;
-      sum = in_cksum(((uint16_t *)iph)+6/*saddr*/, 8);
+      sum  = in_cksum(((uint16_t *)iph)+6/*saddr*/, 8);
       sum += ntohs(IPPROTO_TCP + len);
       sum += in_cksum((uint16_t *)tcph, len);
       tcph->check = cksum_wrap(sum);
@@ -74,7 +74,7 @@ int chksum(struct pkt_iphdr_t *iph) {
       size_t len = (size_t)ntohs(udph->len);
       
       udph->check = 0;
-      sum = in_cksum(((uint16_t *)iph)+6/*saddr*/, 8);
+      sum  = in_cksum(((uint16_t *)iph)+6/*saddr*/, 8);
       sum += ntohs(IPPROTO_UDP + len);
       sum += in_cksum((uint16_t *)udph, len);
       udph->check = cksum_wrap(sum);

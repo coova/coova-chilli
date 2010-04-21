@@ -1,6 +1,6 @@
 # chilli - ChilliSpot.org. A Wireless LAN Access Point Controller
 # Copyright (C) 2003, 2004, 2005 Mondru AB.
-# Copyright (c) 2006-2009 David Bird <david@coova.com>
+# Copyright (c) 2006-2010 Coova Technologies, LLC
 #
 # The contents of this file may be used under the terms of the GNU
 # General Public License Version 2, provided that the above copyright
@@ -127,7 +127,10 @@ option "defbandwidthmaxdown" - "Default WISPr-Bandwidth-Max-Down if not returned
 option "defbandwidthmaxup" - "Default WISPr-Bandwidth-Max-Up if not returned by RADIUS" long default="0" no
 option "definteriminterval" - "Default interim-interval for accounting if not returned by RADIUS" int default="300" no
 
-option "bwbypasstos" - "" string no multiple
+option "bwbucketupsize" - "Define the up-bound 'leaky bucket' size" int default="0" no
+option "bwbucketdnsize" - "Define the down-bound 'leaky bucket' size" int default="0" no
+option "bwbucketminsize" - "Define the minimum 'leaky bucket' size" int default="0" no
+option "bwbypasstos" - "Bypass leaky bucket based on TOS value" string no multiple
 
 # MAC authentication
 option "macauth"     - "Authenticate based on MAC address" flag   off

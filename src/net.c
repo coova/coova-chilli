@@ -326,7 +326,9 @@ int net_select_zero(select_ctx *sctx) {
 
 int net_select_rmfd(select_ctx *sctx, int fd) {
 #if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
-  /*log_dbg("epoll rm %d", fd);*/
+  log_dbg("epoll rm %d", fd);
+  /*
+   */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, fd, 0))
     log_err(errno, "Failed to remove fd %d", fd);
 #endif
@@ -340,7 +342,9 @@ int net_select_addfd(select_ctx *sctx, int fd, int evts) {
   event.data.fd = fd;
   if (evts & SELECT_READ) event.events |= EPOLLIN;
   if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
-  /*log_dbg("epoll add %d", fd);*/
+  log_dbg("epoll add %d", fd);
+  /*
+   */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_ADD, fd, &event))
     log_err(errno, "Failed to watch fd");
 #endif
@@ -413,7 +417,6 @@ int net_select_read_fd(select_ctx *sctx, int fd) {
 #ifdef HAVE_SYS_EPOLL_H
   for (idx=0; idx < MAX_SELECT; idx++)
     if (sctx->events[idx].data.fd == fd) {
-      log_dbg("read %d", (sctx->events[idx].events & EPOLLIN) != 0);
       return (sctx->events[idx].events & EPOLLIN) != 0;
     }
   return 0;

@@ -249,6 +249,40 @@ static void log_pid(char *pidfile) {
 }
 
 #ifdef ENABLE_LEAKYBUCKET
+static inline void leaky_bucket_init(struct app_conn_t *conn) {
+
+  if (_options.bwbucketupsize) {
+    conn->s_state.bucketupsize = _options.bwbucketupsize;
+  } else {
+#ifdef BUCKET_SIZE
+    conn->s_state.bucketupsize = BUCKET_SIZE;
+#else
+    conn->s_state.bucketupsize = conn->s_params.bandwidthmaxup / 8 * BUCKET_TIME;
+    if (conn->s_state.bucketupsize < BUCKET_SIZE_MIN) 
+      conn->s_state.bucketupsize = BUCKET_SIZE_MIN;
+#endif
+  }
+  
+  if (_options.bwbucketdnsize) {
+    conn->s_state.bucketdownsize = _options.bwbucketdnsize;
+  } else {
+#ifdef BUCKET_SIZE
+    conn->s_state.bucketdownsize = BUCKET_SIZE;
+#else
+    conn->s_state.bucketdownsize = conn->s_params.bandwidthmaxdown / 8 * BUCKET_TIME;
+    if (conn->s_state.bucketdownsize < BUCKET_SIZE_MIN) 
+      conn->s_state.bucketdownsize = BUCKET_SIZE_MIN;
+#endif
+  }
+  
+  if (_options.bwbucketminsize > 0) {
+    if (conn->s_state.bucketupsize < _options.bwbucketminsize) 
+      conn->s_state.bucketupsize = _options.bwbucketminsize;
+    if (conn->s_state.bucketdownsize < _options.bwbucketminsize) 
+      conn->s_state.bucketdownsize = _options.bwbucketminsize;
+  }
+}
+
 /* Perform leaky bucket on up- and downlink traffic */
 static inline int leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t octetsdown) {
   int result = 0;
@@ -265,17 +299,11 @@ static inline int leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint6
   
   if (conn->s_params.bandwidthmaxup) {
     uint64_t bytes = (timediff * conn->s_params.bandwidthmaxup) / 8;
-
+    
     if (!conn->s_state.bucketupsize) {
-#ifdef BUCKET_SIZE
-      conn->s_state.bucketupsize = BUCKET_SIZE;
-#else
-      conn->s_state.bucketupsize = conn->s_params.bandwidthmaxup / 8000 * BUCKET_TIME;
-      if (conn->s_state.bucketupsize < BUCKET_SIZE_MIN) 
-	conn->s_state.bucketupsize = BUCKET_SIZE_MIN;
-#endif
+      leaky_bucket_init(conn);
     }
-
+    
     if (conn->s_state.bucketup > bytes) {
       conn->s_state.bucketup -= bytes;
     }
@@ -296,15 +324,9 @@ static inline int leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint6
     uint64_t bytes = (timediff * conn->s_params.bandwidthmaxdown) / 8;
 
     if (!conn->s_state.bucketdownsize) {
-#ifdef BUCKET_SIZE
-      conn->s_state.bucketdownsize = BUCKET_SIZE;
-#else
-      conn->s_state.bucketdownsize = conn->s_params.bandwidthmaxdown / 8000 * BUCKET_TIME;
-      if (conn->s_state.bucketdownsize < BUCKET_SIZE_MIN) 
-	conn->s_state.bucketdownsize = BUCKET_SIZE_MIN;
-#endif
+      leaky_bucket_init(conn);
     }
-
+    
     if (conn->s_state.bucketdown > bytes) {
       conn->s_state.bucketdown -= bytes;
     }
@@ -1536,109 +1558,156 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 
     ipph = (struct pkt_ipphdr_t *)((char *)pack + PKT_ETH_HLEN);
 
-    if (prot == PKT_ETH_PROTO_ARP) {
-      /*
-       *  Send arp reply 
-       */
-      uint8_t packet[PKT_BUFFER];
+    switch (prot) {
+    case PKT_ETH_PROTO_IPv6:
+      return 0;
 
-      struct pkt_ethhdr_t *p_ethh = ethhdr(pack);
-      struct arp_packet_t *p_arp = arppkt(pack);
-      struct pkt_ethhdr_t *packet_ethh = ethhdr(packet);
-      struct arp_packet_t *packet_arp = ((struct arp_packet_t *)(((uint8_t*)(pack)) + PKT_ETH_HLEN));
+    case PKT_ETH_PROTO_IP:
+      break;
 
-      size_t length = PKT_ETH_HLEN + sizeof(struct arp_packet_t);
-
-      struct in_addr reqaddr;
+    case PKT_ETH_PROTO_ARP:
+      {
+	/*
+	 *  Send arp reply 
+	 */
+	uint8_t packet[PKT_BUFFER];
+	
+	struct pkt_ethhdr_t *p_ethh = ethhdr(pack);
+	struct arp_packet_t *p_arp = arppkt(pack);
+	struct pkt_ethhdr_t *packet_ethh = ethhdr(packet);
+	struct arp_packet_t *packet_arp = ((struct arp_packet_t *)(((uint8_t*)(pack)) + PKT_ETH_HLEN));
+	
+	size_t length = PKT_ETH_HLEN + sizeof(struct arp_packet_t);
+	
+	struct in_addr reqaddr;
+	
+	/* 
+	 *   Get local copy of the target address to resolve
+	 */
+	memcpy(&reqaddr.s_addr, p_arp->tpa, PKT_IP_ALEN);
+	
+	if (_options.debug)
+	  log_dbg("arp: ifidx=%d src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+		  "prot=%.4x (asking for %s)",
+		  tun(tun,idx).ifindex,
+		  ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
+		  ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+		  ntohs(ethh->prot), inet_ntoa(reqaddr));
+	
+	/*
+	 *  Lookup request address, see if we control it.
+	 */
+	if (ippool_getip(ippool, &ipm, &reqaddr)) {
+	  if (_options.debug) 
+	    log_dbg("ARP for unknown IP %s", inet_ntoa(reqaddr));
+	  return 0;
+	}
+	
+	if ((appconn  = (struct app_conn_t *)ipm->peer) == NULL ||
+	    (appconn->dnlink) == NULL) {
+	  log_err(0, "No peer protocol defined for ARP request");
+	  return 0;
+	}
       
-      /* 
-       *   Get local copy of the target address to resolve
-       */
-      memcpy(&reqaddr.s_addr, p_arp->tpa, PKT_IP_ALEN);
+	/* Get packet default values */
+	memset(&packet, 0, sizeof(packet));
+	
+	/* ARP Payload */
+	packet_arp->hrd = htons(DHCP_HTYPE_ETH);
+	packet_arp->pro = htons(PKT_ETH_PROTO_IP);
+	packet_arp->hln = PKT_ETH_ALEN;
+	packet_arp->pln = PKT_IP_ALEN;
+	packet_arp->op  = htons(DHCP_ARP_REPLY);
+	
+	/* Source address */
+	memcpy(packet_arp->sha, appconn->hismac, PKT_ETH_ALEN);
+	memcpy(packet_arp->spa, &appconn->hisip.s_addr, PKT_IP_ALEN);
 
-      if (_options.debug)
-	log_dbg("arp: ifidx=%d src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
-		"prot=%.4x (asking for %s)",
-		tun(tun,idx).ifindex,
-		ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
-		ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
-		ntohs(ethh->prot), inet_ntoa(reqaddr));
-      
-      /*
-       *  Lookup request address, see if we control it.
-       */
-      if (ippool_getip(ippool, &ipm, &reqaddr)) {
-	if (_options.debug) 
-	  log_dbg("ARP for unknown IP %s", inet_ntoa(reqaddr));
-	return 0;
-      }
-      
-      if ((appconn  = (struct app_conn_t *)ipm->peer) == NULL ||
-	  (appconn->dnlink) == NULL) {
-	log_err(0, "No peer protocol defined for ARP request");
-	return 0;
-      }
-      
-      /* Get packet default values */
-      memset(&packet, 0, sizeof(packet));
-      
-      /* ARP Payload */
-      packet_arp->hrd = htons(DHCP_HTYPE_ETH);
-      packet_arp->pro = htons(PKT_ETH_PROTO_IP);
-      packet_arp->hln = PKT_ETH_ALEN;
-      packet_arp->pln = PKT_IP_ALEN;
-      packet_arp->op  = htons(DHCP_ARP_REPLY);
-      
-      /* Source address */
-      memcpy(packet_arp->sha, appconn->hismac, PKT_ETH_ALEN);
-      memcpy(packet_arp->spa, &appconn->hisip.s_addr, PKT_IP_ALEN);
-
-      /* Target address */
-      memcpy(packet_arp->tha, p_arp->sha, PKT_ETH_ALEN);
-      memcpy(packet_arp->tpa, p_arp->spa, PKT_IP_ALEN);
-
-      /* Ethernet header */
-      memcpy(packet_ethh->dst, p_ethh->src, PKT_ETH_ALEN);
-      memcpy(packet_ethh->src, appconn->hismac, PKT_ETH_ALEN);
-
-      /*memcpy(packet.ethh.src, dhcp->rawif.hwaddr, PKT_ETH_ALEN);*/
-
-      packet_ethh->prot = htons(PKT_ETH_PROTO_ARP);
-
-      if (_options.debug) {
-	log_dbg("arp-reply: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
+	/* Target address */
+	memcpy(packet_arp->tha, p_arp->sha, PKT_ETH_ALEN);
+	memcpy(packet_arp->tpa, p_arp->spa, PKT_IP_ALEN);
+	
+	/* Ethernet header */
+	memcpy(packet_ethh->dst, p_ethh->src, PKT_ETH_ALEN);
+	memcpy(packet_ethh->src, appconn->hismac, PKT_ETH_ALEN);
+	
+	/*memcpy(packet.ethh.src, dhcp->rawif.hwaddr, PKT_ETH_ALEN);*/
+	
+	packet_ethh->prot = htons(PKT_ETH_PROTO_ARP);
+	
+	if (_options.debug) {
+	  log_dbg("arp-reply: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
 		packet_ethh->src[0],packet_ethh->src[1],packet_ethh->src[2],
-		packet_ethh->src[3],packet_ethh->src[4],packet_ethh->src[5],
-		packet_ethh->dst[0],packet_ethh->dst[1],packet_ethh->dst[2],
-		packet_ethh->dst[3],packet_ethh->dst[4],packet_ethh->dst[5]);
-	
-	memcpy(&reqaddr.s_addr, packet_arp->spa, PKT_IP_ALEN);
-	log_dbg("arp-reply: source sha=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x spa=%s",
-		packet_arp->sha[0],packet_arp->sha[1],packet_arp->sha[2],
-		packet_arp->sha[3],packet_arp->sha[4],packet_arp->sha[5],
-		inet_ntoa(reqaddr));	      
-	
-	memcpy(&reqaddr.s_addr, packet_arp->tpa, PKT_IP_ALEN);
-	log_dbg("arp-reply: target tha=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x tpa=%s",
-		packet_arp->tha[0],packet_arp->tha[1],packet_arp->tha[2],
-		packet_arp->tha[3],packet_arp->tha[4],packet_arp->tha[5],
+		  packet_ethh->src[3],packet_ethh->src[4],packet_ethh->src[5],
+		  packet_ethh->dst[0],packet_ethh->dst[1],packet_ethh->dst[2],
+		  packet_ethh->dst[3],packet_ethh->dst[4],packet_ethh->dst[5]);
+	  
+	  memcpy(&reqaddr.s_addr, packet_arp->spa, PKT_IP_ALEN);
+	  log_dbg("arp-reply: source sha=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x spa=%s",
+		  packet_arp->sha[0],packet_arp->sha[1],packet_arp->sha[2],
+		  packet_arp->sha[3],packet_arp->sha[4],packet_arp->sha[5],
+		  inet_ntoa(reqaddr));	      
+	  
+	  memcpy(&reqaddr.s_addr, packet_arp->tpa, PKT_IP_ALEN);
+	  log_dbg("arp-reply: target tha=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x tpa=%s",
+		  packet_arp->tha[0],packet_arp->tha[1],packet_arp->tha[2],
+		  packet_arp->tha[3],packet_arp->tha[4],packet_arp->tha[5],
 		inet_ntoa(reqaddr));
-      }
+	}
 	
-      return tun_write(tun, (uint8_t*)&packet, length, idx);
+	return tun_write(tun, (uint8_t*)&packet, length, idx);
+      }
+    default:
+      log_dbg("unhandled protocol %x", prot);
+      return 0;
     }
+
   } else {
     ipph = (struct pkt_ipphdr_t *)pack;
   }
 
+  /*
+   *  Filter out unsupported / unhandled protocols,
+   *  and check some basic length sanity.
+   */
+  switch(ipph->protocol) {
+  case PKT_IP_PROTO_GRE:
+  case PKT_IP_PROTO_TCP:
+    {
+      if (ntohs(ipph->tot_len) > len) {
+	log_dbg("invalid IP packet %d / %d / %d", 
+		ntohs(ipph->tot_len),
+		len);
+	return 0;
+      }
+    }
+    break;
+  case PKT_IP_PROTO_UDP:
+    {
+      size_t hlen = (ipph->version_ihl & 0x0f) << 2;
+      struct pkt_udphdr_t *udph = (struct pkt_udphdr_t *)(((void *)ipph) + hlen);
+      if (ntohs(ipph->tot_len) > len ||
+	  ntohs(udph->len) > len) {
+	log_dbg("invalid UDP packet %d / %d / %d", 
+		ntohs(ipph->tot_len),
+		ntohs(udph->len), len);
+	return 0;
+      }
+    }
+    break;
+  default:
+    log_dbg("dropping non TCP/UDP packet: %x", ipph->protocol);
+    return 0;
+  }
+  
   dst.s_addr = ipph->daddr;
-
+  
   if (ippool_getip(ippool, &ipm, &dst)) {
 
     /*
      *  TODO: If within statip range, allow the packet through (?)
      */
-
+    
     if (_options.debug) 
       log_dbg("dropping packet with unknown destination: %s", inet_ntoa(dst));
     
@@ -3900,23 +3969,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     appconn->policy = 0; /* TODO */
 
 #ifdef ENABLE_LEAKYBUCKET
-#ifdef BUCKET_SIZE
-    appconn->s_state.bucketupsize = BUCKET_SIZE;
-#else
-    appconn->s_state.bucketupsize = appconn->s_params.bandwidthmaxup / 8000 * BUCKET_TIME;
-    if (appconn->s_state.bucketupsize < BUCKET_SIZE_MIN) 
-      appconn->s_state.bucketupsize = BUCKET_SIZE_MIN;
-#endif
-#endif
-
-#ifdef ENABLE_LEAKYBUCKET
-#ifdef BUCKET_SIZE
-    appconn->s_state.bucketdownsize = BUCKET_SIZE;
-#else
-    appconn->s_state.bucketdownsize = appconn->s_params.bandwidthmaxdown / 8000 * BUCKET_TIME;
-    if (appconn->s_state.bucketdownsize < BUCKET_SIZE_MIN) 
-      appconn->s_state.bucketdownsize = BUCKET_SIZE_MIN;
-#endif
+    leaky_bucket_init(appconn);
 #endif
 
     return upprot_getip(appconn, NULL, 0);
