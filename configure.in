@@ -244,6 +244,15 @@ fi
 
 AM_CONDITIONAL(WITH_CHILLIREDIR, [test x"$enable_chilliredir" = xyes])
 
+AC_ARG_ENABLE(pppoe, [AC_HELP_STRING([--enable-pppoe],[Enable support for PPPoE])], 
+  enable_pppoe=$enableval, enable_pppoe=no)
+
+if test x"$enable_pppoe" = xyes; then
+   AC_DEFINE(ENABLE_PPPOE,1,[Define to enable PPPoE])
+fi
+
+AM_CONDITIONAL(WITH_PPPOE, [test x"$enable_pppoe" = xyes])
+
 AC_ARG_ENABLE(rtmon, [AC_HELP_STRING([--enable-rtmon],[Enable support for route monitoring deamon])], 
   enable_rtmon=$enableval, enable_rtmon=no)
 

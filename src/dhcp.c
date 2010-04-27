@@ -2697,12 +2697,285 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
   }
   */
 
+  if (prot < 1518) {
+    /* XXX */
+    uint8_t *p = packet + sizeofeth(packet);
+    struct pkt_llc_t * llc = (struct pkt_llc_t *)p;
+    if (llc->dsap == 0xAA &&
+	llc->ssap == 0xAA &&
+	llc->cntl == 0x03) {
+      struct pkt_llc_snap_t * snap = p + sizeof(struct pkt_llc_t);
+      log_dbg("Layer2 PROT: IEEE 802.3 LLC SNAP "
+	      " EtherType 0x%.4x",
+	      ntohs(snap->type));
+    } else {
+      log_dbg("Layer2 PROT: Likely IEEE 802.3: "
+	      "length %d dsap=0x%.2x ssap=0x%.2x ctrl=0x%.2x", 
+	      (int) prot, llc->dsap, llc->ssap, llc->cntl); 
+    }
+    return 0;
+  }
+  
   switch (prot) {
   case PKT_ETH_PROTO_EAPOL: return dhcp_receive_eapol(this, packet);
   case PKT_ETH_PROTO_ARP:   return dhcp_receive_arp(this, packet, length);
   case PKT_ETH_PROTO_IP:    return dhcp_receive_ip(this, packet, length);
-  case PKT_ETH_PROTO_IPv6:  return 0;
-  default: log_dbg("Layer2 PROT: 0x%.4x dropped", ntohs(prot)); 
+#ifdef ENABLE_PPPOE
+  case PKT_ETH_PROTO_PPPOES:
+    {
+      uint8_t *p = packet + sizeofeth(packet);
+      struct pkt_pppoe_hdr_t *hdr = (struct pkt_pppoe_hdr_t *)p;
+      if (hdr->version_type == PKT_PPPoE_VERSION &&
+	  hdr->code == 0x0000) {
+	int len = ntohs(hdr->length);
+	if (len > 0) {
+	  uint16_t ppp;
+	  p += sizeof(struct pkt_pppoe_hdr_t);
+	  ppp = ntohs(*((uint16_t *)p));
+	  log_dbg("PPPoE Session Code 0x%.2x Session 0x%.4x Length %d Proto 0x%.4x", 
+		  hdr->code, ntohs(hdr->session_id), len, ppp); 
+	  switch(ppp) {
+	  case PKT_PPP_PROTO_LCP:
+	    {
+	      struct pkt_ppp_lcp_t *lcp = (struct pkt_ppp_lcp_t *)(p + 2);
+	      log_dbg("PPP LCP code %.2x", lcp->code);
+	      switch (lcp->code) {
+	      case PPP_LCP_ConfigRequest:
+		{
+		  uint8_t answer[PKT_BUFFER];
+		  
+		  struct pkt_ethhdr_t *ethh = ethhdr(packet);
+		  
+		  struct pkt_ethhdr_t *answer_ethh;
+
+		  struct dhcp_conn_t *conn;
+
+		  struct pkt_pppoe_hdr_t *pppoe;
+
+		  struct pkt_ppp_lcp_t *nlcp;
+
+		  struct pkt_lcp_opthdr_t *tag;
+
+		  uint16_t lcplen, taglen, pos;
+
+		  /* Find / create connection
+		   */
+		  
+		  if (dhcp_hashget(this, &conn, ethh->src)) {
+		    if (dhcp_newconn(this, &conn, ethh->src, 0))
+		      break; /* Out of connections */
+		  }
+		  
+		  /* Copy over original packet,
+		   * get pointers to answer structure.
+		   */
+		  
+		  memcpy(answer, packet, length); 
+		  
+		  answer_ethh = ethhdr(answer);
+		  
+		  pppoe = (struct pkt_pppoe_hdr_t *) 
+		    (answer + sizeofeth(answer));
+		  
+		  nlcp = (struct pkt_ppp_lcp_t *) 
+		    (answer + sizeofeth(answer) + sizeof(struct pkt_pppoe_hdr_t) + 2);
+		  
+		  /* Start processing packet...
+		   */
+		  
+		  nlcp->code = PPP_LCP_ConfigReject;
+		  
+		  lcplen = ntohs(nlcp->length);
+
+		  pos = sizeofeth(answer) + sizeof(struct pkt_pppoe_hdr_t) + 2;
+
+		  taglen = 2;
+		  tag = (struct pkt_lcp_opthdr_t *)(answer + pos + lcplen);
+		  tag->type = PPP_LCP_OptAuthProto;
+		  tag->length = taglen + 2;
+		  lcplen += tag->length;
+		  *(answer + pos + lcplen - 2) = 0xC0;
+		  *(answer + pos + lcplen - 1) = 0x23;
+
+		  length = 2;
+		  length += lcplen;
+
+		  nlcp->length = htons(lcplen);
+		  pppoe->length = htons(length);
+
+		  length += sizeof(struct pkt_pppoe_hdr_t);
+		  length += sizeofeth(answer);
+
+		  /* Send back answer.
+		   */
+		  
+		  memcpy(&answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
+		  memcpy(&answer_ethh->src, dhcp_nexthop(this), PKT_ETH_ALEN);
+		  
+		  dhcp_send(this, &this->rawif, conn->hismac, answer, length);
+		}
+		break;
+	      }
+	    }
+	    break;
+	  }
+	}
+      }
+    }
+    break;
+  case PKT_ETH_PROTO_PPPOED:
+    {
+      uint8_t *p = packet + sizeofeth(packet);
+      struct pkt_pppoe_hdr_t *hdr = (struct pkt_pppoe_hdr_t *)p;
+      if (hdr->version_type == PKT_PPPoE_VERSION &&
+	  hdr->session_id == 0x0000) {
+	int len = ntohs(hdr->length);
+	uint16_t t, l;
+
+	uint8_t host_uniq[32];
+	uint8_t host_uniq_len=0;
+
+	log_dbg("PPPoE Discovery Code 0x%.2x Session 0x%.4x Length %d", 
+		hdr->code, ntohs(hdr->session_id), len); 
+
+	p += sizeof(struct pkt_pppoe_hdr_t);
+
+	while (len > 0) {
+	  struct pkt_pppoe_taghdr_t *tag = (struct pkt_pppoe_taghdr_t *) p;
+
+	  if (tag->type == 0x0000) break;
+
+	  t = ntohs(tag->type);
+	  l = ntohs(tag->length);
+
+	  switch(t) {
+	  case PPPoE_TAG_ServiceName:
+	    log_dbg("PPPoE Service-Name: %.*s",
+		    l, p + sizeof(struct pkt_pppoe_taghdr_t));
+	    break;
+	  case PPPoE_TAG_ACName:
+	    log_dbg("PPPoE AC-Name: %.*s",
+		    l, p + sizeof(struct pkt_pppoe_taghdr_t));
+	    break;
+	  case PPPoE_TAG_HostUniq:
+	    log_dbg("PPPoE Host-Uniq: %.*x",
+		    l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
+	    if (l > sizeof(host_uniq)) break;
+	    host_uniq_len = l;
+	    memcpy(host_uniq, p + sizeof(struct pkt_pppoe_taghdr_t), l);
+	    break;
+	  default:
+	    log_dbg("PPPoE Tag Type 0x%.4x = (%d)[%.*x]", 
+		    t, l, l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
+	    break;
+	  }
+
+	  l += sizeof(struct pkt_pppoe_taghdr_t);
+	  len -= l;
+	  p += l;
+	}
+
+	switch(hdr->code) {
+	case PKT_PPPoE_PADT:
+	  /* terminate */
+	  break;
+	case PKT_PPPoE_PADR:
+	case PKT_PPPoE_PADI:
+	  {
+	    uint8_t answer[PKT_BUFFER];
+
+	    struct pkt_ethhdr_t *ethh = ethhdr(packet);
+	    
+	    struct pkt_ethhdr_t *answer_ethh;
+
+	    struct dhcp_conn_t *conn;
+
+	    struct pkt_pppoe_hdr_t *pppoe;
+
+	    struct pkt_pppoe_taghdr_t *tag;
+
+	    uint16_t pos=0, taglen=0;
+
+	    /* Find / create connection
+	     */
+
+	    if (dhcp_hashget(this, &conn, ethh->src)) {
+	      if (dhcp_newconn(this, &conn, ethh->src, 0))
+		break; /* Out of connections */
+	    }
+	    
+	    /* Copy over original packet,
+	     * get pointers to answer structure.
+	     */
+
+	    memcpy(answer, packet, length); 
+	    
+	    answer_ethh = ethhdr(answer);
+
+	    pppoe = (struct pkt_pppoe_hdr_t *) 
+	      (answer + sizeofeth(answer));
+
+	    /* Start processing packet...
+	     */
+
+	    pppoe->length = 0;
+	    switch(hdr->code) {
+	    case PKT_PPPoE_PADI:
+	      pppoe->code = PKT_PPPoE_PADO;
+	      break;
+	    case PKT_PPPoE_PADR:
+	      pppoe->code = PKT_PPPoE_PADS;
+	      pppoe->session_id = rand();
+	      break;
+	    }
+
+	    length  = sizeofeth(answer);
+	    length += sizeof(struct pkt_pppoe_hdr_t);
+
+	    pos = length;
+
+	    taglen = 5;
+	    tag = (struct pkt_pppoe_taghdr_t *)(answer + length);
+	    tag->type = htons(PPPoE_TAG_ACName);
+	    tag->length = htons(taglen);
+	    length += sizeof(struct pkt_pppoe_taghdr_t);
+	    memcpy(answer + length, "chilli", 5);
+	    length += taglen;
+
+	    if (host_uniq_len) {
+	      taglen = host_uniq_len;
+	      tag = (struct pkt_pppoe_taghdr_t *)(answer + length);
+	      tag->type = htons(PPPoE_TAG_HostUniq);
+	      tag->length = htons(taglen);
+	      length += sizeof(struct pkt_pppoe_taghdr_t);
+	      memcpy(answer + length, host_uniq, host_uniq_len);
+	      length += taglen;
+	    }
+
+	    pppoe->length = htons(length - pos);
+
+	    /* Send back answer.
+	     */
+
+	    memcpy(&answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
+	    memcpy(&answer_ethh->src, dhcp_nexthop(this), PKT_ETH_ALEN);
+	    
+	    dhcp_send(this, &this->rawif, conn->hismac, answer, length);
+	  }
+	  break;
+	default:
+	  break;
+	}
+      }
+    }
+    break;
+#endif
+  case PKT_ETH_PROTO_IPv6:
+  case PKT_ETH_PROTO_PPP:
+  case PKT_ETH_PROTO_IPX:
+  default: 
+    log_dbg("Layer2 PROT: 0x%.4x dropped", prot); 
+    break;
   }
   return 0;
 }
@@ -2750,7 +3023,7 @@ static inline int dhcp_ethhdr(struct dhcp_conn_t *conn, uint8_t *packet, uint8_t
     copy_mac6(pack_ethh->dst, hismac);
     copy_mac6(pack_ethh->src, nexthop);
     pack_ethh->prot = htons(prot);
-    pack_ethh->tpid = htons(PKT_ETH_8021Q_TPID);
+    pack_ethh->tpid = htons(PKT_ETH_PROTO_8021Q);
     pack_ethh->pcp_cfi_vid = conn->tag8021q;
   } else 
 #endif

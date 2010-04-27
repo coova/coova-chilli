@@ -36,6 +36,9 @@
 /* Define to enable network interface nat */
 #undef ENABLE_NETNAT
 
+/* Define to enable PPPoE */
+#undef ENABLE_PPPOE
+
 /* Define to enable VSA proxy */
 #undef ENABLE_PROXYVSA
 

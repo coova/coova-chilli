@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,12 +24,20 @@
 #define PKT_ETH_ALEN              6 /* Ethernet Address Length */
 #define PKT_ETH_HLEN             14 /* Ethernet Header Length */
 
+/*
+ * http://www.iana.org/assignments/ethernet-numbers
+ */
 #define PKT_ETH_PROTO_IP     0x0800
-#define PKT_ETH_PROTO_IPv6   0x86dd
 #define PKT_ETH_PROTO_ARP    0x0806
+#define PKT_ETH_PROTO_WOL    0x0842	
+#define PKT_ETH_PROTO_ETHBR  0x6558 
+#define PKT_ETH_PROTO_8021Q  0x8100
+#define PKT_ETH_PROTO_IPX    0x8137
+#define PKT_ETH_PROTO_IPv6   0x86dd
+#define PKT_ETH_PROTO_PPP    0x880b
+#define PKT_ETH_PROTO_PPPOED 0x8863
+#define PKT_ETH_PROTO_PPPOES 0x8864
 #define PKT_ETH_PROTO_EAPOL  0x888e
-
-#define PKT_ETH_8021Q_TPID   0x8100
 
 #define PKT_IP_PLEN            1500 /* IP Payload Length */
 #define PKT_IP_VER_HLEN        0x45 
@@ -37,6 +45,7 @@
 #define PKT_IP_HLEN              20
 
 #define PKT_IP_PROTO_ICMP         1 /* ICMP Protocol number */
+#define PKT_IP_PROTO_IGMP         2 /* IGMP Protocol number */
 #define PKT_IP_PROTO_TCP          6 /* TCP Protocol number */
 #define PKT_IP_PROTO_UDP         17 /* UDP Protocol number */
 #define PKT_IP_PROTO_GRE         47 /* GRE Protocol number */
@@ -67,7 +76,6 @@ struct pkt_ethhdr_t {
   uint16_t prot;
 } __attribute__((packed));
 
-
 struct pkt_ethhdr8021q_t {
   uint8_t  dst[PKT_ETH_ALEN];
   uint8_t  src[PKT_ETH_ALEN];
@@ -76,6 +84,65 @@ struct pkt_ethhdr8021q_t {
   uint16_t prot;
 } __attribute__((packed));
 
+struct pkt_llc_t {
+  uint8_t dsap;
+  uint8_t ssap;
+  uint8_t cntl;
+} __attribute__((packed));
+
+struct pkt_llc_snap_t {
+  uint8_t code[3];
+  uint16_t type;
+} __attribute__((packed));
+
+#ifdef ENABLE_PPPOE
+struct pkt_pppoe_hdr_t {
+#define PKT_PPPoE_VERSION 0x11
+  uint8_t version_type;
+#define PKT_PPPoE_PADI 0x09
+#define PKT_PPPoE_PADO 0x07
+#define PKT_PPPoE_PADR 0x19
+#define PKT_PPPoE_PADS 0x65
+#define PKT_PPPoE_PADT 0xa7
+  uint8_t code;
+  uint16_t session_id;
+  uint16_t length;
+} __attribute__((packed));
+
+struct pkt_pppoe_taghdr_t {
+#define PPPoE_TAG_ServiceName        0x0101
+#define PPPoE_TAG_ACName             0x0102
+#define PPPoE_TAG_HostUniq           0x0103
+#define PPPoE_TAG_ACCookie           0x0104
+#define PPPoE_TAG_VendorSpecific     0x0105
+#define PPPoE_TAG_ServiceNameError   0x0201
+#define PPPoE_TAG_ACSystemError      0x0202
+  uint16_t type;
+  uint16_t length;
+} __attribute__((packed));
+
+#define PKT_PPP_PROTO_LCP 0xc021
+
+struct pkt_ppp_lcp_t {
+#define PPP_LCP_ConfigRequest 0x01
+#define PPP_LCP_ConfigAck 0x02
+#define PPP_LCP_ConfigNak 0x03
+#define PPP_LCP_ConfigReject 0x04
+  uint8_t code;
+  uint8_t id;
+  uint16_t length;
+} __attribute__((packed));
+
+struct pkt_lcp_opthdr_t {
+#define PPP_LCP_OptMTU 0x01
+#define PPP_LCP_OptACCM 0x02
+#define PPP_LCP_OptAuthProto 0x03
+#define PPP_LCP_OptMagic 0x05
+#define PPP_LCP_OptCompress 0x07
+  uint8_t type;
+  uint8_t length;
+} __attribute__((packed));
+#endif
 
 struct pkt_iphdr_t {
   uint8_t  version_ihl;
@@ -89,7 +156,6 @@ struct pkt_iphdr_t {
   uint32_t saddr;
   uint32_t daddr;
 } __attribute__((packed));
-
 
 struct pkt_ipphdr_t {
   /* Convenience structure:
@@ -292,7 +358,7 @@ struct eap_packet_t {
 
 
 #ifdef ENABLE_IEEE8021Q
-#define is_8021q(pkt) (((struct pkt_ethhdr8021q_t *)pkt)->tpid == htons(PKT_ETH_8021Q_TPID))
+#define is_8021q(pkt) (((struct pkt_ethhdr8021q_t *)pkt)->tpid == htons(PKT_ETH_PROTO_8021Q))
 #define get8021q(pkt) (((struct pkt_ethhdr8021q_t *)pkt)->pcp_cfi_vid)
 
 #define sizeofeth2(is8021q)   (PKT_ETH_HLEN+((is8021q)?4:0))
@@ -311,7 +377,7 @@ struct eap_packet_t {
 
 #define copy_ethproto(o,n)  \
   if (is_8021q(o)) { \
-    ((struct pkt_ethhdr8021q_t *)n)->tpid = htons(PKT_ETH_8021Q_TPID); \
+    ((struct pkt_ethhdr8021q_t *)n)->tpid = htons(PKT_ETH_PROTO_8021Q); \
     ((struct pkt_ethhdr8021q_t *)n)->pcp_cfi_vid = ((struct pkt_ethhdr8021q_t *)o)->pcp_cfi_vid; \
     ((struct pkt_ethhdr8021q_t *)n)->prot = ((struct pkt_ethhdr8021q_t *)o)->prot; \
   } else { \
