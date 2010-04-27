@@ -4,19 +4,22 @@ EXTRA_DIST = cmdline.ggo cmdline.patch \
 linux/Makefile linux/xt_coova.c linux/xt_coova.h \
 linux/ipt_coova.h linux/libxt_coova.c
 
+chilliincludedir = $(includedir)/chilli
+chilliinclude_HEADERS = \
+chilli.h session.h cmdsock.h garden.h radius.h options.h \
+tun.h ippool.h md5.h redir.h dhcp.h syserr.h iphash.h \
+radius_wispr.h radius_chillispot.h ssl.h dns.h net.h \
+pkt.h conn.h lookup.h chilli_limits.h cmdline.h \
+../bstring/bstrlib.h ../config.h system.h 
 
 lib_LTLIBRARIES = libchilli.la
 sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt
 
 libchilli_la_SOURCES = \
-chilli.c tun.c tun.h ippool.c ippool.h radius.h radius.c \
-md5.c md5.h redir.h redir.c dhcp.c dhcp.h syserr.c syserr.h \
-iphash.c iphash.h lookup3.c sfhash.c lookup.c lookup.h \
-system.h cmdsock.c cmdsock.h radius_wispr.h radius_chillispot.h \
-chilli.h options.h util.c garden.c garden.h ssl.h ssl.c \
-dns.c dns.h session.c session.h chilli_limits.h pkt.h pkt.c \
-chksum.c net.h net.c ms_chap.c options.c statusfile.c \
-conn.h conn.c 
+chilli.c tun.c ippool.c radius.c md5.c redir.c dhcp.c syserr.c \
+iphash.c lookup3.c sfhash.c lookup.c system.h cmdsock.c util.c \
+garden.c ssl.c dns.c session.c pkt.c chksum.c net.c \
+ms_chap.c options.c statusfile.c conn.c 
 
 AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fno-strict-aliasing \
   -O2 -fomit-frame-pointer -funroll-loops -pipe \
@@ -25,7 +28,7 @@ AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fno-strict-aliasing \
  -DDEFSTATEDIR='"$(localstatedir)/run"'\
  -DSBINDIR='"$(sbindir)"' -I$(top_builddir)/bstring 
 
-cmdline_sources=cmdline.c cmdline.h 
+cmdline_sources=cmdline.c 
 
 chilli_SOURCES= main.c
 chilli_radconfig_SOURCES = main-radconfig.c 

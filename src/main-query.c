@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
   } 
   
   memset(&request,0,sizeof(request));
-
+  
   while (argidx < argc && *argv[argidx] == '-') {
     if (!strcmp(argv[argidx], "-s")) {
       argidx++;
@@ -101,9 +101,9 @@ int main(int argc, char **argv) {
       argidx++;
     }
   }
-
+  
   if (argidx >= argc) return usage(argv[0]);
-
+  
   cmd = argv[argidx++];
   for (s = 0; commands[s].command; s++) {
     if (!strcmp(cmd, commands[s].command)) {
@@ -179,25 +179,25 @@ int main(int argc, char **argv) {
 
 	  int count = sizeof(args)/sizeof(struct arguments);
 	  int pos = argidx;
-
+	  
 	  argc -= argidx;
-
+	  
 	  while(argc > 0) {
 	    int i;
-
+	    
 	    for (i=0; i<count; i++) {
-
+	      
 	      if (!strcmp(argv[pos],args[i].name)) {
-
+		
 		if (argc == 1) {
 		  fprintf(stderr, "Argument %s requires a value\n", argv[pos]);
 		  return usage(argv[0]);
 		}
-	  
+		
 		if (args[i].flag) {
 		  *(args[i].flag) |=args[i].flagbit;
 		}
-
+		
 		switch(args[i].type) {
 		case 0:
 		  strncpy(((char *)args[i].field), argv[pos+1], args[i].length-1);
@@ -251,19 +251,19 @@ int main(int argc, char **argv) {
 	}
 	break;
       case CMDSOCK_ENTRY_FOR_IP:
-    {
-      /* Test for a valid ip argument. */
+	{
+	  /* Test for a valid ip argument. */
   	  if (argc < argidx+1) {
   	    fprintf(stderr, "%s requires an IP address argument\n", cmd);
   	    return usage(argv[0]);
   	  }
-
-    	if (!inet_aton(argv[argidx], &request.data.sess.ip)) {
-		    fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx]);
-		    return usage(argv[0]);
-		  }
-    }
-    break;
+	  
+	  if (!inet_aton(argv[argidx], &request.data.sess.ip)) {
+	    fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx]);
+	    return usage(argv[0]);
+	  }
+	}
+	break;
       case CMDSOCK_DHCP_DROP:
       case CMDSOCK_DHCP_RELEASE:
       case CMDSOCK_ENTRY_FOR_MAC:
@@ -272,7 +272,7 @@ int main(int argc, char **argv) {
 	  char macstr[RADIUS_ATTR_VLEN];
 	  int macstrlen;
 	  int i;
-
+	  
 	  if (argc < argidx+1) {
 	    fprintf(stderr, "%s requires a MAC address argument\n", cmd);
 	    return usage(argv[0]);
@@ -282,24 +282,24 @@ int main(int argc, char **argv) {
 	    fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
 	    return -1;
 	  }
-
+	  
 	  memcpy(macstr, argv[argidx], macstrlen);
 	  macstr[macstrlen] = 0;
-
+	  
 	  for (i=0; i<macstrlen; i++) 
 	    if (!isxdigit(macstr[i])) 
 	      macstr[i] = 0x20;
-
+	  
 	  if (sscanf(macstr, "%2x %2x %2x %2x %2x %2x", 
 		     &temp[0], &temp[1], &temp[2], 
 		     &temp[3], &temp[4], &temp[5]) != 6) {
 	    fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
 	    return -1;
 	  }
-
+	  
 	  for (i = 0; i < PKT_ETH_ALEN; i++) 
 	    request.data.mac[i] = temp[i];
-
+	  
 	  /* do another switch to pick up param configs for authorize */
 	}
 	break;
@@ -310,7 +310,7 @@ int main(int argc, char **argv) {
 	  char macstr[RADIUS_ATTR_VLEN];
 	  int macstrlen;
 	  int i;
-
+	  
 	  if (argc < argidx + 2) {
 	    break;
 	  }
@@ -350,12 +350,12 @@ int main(int argc, char **argv) {
       break;
     }
   }
-
+  
   if (!commands[s].command) {
     fprintf(stderr,"unknown command: %s\n",cmd);
     exit(1);
   }
-
+  
 #ifdef HAVE_GLOB
   globbuf.gl_offs = 0;
   glob(cmdsock,GLOB_DOOFFS,NULL,&globbuf);

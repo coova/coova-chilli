@@ -320,7 +320,8 @@ int redir_accept2(struct redir_t *redir, int idx) {
 
   addrlen = sizeof(struct sockaddr_in);
 
-  if (getsockname(new_socket, (struct sockaddr *)&baddress, &addrlen) < 0) {
+  if (getsockname(new_socket, (struct sockaddr *)&baddress, 
+		  &addrlen) < 0) {
     log_warn(errno, "getsockname() failed!");
   }
 
@@ -431,7 +432,8 @@ int main(int argc, char **argv) {
   close(fd);
   
   /* create an instance of redir */
-  if (redir_new(&redir, &_options.uamlisten, _options.uamport, _options.uamuiport)) {
+  if (redir_new(&redir, &_options.uamlisten, _options.uamport, 
+		_options.uamuiport)) {
     log_err(0, "Failed to create redir");
     return -1;
   }
@@ -491,7 +493,8 @@ int main(int argc, char **argv) {
 	  struct sockaddr_in address;
 	  socklen_t addrlen = sizeof(address);
 	  
-	  if (getpeername(requests[idx].socket_fd, (struct sockaddr *)&address, &addrlen) >= 0) {
+	  if (getpeername(requests[idx].socket_fd, (struct sockaddr *)&address, 
+			  &addrlen) >= 0) {
 	    char line[512];
 	    
 	    snprintf(line, sizeof(line),
@@ -502,7 +505,8 @@ int main(int argc, char **argv) {
 	    
 	    if (requests[idx].conn.sock) {
 	      addrlen = sizeof(address);
-	      if (getpeername(requests[idx].conn.sock, (struct sockaddr *)&address, &addrlen) >= 0) {
+	      if (getpeername(requests[idx].conn.sock, (struct sockaddr *)&address,
+			      &addrlen) >= 0) {
 		snprintf(line+strlen(line), sizeof(line)-strlen(line),
 			 " to %s %d",
 			 inet_ntoa(address.sin_addr),
@@ -528,11 +532,13 @@ int main(int argc, char **argv) {
     
     status = net_select(&sctx);
     
-    log_dbg("epoll %d", status);
     if (status > 0) {
       int i;
+      log_dbg("epoll %d", status);
       for (i=0; i < status; i++) {
-	log_dbg("epoll fd %d %d", sctx.events[i].data.fd, sctx.events[i].events);
+	log_dbg("epoll fd %d %d", 
+		sctx.events[i].data.fd, 
+		sctx.events[i].events);
       }
     }
     /*
@@ -547,6 +553,7 @@ int main(int argc, char **argv) {
 
     default:
       if (status > 0) {
+
 	if (redir->fd[0])
 	  if (net_select_read_fd(&sctx, redir->fd[0]) && 
 	      redir_accept2(redir, 0) < 0)
@@ -624,7 +631,8 @@ int main(int argc, char **argv) {
 				   &requests[idx])) {
 		case 1:
 #ifdef HAVE_SSL
-		  if (requests[idx].sslcon && openssl_pending(requests[idx].sslcon) > 0)
+		  if (requests[idx].sslcon && 
+		      openssl_pending(requests[idx].sslcon) > 0)
 		    goto go_again;
 #endif
 		  break;
@@ -644,6 +652,6 @@ int main(int argc, char **argv) {
       break;
     }
   }
-
+  
   return 0;
 }

@@ -44,6 +44,7 @@ static int coova_parse(int c, char **argv, int invert, unsigned int *flags,
 		case 201:
 			strncpy(info->name,optarg, XT_COOVA_NAME_LEN);
 			info->name[XT_COOVA_NAME_LEN-1] = '\0';
+                        if (invert) info->invert = 1;
 			break;
 
 		case 202:
@@ -69,12 +70,11 @@ static void coova_print(const void *ip, const struct xt_entry_match *match,
                          int numeric)
 {
 	const struct xt_coova_mtinfo *info = (const void *)match->data;
-
 	if (info->invert)
 		fputc('!', stdout);
-
 	printf("coova: ");
-	if(info->name) printf("name: %s ",info->name);
+	if(info->name) 
+		printf("name: %s ",info->name);
 	if (info->side == XT_COOVA_SOURCE)
 		printf("side: source ");
 	if (info->side == XT_COOVA_DEST)
@@ -84,11 +84,10 @@ static void coova_print(const void *ip, const struct xt_entry_match *match,
 static void coova_save(const void *ip, const struct xt_entry_match *match)
 {
 	const struct xt_coova_mtinfo *info = (const void *)match->data;
-
-	if (info->invert)
+	if (info->invert) 
 		printf("! ");
-
-	if(info->name) printf("--name %s ",info->name);
+	if(info->name) 
+		printf("--name %s ",info->name);
 	if (info->side == XT_COOVA_SOURCE)
 		printf("--source ");
 	if (info->side == XT_COOVA_DEST)

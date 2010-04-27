@@ -248,7 +248,6 @@ coova_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		    skb_mac_header(skb) + ETH_HLEN <= skb->data) {
 			hwaddr = eth_hdr(skb)->h_source;
 		} else {
-			/* invalid header */
 			return ret;
 		}
 	}
@@ -544,6 +543,7 @@ coova_mt_proc_write(struct file *file, const char __user *input,
 	}
 
 	spin_unlock_bh(&coova_lock);
+
 	/* Note we removed one above */
 	*loff += size + 1;
 	return size + 1;

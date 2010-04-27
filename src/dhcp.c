@@ -1398,7 +1398,9 @@ static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, siz
 		inet_ntoa(_options.postauth_proxyip),
 		_options.postauth_proxyport);
 	
-	return dhcp_uam_nat(conn, ethh, iph, tcph, &_options.postauth_proxyip, _options.postauth_proxyport);
+	return dhcp_uam_nat(conn, ethh, iph, tcph,
+			    &_options.postauth_proxyip, 
+			    _options.postauth_proxyport);
       }
     }
   }
@@ -1410,7 +1412,10 @@ static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, siz
  * dhcp_undoDNAT()
  * Change source address back to original server
  **/
-static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen, char do_reset) {
+static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, 
+				uint8_t *pack,
+				size_t *plen,
+				char do_reset) {
   struct dhcp_t *this = conn->parent;
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
@@ -1504,13 +1509,15 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t 
   /* Check appconn session specific pass-throughs */
   if (conn->peer) {
     struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-    if (check_garden(appconn->s_params.pass_throughs, appconn->s_params.pass_through_count, pack, 0))
+    if (check_garden(appconn->s_params.pass_throughs, 
+		     appconn->s_params.pass_through_count, pack, 0))
       return 0;
   }
 #endif
 
   if (do_reset && iph->protocol == PKT_IP_PROTO_TCP) {
-    log_dbg("Resetting connection on port %d->%d", ntohs(tcph->src), ntohs(tcph->dst));
+    log_dbg("Resetting connection on port %d->%d", 
+	    ntohs(tcph->src), ntohs(tcph->dst));
     dhcp_sendRESET(conn, pack, 0);
     if (conn->peer) {
       tun_sendRESET(tun, pack, (struct app_conn_t *)conn->peer);
@@ -1647,8 +1654,10 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 	    name[off - 1] == '.') {
 	  
 	  /*
-	   * count (recent) dns requests vs responses to get an overall picture of on-line status.
+	   * count (recent) dns requests vs responses to get an
+	   * overall picture of on-line status.
 	   */
+	  
 	  
 	  memcpy(reply, &_options.uamalias.s_addr, 4);
 	  match = 1;
@@ -2294,7 +2303,8 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
       pack_dhcp->giaddr = _options.uamlisten.s_addr;
 
     /* if we can't send, lets do dhcp ourselves */
-    if (sendto(this->relayfd, dhcppkt(pack), ntohs(pack_udph->len) - PKT_UDP_HLEN, 0, 
+    if (sendto(this->relayfd, dhcppkt(pack), 
+	       ntohs(pack_udph->len) - PKT_UDP_HLEN, 0, 
 	       (struct sockaddr *)&addr, sizeof(addr)) < 0) {
       log_err(errno, "could not relay DHCP request!");
     }
@@ -3090,7 +3100,8 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
   else if ((taraddr.s_addr != _options.dhcplisten.s_addr) &&
           ((taraddr.s_addr & _options.mask.s_addr) == _options.net.s_addr)) {
     /* when uamanyip is on we should ignore arp requests that ARE within our subnet except of course the ones for ourselves */
-    log_dbg("ARP: Request for %s other than us within our subnet(uamanyip on), ignoring", inet_ntoa(taraddr));
+    log_dbg("ARP: Request for %s other than us within our subnet(uamanyip on), ignoring", 
+	    inet_ntoa(taraddr));
     return 0;
   }
 

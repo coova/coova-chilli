@@ -130,7 +130,6 @@ option "definteriminterval" - "Default interim-interval for accounting if not re
 option "bwbucketupsize" - "Define the up-bound 'leaky bucket' size" int default="0" no
 option "bwbucketdnsize" - "Define the down-bound 'leaky bucket' size" int default="0" no
 option "bwbucketminsize" - "Define the minimum 'leaky bucket' size" int default="0" no
-option "bwbypasstos" - "Bypass leaky bucket based on TOS value" string no multiple
 
 # MAC authentication
 option "macauth"     - "Authenticate based on MAC address" flag   off

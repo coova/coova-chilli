@@ -1505,22 +1505,6 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 }
 
 
-/* Can bypass ?
- * returns 1 if the packet is the the bypass list, so ***CAN*** bypass leaky bucket,
- * returns 0 if not in the bypass list, so cannot bypass leaky bucket
- * */
-inline int can_bypass(struct pkt_ipphdr_t *ipph) {
-  int i;
-  for ( i=0; i < _options.bwbypasstoscount; i++)
-    if ( ipph->tos == _options.bwbypasstos[i] )
-      return 1;
-  for ( i=0; i < _options.bwbypasshostcount; i++)
-    if ( ipph->daddr == _options.bwbypasshost[i].s_addr || ipph->saddr == _options.bwbypasshost[i].s_addr )
-      return 1;
-  return 0;
-}
-
-
 /*
  * Tun callbacks
  *
@@ -1722,7 +1706,8 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 	      inet_ntoa(dst), ip, snatip);
     }
     ipph->daddr = appconn->hisip.s_addr;
-    chksum((struct pkt_iphdr_t *) ipph);
+    if (chksum((struct pkt_iphdr_t *) ipph) < 0)
+      return 0;
   }
   
   /* If the ip src is uamlisten and psrc is uamport we won't call leaky_bucket */
@@ -3693,7 +3678,8 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   if (_options.uamanyip && appconn->natip.s_addr) {
     log_dbg("SNAT to: %s", inet_ntoa(appconn->natip));
     ipph->saddr = appconn->natip.s_addr;
-    chksum((struct pkt_iphdr_t *) ipph);
+    if (chksum((struct pkt_iphdr_t *) ipph) < 0)
+      return 0;
   }
   
 
