@@ -647,12 +647,11 @@ static int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 }
 #endif
 
-int
-dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
-	 int usemac, uint8_t *mac, int promisc, 
-	 struct in_addr *listen, int lease, int allowdyn,
-	 struct in_addr *uamlisten, uint16_t uamport, int useeapol,
-	 int noc2c) {
+int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
+	     int usemac, uint8_t *mac, int promisc, 
+	     struct in_addr *listen, int lease, int allowdyn,
+	     struct in_addr *uamlisten, uint16_t uamport, int useeapol,
+	     int noc2c) {
   struct dhcp_t *dhcp;
   
   if (!(dhcp = *pdhcp = calloc(sizeof(struct dhcp_t), 1))) {
@@ -864,8 +863,7 @@ int dhcp_reserve_str(char *b, size_t blen) {
  * dhcp_set()
  * Set dhcp parameters which can be altered at runtime.
  **/
-int
-dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug) {
+int dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug) {
   dhcp->debug = debug;
   dhcp->anydns = _options.uamanydns;
 
@@ -930,8 +928,7 @@ int dhcp_free(struct dhcp_t *dhcp) {
  * dhcp_timeout()
  * Need to call this function at regular intervals to clean up old connections.
  **/
-int
-dhcp_timeout(struct dhcp_t *this)
+int dhcp_timeout(struct dhcp_t *this)
 {
   /*dhcp_validate(this);*/
 
@@ -1078,8 +1075,8 @@ int dhcp_nakDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   return 0;
 }
 
-static 
-int _filterDNSreq(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen) {
+static inline int
+_filterDNSreq(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen) {
   struct dns_packet_t *dnsp = dnspkt(pack);
   size_t len = plen - DHCP_DNS_HLEN - sizeofudp(pack);
   size_t olen = len;
@@ -1124,8 +1121,8 @@ int _filterDNSreq(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen) {
   return 1;
 }
 
-static
-int _filterDNSresp(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen) {
+static inline int
+_filterDNSresp(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen) {
   struct dns_packet_t *dnsp = dnspkt(pack);
   size_t len = plen - DHCP_DNS_HLEN - sizeofudp(pack);
   size_t olen = len;
@@ -1177,7 +1174,7 @@ int _filterDNSresp(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen) {
   return 1;
 }
 
-static int
+static inline int
 dhcp_uam_nat(struct dhcp_conn_t *conn,
 	     struct pkt_ethhdr_t *ethh,
 	     struct pkt_iphdr_t  *iph,
@@ -1219,7 +1216,7 @@ dhcp_uam_nat(struct dhcp_conn_t *conn,
 }
 
 
-static int
+static inline int
 dhcp_uam_unnat(struct dhcp_conn_t *conn,
 	       struct pkt_ethhdr_t *ethh,
 	       struct pkt_iphdr_t  *iph,
@@ -1245,18 +1242,81 @@ dhcp_uam_unnat(struct dhcp_conn_t *conn,
   return 0; 
 }
 
+static inline int 
+dhcp_dnsDNAT(struct dhcp_conn_t *conn, 
+	     uint8_t *pack, size_t len, 
+	     char *do_checksum) {
+
+  struct dhcp_t *this = conn->parent;
+  struct pkt_iphdr_t  *iph  = iphdr(pack);
+  struct pkt_udphdr_t *udph = udphdr(pack);
+
+  /* Was it a DNS request? */
+  if ((this->anydns ||
+       iph->daddr == conn->dns1.s_addr ||
+       iph->daddr == conn->dns2.s_addr) &&
+      iph->protocol == PKT_IP_PROTO_UDP && 
+      udph->dst == htons(DHCP_DNS)) {
+
+    if (this->anydns) {
+      if (iph->daddr != conn->dns1.s_addr && 
+	  iph->daddr != conn->dns2.s_addr) {
+	conn->dnatdns = iph->daddr;
+	iph->daddr = conn->dns1.s_addr;
+	*do_checksum = 1;
+      } else {
+	conn->dnatdns = 0;
+      }
+    }
+
+    return 1;
+  }
+  return 0;
+}
+
+static inline int 
+dhcp_dnsunDNAT(struct dhcp_conn_t *conn, 
+	     uint8_t *pack, size_t len, 
+	     char *do_checksum) {
+
+  struct dhcp_t *this = conn->parent;
+  struct pkt_iphdr_t *iph = iphdr(pack);
+  struct pkt_udphdr_t *udph = udphdr(pack);
+
+  /* Was it a DNS reply? */
+  if ((this->anydns ||
+       iph->saddr == conn->dns1.s_addr ||
+       iph->saddr == conn->dns2.s_addr) &&
+      iph->protocol == PKT_IP_PROTO_UDP && 
+      udph->src == htons(DHCP_DNS)) {
+
+    if (this->anydns && 
+	conn->dnatdns &&
+	iph->saddr != conn->dnatdns) {
+      iph->saddr = conn->dnatdns;
+      *do_checksum = 1;
+    }
+
+    return 1;
+  }
+  return 0;
+}
+
 
 /**
  * dhcp_doDNAT()
  * Change destination address to authentication server.
  **/
-int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, char do_reset) {
+int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, 
+		size_t len, char do_reset,
+		char *do_checksum) {
   struct dhcp_t *this = conn->parent;
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
   struct pkt_tcphdr_t *tcph = tcphdr(pack);
   struct pkt_udphdr_t *udph = udphdr(pack);
   int i;
+
   /* Allow localhost through network... */
   if (iph->daddr == INADDR_LOOPBACK)
     return 0;
@@ -1266,21 +1326,8 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, char do_res
     if (iph->daddr == conn->ourip.s_addr)
       return 0;
 
-  /* Was it a DNS request? */
-  if ((this->anydns ||
-       iph->daddr == conn->dns1.s_addr ||
-       iph->daddr == conn->dns2.s_addr) &&
-      iph->protocol == PKT_IP_PROTO_UDP && 
-      udph->dst == htons(DHCP_DNS)) {
-    
-    if (this->anydns && 
-	iph->daddr != conn->dns1.s_addr && 
-	iph->daddr != conn->dns2.s_addr) {
-      conn->dnatdns = iph->daddr;
-      iph->daddr = conn->dns1.s_addr;
-      chksum(iph);
-    }
 
+  if (dhcp_dnsDNAT(conn, pack, len, do_checksum)) { /* DNS */
     if (_options.dnsparanoia) {
       if (_filterDNSreq(conn, pack, len)) 
 	return 0;
@@ -1290,7 +1337,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, char do_res
       return 0;
     }
   }
-
+  
   /* Was it a request for authentication server? */
   for (i = 0; i<this->authiplen; i++) {
     if ((iph->daddr == this->authip[i].s_addr) /* &&
@@ -1343,6 +1390,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, char do_res
       /* Was it a http request for another server? */
       /* We are changing dest IP and dest port to local UAM server */
 
+      *do_checksum = 1;
       return dhcp_uam_nat(conn, ethh, iph, tcph, &this->uamlisten, this->uamport);
 
     } else if (do_reset) {
@@ -1355,29 +1403,40 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, char do_res
   return -1; /* Something else */
 }
 
-static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int isreturn) {
+static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, 
+				    size_t len, char is_return, char *do_checksum) {
   struct dhcp_t *this = conn->parent;
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
   struct pkt_tcphdr_t *tcph = tcphdr(pack);
 
-  if (isreturn) {
+
+  if (is_return) {
     /* We check here (we also do this in dhcp_dounDNAT()) for UAM */
     if ( ( iph->saddr == this->uamlisten.s_addr ) &&
 	 ( iph->protocol == PKT_IP_PROTO_TCP )    &&
 	 ( tcph->src == htons(dhcp->uamport) ||
 	   ( _options.uamuiport && tcph->src == htons(_options.uamuiport))) ) {
       
+      *do_checksum = 1;
       dhcp_uam_unnat(conn, ethh, iph, tcph);
     }
+
+    dhcp_dnsunDNAT(conn, pack, len, do_checksum);
+
+  } else {
+
+    dhcp_dnsDNAT(conn, pack, len, do_checksum);
+
   }
 
   if (_options.postauth_proxyport > 0) {
-    if (isreturn) {
+    if (is_return) {
       if ((iph->protocol == PKT_IP_PROTO_TCP) &&
 	  (iph->saddr == _options.postauth_proxyip.s_addr) &&
 	  (tcph->src == htons(_options.postauth_proxyport))) {
-
+	
+	*do_checksum = 1;
 	return dhcp_uam_unnat(conn, ethh, iph, tcph);
       }
     }
@@ -1399,6 +1458,7 @@ static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, siz
 		inet_ntoa(_options.postauth_proxyip),
 		_options.postauth_proxyport);
 	
+	*do_checksum = 1;
 	return dhcp_uam_nat(conn, ethh, iph, tcph,
 			    &_options.postauth_proxyip, 
 			    _options.postauth_proxyport);
@@ -1414,9 +1474,8 @@ static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, siz
  * Change source address back to original server
  **/
 static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, 
-				uint8_t *pack,
-				size_t *plen,
-				char do_reset) {
+				uint8_t *pack, size_t *plen,
+				char do_reset, char *do_checksum) {
   struct dhcp_t *this = conn->parent;
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
@@ -1429,28 +1488,13 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   if (iph->saddr == INADDR_LOOPBACK)
     return 0;
 
-  /* Was it a DNS reply? */
-  if ((this->anydns ||
-       iph->saddr == conn->dns1.s_addr ||
-       iph->saddr == conn->dns2.s_addr) &&
-      iph->protocol == PKT_IP_PROTO_UDP && 
-      udph->src == htons(DHCP_DNS)) {
-    
-    if (this->anydns && 
-	conn->dnatdns && 
-	iph->saddr != conn->dns1.s_addr && 
-	iph->saddr != conn->dns2.s_addr &&
-	iph->saddr != conn->dnatdns) {
-      iph->saddr = conn->dnatdns;
-      chksum(iph);
-    }
-
+  if (dhcp_dnsunDNAT(conn, pack, *plen, do_checksum)) { /* DNS */
     if (_options.uamdomains && _options.uamdomains[0]) {
-	if (_filterDNSresp(conn, pack, *plen)) 
-	  return 0;
-	else
-	  return -1; /* drop */
-    } else {   /* always let through dns when not filtering */
+      if (_filterDNSresp(conn, pack, *plen)) 
+	return 0;
+      else
+	return -1; /* drop */
+    } else { /* always let through dns when not filtering */
       return 0;
     }
   }
@@ -1487,6 +1531,7 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn,
        (tcph->src == htons(this->uamport) || 
 	(_options.uamuiport && tcph->src == htons(_options.uamuiport))) ) {
 
+    *do_checksum = 1;
     return dhcp_uam_unnat(conn, ethh, iph, tcph);
   }
   
@@ -2486,6 +2531,8 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   struct in_addr ourip;
   struct in_addr addr;
 
+  char do_checksum = 0;
+
   /*
    *  Received a packet from the dhcpif
    */
@@ -2530,10 +2577,14 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
    *  Check to see if we know MAC address
    */
   if (!dhcp_hashget(this, &conn, pack_ethh->src)) {
-    if (this->debug) log_dbg("Address found");
+
+    if (this->debug) 
+      log_dbg("Address found");
+
     ourip.s_addr = conn->ourip.s_addr;
-  }
-  else {
+
+  } else {
+
     struct in_addr reqaddr;
     
     memcpy(&reqaddr.s_addr, &pack_iph->saddr, PKT_IP_ALEN);
@@ -2615,9 +2666,9 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   if (_options.uamalias.s_addr && 
       pack_iph->daddr == _options.uamalias.s_addr) {
     
+    do_checksum = 1;
     dhcp_uam_nat(conn, pack_ethh, pack_iph, pack_tcph, &this->uamlisten,
 		 _options.uamuiport ? _options.uamuiport : this->uamport);
-
   }
   
   switch (conn->authstate) {
@@ -2638,28 +2689,28 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     }
 #endif
     /* Check for post-auth proxy, otherwise pass packets unmodified */
-    dhcp_postauthDNAT(conn, pack, len, 0);
+    dhcp_postauthDNAT(conn, pack, len, 0, &do_checksum);
     break; 
 
   case DHCP_AUTH_UNAUTH_TOS:
     /* Set TOS to specified value (unauthenticated) */
     pack_iph->tos = conn->unauth_cp;
-    chksum(pack_iph);
+    do_checksum = 1;
     break;
 
   case DHCP_AUTH_AUTH_TOS:
     /* Set TOS to specified value (authenticated) */
     pack_iph->tos = conn->auth_cp;
-    chksum(pack_iph);
+    do_checksum = 1;
     break;
 
   case DHCP_AUTH_SPLASH:
-    dhcp_doDNAT(conn, pack, len, 0);
+    dhcp_doDNAT(conn, pack, len, 0, &do_checksum);
     break;
 
   case DHCP_AUTH_DNAT:
     /* Destination NAT if request to unknown web server */
-    if (dhcp_doDNAT(conn, pack, len, 1)) {
+    if (dhcp_doDNAT(conn, pack, len, 1, &do_checksum)) {
       log_dbg("dropping packet; not nat'ed");
       return 0; /* drop */
     }
@@ -2679,6 +2730,9 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   if (_options.usetap) {
     memcpy(pack_ethh->dst, tuntap(tun).hwaddr, PKT_ETH_ALEN);
   }
+
+  if (do_checksum)
+    chksum(pack_iph);
 
   if ((conn->hisip.s_addr) && (this->cb_data_ind)) {
     this->cb_data_ind(conn, pack, len);
@@ -3198,6 +3252,8 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
 
   uint8_t * pkt = packet;
 
+  char do_checksum = 0;
+
   if (ethhdr) { /* Ethernet frame */
     length += sizeofeth2(tag) - sizeofeth(pack);
     if (length > len) {
@@ -3219,17 +3275,17 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
 
   case DHCP_AUTH_PASS:
   case DHCP_AUTH_AUTH_TOS:
-    dhcp_postauthDNAT(conn, pkt, length, 1);
+    dhcp_postauthDNAT(conn, pkt, length, 1, &do_checksum);
     break;
 
   case DHCP_AUTH_SPLASH:
   case DHCP_AUTH_UNAUTH_TOS:
-    dhcp_undoDNAT(conn, pkt, &length, 0);
+    dhcp_undoDNAT(conn, pkt, &length, 0, &do_checksum);
     break;
 
   case DHCP_AUTH_DNAT:
     /* undo destination NAT */
-    if (dhcp_undoDNAT(conn, pkt, &length, 1)) { 
+    if (dhcp_undoDNAT(conn, pkt, &length, 1, &do_checksum)) { 
       log_dbg("dhcp_undoDNAT() returns true");
       return 0;
     }
@@ -3238,6 +3294,9 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   case DHCP_AUTH_DROP: 
   default: return 0;
   }
+
+  if (do_checksum)
+    chksum(iphdr(pkt));
 
   return dhcp_send(this, &this->rawif, conn->hismac, pkt, length);
 }
