@@ -21,6 +21,9 @@
 /* Define to enable Chilli IEEE 802.1Q */
 #undef ENABLE_IEEE8021Q
 
+/* Define to enable IEEE 802.3 */
+#undef ENABLE_IEEE8023
+
 /* Define to enable Chilli JSON */
 #undef ENABLE_JSON
 

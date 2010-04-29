@@ -21,8 +21,7 @@
 #define cksum_wrap(c) (c=(c>>16)+(c&0xffff),(~(c+(c>>16))&0xffff))
 
 uint32_t
-in_cksum(uint16_t *addr, int len)
-{
+in_cksum(uint16_t *addr, int len) {
   int         nleft = len;
   uint32_t    sum = 0;
   uint16_t  * w = addr;
@@ -44,6 +43,7 @@ in_cksum(uint16_t *addr, int len)
 int chksum(struct pkt_iphdr_t *iph) {
   uint16_t hlen;
   uint32_t sum;
+  uint16_t len;
 
   /* Only IPv4 currently */
   if (iph->version_ihl != PKT_IP_VER_HLEN)
@@ -53,18 +53,21 @@ int chksum(struct pkt_iphdr_t *iph) {
   hlen = iph->version_ihl & 0x0f;
   hlen <<= 2;
 
+  len = ntohs(iph->tot_len);
+
   /* XXX: redundant */
   if (hlen != PKT_IP_HLEN)
     return -1;
+
+  if (len > PKT_BUFFER) 
+    return -1; /* too long? */
+  if (len < hlen) 
+    return -1; /* too short? */
 
   switch(iph->protocol) {
   case PKT_IP_PROTO_TCP:
     {
       struct pkt_tcphdr_t *tcph = (struct pkt_tcphdr_t *)(((void *)iph) + hlen);
-      uint16_t len = ntohs(iph->tot_len);
-      
-      if (len > 2000) return -1; /* too long? */
-      if (len < hlen) return -1; /* too short? */
       
       len -= hlen; /* length of tcp header + data */
       
@@ -79,15 +82,30 @@ int chksum(struct pkt_iphdr_t *iph) {
   case PKT_IP_PROTO_UDP:
     {
       struct pkt_udphdr_t *udph = (struct pkt_udphdr_t *)(((void *)iph) + hlen);
-      uint16_t len = ntohs(udph->len);
+      uint16_t udplen = ntohs(udph->len);
+
+      if (udplen > len)
+	return -1;
       
       udph->check = 0;
       sum  = in_cksum(((uint16_t *)iph)+6/*saddr*/, 8);
-      sum += ntohs(IPPROTO_UDP + len);
-      sum += in_cksum((uint16_t *)udph, len);
+      sum += ntohs(IPPROTO_UDP + udplen);
+      sum += in_cksum((uint16_t *)udph, udplen);
       udph->check = cksum_wrap(sum);
     }
     break;
+
+    /* not affected by NAT'ing, so..
+  case PKT_IP_PROTO_ICMP:
+    {
+      struct pkt_icmphdr_t *icmph = (struct pkt_icmphdr_t *)(((void *)iph) + hlen);
+      len -= hlen; 
+      icmph->check = 0;
+      sum = in_cksum((uint16_t *)icmph, len);
+      icmph->check = cksum_wrap(sum);
+    }
+    break;
+    */
   }
   
   iph->check = 0;

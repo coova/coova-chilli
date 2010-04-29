@@ -781,6 +781,8 @@ int static auth_radius(struct app_conn_t *appconn,
 
   uint32_t service_type = RADIUS_SERVICE_TYPE_LOGIN;
 
+  if (!radius) return -1;
+
   log_dbg("Starting radius authentication");
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
@@ -1644,6 +1646,9 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
   switch(ipph->protocol) {
   case PKT_IP_PROTO_GRE:
   case PKT_IP_PROTO_TCP:
+  case PKT_IP_PROTO_ICMP:
+  case PKT_IP_PROTO_ESP:
+  case PKT_IP_PROTO_AH:
     {
       if (ntohs(ipph->tot_len) > len) {
 	log_dbg("invalid IP packet %d / %d / %d", 
@@ -1667,7 +1672,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
     }
     break;
   default:
-    log_dbg("dropping non TCP/UDP packet: %x", ipph->protocol);
+    log_dbg("dropping unhandled packet: %x", ipph->protocol);
     return 0;
   }
   
@@ -3248,16 +3253,17 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 		    uint8_t *dhcp_pkt, size_t dhcp_len) {
   struct app_conn_t *appconn = conn->peer;
   struct ippoolm_t *ipm = 0;
+  char domacauth = (char) _options.macauth;
   char allocate = 1;
-
+  
   if (_options.debug) 
     log_dbg("DHCP request for IP address");
-
+  
   if (!appconn) {
     log_err(0, "Peer protocol not defined");
     return -1;
   }
-
+  
   /* if uamanyip is on we have to filter out which ip's are allowed */
   if (_options.uamanyip && addr && addr->s_addr) {
     if ((addr->s_addr & ipv4ll_mask.s_addr) == ipv4ll_ip.s_addr) {
@@ -3277,9 +3283,9 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
      *  IP Address is already known and allocated.
      */
     ipm = (struct ippoolm_t*) appconn->uplink;
-
+    
   } else {
-
+    
     if ( ! conn->is_reserved) {
       if ((_options.macoklen) && 
 	  (appconn->dnprot == DNPROT_DHCP_NONE) &&
@@ -3306,13 +3312,16 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 		   inet_ntoa(appconn->hisip));
 	  
 	  ipm = (struct ippoolm_t*) appconn->uplink;
+	  domacauth = 0;
 	  
 	} else {
 	  /*
 	   *  Otherwise, authenticate with RADIUS.
 	   */
 	  auth_radius(appconn, 0, 0, dhcp_pkt, dhcp_len);
+
 	  allocate = !_options.strictmacauth;
+	  domacauth = 0;
 	}
 	
       } else if ((_options.macauth) && 
@@ -3326,6 +3335,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 	auth_radius(appconn, 0, 0, dhcp_pkt, dhcp_len);
 	
 	allocate = !_options.strictmacauth;
+	domacauth = 0;
       }
     }
   }
@@ -3362,10 +3372,10 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     ipm->peer = appconn; 
     
     if (chilli_assign_snat(appconn, 0) != 0) {
-	return -1;
+      return -1;
     }
   }
-
+  
   if (ipm) {
     dhcp_set_addrs(conn, 
 		   &ipm->addr, &_options.mask, 
@@ -3373,15 +3383,21 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 		   &_options.dns1, &_options.dns2, 
 		   _options.domain);
   }
-
-  /* if not already authenticated, ensure DNAT authstate */
-  if (!appconn->s_state.authenticated)
+  
+  if (!appconn->s_state.authenticated) {
+    
+    if (domacauth) {
+      auth_radius(appconn, 0, 0, dhcp_pkt, dhcp_len);
+    }
+    
+    /* if not already authenticated, ensure DNAT authstate */
     conn->authstate = DHCP_AUTH_DNAT;
-
+  }
+  
   /* If IP was requested before authentication it was UAM */
   if (appconn->dnprot == DNPROT_DHCP_NONE)
     appconn->dnprot = DNPROT_UAM;
-
+  
   return 0;
 }
 

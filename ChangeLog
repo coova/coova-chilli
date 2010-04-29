@@ -9,11 +9,13 @@
 * Runtime option ''--proxylocattr'' that defines the "location" attribute in MAC auth proxy requests
 * Runtime option ''--proxymacaccept'' to have chilli always return AccessAccept for MAC auth proxy requests
 * Improved ''chilli_redir'' main loop to optionally support poll/epoll (''--with-poll'') and no waiting for input
+* Change such that MAC authentication happens during DHCP when not authentication, not just when 'unknown'
 * Improved support for ethers file used with binary status file
 * New option ''chilli_query listippool'' to list the IP address pool
 * Bug fix in static ip allocation - particularly noticeable on 64bit
 * Added ''Compiled with ...'' section to ''--help'' output to see compile time options
 * Fix bootstrap: install missing automake files automatically
+* Fixes concerning DHCP relay - rewriting of DHCP Server Identifier option
 * Fixes for RadSec support
 	
 == ChangeLog (CoovaChilli-v1.2.2 svn revision 291) ==

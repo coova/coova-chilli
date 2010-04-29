@@ -705,7 +705,8 @@ dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
 
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = AF_INET;
-      addr.sin_addr.s_addr = dhcp->uamlisten.s_addr;
+      /*addr.sin_addr.s_addr = dhcp->uamlisten.s_addr;*/
+      addr.sin_addr.s_addr = INADDR_ANY;
 
       /*
        * ====[http://tools.ietf.org/id/draft-ietf-dhc-implementation-02.txt]====
@@ -724,7 +725,7 @@ dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
        *         unless the source port number on the packet is 67.
        */
 
-      addr.sin_port = htons(67);
+      addr.sin_port = htons(_options.dhcpgwport);
       
       if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
 	log_err(errno, "Can't set reuse option");
@@ -2302,6 +2303,17 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
     else
       pack_dhcp->giaddr = _options.uamlisten.s_addr;
 
+    { /* rewrite the server-id, to match the upstream server (should be taken from previous replies) */
+      struct dhcp_tag_t *tag = 0;
+      if (!dhcp_gettag(pack_dhcp, ntohs(pack_udph->len) - PKT_UDP_HLEN, 
+		       &tag, DHCP_OPTION_SERVER_ID)) {
+	memcpy(tag->v, &_options.dhcpgwip.s_addr, 4);
+      }
+    }
+
+    log_dbg("Sending DHCP relay packet to %s",
+	    inet_ntoa(addr.sin_addr));
+
     /* if we can't send, lets do dhcp ourselves */
     if (sendto(this->relayfd, dhcppkt(pack), 
 	       ntohs(pack_udph->len) - PKT_UDP_HLEN, 0, 
@@ -2480,6 +2492,12 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 
   if (this->debug)
     log_dbg("DHCP packet received");
+
+  /*
+   *  Only supports IPv4 currently.
+   */
+  if (pack_iph->version_ihl != PKT_IP_VER_HLEN)
+    return 0;
   
   /* 
    *  Check that the destination MAC address is our MAC or Broadcast 
@@ -2502,8 +2520,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   if (((pack_iph->daddr == 0) ||
        (pack_iph->daddr == 0xffffffff) ||
        (pack_iph->daddr == ourip.s_addr)) &&
-      ((pack_iph->version_ihl == PKT_IP_VER_HLEN) && 
-       (pack_iph->protocol == PKT_IP_PROTO_UDP) &&
+      ((pack_iph->protocol == PKT_IP_PROTO_UDP) &&
        (pack_udph->dst == htons(DHCP_BOOTPS)))) {
     log_dbg("dhcp/bootps request being processed");
     return dhcp_getreq(this, pack, len);
@@ -2698,7 +2715,7 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
   */
 
   if (prot < 1518) {
-    /* XXX */
+#ifdef ENABLE_IEEE8023
     uint8_t *p = packet + sizeofeth(packet);
     struct pkt_llc_t * llc = (struct pkt_llc_t *)p;
     if (llc->dsap == 0xAA &&
@@ -2713,6 +2730,7 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
 	      "length %d dsap=0x%.2x ssap=0x%.2x ctrl=0x%.2x", 
 	      (int) prot, llc->dsap, llc->ssap, llc->cntl); 
     }
+#endif
     return 0;
   }
   
@@ -2783,19 +2801,20 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
 		  /* Start processing packet...
 		   */
 		  
-		  nlcp->code = PPP_LCP_ConfigReject;
+		  nlcp->code = PPP_LCP_ConfigNak;
 		  
-		  lcplen = ntohs(nlcp->length);
+		  lcplen = sizeof(struct pkt_ppp_lcp_t);
 
 		  pos = sizeofeth(answer) + sizeof(struct pkt_pppoe_hdr_t) + 2;
 
-		  taglen = 2;
+		  taglen = 3;
 		  tag = (struct pkt_lcp_opthdr_t *)(answer + pos + lcplen);
 		  tag->type = PPP_LCP_OptAuthProto;
 		  tag->length = taglen + 2;
 		  lcplen += tag->length;
-		  *(answer + pos + lcplen - 2) = 0xC0;
-		  *(answer + pos + lcplen - 1) = 0x23;
+		  *(answer + pos + lcplen - 3) = 0xC2;
+		  *(answer + pos + lcplen - 2) = 0x23;
+		  *(answer + pos + lcplen - 1) = 0x81;
 
 		  length = 2;
 		  length += lcplen;
@@ -3052,15 +3071,23 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
     return -1;
   }
 
-  log_dbg("DHCP relay response of length %d received", length);
+  if (packet.op != 2) {
+    log_dbg("Ignored non-relay reply DHCP packet");
+    return -1;
+  }
+
+  log_dbg("DHCP relay response from %s of length %d received",
+	  inet_ntoa(addr.sin_addr), length);
 
   if (addr.sin_addr.s_addr != _options.dhcpgwip.s_addr) {
-    log_err(0, "received DHCP response from host other than our gateway");
+    log_dbg("Received DHCP response from host (%s) other than our gateway",
+	    inet_ntoa(addr.sin_addr));
     return -1;
   }
 
   if (addr.sin_port != htons(_options.dhcpgwport)) {
-    log_err(0, "received DHCP response from port other than our gateway");
+    log_dbg("Received DHCP response from port (%d) other than our gateway",
+	    ntohs(addr.sin_port));
     return -1;
   }
 
@@ -3075,15 +3102,16 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
   }
   
   if (dhcp_hashget(this, &conn, packet.chaddr)) {
-
     /* Allocate new connection */
     if (dhcp_newconn(this, &conn, packet.chaddr, 0)) {
       log_err(0, "out of connections");
       return 0; /* Out of connections */
     }
-
-    this->cb_request(conn, (struct in_addr *)&packet.yiaddr, 0, 0);
   }
+
+  if (conn->authstate == DHCP_AUTH_NONE ||
+      conn->authstate == DHCP_AUTH_DNAT)
+    this->cb_request(conn, (struct in_addr *)&packet.yiaddr, 0, 0);
 
   packet.giaddr = 0;
 
@@ -3100,7 +3128,7 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
     fullpack_iph->ttl = 0x10;
     fullpack_iph->protocol = 0x11;
     
-    fullpack_iph->saddr = conn->ourip.s_addr;
+    fullpack_iph->saddr = _options.dhcplisten.s_addr;
     fullpack_udph->src = htons(DHCP_BOOTPS);
     fullpack_udph->len = htons(length + PKT_UDP_HLEN);
     
@@ -3112,32 +3140,43 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
       fullpack_udph->dst = htons(DHCP_BOOTPS);
       } else */
     
+    fullpack_udph->dst = htons(DHCP_BOOTPC);
+    fullpack_iph->daddr = ~0; 
     if (message_type->v[0] == DHCPNAK || packet.flags[0] & 0x80) {
-      fullpack_iph->daddr = ~0; 
-      fullpack_udph->dst = htons(DHCP_BOOTPC);
-      /* fullpack.dhcp.flags[0] = 0x80;*/
+      log_dbg("DHCP: Nak");
     } if (packet.ciaddr) {
+      log_dbg("DHCP: CIAddr");
       fullpack_iph->daddr = packet.ciaddr; 
-      fullpack_udph->dst = htons(DHCP_BOOTPC);
-    } else {
+    } if (packet.yiaddr) {
+      log_dbg("DHCP: YIAddr");
       fullpack_iph->daddr = packet.yiaddr; 
-      fullpack_udph->dst = htons(DHCP_BOOTPC);
     }
     
-    memcpy(dhcppkt(fullpack), &packet, sizeof(packet));
-  }
+    memcpy(dhcppkt(fullpack), &packet, length);
 
-  { /* rewrite the server-id, otherwise will not get subsequent requests */
-    struct dhcp_tag_t *tag = 0;
-    if (!dhcp_gettag(dhcppkt(fullpack), length, &tag, DHCP_OPTION_SERVER_ID)) {
-      memcpy(tag->v, &conn->ourip.s_addr, 4);
+    { /* rewrite the server-id, otherwise will not get subsequent requests */
+      struct dhcp_tag_t *tag = 0;
+      if (!dhcp_gettag(dhcppkt(fullpack), length, &tag, DHCP_OPTION_SERVER_ID)) {
+	memcpy(tag->v, &_options.dhcplisten.s_addr, 4);
+      }
     }
+    
+    chksum(fullpack_iph);
+
+    addr.sin_addr.s_addr = fullpack_iph->daddr;
+    log_dbg("Sending DHCP relay response %s:%d %d",
+	    inet_ntoa(addr.sin_addr),
+	    ntohs(fullpack_udph->dst),
+	    length + sizeofudp(fullpack));
+
+    addr.sin_addr.s_addr = fullpack_iph->saddr;
+    log_dbg("Sending DHCP from %s:%d",
+	    inet_ntoa(addr.sin_addr),
+	    ntohs(fullpack_udph->src));
+    
+    return dhcp_send(this, &this->rawif, conn->hismac, fullpack, 
+		     length + sizeofudp(fullpack));
   }
-
-  chksum(iphdr(fullpack));
-
-  return dhcp_send(this, &this->rawif, conn->hismac, fullpack, 
-		   length + sizeofudp(fullpack));
 }
 
 /**

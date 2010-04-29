@@ -49,6 +49,12 @@
 #define PKT_IP_PROTO_TCP          6 /* TCP Protocol number */
 #define PKT_IP_PROTO_UDP         17 /* UDP Protocol number */
 #define PKT_IP_PROTO_GRE         47 /* GRE Protocol number */
+#define PKT_IP_PROTO_ESP         50
+#define PKT_IP_PROTO_AH          51
+#define PKT_IP_PROTO_SKIP        57
+#define PKT_IP_PROTO_EIGRP       88
+#define PKT_IP_PROTO_OSPF        89
+#define PKT_IP_PROTO_L2TP       115
 
 #define PKT_UDP_HLEN              8
 #define PKT_TCP_HLEN             20
@@ -84,6 +90,7 @@ struct pkt_ethhdr8021q_t {
   uint16_t prot;
 } __attribute__((packed));
 
+#ifdef ENABLE_IEEE8023
 struct pkt_llc_t {
   uint8_t dsap;
   uint8_t ssap;
@@ -94,6 +101,7 @@ struct pkt_llc_snap_t {
   uint8_t code[3];
   uint16_t type;
 } __attribute__((packed));
+#endif
 
 #ifdef ENABLE_PPPOE
 struct pkt_pppoe_hdr_t {
@@ -173,6 +181,13 @@ struct pkt_ipphdr_t {
   uint32_t daddr;
   uint16_t sport;
   uint16_t dport;
+} __attribute__((packed));
+
+
+struct pkt_icmphdr_t {
+  uint8_t type;
+  uint8_t code;
+  uint16_t check;
 } __attribute__((packed));
 
 
@@ -265,19 +280,17 @@ struct pkt_tcphdr_t {
    +---------------------------------------------------------------+
    |                          giaddr  (4)                          |
    +---------------------------------------------------------------+
-   |                                                               |
    |                          chaddr  (16)                         |
-   |                                                               |
-   |                                                               |
+   |                             (cont)                            |
    +---------------------------------------------------------------+
-   |                                                               |
    |                          sname   (64)                         |
+   |                             (cont)                            |
    +---------------------------------------------------------------+
-   |                                                               |
    |                          file    (128)                        |
+   |                             (cont)                            |
    +---------------------------------------------------------------+
-   |                                                               |
    |                          options (variable)                   |
+   |                             (cont)                            |
    +---------------------------------------------------------------+
 */
 
