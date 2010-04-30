@@ -17,6 +17,7 @@
 * Fix bootstrap: install missing automake files automatically
 * Fixes concerning DHCP relay - rewriting of DHCP Server Identifier option
 * Fixes for RadSec support
+* Fixes for using ''--uid'' and ''--gid''
 * Fixes for anydns
 	
 == ChangeLog (CoovaChilli-v1.2.2 svn revision 291) ==

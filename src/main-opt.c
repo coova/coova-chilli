@@ -56,6 +56,9 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_IEEE8021Q
   "ENABLE_IEEE8021Q "
 #endif
+#ifdef ENABLE_IEEE8023
+  "ENABLE_IEEE8023 "
+#endif
 #ifdef ENABLE_JSON
   "ENABLE_JSON "
 #endif
@@ -70,6 +73,9 @@ static const char *compile_options = "Compiled with "
 #endif
 #ifdef ENABLE_NETNAT
   "ENABLE_NETNAT "
+#endif
+#ifdef ENABLE_PPPOE
+  "ENABLE_PPPOE "
 #endif
 #ifdef ENABLE_PROXYVSA
   "ENABLE_PROXYVSA "
@@ -932,8 +938,25 @@ int main(int argc, char **argv) {
     bstring bt = bfromcstr("");
     int ok = options_save(_options.binconfig, bt);
     if (!ok) log_err(0, "could not save configuration options!");
+    else {
+      if (_options.uid) {
+	if (chown(_options.binconfig, _options.uid, _options.gid)) {
+	  log_err(errno, "could not chown() %s",
+		  _options.binconfig);
+	} else {
+	  char file[512], *dpath;
+	  snprintf(file, sizeof(file), "%s", _options.binconfig);
+	  if ((dpath = dirname(file))) {
+	    if (chown(dpath, _options.uid, _options.gid)) {
+	      log_warn(errno, "could not chown() %s", dpath);
+	    }
+	  }
+	}
+      }
+    }
     bdestroy(bt);
   }
+
 
   if (args_info.reload_flag) {
     if (execl(SBINDIR "/chilli_query", "chilli_query", 

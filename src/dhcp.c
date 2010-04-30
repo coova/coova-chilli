@@ -1326,7 +1326,6 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
     if (iph->daddr == conn->ourip.s_addr)
       return 0;
 
-
   if (dhcp_dnsDNAT(conn, pack, len, do_checksum)) { /* DNS */
     if (_options.dnsparanoia) {
       if (_filterDNSreq(conn, pack, len)) 
@@ -1364,18 +1363,22 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
   */
 
   /* Was it a request for a pass-through entry? */
-  if (check_garden(_options.pass_throughs, _options.num_pass_throughs, pack, 1))
+  if (check_garden(_options.pass_throughs, 
+		   _options.num_pass_throughs, 
+		   pack, 1))
     return 0;
 
   /* Check uamdomain driven walled garden */
-  if (check_garden(this->pass_throughs, this->num_pass_throughs, pack, 1))
+  if (check_garden(this->pass_throughs, 
+		   this->num_pass_throughs, pack, 1))
     return 0;
 
 #ifdef ENABLE_SESSGARDEN
   /* Check appconn session specific pass-throughs */
   if (conn->peer) {
     struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-    if (check_garden(appconn->s_params.pass_throughs, appconn->s_params.pass_through_count, pack, 1))
+    if (check_garden(appconn->s_params.pass_throughs, 
+		     appconn->s_params.pass_through_count, pack, 1))
       return 0;
   }
 #endif

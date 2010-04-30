@@ -220,6 +220,16 @@ int main(int argc, char **argv) {
   radius_set(server.radius_auth, 0, 0);
   radius_set(server.radius_acct, 0, 0);
 
+  if (_options.gid && setgid(_options.gid)) {
+    log_err(errno, "setgid(%d) failed while running with gid = %d\n", 
+	    _options.gid, getgid());
+  }
+  
+  if (_options.uid && setuid(_options.uid)) {
+    log_err(errno, "setuid(%d) failed while running with uid = %d\n", 
+	    _options.uid, getuid());
+  }
+
   while (keep_going) {
 
     if (reload_config) {

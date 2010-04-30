@@ -4786,12 +4786,12 @@ int chilli_main(int argc, char **argv) {
   /* Main select loop                                               */
   /******************************************************************/
 
-  if (_options.uid && setuid(_options.uid)) {
-    log_err(errno, "setuid(%d) failed while running with uid = %d\n", _options.uid, getuid());
-  }
-
   if (_options.gid && setgid(_options.gid)) {
     log_err(errno, "setgid(%d) failed while running with gid = %d\n", _options.gid, getgid());
+  }
+
+  if (_options.uid && setuid(_options.uid)) {
+    log_err(errno, "setuid(%d) failed while running with uid = %d\n", _options.uid, getuid());
   }
 
   if (net_select_init(&sctx))

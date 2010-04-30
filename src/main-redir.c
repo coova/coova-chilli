@@ -455,6 +455,16 @@ int main(int argc, char **argv) {
   net_select_addfd(&sctx, redir->fd[0], SELECT_READ);
   net_select_addfd(&sctx, redir->fd[1], SELECT_READ);
 
+  if (_options.gid && setgid(_options.gid)) {
+    log_err(errno, "setgid(%d) failed while running with gid = %d\n", 
+	    _options.gid, getgid());
+  }
+  
+  if (_options.uid && setuid(_options.uid)) {
+    log_err(errno, "setuid(%d) failed while running with uid = %d\n", 
+	    _options.uid, getuid());
+  }
+
   while (keep_going) {
 
     /* select/poll */
