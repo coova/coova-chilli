@@ -41,6 +41,13 @@ cmdsock_init() {
 	log_err(errno, "could listen to UNIX Socket!");
 	close(cmdsock);
 	cmdsock = -1;
+      } else {
+	if (_options.uid) {
+	  if (chown(_options.cmdsocket, _options.uid, _options.gid)) {
+	    log_err(errno, "could not chown() %s",
+		    _options.cmdsocket);
+	  }
+	}
       }
     }
   }
