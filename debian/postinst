@@ -1,0 +1,12 @@
+#!/bin/sh
+
+adduser --system --quiet \
+	--home /tmp \
+	--shell /bin/sh \
+	--no-create-home \
+	--disabled-password \
+	chilli
+
+chown -R chilli /etc/chilli/www
+
+/etc/init.d/chilli start

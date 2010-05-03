@@ -2805,7 +2805,8 @@ int redir_main(struct redir_t *redir,
 	return redir_main_exit(redir, &httpreq, &socket, forked);
       }
 
-      if (!chroot(_options.wwwdir) && !chdir("/")) {
+      if ( (_options.uid == 0 && !chroot(_options.wwwdir) && !chdir("/")) ||
+	   (_options.uid != 0 && !chdir(_options.wwwdir)) ) {
 	
 	fd = open(filename, O_RDONLY);
 	
@@ -2832,7 +2833,7 @@ int redir_main(struct redir_t *redir,
 	} 
 	else log_err(0, "could not open local content file %s!", filename);
       }
-      else log_err(0, "chroot to %s was not successful\n", _options.wwwdir); 
+      else log_err(0, "chroot/chdir to %s was not successful\n", _options.wwwdir); 
 
       return _redir_close_exit(infd, outfd); /* which exits */
     }
