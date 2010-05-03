@@ -1214,6 +1214,12 @@ int redir_ipc(struct redir_t *redir) {
 	sock = -1;
       } else {
 	redir->msgfd = sock;
+
+	if (_options.uid) {
+	  if (chown(filedest, _options.uid, _options.gid)) {
+	    log_err(errno, "could not chown() %s", filedest);
+	  }
+	}
       }
     }
   }

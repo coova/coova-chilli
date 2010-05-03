@@ -103,6 +103,12 @@ writeconfig() {
     [ "$HS_NATANYIP" = "on" ] && addconfig1 "uamnatanyip"
     [ "$HS_NOC2C" = "on" ] && addconfig1 "noc2c"
 
+    [ "$HS_USER" != "" -a "$HS_UID" = "" ] && HS_UID=$(id -u $HS_USER)
+    [ "$HS_USER" != "" -a "$HS_GID" = "" ] && HS_GID=$(id -g $HS_USER)
+
+    addconfig1 ${HS_UID:+"uid \"$HS_UID\""}
+    addconfig1 ${HS_GID:+"gid \"$HS_GID\""}
+
     addconfig1 ${HS_TUNDEV:+"tundev \"$HS_TUNDEV\""}
     addconfig1 ${HS_DYNIP:+"dynip $HS_DYNIP/${HS_DYNIP_MASK:-255.255.255.0}"}
     addconfig1 ${HS_STATIP:+"statip $HS_STATIP/${HS_STATIP_MASK:-255.255.255.0}"}
