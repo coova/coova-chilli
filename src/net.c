@@ -319,6 +319,7 @@ int net_select_zero(select_ctx *sctx) {
 #endif
 #endif
   sctx->count = 0;
+  return 0;
 }
 
 int net_select_rmfd(select_ctx *sctx, int fd) {

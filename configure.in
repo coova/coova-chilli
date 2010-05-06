@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(coova-chilli, 1.2.3-rc1, support@coova.com)
+AC_INIT(coova-chilli, 1.2.3, support@coova.com)
 AC_CONFIG_SRCDIR([src/cmdline.c])
 
 AM_INIT_AUTOMAKE
@@ -32,7 +32,7 @@ AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h \
 		  sys/wait.h sys/un.h \
 		  sys/stat.h sys/types.h \
 		  syslog.h resolv.h poll.h sys/epoll.h \
-		  unistd.h endian.h \
+		  unistd.h endian.h libgen.h \
 		  net/route.h net/if.h \
 		  net/ethernet.h asm/types.h \
 		  net/if_arp.h net/if_tun.h])

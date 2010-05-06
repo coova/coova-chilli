@@ -968,7 +968,6 @@ int check_garden(pass_through *ptlist, int ptcnt, uint8_t *pack, int dst) {
   return 0;
 }
 
-static
 size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
 
   size_t len = sizeofeth(orig_pack) + PKT_IP_HLEN + PKT_TCP_HLEN;
@@ -1011,7 +1010,6 @@ size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
 
   return len;
 }
-
 
 static
 void tun_sendRESET(struct tun_t *tun, uint8_t *pack, struct app_conn_t *appconn) {
@@ -1314,7 +1312,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
   struct pkt_tcphdr_t *tcph = tcphdr(pack);
-  struct pkt_udphdr_t *udph = udphdr(pack);
+  /*struct pkt_udphdr_t *udph = udphdr(pack);*/
   int i;
 
   /* Allow localhost through network... */
@@ -1483,7 +1481,7 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
   struct pkt_tcphdr_t *tcph = tcphdr(pack);
-  struct pkt_udphdr_t *udph = udphdr(pack);
+  /*struct pkt_udphdr_t *udph = udphdr(pack);*/
   /*size_t len = *plen;*/
   int i;
 
@@ -1661,7 +1659,7 @@ int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
     memset(name, 0, sizeof(name));
     
-    dns_fullname(name, sizeof(name), dnsp->records, (uint8_t *)dnsp, olen, 0);
+    dns_fullname((char *)name, sizeof(name), dnsp->records, (uint8_t *)dnsp, olen, 0);
     
     log_dbg("LocalDNS: Q: %s", name);
     

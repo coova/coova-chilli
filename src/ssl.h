@@ -73,6 +73,7 @@ typedef struct {
 } openssl_con;
 
 openssl_env * initssl();
+openssl_env * initssl_cli();
 int openssl_verify_peer(openssl_env *env, int mode);
 int openssl_use_certificate(openssl_env *env, char *file);
 int openssl_use_privatekey(openssl_env *env, char *file);

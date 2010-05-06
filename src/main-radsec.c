@@ -76,6 +76,7 @@ static int shutdown_ssl() {
   close(server.conn.sock);
   server.conn.sock = 0;
   server.conn.connected = 0;
+  return 0;
 }
 
 static void process_radius(struct radius_packet_t *pack, ssize_t len) {
@@ -118,11 +119,11 @@ static void process_radius(struct radius_packet_t *pack, ssize_t len) {
 
 static void process_radius_reply() {
   uint8_t *d = (uint8_t *) &server.pack;
-  int l = openssl_read(server.conn.sslcon, d, 4, 0);
+  int l = openssl_read(server.conn.sslcon, (char *)d, 4, 0);
   log_dbg("reply %d", l);
   if (l == 4) {
     int len = ntohs(server.pack.length) - 4;
-    l = openssl_read(server.conn.sslcon, d + 4, len, 0);
+    l = openssl_read(server.conn.sslcon, (char *)(d + 4), len, 0);
     log_dbg("reply %d", l);
     if (l == len) {
       log_dbg("reply +%d", len);

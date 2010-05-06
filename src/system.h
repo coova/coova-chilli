@@ -194,6 +194,10 @@
 #include <endian.h>
 #endif
 
+#ifdef HAVE_LIBGEN_H
+#include <libgen.h>
+#endif
+
 #undef LITTLE_ENDIAN
 #undef BIG_ENDIAN
 

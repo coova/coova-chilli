@@ -35,11 +35,11 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring
 static uint8_t radius_packet_id = 0;
 extern time_t mainclock;
 
-/* Termination handler for clean shutdown */
+/* Termination handler for clean shutdown 
 static void redir_termination(int signum) {
   log_dbg("Terminating redir client!");
   exit(0);
-}
+}*/
 
 /* Alarm handler for ensured shutdown */
 static void redir_alarm(int signum) {
@@ -1901,7 +1901,8 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 	redir_challenge(peer_challenge);*/
       
       GenerateNTResponse(chap_challenge, /*peer*/chap_challenge,
-			 conn->s_state.redir.username, strlen(conn->s_state.redir.username),
+			 (u_char *)conn->s_state.redir.username, 
+			 strlen(conn->s_state.redir.username),
 			 user_password, conn->password_len,
 			 ntresponse);
       
@@ -3081,23 +3082,20 @@ int redir_main(struct redir_t *redir,
   }
   else {
     redir_chartohex(conn.s_state.redir.uamchal, hexchal, REDIR_MD5LEN);
-    /*
-	redir_memcopy(REDIR_CHALLENGE);
-	redir_msg_send(REDIR_MSG_OPT_REDIR);
-    */
+    msg.mtype = splash ? REDIR_ALREADY : REDIR_NOTYET;
+    redir_msg_send(REDIR_MSG_OPT_REDIR);
   }
 
   log_dbg("---->>> challenge: %s", hexchal);
 
-  if (_options.macreauth && 
-      !conn.s_state.authenticated) {
+  if (_options.macreauth && !conn.s_state.authenticated) {
     msg.mtype = REDIR_MACREAUTH;
     redir_msg_send(0);
   }
-
+  
   if (redir->homepage ||
       ((conn.s_params.flags & REQUIRE_REDIRECT) && conn.s_params.url[0])) {
-
+    
     char * base_url = (conn.s_params.flags & REQUIRE_REDIRECT && 
 		       conn.s_params.url[0]) ? (char *)conn.s_params.url : redir->homepage;
 

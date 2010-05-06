@@ -38,6 +38,7 @@
 #define IPPOOL_NOIP6
 
 #include "system.h"
+#include "lookup.h"
 
 struct ippoolm_t;                /* Forward declaration */
 

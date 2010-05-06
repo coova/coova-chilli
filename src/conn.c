@@ -107,7 +107,7 @@ void conn_finish(struct conn_t *conn) {
   }
 }
 
-void conn_update_write(struct conn_t *conn) {
+int conn_update_write(struct conn_t *conn) {
   log_dbg("socket writeable!");
   
   if (conn->write_pos == 0) {
@@ -116,7 +116,7 @@ void conn_update_write(struct conn_t *conn) {
     if (getsockopt(conn->sock, SOL_SOCKET, SO_ERROR, &err, &errlen) || (err != 0)) {
       log_err(errno, "not connected");
       conn_finish(conn);
-      return 0;
+      return -1;
     } else {
       /*int flags = fcntl(conn->sock, F_GETFL, 0);
 	if (fcntl(conn->sock, F_SETFL, flags & (~O_NONBLOCK)) < 0)
@@ -135,12 +135,14 @@ void conn_update_write(struct conn_t *conn) {
     } else if (ret < 0) {
       log_dbg("socket closed!");
       conn_finish(conn);
+      return -1;
     }
   } 
   
   /*if (conn->write_pos == conn->write_buf->slen) {
     shutdown(conn->sock, SHUT_WR);
     }*/
+  return 0;
 }
 
 int conn_select_update(struct conn_t *conn, select_ctx *sctx) {

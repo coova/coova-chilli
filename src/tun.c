@@ -655,7 +655,6 @@ int tun_new(struct tun_t **ptun) {
 int tun_free(struct tun_t *tun) {
 
   if (tun->routes) {
-#warning fix this
     /*XXX: todo! net_delete_route(&tuntap(tun)); */
   }
 
@@ -693,9 +692,9 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
     int ethhdr = (tun(c->this, c->idx).flags & NET_ETHHDR) != 0;
 
     if (ethhdr)
-      iph = (struct pkt_ipphdr_t *)((char *)packet + PKT_ETH_HLEN);
+      iph = (struct pkt_iphdr_t *)((char *)packet + PKT_ETH_HLEN);
     else
-      iph = (struct pkt_ipphdr_t *)packet;
+      iph = (struct pkt_iphdr_t *)packet;
 
     iph->daddr  = iph->daddr & ~(_options.mask.s_addr);
     iph->daddr |= _options.dhcplisten.s_addr & _options.mask.s_addr;

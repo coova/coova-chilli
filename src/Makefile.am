@@ -21,7 +21,7 @@ iphash.c lookup3.c sfhash.c lookup.c system.h cmdsock.c util.c \
 garden.c ssl.c dns.c session.c pkt.c chksum.c net.c \
 ms_chap.c options.c statusfile.c conn.c 
 
-AM_CFLAGS = -D_GNU_SOURCE -Wall -fno-builtin -fno-strict-aliasing \
+AM_CFLAGS = -D_GNU_SOURCE -Wall -Werror -fno-builtin -fno-strict-aliasing \
   -O2 -fomit-frame-pointer -funroll-loops -pipe \
  -DDEFCHILLICONF='"$(sysconfdir)/chilli.conf"'\
  -DDEFPIDFILE='"$(localstatedir)/run/chilli.pid"'\

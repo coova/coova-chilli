@@ -64,7 +64,7 @@ int conn_close(struct conn_t *conn);
 void conn_bstring_readhandler(struct conn_t *conn, bstring data);
 
 int conn_select_fd(struct conn_t *conn, select_ctx *sctx);
-void conn_update_write(struct conn_t *conn);
+int conn_update_write(struct conn_t *conn);
 int conn_select_update(struct conn_t *conn, select_ctx *sctx);
 
 #endif

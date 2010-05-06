@@ -4004,6 +4004,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     auth_radius(appconn, 0, 0, 0, 0);
     break;
 
+  case REDIR_ALREADY:
   case REDIR_NOTYET:
     break;
   }

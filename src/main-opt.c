@@ -957,7 +957,6 @@ int main(int argc, char **argv) {
     bdestroy(bt);
   }
 
-
   if (args_info.reload_flag) {
     if (execl(SBINDIR "/chilli_query", "chilli_query", 
 	      args_info.cmdsocket_arg, "reload", (char *) 0) != 0) {

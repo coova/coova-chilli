@@ -7,9 +7,10 @@ Source0:   %{name}-%{version}.tar.gz
 License:   GPL
 Group:     System Environment/Daemons
 BuildRoot: %{_tmppath}/%{name}-root
-%if %{!?_without_ssl:1}0
-BuildRequires: openssl-devel
-%endif
+# has libopenssl-devel name under opensese
+#%if %{!?_without_ssl:1}0
+#BuildRequires: openssl-devel
+#%endif
 
 %description 
 

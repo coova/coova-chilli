@@ -138,7 +138,7 @@ int iphash_hashdel(struct iphash_t *this, struct iphashm_t *member) {
 
 int iphash_add(struct iphash_t *this, struct iphashm_t **member, struct in_addr *addr, uint16_t port) {
   struct iphashm_t *p;
-  uint32_t hash;
+  /*uint32_t hash;*/
 
   log_dbg("IPHASH IP: %s %d", inet_ntoa(*addr), ntohs(port));
 
@@ -173,6 +173,7 @@ int iphash_add(struct iphash_t *this, struct iphashm_t **member, struct in_addr 
 }
 
 int iphash_expire(struct iphash_t *this, int timeout) {
+  return 0;
 }
 
 int iphash_free(struct iphash_t *this) {

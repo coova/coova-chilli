@@ -299,7 +299,7 @@ int options_fromfd(int fd, bstring bt) {
    *  We took the buffer and this bt will be destroyed.
    *  Give the bstring a bogus buffer so that bdestroy() works.
    */
-  bt->data = strdup("");
+  bt->data = (u_char *)strdup("");
   bt->mlen = 1;
   bt->slen = 0;
 

@@ -54,7 +54,7 @@ int ippool_print(int fd, struct ippool_t *this) {
   safe_write(fd, line, snprintf(line, sizeof(line), sep, "Dynamic Pool"));
 
   for (n=0; n < this->listsize; n++) {
-    int *st = (n >= this->dynsize) ? &stat : &dyn;
+    int *st = (n >= this->dynsize) ? stat : dyn;
 
     if (this->member[n].in_use) {
       if (this->member[n].next == 0 && this->member[n].prev == 0) {

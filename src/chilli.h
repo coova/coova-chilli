@@ -34,6 +34,7 @@
 #include "cmdsock.h"
 #include "net.h"
 #include "md5.h"
+#include "dns.h"
 
 /*#define XXX_IO_DAEMON 1*/
 
@@ -190,6 +191,22 @@ int kmod_coova_update(struct app_conn_t *appconn);
 int kmod_coova_release(struct dhcp_conn_t *conn);
 int kmod_coova_sync();
 int kmod_coova_clear();
+#endif
+
+#ifdef HAVE_OPENSSL
+void NtPasswordHash(u_char *Password, int len, u_char *hash);
+void HashNtPasswordHash(u_char *hash, u_char *hashhash);
+void ChallengeHash(u_char *PeerChallenge, u_char *AuthenticatorChallenge,
+		   u_char *UserName, int UserNameLen, u_char *Challenge);
+void GenerateNTResponse(u_char *AuthenticatorChallenge, 
+			u_char *PeerChallenge,
+			u_char *UserName, int UserNameLen, 
+			u_char *Password, int PasswordLen, 
+			u_char *Response);
+void GenerateAuthenticatorResponse(u_char *Password, int PasswordLen,
+				   u_char *NTResponse, u_char *PeerChallenge,
+				   u_char *AuthenticatorChallenge, u_char *UserName,
+				   int UserNameLen, u_char *AuthenticatorResponse);
 #endif
 
 #endif /*_CHILLI_H */

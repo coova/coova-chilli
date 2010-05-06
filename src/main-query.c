@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
 	    int length;
 	    void *field;
 	    char *desc;
-	    char *flag;
+	    uint8_t *flag;
 	    char flagbit;
 	  } args[] = {
 	    { "ip", 2, 
@@ -389,7 +389,8 @@ int main(int argc, char **argv) {
   }
 
   while((len = read(s, line, sizeof(line)-1)) > 0) 
-    write(1, line, len);
+    if (write(1, line, len) != len)
+      perror("write");
 
   if (len < 0) 
     perror("read");

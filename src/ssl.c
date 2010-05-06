@@ -104,6 +104,7 @@ openssl_cacert_location(openssl_env *env, char *file, char *dir) {
   return err;
 }
 
+#if(0)
 static RSA *
 openssl_tmpRSA_cb(SSL *ssl, int export, int len) {
   openssl_con *con = (openssl_con *)SSL_get_app_data(ssl);
@@ -169,6 +170,7 @@ openssl_tmp_genkeys(openssl_env *env) {
     log_err(errno, "could not generate tmp 512bit DH key\n");
   }
 }
+#endif
 
 int
 _openssl_env_init(openssl_env *env, char *engine, int server) {
@@ -214,6 +216,7 @@ _openssl_env_init(openssl_env *env, char *engine, int server) {
 static int _openssl_passwd(char *buf, int size, int rwflag, void *ud) {
   strncpy(buf, _options.sslkeypass, size);
   memset(_options.sslkeypass,'x',strlen(_options.sslkeypass));
+  return 0;
 }
 
 int
