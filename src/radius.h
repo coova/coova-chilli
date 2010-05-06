@@ -173,17 +173,9 @@
 #define RADIUS_TERMINATE_CAUSE_USER_ERROR           17
 #define RADIUS_TERMINATE_CAUSE_HOST_REQUEST         18
 
+#include "radius_pkt.h"
 #include "radius_wispr.h"
 #include "radius_chillispot.h"
-
-struct radius_packet_t {
-  uint8_t code;
-  uint8_t id;
-  uint16_t length;
-  uint8_t authenticator[RADIUS_AUTHLEN];
-  uint8_t payload[RADIUS_PACKSIZE-RADIUS_HDRSIZE];
-} __attribute__((packed));
-
 
 struct radius_queue_t {      /* Holder for queued packets */
   int state;                 /* 0=empty, 1=full */
@@ -193,16 +185,8 @@ struct radius_queue_t {      /* Holder for queued packets */
   int lastsent;              /* 0 or 1 indicates last server used */
   struct sockaddr_in peer;   /* Address packet was sent to / received from */
   struct radius_packet_t p;  /* The packet stored */
-  uint16_t seq;              /* The sequence number */
-  uint8_t type;              /* The type of packet */
-  size_t l;                  /* Length of the packet */
-  struct qmsg_t *seqnext;    /* Pointer to next in sequence hash list */
   int next;                  /* Pointer to the next in queue. -1: Last */
   int prev;                  /* Pointer to the previous in queue. -1: First */
-  int this;                  /* Pointer to myself */
-};
-
-struct radius_q {
 };
 
 typedef struct radius_queue_t * radius_queue;
@@ -238,13 +222,8 @@ struct radius_t {
   int first;                     /* First packet in queue (oldest timeout) */
   int last;                      /* Last packet in queue (youngest timeout) */
 
-  int listsize;                  /* Total number of addresses */
-  int hashsize;                  /* Size of hash table */
-  int hashlog;                   /* Log2 size of hash table */
-  int hashmask;                  /* Bitmask for calculating hash */
-
-  int (*cb_ind)  (struct radius_t *radius, struct radius_packet_t *pack,
-		  struct sockaddr_in *peer);
+  int (*cb_ind)       (struct radius_t *radius, struct radius_packet_t *pack,
+		       struct sockaddr_in *peer);
   int (*cb_auth_conf) (struct radius_t *radius, struct radius_packet_t *pack,
 		       struct radius_packet_t *pack_req, void *cbp);
   int (*cb_acct_conf) (struct radius_t *radius, struct radius_packet_t *pack,
@@ -252,37 +231,6 @@ struct radius_t {
   int (*cb_coa_ind)   (struct radius_t *radius, struct radius_packet_t *pack,
 		       struct sockaddr_in *peer);
 };
-
-struct radiusm_t {
-  struct in_addr addr;           /* IP address of this member */
-  int inuse;                     /* 0=available; 1= inuse */
-  struct RADIUSm_t *nexthash;    /* Linked list part of hash table */
-  struct RADIUSm_t *prev, *next; /* Double linked list of available members */
-  struct RADIUS_t *parent;       /* Pointer to parent */
-  void *peer;                    /* Pointer to peer protocol handler */
-};
-
-
-struct radius_vsattr_t {
-  uint32_t i;  /* vendor-id */
-  uint8_t t;   /* vsa type */
-  uint8_t l;   /* length */
-  union {
-    uint32_t i;
-    uint8_t  t[RADIUS_ATTR_VLEN-4];
-  } v;         /* value */
-} __attribute__((packed));
-
-
-struct radius_attr_t {
-  uint8_t t;   /* type */
-  uint8_t l;   /* length */
-  union {
-    uint32_t i;
-    uint8_t  t[RADIUS_ATTR_VLEN];
-    struct radius_vsattr_t vv;
-  } v;        /* value */
-} __attribute__((packed));
 
 
 /* Create new radius instance */

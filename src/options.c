@@ -174,6 +174,25 @@ int options_load(int argc, char **argv, bstring bt) {
   return options_fromfd(fd, bt);
 }
 
+int options_mkdir(char *path) {
+  if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO)) {
+    switch (errno) {
+    case EEXIST:
+      /* not necessarily a directory */
+      unlink(path);
+      if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO)) {
+	log_err(errno, "mkdir %s", path);
+	return -1;
+      }
+      break;
+    default:
+      log_err(errno, "mkdir %s", path);
+      return -1;
+    }
+  }
+  return 0;
+}
+
 int options_fromfd(int fd, bstring bt) {
   uint8_t cksum[16], cksum_check[16];
   struct options_t o;
@@ -456,8 +475,8 @@ int process_options(int argc, char **argv, int minimal) {
 
   snprintf(file,sizeof(file),"/tmp/chilli-%d",getpid());
   
-  if (mkdir(file, S_IRWXU | S_IRWXG | S_IRWXO))
-    log_err(errno, file);
+  if (options_mkdir(file))
+    return -1;
   
   umask(process_mask);
 

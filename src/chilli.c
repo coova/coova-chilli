@@ -4439,8 +4439,10 @@ int chilli_main(int argc, char **argv) {
        * Create the new temporary directory.
        */
       snprintf(file2, sizeof(file2), "/tmp/chilli-%d", new_pid);
-      if (mkdir(file2, S_IRWXU | S_IRWXG | S_IRWXO))
-	log_err(errno, file2);
+      if (options_mkdir(file2)) {
+	log_err(errno, "could not save configuration options! [%s]", file2);
+	exit(1);
+      }
 
       /*
        * Format the filename of the current (cpid) and new binconfig files.

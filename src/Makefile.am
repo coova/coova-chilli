@@ -10,7 +10,7 @@ chilli.h session.h cmdsock.h garden.h radius.h options.h \
 tun.h ippool.h md5.h redir.h dhcp.h syserr.h iphash.h \
 radius_wispr.h radius_chillispot.h ssl.h dns.h net.h \
 pkt.h conn.h lookup.h chilli_limits.h cmdline.h \
-../bstring/bstrlib.h ../config.h system.h 
+radius_pkt.h ../bstring/bstrlib.h ../config.h system.h 
 
 lib_LTLIBRARIES = libchilli.la
 sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt

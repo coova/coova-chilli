@@ -27,13 +27,6 @@
 
 struct options_t _options;
 
-static int usage(char *program) {
-  fprintf(stderr, "Usage: %s [ -s <socket> ] <command> [<argument>]\n", program);
-  fprintf(stderr, "  socket = full path to UNIX domain socket (e.g. /var/run/chilli.sock)\n");
-  /*  fprintf(stderr, "           TCP socket port, or ip:port, to bind to (e.g. 1999)\n"); */
-  return 1;
-}
-
 typedef struct _cmd_info {
   int type;
   char *command;
@@ -62,6 +55,130 @@ static cmd_info commands[] = {
   { 0, NULL, NULL }
 };
 
+typedef enum _cmd_field_type {
+  CMDSOCK_FIELD_STRING = 0,
+  CMDSOCK_FIELD_INTEGER,
+  CMDSOCK_FIELD_IPV4,
+} cmd_field_type;
+
+struct cmd_arguments {
+  char *name;
+  cmd_field_type type;    /* 0=string, 1=integer, 2=ip */
+  int length;
+  void *field;
+  char *desc;
+  uint8_t *flag;
+  uint8_t flagbit;
+};
+
+static struct cmdsock_request request;
+
+static struct cmd_arguments args[] = {
+  { "ip", 
+    CMDSOCK_FIELD_IPV4, 
+    sizeof(request.data.sess.ip),
+    &request.data.sess.ip,
+    "IP of client to authorize", 0, 0 },
+  { "sessionid",
+    CMDSOCK_FIELD_STRING, 
+    sizeof(request.data.sess.sessionid),
+    request.data.sess.sessionid,
+    "Session-id to authorize", 0, 0 },
+  { "username",
+    CMDSOCK_FIELD_STRING, 
+    sizeof(request.data.sess.username),
+    request.data.sess.username,
+    "Username to use in RADIUS 'login' or authorization", 0, 0 },
+  { "password",
+    CMDSOCK_FIELD_STRING, 
+    sizeof(request.data.sess.password),
+    request.data.sess.password,
+    "Password to be used for 'login' command", 0, 0 },
+  { "sessiontimeout",
+    CMDSOCK_FIELD_INTEGER, 
+    sizeof(request.data.sess.params.sessiontimeout),
+    &request.data.sess.params.sessiontimeout,
+    "Max session time (in seconds)", 0, 0 },
+  { "idletimeout",
+    CMDSOCK_FIELD_INTEGER, 
+    sizeof(request.data.sess.params.idletimeout),
+    &request.data.sess.params.idletimeout,
+    "Max idle time (in seconds)", 0, 0 },
+  { "interiminterval",
+    CMDSOCK_FIELD_INTEGER, 
+    sizeof(request.data.sess.params.interim_interval),
+    &request.data.sess.params.interim_interval,
+    "Accounting interim interval",  0, 0 },
+  { "maxoctets",
+    CMDSOCK_FIELD_INTEGER, 
+    sizeof(request.data.sess.params.maxtotaloctets),
+    &request.data.sess.params.maxtotaloctets,
+    "Max input + output octets (bytes)", 0, 0 },
+  { "maxinputoctets",
+    CMDSOCK_FIELD_INTEGER, 
+    sizeof(request.data.sess.params.maxinputoctets),
+    &request.data.sess.params.maxinputoctets,
+    "Max input octets (bytes)", 0, 0 },
+  { "maxoutputoctets",
+    CMDSOCK_FIELD_INTEGER, 
+    sizeof(request.data.sess.params.maxoutputoctets),
+    &request.data.sess.params.maxoutputoctets,
+    "Max output octets (bytes)", 0, 0 },
+  { "maxbwup", 
+    CMDSOCK_FIELD_INTEGER, 
+    sizeof(request.data.sess.params.bandwidthmaxup),
+    &request.data.sess.params.bandwidthmaxup,
+    "Max bandwidth up", 0, 0 },
+  { "maxbwdown",
+    CMDSOCK_FIELD_INTEGER, 
+    sizeof(request.data.sess.params.bandwidthmaxdown),
+    &request.data.sess.params.bandwidthmaxdown,
+    "Max bandwidth down", 0, 0 },
+  { "splash",
+    CMDSOCK_FIELD_STRING, 
+    sizeof(request.data.sess.params.url),
+    &request.data.sess.params.url,
+    "Set splash page",
+    &request.data.sess.params.flags, REQUIRE_UAM_SPLASH },
+  { "routeidx",
+    CMDSOCK_FIELD_INTEGER, 
+    sizeof(request.data.sess.params.routeidx),
+    &request.data.sess.params.routeidx,
+    "Route interface index",  0, 0 },
+  /* more... */
+};
+
+static int count = sizeof(args)/sizeof(struct cmd_arguments);
+
+static int usage(char *program) {
+  int i;
+
+  fprintf(stderr, "Usage: %s [ -s <socket> ] <command> [<arguments>]\n", program);
+  fprintf(stderr, "  socket = full path to UNIX domain socket (e.g. /var/run/chilli.sock)\n");
+
+  /*  fprintf(stderr, "           TCP socket port, or ip:port, to bind to (e.g. 1999)\n"); */
+
+  fprintf(stderr, "  Available Commands:\n    ");
+  for (i=0; i < count; i++) {
+    if (!commands[i].command) break;
+    fprintf(stderr, "%s%s", 
+	    i > 0 ? ", " : "",
+	    commands[i].command);
+  }
+  fprintf(stderr, "\n  Available Arguments:\n");
+  for (i=0; i < count; i++) {
+    fprintf(stderr, "    %-18s<value> - type: %-4s [%4d] - %s\n", 
+	    args[i].name, 
+	    args[i].type == CMDSOCK_FIELD_STRING ? "char" :
+	    args[i].type == CMDSOCK_FIELD_INTEGER ? "int" :
+	    args[i].type == CMDSOCK_FIELD_IPV4 ? "ip" : "!", 
+	    args[i].length, args[i].desc);
+  }
+  fprintf(stderr, "The ip and/or sessionid is required.\n");
+  
+  return 1;
+}
+
 int main(int argc, char **argv) {
   /*
    *   chilli_query [ -s <unix-socket> ] <command> [<argument>]
@@ -77,7 +194,6 @@ int main(int argc, char **argv) {
 #endif
   int s, len;
   struct sockaddr_un remote;
-  struct cmdsock_request request;
   char line[1024], *cmd;
   int argidx = 1;
 
@@ -112,72 +228,6 @@ int main(int argc, char **argv) {
       case CMDSOCK_LOGIN:
       case CMDSOCK_AUTHORIZE:
 	{
-	  struct arguments {
-	    char *name;
-	    int type;    /* 0=string, 1=integer, 2=ip */
-	    int length;
-	    void *field;
-	    char *desc;
-	    uint8_t *flag;
-	    char flagbit;
-	  } args[] = {
-	    { "ip", 2, 
-	      sizeof(request.data.sess.ip),
-	      &request.data.sess.ip,
-	      "IP of client to authorize",0,0 },
-	    { "sessionid", 0, 
-	      sizeof(request.data.sess.sessionid),
-	      request.data.sess.sessionid,
-	      "Session-id to authorize",0,0 },
-	    { "username", 0, 
-	      sizeof(request.data.sess.username),
-	      request.data.sess.username,
-	      "Username to use in RADIUS 'login' or authorization",0,0 },
-	    { "password", 0, 
-	      sizeof(request.data.sess.password),
-	      request.data.sess.password,
-	      "Password to be used for 'login' command",0,0 },
-	    { "sessiontimeout", 1, 
-	      sizeof(request.data.sess.params.sessiontimeout),
-	      &request.data.sess.params.sessiontimeout,
-	      "Max session time (in seconds)",0,0 },
-	    { "idletimeout", 1, 
-	      sizeof(request.data.sess.params.idletimeout),
-	      &request.data.sess.params.idletimeout,
-	      "Max idle time (in seconds)",0,0 },
-	    { "maxoctets", 1, 
-	      sizeof(request.data.sess.params.maxtotaloctets),
-	      &request.data.sess.params.maxtotaloctets,
-	      "Max input + output octets (bytes)",0,0 },
-	    { "maxinputoctets", 1, 
-	      sizeof(request.data.sess.params.maxinputoctets),
-	      &request.data.sess.params.maxinputoctets,
-	      "Max input octets (bytes)",0,0 },
-	    { "maxoutputoctets", 1, 
-	      sizeof(request.data.sess.params.maxoutputoctets),
-	      &request.data.sess.params.maxoutputoctets,
-	      "Max output octets (bytes)",0,0 },
-	    { "maxbwup", 1, 
-	      sizeof(request.data.sess.params.bandwidthmaxup),
-	      &request.data.sess.params.bandwidthmaxup,
-	      "Max bandwidth up",0,0 },
-	    { "maxbwdown", 1, 
-	      sizeof(request.data.sess.params.bandwidthmaxdown),
-	      &request.data.sess.params.bandwidthmaxdown,
-	      "Max bandwidth down",0,0 },
-	    { "splash", 0, 
-	      sizeof(request.data.sess.params.url),
-	      &request.data.sess.params.url,
-	      "Set splash page",
-	      &request.data.sess.params.flags, REQUIRE_UAM_SPLASH },
-	    { "routeidx", 1, 
-	      sizeof(request.data.sess.params.routeidx),
-	      &request.data.sess.params.routeidx,
-	      "Route interface index",  0, 0 },
-	    /* more... */
-	  };
-
-	  int count = sizeof(args)/sizeof(struct arguments);
 	  int pos = argidx;
 	  
 	  argc -= argidx;
@@ -199,10 +249,10 @@ int main(int argc, char **argv) {
 		}
 		
 		switch(args[i].type) {
-		case 0:
+		case CMDSOCK_FIELD_STRING:
 		  strncpy(((char *)args[i].field), argv[pos+1], args[i].length-1);
 		  break;
-		case 1:
+		case CMDSOCK_FIELD_INTEGER:
 		  switch(args[i].length) {
 		  case 1:
 		    *((uint8_t *)args[i].field) = (uint8_t)atoi(argv[pos+1]);
@@ -218,7 +268,7 @@ int main(int argc, char **argv) {
 		    break;
 		  }
 		  break;
-		case 2:
+		case CMDSOCK_FIELD_IPV4:
 		  if (!inet_aton(argv[pos+1], ((struct in_addr *)args[i].field))) {
 		    fprintf(stderr, "Invalid IP Address: %s\n", argv[pos+1]);
 		    return usage(argv[0]);
@@ -231,17 +281,6 @@ int main(int argc, char **argv) {
 
 	    if (i == count) {
 	      fprintf(stderr, "Unknown argument: %s\n", argv[pos]);
-	      fprintf(stderr, "Use:\n");
-	      for (i=0; i<count; i++) {
-		fprintf(stderr, "  %-15s<value>  - type: %-6s - %s\n", 
-			args[i].name, 
-			args[i].type == 0 ? "string" :
-			args[i].type == 1 ? "long" :
-			args[i].type == 2 ? "int" :
-			args[i].type == 3 ? "ip" :
-			"unknown", args[i].desc);
-	      }
-	      fprintf(stderr, "The ip and/or sessionid is required.\n");
 	      return usage(argv[0]);
 	    }
 
