@@ -190,6 +190,11 @@ int options_mkdir(char *path) {
       return -1;
     }
   }
+  if (_options.uid && geteuid() == 0) {
+    if (chown(path, _options.uid, _options.gid)) {
+      log_err(errno, "could not chown() %s", path);
+    }
+  }
   return 0;
 }
 
@@ -439,10 +444,30 @@ int options_save(char *file, bstring bt) {
 
     if (safe_write(fd, cksum, sizeof(cksum)) < 0)
       log_err(errno, "write()");
+
     close(fd);
+
+    if (_options.uid) {
+      if (chown(file, _options.uid, _options.gid)) {
+	log_err(errno, "could not chown() %s", 
+		_options.binconfig);
+      }
+    }
   }
 
   return 1;
+}
+
+int options_binload(char *file) {
+  int fd = open(file, O_RDONLY);
+  int ok = 0;
+  if (fd > 0) {
+    bstring bt = bfromcstr("");
+    ok = options_fromfd(fd, bt);
+    bdestroy(bt);
+    return ok;
+  }
+  return ok;
 }
 
 int process_options(int argc, char **argv, int minimal) {
@@ -461,25 +486,18 @@ int process_options(int argc, char **argv, int minimal) {
   for (i=0; i < argc; i++) {
     if (!strcmp(argv[i],"-b")) {
       if (i+1 < argc) {
-	char *file = argv[i+1];
-	int fd = open(file, O_RDONLY);
-	while (fd > 0) {
-	  bstring bt = bfromcstr("");
-	  int ok = options_fromfd(fd, bt);
-	  bdestroy(bt);
-	  return ok;
-	}
+	return options_binload(argv[i+1]);
       }
     }
   }
-
+  
   snprintf(file,sizeof(file),"/tmp/chilli-%d",getpid());
   
   if (options_mkdir(file))
     return -1;
   
   umask(process_mask);
-
+  
   return !reload_options(argc, argv);
 }
 

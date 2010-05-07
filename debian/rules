@@ -21,7 +21,12 @@ endif
 config.status: configure
 	dh_testdir
 	# Add here commands to configure the package.
-	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info --sysconfdir=/etc --localstatedir=/var --enable-largelimits --enable-proxyvsa --enable-miniportal --enable-chilliredir --enable-chilliproxy --enable-binstatusfile --with-openssl --with-poll
+	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
+	--prefix=/usr --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info \
+	--sysconfdir=/etc --localstatedir=/var --enable-largelimits \
+	--enable-proxyvsa --enable-miniportal --enable-chilliredir \
+	--enable-chilliproxy --enable-binstatusfile --enable-chilliscript \
+	--with-openssl --with-poll
 
 configure:
 	@test -f configure || ./bootstrap2

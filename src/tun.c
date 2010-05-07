@@ -891,21 +891,29 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   return tun_write(tun, pack, len, idx);
 }
 
-int tun_runscript(struct tun_t *tun, char* script) {
+int tun_runscript(struct tun_t *tun, char* script, int wait) {
   char saddr[TUN_ADDRSIZE];
   char smask[TUN_ADDRSIZE];
   char b[TUN_ADDRSIZE];
   struct in_addr net;
-  int status;
+  pid_t pid;
 
   net.s_addr = tuntap(tun).address.s_addr & tuntap(tun).netmask.s_addr;
 
-  if ((status = fork()) < 0) {
+  if ((pid = fork()) < 0) {
     log_err(errno, "fork() returned -1!");
     return 0;
   }
   
-  if (status > 0) { /* Parent */
+  if (pid > 0) { /* Parent */
+    if (wait) {
+      int status = 0;
+    again:
+      if (waitpid(pid, &status, 0) == -1) {
+	if (errno == EINTR) goto again;
+	log_err(errno, "waiting for %s", script);
+      }
+    }
     return 0;
   }
   
@@ -962,7 +970,14 @@ int tun_runscript(struct tun_t *tun, char* script) {
     exit(0);
   }
 
-  if (execl(script, script, tuntap(tun).devname, saddr, smask, (char *) 0) != 0) {
+  if (execl(
+#ifdef ENABLE_CHILLISCRIPT
+	    SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig, 
+#else
+	    script,
+#endif
+	    script, tuntap(tun).devname, saddr, smask, (char *) 0) != 0) {
+      
     log_err(errno, "execl(%s) did not return 0!",script);
     exit(0);
   }

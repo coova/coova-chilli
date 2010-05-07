@@ -12,6 +12,9 @@
 /* Define to enable Redir server */
 #undef ENABLE_CHILLIREDIR
 
+/* Define to enable chilli_script helper */
+#undef ENABLE_CHILLISCRIPT
+
 /* Define to enable Chilli XML */
 #undef ENABLE_CHILLIXML
 
@@ -93,6 +96,9 @@
 /* Define to 1 if you have the `glob' function. */
 #undef HAVE_GLOB
 
+/* Define to 1 if you have the <grp.h> header file. */
+#undef HAVE_GRP_H
+
 /* Define to 1 if you have the `inet_ntoa' function. */
 #undef HAVE_INET_NTOA
 
@@ -152,6 +158,9 @@
 
 /* Define to 1 if you have the <poll.h> header file. */
 #undef HAVE_POLL_H
+
+/* Define to 1 if you have the <pwd.h> header file. */
+#undef HAVE_PWD_H
 
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H

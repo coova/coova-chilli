@@ -3422,13 +3422,13 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
     /* XXX: lookup in ippool to see if we really do know who has this */
     /* XXX: it should also ack if *we* are that ip */
     log_dbg("ARP: Ignoring self-discovery: %s", inet_ntoa(taraddr));
-
+    
     /* If a static ip address... */
     this->cb_request(conn, &taraddr, 0, 0);
-
+    
     return 0;
   }
-
+  
   if (!memcmp(&reqaddr.s_addr, &taraddr.s_addr, 4)) { 
 
     /* Request an IP address */
@@ -3441,25 +3441,29 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
     return 0;
   }
 
-  if (!conn->hisip.s_addr && !_options.uamanyip) {
-    log_dbg("ARP: request did not come from known client");
-    return 0; /* Only reply if he was allocated an address */
-  }
-
   /* Is ARP request for clients own address: Ignore */
-  if (conn->hisip.s_addr == taraddr.s_addr) {
+  if (!memcmp(&conn->hisip.s_addr, &taraddr.s_addr, 4)) {
     log_dbg("ARP: hisip equals target ip: %s", inet_ntoa(conn->hisip));
     return 0;
   }
   
+  if (memcmp(&_options.dhcplisten.s_addr, &taraddr.s_addr, 4) &&
+      !conn->hisip.s_addr && !_options.uamanyip) {
+    /* Only reply if he was allocated an address,
+       unless it was a request for the gateway dhcplisten. */
+    log_dbg("ARP: request did not come from known client");
+    return 0;
+  }
+
   if (!_options.uamanyip) {
-    /* If ARP request outside of mask: Ignore */
+    /* If ARP request outside of mask: Ignore 
     if (reqaddr.s_addr &&
 	(conn->hisip.s_addr & conn->hismask.s_addr) !=
 	(reqaddr.s_addr & conn->hismask.s_addr)) {
       log_dbg("ARP: request not in our subnet");
       return 0;
     }
+    */
     
     if (memcmp(&conn->ourip.s_addr, &taraddr.s_addr, 4)) { /* if ourip differs from target ip */
       if (_options.debug) {
@@ -3470,7 +3474,7 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
     }
   }
   else if ((taraddr.s_addr != _options.dhcplisten.s_addr) &&
-          ((taraddr.s_addr & _options.mask.s_addr) == _options.net.s_addr)) {
+	  ((taraddr.s_addr & _options.mask.s_addr) == _options.net.s_addr)) {
     /* when uamanyip is on we should ignore arp requests that ARE within our subnet except of course the ones for ourselves */
     log_dbg("ARP: Request for %s other than us within our subnet(uamanyip on), ignoring", 
 	    inet_ntoa(taraddr));

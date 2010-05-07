@@ -13,7 +13,10 @@ pkt.h conn.h lookup.h chilli_limits.h cmdline.h \
 radius_pkt.h ../bstring/bstrlib.h ../config.h system.h 
 
 lib_LTLIBRARIES = libchilli.la
-sbin_PROGRAMS = chilli chilli_response chilli_radconfig chilli_query chilli_opt
+sbin_PROGRAMS = \
+chilli chilli_response chilli_radconfig chilli_query chilli_opt 
+
+suid_programs =
 
 libchilli_la_SOURCES = \
 chilli.c tun.c ippool.c radius.c md5.c redir.c dhcp.c syserr.c \
@@ -86,6 +89,13 @@ chilli_radsec_SOURCES = main-radsec.c
 chilli_radsec_LDADD = ${LDADD}
 endif
 
+if WITH_CHILLISCRIPT
+sbin_PROGRAMS += chilli_script
+suid_programs += chilli_script
+chilli_script_SOURCES = main-script.c 
+chilli_script_LDADD = ${LDADD}
+endif
+
 if WITH_CHILLIREDIR
 sbin_PROGRAMS += chilli_redir
 chilli_redir_SOURCES = main-redir.c 
@@ -99,6 +109,13 @@ if WITH_NETFILTER_COOVA
 SUBDIRS = linux
 libchilli_la_SOURCES += kcoova.c
 endif
+
+install-exec-hook:
+	@for f in $(suid_programs); do \
+		echo "Setting SUID on $(DESTDIR)$(sbindir)/$$f !"; \
+		chown root $(DESTDIR)$(sbindir)/$$f; \
+		chmod u+s $(DESTDIR)$(sbindir)/$$f; \
+	done
 
 cmdline.c cmdline.h: cmdline.ggo cmdline.patch
 	gengetopt -C < cmdline.ggo 

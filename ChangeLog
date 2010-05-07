@@ -6,6 +6,7 @@
 * Preliminary support for Coova Netfilter kernel module ''--with-nfcoova''
 * Support for globbing of cmdsock filename(s) in chilli_query
 * Compile option ''--enable-proxyvsa'' to have proxy port sniff out VSAs
+* Compile option ''--enable-chilliscript'' to build the setuid ''chilli_script'' utility
 * Runtime option ''--proxylocattr'' that defines the "location" attribute in MAC auth proxy requests
 * Runtime option ''--proxymacaccept'' to have chilli always return AccessAccept for MAC auth proxy requests
 * Improved ''chilli_redir'' main loop to optionally support poll/epoll (''--with-poll'') and no waiting for input

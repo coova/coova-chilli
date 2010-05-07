@@ -2426,6 +2426,7 @@ int redir_main_exit(struct redir_t *redir, struct redir_httpreq_t *httpreq,
   return _redir_close(socket->fd[0], socket->fd[1]);
 }
 
+#ifdef HAVE_SSL
 static void redir_signal2(int sig) {
   log_dbg("signal(%d)=%d", getpid(),sig);
 }
@@ -2435,6 +2436,7 @@ static void redir_signal(int sig) {
   close(redir_close_on_signal[1]);
   log_dbg("signal(%d)=%d", getpid(),sig);
 }
+#endif
 
 int redir_main(struct redir_t *redir, 
 	       int infd, int outfd, 

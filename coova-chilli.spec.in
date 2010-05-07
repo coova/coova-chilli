@@ -31,6 +31,7 @@ your favorite radius server. Read more at http://www.coova.org/.
 	--enable-miniportal \
 	--enable-chilliredir \
 	--enable-chilliproxy \
+        --enable-chilliscript \
 	--with-poll \
 %if %{!?_without_ssl:1}0
 	--with-openssl \
@@ -72,6 +73,7 @@ fi
 %dir %{_sysconfdir}/chilli
 %dir %{_sysconfdir}/chilli/www
 %attr(755,root,root)%{_sysconfdir}/chilli/www/config.sh
+%attr(4750,root,chilli)%{_sbindir}/chilli_script
 %{_sysconfdir}/chilli/www/*
 %{_sysconfdir}/chilli/wwwsh
 %{_sysconfdir}/chilli/functions

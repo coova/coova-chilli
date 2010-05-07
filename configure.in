@@ -35,7 +35,8 @@ AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h \
 		  unistd.h endian.h libgen.h \
 		  net/route.h net/if.h \
 		  net/ethernet.h asm/types.h \
-		  net/if_arp.h net/if_tun.h])
+		  net/if_arp.h net/if_tun.h \
+		  pwd.h grp.h ])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -243,6 +244,15 @@ if test x"$enable_chilliredir" = xyes; then
 fi
 
 AM_CONDITIONAL(WITH_CHILLIREDIR, [test x"$enable_chilliredir" = xyes])
+
+AC_ARG_ENABLE(chilliscript, [AC_HELP_STRING([--enable-chilliscript],[Enable support for chilli_script helper])], 
+  enable_chilliscript=$enableval, enable_chilliscript=no)
+
+if test x"$enable_chilliscript" = xyes; then
+   AC_DEFINE(ENABLE_CHILLISCRIPT,1,[Define to enable chilli_script helper])
+fi
+
+AM_CONDITIONAL(WITH_CHILLISCRIPT, [test x"$enable_chilliscript" = xyes])
 
 AC_ARG_ENABLE(ieee8023, [AC_HELP_STRING([--enable-ieee8023],[Enable support for IEEE 802.3 Ethernet])], 
   enable_ieee8023=$enableval, enable_ieee8023=no)

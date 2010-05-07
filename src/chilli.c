@@ -141,8 +141,9 @@ int chilli_binconfig(char *file, size_t flen, pid_t pid) {
     if (bc) {
       return snprintf(file, flen, "%s", bc);
     } else {
-      if (pid == 0) pid = chilli_pid;
-      if (pid == 0) pid = getpid();
+      pid = chilli_pid;
+      if (pid == 0) 
+	pid = getpid();
     }
   }
   return snprintf(file, flen, "/tmp/chilli-%d/config.bin", pid);
@@ -410,8 +411,7 @@ int runscript(struct app_conn_t *appconn, char* script) {
   int status;
 
   if ((status = fork()) < 0) {
-    log_err(errno,
-	    "fork() returned -1!");
+    log_err(errno, "forking %s", script);
     return 0;
   }
 
@@ -455,12 +455,16 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("CHILLISPOT_MAX_OUTPUT_OCTETS", VAL_ULONG64, &appconn->s_params.maxoutputoctets, 0);
   set_env("CHILLISPOT_MAX_TOTAL_OCTETS", VAL_ULONG64, &appconn->s_params.maxtotaloctets, 0);
 
-  if (execl(script, script, (char *) 0) != 0) {
-      log_err(errno,
-	      "execl() did not return 0!");
-      exit(0);
+  if (execl(
+#ifdef ENABLE_CHILLISCRIPT
+	    SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig, 
+#else
+	    script,
+#endif
+	    script, (char *) 0) != 0) {
+    log_err(errno, "exec %s failed", script);
   }
-
+  
   exit(0);
 }
 
@@ -4476,6 +4480,11 @@ int chilli_main(int argc, char **argv) {
 
       cpid = new_pid;
       bdestroy(bt);
+
+      if (!options_binload(file2)) {
+	log_err(errno, "could not reload configuration! [%s]", file2);
+	exit(1);
+      }
     }
   } 
 
@@ -4548,7 +4557,8 @@ int chilli_main(int argc, char **argv) {
   
   tun_set_cb_ind(tun, cb_tun_ind);
   
-  if (_options.ipup) tun_runscript(tun, _options.ipup);
+  if (_options.ipup) 
+    tun_runscript(tun, _options.ipup, 0);
   
   /* Allocate ippool for dynamic IP address allocation */
   if (ippool_new(&ippool, 
@@ -4936,6 +4946,8 @@ int chilli_main(int argc, char **argv) {
 #endif
   }
 
+  if (_options.ipdown)
+    tun_runscript(tun, _options.ipdown, 1);
 
   if (redir) 
     redir_free(redir);
@@ -4946,24 +4958,11 @@ int chilli_main(int argc, char **argv) {
   if (dhcp) 
     dhcp_free(dhcp);
   
-  if (_options.ipdown)
-    tun_runscript(tun, _options.ipdown);
-
   if (tun) 
     tun_free(tun);
 
   if (ippool) 
     ippool_free(ippool);
-
-  { /* clean up run-time files */
-    char file[128];
-
-    chilli_binconfig(file, sizeof(file), cpid);
-    if (remove(file)) log_err(errno, file);
-
-    snprintf(file,sizeof(file),"/tmp/chilli-%d", cpid);
-    if (rmdir(file)) log_err(errno, file);
-  }
 
   /*
    *  Terminate nicely
@@ -4983,6 +4982,17 @@ int chilli_main(int argc, char **argv) {
   if (redir_pid > 0)
     kill(redir_pid, SIGTERM);
 #endif
+
+  { /* clean up run-time files */
+    char file[128];
+
+    chilli_binconfig(file, sizeof(file), cpid);
+    log_dbg("Removing %s", file);
+    if (remove(file)) log_err(errno, file);
+
+    snprintf(file,sizeof(file),"/tmp/chilli-%d", cpid);
+    if (rmdir(file)) log_err(errno, file);
+  }
 
   options_destroy();
 

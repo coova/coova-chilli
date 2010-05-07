@@ -254,6 +254,7 @@ struct options_t {
 
 int options_mkdir(char *path);
 int options_fromfd(int fd, bstring bt);
+int options_binload(char *file);
 int option_aton(struct in_addr *addr, struct in_addr *mask, char *pool, int number);
 int process_options(int argc, char **argv, int minimal);
 void reprocess_options(int argc, char **argv);

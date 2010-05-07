@@ -33,6 +33,7 @@ ipt_in() {
     
     ipt_in -p udp -d 255.255.255.255 --destination-port 67:68 -j ACCEPT
     ipt_in -p udp --dst $ADDR --dport 53 -j ACCEPT
+    ipt_in -p icmp --dst $ADDR -j ACCEPT
     
     ipt -A INPUT -i $TUNTAP --dst $ADDR -j DROP
     ipt -A INPUT -i $TUNTAP -j DROP
