@@ -175,6 +175,7 @@ int options_load(int argc, char **argv, bstring bt) {
 }
 
 int options_mkdir(char *path) {
+
   if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO)) {
     switch (errno) {
     case EEXIST:
@@ -190,6 +191,7 @@ int options_mkdir(char *path) {
       return -1;
     }
   }
+
   if (_options.uid && geteuid() == 0) {
     if (chown(path, _options.uid, _options.gid)) {
       log_err(errno, "could not chown() %s", path);

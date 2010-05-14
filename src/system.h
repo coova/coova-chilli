@@ -240,6 +240,7 @@
     })
 #endif
 
+#undef offsetof
 #define offsetof(TYPE, MEMBER) ((int)&((TYPE *)0)->MEMBER)
 
 #define SET_SA_FAMILY(addr, family)			\

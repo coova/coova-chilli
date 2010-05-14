@@ -78,7 +78,7 @@ option "proxyclient"   - "IP address of proxy client(s)" string no
 option "proxysecret"   - "Radius proxy shared secret"    string no
 option "proxymacaccept" - "Auto-accept non-EAP requests on proxy port" flag off
 
-option "proxylocattr" - "The attribute in proxy to be used for the loc= query string parameter" string no
+option "proxylocattr" - "The attribute in proxy to be used for the loc= query string parameter" string no multiple
 
 # DHCP parameters
 option "dhcpif"      - "Local Ethernet interface"    string no

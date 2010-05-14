@@ -203,8 +203,11 @@ struct options_t {
   uint32_t challengetimeout2;
 
 #ifdef ENABLE_PROXYVSA
-  uint32_t proxy_loc_attr_vsa;
-  uint8_t proxy_loc_attr;
+#define PROXYVSA_ATTR_CNT 4
+  struct {
+    uint32_t attr_vsa;
+    uint8_t attr;
+  } proxy_loc[PROXYVSA_ATTR_CNT];
 #endif
 
 #ifdef HAVE_SSL

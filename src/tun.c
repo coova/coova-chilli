@@ -284,6 +284,8 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   struct iovec iov;
   struct msghdr msg;
 
+  uint32_t idx;
+
   if (!this->addrs) /* Use ioctl for first addr to make ping work */
     return tun_setaddr(this, addr, dstaddr, netmask);
 
@@ -296,10 +298,12 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   req.i.ifa_flags = 0;
   req.i.ifa_scope = RT_SCOPE_HOST; /* TODO or 0 */
 
-  if (tun_gifindex(this, &req.i.ifa_index)) {
+  if (tun_gifindex(this, &idx)) {
     log_err(errno,"tun_gifindex() failed");
     return -1;
   }
+
+  req.i.ifa_index = idx;
 
   tun_nlattr(&req.n, sizeof(req), IFA_ADDRESS, addr, sizeof(addr));
   tun_nlattr(&req.n, sizeof(req), IFA_LOCAL, dstaddr, sizeof(dstaddr));

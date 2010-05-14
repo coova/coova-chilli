@@ -733,6 +733,8 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->proxysecret_help = gengetopt_args_info_help[55] ;
   args_info->proxymacaccept_help = gengetopt_args_info_help[56] ;
   args_info->proxylocattr_help = gengetopt_args_info_help[57] ;
+  args_info->proxylocattr_min = 0;
+  args_info->proxylocattr_max = 0;
   args_info->dhcpif_help = gengetopt_args_info_help[58] ;
   args_info->dhcpmac_help = gengetopt_args_info_help[59] ;
   args_info->dhcpmacset_help = gengetopt_args_info_help[60] ;
@@ -1039,8 +1041,7 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->proxyclient_orig));
   free_string_field (&(args_info->proxysecret_arg));
   free_string_field (&(args_info->proxysecret_orig));
-  free_string_field (&(args_info->proxylocattr_arg));
-  free_string_field (&(args_info->proxylocattr_orig));
+  free_multiple_string_field (args_info->proxylocattr_given, &(args_info->proxylocattr_arg), &(args_info->proxylocattr_orig));
   free_string_field (&(args_info->dhcpif_arg));
   free_string_field (&(args_info->dhcpif_orig));
   free_string_field (&(args_info->dhcpmac_arg));
@@ -1300,8 +1301,7 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "proxysecret", args_info->proxysecret_orig, 0);
   if (args_info->proxymacaccept_given)
     write_into_file(outfile, "proxymacaccept", 0, 0 );
-  if (args_info->proxylocattr_given)
-    write_into_file(outfile, "proxylocattr", args_info->proxylocattr_orig, 0);
+  write_multiple_into_file(outfile, args_info->proxylocattr_given, "proxylocattr", args_info->proxylocattr_orig, 0);
   if (args_info->dhcpif_given)
     write_into_file(outfile, "dhcpif", args_info->dhcpif_orig, 0);
   if (args_info->dhcpmac_given)
@@ -1743,6 +1743,9 @@ cmdline_parser_required2 (struct gengetopt_args_info *args_info, const char *pro
   FIX_UNUSED (additional_error);
 
   /* checks for required options */
+  if (check_multiple_option_occurrences(prog_name, args_info->proxylocattr_given, args_info->proxylocattr_min, args_info->proxylocattr_max, "'--proxylocattr'"))
+     error = 1;
+  
   if (check_multiple_option_occurrences(prog_name, args_info->uamallowed_given, args_info->uamallowed_min, args_info->uamallowed_max, "'--uamallowed'"))
      error = 1;
   
@@ -2029,6 +2032,7 @@ cmdline_parser_internal (
 {
   int c;	/* Character of the parsed option.  */
 
+  struct generic_list * proxylocattr_list = NULL;
   struct generic_list * uamallowed_list = NULL;
   struct generic_list * uamdomain_list = NULL;
   struct generic_list * uamregex_list = NULL;
@@ -3005,11 +3009,8 @@ cmdline_parser_internal (
           else if (strcmp (long_options[option_index].name, "proxylocattr") == 0)
           {
           
-          
-            if (update_arg( (void *)&(args_info->proxylocattr_arg), 
-                 &(args_info->proxylocattr_orig), &(args_info->proxylocattr_given),
+            if (update_multiple_arg_temp(&proxylocattr_list, 
                 &(local_args_info.proxylocattr_given), optarg, 0, 0, ARG_STRING,
-                check_ambiguity, override, 0, 0,
                 "proxylocattr", '-',
                 additional_error))
               goto failure;
@@ -4310,6 +4311,10 @@ cmdline_parser_internal (
     } /* while */
 
 
+  update_multiple_arg((void *)&(args_info->proxylocattr_arg),
+    &(args_info->proxylocattr_orig), args_info->proxylocattr_given,
+    local_args_info.proxylocattr_given, 0,
+    ARG_STRING, proxylocattr_list);
   update_multiple_arg((void *)&(args_info->uamallowed_arg),
     &(args_info->uamallowed_orig), args_info->uamallowed_given,
     local_args_info.uamallowed_given, 0,
@@ -4327,6 +4332,8 @@ cmdline_parser_internal (
     local_args_info.macallowed_given, 0,
     ARG_STRING, macallowed_list);
 
+  args_info->proxylocattr_given += local_args_info.proxylocattr_given;
+  local_args_info.proxylocattr_given = 0;
   args_info->uamallowed_given += local_args_info.uamallowed_given;
   local_args_info.uamallowed_given = 0;
   args_info->uamdomain_given += local_args_info.uamdomain_given;
@@ -4349,6 +4356,7 @@ cmdline_parser_internal (
   return 0;
 
 failure:
+  free_list (proxylocattr_list, 1 );
   free_list (uamallowed_list, 1 );
   free_list (uamdomain_list, 1 );
   free_list (uamregex_list, 1 );

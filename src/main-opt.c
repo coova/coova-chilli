@@ -251,28 +251,29 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef ENABLE_PROXYVSA
-  if (args_info.proxylocattr_arg) {
-    unsigned int i[2];
-    switch (sscanf(args_info.proxylocattr_arg, "%u,%u", &i[0], &i[1])) {
-    case 0:
-      log_err(0, "invalid input %s", args_info.proxylocattr_arg);
-      break;
-    case 1:
-      _options.proxy_loc_attr = i[0];
-      break;
-    case 2:
-      _options.proxy_loc_attr_vsa = i[0];
-      _options.proxy_loc_attr = i[1];
-      break;
+  if (args_info.proxylocattr_given) {
+    for (numargs = 0; numargs < args_info.proxylocattr_given 
+	   && numargs < PROXYVSA_ATTR_CNT; ++numargs)  {
+      unsigned int i[2];
+
+      switch (sscanf(args_info.proxylocattr_arg[numargs], 
+		     "%u,%u", &i[0], &i[1])) {
+      case 0:
+	log_err(0, "invalid input %s", args_info.proxylocattr_arg[numargs]);
+	break;
+      case 1:
+	_options.proxy_loc[numargs].attr = i[0];
+	break;
+      case 2:
+	_options.proxy_loc[numargs].attr_vsa = i[0];
+	_options.proxy_loc[numargs].attr = i[1];
+	break;
+      }
+      
+      log_dbg("Proxy location attr %d %d", 
+	      (int)_options.proxy_loc[numargs].attr_vsa, 
+	      (int)_options.proxy_loc[numargs].attr);
     }
-
-    log_dbg("Proxy location attr %d %d", 
-	    (int)_options.proxy_loc_attr_vsa, 
-	    (int)_options.proxy_loc_attr);
-
-  } else {
-    _options.proxy_loc_attr_vsa = 0;
-    _options.proxy_loc_attr = 0;
   }
 #endif
 

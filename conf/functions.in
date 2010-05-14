@@ -231,7 +231,12 @@ writeconfig() {
 	    addconfig2 "proxyport ${HS_RADPROXY_PORT:-1645}"
 	    addconfig2 "proxysecret \"${HS_RADPROXY_SECRET:-$HS_RADSECRET}\""
 	    [ "$HS_RADPROXY_MACACCEPT" = "on" ] && addconfig2 "proxymacaccept"
-	    [ -n "$HS_RADPROXY_LOCATTR" ] && addconfig2 "proxylocattr \"$HS_RADPROXY_LOCATTR\""
+	    [ -n "$HS_RADPROXY_LOCATTR" ] && {
+		HS_RADPROXY_LOCATTR=$(echo "$HS_RADPROXY_LOCATTR"|sed 's/|/ /g')
+		for s in $HS_RADPROXY_LOCATTR; do
+		    addconfig2 "proxylocattr \"$s\""
+		done
+	    }
 	}
 
 	# these are settings you would typically get from a centralized source

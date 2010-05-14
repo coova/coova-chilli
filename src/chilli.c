@@ -2189,8 +2189,10 @@ int access_request(struct radius_packet_t *pack,
 	log_dbg("Remembering VSA");
       }
     } while (attr);
-    if (_options.proxy_loc_attr) {
+    if (_options.proxy_loc[0].attr) {
       struct radius_attr_t nattr;
+      int i;
+
       memset(&nattr, 0, sizeof(nattr));
       nattr.t = RADIUS_ATTR_VENDOR_SPECIFIC;
       nattr.l = 6;
@@ -2198,33 +2200,44 @@ int access_request(struct radius_packet_t *pack,
       nattr.v.vv.t = RADIUS_ATTR_CHILLISPOT_LOCATION;
       nattr.v.vv.l = 0;
       attr = 0;
-      if (!_options.proxy_loc_attr_vsa) {
-	/*
-	 *  We have a loc_attr, but it isn't a VSA (so not included above)
-	 */
 
-	log_dbg("looking for attr %d", _options.proxy_loc_attr);
+      for (i=0; i < PROXYVSA_ATTR_CNT; i++) {
 
-	if (radius_getattr(pack, &attr, _options.proxy_loc_attr, 
-			   0, 0, 0)) {
-	  log_dbg("didn't find attr %d", _options.proxy_loc_attr);
-	  attr = 0;
-	}
-      } else {
-	/*
-	 *  We have a loc_attr and VSA number (so it is included above).
-	 */
+	if (!_options.proxy_loc[i].attr_vsa && 
+	    !_options.proxy_loc[i].attr)
+	  break;
 
-	log_dbg("looking for attr %d/%d", _options.proxy_loc_attr_vsa, _options.proxy_loc_attr);
-
-	if (radius_getattr(pack, &attr, 
-			   RADIUS_ATTR_VENDOR_SPECIFIC, 
-			   _options.proxy_loc_attr_vsa, 
-			   _options.proxy_loc_attr, 0)) {
-	  log_dbg("didn't find attr %d/%d", _options.proxy_loc_attr_vsa, _options.proxy_loc_attr);
-	  attr = 0;
+	if (!_options.proxy_loc[i].attr_vsa) {
+	  /*
+	   *  We have a loc_attr, but it isn't a VSA (so not included above)
+	   */
+	  
+	  log_dbg("looking for attr %d", _options.proxy_loc[i].attr);
+	  
+	  if (radius_getattr(pack, &attr, _options.proxy_loc[i].attr, 
+			     0, 0, 0)) {
+	    log_dbg("didn't find attr %d", _options.proxy_loc[i].attr);
+	    attr = 0;
+	  }
+	} else {
+	  /*
+	   *  We have a loc_attr and VSA number (so it is included above).
+	   */
+	  
+	  log_dbg("looking for attr %d/%d", _options.proxy_loc[i].attr_vsa, 
+		  _options.proxy_loc[i].attr);
+	  
+	  if (radius_getattr(pack, &attr, 
+			     RADIUS_ATTR_VENDOR_SPECIFIC, 
+			     _options.proxy_loc[i].attr_vsa, 
+			     _options.proxy_loc[i].attr, 0)) {
+	    log_dbg("didn't find attr %d/%d", _options.proxy_loc[i].attr_vsa, 
+		    _options.proxy_loc[i].attr);
+	    attr = 0;
+	  }
 	}
       }
+
       if (attr) {
 	memcpy(&nattr.v.vv.v.t, attr->v.t, attr->l - 2);
 	nattr.v.vv.l = attr->l;

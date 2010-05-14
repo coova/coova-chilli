@@ -201,8 +201,10 @@ struct gengetopt_args_info
   const char *proxysecret_help; /**< @brief Radius proxy shared secret help description.  */
   int proxymacaccept_flag;	/**< @brief Auto-accept non-EAP requests on proxy port (default=off).  */
   const char *proxymacaccept_help; /**< @brief Auto-accept non-EAP requests on proxy port help description.  */
-  char * proxylocattr_arg;	/**< @brief The attribute in proxy to be used for the loc= query string parameter.  */
-  char * proxylocattr_orig;	/**< @brief The attribute in proxy to be used for the loc= query string parameter original value given at command line.  */
+  char ** proxylocattr_arg;	/**< @brief The attribute in proxy to be used for the loc= query string parameter.  */
+  char ** proxylocattr_orig;	/**< @brief The attribute in proxy to be used for the loc= query string parameter original value given at command line.  */
+  unsigned int proxylocattr_min; /**< @brief The attribute in proxy to be used for the loc= query string parameter's minimum occurreces */
+  unsigned int proxylocattr_max; /**< @brief The attribute in proxy to be used for the loc= query string parameter's maximum occurreces */
   const char *proxylocattr_help; /**< @brief The attribute in proxy to be used for the loc= query string parameter help description.  */
   char * dhcpif_arg;	/**< @brief Local Ethernet interface.  */
   char * dhcpif_orig;	/**< @brief Local Ethernet interface original value given at command line.  */

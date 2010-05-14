@@ -349,7 +349,7 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
   }
 
 #ifdef ENABLE_PROXYVSA
-  if (_options.proxy_loc_attr) {
+  if (_options.proxy_loc[0].attr) {
     
     log_dbg("vsalen %d", conn->s_state.redir.vsalen);
     
@@ -357,10 +357,6 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
       uint16_t len = conn->s_state.redir.vsalen;
       uint16_t offset = 0;
       struct radius_attr_t *t;
-
-      log_dbg("search for attr %d %d", 
-	      (int)_options.proxy_loc_attr_vsa, 
-	      (int)_options.proxy_loc_attr);
 
       while (offset < len) {
 	t = (struct radius_attr_t *)(conn->s_state.redir.vsa + offset);

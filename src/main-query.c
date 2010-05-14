@@ -397,7 +397,12 @@ int main(int argc, char **argv) {
   
 #ifdef HAVE_GLOB
   globbuf.gl_offs = 0;
-  glob(cmdsock,GLOB_DOOFFS,NULL,&globbuf);
+  glob(cmdsock, GLOB_DOOFFS, NULL, &globbuf);
+
+  if (!globbuf.gl_pathc) {
+    fprintf(stderr,"no cmdsock sockets: %s\n",cmdsock);
+    exit(1);
+  }
   
   for (i=0 ; i < globbuf.gl_pathc; i++) {
     cmdsock = globbuf.gl_pathv[i];
