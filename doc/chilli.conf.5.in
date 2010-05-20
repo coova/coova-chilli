@@ -775,7 +775,7 @@ A special IP address that will always get hijacked to the UAM server
 
 .TP
 .BI uamaliasname " name"
-A hostname that is used as a DNS alias for the
+An (unqualified, so no dots) hostname that is used as a DNS alias for the
 .B uamaliasip
 defined above. Any DNS request for this hostname, or this hostname under the 
 .B domain
