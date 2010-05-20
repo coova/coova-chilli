@@ -109,6 +109,12 @@ writeconfig() {
     addconfig1 ${HS_UID:+"uid \"$HS_UID\""}
     addconfig1 ${HS_GID:+"gid \"$HS_GID\""}
 
+    [ -n "$HS_DHCPGATEWAY" ] && {
+	HS_DHCPRELAYAGENT=${HS_DHCPRELAYAGENT:-$(ifconfig $(route -n|grep '^0.0.0.0'|awk '{ print $8 }')|grep 'inet addr:'|cut -d: -f 2|cut -d' ' -f1)}
+	addconfig1 "dhcpgateway \"$HS_DHCPGATEWAY\""
+	addconfig1 "dhcprelayagent \"$HS_DHCPRELAYAGENT\""
+    }
+
     addconfig1 ${HS_TUNDEV:+"tundev \"$HS_TUNDEV\""}
     addconfig1 ${HS_DYNIP:+"dynip $HS_DYNIP/${HS_DYNIP_MASK:-255.255.255.0}"}
     addconfig1 ${HS_STATIP:+"statip $HS_STATIP/${HS_STATIP_MASK:-255.255.255.0}"}

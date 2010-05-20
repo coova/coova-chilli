@@ -20,7 +20,8 @@
 #include "chilli.h"
 
 const uint32_t DHCP_OPTION_MAGIC = 0x63825363;
-
+static uint8_t bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+static uint8_t nmac[PKT_ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static int connections = 0;
 
 char *dhcp_state2name(int authstate) {
@@ -392,8 +393,7 @@ int dhcp_newconn(struct dhcp_t *this,
   dhcp_hashadd(this, *conn);
 
 #ifdef ENABLE_IEEE8021Q
-  if (pkt) 
-    dhcp_checktag(*conn, pkt);
+  if (pkt) dhcp_checktag(*conn, pkt);
 #endif
   
   /* Inform application that connection was created */
@@ -1944,6 +1944,8 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req, struct dhcp_conn_t *c
       pack_iph->daddr = ~0; 
       pack_udph->dst = htons(DHCP_BOOTPC);
       pack_dhcp->flags[0] = 0x80;
+      if (req_dhcp->flags[0] & 0x80)
+	memcpy(pack_ethh->dst, bmac, PKT_ETH_ALEN);
     } else {
       pack_iph->daddr = pack_dhcp->yiaddr; 
       pack_udph->dst = htons(DHCP_BOOTPC);
@@ -2316,16 +2318,16 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
   if (message_type->l != 1)
     return -1; /* Wrong length of message type */
 
-  if (pack_dhcp->giaddr)
+  if (memcmp(pack_dhcp->chaddr, nmac, PKT_ETH_ALEN))
     memcpy(mac, pack_dhcp->chaddr, PKT_ETH_ALEN);
   else
     memcpy(mac, pack_ethh->src, PKT_ETH_ALEN);
-
+  
   switch(message_type->v[0]) {
-
+    
   case DHCPRELEASE:
     dhcp_release_mac(this, mac, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
-
+    
   case DHCPDISCOVER:
   case DHCPREQUEST:
   case DHCPINFORM:
@@ -2517,8 +2519,6 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
 
   return 0;
 }
-
-static unsigned char const bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 int dhcp_receive_eapol(struct dhcp_t *this, uint8_t *pack);
 int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len);
@@ -3187,22 +3187,17 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
     fullpack_udph->src = htons(DHCP_BOOTPS);
     fullpack_udph->len = htons(length + PKT_UDP_HLEN);
     
-    /*if (fullpack.dhcp.ciaddr) {
-      fullpack_udph->daddr = req_dhcp->ciaddr; 
-      fullpack_udph->dst = htons(DHCP_BOOTPC);
-      } else if (req_dhcp->giaddr) {
-      fullpack_iph->daddr = req_dhcp->giaddr; 
-      fullpack_udph->dst = htons(DHCP_BOOTPS);
-      } else */
-    
     fullpack_udph->dst = htons(DHCP_BOOTPC);
     fullpack_iph->daddr = ~0; 
-    if (message_type->v[0] == DHCPNAK || packet.flags[0] & 0x80) {
-      log_dbg("DHCP: Nak");
-    } if (packet.ciaddr) {
+
+    if (packet.ciaddr) {
       log_dbg("DHCP: CIAddr");
       fullpack_iph->daddr = packet.ciaddr; 
-    } if (packet.yiaddr) {
+    } else if (packet.flags[0] & 0x80 || message_type->v[0] == DHCPNAK) {
+      log_dbg("DHCP: Nak or Broadcast");
+      packet.flags[0] = 0x80;
+      dhcp_ethhdr(conn, fullpack, bmac, dhcp_nexthop(this), PKT_ETH_PROTO_IP);
+    } else if (packet.yiaddr) {
       log_dbg("DHCP: YIAddr");
       fullpack_iph->daddr = packet.yiaddr; 
     }
@@ -3360,7 +3355,6 @@ dhcp_sendARP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
 int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
   
-  unsigned char const bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
   struct dhcp_conn_t *conn;
   struct in_addr reqaddr;
   struct in_addr taraddr;
@@ -3388,9 +3382,9 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
   memcpy(&taraddr.s_addr, &pack_arp->tpa, PKT_IP_ALEN);
 
   /* Check to see if we know MAC address. */
-  if (dhcp_hashget(this, &conn, pack_ethh->src)) {
+  if (dhcp_hashget(this, &conn, pack_arp->sha)) {
     log_dbg("ARP: Address not found: %s", inet_ntoa(reqaddr));
-
+    
     /* Do we allow dynamic allocation of IP addresses? */
     if (!this->allowdyn && !_options.uamanyip) {
       log_dbg("ARP: Unknown client and no dynip: %s", inet_ntoa(taraddr));
@@ -3398,7 +3392,7 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
     }
     
     /* Allocate new connection */
-    if (dhcp_newconn(this, &conn, pack_ethh->src, pack)) {
+    if (dhcp_newconn(this, &conn, pack_arp->sha, pack)) {
       log_warn(0, "ARP: out of connections");
       return 0; /* Out of connections */
     }
@@ -3465,7 +3459,8 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
     }
     */
     
-    if (memcmp(&conn->ourip.s_addr, &taraddr.s_addr, 4)) { /* if ourip differs from target ip */
+    if (memcmp(&conn->ourip.s_addr, &taraddr.s_addr, 4)) { 
+      /* if ourip differs from target ip */
       if (_options.debug) {
 	log_dbg("ARP: Did not ask for router address: %s", inet_ntoa(conn->ourip));
 	log_dbg("ARP: Asked for target: %s", inet_ntoa(taraddr));
@@ -3559,7 +3554,6 @@ int dhcp_sendEAPreject(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
 int dhcp_receive_eapol(struct dhcp_t *this, uint8_t *pack) {
   struct dhcp_conn_t *conn = NULL;
-  unsigned char const bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
   unsigned char const amac[PKT_ETH_ALEN] = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
 
   struct pkt_ethhdr_t *pack_ethh = ethhdr(pack);

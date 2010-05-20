@@ -4034,7 +4034,7 @@ static int cmdsock_accept(void *nullData, int sock) {
   struct cmdsock_request req;
 
   bstring s = 0;
-  size_t len;
+  socklen_t len;
   int csock;
   int rval = 0;
 
@@ -4290,7 +4290,7 @@ int chilli_io(int fd_ctrl_r, int fd_ctrl_w, int fd_pkt_r, int fd_pkt_w) {
 int static redir_msg(struct redir_t *this) {
   struct redir_msg_t msg;
   struct sockaddr_un remote; 
-  size_t len = sizeof(remote);
+  socklen_t len = sizeof(remote);
   int socket = accept(this->msgfd, (struct sockaddr *)&remote, &len);
   if (socket > 0) {
     int msgresult = read(socket, &msg, sizeof(msg));

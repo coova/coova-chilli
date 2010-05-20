@@ -17,7 +17,7 @@
 * Bug fix in static ip allocation - particularly noticeable on 64bit
 * Added ''Compiled with ...'' section to ''--help'' output to see compile time options
 * Fix bootstrap: install missing automake files automatically
-* Fixes concerning DHCP relay - rewriting of DHCP Server Identifier option
+* Fixes concerning DHCP relay - rewriting of DHCP Server Identifier option, and more
 * Fixes for RadSec support
 * Fixes for using ''--uid'' and ''--gid''
 * Fixes for anydns

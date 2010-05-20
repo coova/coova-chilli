@@ -19,9 +19,9 @@
 
 #include "chilli.h"
 
-int pass_through_add(pass_through *ptlist, size_t ptlen,
-		     size_t *ptcnt, pass_through *pt) {
-  size_t cnt = *ptcnt;
+int pass_through_add(pass_through *ptlist, uint32_t ptlen,
+		     uint32_t *ptcnt, pass_through *pt) {
+  uint32_t cnt = *ptcnt;
   int i;
 
   if (cnt >= ptlen) {
@@ -48,8 +48,8 @@ int pass_through_add(pass_through *ptlist, size_t ptlen,
   return 0;
 }
 
-int pass_throughs_from_string(pass_through *ptlist, size_t ptlen, 
-			      size_t *ptcnt, char *s) {
+int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen, 
+			      uint32_t *ptcnt, char *s) {
   struct hostent *host;
   pass_through pt;
   char *t, *p1 = NULL, *p2 = NULL;
@@ -140,9 +140,9 @@ int pass_throughs_from_string(pass_through *ptlist, size_t ptlen,
 }
 
 #ifdef ENABLE_CHILLIREDIR
-int regex_pass_throughs_from_string(regex_pass_through *ptlist, size_t ptlen, 
-				    size_t *ptcnt, char *s) {
-  size_t cnt = *ptcnt;
+int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen, 
+				    uint32_t *ptcnt, char *s) {
+  uint32_t cnt = *ptcnt;
   regex_pass_through pt;
   char *p, *st;
   int stage = 0;

@@ -46,8 +46,8 @@ ipt_in() {
     
     # Help out conntrack to not get confused
     # (stops masquerading from working)
-    #ipt -I PREROUTING -t raw -j NOTRACK -i $TUNTAP
-    #ipt -I OUTPUT -t raw -j NOTRACK -o $TUNTAP
+    #ipt -I PREROUTING -t raw -j NOTRACK -i $DHCPIF
+    #ipt -I OUTPUT -t raw -j NOTRACK -o $DHCPIF
     
     # Help out MTU issues with PPPoE or Mesh
     ipt -I FORWARD -p tcp -m tcp --tcp-flags SYN,RST SYN -j TCPMSS --clamp-mss-to-pmtu

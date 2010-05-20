@@ -46,10 +46,10 @@ typedef struct regex_pass_through_t {
   char reserved:5;
 } regex_pass_through;
 
-int regex_pass_throughs_from_string(regex_pass_through *ptlist, size_t ptlen, size_t *ptcnt, char *s);
+int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen, uint32_t *ptcnt, char *s);
 #endif
 
-int pass_through_add(pass_through *ptlist, size_t ptlen, size_t *ptcnt, pass_through *pt);
-int pass_throughs_from_string(pass_through *ptlist, size_t ptlen, size_t *ptcnt, char *s);
+int pass_through_add(pass_through *ptlist, uint32_t ptlen, uint32_t *ptcnt, pass_through *pt);
+int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen, uint32_t *ptcnt, char *s);
 
 #endif
