@@ -405,9 +405,15 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
      */
     bcatcstr(str, amp);
     bcatcstr(str, "ssl=");
-    bassignformat(bt, "https://%s:%d/", 
-		  inet_ntoa(_options.uamalias),
-		  _options.uamuiport);
+    if (_options.uamaliasname) {
+      bassignformat(bt, "https://%s:%d/", 
+                    _options.uamaliasname),
+                    _options.uamuiport);
+    } else {
+      bassignformat(bt, "https://%s:%d/", 
+                    inet_ntoa(_options.uamalias),
+                    _options.uamuiport);
+    }
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   }

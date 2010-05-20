@@ -1,6 +1,7 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+* Use uamaliashostname for WISPr redirect if possible
 * Bug fix for RADIUS (EAP) proxy
 * Preliminary support for Netfilter NFQUEUE usage ''--with-nfqueue''
 * Preliminary support for Coova Netfilter kernel module ''--with-nfcoova''
