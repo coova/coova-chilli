@@ -50,7 +50,7 @@ install: build
 	dh_clean -k
 	dh_prep
 	dh_installdirs
-	$(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
+	$(MAKE) DESTDIR=$(CURDIR)/debian/coova-chilli install
 
 # Build architecture-independent files here.
 binary-indep: build install
