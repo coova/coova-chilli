@@ -222,7 +222,7 @@ int dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 	 int usemac, uint8_t *mac, int promisc, 
 	 struct in_addr *listen, int lease, int allowdyn,
 	 struct in_addr *uamlisten, uint16_t uamport, 
-	 int useeapol, int noc2c);
+	 int noc2c);
 
 int dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug);
 

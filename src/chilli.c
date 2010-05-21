@@ -4590,7 +4590,7 @@ int chilli_main(int argc, char **argv) {
 	       _options.dhcpusemac, _options.dhcpmac, 1, 
 	       &_options.dhcplisten, _options.lease, 1, 
 	       &_options.uamlisten, _options.uamport, 
-	       _options.eapolenable, _options.noc2c)) {
+	       _options.noc2c)) {
     log_err(0, "Failed to create dhcp listener on %s", _options.dhcpif);
     exit(1);
   }

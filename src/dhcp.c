@@ -650,7 +650,7 @@ static int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
 	     int usemac, uint8_t *mac, int promisc, 
 	     struct in_addr *listen, int lease, int allowdyn,
-	     struct in_addr *uamlisten, uint16_t uamport, int useeapol,
+	     struct in_addr *uamlisten, uint16_t uamport, 
 	     int noc2c) {
   struct dhcp_t *dhcp;
   
@@ -2790,7 +2790,10 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
   }
   
   switch (prot) {
-  case PKT_ETH_PROTO_EAPOL: return dhcp_receive_eapol(this, packet);
+  case PKT_ETH_PROTO_EAPOL: 
+    if (_options.eapolenable)
+      return dhcp_receive_eapol(this, packet);
+    break;
   case PKT_ETH_PROTO_ARP:   return dhcp_receive_arp(this, packet, length);
   case PKT_ETH_PROTO_IP:    return dhcp_receive_ip(this, packet, length);
 #ifdef ENABLE_PPPOE
@@ -3761,7 +3764,8 @@ int dhcp_receive(struct dhcp_t *this) {
       dhcp_receive_arp(this, (struct arp_fullpacket_t*) ethhdr, hdrp->bh_caplen);
       break;
     case PKT_ETH_PROTO_EAPOL:
-      dhcp_receive_eapol(this, (struct dot1xpacket_t*) ethhdr);
+      if (_options.eapolenable)
+        dhcp_receive_eapol(this, (struct dot1xpacket_t*) ethhdr);
       break;
 
     default:
