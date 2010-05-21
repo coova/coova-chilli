@@ -56,14 +56,15 @@ static cmd_info commands[] = {
 };
 
 typedef enum _cmd_field_type {
-  CMDSOCK_FIELD_STRING = 0,
+  CMDSOCK_FIELD_NONE = 0,
+  CMDSOCK_FIELD_STRING,
   CMDSOCK_FIELD_INTEGER,
   CMDSOCK_FIELD_IPV4,
 } cmd_field_type;
 
 struct cmd_arguments {
   char *name;
-  cmd_field_type type;    /* 0=string, 1=integer, 2=ip */
+  cmd_field_type type;    /* 0=none, 1=string, 2=integer, 3=ip */
   int length;
   void *field;
   char *desc;
@@ -145,6 +146,10 @@ static struct cmd_arguments args[] = {
     sizeof(request.data.sess.params.routeidx),
     &request.data.sess.params.routeidx,
     "Route interface index",  0, 0 },
+  { "noacct",
+    CMDSOCK_FIELD_NONE, 0, 0,
+    "No accounting flag",
+    &request.data.sess.params.flags, NO_ACCOUNTING },
   /* more... */
 };
 
@@ -167,8 +172,10 @@ static int usage(char *program) {
   }
   fprintf(stderr, "\n  Available Arguments:\n");
   for (i=0; i < count; i++) {
-    fprintf(stderr, "    %-18s<value> - type: %-4s [%4d] - %s\n", 
+    fprintf(stderr, "    %-18s%-7s - type: %-4s [%4d] - %s\n", 
 	    args[i].name, 
+	    args[i].type == CMDSOCK_FIELD_NONE ? "" :"<value>",
+	    args[i].type == CMDSOCK_FIELD_NONE ? "flag" :
 	    args[i].type == CMDSOCK_FIELD_STRING ? "char" :
 	    args[i].type == CMDSOCK_FIELD_INTEGER ? "int" :
 	    args[i].type == CMDSOCK_FIELD_IPV4 ? "ip" : "!", 
@@ -239,32 +246,34 @@ int main(int argc, char **argv) {
 	      
 	      if (!strcmp(argv[pos],args[i].name)) {
 		
-		if (argc == 1) {
+		if (args[i].flag) {
+		  *(args[i].flag) |= args[i].flagbit;
+		}
+		
+		if (argc == 1 && args[i].length) {
 		  fprintf(stderr, "Argument %s requires a value\n", argv[pos]);
 		  return usage(argv[0]);
 		}
 		
-		if (args[i].flag) {
-		  *(args[i].flag) |=args[i].flagbit;
-		}
-		
 		switch(args[i].type) {
+		case CMDSOCK_FIELD_NONE:
+		  break;
 		case CMDSOCK_FIELD_STRING:
 		  strncpy(((char *)args[i].field), argv[pos+1], args[i].length-1);
 		  break;
 		case CMDSOCK_FIELD_INTEGER:
 		  switch(args[i].length) {
 		  case 1:
-		    *((uint8_t *)args[i].field) = (uint8_t)atoi(argv[pos+1]);
+		    *((uint8_t *)args[i].field) |= (uint8_t)atoi(argv[pos+1]);
 		    break;
 		  case 2:
-		    *((uint16_t *)args[i].field) = (uint16_t)atoi(argv[pos+1]);
+		    *((uint16_t *)args[i].field) |= (uint16_t)atoi(argv[pos+1]);
 		    break;
 		  case 4:
-		    *((uint32_t *)args[i].field) = (uint32_t)atol(argv[pos+1]);
+		    *((uint32_t *)args[i].field) |= (uint32_t)atol(argv[pos+1]);
 		    break;
 		  case 8:
-		    *((uint64_t *)args[i].field) = (uint64_t)atol(argv[pos+1]);
+		    *((uint64_t *)args[i].field) |= (uint64_t)atol(argv[pos+1]);
 		    break;
 		  }
 		  break;
@@ -284,8 +293,13 @@ int main(int argc, char **argv) {
 	      return usage(argv[0]);
 	    }
 
-	    argc -= 2;
-	    pos += 2;
+	    if (args[i].length) {
+	      argc -= 2;
+	      pos += 2;
+	    } else {
+	      argc --;
+	      pos ++;
+	    }
 	  }
 	}
 	break;

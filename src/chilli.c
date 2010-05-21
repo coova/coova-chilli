@@ -693,7 +693,8 @@ void session_interval(struct app_conn_t *conn) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.interim_interval) &&
-	   (interimtime >= conn->s_params.interim_interval)) {
+	   (interimtime >= conn->s_params.interim_interval) &&
+	   (conn->s_params.flags & NO_ACCOUNTING) == 0) {
     acct_req(conn, RADIUS_STATUS_TYPE_INTERIM_UPDATE);
   }
 }
@@ -1498,7 +1499,8 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     }
     
     if (!(appconn->s_params.flags & IS_UAM_REAUTH))
-      acct_req(appconn, RADIUS_STATUS_TYPE_START);
+      if ((appconn->s_params.flags & NO_ACCOUNTING) == 0)
+	acct_req(appconn, RADIUS_STATUS_TYPE_START);
   }
   
   appconn->s_params.flags &= ~IS_UAM_REAUTH;
@@ -2288,6 +2290,13 @@ int access_request(struct radius_packet_t *pack,
     /* DWB: But, let's not reject someone who is trying to authenticate under
        a new (potentially) valid account - that is for the up-stream RADIUS to discern
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);*/
+
+    /* PH: Ok, Dave, but then we need to call radius_default_pack() once again since
+       terminate_appconn() sent a RADIUS packet itself and thus used "our" radius_pack.id :) */
+    if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REJECT)) {
+      log_err(0, "radius_default_pack() failed");
+      return -1;
+    }
   }
 
   /* Radius auth only for DHCP */
@@ -3559,7 +3568,8 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
   if (appconn->s_state.authenticated == 1) { /* Only send accounting if logged in */
     dnprot_terminate(appconn);
     appconn->s_state.terminate_cause = terminate_cause;
-    acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
+    if ((appconn->s_params.flags & NO_ACCOUNTING) == 0)
+      acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
 
     /* should memory be cleared here?? */
     memset(&appconn->s_params, 0, sizeof(appconn->s_params));

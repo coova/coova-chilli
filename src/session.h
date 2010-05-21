@@ -42,6 +42,7 @@ struct session_params {
 #define REQUIRE_UAM_SPLASH (1<<1)
 #define REQUIRE_REDIRECT   (1<<2)
 #define IS_UAM_REAUTH      (1<<3)
+#define NO_ACCOUNTING      (1<<4)
   uint8_t flags;
 
 #ifdef ENABLE_SESSGARDEN
