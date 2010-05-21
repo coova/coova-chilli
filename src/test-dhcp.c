@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2007-2009 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,39 +19,31 @@
 
 #define MAIN_FILE
 
-#include "system.h"
-#include "syserr.h"
-#include "cmdline.h"
-#include "dhcp.h"
-#include "radius.h"
-#include "redir.h"
 #include "chilli.h"
-#include "options.h"
 
 struct options_t _options;
 
-int test_dhcp() {
+int test_dhcp(int cnt) {
   struct _net_interface i; 
-  int cnt = 1000;
   int c = 0;
 
   memset(&i, 0, sizeof(i));
 
-  if (!__options.dhcpif) {
+  if (!_options.dhcpif) {
     printf("give this util the --dhcpif argument to specify the interface\n");
     exit(1);
   }
 
-  if (net_init(&i, __options.dhcpif, ETH_P_ALL, 1, 0) < 0) {
+  if (net_init(&i, _options.dhcpif, ETH_P_ALL, 1, 0) < 0) {
     perror("problem");
     exit(0);
   }
 
   /* we want the same, but random, MAC address, 
      to not overload our database */
-  srand(1);
+  srand(time(0));
 
-  while (c++<cnt)
+  while (c++ < cnt)
   {
     uint8_t packet[PKT_BUFFER];
     
@@ -133,19 +125,21 @@ int test_dhcp() {
     length = udp_len + sizeofip(packet);
     printf("sending %d bytes to fd %d\n",length,i.fd);
 
-    if (dhcp_send(0, &i, bcast, packet, length)) {
-      perror("error");
-      exit(1);
-    }
+    dhcp_send(0, &i, bcast, packet, length);
   }
 
   return 0;
 }
 
 int main(int argc, char **argv) {
+  int cnt = 1;
+
+  if (argc > 1) 
+    cnt = atoi(argv[1]);
+
   options_init();
 
-  __options.dhcpif = "eth0";
+  _options.dhcpif = "eth0";
 
-  return test_dhcp();
+  return test_dhcp(cnt);
 }

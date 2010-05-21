@@ -13,6 +13,7 @@ pkt.h conn.h lookup.h chilli_limits.h cmdline.h \
 radius_pkt.h ../bstring/bstrlib.h ../config.h system.h 
 
 lib_LTLIBRARIES = libchilli.la
+noinst_PROGRAMS = test_dhcp
 sbin_PROGRAMS = \
 chilli chilli_response chilli_radconfig chilli_query chilli_opt 
 
@@ -40,7 +41,7 @@ chilli_query_SOURCES = main-query.c
 chilli_opt_SOURCES = main-opt.c ${cmdline_sources}
 #queue_SOURCES = queue_test.c 
 #test_radius_SOURCES = test-radius.c 
-#test_dhcp_SOURCES = test-dhcp.c 
+test_dhcp_SOURCES = test-dhcp.c 
 
 LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBRT}
 

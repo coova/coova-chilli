@@ -133,7 +133,7 @@ void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t 
 	  bassignformat(tmp, " %d/%d", 
 			mainclock_diff(conn->lasttime), 
 			this->lease);
-	  bconcat(s, tmp);
+	  bconcat(b, tmp);
 	}
 	break;
       }
@@ -168,7 +168,7 @@ void dhcp_block_mac(struct dhcp_t *this, uint8_t *hwaddr) {
   }
 }
 
-static inline int dhcp_send(struct dhcp_t *this, struct _net_interface *netif, 
+int dhcp_send(struct dhcp_t *this, struct _net_interface *netif, 
 			    unsigned char *hismac, uint8_t *packet, size_t length) {
   if (_options.tcpwin)
     pkt_shape_tcpwin(packet, &length);

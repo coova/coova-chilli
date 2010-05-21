@@ -230,6 +230,9 @@ int dhcp_free(struct dhcp_t *dhcp);
 
 int dhcp_timeout(struct dhcp_t *this);
 
+int dhcp_send(struct dhcp_t *this, struct _net_interface *netif, 
+	      unsigned char *hismac, uint8_t *packet, size_t length);
+
 struct timeval * dhcp_timeleft(struct dhcp_t *this, struct timeval *tvp);
 
 int dhcp_validate(struct dhcp_t *this);

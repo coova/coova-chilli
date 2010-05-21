@@ -397,14 +397,12 @@ int net_select(select_ctx *sctx) {
   status = poll(sctx->pfds, sctx->count, 1000);
 #endif
 #else
-  sctx->idleTime.tv_sec = 1; /*IDLETIME;*/
+  sctx->idleTime.tv_sec = 1;
   sctx->idleTime.tv_usec = 0;
-
   do {
-    status = select(sctx->maxfd + 1, &sctx->rfds, &sctx->wfds, &sctx->efds, &sctx->idleTime /* NULL */);
+    status = select(sctx->maxfd + 1, &sctx->rfds, &sctx->wfds, &sctx->efds, &sctx->idleTime);
     if (status == -1) net_select_prepare(sctx); /* reset */
   } while (status == -1 && errno == EINTR);
-
 #endif
   return status;
 }

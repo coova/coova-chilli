@@ -4934,6 +4934,7 @@ int chilli_main(int argc, char **argv) {
 #ifdef USING_MMAP
 
     net_run(&dhcp->rawif);
+
     if (tun) {
       for (i=0; i < (tun)->_interface_count; i++) {
 	net_run(&(tun)->_interfaces[i]); 
