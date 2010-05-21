@@ -87,8 +87,8 @@ void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t 
 
   if (conn && conn->inuse) {
 
-    if (listfmt == LIST_JSON_FMT) {
-
+    switch(listfmt) {
+    case LIST_JSON_FMT:
       if (conn != this->firstusedconn)
 	bcatcstr(b, ",");
 
@@ -111,23 +111,37 @@ void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t 
 	bcatcstr(b, "\"");
       }
 
-    } else {
+      if (this->cb_getinfo)
+	this->cb_getinfo(conn, b, listfmt);
 
+      bcatcstr(b, "}");
+      break;
+
+    default:
       bassignformat(b, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %s",
 		    conn->hismac[0], conn->hismac[1], conn->hismac[2],
 		    conn->hismac[3], conn->hismac[4], conn->hismac[5],
 		    inet_ntoa(conn->hisip), dhcp_state2name(conn->authstate));
 
+      switch(listfmt) {
+      case LIST_LONG_FMT:
+	if (this->cb_getinfo)
+	  this->cb_getinfo(conn, b, listfmt);
+	break;
+      case LIST_SHORT_FMT:
+	{
+	  bassignformat(tmp, " %d/%d", 
+			mainclock_diff(conn->lasttime), 
+			this->lease);
+	  bconcat(s, tmp);
+	}
+	break;
+      }
+      
+      bcatcstr(b, "\n");
+      break;
     }
     
-    if (listfmt && this->cb_getinfo)
-      this->cb_getinfo(conn, b, listfmt);
-
-    if (listfmt == LIST_JSON_FMT)
-      bcatcstr(b, "}");
-    else
-      bcatcstr(b, "\n");
-
     bconcat(s, b);
   }
 
@@ -482,9 +496,8 @@ int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause)
  **/
 int dhcp_checkconn(struct dhcp_t *this) {
   struct dhcp_conn_t *conn = this->firstusedconn;
-  int cnt = 24; /* to not spend too much time */
 
-  while (conn && cnt--) {
+  while (conn) {
     /*
     if (_options.debug)
       log_dbg("dhcp_checkconn: %d %d", mainclock_diff(conn->lasttime), (int) this->lease);
