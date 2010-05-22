@@ -2472,6 +2472,7 @@ int redir_main(struct redir_t *redir,
 
   /* We are forked when the redir_request is null */
   int forked = (rreq == 0);
+  int err;
 
   memset(&httpreq,0,sizeof(httpreq));
   httpreq.allow_post = isui || _options.uamallowpost;
@@ -2595,14 +2596,14 @@ int redir_main(struct redir_t *redir,
 
 
   termstate = REDIR_TERM_GETREQ;
-  switch (state = redir_getreq(redir, &socket, &conn, &httpreq, forked)) {
+  switch (err = redir_getreq(redir, &socket, &conn, &httpreq, forked)) {
   case 0: 
     break;
   case 1: 
     log_dbg("Continue...");
     return 1;
   default:
-    log_dbg("Error calling get_req. Terminating %d", state);
+    log_dbg("Error calling get_req. Terminating %d", err);
     return redir_main_exit(redir, &httpreq, &socket, forked);
   }
 

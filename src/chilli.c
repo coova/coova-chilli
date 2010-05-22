@@ -694,7 +694,7 @@ void session_interval(struct app_conn_t *conn) {
   }
   else if ((conn->s_params.interim_interval) &&
 	   (interimtime >= conn->s_params.interim_interval) &&
-	   (conn->s_params.flags & NO_ACCOUNTING) == 0) {
+          !(conn->s_params.flags & NO_ACCOUNTING)) {
     acct_req(conn, RADIUS_STATUS_TYPE_INTERIM_UPDATE);
   }
 }
@@ -1499,7 +1499,7 @@ int static dnprot_accept(struct app_conn_t *appconn) {
     }
     
     if (!(appconn->s_params.flags & IS_UAM_REAUTH))
-      if ((appconn->s_params.flags & NO_ACCOUNTING) == 0)
+      if (!(appconn->s_params.flags & NO_ACCOUNTING))
 	acct_req(appconn, RADIUS_STATUS_TYPE_START);
   }
   
@@ -2630,10 +2630,14 @@ void config_radius_session(struct session_params *params,
   }
 
   {
+    /*
+     *  Looking for ChilliSpot-Config attributes with
+     *  special messages. 
+     */
+    const char *adminreset = "admin-reset";
     const char *uamauth = "require-uam-auth";
     const char *splash = "splash";
     const char *logout = "logout";
-    const char *adminreset = "admin-reset";
 
     size_t offset = 0;
     int is_splash = 0;
@@ -2651,17 +2655,17 @@ void config_radius_session(struct session_params *params,
       size_t len = (size_t)attr->l-2;
       char *val = (char *)attr->v.t;
 
-      if (_options.wpaguests && len == strlen(uamauth) && !memcmp(val, uamauth, len)) {
-	log_dbg("received wpaguests");
+      if (len == strlen(uamauth) && !memcmp(val, uamauth, len)) {
+	log_dbg("received require-uam-auth");
 	params->flags |= REQUIRE_UAM_AUTH;
       } 
-      else if (len == strlen(splash) && !memcmp(val, splash, strlen(splash))) {
+      else if (len == strlen(splash) && !memcmp(val, splash, len)) {
 	log_dbg("received splash response");
 	params->flags |= REQUIRE_UAM_SPLASH;
 	is_splash = 1;
       }
 #ifdef ENABLE_SESSGARDEN
-      else if (len > strlen(uamallowed) && !memcmp(val, uamallowed, strlen(uamallowed)) && len < 255) {
+      else if (len > strlen(uamallowed) && len < 255 && !memcmp(val, uamallowed, strlen(uamallowed))) {
 	char name[256];
 	strncpy(name, val, len);
 	name[len] = 0;
@@ -3568,7 +3572,7 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
   if (appconn->s_state.authenticated == 1) { /* Only send accounting if logged in */
     dnprot_terminate(appconn);
     appconn->s_state.terminate_cause = terminate_cause;
-    if ((appconn->s_params.flags & NO_ACCOUNTING) == 0)
+    if (!(appconn->s_params.flags & NO_ACCOUNTING))
       acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
 
     /* should memory be cleared here?? */
