@@ -43,10 +43,10 @@ int ippool_print(int fd, struct ippool_t *this) {
 	   "First available dynamic %d Last %d\n"
 	   "First available static %d Last %d\n"
 	   "List size %d\n",
-	   this->firstdyn ? this->firstdyn - this->member : -1,
-	   this->lastdyn ? this->lastdyn - this->member : -1,
-	   this->firststat ? this->firststat - this->member : -1,
-	   this->laststat ? this->laststat - this->member : -1,
+	   (int) (this->firstdyn ? this->firstdyn - this->member : -1),
+	   (int) (this->lastdyn ? this->lastdyn - this->member : -1),
+	   (int) (this->firststat ? this->firststat - this->member : -1),
+	   (int) (this->laststat ? this->laststat - this->member : -1),
 	   this->listsize);
   
   safe_write(fd, line, strlen(line));
