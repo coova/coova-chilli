@@ -146,7 +146,7 @@ int chilli_binconfig(char *file, size_t flen, pid_t pid) {
 	pid = getpid();
     }
   }
-  return snprintf(file, flen, "/tmp/chilli-%d/config.bin", pid);
+  return snprintf(file, flen, DEFSTATEDIR "/chilli.%d.cfg.bin", pid);
 }
 
 time_t mainclock_tick() {
@@ -4467,15 +4467,6 @@ int chilli_main(int argc, char **argv) {
       bstring bt = bfromcstr("");
 
       /*
-       * Create the new temporary directory.
-       */
-      snprintf(file2, sizeof(file2), "/tmp/chilli-%d", new_pid);
-      if (options_mkdir(file2)) {
-	log_err(errno, "could not save configuration options! [%s]", file2);
-	exit(1);
-      }
-
-      /*
        * Format the filename of the current (cpid) and new binconfig files.
        */
       chilli_binconfig(file, sizeof(file), cpid);
@@ -4496,13 +4487,6 @@ int chilli_main(int argc, char **argv) {
        * Reset binconfig (since file2 is a local variable)
        */
       _options.binconfig = 0;
-
-      /* 
-       * Remove old file
-       */
-      unlink(file);
-      snprintf(file, sizeof(file), "/tmp/chilli-%d", cpid);
-      if (rmdir(file)) log_err(errno, file);
       umask(process_mask);
 
       cpid = new_pid;
@@ -5017,9 +5001,6 @@ int chilli_main(int argc, char **argv) {
     chilli_binconfig(file, sizeof(file), cpid);
     log_dbg("Removing %s", file);
     if (remove(file)) log_err(errno, file);
-
-    snprintf(file,sizeof(file),"/tmp/chilli-%d", cpid);
-    if (rmdir(file)) log_err(errno, file);
   }
 
   options_destroy();

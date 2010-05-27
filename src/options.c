@@ -482,7 +482,6 @@ int process_options(int argc, char **argv, int minimal) {
    */
 
   mode_t process_mask = umask(0077);
-  char file[128];
   int i;
 
   for (i=0; i < argc; i++) {
@@ -492,11 +491,6 @@ int process_options(int argc, char **argv, int minimal) {
       }
     }
   }
-  
-  snprintf(file,sizeof(file),"/tmp/chilli-%d",getpid());
-  
-  if (options_mkdir(file))
-    return -1;
   
   umask(process_mask);
   
