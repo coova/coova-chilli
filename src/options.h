@@ -178,11 +178,11 @@ struct options_t {
   /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
-  size_t num_pass_throughs;
+  uint32_t num_pass_throughs;
 
 #ifdef ENABLE_CHILLIREDIR
   regex_pass_through regex_pass_throughs[MAX_REGEX_PASS_THROUGHS];
-  size_t regex_num_pass_throughs;
+  uint32_t regex_num_pass_throughs;
 #endif
 
   char* uamdomains[MAX_UAM_DOMAINS];
