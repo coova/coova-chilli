@@ -38,6 +38,10 @@
 #include <stdlib.h>
 #endif
 
+#ifdef HAVE_STDDEF_H
+#include <stddef.h>
+#endif
+
 #ifdef HAVE_SYSLOG_H
 #include <syslog.h>
 #endif
@@ -239,9 +243,6 @@
         _result; \
     })
 #endif
-
-#undef offsetof
-#define offsetof(TYPE, MEMBER) ((int)&((TYPE *)0)->MEMBER)
 
 #define SET_SA_FAMILY(addr, family)			\
     memset ((char *) &(addr), '\0', sizeof(addr));	\

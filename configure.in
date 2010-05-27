@@ -25,7 +25,7 @@ AC_ARG_PROGRAM
 AC_HEADER_STDC
 AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h \
 		  netdb.h netinet/in.h netinet/tcp.h \
-		  stdint.h stdlib.h string.h \
+		  stdint.h stddef.h stdlib.h string.h \
 		  sys/ioctl.h sys/socket.h sys/sysinfo.h \
 		  sys/param.h sys/time.h time.h \
 		  sys/ipc.h sys/msg.h \
