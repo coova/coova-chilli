@@ -27,6 +27,8 @@ your favorite radius server. Read more at http://www.coova.org/.
 %build
 
 %configure \
+        --disable-static \
+        --enable-shared \
 	--enable-largelimits \
 	--enable-miniportal \
 	--enable-chilliredir \
@@ -64,6 +66,7 @@ fi
 %defattr(-,root,root)
 %{_sbindir}/*
 %{_libdir}/*.so*
+%exclude %{_libdir}/*.la
 %{_libdir}/python/CoovaChilliLib.py
 %{_sysconfdir}/init.d/chilli
 %doc AUTHORS COPYING ChangeLog INSTALL README doc/dictionary.chillispot doc/hotspotlogin.cgi

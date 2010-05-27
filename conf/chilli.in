@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# chilli      CoovaChilli init
+# chilli CoovaChilli init
 #
 # chkconfig: 2345 65 35
 # description: CoovaChilli
@@ -14,11 +14,6 @@ killproc=killall
     . /etc/rc.d/init.d/functions
     daemon=daemon
     killproc=killproc
-}
-
-[ -e /etc/sysconfig/network ] && {
-    . /etc/sysconfig/network
-    [ ${NETWORKING} = "no" ] && exit 0
 }
 
 [ -f @SBINDIR@/chilli ] || exit 0
@@ -53,6 +48,7 @@ check_required
 
 RETVAL=0
 prog="chilli"
+pidfile=@VARRUN@/chilli.$HS_LANIF.pid
 
 case $1 in
     start)
@@ -78,7 +74,7 @@ case $1 in
 	}
 	
 	ifconfig $HS_LANIF 0.0.0.0
-        $daemon @SBINDIR@/chilli -c $CONFIG &
+        $daemon --pidfile=$pidfile @SBINDIR@/chilli -c $CONFIG &
         echo
 	;;
     
@@ -103,11 +99,11 @@ case $1 in
 
 	crontab -l 2>&- | grep -v $0 | crontab -
 
-        [ -f @VARRUN@/chilli.$HS_LANIF.pid ] && { 
-	    kill $(cat @VARRUN@/chilli.$HS_LANIF.pid)
+        [ -f $pidfile ] && { 
+	    kill $(cat $pidfile)
 	    RETVAL=$
 	    [ $RETVAL = 0 ] && {
-		rm -f @VARRUN@/chilli.$HS_LANIF.pid 2>/dev/null
+		rm -f $pidfile 2>/dev/null
 	    }
 	}
 
