@@ -204,7 +204,7 @@ struct dhcp_t {
   struct dhcp_conn_t **hash;    /* Hashsize array of pointer to member */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
-  size_t num_pass_throughs;
+  uint32_t num_pass_throughs;
 
   /* Call back functions */
   int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
