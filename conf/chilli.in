@@ -5,17 +5,6 @@
 # chkconfig: 2345 65 35
 # description: CoovaChilli
 
-# Source function library.
-
-daemon=
-killproc=killall
-
-[ -e /etc/rc.d/init.d/functions ] && {
-    . /etc/rc.d/init.d/functions
-    daemon=daemon
-    killproc=killproc
-}
-
 [ -f @SBINDIR@/chilli ] || exit 0
 
 . @ETCCHILLI@/functions
@@ -35,8 +24,10 @@ MULTI=$(ls @ETCCHILLI@/*/chilli.conf 2>/dev/null)
 
 if [ -n "$DHCPIF" ]; then
     CONFIG=@ETCCHILLI@/$DHCPIF/chilli.conf
+    pidfile=@VARRUN@/chilli.$DHCPIF.pid
 else
     CONFIG=@SYSCONFDIR@/chilli.conf
+    pidfile=@VARRUN@/chilli.pid
 fi
 
 [ -f $CONFIG ] || {
@@ -48,7 +39,6 @@ check_required
 
 RETVAL=0
 prog="chilli"
-pidfile=@VARRUN@/chilli.$HS_LANIF.pid
 
 case $1 in
     start)
@@ -74,7 +64,8 @@ case $1 in
 	}
 	
 	ifconfig $HS_LANIF 0.0.0.0
-        $daemon --pidfile=$pidfile @SBINDIR@/chilli -c $CONFIG &
+        start-stop-daemon -S --pidfile=$pidfile --user=chilli \
+	    @SBINDIR@/chilli -- -c $CONFIG &
         echo
 	;;
     
@@ -99,6 +90,9 @@ case $1 in
 
 	crontab -l 2>&- | grep -v $0 | crontab -
 
+        start-stop-daemon -K --pidfile=$pidfile --user=chilli \
+	    @SBINDIR@/chilli 
+
         [ -f $pidfile ] && { 
 	    kill $(cat $pidfile)
 	    RETVAL=$
@@ -106,8 +100,6 @@ case $1 in
 		rm -f $pidfile 2>/dev/null
 	    }
 	}
-
-	#$killproc chilli
 
         echo
 	;;
