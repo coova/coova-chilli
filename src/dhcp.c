@@ -810,8 +810,13 @@ int dhcp_reserve_str(char *b, size_t blen) {
   for (i=0; state >= 0 && i < blen; i++) {
     newline = 0;
     switch(b[i]) {
+    case '#':
+        state = -1; // Ignore comments
+        break;
     case '\r': case '\n': case ',':
       {
+        if (state==-1)
+            state = 0;
 	newline = 1;
       }
     case ' ': case '\t': case '=':
@@ -853,6 +858,11 @@ int dhcp_reserve_str(char *b, size_t blen) {
 	}
 	
 	if (newline || state == 2) {
+            log(LOG_NOTICE, "Reserving IP MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X IP %s" , 
+                mac[0], mac[1], 
+                mac[2], mac[3],
+                mac[4], mac[5], 
+                inet_ntoa(ip));
 	  dhcp_reserve_ip(mac, &ip);
 	  state = 0;
 	}
