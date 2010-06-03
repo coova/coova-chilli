@@ -420,6 +420,16 @@ int main(int argc, char **argv) {
   
   for (i=0 ; i < globbuf.gl_pathc; i++) {
     cmdsock = globbuf.gl_pathv[i];
+    if (globbuf.gl_pathc>1) {
+      char header[256];
+      int headerlen;
+      snprintf(header, "\nQuerying socket %s\n", cmdsock);
+      headerlen=strlen(header);
+      if (write(1, header, strlen(header))!=headerlen) {
+        perror("write");
+        exit(1);
+      }
+    }
 #endif
 
   if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
