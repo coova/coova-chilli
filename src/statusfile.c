@@ -280,6 +280,12 @@ int printstatus() {
   fputc(MARK_START, file);
 
   while (dhcpconn) {
+
+    log_dbg("Saving dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	    dhcpconn->hismac[0], dhcpconn->hismac[1],
+	    dhcpconn->hismac[2], dhcpconn->hismac[3],
+	    dhcpconn->hismac[4], dhcpconn->hismac[5]);
+
     fwrite(dhcpconn, sizeof(struct dhcp_conn_t), 1, file);
     fputc(MARK_NEXT, file);
     appconn = (struct app_conn_t *)dhcpconn->peer;

@@ -98,6 +98,8 @@ EOF
 }
 
 writeconfig() {
+    [ -e $LOCAL_CONF ] || touch $LOCAL_CONF 
+    [ -e $HS_CONF ] || touch $HS_CONF 
     [ "$HS_USETAP" = "on" ] && addconfig1 "usetap"
     [ "$HS_ANYIP" = "on" ] && addconfig1 "uamanyip"
     [ "$HS_NATANYIP" = "on" ] && addconfig1 "uamnatanyip"
@@ -127,6 +129,7 @@ writeconfig() {
     addconfig1 ${HS_DNS2:+"dns2 \"$HS_DNS2\""}
     addconfig1 ${HS_TCPMSS:+"tcpmss \"$HS_TCPMSS\""}
 
+    [ "$HS_UAMHOMEPAGE" = "none" ] && HS_UAMHOMEPAGE=
     addconfig1 ${HS_UAMHOMEPAGE:+"uamhomepage $(eval echo $HS_UAMHOMEPAGE)"}
     addconfig1 ${HS_WISPRLOGIN:+"wisprlogin $HS_WISPRLOGIN"}
     addconfig1 ${HS_WWWDIR:+"wwwdir $HS_WWWDIR"}

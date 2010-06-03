@@ -3296,6 +3296,9 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
   
   /* if uamanyip is on we have to filter out which ip's are allowed */
   if (_options.uamanyip && addr && addr->s_addr) {
+    if (addr->s_addr == _options.uamlisten.s_addr) {
+      return -1;
+    }
     if ((addr->s_addr & ipv4ll_mask.s_addr) == ipv4ll_ip.s_addr) {
       /* clients with an IPv4LL ip normally have no default gw assigned, rendering uamanyip useless
 	 They must rather get a proper dynamic ip via dhcp */

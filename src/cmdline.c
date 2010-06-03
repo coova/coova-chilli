@@ -4209,14 +4209,11 @@ cmdline_parser_internal (
           /* The UNIX IPC Filename to use when compiled with --with-unixipc.  */
           else if (strcmp (long_options[option_index].name, "unixipc") == 0)
           {
-            int offset = strrchr(optarg, '/')+1;
-            if (offset!=0) {
-              log_warn("unixipc option does not accept a full path. Will only use filename: %s.", (optarg+offset));
-            }
-
+          
+          
             if (update_arg( (void *)&(args_info->unixipc_arg), 
                  &(args_info->unixipc_orig), &(args_info->unixipc_given),
-                &(local_args_info.unixipc_given), optarg+offset, 0, 0, ARG_STRING,
+                &(local_args_info.unixipc_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "unixipc", '-',
                 additional_error))
