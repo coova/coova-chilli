@@ -801,6 +801,7 @@ int dhcp_reserve_str(char *b, size_t blen) {
   unsigned int tmp[PKT_ETH_ALEN];
   struct in_addr ip;
   int state = 0;
+  int lineno = 1;
   int newline;
   
   char *bp = b;
@@ -811,9 +812,15 @@ int dhcp_reserve_str(char *b, size_t blen) {
     newline = 0;
     switch(b[i]) {
     case '#':
-        state = -1; // Ignore comments
+      {
+        while (i < blen && b[i]!='\n')
+          i++;
+        lineno++;
         break;
-    case '\r': case '\n': case ',':
+      }
+    case '\n':
+        lineno++;
+    case '\r': case ',':
       {
         if (state==-1)
             state = 0;
@@ -832,7 +839,7 @@ int dhcp_reserve_str(char *b, size_t blen) {
 	    if (sscanf (bp, "%2x %2x %2x %2x %2x %2x", 
 			&tmp[0], &tmp[1], &tmp[2], 
 			&tmp[3], &tmp[4], &tmp[5]) != 6) {	
-	      log_err(0, "MAC conversion failed!");
+	      log_err(0, "Parse error in ethers file at line %d", lineno);
 	      state = -1;
 	    } else {
 	      mac[0] = (uint8_t) tmp[0];
@@ -871,7 +878,11 @@ int dhcp_reserve_str(char *b, size_t blen) {
 			    b[i] == '\r' || 
 			    b[i] == '\n' || 
 			    b[i] == ' ' || 
-			    b[i] == '\t')) i++;
+			    b[i] == '\t')) {
+            if (b[i]=='\n')
+                lineno++;
+            i++;
+        }
 	bp = b + (size_t) i;
 	i--;
       }
