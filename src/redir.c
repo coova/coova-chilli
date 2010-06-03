@@ -1207,7 +1207,7 @@ int redir_ipc(struct redir_t *redir) {
     
     if (bind(sock, (struct sockaddr *)&local, 
 	     sizeof(struct sockaddr_un)) == -1) {
-      log_err(errno, "could bind UNIX Socket!");
+      log_err(errno, "could bind UNIX Socket to %s!", filedest);
       close(sock);
       sock = -1;
     } else {
