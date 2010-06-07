@@ -1416,7 +1416,6 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 #endif
 
   if (iph->protocol == PKT_IP_PROTO_TCP) {
-
     if (tcph->dst == htons(DHCP_HTTP)
 #ifdef HAVE_SSL
 	|| (_options.redirssl && tcph->dst == htons(DHCP_HTTPS))
@@ -1426,6 +1425,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
       /* We are changing dest IP and dest port to local UAM server */
 
       *do_checksum = 1;
+
       return dhcp_uam_nat(conn, ethh, iph, tcph, &this->uamlisten, this->uamport);
 
     } else if (do_reset) {
@@ -1597,7 +1597,7 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 #endif
 
   if (do_reset && iph->protocol == PKT_IP_PROTO_TCP) {
-    log_dbg("Resetting connection on port %d->%d", 
+    log_dbg("Resetting connection on port %d->%d (undo)", 
 	    ntohs(tcph->src), ntohs(tcph->dst));
     dhcp_sendRESET(conn, pack, 0);
     if (conn->peer) {

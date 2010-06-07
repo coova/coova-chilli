@@ -2563,34 +2563,37 @@ int redir_main(struct redir_t *redir,
   log_dbg("Receiving HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
 
 #ifdef HAVE_SSL
-  if ((!rreq || !rreq->sslcon) && (conn.flags & USING_SSL) == USING_SSL) {
-    socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 30);
-    if (rreq) {
-      rreq->sslcon = socket.sslcon;
+  if ((conn.flags & USING_SSL) == USING_SSL) {
+    char done = 0, loop = 0;
+
+    if (!rreq || !rreq->sslcon) {
+      socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 30);
+      if (rreq) {
+	/* we were forked */
+	rreq->sslcon = socket.sslcon;
+      } else {
+	/* not forked, so loop */
+	loop = 1;
+      }
+    } else {
+      socket.sslcon = rreq->sslcon;
+    }
+
+    while (!done) {
       switch(openssl_check_accept(socket.sslcon)) {
       case -1:
 	return redir_main_exit(redir, &httpreq, &socket, forked);
       case 1:
-	log_dbg("Continue... SSL pending");
-	return 1;
+	if (!loop) {
+	  log_dbg("Continue... SSL pending");
+	  return 1;
+	}
+      case 0: done = 1;
       default:
 	break;
       }
-    } else {
-      int done = 0;
-      while (!done) {
-	switch(openssl_check_accept(socket.sslcon)) {
-	case -1:
-	  return redir_main_exit(redir, &httpreq, &socket, forked);
-	case 0:
-	  done = 1;
-	default:
-	  break;
-	}
-      }
+      if (!loop) done = 1;
     }
-  } else if (rreq) {
-    socket.sslcon = rreq->sslcon;
   }
 #endif
 

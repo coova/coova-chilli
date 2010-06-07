@@ -40,6 +40,8 @@ int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
     flags |= O_NDELAY;
 #endif
 
+    log_dbg("SETTING non-blocking");
+
     ret = fcntl(sock, F_SETFL, flags);
     
     if (ret < 0) {
@@ -118,10 +120,10 @@ int conn_update_write(struct conn_t *conn) {
       conn_finish(conn);
       return -1;
     } else {
-      /*int flags = fcntl(conn->sock, F_GETFL, 0);
-	if (fcntl(conn->sock, F_SETFL, flags & (~O_NONBLOCK)) < 0)
+      int flags = fcntl(conn->sock, F_GETFL, 0);
+      log_dbg("RESETTING non-blocking");
+      if (fcntl(conn->sock, F_SETFL, flags & (~O_NONBLOCK)) < 0)
 	log_err(errno, "could not un-set non-blocking");
-      */
     }
   }
   

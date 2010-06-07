@@ -28,7 +28,7 @@
 
 /*
  * Plans (todo):
- *  - "Chilli Dog" will provide a simple RADIUS->HTTP AAA proxy (loosly based on WiFiDog). 
+ *  - Provide a simple RADIUS->HTTP AAA proxy (loosly based on WiFiDog). 
  *  - It should also be able to proxy to an alternate RADIUS server(s). 
  *  - It should also be able to establish and use a RadSec Tunnel. 
  *
@@ -783,30 +783,30 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_SESSION_TIME, 0,0,0)) {
       uint32_t val = ntohl(attr->v.i);
-      bassignformat(tmp, "&duration=%d", val);
+      bassignformat(tmp, "&duration=%ld", (long) val);
       bconcat(req->url, tmp);
     }
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 0)) {
       uint32_t val = ntohl(attr->v.i);
-      bassignformat(tmp, "&vlan=%d", val);
+      bassignformat(tmp, "&vlan=%ld", (long) val);
       bconcat(req->url, tmp);
     }
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INPUT_OCTETS, 0,0,0)) {
       char *direction = _options.swapoctets ? "up" : "down";
-      uint64_t val = ntohl(attr->v.i);
+      uint64_t val = (uint64_t) ntohl(attr->v.i);
       uint64_t input = val;
       if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INPUT_GIGAWORDS, 0,0,0)) {
 	val = (uint64_t) ntohl(attr->v.i);
 	input |= (val << 32);
       }
-      bassignformat(tmp, "&bytes_%s=%ld", direction, input);
+      bassignformat(tmp, "&bytes_%s=%lld", direction, (long long) input);
       bconcat(req->url, tmp);
       if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INPUT_PACKETS, 0,0,0)) {
 	uint32_t sval = ntohl(attr->v.i);
-	bassignformat(tmp, "&pkts_%s=%ld", direction, sval);
+	bassignformat(tmp, "&pkts_%s=%ld", direction, (long) sval);
 	bconcat(req->url, tmp);
       }
     }
@@ -819,11 +819,11 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 	val = (uint64_t) ntohl(attr->v.i);
 	output |= (val << 32);
       }
-      bassignformat(tmp, "&bytes_%s=%ld", direction, output);
+      bassignformat(tmp, "&bytes_%s=%lld", direction, (long long) output);
       bconcat(req->url, tmp);
       if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_OUTPUT_PACKETS, 0,0,0)) {
 	uint32_t sval = ntohl(attr->v.i);
-	bassignformat(tmp, "&pkts_%s=%ld", direction, sval);
+	bassignformat(tmp, "&pkts_%s=%ld", direction, (long) sval);
 	bconcat(req->url, tmp);
       }
     }

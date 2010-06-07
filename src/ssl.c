@@ -328,28 +328,28 @@ openssl_check_accept(openssl_con *c) {
   if (!c || !c->con) return -1;
 
   if (!SSL_is_init_finished(c->con)) {
-    
+
     if ((rc = SSL_accept(c->con)) <= 0) {
+
+      int err = SSL_get_error(c->con, rc);
       
-      if (SSL_get_error(c->con, rc) == SSL_ERROR_ZERO_RETURN) {
+      switch (err) {
+      case SSL_ERROR_WANT_READ:
+      case SSL_ERROR_WANT_WRITE: 
+	return 1;
 	
-	return -1;
-	
-	/*      } else if (ERR_GET_REASON(ERR_peek_error()) == SSL_R_HTTP_REQUEST) { */
-      } else if (SSL_get_error(c->con, rc) == SSL_ERROR_SYSCALL) {
-	
+      case SSL_ERROR_SYSCALL:
 	if (errno != EINTR) {
 	  if (errno > 0)
 	    log_err(errno, "SSL handshake interrupted by system [Hint: Stop button pressed in browser?!]");
 	  else
 	    log_err(errno, "Spurious SSL handshake interrupt [Hint: Usually just one of those OpenSSL confusions!?]");
-	  
-	  return -1;
 	}
+	break;
       }
-
-      return 1;
-
+      
+      return -1;
+      
     } else {
       
       peer_cert = SSL_get_peer_certificate(c->con);
@@ -451,17 +451,15 @@ openssl_error(openssl_con *con, int ret, char *func) {
   int err = -1;
   if (con->con) {
     err = SSL_get_error(con->con, ret);
-#if (0)
     log_dbg("SSL: (%s()) %s", func,
-	    ((err == SSL_ERROR_NONE) ? "None": 
-	     ((err == SSL_ERROR_ZERO_RETURN) ? "Return!":
-	      ((err == SSL_ERROR_WANT_READ) ? "Read (continue)":
-	       ((err == SSL_ERROR_WANT_WRITE) ? "Write (continue)":
-		((err == SSL_ERROR_WANT_X509_LOOKUP) ? "Lookup (continue)":
-		 ((err == SSL_ERROR_SYSCALL) ? "Syscall error, abort!":
-		  ((err == SSL_ERROR_SSL) ? "SSL error, abort!":
-		   "Error"))))))));
-#endif
+	    err == SSL_ERROR_NONE ? "None": 
+            err == SSL_ERROR_ZERO_RETURN ? "Return!":
+	    err == SSL_ERROR_WANT_READ ? "Read (continue)":
+	    err == SSL_ERROR_WANT_WRITE ? "Write (continue)":
+	    err == SSL_ERROR_WANT_X509_LOOKUP ? "Lookup (continue)":
+	    err == SSL_ERROR_SYSCALL ? "Syscall error, abort!":
+	    err == SSL_ERROR_SSL ? "SSL error, abort!":
+	    "Error");
     switch (err) {
     case SSL_ERROR_NONE: return 0;
     case SSL_ERROR_WANT_READ: return 1;
