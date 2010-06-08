@@ -1200,7 +1200,7 @@ int redir_ipc(struct redir_t *redir) {
     if (!_options.unixipc) {
       snprintf(filedest, sizeof(filedest), "%s/chilli.ipc", statedir);
     } else {
-      if (strchr(_options.unixipc, '/')!=NULL)
+      if (_options.unixipc[0]=='/')
         snprintf(filedest, sizeof(filedest), _options.unixipc);
       else
         snprintf(filedest, sizeof(filedest), "%s/%s", statedir, _options.unixipc);
