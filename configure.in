@@ -307,6 +307,14 @@ fi
 
 AM_CONDITIONAL(WITH_NETNAT, [test x"$enable_netnat" = xyes])
 
+AC_ARG_ENABLE(wispr2, [AC_HELP_STRING([--enable-wispr2],[Enable support for WISPr 2.0 (experimental)])], 
+  enable_wispr2=$enableval, enable_wispr2=no)
+
+if test x"$enable_wispr2" = xyes ; then
+   AC_DEFINE(ENABLE_WISPR2,1,[Define to enable network interface nat])
+fi
+
+AM_CONDITIONAL(WITH_WISPR2, [test x"$enable_wispr2" = xyes])
 
 AC_CHECK_LIB(rt, clock_gettime)
 
