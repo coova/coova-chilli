@@ -1,6 +1,7 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+* Allow use of absolute paths for unixipc option
 * Use uamaliashostname for WISPr redirect if possible
 * Bug fix for RADIUS (EAP) proxy
 * Preliminary support for Netfilter NFQUEUE usage ''--with-nfqueue''

@@ -1197,9 +1197,15 @@ int redir_ipc(struct redir_t *redir) {
     char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
     char filedest[512];
     
-    snprintf(filedest, sizeof(filedest), "%s/%s", statedir, 
-	     _options.unixipc ? _options.unixipc : "chilli.ipc");
-    
+    if (!_options.unixipc) {
+      snprintf(filedest, sizeof(filedest), "%s/chilli.ipc", statedir);
+    } else {
+      if (strchr(_options.unixipc, '/')!=NULL)
+        snprintf(filedest, sizeof(filedest), _options.unixipc);
+      else
+        snprintf(filedest, sizeof(filedest), "%s/%s", statedir, _options.unixipc);
+    }
+
     local.sun_family = AF_UNIX;
     
     strcpy(local.sun_path, filedest);
