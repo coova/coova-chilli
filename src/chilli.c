@@ -776,10 +776,143 @@ int static maccmp(unsigned char *mac) {
   return -1;
 }
 
+
+int chilli_req_attrs(struct radius_t *radius, 
+		     struct radius_packet_t *pack,
+		     uint32_t port,
+		     uint32_t service_type,
+		     uint8_t *hismac,
+		     struct in_addr *hisip,
+		     struct session_state *state) {
+  char mac[MACSTRLEN+1];
+  char portid[16+1];
+
+  switch(pack->code) {
+  case RADIUS_CODE_ACCESS_REQUEST:
+
+    if (_options.radiusoriginalurl && state->redir.userurl[0])
+      radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC, 
+		     RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_ORIGINALURL, 
+		     0, (uint8_t*) state->redir.userurl, 
+		     strlen(state->redir.userurl));
+
+    break;
+  default:
+    break;
+  }
+
+  if (service_type)
+    radius_addattr(radius, pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
+		   service_type, NULL, 0); 
+
+#ifdef ENABLE_IEEE8021Q
+  if (state->tag8021q)
+    radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
+		   (uint32_t)(ntohs(state->tag8021q) & 0x0FFF), 0, 0);
+#endif
+
+  if (state->sessionid[0])
+    radius_addattr(radius, pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
+		   (uint8_t *) state->sessionid, REDIR_SESSIONID_LEN-1);
+  
+  if (state->redir.classlen) {
+    radius_addattr(radius, pack, RADIUS_ATTR_CLASS, 0, 0, 0,
+		   state->redir.classbuf,
+		   state->redir.classlen);
+  }
+  
+  if (hisip && hisip->s_addr)
+    radius_addattr(radius, pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,
+		   ntohl(hisip->s_addr), NULL, 0);
+  
+  radius_addattr(radius, pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
+		 _options.radiusnasporttype, NULL, 0);
+  
+  radius_addattr(radius, pack, RADIUS_ATTR_NAS_PORT, 0, 0,
+		 port, NULL, 0);
+  
+  snprintf(portid, 16+1, "%.8d", port);
+  radius_addattr(radius, pack, RADIUS_ATTR_NAS_PORT_ID, 0, 0, 0,
+		 (uint8_t *) portid, strlen(portid));
+  
+  /* Include his MAC address */
+  if (hismac) {
+    snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	     hismac[0], hismac[1],
+	     hismac[2], hismac[3],
+	     hismac[4], hismac[5]);
+    
+    radius_addattr(radius, pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
+		   (uint8_t*) mac, MACSTRLEN);
+  }
+  
+  radius_addcalledstation(radius, pack);
+
+  radius_addnasip(radius, pack);
+
+#ifdef ENABLE_PROXYVSA
+  radius_addvsa(pack, &state->redir);
+#endif
+
+  /* Include NAS-Identifier if given in configuration options */
+  if (_options.radiusnasid)
+    radius_addattr(radius, pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
+		   (uint8_t*) _options.radiusnasid, strlen(_options.radiusnasid));
+
+  if (_options.radiuslocationid)
+    radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_ID, 0,
+		   (uint8_t*) _options.radiuslocationid, 
+		   strlen(_options.radiuslocationid));
+
+  if (_options.radiuslocationname)
+    radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
+		   (uint8_t*) _options.radiuslocationname, 
+		   strlen(_options.radiuslocationname));
+  
+  return 0;
+}
+
+struct app_conn_t admin_session;
+
+int chilli_auth_radius(struct radius_t *radius) {
+  struct radius_packet_t radius_pack;
+  int ret = -1;
+
+  /*if (admin_session.s_state.authenticated) {
+    terminate_appconn(&admin_session, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
+    memset(&admin_session.s_state, 0, sizeof(admin_session.s_state));
+    }*/
+  
+  if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
+    log_err(0, "radius_default_pack() failed");
+    return ret;
+  }
+
+  /* adminuser is required */
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
+		 (uint8_t *)_options.adminuser, strlen(_options.adminuser));
+
+  if (_options.adminpasswd)
+    radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
+		   (uint8_t *)_options.adminpasswd, strlen(_options.adminpasswd));
+
+  chilli_req_attrs(radius, &radius_pack, 
+		   RADIUS_SERVICE_TYPE_ADMIN_USER,
+		   0, 0, 0, 
+		   &admin_session.s_state);
+
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+		 0, 0, 0, NULL, RADIUS_MD5LEN);
+
+  return radius_req(radius, &radius_pack, &admin_session); 
+}
+
 int static auth_radius(struct app_conn_t *appconn, 
 		       char *username, char *password, 
 		       uint8_t *dhcp_pkt, size_t dhcp_len) {
-  
   struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
   struct radius_packet_t radius_pack;
   char mac[MACSTRLEN+1];
@@ -829,50 +962,6 @@ int static auth_radius(struct app_conn_t *appconn,
   
   appconn->authtype = PAP_PASSWORD;
   
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
-		 (uint8_t *) mac, MACSTRLEN);
-  
-  radius_addcalledstation(radius, &radius_pack);
-
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
-		 appconn->unit, NULL, 0);
-
-  radius_addnasip(radius, &radius_pack);
-
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
-		 service_type, NULL, 0); 
-
-  /* Include NAS-Identifier if given in configuration options */
-  if (_options.radiusnasid)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-		   (uint8_t*) _options.radiusnasid, strlen(_options.radiusnasid));
-
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*) appconn->s_state.sessionid, REDIR_SESSIONID_LEN-1);
-
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-		 _options.radiusnasporttype, NULL, 0);
-
-
-  if (_options.radiuslocationid)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_ID, 0,
-		   (uint8_t*) _options.radiuslocationid, 
-		   strlen(_options.radiuslocationid));
-
-  if (_options.radiuslocationname)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
-		   (uint8_t*) _options.radiuslocationname, 
-		   strlen(_options.radiuslocationname));
-  
-#ifdef ENABLE_IEEE8021Q
-  if (dhcpconn->tag8021q)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
-		   (uint32_t)(ntohs(dhcpconn->tag8021q) & 0x0FFF), 0, 0);
-#endif
-
   if (_options.dhcpradius && dhcp_pkt) {
     struct dhcp_tag_t *tag = 0;
     struct pkt_udphdr_t *udph = udphdr(dhcp_pkt);
@@ -893,10 +982,11 @@ int static auth_radius(struct app_conn_t *appconn,
 #undef maptag
   }
 
-#ifdef ENABLE_PROXYVSA
-  radius_addvsa(&radius_pack, &appconn->s_state.redir);
-#endif
-  
+  chilli_req_attrs(radius, &radius_pack, 
+		   service_type,
+		   appconn->unit, appconn->hismac,
+		   &appconn->hisip, &appconn->s_state);
+
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
 
@@ -1046,8 +1136,7 @@ int static radius_access_accept(struct app_conn_t *conn) {
 static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 {
   struct radius_packet_t radius_pack;
-  char mac[MACSTRLEN+1];
-  char portid[16+1];
+  uint32_t service_type = 0;
   uint32_t timediff;
 
   if (RADIUS_STATUS_TYPE_START == status_type ||
@@ -1061,23 +1150,23 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
     conn->s_state.input_octets = 0;
     conn->s_state.output_octets = 0;
   }
-
+  
   if (RADIUS_STATUS_TYPE_INTERIM_UPDATE == status_type) {
     conn->s_state.interim_time = mainclock;
   }
-
+  
   if (radius_default_pack(radius, &radius_pack, 
 			  RADIUS_CODE_ACCOUNTING_REQUEST)) {
     log_err(0, "radius_default_pack() failed");
     return -1;
   }
-
+  
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_STATUS_TYPE, 0, 0,
 		 status_type, NULL, 0);
-
+  
   if (RADIUS_STATUS_TYPE_ACCOUNTING_ON != status_type &&
       RADIUS_STATUS_TYPE_ACCOUNTING_OFF != status_type) {
-
+    
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
 		   (uint8_t*) conn->s_state.redir.username, 
 		   strlen(conn->s_state.redir.username));
@@ -1087,12 +1176,11 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 		     conn->s_state.redir.classbuf,
 		     conn->s_state.redir.classlen);
     }
-
+    
     if (conn->is_adminsession) {
-
-      radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
-		     RADIUS_SERVICE_TYPE_ADMIN_USER, NULL, 0); 
-
+  
+      service_type = RADIUS_SERVICE_TYPE_ADMIN_USER;
+    
 #ifdef HAVE_SYS_SYSINFO_H
       {
 	struct sysinfo the_info;
@@ -1111,7 +1199,7 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 	  fav[0]=((float)the_info.loads[0])/shiftfloat;
 	  fav[1]=((float)the_info.loads[1])/shiftfloat;
 	  fav[2]=((float)the_info.loads[2])/shiftfloat;
-
+	  
 	  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 			 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_SYS_UPTIME, 
 			 (uint32_t) the_info.uptime, NULL, 0);
@@ -1134,54 +1222,10 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 	}
       }
 #endif
-
-    } else {
-      snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	       conn->hismac[0], conn->hismac[1],
-	       conn->hismac[2], conn->hismac[3],
-	       conn->hismac[4], conn->hismac[5]);
-      
-      radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
-		     (uint8_t*) mac, MACSTRLEN);
-      
-      radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-		     _options.radiusnasporttype, NULL, 0);
-      
-      radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
-		     conn->unit, NULL, 0);
-
-      snprintf(portid, 16+1, "%.8d", conn->unit);
-      radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_ID, 0, 0, 0,
-		     (uint8_t*) portid, strlen(portid));
-
-      radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,
-		     ntohl(conn->hisip.s_addr), NULL, 0);
-
-#ifdef ENABLE_IEEE8021Q
-      if (conn->s_state.tag8021q)
-	radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		       RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
-		       (uint32_t)(ntohs(conn->s_state.tag8021q) & 0x0FFF), 0, 0);
-#endif
       
     }
-    
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		   (uint8_t*) conn->s_state.sessionid, REDIR_SESSIONID_LEN-1);
-    
   }
-
-  radius_addnasip(radius, &radius_pack);
-
-  radius_addcalledstation(radius, &radius_pack);
-
-
-  /* Include NAS-Identifier if given in configuration options */
-  if (_options.radiusnasid)
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-		   (uint8_t*) _options.radiusnasid, 
-		   strlen(_options.radiusnasid));
-
+  
   /*
   (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_MTU, 0, 0,
   conn->mtu, NULL, 0);*/
@@ -1210,19 +1254,6 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 		   timediff, NULL, 0);  
   }
 
-  if (_options.radiuslocationid)
-    (void) radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_ID, 0,
-		   (uint8_t*) _options.radiuslocationid,
-		   strlen(_options.radiuslocationid));
-
-  if (_options.radiuslocationname)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
-		   (uint8_t*) _options.radiuslocationname, 
-		   strlen(_options.radiuslocationname));
-
-
   if (status_type == RADIUS_STATUS_TYPE_STOP ||
       status_type == RADIUS_STATUS_TYPE_ACCOUNTING_OFF) {
 
@@ -1237,6 +1268,11 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
       }
     }
   }
+
+  chilli_req_attrs(radius, &radius_pack, 
+		   service_type,
+		   conn->unit, conn->hismac,
+		   &conn->hisip, &conn->s_state);
   
   radius_req(radius, &radius_pack, conn);
   
@@ -2013,7 +2049,6 @@ int access_request(struct radius_packet_t *pack,
   char macstr[RADIUS_ATTR_VLEN];
   size_t macstrlen;
   unsigned int temp[PKT_ETH_ALEN];
-  char mac[MACSTRLEN+1];
   int i;
 
   struct app_conn_t *appconn = NULL;
@@ -2122,7 +2157,7 @@ int access_request(struct radius_packet_t *pack,
     log_err(0, "Framed IP address or Calling Station ID is missing from radius request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
-
+  
   /* Silently ignore radius request if allready processing one */
   if (appconn->radiuswait) {
     if (appconn->radiuswait == 2) {
@@ -2134,9 +2169,9 @@ int access_request(struct radius_packet_t *pack,
       return 0;
     }
   }
-
+  
   dhcpconn->lasttime = mainclock_now();
-
+  
   /* Password */
   if (!radius_getattr(pack, &pwdattr, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0)) {
     if (radius_pwdecode(radius, (uint8_t*) pwd, RADIUS_ATTR_VLEN, &pwdlen, 
@@ -2343,6 +2378,7 @@ int access_request(struct radius_packet_t *pack,
 
   /* Build up radius request */
   radius_pack.code = RADIUS_CODE_ACCESS_REQUEST;
+
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
 		 uidattr->v.t, uidattr->l - 2);
 
@@ -2355,7 +2391,7 @@ int access_request(struct radius_packet_t *pack,
   if (pwdattr)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
 		   (uint8_t*) pwd, pwdlen);
-
+  
   /* Include EAP (if present) */
   offset = 0;
   while (offset < resplen) {
@@ -2377,40 +2413,14 @@ int access_request(struct radius_packet_t *pack,
 		     RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
 		     0, (uint8_t*)"allow-wpa-guests", 16);
   }
-
-  /* Include his MAC address */
-  snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	   appconn->hismac[0], appconn->hismac[1],
-	   appconn->hismac[2], appconn->hismac[3],
-	   appconn->hismac[4], appconn->hismac[5]);
   
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
-		 (uint8_t*) mac, MACSTRLEN);
+  chilli_req_attrs(radius, &radius_pack, 
+		   _options.framedservice ? RADIUS_SERVICE_TYPE_FRAMED : 
+		   RADIUS_SERVICE_TYPE_LOGIN,
+		   appconn->unit, appconn->hismac,
+		   &appconn->hisip, &appconn->s_state);
   
-  radius_addcalledstation(radius, &radius_pack);
-  
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-		 _options.radiusnasporttype, NULL, 0);
-  
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
-		 appconn->unit, NULL, 0);
-
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
-		 _options.framedservice ? RADIUS_SERVICE_TYPE_FRAMED :
-		 RADIUS_SERVICE_TYPE_LOGIN, NULL, 0); 
-  
-  radius_addnasip(radius, &radius_pack);
-  
-  /* Include NAS-Identifier if given in configuration options */
-  if (_options.radiusnasid)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-		   (uint8_t*) _options.radiusnasid, strlen(_options.radiusnasid));
-
-#ifdef ENABLE_PROXYVSA
-  radius_addvsa(&radius_pack, &appconn->s_state.redir);
-#endif
-
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+  radius_addattr(radius, pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
 
   radius_pack.id = id;
@@ -4805,7 +4815,7 @@ int chilli_main(int argc, char **argv) {
 	    _options.adminuser, 
 	    sizeof(admin_session.s_state.redir.username));
     set_sessionid(&admin_session);
-    chilliauth_radius(radius);
+    chilli_auth_radius(radius);
   }
   
 
@@ -4891,7 +4901,7 @@ int chilli_main(int argc, char **argv) {
       do_interval = 0;
       
       if (_options.adminuser)
-	chilliauth_radius(radius);
+	chilli_auth_radius(radius);
     }
 
     if (lastSecond != mainclock) {

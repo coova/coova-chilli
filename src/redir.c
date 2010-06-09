@@ -324,10 +324,10 @@ static int bstring_buildurl(bstring str, struct redir_conn_t *conn,
     bconcat(str, bt2);
   }
 
-  if (redir->radiusnasid) {
+  if (_options.radiusnasid) {
     bcatcstr(str, amp);
     bcatcstr(str, "nasid=");
-    bassigncstr(bt, redir->radiusnasid);
+    bassigncstr(bt, _options.radiusnasid);
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   }
@@ -473,8 +473,7 @@ static int redir_xmlreply(struct redir_t *redir,
 			  char* reply, char* redirurl, bstring b) {
   bstring bt;
 
-  if (redir->no_uamwispr && 
-      !(redir->chillixml)) return 0;
+  if (_options.no_uamwispr && !(_options.chillixml)) return 0;
 
   bt = bfromcstr("");
 
@@ -482,7 +481,7 @@ static int redir_xmlreply(struct redir_t *redir,
 	   "<!--\r\n"
 	   "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n");
   
-  if (!redir->no_uamwispr) {
+  if (!_options.no_uamwispr) {
     bcatcstr(b, 
 	     "<WISPAccessGatewayParam\r\n"
 	     "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
@@ -581,13 +580,15 @@ static int redir_xmlreply(struct redir_t *redir,
 	       "<Redirect>\r\n"
 	       "<AccessProcedure>1.0</AccessProcedure>\r\n");
 
-      if (redir->radiuslocationid) {
-	bassignformat(bt, "<AccessLocation>%s</AccessLocation>\r\n", redir->radiuslocationid);
+      if (_options.radiuslocationid) {
+	bassignformat(bt, "<AccessLocation>%s</AccessLocation>\r\n", 
+		      _options.radiuslocationid);
 	bconcat(b, bt);
       }
 
-      if (redir->radiuslocationname) {
-	bassignformat(bt, "<LocationName>%s</LocationName>\r\n", redir->radiuslocationname);
+      if (_options.radiuslocationname) {
+	bassignformat(bt, "<LocationName>%s</LocationName>\r\n", 
+		      _options.radiuslocationname);
 	bconcat(b, bt);
       }
 
@@ -655,7 +656,7 @@ static int redir_xmlreply(struct redir_t *redir,
   }
 
 #ifdef ENABLE_CHILLIXML
-  if (redir->chillixml) {
+  if (_options.chillixml) {
     bcatcstr(b, "<ChilliSpotSession>\r\n");
     switch (res) {
     case REDIR_SPLASH:
@@ -905,10 +906,10 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
 
   if (flg & FLG_loc) {
     bcatcstr(json,",\"location\":{\"name\":\"");
-    if (redir->locationname)
-      bcatcstr(json, redir->locationname);
-    else if (redir->radiuslocationname)
-      bcatcstr(json, redir->radiuslocationname);
+    if (_options.locationname)
+      bcatcstr(json, _options.locationname);
+    else if (_options.radiuslocationname)
+      bcatcstr(json, _options.radiuslocationname);
     bcatcstr(json,"\"");
     bcatcstr(json,"}");
   }
@@ -1201,7 +1202,7 @@ int redir_ipc(struct redir_t *redir) {
       snprintf(filedest, sizeof(filedest), "%s/chilli.ipc", statedir);
     } else {
       if (_options.unixipc[0]=='/')
-        snprintf(filedest, sizeof(filedest), _options.unixipc);
+        snprintf(filedest, sizeof(filedest), "%s", _options.unixipc);
       else
         snprintf(filedest, sizeof(filedest), "%s/%s", statedir, _options.unixipc);
     }
@@ -1286,8 +1287,6 @@ void redir_set(struct redir_t *redir, uint8_t *hwaddr, int debug) {
   optionsdebug = debug; /* TODO: Do not change static variable from instance */
   redir->debug = debug;
 
-  redir->no_uamwispr = _options.no_uamwispr;
-  redir->chillixml = _options.chillixml;
   redir->url = _options.uamurl;
   redir->homepage = _options.uamhomepage;
   redir->secret = _options.uamsecret;
@@ -1295,12 +1294,6 @@ void redir_set(struct redir_t *redir, uint8_t *hwaddr, int debug) {
   redir->vlan = _options.vlan;
   redir->nasmac = _options.nasmac;
   redir->nasip = _options.nasip;
-
-  redir->radiusnasid  = _options.radiusnasid;
-  redir->radiuslocationid  = _options.radiuslocationid;
-  redir->radiuslocationname  = _options.radiuslocationname;
-  redir->locationname  = _options.locationname;
-  redir->radiusnasporttype = _options.radiusnasporttype;
 
   if (hwaddr) {
     memcpy(redir->nas_hwaddr, hwaddr, sizeof(redir->nas_hwaddr));
@@ -1830,7 +1823,6 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   MD5_CTX context;
 
-  char mac[REDIR_MACSTRLEN+1];
   char url[REDIR_URL_LEN];
   int n, m;
 
@@ -1853,27 +1845,16 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST);
 
-#ifdef ENABLE_PROXYVSA
-  radius_addvsa(&radius_pack, &conn->s_state.redir);
-#endif
-  
   log_dbg("created radius packet (code=%d, id=%d, len=%d)\n",
 	  radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
   
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
-		 (uint8_t*) conn->s_state.redir.username, strlen(conn->s_state.redir.username));
-
-  /* If lang on logon url, then send it with attribute ChilliSpot-Lang */
   if(conn->lang[0]) 
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC, 
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_LANG, 
 		   0, (uint8_t*) conn->lang, strlen(conn->lang));
 
-  if (_options.radiusoriginalurl)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC, 
-		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_ORIGINALURL, 
-		   0, (uint8_t*) conn->s_state.redir.userurl, strlen(conn->s_state.redir.userurl));
-
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
+		 (uint8_t*) conn->s_state.redir.username, strlen(conn->s_state.redir.username));
 
   if (redir->secret && *redir->secret) {
     /* fprintf(stderr,"SECRET: [%s]\n",redir->secret); */
@@ -1967,60 +1948,18 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP2_RESPONSE, 0,
 		   response, 50);
   }
-  
-  radius_addnasip(radius, &radius_pack);
-  
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_SERVICE_TYPE, 0, 0,
-		 _options.framedservice ? RADIUS_SERVICE_TYPE_FRAMED :
-		 RADIUS_SERVICE_TYPE_LOGIN, NULL, 0); /* WISPr_V1.0 */
 
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,
-		 ntohl(conn->hisip.s_addr), NULL, 0); /* WISPr_V1.0 */
-
-  /* Include his MAC address */
-  snprintf(mac, REDIR_MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	   conn->hismac[0], conn->hismac[1],
-	   conn->hismac[2], conn->hismac[3],
-	   conn->hismac[4], conn->hismac[5]);
-  
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
-		 (uint8_t*) mac, REDIR_MACSTRLEN);
-
-  radius_addcalledstation(radius, &radius_pack);
-
-
-  if (redir->radiusnasid)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-		   (uint8_t*) redir->radiusnasid, 
-		   strlen(redir->radiusnasid)); /* WISPr_V1.0 */
-
-
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
-		 (uint8_t*) conn->s_state.sessionid, REDIR_SESSIONID_LEN-1);
+  chilli_req_attrs(radius, &radius_pack, 
+		   _options.framedservice ? RADIUS_SERVICE_TYPE_FRAMED : 
+		   RADIUS_SERVICE_TYPE_LOGIN,
+		   conn->nasport, conn->hismac,
+		   &conn->hisip, &conn->s_state);
 
   if (conn->s_state.redir.classlen) {
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
 		   conn->s_state.redir.classbuf,
 		   conn->s_state.redir.classlen);
   }
-
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-		 redir->radiusnasporttype, NULL, 0);
-
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
-		 conn->nasport, NULL, 0);
-  
-  if (redir->radiuslocationid)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_ID, 0,
-		   (uint8_t*) redir->radiuslocationid,
-		   strlen(redir->radiuslocationid));
-
-  if (redir->radiuslocationname)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
-		   (uint8_t*) redir->radiuslocationname, 
-		   strlen(redir->radiuslocationname));
 
   if (snprintf(url, sizeof(url)-1, "http://%s:%d/logoff", 
 	       inet_ntoa(redir->addr), redir->port) > 0)
@@ -2032,13 +1971,6 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
 		   0, (uint8_t*)"allow-openidauth", 16);
-
-#ifdef ENABLE_IEEE8021Q
-  if (conn->s_state.tag8021q)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
-		   (uint32_t)(ntohl(conn->s_state.tag8021q) & 0x0FFF), 0, 0);
-#endif
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);

@@ -105,7 +105,7 @@ int static chilliauth() {
   radius_set(radius, hwaddr, (_options.debug & DEBUG_RADIUS));
   radius_set_cb_auth_conf(radius, chilliauth_cb); 
 
-  ret = chilliauth_radius(radius);
+  ret = chilli_auth_radius(radius);
 
   if (radius->fd <= 0) {
     log_err(0, "not a valid socket!");

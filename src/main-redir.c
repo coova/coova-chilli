@@ -110,7 +110,7 @@ sock_redir_getstate(struct redir_t *redir,
     snprintf(filedest, sizeof(filedest), "%s/chilli.ipc", statedir);
   } else {
     if (_options.unixipc[0]=='/')
-      snprintf(filedest, sizeof(filedest), _options.unixipc);
+      snprintf(filedest, sizeof(filedest), "%s", _options.unixipc);
     else
       snprintf(filedest, sizeof(filedest), "%s/%s", statedir, _options.unixipc);
   }

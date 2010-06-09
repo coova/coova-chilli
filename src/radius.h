@@ -349,6 +349,4 @@ int radius_authresp_authenticator(struct radius_t *this,
 int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack, 
 		    char *secret, int secretlen, uint8_t *dst);
 
-int chilliauth_radius(struct radius_t *radius);
-
 #endif	/* !_RADIUS_H */

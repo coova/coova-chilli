@@ -155,6 +155,16 @@ int printstatus();
 int loadstatus();
 #endif
 
+int chilli_req_attrs(struct radius_t *radius, 
+		     struct radius_packet_t *pack,
+		     uint32_t service_type,
+		     uint32_t port,
+		     uint8_t *hismac,
+		     struct in_addr *hisip,
+		     struct session_state *state);
+
+int chilli_auth_radius(struct radius_t *radius);
+
 void chilli_signals(int *with_term, int *with_hup);
 
 int chilli_binconfig(char *file, size_t flen, pid_t pid);
