@@ -35,8 +35,7 @@ struct app_conn_t *firstfreeconn=0; /* First free in linked list */
 struct app_conn_t *lastfreeconn=0;  /* Last free in linked list */
 struct app_conn_t *firstusedconn=0; /* First used in linked list */
 struct app_conn_t *lastusedconn=0;  /* Last used in linked list */
-
-extern struct app_conn_t admin_session;
+struct app_conn_t admin_session;
 
 time_t mainclock;
 time_t checktime;
@@ -779,13 +778,12 @@ int static maccmp(unsigned char *mac) {
 
 int chilli_req_attrs(struct radius_t *radius, 
 		     struct radius_packet_t *pack,
-		     uint32_t port,
 		     uint32_t service_type,
+		     uint32_t port,
 		     uint8_t *hismac,
 		     struct in_addr *hisip,
 		     struct session_state *state) {
   char mac[MACSTRLEN+1];
-  char portid[16+1];
 
   switch(pack->code) {
   case RADIUS_CODE_ACCESS_REQUEST:
@@ -834,13 +832,17 @@ int chilli_req_attrs(struct radius_t *radius,
   
   radius_addattr(radius, pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
 		 _options.radiusnasporttype, NULL, 0);
-  
-  radius_addattr(radius, pack, RADIUS_ATTR_NAS_PORT, 0, 0,
-		 port, NULL, 0);
-  
-  snprintf(portid, 16+1, "%.8d", port);
-  radius_addattr(radius, pack, RADIUS_ATTR_NAS_PORT_ID, 0, 0, 0,
-		 (uint8_t *) portid, strlen(portid));
+
+  if (port) {
+    char portid[16+1];
+    snprintf(portid, sizeof(portid), "%.8d", port);
+
+    radius_addattr(radius, pack, RADIUS_ATTR_NAS_PORT, 0, 0,
+		   port, NULL, 0);
+    
+    radius_addattr(radius, pack, RADIUS_ATTR_NAS_PORT_ID, 0, 0, 0,
+		   (uint8_t *) portid, strlen(portid));
+  }
   
   /* Include his MAC address */
   if (hismac) {
@@ -880,8 +882,6 @@ int chilli_req_attrs(struct radius_t *radius,
   
   return 0;
 }
-
-struct app_conn_t admin_session;
 
 int chilli_auth_radius(struct radius_t *radius) {
   struct radius_packet_t radius_pack;
