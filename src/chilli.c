@@ -821,6 +821,12 @@ int chilli_req_attrs(struct radius_t *radius,
 		   state->redir.classbuf,
 		   state->redir.classlen);
   }
+
+  if (state->redir.statelen) {
+    radius_addattr(radius, pack, RADIUS_ATTR_STATE, 0, 0, 0,
+		   state->redir.statebuf,
+		   state->redir.statelen);
+  }
   
   if (hisip && hisip->s_addr)
     radius_addattr(radius, pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,
@@ -2420,7 +2426,7 @@ int access_request(struct radius_packet_t *pack,
 		   appconn->unit, appconn->hismac,
 		   &appconn->hisip, &appconn->s_state);
   
-  radius_addattr(radius, pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
 
   radius_pack.id = id;
@@ -3840,7 +3846,6 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct eap_packet_t *eap = eappkt(pack);
   struct app_conn_t *appconn = conn->peer;
   struct radius_packet_t radius_pack;
-  char mac[MACSTRLEN+1];
   size_t offset;
 
   if (_options.debug) log_dbg("EAP Packet received");
@@ -3881,12 +3886,6 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 			(uint8_t*) appconn->s_state.redir.username, 
 			strlen(appconn->s_state.redir.username));
 
-  if (appconn->s_state.redir.statelen) {
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_STATE, 0, 0, 0,
-		   appconn->s_state.redir.statebuf,
-		   appconn->s_state.redir.statelen);
-  }
-  
   /* Include EAP (if present) */
   offset = 0;
   while (offset < len) {
@@ -3903,33 +3902,14 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     offset += eaplen;
   } 
   
-  if (len)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
-		   0, 0, 0, NULL, RADIUS_MD5LEN);
-  
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
-		 _options.radiusnasporttype, NULL, 0);
-  
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_PORT, 0, 0,
-		 appconn->unit, NULL, 0);
-  
-  radius_addnasip(radius, &radius_pack);
+  chilli_req_attrs(radius, &radius_pack, 
+		   _options.framedservice ? RADIUS_SERVICE_TYPE_FRAMED : 
+		   RADIUS_SERVICE_TYPE_LOGIN,
+		   appconn->unit, appconn->hismac,
+		   &appconn->hisip, &appconn->s_state);
 
-  snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	   appconn->hismac[0], appconn->hismac[1],
-	   appconn->hismac[2], appconn->hismac[3],
-	   appconn->hismac[4], appconn->hismac[5]);
-  
-  radius_addattr(radius, &radius_pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
-		 (uint8_t*) mac, MACSTRLEN);
-  
-  radius_addcalledstation(radius, &radius_pack);
-  
-  /* Include NAS-Identifier if given in configuration options */
-  if (_options.radiusnasid)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
-		   (uint8_t*) _options.radiusnasid,
-		   strlen(_options.radiusnasid));
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+		 0, 0, 0, NULL, RADIUS_MD5LEN);
   
   return radius_req(radius, &radius_pack, appconn);
 }

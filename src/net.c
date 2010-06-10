@@ -647,7 +647,8 @@ int net_set_mtu(net_interface *netif, size_t mtu) {
   return 0;
 }
 
-int net_route(struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask, int delete) {
+int net_route(struct in_addr *dst, struct in_addr *gateway, 
+	      struct in_addr *mask, int delete) {
 
   /* TODO: solaris!  */
 
