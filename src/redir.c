@@ -1662,10 +1662,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       }
       else if (!redir_getparam(redir, httpreq->qs, "password", bt)) {
 	conn->password_len = bt->slen / 2;
-	log_dbg("Password length: %d",conn->password_len);
 	if (conn->password_len > RADIUS_PWSIZE)
 	  conn->password_len = RADIUS_PWSIZE;
 	redir_hextochar(bt->data, bt->slen, conn->password, conn->password_len);
+	log_dbg("Password(%d): %.*s",conn->password_len,conn->password_len,conn->password);
 	conn->chap = 0;
 	conn->chappassword[0] = 0;
       } else {
@@ -2527,8 +2527,7 @@ int redir_main(struct redir_t *redir,
 	  return 1;
 	}
       case 0: done = 1;
-      default:
-	break;
+      default: break;
       }
       if (!loop) done = 1;
     }

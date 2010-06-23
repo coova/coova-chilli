@@ -220,6 +220,7 @@ static void set_sessionid(struct app_conn_t *appconn) {
 	   "%.8x%.8x", (int) mainclock_rt(), appconn->unit);
   /*log_dbg("!!!! RESET CLASSLEN !!!!");*/
   appconn->s_state.redir.classlen = 0;
+  appconn->s_state.redir.statelen = 0;
 }
 
 /* Used to write process ID to file. Assume someone else will delete */
@@ -774,7 +775,6 @@ int static maccmp(unsigned char *mac) {
 
   return -1;
 }
-
 
 int chilli_req_attrs(struct radius_t *radius, 
 		     struct radius_packet_t *pack,

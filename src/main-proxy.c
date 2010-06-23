@@ -327,7 +327,6 @@ static int bstring_data(void *ptr, size_t size, size_t nmemb, void *userdata) {
 static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
   int result = -2;
   CURL *curl;
-  CURLcode res;
 
   char *user = 0;
   char *pwd = 0;
@@ -339,14 +338,12 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
   req->radius = radius;
 
   if ((curl = req->curl = curl_easy_init()) != NULL) {
-    struct curl_httppost *formpost=NULL;
-    struct curl_httppost *lastptr=NULL;
-    char error_buffer[CURL_ERROR_SIZE + 1];
+    char error_buffer[CURL_ERROR_SIZE];
 
-    memset(&error_buffer, 0, sizeof(error_buffer));
+    memset(error_buffer, 0, sizeof(error_buffer));
 
     if (req->post) {
-      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, req->post->data);
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, (char *) req->post->data);
     }
 
     if (user && pwd) {
@@ -407,10 +404,10 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
     curl_easy_setopt(curl, CURLOPT_NETRC, 0);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
 
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, bstring_data);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, req->data);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback) bstring_data);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (char *) req->data);
 
-    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, &error_buffer);
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
 
     result = 0;
   }
@@ -465,11 +462,11 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
     req->wbuf = bfromcstr("");
 
   bassignformat(req->wbuf, 
-		"GET %s HTTP/1.1\n"
-		"Host: %s\n"
-		"User-Agent: CoovaChilli " VERSION "\n"
-		"Connection: close\n"
-		"\n",
+		"GET %s HTTP/1.1\r\n"
+		"Host: %s\r\n"
+		"User-Agent: CoovaChilli " VERSION "\r\n"
+		"Connection: close\r\n"
+		"\r\n",
 		req->url->data + uripos, hostname);
 
   if (conn_setup(&req->conn, hostname, port, req->wbuf))
@@ -569,7 +566,8 @@ static void http_aaa_register(int argc, char **argv, int i) {
     }
   }
 
-  redir_md_param(req.url, _options.uamsecret, "&");
+  if (_options.uamsecret && _options.uamsecret[0])
+    redir_md_param(req.url, _options.uamsecret, "&");
 
 #ifdef USING_CURL
   curl_global_init(CURL_GLOBAL_ALL);
@@ -884,7 +882,8 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
   }
 
   if (!error) {
-    redir_md_param(req->url, _options.uamsecret, "&");
+    if (_options.uamsecret && _options.uamsecret[0])
+      redir_md_param(req->url, _options.uamsecret, "&");
     
     log_dbg("==> %s", req->url->data);
     http_aaa(radius, req);

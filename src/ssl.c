@@ -182,7 +182,7 @@ _openssl_env_init(openssl_env *env, char *engine, int server) {
   if (server) {
     env->meth = SSLv23_server_method();
   } else {
-    env->meth = SSLv23_client_method();
+    env->meth = TLSv1_client_method();
   }
   env->ctx = SSL_CTX_new(env->meth);
   SSL_CTX_set_options(env->ctx, SSL_OP_ALL);

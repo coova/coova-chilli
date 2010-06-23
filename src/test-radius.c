@@ -17,15 +17,9 @@
  * 
  */
 
-#include "system.h"
-#include "syserr.h"
-#include "cmdline.h"
-#include "dhcp.h"
-#include "radius.h"
-#include "redir.h"
 #include "chilli.h"
-#include "options.h"
 
+#if(0)
 static int chilliauth_cb(struct radius_t *radius,
 			 struct radius_packet_t *pack,
 			 struct radius_packet_t *pack_req, void *cbp) {
@@ -172,11 +166,41 @@ int static test_radius() {
   radius_free(radius);
   return 0;
 }
+#endif
+
+struct options_t _options;
 
 int main(int argc, char **argv)
 {
-  if (process_options(argc, argv, 1))
-    exit(1);
+  /*  if (process_options(argc, argv, 1))
+      exit(1);*/
+
+  {
+    char *radsecret = "";
+    char *uamsecret = "";
+    char *plain = "hello";
+    char enc[128];
+    char out[128];
+    char authenticator[16] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    size_t enclen;
+    size_t outlen;
+
+    printf("plain = %s\n", plain);
+
+    radius_pwencode(0, enc, sizeof(enc), &enclen,
+		    plain, strlen(plain), 
+		    authenticator, 
+		    radsecret, strlen(radsecret));
+
+    printf("enclen = %d\n", enclen);
+
+    radius_pwdecode(0, out, sizeof(out), &outlen,
+		    enc, enclen,
+		    authenticator, 
+		    radsecret, strlen(radsecret));
+
+    printf("out = (%d)%s\n", outlen, out);
+  }
   
-  return test_radius();
+  /*  return test_radius(); /* */
 }

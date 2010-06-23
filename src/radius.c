@@ -1023,6 +1023,8 @@ int radius_pwdecode(struct radius_t *this,
   MD5_CTX context;
   unsigned char output[RADIUS_MD5LEN];
 
+  log_dbg("pw decode secret=%s", secret);
+
   if (srclen > dstsize) {
     log_err(0, "radius_pwdecode srclen larger than dstsize");
     return -1;
@@ -1036,7 +1038,7 @@ int radius_pwdecode(struct radius_t *this,
   *dstlen = srclen;
 
   /*
-  if (this->debug) {
+  if (_options.debug) {
     printf("pwdecode srclen %d\n", srclen);
     for (n=0; n< srclen; n++) {
       printf("%.2x ", src[n]);
@@ -1048,14 +1050,6 @@ int radius_pwdecode(struct radius_t *this,
     printf("pwdecode authenticator \n");
     for (n=0; n< RADIUS_AUTHLEN; n++) {
       printf("%.2x ", authenticator[n]);
-      if ((n % 16) == 15)
-	printf("\n");
-    }
-    printf("\n");
-
-    printf("pwdecode secret \n");
-    for (n=0; n< secretlen; n++) {
-      printf("%.2x ", secret[n]);
       if ((n % 16) == 15)
 	printf("\n");
     }
@@ -1084,7 +1078,7 @@ int radius_pwdecode(struct radius_t *this,
   }    
 
   /*
-  if (this->debug) {
+  if (_options.debug) {
     printf("pwdecode dest \n");
     for (n=0; n< 32; n++) {
       printf("%.2x ", dst[n]);
@@ -1113,6 +1107,32 @@ int radius_pwencode(struct radius_t *this,
   unsigned char output[RADIUS_MD5LEN];
   MD5_CTX context;
   size_t i, n;
+
+  log_dbg("pw encode secret=%s", secret);
+
+  /*
+  if (_options.debug) {
+    char out[1024];
+    out[0]=0;
+
+    log_dbg("pwencode src %s",src);
+    for (n=0; n< srclen; n++) {
+      sprintf(out + strlen(out), "%.2x ", src[n]);
+      if ((n % 16) == 15)
+	sprintf(out+strlen(out),"\n");
+    }
+    log_dbg("%s", out);
+
+    out[0]=0;
+    log_dbg("pwencode authenticator");
+    for (n=0; n< RADIUS_AUTHLEN; n++) {
+      sprintf(out+strlen(out),"%.2x ", authenticator[n]);
+      if ((n % 16) == 15)
+	sprintf(out+strlen(out),"\n");
+    }
+    log_dbg("%s", out);
+  }
+  */
 
   memset(dst, 0, dstsize);
 
