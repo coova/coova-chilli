@@ -463,11 +463,11 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
 
   bassignformat(req->wbuf, 
 		"GET %s HTTP/1.1\r\n"
-		"Host: %s\r\n"
+		"Host: %s:%d\r\n"
 		"User-Agent: CoovaChilli " VERSION "\r\n"
 		"Connection: close\r\n"
 		"\r\n",
-		req->url->data + uripos, hostname);
+		req->url->data + uripos, hostname, port);
 
   if (conn_setup(&req->conn, hostname, port, req->wbuf))
     return -1;

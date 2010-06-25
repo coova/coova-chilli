@@ -4611,7 +4611,9 @@ int chilli_main(int argc, char **argv) {
     return -1;
   }
 
-  radius_set(radius, dhcp ? dhcp->rawif.hwaddr : 0, (_options.debug & DEBUG_RADIUS));
+  radius_set(radius, dhcp ? dhcp->rawif.hwaddr : 0,
+	     (_options.debug & DEBUG_RADIUS));
+
   radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
   radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
   radius_set_cb_ind(radius, cb_radius_ind);
@@ -4978,16 +4980,18 @@ int chilli_main(int argc, char **argv) {
     kill(rtmon_pid, SIGTERM);
 #endif
   
-#if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC)
-  if (proxy_pid > 0)
-    kill(proxy_pid, SIGTERM);
-#endif
-  
 #ifdef ENABLE_CHILLIREDIR
   if (redir_pid > 0)
     kill(redir_pid, SIGTERM);
 #endif
 
+#if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC)
+  if (proxy_pid > 0) {
+    sleep(1);
+    kill(proxy_pid, SIGTERM);
+  }
+#endif
+  
   { /* clean up run-time files */
     char file[128];
 
