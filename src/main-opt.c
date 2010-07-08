@@ -724,17 +724,17 @@ int main(int argc, char **argv) {
 
   memset(_options.macok, 0, sizeof(_options.macok));
   _options.macoklen = 0;
+
   for (numargs = 0; numargs < args_info.macallowed_given; ++numargs) {
-    if (_options.debug & DEBUG_CONF) {
-      log_dbg("Macallowed #%d: %s\n", numargs, 
-	      args_info.macallowed_arg[numargs]);
-    }
+
     char *p1 = NULL;
     char *p2 = NULL;
     char *p3 = malloc(strlen(args_info.macallowed_arg[numargs])+1);
     int i;
 
     unsigned int mac[6];
+
+    log_dbg("Macallowed #%d: %s", numargs, args_info.macallowed_arg[numargs]);
 
     strcpy(p3, args_info.macallowed_arg[numargs]);
     p1 = p3;
@@ -757,11 +757,9 @@ int main(int argc, char **argv) {
 	}
 	else {
 
-	  if (_options.debug & DEBUG_CONF) {
-	    log_dbg("Macallowed address #%d: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X\n", 
-		   _options.macoklen,
-		   mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-	  }
+	  log_dbg("Macallowed address #%d: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+		  _options.macoklen,
+		  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
 	  for (i = 0; i < 6; i++)
 	    _options.macok[_options.macoklen][i] = (unsigned char) mac[i]; 
@@ -773,7 +771,7 @@ int main(int argc, char **argv) {
       if (p2) {
 	p1 = p2+1;
 	if ((p2 = strchr(p1, ','))) {
-	  *p2 = '\0';
+	  *p2 = 0;
 	}
       }
       else {
