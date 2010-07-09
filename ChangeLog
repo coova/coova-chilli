@@ -1,6 +1,8 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+== ChangeLog (CoovaChilli-v1.2.3 svn revision 3XX) ==
+
 * Allow use of absolute paths for unixipc option
 * Use uamaliashostname for WISPr redirect if possible
 * Bug fix for RADIUS (EAP) proxy
@@ -22,7 +24,7 @@
 * Fixes for RadSec support
 * Fixes for using ''--uid'' and ''--gid''
 * Fixes for anydns
-	
+
 == ChangeLog (CoovaChilli-v1.2.2 svn revision 291) ==
 
 * Added support for RadSec secure (SSL/TLS) RADIUS tunneling

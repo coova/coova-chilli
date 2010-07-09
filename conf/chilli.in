@@ -4,6 +4,16 @@
 #
 # chkconfig: 2345 65 35
 # description: CoovaChilli
+### BEGIN INIT INFO
+# Provides:       chilli
+# Required-Start: network 
+# Should-Start: 
+# Required-Stop:  network
+# Should-Stop: 
+# Default-Start:  2 3 5
+# Default-Stop:
+# Description:    CoovaChilli access controller
+### END INIT INFO
 
 [ -f @SBINDIR@/chilli ] || exit 0
 
@@ -64,8 +74,12 @@ case $1 in
 	}
 	
 	ifconfig $HS_LANIF 0.0.0.0
-        start-stop-daemon -S --pidfile=$pidfile --user=chilli \
-	    @SBINDIR@/chilli -- -c $CONFIG &
+	if [ "$(which start-stop-daemon)" = "" ]; then
+	    @SBINDIR@/chilli -c $CONFIG --pidfile=$pidfile &
+	else
+            start-stop-daemon -S --pidfile=$pidfile --user=chilli \
+		--exec @SBINDIR@/chilli -- -c $CONFIG &
+	fi
         echo
 	;;
     
@@ -90,8 +104,10 @@ case $1 in
 
 	crontab -l 2>&- | grep -v $0 | crontab -
 
-        start-stop-daemon -K --pidfile=$pidfile --user=chilli \
-	    @SBINDIR@/chilli 
+	if [ "$(which start-stop-daemon)" != "" ]; then
+            start-stop-daemon -K --pidfile=$pidfile --user=chilli \
+		@SBINDIR@/chilli 
+	fi
 
         [ -f $pidfile ] && { 
 	    kill $(cat $pidfile)

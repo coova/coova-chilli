@@ -1,16 +1,16 @@
 Summary:   Coova-Chilli is a Wireless LAN Access Point Controller
 Name:      @PACKAGE@
-Version:   1.2.3
+Version:   @VERSION@
 Release:   1
 URL:       http://www.coova.org/
 Source0:   %{name}-%{version}.tar.gz
 License:   GPL
 Group:     System Environment/Daemons
 BuildRoot: %{_tmppath}/%{name}-root
-# has libopenssl-devel name under opensese
-#%if %{!?_without_ssl:1}0
-#BuildRequires: openssl-devel
-#%endif
+
+%if %{!?_without_ssl:1}0
+BuildRequires: openssl-devel
+%endif
 
 %description 
 
@@ -37,6 +37,7 @@ your favorite radius server. Read more at http://www.coova.org/.
 	--with-poll \
 %if %{!?_without_ssl:1}0
 	--with-openssl \
+	--enable-chilliradsec \
 %endif
 
 
@@ -66,7 +67,6 @@ fi
 %defattr(-,root,root)
 %{_sbindir}/*
 %{_libdir}/*.so*
-%exclude %{_libdir}/*.la
 %{_libdir}/python/CoovaChilliLib.py
 %{_sysconfdir}/init.d/chilli
 %doc AUTHORS COPYING ChangeLog INSTALL README doc/dictionary.chillispot doc/hotspotlogin.cgi

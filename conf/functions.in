@@ -153,8 +153,7 @@ writeconfig() {
 	addconfig2 "uamaaaurl \"$HS_UAMAAAURL\""
     }
 
-    HS_MACALLOW=$(echo $HS_MACALLOW|sed 's/ /,/g')
-    HS_MACALLOW=$(echo $HS_MACALLOW|sed 's/[:-]//g')
+    HS_MACALLOW=$(echo "$HS_MACALLOW"|sed 's/ /,/g'|sed 's/,,/,/g'|sed 's/[:-]//g')
     addconfig1 ${HS_MACALLOW:+"macallowed $HS_MACALLOW"}
 
     HS_UAMALLOW=$(echo $HS_UAMALLOW|sed 's/ /,/g')
@@ -162,8 +161,8 @@ writeconfig() {
 
     [ "$HS_WEB_ADMIN" = "http"  ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:80"
     [ "$HS_WEB_ADMIN" = "https" ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:443"
+    [ "$HS_MACAUTHMODE" = "local" ] || [ "$HS_MACALLOWLOCAL" = "on" ] && addconfig1 "macallowlocal"
     [ "$HS_LOCAL" = "on" ] && webadmin="$webadmin,$HS_UAMLISTEN:$HS_LOCAL_PORT"
-    [ "$HS_MACAUTHMODE" = "local" ] && addconfig1 "macallowlocal"
 
     [ "$HS_USELOCALUSERS" = "on" ] && {
 	touch $CHILLI/localusers
