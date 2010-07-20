@@ -1,7 +1,7 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
-== ChangeLog (CoovaChilli-v1.2.3 svn revision 3XX) ==
+== ChangeLog (CoovaChilli-v1.2.3 svn revision 356) ==
 
 * Allow use of absolute paths for unixipc option
 * Use uamaliashostname for WISPr redirect if possible

@@ -548,7 +548,8 @@ int main(int argc, char **argv) {
     
     status = net_select(&sctx);
     
-    if (status > 0) {
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+    if (_options.debug && status > 0) {
       int i;
       log_dbg("epoll %d", status);
       for (i=0; i < status; i++) {
@@ -557,8 +558,7 @@ int main(int argc, char **argv) {
 		sctx.events[i].events);
       }
     }
-    /*
-    */
+#endif
 
     switch (status) {
     case -1:
