@@ -111,7 +111,7 @@ case $1 in
 
         [ -f $pidfile ] && { 
 	    kill $(cat $pidfile)
-	    RETVAL=$
+	    RETVAL=$?
 	    [ $RETVAL = 0 ] && {
 		rm -f $pidfile 2>/dev/null
 	    }
