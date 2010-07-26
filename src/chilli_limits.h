@@ -71,7 +71,7 @@
 #define REDIR_SESSIONID_LEN               17
 
 /* chilli */
-#define EAP_LEN                         2048 /* TODO: Rather large */
+#define MAX_EAP_LEN                     1265 /* Size of buffer to hold EAP message. Can hold 5 EAP attributes, i.e. the max for Radius over UDP */
 #define MACSTRLEN                         17
 #define MS2SUCCSIZE                       40 /* MS-CHAPv2 authenticator response as ASCII */
 #define DATA_LEN                        1500 /* Max we allow */

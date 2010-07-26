@@ -159,14 +159,14 @@ if ($button =~ /^Login$/) {
 	$newchal  = $hexchal;
     }
 
-    if (defined($ntresponse)) {
+    if ($ntresponse == 1) {
 	# Encode plain text into NT-Password 
 
 	$response = `$chilli_response -nt "$challenge" "$uamsecret" "$username" "$password"`;
 
 	$logonUrl = "http://$uamip:$uamport/logon?username=$username&ntresponse=$response";
 
-    } elsif (defined($userpassword)) {
+    } elsif ($userpassword == 1) {
 	# Encode plain text password with challenge 
 	# (which may or may not be uamsecret encoded)
 

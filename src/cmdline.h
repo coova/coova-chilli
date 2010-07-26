@@ -282,8 +282,10 @@ struct gengetopt_args_info
   const char *wisprlogin_help; /**< @brief A specific WISPr login url to be used help description.  */
   int nouamsuccess_flag;	/**< @brief Do not return to the UAM server on success, original url instead (default=off).  */
   const char *nouamsuccess_help; /**< @brief Do not return to the UAM server on success, original url instead help description.  */
-  int nouamwispr_flag;	/**< @brief Do not send WISPr XML from ChilliSpot, assume back-end does (default=off).  */
-  const char *nouamwispr_help; /**< @brief Do not send WISPr XML from ChilliSpot, assume back-end does help description.  */
+  int nowispr1_flag;	/**< @brief Do not offer WISPr 1.0 XML (default=off).  */
+  const char *nowispr1_help; /**< @brief Do not offer WISPr 1.0 XML help description.  */
+  int nowispr2_flag;	/**< @brief Do not offer WISPr 2.0 XML (default=off).  */
+  const char *nowispr2_help; /**< @brief Do not offer WISPr 2.0 XML help description.  */
   char * uamlogoutip_arg;	/**< @brief HTTP Auto-Logout IP Address (default='1.0.0.0').  */
   char * uamlogoutip_orig;	/**< @brief HTTP Auto-Logout IP Address original value given at command line.  */
   const char *uamlogoutip_help; /**< @brief HTTP Auto-Logout IP Address help description.  */
@@ -558,7 +560,8 @@ struct gengetopt_args_info
   unsigned int uamnatanyip_given ;	/**< @brief Whether uamnatanyip was given.  */
   unsigned int wisprlogin_given ;	/**< @brief Whether wisprlogin was given.  */
   unsigned int nouamsuccess_given ;	/**< @brief Whether nouamsuccess was given.  */
-  unsigned int nouamwispr_given ;	/**< @brief Whether nouamwispr was given.  */
+  unsigned int nowispr1_given ;	/**< @brief Whether nowispr1 was given.  */
+  unsigned int nowispr2_given ;	/**< @brief Whether nowispr2 was given.  */
   unsigned int uamlogoutip_given ;	/**< @brief Whether uamlogoutip was given.  */
   unsigned int uamaliasip_given ;	/**< @brief Whether uamaliasip was given.  */
   unsigned int uamaliasname_given ;	/**< @brief Whether uamaliasname was given.  */

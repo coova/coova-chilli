@@ -438,6 +438,7 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("FILTER_ID", VAL_STRING, appconn->s_params.filteridbuf, 0);
   set_env("STATE", VAL_STRING, appconn->s_state.redir.statebuf, appconn->s_state.redir.statelen);
   set_env("CLASS", VAL_STRING, appconn->s_state.redir.classbuf, appconn->s_state.redir.classlen);
+  set_env("CUI", VAL_STRING, appconn->s_state.redir.cuibuf, appconn->s_state.redir.cuilen);
   set_env("SESSION_TIMEOUT", VAL_ULONG64, &appconn->s_params.sessiontimeout, 0);
   set_env("IDLE_TIMEOUT", VAL_ULONG, &appconn->s_params.idletimeout, 0);
   set_env("CALLING_STATION_ID", VAL_MAC_ADDR, appconn->hismac, 0);
@@ -818,6 +819,12 @@ int chilli_req_attrs(struct radius_t *radius,
     radius_addattr(radius, pack, RADIUS_ATTR_CLASS, 0, 0, 0,
 		   state->redir.classbuf,
 		   state->redir.classlen);
+  }
+
+  if (state->redir.cuilen > 1) {
+    radius_addattr(radius, pack, RADIUS_ATTR_CHARGEABLE_USER_IDENTITY, 0, 0, 0,
+		   state->redir.cuibuf,
+		   state->redir.cuilen);
   }
 
   if (state->redir.statelen) {
@@ -2060,7 +2067,7 @@ int access_request(struct radius_packet_t *pack,
   struct app_conn_t *appconn = NULL;
   struct dhcp_conn_t *dhcpconn = NULL;
 
-  uint8_t resp[EAP_LEN];         /* EAP response */
+  uint8_t resp[MAX_EAP_LEN];     /* EAP response */
   size_t resplen;                /* Length of EAP response */
 
   size_t offset = 0;
@@ -2196,7 +2203,7 @@ int access_request(struct radius_packet_t *pack,
     eapattr=NULL;
     if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
 			instance++)) {
-      if ((resplen + (size_t)eapattr->l-2) > EAP_LEN) {
+      if ((resplen + (size_t)eapattr->l-2) > MAX_EAP_LEN) {
 	log(LOG_INFO, "EAP message too long");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
@@ -2297,7 +2304,7 @@ int access_request(struct radius_packet_t *pack,
 
   /* Passwd or EAP must be given in request */
   if ((!pwdattr) && (!resplen)) {
-    log_err(0, "Password or EAP meaasge is missing from radius request");
+    log_err(0, "Password or EAP message is missing from radius request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
 
@@ -2993,7 +3000,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     do {
       eapattr=NULL;
       if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, instance++)) {
-	if ((appconn->challen + eapattr->l-2) > EAP_LEN) {
+	if ((appconn->challen + eapattr->l-2) > MAX_EAP_LEN) {
 	  log(LOG_INFO, "EAP message too long");
 	  return dnprot_reject(appconn);
 	}
@@ -3079,7 +3086,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     eapattr=NULL;
     if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
 			instance++)) {
-      if ((appconn->challen + eapattr->l-2) > EAP_LEN) {
+      if ((appconn->challen + eapattr->l-2) > MAX_EAP_LEN) {
 	log(LOG_INFO, "EAP message too long");
 	return dnprot_reject(appconn);
       }

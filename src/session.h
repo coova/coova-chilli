@@ -59,11 +59,23 @@ struct redir_state {
 
   uint8_t uamchal[REDIR_MD5LEN];
 
+  /* To store the RADIUS CLASS attribute received in the Access Accept */
   uint8_t classbuf[RADIUS_ATTR_VLEN];
   size_t classlen;
 
+  /* To store the RADIUS CUI attribute received in the Access Accept */
+  uint8_t cuibuf[RADIUS_ATTR_VLEN];
+  size_t cuilen;
+  
+  /* To store the RADIUS STATE attribute between Radius requests */
   uint8_t statebuf[RADIUS_ATTR_VLEN];
-  unsigned char statelen;
+  uint8_t statelen;
+
+  /*  EAP identity of the last request sent */
+  uint8_t eap_identity;
+
+  /* UAM protocol used */
+  uint8_t uamprotocol;
 
 #ifdef ENABLE_PROXYVSA
 #define RADIUS_PROXYVSA 128

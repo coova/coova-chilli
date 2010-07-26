@@ -116,7 +116,8 @@ const char *gengetopt_args_info_help[] = {
   "      --uamnatanyip             Source NAT clients using anyip to an IP of \n                                  dynip pool  (default=off)",
   "      --wisprlogin=STRING       A specific WISPr login url to be used",
   "      --nouamsuccess            Do not return to the UAM server on success, \n                                  original url instead  (default=off)",
-  "      --nouamwispr              Do not send WISPr XML from ChilliSpot, assume \n                                  back-end does  (default=off)",
+  "      --nowispr1                Do not offer WISPr 1.0 XML  (default=off)",
+  "      --nowispr2                Do not offer WISPr 2.0 XML  (default=off)",
   "      --uamlogoutip=STRING      HTTP Auto-Logout IP Address  \n                                  (default=`1.0.0.0')",
   "      --uamaliasip=STRING       Special IP Address aliased (redirect) to \n                                  uamlisten/uamport  (default=`1.0.0.1')",
   "      --uamaliasname=STRING     Special simple hostname (no dots) to be \n                                  resolved to uamaliasip",
@@ -323,7 +324,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamnatanyip_given = 0 ;
   args_info->wisprlogin_given = 0 ;
   args_info->nouamsuccess_given = 0 ;
-  args_info->nouamwispr_given = 0 ;
+  args_info->nowispr1_given = 0 ;
+  args_info->nowispr2_given = 0 ;
   args_info->uamlogoutip_given = 0 ;
   args_info->uamaliasip_given = 0 ;
   args_info->uamaliasname_given = 0 ;
@@ -549,7 +551,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->wisprlogin_arg = NULL;
   args_info->wisprlogin_orig = NULL;
   args_info->nouamsuccess_flag = 0;
-  args_info->nouamwispr_flag = 0;
+  args_info->nowispr1_flag = 0;
+  args_info->nowispr2_flag = 0;
   args_info->uamlogoutip_arg = gengetopt_strdup ("1.0.0.0");
   args_info->uamlogoutip_orig = NULL;
   args_info->uamaliasip_arg = gengetopt_strdup ("1.0.0.1");
@@ -767,79 +770,80 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->uamnatanyip_help = gengetopt_args_info_help[81] ;
   args_info->wisprlogin_help = gengetopt_args_info_help[82] ;
   args_info->nouamsuccess_help = gengetopt_args_info_help[83] ;
-  args_info->nouamwispr_help = gengetopt_args_info_help[84] ;
-  args_info->uamlogoutip_help = gengetopt_args_info_help[85] ;
-  args_info->uamaliasip_help = gengetopt_args_info_help[86] ;
-  args_info->uamaliasname_help = gengetopt_args_info_help[87] ;
-  args_info->uamhostname_help = gengetopt_args_info_help[88] ;
-  args_info->uamaaaurl_help = gengetopt_args_info_help[89] ;
-  args_info->domaindnslocal_help = gengetopt_args_info_help[90] ;
-  args_info->radsec_help = gengetopt_args_info_help[91] ;
-  args_info->defsessiontimeout_help = gengetopt_args_info_help[92] ;
-  args_info->defidletimeout_help = gengetopt_args_info_help[93] ;
-  args_info->defbandwidthmaxdown_help = gengetopt_args_info_help[94] ;
-  args_info->defbandwidthmaxup_help = gengetopt_args_info_help[95] ;
-  args_info->definteriminterval_help = gengetopt_args_info_help[96] ;
-  args_info->bwbucketupsize_help = gengetopt_args_info_help[97] ;
-  args_info->bwbucketdnsize_help = gengetopt_args_info_help[98] ;
-  args_info->bwbucketminsize_help = gengetopt_args_info_help[99] ;
-  args_info->macauth_help = gengetopt_args_info_help[100] ;
-  args_info->macreauth_help = gengetopt_args_info_help[101] ;
-  args_info->macauthdeny_help = gengetopt_args_info_help[102] ;
-  args_info->macallowed_help = gengetopt_args_info_help[103] ;
+  args_info->nowispr1_help = gengetopt_args_info_help[84] ;
+  args_info->nowispr2_help = gengetopt_args_info_help[85] ;
+  args_info->uamlogoutip_help = gengetopt_args_info_help[86] ;
+  args_info->uamaliasip_help = gengetopt_args_info_help[87] ;
+  args_info->uamaliasname_help = gengetopt_args_info_help[88] ;
+  args_info->uamhostname_help = gengetopt_args_info_help[89] ;
+  args_info->uamaaaurl_help = gengetopt_args_info_help[90] ;
+  args_info->domaindnslocal_help = gengetopt_args_info_help[91] ;
+  args_info->radsec_help = gengetopt_args_info_help[92] ;
+  args_info->defsessiontimeout_help = gengetopt_args_info_help[93] ;
+  args_info->defidletimeout_help = gengetopt_args_info_help[94] ;
+  args_info->defbandwidthmaxdown_help = gengetopt_args_info_help[95] ;
+  args_info->defbandwidthmaxup_help = gengetopt_args_info_help[96] ;
+  args_info->definteriminterval_help = gengetopt_args_info_help[97] ;
+  args_info->bwbucketupsize_help = gengetopt_args_info_help[98] ;
+  args_info->bwbucketdnsize_help = gengetopt_args_info_help[99] ;
+  args_info->bwbucketminsize_help = gengetopt_args_info_help[100] ;
+  args_info->macauth_help = gengetopt_args_info_help[101] ;
+  args_info->macreauth_help = gengetopt_args_info_help[102] ;
+  args_info->macauthdeny_help = gengetopt_args_info_help[103] ;
+  args_info->macallowed_help = gengetopt_args_info_help[104] ;
   args_info->macallowed_min = 0;
   args_info->macallowed_max = 0;
-  args_info->macsuffix_help = gengetopt_args_info_help[104] ;
-  args_info->macpasswd_help = gengetopt_args_info_help[105] ;
-  args_info->macallowlocal_help = gengetopt_args_info_help[106] ;
-  args_info->strictmacauth_help = gengetopt_args_info_help[107] ;
-  args_info->wwwdir_help = gengetopt_args_info_help[108] ;
-  args_info->wwwbin_help = gengetopt_args_info_help[109] ;
-  args_info->uamui_help = gengetopt_args_info_help[110] ;
-  args_info->adminuser_help = gengetopt_args_info_help[111] ;
-  args_info->adminpasswd_help = gengetopt_args_info_help[112] ;
-  args_info->adminupdatefile_help = gengetopt_args_info_help[113] ;
-  args_info->rtmonfile_help = gengetopt_args_info_help[114] ;
-  args_info->ethers_help = gengetopt_args_info_help[115] ;
-  args_info->nasmac_help = gengetopt_args_info_help[116] ;
-  args_info->nasip_help = gengetopt_args_info_help[117] ;
-  args_info->ssid_help = gengetopt_args_info_help[118] ;
-  args_info->vlan_help = gengetopt_args_info_help[119] ;
-  args_info->ieee8021q_help = gengetopt_args_info_help[120] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[121] ;
-  args_info->radiusoriginalurl_help = gengetopt_args_info_help[122] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[123] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[124] ;
-  args_info->localusers_help = gengetopt_args_info_help[125] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[126] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[127] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[128] ;
-  args_info->openidauth_help = gengetopt_args_info_help[129] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[130] ;
-  args_info->mschapv2_help = gengetopt_args_info_help[131] ;
-  args_info->chillixml_help = gengetopt_args_info_help[132] ;
-  args_info->acctupdate_help = gengetopt_args_info_help[133] ;
-  args_info->dnsparanoia_help = gengetopt_args_info_help[134] ;
-  args_info->seskeepalive_help = gengetopt_args_info_help[135] ;
-  args_info->usetap_help = gengetopt_args_info_help[136] ;
-  args_info->routeif_help = gengetopt_args_info_help[137] ;
-  args_info->framedservice_help = gengetopt_args_info_help[138] ;
-  args_info->tcpwin_help = gengetopt_args_info_help[139] ;
-  args_info->tcpmss_help = gengetopt_args_info_help[140] ;
-  args_info->maxclients_help = gengetopt_args_info_help[141] ;
-  args_info->challengetimeout_help = gengetopt_args_info_help[142] ;
-  args_info->challengetimeout2_help = gengetopt_args_info_help[143] ;
-  args_info->sslkeyfile_help = gengetopt_args_info_help[144] ;
-  args_info->sslkeypass_help = gengetopt_args_info_help[145] ;
-  args_info->sslcertfile_help = gengetopt_args_info_help[146] ;
-  args_info->sslcafile_help = gengetopt_args_info_help[147] ;
-  args_info->unixipc_help = gengetopt_args_info_help[148] ;
-  args_info->uamallowpost_help = gengetopt_args_info_help[149] ;
-  args_info->natip_help = gengetopt_args_info_help[150] ;
-  args_info->natport_help = gengetopt_args_info_help[151] ;
-  args_info->redirssl_help = gengetopt_args_info_help[152] ;
-  args_info->uamuissl_help = gengetopt_args_info_help[153] ;
-  args_info->kname_help = gengetopt_args_info_help[154] ;
+  args_info->macsuffix_help = gengetopt_args_info_help[105] ;
+  args_info->macpasswd_help = gengetopt_args_info_help[106] ;
+  args_info->macallowlocal_help = gengetopt_args_info_help[107] ;
+  args_info->strictmacauth_help = gengetopt_args_info_help[108] ;
+  args_info->wwwdir_help = gengetopt_args_info_help[109] ;
+  args_info->wwwbin_help = gengetopt_args_info_help[110] ;
+  args_info->uamui_help = gengetopt_args_info_help[111] ;
+  args_info->adminuser_help = gengetopt_args_info_help[112] ;
+  args_info->adminpasswd_help = gengetopt_args_info_help[113] ;
+  args_info->adminupdatefile_help = gengetopt_args_info_help[114] ;
+  args_info->rtmonfile_help = gengetopt_args_info_help[115] ;
+  args_info->ethers_help = gengetopt_args_info_help[116] ;
+  args_info->nasmac_help = gengetopt_args_info_help[117] ;
+  args_info->nasip_help = gengetopt_args_info_help[118] ;
+  args_info->ssid_help = gengetopt_args_info_help[119] ;
+  args_info->vlan_help = gengetopt_args_info_help[120] ;
+  args_info->ieee8021q_help = gengetopt_args_info_help[121] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[122] ;
+  args_info->radiusoriginalurl_help = gengetopt_args_info_help[123] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[124] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[125] ;
+  args_info->localusers_help = gengetopt_args_info_help[126] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[127] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[128] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[129] ;
+  args_info->openidauth_help = gengetopt_args_info_help[130] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[131] ;
+  args_info->mschapv2_help = gengetopt_args_info_help[132] ;
+  args_info->chillixml_help = gengetopt_args_info_help[133] ;
+  args_info->acctupdate_help = gengetopt_args_info_help[134] ;
+  args_info->dnsparanoia_help = gengetopt_args_info_help[135] ;
+  args_info->seskeepalive_help = gengetopt_args_info_help[136] ;
+  args_info->usetap_help = gengetopt_args_info_help[137] ;
+  args_info->routeif_help = gengetopt_args_info_help[138] ;
+  args_info->framedservice_help = gengetopt_args_info_help[139] ;
+  args_info->tcpwin_help = gengetopt_args_info_help[140] ;
+  args_info->tcpmss_help = gengetopt_args_info_help[141] ;
+  args_info->maxclients_help = gengetopt_args_info_help[142] ;
+  args_info->challengetimeout_help = gengetopt_args_info_help[143] ;
+  args_info->challengetimeout2_help = gengetopt_args_info_help[144] ;
+  args_info->sslkeyfile_help = gengetopt_args_info_help[145] ;
+  args_info->sslkeypass_help = gengetopt_args_info_help[146] ;
+  args_info->sslcertfile_help = gengetopt_args_info_help[147] ;
+  args_info->sslcafile_help = gengetopt_args_info_help[148] ;
+  args_info->unixipc_help = gengetopt_args_info_help[149] ;
+  args_info->uamallowpost_help = gengetopt_args_info_help[150] ;
+  args_info->natip_help = gengetopt_args_info_help[151] ;
+  args_info->natport_help = gengetopt_args_info_help[152] ;
+  args_info->redirssl_help = gengetopt_args_info_help[153] ;
+  args_info->uamuissl_help = gengetopt_args_info_help[154] ;
+  args_info->kname_help = gengetopt_args_info_help[155] ;
   
 }
 
@@ -1351,8 +1355,10 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "wisprlogin", args_info->wisprlogin_orig, 0);
   if (args_info->nouamsuccess_given)
     write_into_file(outfile, "nouamsuccess", 0, 0 );
-  if (args_info->nouamwispr_given)
-    write_into_file(outfile, "nouamwispr", 0, 0 );
+  if (args_info->nowispr1_given)
+    write_into_file(outfile, "nowispr1", 0, 0 );
+  if (args_info->nowispr2_given)
+    write_into_file(outfile, "nowispr2", 0, 0 );
   if (args_info->uamlogoutip_given)
     write_into_file(outfile, "uamlogoutip", args_info->uamlogoutip_orig, 0);
   if (args_info->uamaliasip_given)
@@ -2151,7 +2157,8 @@ cmdline_parser_internal (
         { "uamnatanyip",	0, NULL, 0 },
         { "wisprlogin",	1, NULL, 0 },
         { "nouamsuccess",	0, NULL, 0 },
-        { "nouamwispr",	0, NULL, 0 },
+        { "nowispr1",	0, NULL, 0 },
+        { "nowispr2",	0, NULL, 0 },
         { "uamlogoutip",	1, NULL, 0 },
         { "uamaliasip",	1, NULL, 0 },
         { "uamaliasname",	1, NULL, 0 },
@@ -3355,14 +3362,26 @@ cmdline_parser_internal (
               goto failure;
           
           }
-          /* Do not send WISPr XML from ChilliSpot, assume back-end does.  */
-          else if (strcmp (long_options[option_index].name, "nouamwispr") == 0)
+          /* Do not offer WISPr 1.0 XML.  */
+          else if (strcmp (long_options[option_index].name, "nowispr1") == 0)
           {
           
           
-            if (update_arg((void *)&(args_info->nouamwispr_flag), 0, &(args_info->nouamwispr_given),
-                &(local_args_info.nouamwispr_given), optarg, 0, 0, ARG_FLAG,
-                check_ambiguity, override, 1, 0, "nouamwispr", '-',
+            if (update_arg((void *)&(args_info->nowispr1_flag), 0, &(args_info->nowispr1_given),
+                &(local_args_info.nowispr1_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "nowispr1", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Do not offer WISPr 2.0 XML.  */
+          else if (strcmp (long_options[option_index].name, "nowispr2") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->nowispr2_flag), 0, &(args_info->nowispr2_given),
+                &(local_args_info.nowispr2_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "nowispr2", '-',
                 additional_error))
               goto failure;
           

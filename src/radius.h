@@ -118,6 +118,7 @@
 #define RADIUS_ATTR_ACCT_INTERIM_INTERVAL    85     /* integer */
 #define RADIUS_ATTR_NAS_PORT_ID              87     /* string */
 #define RADIUS_ATTR_FRAMED_POOL              88     /* string */
+#define RADIUS_ATTR_CHARGEABLE_USER_IDENTITY 89     /* string */
 #define RADIUS_ATTR_NAS_IPV6_ADDRESS         95     /* octets (IPv6) */
 #define RADIUS_ATTR_FRAMED_INTERFACE_ID      96     /* octets # 8 octets */
 #define RADIUS_ATTR_FRAMED_IPV6_PREFIX       97     /* octets ??? */

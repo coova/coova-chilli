@@ -95,7 +95,7 @@ struct app_conn_t {
   /* Radius authentication stuff */
   /* Parameters are initialised whenever a reply to an access request
      is received. */
-  uint8_t chal[EAP_LEN];         /* EAP challenge */
+  uint8_t chal[MAX_EAP_LEN];     /* EAP challenge */
   size_t challen;                /* Length of EAP challenge */
   uint8_t sendkey[RADIUS_ATTR_VLEN];
   uint8_t recvkey[RADIUS_ATTR_VLEN];

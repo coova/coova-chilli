@@ -279,6 +279,9 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
   
 #if(_debug_)
   if (_options.debug) {
+    log_dbg("sending radius packet (code=%d, id=%d, len=%d)\n",
+	    pack->code, pack->id, ntohs(pack->length));
+
     radius_printqueue(this);
   }
 #endif
@@ -884,6 +887,15 @@ radius_cmpattr(struct radius_attr_t *t1, struct radius_attr_t *t2) {
 /*
  * radius_keydecode()
  * Decode an MPPE key using MD5.
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |  Vendor-Type  | Vendor-Length |             Salt
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+                               String...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   *src points to the first byte of "Salt".
  */
 int radius_keydecode(struct radius_t *this, 
 		     uint8_t *dst, size_t dstsize, size_t *dstlen, 
@@ -895,15 +907,15 @@ int radius_keydecode(struct radius_t *this,
   int blocks;
   int i, n;
 
+  if (srclen < 18) {
+    log_err(0, "radius_keydecode MPPE attribute content len must be at least 18, len = %d", srclen);
+    return -1;
+  }
+ 
   blocks = ((int)srclen - 2) / RADIUS_MD5LEN;
 
   if ((blocks * RADIUS_MD5LEN + 2) != (int)srclen) {
     log_err(0, "radius_keydecode: srclen must be 2 plus n*16");
-    return -1;
-  }
-
-  if (blocks < 1) {
-    log_err(0, "radius_keydecode srclen must be at least 18");
     return -1;
   }
 
@@ -914,20 +926,20 @@ int radius_keydecode(struct radius_t *this,
   MD5Update(&context, src, 2);
   MD5Final(b, &context);
 
-  if ((src[2] ^ b[0]) > dstsize) {
-    log_err(0,"radius_keydecode dstsize too small (%d > %d)",
-	    (src[2] ^ b[0]), dstlen);
-    return -1; 
-  }
-
-  if ((src[2] ^ b[0]) > (srclen - 2)) {
-    log_err(0,"radius_keydecode dstlen (%d) > srclen - 2 (%d)", 
-	    (src[2] ^ b[0]), (srclen - 2));
-    return -1; 
-  }
-
+  /* First byte of the plainstring is the length of the key */
   *dstlen = (size_t)(src[2] ^ b[0]);
+  
+  if (*dstlen > (srclen - 3)) {
+    log_err(0,"radius_keydecode not enough encrypted data bytes for indicated key length = %d (bytes)", *dstlen);
+    return -1; 
+  }
 
+  if (*dstlen > dstsize) {
+    log_err(0,"radius_keydecode output buffer for plaintext key is too small");
+    return -1; 
+  }
+
+  /* Note: first byte is used for len, only 15 bytes of key */
   for (i = 1; i < RADIUS_MD5LEN; i++) {
     if ((i-1) < (int)*dstlen) {
       dst[i-1] = src[i+2] ^ b[i];

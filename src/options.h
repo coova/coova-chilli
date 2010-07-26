@@ -153,7 +153,8 @@ struct options_t {
   uint8_t uamanyip:1;               /* Allow any ip address */
   uint8_t uamnatanyip:1;            /* Provide NAT for Any IP clients */
   uint8_t dnsparanoia:1;            /* Filter DNS for questionable content (dns tunnels) */
-  uint8_t no_uamwispr:1;            /* Do not have ChilliSpot return WISPr blocks */
+  uint8_t no_wispr1:1;              /* Do not offer WISPr 1.0 XML */
+  uint8_t no_wispr2:1;              /* Do not offer WISPr 2.0 XML */
   uint8_t acct_update:1;            /* Allow for session parameter updates in accounting response */
   uint8_t wpaguests:1;              /* Allow WPS "Guest" access */
   uint8_t openidauth:1;             /* Allow OpenID authentication */

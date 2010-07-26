@@ -1,6 +1,18 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+* Integrated changes from Comfone AG
+** Implemented support for WISPr 2.0 username/password and EAP
+** Implemented support for Radius CUI
+** Fixed missing WISPr 1.0 reply on Radius timeout
+** Clean-up of some redir.c debugging messages
+** Removed NO_UAMWISPR configuration parameter
+** Added NO_WISPR2 configuration parameter. Added NO_WISPR1 configuration parameter
+** Allow multiple concurrent UAM login methods
+** Added support Radius State attribute
+** Changes made by Laurent Frelechoux (Comfone AG)
+* Segfault bug fix in ''chilli_radconfig''
+
 == ChangeLog (CoovaChilli-v1.2.3 svn revision 356) ==
 
 * Allow use of absolute paths for unixipc option

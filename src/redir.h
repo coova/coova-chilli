@@ -32,26 +32,49 @@
 #define REDIR_TERM_RADIUS     4  /* Calling radius */
 #define REDIR_TERM_REPLY      5  /* Sending response to client */
 
+#define REDIR_INIT            0  /* Initial trigger URL */
 #define REDIR_LOGIN           1
 #define REDIR_PRELOGIN        2
 #define REDIR_LOGOUT          3
-#define REDIR_CHALLENGE       4
+#define REDIR_LOGIN_CONTINUE  4  /* Used to respond to challenges */
 #define REDIR_ABORT           5
 #define REDIR_ABOUT           6
 #define REDIR_STATUS          7
 #define REDIR_SPLASH          8
 #define REDIR_MACREAUTH       9
+#define REDIR_REQERROR       10  /* Used internally when the HTTP request parsing created an error */
+
 #define REDIR_WWW            20
 #define REDIR_MSDOWNLOAD     25
 #define REDIR_ADMIN_CONN     30
+
+/* Code used to build the XML response (or other) to be sent to the client software */
 #define REDIR_ALREADY        50 /* Reply to /logon while allready logged on */
 #define REDIR_FAILED_REJECT  51 /* Reply to /logon if authentication reject */
-#define REDIR_FAILED_OTHER   52 /* Reply to /logon if authentication timeout */
+#define REDIR_FAILED_OTHER   52 /* Reply to /logon if other error */
 #define REDIR_SUCCESS        53 /* Reply to /logon if authentication successful */
-#define REDIR_LOGOFF         54 /* Reply to /logff */
+#define REDIR_LOGOFF         54 /* Reply to /logoff */
 #define REDIR_NOTYET         55 /* Reply to /prelogin or any GET request */
-#define REDIR_ABORT_ACK      56 /* Reply to /abortlogin */
-#define REDIR_ABORT_NAK      57 /* Reply to /abortlogin */
+#define REDIR_ABORT_ACK      56 /* Reply to /abortlogin - abort succeeded */
+#define REDIR_ABORT_NAK      57 /* Reply to /abortlogin - abort failed (session already open) */
+#define REDIR_FAILED_TIMEOUT 58 /* Reply to /logon - no Radius Reply */
+#define REDIR_FAILED_MTU     59 /* Reply to /logon - authentication MTU is too big to send in a Radius packet */
+#define REDIR_FAILED_NOROUTE 60 /* Reply to /logon - no route for NAI */
+#define REDIR_ERROR_PROTOCOL 61 /* Reply to /logon - the client software is not matching the protocol (e.g. WISPr 1.0 or WISPr 2.0) */
+#define REDIR_CHALLENGE      62 /* Reply to /logon - if Radius challenge received in EAP authentication */
+
+/* If more than one format flag is set, it indicates that Coova advertises several
+   protocols that can be used by the client. Once the client has choosen which protocol
+   to use, a single flag is set for the rest of the communication */
+#define REDIR_UAMPROT_WISPR1      1  /* Client and Coova use WISPr 1.0, WiFi Alliance to communicate */
+#define REDIR_UAMPROT_WISPR2      2  /* Client and Coova use WISPr 2.0, Wireless Broadband Alliance to communicate */
+#define REDIR_UAMPROT_CHILLI      4  /* Client and Coova use the proprietary XML Chilli protocol to communicate */
+
+#define REDIR_AUTH_NONE       0
+#define REDIR_AUTH_PAP        1
+#define REDIR_AUTH_CHAP       2
+#define REDIR_AUTH_MSCHAPv2   3
+#define REDIR_AUTH_EAP        4
 
 #define REDIR_FMT_DEFAULT     0
 #define REDIR_FMT_JSON        1
@@ -60,6 +83,30 @@
 #define REDIR_MSG_OPT_REDIR   1
 #define REDIR_MSG_OPT_PARAMS  2
 #define REDIR_MSG_NSESSIONID  4
+
+struct eapmsg_t {
+  uint8_t len;
+  uint8_t data[MAX_EAP_LEN];
+};
+
+struct chapmsg_t {
+  uint8_t identity;
+  uint8_t password[RADIUS_CHAPSIZE];
+};
+
+struct papmsg_t {
+  uint8_t len;
+  uint8_t password[RADIUS_PWSIZE];
+};
+
+struct authdata_t {
+  uint8_t type;
+  union {
+    struct papmsg_t  papmsg;
+    struct chapmsg_t chapmsg;
+    struct eapmsg_t  eapmsg;
+  } v; 
+};
 
 struct redir_conn_t {
   /* 
@@ -73,14 +120,10 @@ struct redir_conn_t {
   char wwwfile[REDIR_USERNAMESIZE];    /* File request, i.e. PATH_INFO */
 
   /*
-   *  Authentication state information
+   *  Authentication data information
    */
-  int chap; /* 0 if using normal password; 1 if using CHAP */
+  struct authdata_t  authdata;  /* Contains the data for the authentication, password, EAP msg, etc ... */
   int response; /* 0: No radius response yet; 1:Reject; 2:Accept; 3:Timeout */
-  uint8_t chappassword[RADIUS_CHAPSIZE];
-  uint8_t password[RADIUS_PWSIZE];
-  int password_len;
-  uint8_t chap_ident;
   
   /* 
    *  RADIUS session parameters 
