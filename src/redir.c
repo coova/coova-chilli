@@ -2942,7 +2942,7 @@ static int _redir_close(int infd, int outfd) {
     log_dbg("shutdown socket for writing");
   
   if (!set_nonblocking(infd)) 
-    while(read(infd, b, sizeof(b)) > 0 && max--);
+    while(safe_read(infd, b, sizeof(b)) > 0 && max--);
   
   if (shutdown(infd, SHUT_RD) != 0)
     log_dbg("shutdown socket for reading");
@@ -3362,7 +3362,7 @@ int redir_main(struct redir_t *redir,
 
 	    while (1) {
 	      log_dbg("script_read");
-	      if ((buflen = read(ctop[0], buffer, bufsize)) > 0) {
+	      if ((buflen = safe_read(ctop[0], buffer, bufsize)) > 0) {
 		log_dbg("script_read(%d)",buflen);
 		if (tcp_write(&socket, buffer, (size_t) buflen) < 0) {
 		  log_err(errno, "tcp_write() failed!");
@@ -3462,7 +3462,7 @@ int redir_main(struct redir_t *redir,
 	    log_err(errno, "tcp_write() failed!");
 	  }
 	  
-	  while ((buflen = read(fd, buffer, bufsize)) > 0)
+	  while ((buflen = safe_read(fd, buffer, bufsize)) > 0)
 	    if (tcp_write(&socket, buffer, (size_t) buflen) < 0)
 	      log_err(errno, "tcp_write() failed!");
 	  

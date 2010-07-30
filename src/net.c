@@ -573,7 +573,7 @@ net_read(net_interface *netif, void *d, size_t dlen) {
     /*len = recvfrom(netif->fd, d, netif->mtu,
       MSG_DONTWAIT | MSG_TRUNC, NULL, NULL);*/
 
-    len = read(netif->fd, d, dlen);
+    len = safe_read(netif->fd, d, dlen);
 
     if (len < 0) {
 #ifdef ENETDOWN

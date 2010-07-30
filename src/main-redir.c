@@ -187,7 +187,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
   redir_request *req = (redir_request *)ctx;
   char b[PKT_MAX_LEN];
 
-  int r = read(conn->sock, b, sizeof(b));
+  int r = safe_read(conn->sock, b, sizeof(b));
 
   log_dbg("conn_read: %d", r);
 

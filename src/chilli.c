@@ -2861,8 +2861,8 @@ static int chilliauth_cb(struct radius_t *radius,
 	  ssize_t r1, r2;
 	  
 	  do {
-	    r1 = read(newfd, b1, sizeof(b1));
-	    r2 = read(oldfd, b2, sizeof(b2));
+	    r1 = safe_read(newfd, b1, sizeof(b1));
+	    r2 = safe_read(oldfd, b2, sizeof(b2));
 	    
 	    if (r1 != r2 || strncmp(b1, b2, r1)) 
 	      differ = 1;
@@ -2880,7 +2880,7 @@ static int chilliauth_cb(struct radius_t *radius,
 	    
 	    if (newfd > 0 && oldfd > 0) {
 
-	      while ((r1 = read(newfd, b1, sizeof(b1))) > 0 &&
+	      while ((r1 = safe_read(newfd, b1, sizeof(b1))) > 0 &&
 		     write(oldfd, b1, r1) > 0);
 	      
 	      close(newfd); newfd=0;
@@ -3863,8 +3863,9 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     if ((eap->code == 2) && /* Response */
 	(eap->type == 1) && /* Identity */
 	(len > 5) &&        /* Must be at least 5 octets */
-	((len - 5) <= USERNAMESIZE )) {
+	((len - 5) < REDIR_USERNAMESIZE-1 )) {
       memcpy(appconn->s_state.redir.username, eap->payload, len - 5); 
+      appconn->s_state.redir.username[len - 5] = 0;
       appconn->dnprot = DNPROT_EAPOL;
       appconn->authtype = EAP_MESSAGE;
     }
@@ -4061,7 +4062,7 @@ static int cmdsock_accept(void *nullData, int sock) {
     return -1;
   }
 
-  if (read(csock, &req, sizeof(req)) != sizeof(req)) {
+  if (safe_read(csock, &req, sizeof(req)) != sizeof(req)) {
     log_err(errno, "cmdsock_accept()/read()");
     close(csock);
     return -1;
@@ -4307,7 +4308,7 @@ int static redir_msg(struct redir_t *this) {
   socklen_t len = sizeof(remote);
   int socket = accept(this->msgfd, (struct sockaddr *)&remote, &len);
   if (socket > 0) {
-    int msgresult = read(socket, &msg, sizeof(msg));
+    int msgresult = safe_read(socket, &msg, sizeof(msg));
     if (msgresult == sizeof(msg)) {
       if (msg.mtype == REDIR_MSG_STATUS_TYPE) {
 	struct redir_conn_t conn;

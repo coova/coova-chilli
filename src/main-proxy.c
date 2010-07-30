@@ -423,7 +423,7 @@ static int http_conn_finish(struct conn_t *conn, void *ctx) {
 static int http_conn_read(struct conn_t *conn, void *ctx) {
   proxy_request *req = (proxy_request *)ctx;
   char c[1];
-  int r = read(conn->sock, c, 1);
+  int r = safe_read(conn->sock, c, 1);
   if (r == 1) {
     switch (c[0]) {
     case '\r': break;

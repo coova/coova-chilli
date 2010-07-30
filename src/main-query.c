@@ -456,7 +456,7 @@ int main(int argc, char **argv) {
     exit(1);
   }
 
-  while((len = read(s, line, sizeof(line)-1)) > 0) 
+  while((len = safe_read(s, line, sizeof(line)-1)) > 0) 
     if (write(1, line, len) != len)
       perror("write");
 

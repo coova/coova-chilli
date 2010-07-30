@@ -328,8 +328,8 @@ int dhcp_hashget(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr
  * Allocates/link a new connection from the pool. 
  * Returns -1 if unsuccessful.
  **/
-int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn)
-{
+int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn) {
+
   if (!this->firstfreeconn) {
 
     if (connections == _options.max_clients) {
@@ -926,7 +926,7 @@ int dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug) {
       if (blen > 0) {
 	b = malloc(blen);
 	if (b) {
-	  r = read(fd, b, blen);
+	  r = safe_read(fd, b, blen);
 	  if (r == blen) {
 	    dhcp_reserve_str(b, blen);
 	  } else {

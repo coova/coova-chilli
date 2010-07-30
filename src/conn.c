@@ -191,9 +191,9 @@ _conn_bstring_readhandler(struct conn_t *conn, void *ctx) {
   int ret;
   ballocmin(data, data->slen + 128);
 
-  ret = read(conn->sock, 
-	     data->data + data->slen,
-	     data->mlen - data->slen);
+  ret = safe_read(conn->sock, 
+		  data->data + data->slen,
+		  data->mlen - data->slen);
 
   if (ret > 0) {
     log_dbg("bstring_read: %d bytes", ret);
