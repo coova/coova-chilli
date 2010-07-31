@@ -12,6 +12,7 @@
 ** Added support Radius State attribute
 ** Changes made by Laurent Frelechoux (Comfone AG)
 * Segfault bug fix in ''chilli_radconfig''
+* Fix for EAPOL, thanks to Francesco Sinopoli
 
 == ChangeLog (CoovaChilli-v1.2.3 svn revision 356) ==
 

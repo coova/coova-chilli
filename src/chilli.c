@@ -3850,7 +3850,7 @@ int chilli_acct_tosub(struct app_conn_t *appconn, size_t len) {
 
 /* Callback for receiving messages from eapol */
 int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
-  struct eap_packet_t *eap = eappkt(pack);
+  struct eap_packet_t *eap = (struct eap_packet_t *)pack;
   struct app_conn_t *appconn = conn->peer;
   struct radius_packet_t radius_pack;
   size_t offset;
