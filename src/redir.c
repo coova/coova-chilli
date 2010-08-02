@@ -1699,7 +1699,9 @@ int redir_ipc(struct redir_t *redir) {
   int sock;
   
   if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+
     log_err(errno, "could not allocate UNIX Socket!");
+
   } else {
 
     char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
@@ -3039,6 +3041,7 @@ pid_t redir_fork(int in, int out) {
     if (dup2(out,1) == -1) return -1;
 #endif
   }
+
   return pid;
 }
 

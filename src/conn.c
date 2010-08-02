@@ -128,8 +128,8 @@ int conn_update_write(struct conn_t *conn) {
   }
   
   if (conn->write_pos < conn->write_buf->slen) {
-    int ret = write(conn->sock, 
-		    conn->write_buf->data + conn->write_pos,
+    int ret = safe_write(conn->sock, 
+			 conn->write_buf->data + conn->write_pos,
 		    conn->write_buf->slen - conn->write_pos);
     if (ret > 0) {
       /*log_dbg("write: %d bytes", ret);*/

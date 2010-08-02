@@ -605,7 +605,7 @@ ssize_t net_write2(net_interface *netif, void *d, size_t dlen, struct sockaddr_l
   if (dest) {
     len = sendto(fd, d, dlen, 0, (struct sockaddr *)dest, sizeof(struct sockaddr_ll));
   } else {
-    len = write(fd, d, dlen);
+    len = safe_write(fd, d, dlen);
   }
 
   if (len < 0) {
@@ -734,7 +734,7 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
   req.mask.sin_addr.s_addr = mask->s_addr;
   req.gate.sin_addr.s_addr = gateway->s_addr;
   
-  if (write(fd, rtm, rtm->rtm_msglen) < 0) {
+  if (safe_write(fd, rtm, rtm->rtm_msglen) < 0) {
     log_err(errno, "write() failed");
     close(fd);
     return -1;

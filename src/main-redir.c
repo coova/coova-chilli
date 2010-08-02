@@ -196,7 +196,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
   } else if (r > 0) {
     int w;
     req->last_active = mainclock_tick();
-    w = write(req->socket_fd, b, r);
+    w = safe_write(req->socket_fd, b, r);
     log_dbg("write: %d", w);
     if (r != w) {
       log_err(errno, "problem writing what we read");
@@ -625,7 +625,7 @@ int main(int argc, char **argv) {
 		  
 		  int w;
 		  requests[idx].last_active = mainclock_tick();
-		  w = write(requests[idx].conn.sock, b, r);
+		  w = safe_write(requests[idx].conn.sock, b, r);
 		  
 		  /*
 		  log_dbg("proxy_write: %d", w);

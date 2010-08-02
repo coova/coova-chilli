@@ -70,6 +70,7 @@ typedef struct _proxy_request {
 } proxy_request;
 
 static int max_requests = 0;
+static int num_requests_free = 0;
 static proxy_request * requests = 0;
 static proxy_request * requests_free = 0;
 
@@ -83,7 +84,7 @@ static proxy_request * get_request() {
   int i;
 
   if (!max_requests) {
-
+    /* Initialize linked list */
     max_requests = 16; /* hard maximum! (should be configurable) */
 
     requests = (proxy_request *) calloc(max_requests, sizeof(proxy_request));
@@ -96,6 +97,7 @@ static proxy_request * get_request() {
     }
     
     requests_free = requests;
+    num_requests_free = max_requests;
   }
   
   if (requests_free) {
@@ -103,13 +105,16 @@ static proxy_request * get_request() {
     requests_free = requests_free->next;
     if (requests_free)
       requests_free->prev = 0;
+    num_requests_free--;
   }
   
   if (!req) {
     /* problem */
-    log_err(0,"out of connections\n");
+    log_err(0,"out of connections");
     return 0;
   }
+
+  log_dbg("connections free %d", num_requests_free);
   
   req->next = req->prev = 0;
   req->inuse = 1;
@@ -142,6 +147,8 @@ static void close_request(proxy_request *req) {
     req->data = 
     req->post = 
     req->wbuf = 0;
+  
+  req->authorized = 0;
 
   req->inuse = 0;
   if (requests_free) {
@@ -149,6 +156,9 @@ static void close_request(proxy_request *req) {
     req->next = requests_free;
   }
   requests_free = req;
+  num_requests_free++;
+
+  log_dbg("connections free %d", num_requests_free);
 }
 
 static int http_aaa_finish(proxy_request *req) {
@@ -177,10 +187,10 @@ static int http_aaa_finish(proxy_request *req) {
     
   case RADIUS_CODE_ACCESS_REQUEST:
     log_dbg("Access-%s", req->authorized ? "Accept" : "Reject");
-    if (req->authorized) {
-      radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCESS_ACCEPT);
-      break;
-    }
+    radius_default_pack(radius, &req->radius_res, 
+			req->authorized ? RADIUS_CODE_ACCESS_ACCEPT :
+			RADIUS_CODE_ACCESS_REJECT);
+    break;
 
   default:
     radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCESS_REJECT);
@@ -589,7 +599,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
   }
 
   if (req.data->slen)
-    if (write(1, req.data->data, req.data->slen) < 0)
+    if (safe_write(1, req.data->data, req.data->slen) < 0)
       log_err(errno, "write()");
 
   bdestroy(req.url);

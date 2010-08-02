@@ -2834,8 +2834,8 @@ static int chilliauth_cb(struct radius_t *radius,
       if (fd > 0) {
 
 	do {
-	  if (write(fd, (const char *) attr->v.t, attr->l - 2) < 0 ||
-	      write(fd, "\n", 1) < 0) {
+	  if (safe_write(fd, attr->v.t, attr->l - 2) < 0 ||
+	      safe_write(fd, "\n", 1) < 0) {
 	    log_err(errno, "adminupdatefile");
 	    break;
 	  }
@@ -2881,7 +2881,7 @@ static int chilliauth_cb(struct radius_t *radius,
 	    if (newfd > 0 && oldfd > 0) {
 
 	      while ((r1 = safe_read(newfd, b1, sizeof(b1))) > 0 &&
-		     write(oldfd, b1, r1) > 0);
+		     safe_write(oldfd, b1, r1) > 0);
 	      
 	      close(newfd); newfd=0;
 	      close(oldfd); oldfd=0;
@@ -2956,8 +2956,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
 
-  if (_options.debug)
-    log_dbg("Received access request confirmation from radius server\n");
+  log_dbg("Received RADIUS response");
   
   if (!appconn) {
     log_err(0,"No peer protocol defined");
@@ -2972,14 +2971,14 @@ int cb_radius_auth_conf(struct radius_t *radius,
   appconn->lmntlen  = 0;
   
   if (!pack) { /* Timeout */
-    log_err(0, "Radius request timed out");
+    log_err(0, "RADIUS request timed out");
     return dnprot_reject(appconn);
   }
 
   /* ACCESS-REJECT */
   if (pack->code == RADIUS_CODE_ACCESS_REJECT) {
     if (_options.debug)
-      log_dbg("Received access reject from radius server");
+      log_dbg("Received Access-Reject from radius server");
     config_radius_session(&appconn->s_params, pack, dhcpconn, 0); /*XXX*/
     return dnprot_reject(appconn);
   }
@@ -2993,7 +2992,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
   /* ACCESS-CHALLENGE */
   if (pack->code == RADIUS_CODE_ACCESS_CHALLENGE) {
     if (_options.debug)
-      log_dbg("Received access challenge from radius server");
+      log_dbg("Received Access-Challenge from radius server");
 
     /* Get EAP message */
     appconn->challen = 0;
@@ -3022,6 +3021,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
     log_err(0, "Unknown code of radius access request confirmation");
     return dnprot_reject(appconn);
   }
+
+  log_dbg("Radius Access-Accept from radius server");
 
   /* Class */
   if (!radius_getattr(pack, &classattr, RADIUS_ATTR_CLASS, 0, 0, 0)) {
@@ -4079,7 +4080,7 @@ static int cmdsock_accept(void *nullData, int sock) {
     if (dhcp) dhcp_list(dhcp, s, 0, 0,
 			req.options & CMDSOCK_OPT_JSON ? 
 			LIST_JSON_FMT : LIST_SHORT_FMT);
-    if (write(csock, s->data, s->slen) < 0)
+    if (safe_write(csock, s->data, s->slen) < 0)
       log_err(errno, "write()");
     break;
     
@@ -4096,7 +4097,7 @@ static int cmdsock_accept(void *nullData, int sock) {
     if (dhcp) dhcp_list(dhcp, s, 0, 0,
 			req.options & CMDSOCK_OPT_JSON ?
 			LIST_JSON_FMT : LIST_LONG_FMT);
-    if (write(csock, s->data, s->slen) < 0)
+    if (safe_write(csock, s->data, s->slen) < 0)
       log_err(errno, "write()");
     break;
 
@@ -4109,7 +4110,7 @@ static int cmdsock_accept(void *nullData, int sock) {
     if (dhcp) dhcp_entry_for_ip(dhcp, s, &req.data.sess.ip,
 			req.options & CMDSOCK_OPT_JSON ?
 			LIST_JSON_FMT : LIST_LONG_FMT);
-    if (write(csock, s->data, s->slen) < 0)
+    if (safe_write(csock, s->data, s->slen) < 0)
       log_err(errno, "write()");
     break;
 
@@ -4118,7 +4119,7 @@ static int cmdsock_accept(void *nullData, int sock) {
     if (dhcp) dhcp_entry_for_mac(dhcp, s, req.data.mac,
 			req.options & CMDSOCK_OPT_JSON ?
 			LIST_JSON_FMT : LIST_LONG_FMT);
-    if (write(csock, s->data, s->slen) < 0)
+    if (safe_write(csock, s->data, s->slen) < 0)
       log_err(errno, "write()");
     break;
 
@@ -4154,7 +4155,7 @@ static int cmdsock_accept(void *nullData, int sock) {
       int i;
       bstring b = bfromcstr("routes:\n");
       int err = 0;
-      if (write(csock, b->data, b->slen) == b->slen) {
+      if (safe_write(csock, b->data, b->slen) == b->slen) {
 	for (i=0; !err && i<tun->_interface_count; i++) {
 	  char gw[56];
 
@@ -4178,14 +4179,14 @@ static int cmdsock_accept(void *nullData, int sock) {
 			tun->_interfaces[i].gwaddr[5],
 			i == 0 ? " (tun/tap)":"");
 
-	  if (write(csock, b->data, b->slen) < 0)
+	  if (safe_write(csock, b->data, b->slen) < 0)
 	    err = 1;
 	}
 	
 	if (!err) { 
 	  struct dhcp_conn_t *conn = dhcp->firstusedconn;
 	  bassignformat(b, "subscribers:\n");
-	  if (write(csock, b->data, b->slen) == b->slen) {
+	  if (safe_write(csock, b->data, b->slen) == b->slen) {
 	    while (conn) {
 	      struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
 	      
@@ -4195,7 +4196,7 @@ static int cmdsock_accept(void *nullData, int sock) {
 			    appconn->hismac[4], appconn->hismac[5],
 			    appconn->s_params.routeidx);
 	      
-	      if (write(csock, b->data, b->slen) < 0)
+	      if (safe_write(csock, b->data, b->slen) < 0)
 		break;
 
 	      conn = conn->next;
@@ -4317,7 +4318,7 @@ int static redir_msg(struct redir_t *this) {
 			  &msg.mdata.address, 
 			  &msg.mdata.baddress, 
 			  &conn);
-	if (write(socket, &conn, sizeof(conn)) < 0) {
+	if (safe_write(socket, &conn, sizeof(conn)) < 0) {
 	  log_err(errno, "redir_msg");
 	}
       } else {
