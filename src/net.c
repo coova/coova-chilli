@@ -32,6 +32,13 @@ static void destroy_one_ring(net_interface *iface, int what);
 static void setup_filter(net_interface *iface);
 #endif
 
+int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr) {
+  int ret;
+  do {
+    ret = accept(fd, sa, lenptr);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
 
 int safe_connect(int s, struct sockaddr *sock, size_t len) {
   int ret;
@@ -53,6 +60,14 @@ int safe_write(int s, void *b, size_t blen) {
   int ret;
   do {
     ret = write(s, b, blen);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+int safe_close (int fd) {
+  int ret;
+  do {
+    ret = close(fd);
   } while (ret == -1 && errno == EINTR);
   return ret;
 }

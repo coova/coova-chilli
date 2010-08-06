@@ -178,7 +178,11 @@ int main(int argc, char **argv) {
   int keep_going = 1;
   int reload_config = 1;
 
+  int selfpipe;
+
   options_init();
+
+  selfpipe = selfpipe_init();
 
   chilli_signals(&keep_going, &reload_config);
 
@@ -242,6 +246,7 @@ int main(int argc, char **argv) {
     FD_ZERO(&fdwrite);
     FD_ZERO(&fdexcep);
 
+    FD_SET(selfpipe, &fdread);
     FD_SET(server.radius_auth->fd, &fdread);
     FD_SET(server.radius_acct->fd, &fdread);
 
@@ -270,17 +275,19 @@ int main(int argc, char **argv) {
 
     switch (status) {
     case -1:
-      if (EINTR != errno) {
+      if (errno != EINTR)
 	log_err(errno, "select() returned -1!");
-      }
       break;  
 
     case 0:
     default:
-
       if (status > 0) {
 	struct sockaddr_in addr;
 	socklen_t fromlen = sizeof(addr);
+
+	if (FD_ISSET(selfpipe, &fdread)) {
+	  chilli_handle_signal(0, 0);
+	}
 	
 	if (FD_ISSET(server.radius_auth->fd, &fdread)) {
 	  /*
@@ -333,6 +340,8 @@ int main(int argc, char **argv) {
       break;
     }
   }
+
+  selfpipe_finish();
 
   return 0;
 }

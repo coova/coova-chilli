@@ -44,6 +44,8 @@ int main(int argc, char *argv[]) {
   int nls = open_netlink();
   int i;
 
+  int selfpipe = selfpipe_init();
+
   if (nls < 0) {
     err(1,"netlink");
   }
@@ -71,8 +73,14 @@ int main(int argc, char *argv[]) {
   check_updates();
   
   while (keep_going) {
+    /* select */
+
+    /* check selfpipe */
+
     read_event(nls);
   }
+
+  selfpipe_finish();
 
   return 0;
 }

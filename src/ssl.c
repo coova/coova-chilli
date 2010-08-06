@@ -430,7 +430,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout) {
   }
 #else
   
-  clear_nonblocking(c->sock);
+  /* ndelay_off(c->sock); */
 
   if ((rc = SSL_accept(c->con)) <= 0) {
     log_err(errno, "SSL accept failure");
@@ -438,7 +438,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout) {
     return 0;
   }
 
-  /* set_nonblocking(c->sock);*/
+  /* ndelay_on(c->sock);*/
   
 #endif
 
@@ -492,12 +492,16 @@ openssl_shutdown(openssl_con *con, int state) {
   /*
    * state is the same as in shutdown(2)
    */
-  switch(state) {
-  case 0: SSL_set_shutdown(con->con, SSL_RECEIVED_SHUTDOWN); break;
-  case 1: SSL_set_shutdown(con->con, SSL_SENT_SHUTDOWN); break;
-  case 2: SSL_set_shutdown(con->con, SSL_RECEIVED_SHUTDOWN|SSL_SENT_SHUTDOWN); break;
+  if (con) {
+    switch(state) {
+    case 0: SSL_set_shutdown(con->con, SSL_RECEIVED_SHUTDOWN); break;
+    case 1: SSL_set_shutdown(con->con, SSL_SENT_SHUTDOWN); break;
+    case 2: SSL_set_shutdown(con->con, SSL_RECEIVED_SHUTDOWN|SSL_SENT_SHUTDOWN); break;
+    }
+    for (i = 0; i < 4; i++) 
+      if (SSL_shutdown(con->con)) 
+	break;
   }
-  for (i = 0; i < 4; i++) if (SSL_shutdown(con->con)) break;
 #endif
 }
   

@@ -31,6 +31,17 @@ global $hotspot_session;
 global $aaa_config;
 global $db_config;
 
+// initialize globals
+$dblink = null;
+$hotspot_ap = null;
+$hotspot_network = null;
+$hotspot_user = null;
+$hotspot_device = null;
+$hotspot_code = null;
+$hotspot_session = null;
+$aaa_config = null;
+$db_config = null;
+
 require "aaa-config.php";
 
 #  Your http-aaa-config.php could contain:
@@ -389,12 +400,12 @@ function do_macauth_service(&$attrs) {
 function do_login_service(&$attrs) {
   $device = get_device();
 
-echo "Auth: 1
-WISPr-Redirection-URL: http://www.glimmertrain.com
-Acct-Interim-Interval: 1440
-Session-Timeout: 1800
-Idle-Timeout: 1800
-";
+#echo "Auth: 1
+#WISPr-Redirection-URL: http://www.coova.com/
+#Acct-Interim-Interval: 1440
+#Session-Timeout: 1800
+#Idle-Timeout: 1800
+#";
 
   if ($_GET['user'] == $_GET['mac']) {
     $password = 'admpwd';
@@ -437,7 +448,7 @@ Idle-Timeout: 1800
     }
   }
 
-  set_reply_message($attrs, "Either your username or password did not match our records.");
+  set_reply_message($attrs, "Either your username or password did not match our records. [".$_GET['user']."]");
   return do_auth_reject($attrs);
 }
 

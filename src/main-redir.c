@@ -160,13 +160,6 @@ sock_redir_getstate(struct redir_t *redir,
 
 static int redir_conn_finish(struct conn_t *conn, void *ctx) {
   redir_request *req = (redir_request *)ctx;
-#ifdef HAVE_SSL
-  if (req->sslcon) {
-    openssl_shutdown(req->sslcon, 2);
-    openssl_free(req->sslcon);
-    req->sslcon=0;
-  }
-#endif
   if (req->conn.sock) {
     if (req->state & REDIR_CONN_FD) {
       net_select_rmfd(&sctx, req->conn.sock);
@@ -218,7 +211,7 @@ check_regex(regex_t *re, char *regex, char *s) {
       regerror(ret, re, error, sizeof(error));
       log_err(0, "regcomp(%s) failed (%s)", regex, error);
       regex[0] = 0;
-	return -1;
+      return -1;
     }
   }
   
@@ -289,8 +282,10 @@ redir_handle_url(struct redir_t *redir,
     }
 
     if (matches) {
-      req->proxy = 1;
+      log_dbg("Matched for Host %s", httpreq->host);
       
+      req->proxy = 1;
+
       if (conn_setup(&req->conn, httpreq->host, port, req->wbuf)) {
 	log_err(errno, "conn_setup()");
 	return -1;
@@ -317,7 +312,9 @@ int redir_accept2(struct redir_t *redir, int idx) {
 
   addrlen = sizeof(struct sockaddr_in);
 
-  if ((new_socket = accept(redir->fd[idx], (struct sockaddr *)&address, &addrlen)) < 0) {
+  if ((new_socket = safe_accept(redir->fd[idx], 
+				(struct sockaddr *)&address, 
+				&addrlen)) < 0) {
     if (errno != ECONNABORTED)
       log_err(errno, "accept()");
 
@@ -417,6 +414,8 @@ int main(int argc, char **argv) {
 
   uint8_t hwaddr[6];
   struct ifreq ifr;
+
+  int selfpipe;
   
   int fd = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -457,7 +456,10 @@ int main(int argc, char **argv) {
   if (net_select_init(&sctx))
     log_err(errno, "select init");
 
+  selfpipe = selfpipe_init();
+
   /* epoll */
+  net_select_addfd(&sctx, selfpipe, SELECT_READ);
   net_select_addfd(&sctx, redir->fd[0], SELECT_READ);
   net_select_addfd(&sctx, redir->fd[1], SELECT_READ);
 
@@ -475,6 +477,7 @@ int main(int argc, char **argv) {
 
     /* select/poll */
     net_select_zero(&sctx);
+    net_select_fd(&sctx, selfpipe, SELECT_READ);
     net_select_fd(&sctx, redir->fd[0], SELECT_READ);
     net_select_fd(&sctx, redir->fd[1], SELECT_READ);
   
@@ -562,13 +565,14 @@ int main(int argc, char **argv) {
 
     switch (status) {
     case -1:
-      if (EINTR != errno) {
-	log_err(errno, "select() returned -1!");
-      }
+      log_err(errno, "select() returned -1!");
       break;  
 
     default:
       if (status > 0) {
+
+	if (net_select_read_fd(&sctx, selfpipe))
+	  chilli_handle_signal(0, 0);
 
 	if (redir->fd[0])
 	  if (net_select_read_fd(&sctx, redir->fd[0]) && 
@@ -668,6 +672,8 @@ int main(int argc, char **argv) {
       break;
     }
   }
+
+  selfpipe_finish();
   
   return 0;
 }

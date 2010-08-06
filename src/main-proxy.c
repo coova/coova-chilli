@@ -930,7 +930,11 @@ int main(int argc, char **argv) {
   int keep_going = 1;
   int reload_config = 1;
 
+  int selfpipe;
+
   options_init();
+
+  selfpipe = selfpipe_init();
 
   chilli_signals(&keep_going, &reload_config);
 
@@ -991,6 +995,7 @@ int main(int argc, char **argv) {
     FD_ZERO(&fdwrite);
     FD_ZERO(&fdexcep);
 
+    FD_SET(selfpipe, &fdread);
     FD_SET(radius_auth->fd, &fdread);
     FD_SET(radius_acct->fd, &fdread);
 
@@ -1027,6 +1032,10 @@ int main(int argc, char **argv) {
 	struct sockaddr_in addr;
 	socklen_t fromlen = sizeof(addr);
 	
+	if (FD_ISSET(selfpipe, &fdread)) {
+	  chilli_handle_signal(0, 0);
+	}
+
 	if (FD_ISSET(radius_auth->fd, &fdread)) {
 	  /*
 	   *    ---> Authentication
@@ -1095,6 +1104,8 @@ int main(int argc, char **argv) {
   curl_multi_cleanup(curl_multi);
   curl_global_cleanup();
 #endif
+
+  selfpipe_finish();
 
   return 0;
 }

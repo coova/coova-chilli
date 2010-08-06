@@ -178,6 +178,10 @@ chilliController.formatBytes = function ( b , zeroReturn ) {
  *           Attempt a CHAP logon with username/password
  *           issues a /logon command to chilli daemon
  *
+ *     logon2 ( username, response ) :
+ *           Attempt a CHAP logon with username/response
+ *           issues a /logon command to chilli daemon
+ *
  *     logoff () :
  *           Disconnect the current user by issuing a
  *           /logoff command to the chilli daemon
@@ -210,6 +214,28 @@ chilliController.logon = function ( username , password )  {
 	chilliJSON.get( chilliController.urlRoot() + 'status'  ) ;
 };
 
+chilliController.logon2 = function ( username , response )  {
+
+	if ( typeof(username) !== 'string') {
+		chilliController.onError( 1 , "username missing (or incorrect type)" ) ;
+	}
+	
+	if ( typeof(response) !== 'string') {
+		chilliController.onError( 2 , "response missing (or incorrect type)" ) ;
+	}
+
+	log ( 'chilliController.logon2( "' + username + '" , "' + response + ' " )' );
+
+	chilliController.temp = { 'username': username , 'response': response };
+	chilliController.command = 'logon2';
+
+	log ('chilliController.logon2: asking for a new challenge ' );
+	chilliJSON.onError        = chilliController.onError    ;
+	chilliJSON.onJSONReady    = chilliController.logonStep2 ;
+	chilliController.clientState = chilliController.AUTH_PENDING ; 
+	chilliJSON.get( chilliController.urlRoot() + 'status'  ) ;
+};
+
 
 /**
  *   Second part of the logon process invoked after
@@ -233,6 +259,7 @@ chilliController.logonStep2 = function ( resp ) {
 
 	var username = chilliController.temp.username ; 
 	var password = chilliController.temp.password ;
+	var response = chilliController.temp.response ;
 
 	log ('chilliController.logonStep2: Got challenge = ' + challenge );
 
@@ -266,10 +293,12 @@ chilliController.logonStep2 = function ( resp ) {
 		/* TODO: Should check if challenge has expired and possibly get a new one */
         	/*       OR always call status first to get a fresh challenge             */
 
+	    if (!response || response == '') {
 		/* Calculate MD5 CHAP at the client side */
 		var myMD5 = new ChilliMD5();
-		var chappassword = myMD5.chap ( chilliController.ident , password , challenge );
-		log ( 'chilliController.logonStep2: Calculating CHAP-Password = ' + chappassword );
+		response = myMD5.chap ( chilliController.ident , password , challenge );
+		log ( 'chilliController.logonStep2: Calculating CHAP-Password = ' + response );
+	    }
 
 		/* Prepare chilliJSON for logon request */
 		chilliJSON.onError     = chilliController.onError     ;
@@ -277,7 +306,7 @@ chilliController.logonStep2 = function ( resp ) {
 		chilliController.clientState = chilliController.stateCodes.AUTH_PENDING ; 
 	
 		/* Build /logon command URL */
-		var logonUrl = chilliController.urlRoot() + 'logon?username=' + escape(username) + '&response='  + chappassword;
+		var logonUrl = chilliController.urlRoot() + 'logon?username=' + escape(username) + '&response='  + response;
 		if (chilliController.queryObj && chilliController.queryObj['userurl'] ) {
 		    logonUrl += '&userurl='+chilliController.queryObj['userurl'] ;
 		}

@@ -69,9 +69,11 @@ static pid_t redir_pid = 0;
 #endif
 
 static void _sigchld(int signum) { 
-  log_dbg("received %d signal", signum);
-  /* catches falling childs and eliminates zombies */
-  while (wait3(NULL, WNOHANG, NULL) > 0);
+  pid_t pid;
+  int stat;
+  while ((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
+    log_dbg("child %d terminated", pid);
+  }
 }
 
 static void _sigterm(int signum) {
@@ -107,30 +109,34 @@ static void _sighup(int signum) {
   do_interval = 1;
 }
 
-void chilli_signals(int *with_term, int *with_hup) {
-  struct sigaction act;
-  memset(&act, 0, sizeof(act));
-  
-  act.sa_handler = _sigchld;
-  sigaction(SIGCHLD, &act, NULL);
-  
-  act.sa_handler = _sigvoid;
-  sigaction(SIGPIPE, &act, NULL);
+int chilli_handle_signal(void *ctx, int fd) {
+  int signo = selfpipe_read();
+  log_dbg("caught %d via selfpipe", signo);
+  switch (signo) {
+  case SIGCHLD: _sigchld(signo); break;
+  case SIGPIPE: _sigvoid(signo); break;
+  case SIGHUP:  _sighup(signo);  break;
+  case SIGUSR1: _sigusr1(signo); break;
+  case SIGTERM:
+  case SIGINT:  _sigterm(signo); break;
+  }
+  return 0;
+}
 
+void chilli_signals(int *with_term, int *with_hup) {
+  selfpipe_trap(SIGCHLD);
+  selfpipe_trap(SIGPIPE);
+  
   if (with_hup) {
     p_reload_config = with_hup;
-    act.sa_handler = _sighup;
-    sigaction(SIGHUP, &act, NULL);
-
-    act.sa_handler = _sigusr1;
-    sigaction(SIGUSR1, &act, NULL);
+    selfpipe_trap(SIGHUP);
+    selfpipe_trap(SIGUSR1);
   }
 
   if (with_term) {
     p_keep_going = with_term;
-    act.sa_handler = _sigterm;
-    sigaction(SIGTERM, &act, NULL);
-    sigaction(SIGINT, &act, NULL);
+    selfpipe_trap(SIGTERM);
+    selfpipe_trap(SIGINT);
   }
 }
 
@@ -4058,7 +4064,7 @@ static int cmdsock_accept(void *nullData, int sock) {
     log_dbg("Processing cmdsock request...\n");
 
   len = sizeof(remote);
-  if ((csock = accept(sock, (struct sockaddr *)&remote, &len)) == -1) {
+  if ((csock = safe_accept(sock, (struct sockaddr *)&remote, &len)) == -1) {
     log_err(errno, "cmdsock_accept()/accept()");
     return -1;
   }
@@ -4307,7 +4313,7 @@ int static redir_msg(struct redir_t *this) {
   struct redir_msg_t msg;
   struct sockaddr_un remote; 
   socklen_t len = sizeof(remote);
-  int socket = accept(this->msgfd, (struct sockaddr *)&remote, &len);
+  int socket = safe_accept(this->msgfd, (struct sockaddr *)&remote, &len);
   if (socket > 0) {
     int msgresult = safe_read(socket, &msg, sizeof(msg));
     if (msgresult == sizeof(msg)) {
@@ -4831,6 +4837,10 @@ int chilli_main(int argc, char **argv) {
 		   SELECT_READ, (select_callback) tun_decaps, 
 		   tun, i);
 
+  net_select_reg(&sctx, selfpipe_init(), 
+		 SELECT_READ, (select_callback)chilli_handle_signal, 
+		 0, 0);
+
   net_select_reg(&sctx, radius->fd, SELECT_READ, (select_callback)radius_decaps, radius, 0);
   net_select_reg(&sctx, radius->proxyfd, SELECT_READ, (select_callback)radius_proxy_ind, radius, 0);
 
@@ -5008,6 +5018,8 @@ int chilli_main(int argc, char **argv) {
     log_dbg("Removing %s", file);
     if (remove(file)) log_err(errno, file);
   }
+
+  selfpipe_finish();
 
   options_destroy();
 

@@ -1407,7 +1407,7 @@ tcp_write_timeout(int timeout, struct redir_socket_t *sock, char *buf, size_t le
 #if WIN32
     return send(fd, buf, len, 0);
 #else
-    return write(fd, buf, len);
+    return safe_write(fd, buf, len);
 #endif
 
   return -1;
@@ -1425,7 +1425,9 @@ tcp_write(struct redir_socket_t *sock, char *buf, size_t len) {
       c = openssl_write(sock->sslcon, buf, len, 0);
     } else 
 #endif
-    c = tcp_write_timeout(timeout, sock, buf+r, len-r);
+    {
+      c = tcp_write_timeout(timeout, sock, buf+r, len-r);
+    }
     if (c <= 0) return (ssize_t) r;
     r += (size_t)c;
   }
@@ -1638,7 +1640,7 @@ int redir_listen(struct redir_t *redir) {
     optval = 1;
     if (setsockopt(redir->fd[n], SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))) {
       log_err(errno, "setsockopt() failed");
-      close(redir->fd[n]);
+      safe_close(redir->fd[n]);
       redir->fd[n]=0;
       break;
     }
@@ -1647,7 +1649,7 @@ int redir_listen(struct redir_t *redir) {
     optval = 1;
     if (setsockopt(redir->fd[n], SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))) {
       log_err(errno, "setsockopt() failed");
-      close(redir->fd[n]);
+      safe_close(redir->fd[n]);
       redir->fd[n]=0;
       return -1;
     }
@@ -1658,7 +1660,7 @@ int redir_listen(struct redir_t *redir) {
 	log_warn(errno, "IP: %s Port: %d - Waiting for retry.",
 		 inet_ntoa(address.sin_addr), ntohs(address.sin_port));
 	if (sleep(5)) { /* In case we got killed */
-	  close(redir->fd[n]);
+	  safe_close(redir->fd[n]);
 	  redir->fd[n]=0;
 	  break;
 	}
@@ -1670,7 +1672,7 @@ int redir_listen(struct redir_t *redir) {
 	  log_warn(0, "trying INADDR_ANY instead");
 	  address.sin_addr.s_addr = INADDR_ANY;
 	} else {
-	  close(redir->fd[n]);
+	  safe_close(redir->fd[n]);
 	  redir->fd[n]=0;
 	  break;
 	}
@@ -1681,7 +1683,7 @@ int redir_listen(struct redir_t *redir) {
       if (listen(redir->fd[n], REDIR_MAXLISTEN)) {
 	log_err(errno, "listen() failed for %s:%d",
 		inet_ntoa(address.sin_addr), ntohs(address.sin_port));
-	close(redir->fd[n]);
+	safe_close(redir->fd[n]);
 	redir->fd[n]=0;
 	break;
       } else {
@@ -1724,12 +1726,12 @@ int redir_ipc(struct redir_t *redir) {
     if (bind(sock, (struct sockaddr *)&local, 
 	     sizeof(struct sockaddr_un)) == -1) {
       log_err(errno, "could bind UNIX Socket to %s!", filedest);
-      close(sock);
+      safe_close(sock);
       sock = -1;
     } else {
       if (listen(sock, 5) == -1) {
 	log_err(errno, "could listen to UNIX Socket!");
-	close(sock);
+	safe_close(sock);
 	sock = -1;
       } else {
 	redir->msgfd = sock;
@@ -1774,13 +1776,13 @@ int redir_ipc(struct redir_t *redir) {
 int redir_free(struct redir_t *redir) {
   int n;
   for (n = 0; n < 2 && redir->fd[n]; n++) {
-    if (close(redir->fd[n])) {
+    if (safe_close(redir->fd[n])) {
       log_err(errno, "close() failed");
     }
   }
 
 #ifdef USING_IPC_UNIX
-  close(redir->msgfd);
+  safe_close(redir->msgfd);
 #else
   if (msgctl(redir->msgid, IPC_RMID, NULL)) {
     log_err(errno, "msgctl() failed");
@@ -2122,7 +2124,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
     if (!forked && !eoh) {
       log_dbg("Didn't see end of headers, continue...");
-      log_dbg("%.*s",httpreq->data_in->slen,httpreq->data_in->data);
+      /*log_dbg("%.*s",httpreq->data_in->slen,httpreq->data_in->data);*/
       return 1;
     }
   }
@@ -2716,20 +2718,6 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   return 0;
 }
 
-int set_nonblocking(int fd) {
-  int flags = fcntl(fd, F_GETFL);
-  if (flags < 0) return -1;
-  fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-  return 0;
-}
-
-int clear_nonblocking(int fd) {
-  int flags = fcntl(fd, F_GETFL);
-  if (flags < 0) return -1;
-  fcntl(fd, F_SETFL, flags & (~O_NONBLOCK));
-  return 0;
-}
-
 int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   uint8_t user_password[RADIUS_PWSIZE+1];
   uint8_t chap_challenge[REDIR_MD5LEN];
@@ -2883,7 +2871,7 @@ int redir_accept(struct redir_t *redir, int idx) {
 
   addrlen = sizeof(struct sockaddr_in);
 
-  if ((new_socket = accept(redir->fd[idx], (struct sockaddr *)&address, &addrlen)) < 0) {
+  if ((new_socket = safe_accept(redir->fd[idx], (struct sockaddr *)&address, &addrlen)) < 0) {
     if (errno != ECONNABORTED)
       log_err(errno, "accept() failed!");
     return 0;
@@ -2904,12 +2892,12 @@ int redir_accept(struct redir_t *redir, int idx) {
 
   if ((status = redir_fork(new_socket, new_socket)) < 0) {
     log_err(errno, "fork() returned -1!");
-    close(new_socket);
+    safe_close(new_socket);
     return 0;
   }
 
   if (status > 0) { /* parent */
-    close(new_socket);
+    safe_close(new_socket);
     return 0; 
   }
 
@@ -2939,18 +2927,15 @@ static int _redir_close(int infd, int outfd) {
   /*
   char b[128];
   int max = 1000;
-
   if (shutdown(outfd, SHUT_WR) != 0)
     log_dbg("shutdown socket for writing");
-  
-  if (!set_nonblocking(infd)) 
+  if (!ndelay_on(infd)) 
     while(safe_read(infd, b, sizeof(b)) > 0 && max--);
-  
   if (shutdown(infd, SHUT_RD) != 0)
     log_dbg("shutdown socket for reading");
   */
-  close(outfd);
-  close(infd);
+  safe_close(outfd);
+  safe_close(infd);
   return 0;
 }
 
@@ -2987,20 +2972,20 @@ int redir_send_msg(struct redir_t *this, struct redir_msg_t *msg) {
 
   len = offsetof(struct sockaddr_un, sun_path) + strlen(remote.sun_path);
 
-  if (connect(s, (struct sockaddr *)&remote, len) == -1) {
+  if (safe_connect(s, (struct sockaddr *)&remote, len) == -1) {
     log_err(errno, "could not connect to %s", remote.sun_path);
-    close(s);
+    safe_close(s);
     return -1;
   }
   
-  if (write(s, msg, sizeof(*msg)) != sizeof(*msg)) {
+  if (safe_write(s, msg, sizeof(*msg)) != sizeof(*msg)) {
     log_err(errno, "could not write to %s", remote.sun_path);
-    close(s);
+    safe_close(s);
     return -1;
   }
 
   shutdown(s,2);
-  close(s);
+  safe_close(s);
   return 0;
 }
 #endif
@@ -3009,17 +2994,9 @@ pid_t redir_fork(int in, int out) {
   pid_t pid = fork();
   if (pid < 0) return -1;
   if (pid == 0) {
-    struct sigaction act, oldact;
     struct itimerval itval;
 
-    memset(&act, 0, sizeof(act));
-
-    /*act.sa_handler = redir_termination;
-      sigaction(SIGTERM, &act, &oldact);
-      sigaction(SIGINT, &act, &oldact);*/
-
-    act.sa_handler = redir_alarm;
-    sigaction(SIGALRM, &act, &oldact);
+    set_signal(SIGALRM, redir_alarm);
 
     memset(&itval, 0, sizeof(itval));
     itval.it_interval.tv_sec = REDIR_MAXTIME; 
@@ -3032,9 +3009,9 @@ pid_t redir_fork(int in, int out) {
     }
 
 #if defined(F_DUPFD)
-    if (fcntl(in,F_GETFL,0) == -1) return -1; close(0);
+    if (fcntl(in,F_GETFL,0) == -1) return -1; safe_close(0);
     if (fcntl(in,F_DUPFD,0) == -1) return -1;
-    if (fcntl(out,F_GETFL,1) == -1) return -1; close(1);
+    if (fcntl(out,F_GETFL,1) == -1) return -1; safe_close(1);
     if (fcntl(out,F_DUPFD,1) == -1) return -1;
 #else
     if (dup2(in,0) == -1) return -1;
@@ -3044,33 +3021,6 @@ pid_t redir_fork(int in, int out) {
 
   return pid;
 }
-
-int redir_main_exit(struct redir_t *redir, struct redir_httpreq_t *httpreq, 
-		    struct redir_socket_t *socket, int forked) {
-  /*if (httpreq->data_in) bdestroy(httpreq->data_in);*/
-  if (!forked) return 0; /*XXXX*/
-#ifdef HAVE_SSL
-  if (socket->sslcon) {
-    openssl_shutdown(socket->sslcon, 2);
-    openssl_free(socket->sslcon);
-    socket->sslcon=0;
-  }
-#endif
-  if (forked) _redir_close_exit(socket->fd[0], socket->fd[1]);
-  return _redir_close(socket->fd[0], socket->fd[1]);
-}
-
-#ifdef HAVE_SSL
-static void redir_signal2(int sig) {
-  log_dbg("signal(%d)=%d", getpid(),sig);
-}
-static int redir_close_on_signal[2]={0,0};
-static void redir_signal(int sig) {
-  close(redir_close_on_signal[0]);
-  close(redir_close_on_signal[1]);
-  log_dbg("signal(%d)=%d", getpid(),sig);
-}
-#endif
 
 int redir_main(struct redir_t *redir, 
 	       int infd, int outfd, 
@@ -3105,6 +3055,24 @@ int redir_main(struct redir_t *redir,
   int forked = (rreq == 0);
   int err;
 
+
+  int redir_main_exit() {
+    /* if (httpreq->data_in) bdestroy(httpreq->data_in); */
+    /* if (!forked) return 0; XXXX*/
+#ifdef HAVE_SSL
+    if (socket.sslcon) {
+      openssl_shutdown(socket.sslcon, 2);
+      openssl_free(socket.sslcon);
+      socket.sslcon = 0;
+      if (rreq) 
+	rreq->sslcon = 0;
+    }
+#endif
+    if (forked) _redir_close_exit(socket.fd[0], socket.fd[1]);
+    return _redir_close(socket.fd[0], socket.fd[1]);
+  }
+
+
   memset(&httpreq,0,sizeof(httpreq));
   httpreq.allow_post = isui || _options.uamallowpost;
 
@@ -3130,7 +3098,7 @@ int redir_main(struct redir_t *redir,
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
   if (redir_send_msg(redir, &msg) < 0) { \
     log_err(errno, "write() failed! msgfd=%d type=%d len=%d", redir->msgfd, msg.mtype, sizeof(msg.mdata)); \
-    return redir_main_exit(redir, &httpreq, &socket, forked); \
+    return redir_main_exit(); \
   } 
 #else
 #define redir_msg_send(msgopt) \
@@ -3141,7 +3109,7 @@ int redir_main(struct redir_t *redir,
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
   if (msgsnd(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0) < 0) { \
     log_err(errno, "msgsnd() failed! msgid=%d type=%d len=%d", redir->msgid, msg.mtype, sizeof(msg.mdata)); \
-    return redir_main_exit(redir, &httpreq, &socket, forked); \
+    return redir_main_exit(); \
   } 
 #endif
 
@@ -3159,9 +3127,9 @@ int redir_main(struct redir_t *redir,
   redir->starttime = mainclock_now();
 
   /*
-  if (set_nonblocking(socket.fd[0])) {
+  if (ndelay_on(socket.fd[0])) {
     log_err(errno, "fcntl() failed");
-    return redir_main_exit(redir, &httpreq, &socket, forked);
+    return redir_main_exit();
   }
   */
 
@@ -3175,7 +3143,7 @@ int redir_main(struct redir_t *redir,
 
   if (!redir->cb_getstate) { 
     log_err(0, "No cb_getstate() defined!"); 
-    return redir_main_exit(redir, &httpreq, &socket, forked);
+    return redir_main_exit();
   }
 
   /* get_state returns 0 for unauth'ed and 1 for auth'ed */
@@ -3183,7 +3151,7 @@ int redir_main(struct redir_t *redir,
 
   if (state == -1) {
     if (!_options.debug || !isui)
-      return redir_main_exit(redir, &httpreq, &socket, forked);
+      return redir_main_exit();
   }
 
   splash = (conn.s_params.flags & REQUIRE_UAM_SPLASH) == REQUIRE_UAM_SPLASH;
@@ -3198,7 +3166,7 @@ int redir_main(struct redir_t *redir,
     char done = 0, loop = 0;
 
     if (!rreq || !rreq->sslcon) {
-      socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 30);
+      socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 10);
       if (rreq) {
 	/* we were forked */
 	rreq->sslcon = socket.sslcon;
@@ -3213,7 +3181,7 @@ int redir_main(struct redir_t *redir,
     while (!done) {
       switch(openssl_check_accept(socket.sslcon)) {
       case -1:
-	return redir_main_exit(redir, &httpreq, &socket, forked);
+	return redir_main_exit();
       case 1:
 	if (!loop) {
 	  log_dbg("Continue... SSL pending");
@@ -3224,6 +3192,8 @@ int redir_main(struct redir_t *redir,
       }
       if (!loop) done = 1;
     }
+
+    log_dbg("HTTPS Accepted");
   }
 #endif
 
@@ -3237,7 +3207,7 @@ int redir_main(struct redir_t *redir,
     return 1;
   default:
     log_dbg("Error calling get_req. Terminating %d", err);
-    return redir_main_exit(redir, &httpreq, &socket, forked);
+    return redir_main_exit();
   }
 
 
@@ -3262,7 +3232,7 @@ int redir_main(struct redir_t *redir,
 	  if (*p == '.' || *p == '_'|| *p == '-') continue;
 	  /* invalid file name! */
 	  log_err(0, "invalid www request [%s]!", filename);
-	  return redir_main_exit(redir, &httpreq, &socket, forked);
+	  return redir_main_exit();
 	}
       }
       
@@ -3280,7 +3250,7 @@ int redir_main(struct redir_t *redir,
       else { 
 	/* we do not serve it! */
 	log_err(0, "invalid file extension! [%s]", filename);
-	return redir_main_exit(redir, &httpreq, &socket, forked);
+	return redir_main_exit();
       }
 
 
@@ -3291,7 +3261,7 @@ int redir_main(struct redir_t *redir,
 	 */
 	forkpid = redir_fork(infd, outfd);
 	if (forkpid) { /* parent or error */
-	  return redir_main_exit(redir, &httpreq, &socket, forked);
+	  return redir_main_exit();
 	}
       }
       
@@ -3299,10 +3269,10 @@ int redir_main(struct redir_t *redir,
 	
 	if (!_options.wwwbin) {
 	  log_err(0, "the 'wwwbin' setting must be configured for CGI use");
-	  return redir_main_exit(redir, &httpreq, &socket, forked);
+	  return redir_main_exit();
 	}
 	
-	if (clear_nonblocking(socket.fd[0])) {
+	if (ndelay_off(socket.fd[0])) {
 	  log_err(errno, "fcntl() failed");
 	}
 	
@@ -3316,25 +3286,16 @@ int redir_main(struct redir_t *redir,
 	  int ptoc[2];
 	  int ctop[2];
 
-	  struct sigaction act;
-	  memset(&act, 0, sizeof(act));
-	  
 	  if (pipe(ptoc) == -1 || pipe(ctop) == -1) {
 	    log_err(errno, "pipe() failed");
-	    return redir_main_exit(redir, &httpreq, &socket, forked);
+	    return redir_main_exit();
 	  }
 
 	  forkpid = redir_fork(ptoc[0], ctop[1]);
 
-	  act.sa_handler = redir_signal2;
-	  sigaction(SIGCHLD, &act, NULL);
-	  
-	  act.sa_handler = redir_signal;
-	  sigaction(SIGPIPE, &act, NULL);
-
 	  if (forkpid < 0) {
 	    log_err(errno, "fork() failed");
-	    return redir_main_exit(redir, &httpreq, &socket, forked);
+	    return redir_main_exit();
 	  }
 
 	  forked = 1;
@@ -3343,11 +3304,8 @@ int redir_main(struct redir_t *redir,
 
 	    int rd, clen = httpreq.clen;
 
-	    close(ptoc[0]);
-	    close(ctop[1]);
-
-	    redir_close_on_signal[0]=ptoc[1];
-	    redir_close_on_signal[1]=ctop[0];
+	    safe_close(ptoc[0]);
+	    safe_close(ctop[1]);
 
 	    log_dbg("ssl_wrapper(%d)", getpid());
 
@@ -3355,9 +3313,9 @@ int redir_main(struct redir_t *redir,
 	      rd = clen > bufsize ? bufsize : clen;
 	      log_dbg("reading(%d)", rd);
 	      if ((buflen = openssl_read(socket.sslcon, buffer, rd, 0)) > 0) {
-		if (write(ptoc[1], buffer, (size_t) buflen) < 0) {
+		if (safe_write(ptoc[1], buffer, (size_t) buflen) < 0) {
 		  log_err(errno, "tcp_write() failed!");
-		  return redir_main_exit(redir, &httpreq, &socket, forked);
+		  return redir_main_exit();
 		}
 		clen -= buflen;
 	      }
@@ -3380,17 +3338,19 @@ int redir_main(struct redir_t *redir,
 
 	    log_dbg("ssl_wrapper(%d) done", getpid());
 	    
-	    close(ptoc[1]);
- 	    close(ctop[0]);
+	    safe_close(ptoc[1]);
+ 	    safe_close(ctop[0]);
 	    
-	    return redir_main_exit(redir, &httpreq, &socket, forked);
+	    return redir_main_exit();
+
+	  } else {
+	    /* child */
+	    
+	    safe_close(ptoc[1]);
+	    safe_close(ctop[0]);
+
+	    log_dbg("script(%d)", getpid());
 	  }
-
-	  close(ptoc[1]);
-	  close(ctop[0]);
-
-	  /* child */
-	  log_dbg("script(%d)", getpid());
 	}
 #endif
 
@@ -3442,7 +3402,7 @@ int redir_main(struct redir_t *redir,
 	  execv(*binqqargs, binqqargs);
 	}
 	
-	return redir_main_exit(redir, &httpreq, &socket, forked);
+	return redir_main_exit();
       }
 
       if ( (_options.uid == 0 && !chroot(_options.wwwdir) && !chdir("/")) ||
@@ -3452,7 +3412,7 @@ int redir_main(struct redir_t *redir,
 	
 	if (fd > 0) {
 	  
-	  if (clear_nonblocking(socket.fd[0])) {
+	  if (ndelay_off(socket.fd[0])) {
 	    log_err(errno, "fcntl() failed");
 	  }
 	  
@@ -3469,7 +3429,7 @@ int redir_main(struct redir_t *redir,
 	    if (tcp_write(&socket, buffer, (size_t) buflen) < 0)
 	      log_err(errno, "tcp_write() failed!");
 	  
-	  close(fd);
+	  safe_close(fd);
 	} 
 	else log_err(0, "could not open local content file %s!", filename);
       }
@@ -3479,7 +3439,7 @@ int redir_main(struct redir_t *redir,
     }
     else log_err(0, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param\n"); 
     
-    return redir_main_exit(redir, &httpreq, &socket, forked);
+    return redir_main_exit();
   }
 
   termstate = REDIR_TERM_PROCESS;
@@ -3505,7 +3465,7 @@ int redir_main(struct redir_t *redir,
 		    NULL, NULL, conn.s_state.redir.userurl, NULL,
 		    (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
 	
-	return redir_main_exit(redir, &httpreq, &socket, forked);
+	return redir_main_exit();
       }
     }
 
@@ -3521,7 +3481,7 @@ int redir_main(struct redir_t *redir,
 		  0, hexchal, NULL, NULL, NULL, 
 		  0, conn.hismac, &conn.hisip, httpreq.qs);
 
-      return redir_main_exit(redir, &httpreq, &socket, forked);
+      return redir_main_exit();
     }
 
     if (is_local_user(redir, &conn)) { 
@@ -3536,7 +3496,7 @@ int redir_main(struct redir_t *redir,
 	 */
 	pid_t forkpid = redir_fork(infd, outfd);
 	if (forkpid) { /* parent or error */
-	  return redir_main_exit(redir, &httpreq, &socket, forked);
+	  return redir_main_exit();
 	}
       }
 
@@ -3591,7 +3551,7 @@ int redir_main(struct redir_t *redir,
     }    
 
     if (optionsdebug) log_dbg("-->> Msg userurl=[%s]\n",conn.s_state.redir.userurl);
-    return redir_main_exit(redir, &httpreq, &socket, forked);
+    return redir_main_exit();
   }
 
   case REDIR_LOGOUT:
@@ -3605,7 +3565,7 @@ int redir_main(struct redir_t *redir,
 		  hexchal, NULL, conn.s_state.redir.userurl, NULL, 
 		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
       
-      return redir_main_exit(redir, &httpreq, &socket, forked);
+      return redir_main_exit();
     }
     
   case REDIR_MACREAUTH:
@@ -3633,7 +3593,7 @@ int redir_main(struct redir_t *redir,
 		  NULL, 0, hexchal, NULL, conn.s_state.redir.userurl, NULL, 
 		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
     }
-    return redir_main_exit(redir, &httpreq, &socket, forked);
+    return redir_main_exit();
 
   case REDIR_ABORT:
     if (state == 1) {
@@ -3649,12 +3609,12 @@ int redir_main(struct redir_t *redir,
 		  NULL, 0, hexchal, NULL, conn.s_state.redir.userurl, NULL, 
 		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
     }
-    return redir_main_exit(redir, &httpreq, &socket, forked);
+    return redir_main_exit();
 
   case REDIR_ABOUT:
     redir_reply(redir, &socket, &conn, REDIR_ABOUT, NULL, 
 		0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, httpreq.qs);
-    return redir_main_exit(redir, &httpreq, &socket, forked);
+    return redir_main_exit();
 
   case REDIR_STATUS:
     {
@@ -3680,13 +3640,13 @@ int redir_main(struct redir_t *redir,
 		  hexchal, conn.s_state.redir.username, conn.s_state.redir.userurl, conn.reply, 
 		  0, conn.hismac, &conn.hisip, httpreq.qs);
       
-      return redir_main_exit(redir, &httpreq, &socket, forked);
+      return redir_main_exit();
     }
 
   case REDIR_MSDOWNLOAD:
     buflen = snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
     tcp_write(&socket, buffer, buflen);
-    return redir_main_exit(redir, &httpreq, &socket, forked);
+    return redir_main_exit();
 
   }
 
@@ -3770,7 +3730,7 @@ int redir_main(struct redir_t *redir,
 		NULL, conn.hismac, &conn.hisip, httpreq.qs);
   }
   
-  return redir_main_exit(redir, &httpreq, &socket, forked);
+  return redir_main_exit();
 }
 
 

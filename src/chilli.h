@@ -165,6 +165,7 @@ int chilli_req_attrs(struct radius_t *radius,
 
 int chilli_auth_radius(struct radius_t *radius);
 
+int chilli_signal(int signo, void (*func)(int));
 void chilli_signals(int *with_term, int *with_hup);
 
 int chilli_binconfig(char *file, size_t flen, pid_t pid);
@@ -218,5 +219,16 @@ void GenerateAuthenticatorResponse(u_char *Password, int PasswordLen,
 				   u_char *AuthenticatorChallenge, u_char *UserName,
 				   int UserNameLen, u_char *AuthenticatorResponse);
 #endif
+
+int chilli_handle_signal(void *ctx, int fd);
+
+/* sig.c */
+int ndelay_on (int fd);
+int ndelay_off (int fd);
+int set_signal (int signo, void (*func)(int));
+int selfpipe_init (void);
+int selfpipe_read (void);
+int selfpipe_trap (int signo);
+void selfpipe_finish();
 
 #endif /*_CHILLI_H */

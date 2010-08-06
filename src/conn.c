@@ -28,27 +28,13 @@ int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
   server.sin_addr.s_addr = addr->s_addr;
   
   if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) > 0) {
-    int ret, flags = fcntl(sock, F_GETFL, 0);
-    
-    if (flags < 0) flags = 0;
-
-#ifdef O_NONBLOCK
-    flags |= O_NONBLOCK;
-#endif
-
-#ifdef O_NDELAY
-    flags |= O_NDELAY;
-#endif
 
     log_dbg("SETTING non-blocking");
-
-    ret = fcntl(sock, F_SETFL, flags);
-    
-    if (ret < 0) {
+    if (ndelay_on(sock) < 0) {
       log_err(errno, "could not set non-blocking");
     }
 
-    if (connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0) {
+    if (safe_connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0) {
       if (errno != EINPROGRESS) {
 	log_err(errno, "could not connect to %s:%d", inet_ntoa(server.sin_addr), port);
 	close(sock);
@@ -120,10 +106,10 @@ int conn_update_write(struct conn_t *conn) {
       conn_finish(conn);
       return -1;
     } else {
-      int flags = fcntl(conn->sock, F_GETFL, 0);
       log_dbg("RESETTING non-blocking");
-      if (fcntl(conn->sock, F_SETFL, flags & (~O_NONBLOCK)) < 0)
+      if (ndelay_off(conn->sock) < 0) {
 	log_err(errno, "could not un-set non-blocking");
+      }
     }
   }
   
@@ -228,6 +214,7 @@ int conn_close(struct conn_t *conn) {
   if (conn->sslcon) {
     openssl_shutdown(conn->sslcon, 2);
     openssl_free(conn->sslcon);
+    conn->sslcon = 0;
   }
 #endif
   conn->sock = 0;
