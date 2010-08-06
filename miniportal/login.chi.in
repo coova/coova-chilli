@@ -19,51 +19,50 @@
 FORM_username="${FORM_username:-$FORM_UserName}"
 FORM_username="${FORM_username:-$FORM_Username}"
 FORM_password="${FORM_password:-$FORM_Password}"
-FORM_password="${FORM_password:-$FORM_PassWord}"
 
 if [ -n "$FORM_username" -a -n "$COOVA_CHALLENGE" ]; then
-
-   http_header
-
-   dologin
-
+    
+    http_header
+    
+    dologin
+    
 else
-
+    
     if [ -e "splash.chi" ]; then
 	http_redirect "/www/splash.chi"
     fi
-
-   http_header
-
-   case "$FORM_res" in
-       success|already)
-	   header "<meta http-equiv=\"refresh\" content=\"5;url=${FORM_userurl}\">"
-	   uamfile "login_success" 1
-	   footer
-	   exit
-	   ;;
-   esac
-
-   header
-
-   uamfile "login" 1 
-
-   if [ "$FORM_res" =  "failed" ]; then
-       if [ -n "$FORM_reply" ]; then
-	   error "$FORM_reply"
-       else
-	   error "Username and/or passowrd was not valid"
-       fi
-   fi
-
-   loginform 
-
-   uamfile "login_footer" 1 
-   [ "$register" = "1" ] && uamfile "login_register" 1 
-   [ "$usemap" = "1" ] && uamfile "login_map" 1 
-
-   footer
-
+    
+    http_header
+    
+    case "$FORM_res" in
+	success|already)
+	    header "<meta http-equiv=\"refresh\" content=\"5;url=${FORM_userurl}\">"
+	    uamfile "login_success" 1
+	    footer
+	    exit
+	    ;;
+    esac
+    
+    header
+    
+    uamfile "login" 1 
+    
+    if [ "$FORM_res" =  "failed" ]; then
+	if [ -n "$FORM_reply" ]; then
+	    error "$FORM_reply"
+	else
+	    error "Username and/or passowrd was not valid"
+	fi
+    fi
+    
+    loginform 
+    
+    uamfile "login_footer" 1 
+    [ "$register" = "1" ] && uamfile "login_register" 1 
+    [ "$usemap" = "1" ] && uamfile "login_map" 1 
+    
+    footer
+    
 fi
 
 ?>

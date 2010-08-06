@@ -1534,19 +1534,20 @@ static int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
     if (res == REDIR_NOTYET) {
       if (!_options.no_wispr1 && _options.no_wispr2)
 	redir_wispr1_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
-      if (!_options.no_wispr2)
+
+      else if (!_options.no_wispr2)
 	redir_wispr2_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
+
       if (_options.chillixml)
 	redir_xmlchilli_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
     } else {
       /* WISPr 1 and not WISPr 2 */
       log_dbg("redir_reply(): %d, res %d\n", conn->s_state.redir.uamprotocol, res);
-      if ((conn->s_state.redir.uamprotocol & REDIR_UAMPROT_WISPR1) && (!(conn->s_state.redir.uamprotocol & REDIR_UAMPROT_WISPR2)))
-	redir_wispr1_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
-      
       /* WISPr 2 with or without WISPr 1 */
       if (conn->s_state.redir.uamprotocol & REDIR_UAMPROT_WISPR2)
 	redir_wispr2_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
+      else
+	redir_wispr1_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
       
       if (conn->s_state.redir.uamprotocol == REDIR_UAMPROT_CHILLI)
 	redir_xmlchilli_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
@@ -2168,19 +2169,16 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	char rxversion[10];
 	btrimws(bt);
 	bstrtocstr(bt, rxversion, sizeof(rxversion));
-	if(!strcmp(rxversion, "2.0")) {
+	if (!strcmp(rxversion, "2.0")) {
 	  conn->s_state.redir.uamprotocol = REDIR_UAMPROT_WISPR2;
 	  log_dbg("using uamprotocol: WISPr 2.0 (%d)", conn->s_state.redir.uamprotocol);
-	}
-	if (!strcmp(rxversion, "1.0")){
+	} else {
 	  conn->s_state.redir.uamprotocol = REDIR_UAMPROT_WISPR1;
 	  log_dbg("using uamprotocol: WISPr 1.0 (%d)", conn->s_state.redir.uamprotocol);
 	}
       } else { 
-	if (conn->s_state.redir.uamprotocol & REDIR_UAMPROT_WISPR1) { 
-	  conn->s_state.redir.uamprotocol = REDIR_UAMPROT_WISPR1;
-	  log_dbg("using uamprotocol: WISPr 1.0 (%d)", conn->s_state.redir.uamprotocol); 
-	}
+	conn->s_state.redir.uamprotocol = REDIR_UAMPROT_WISPR1;
+	log_dbg("using uamprotocol: WISPr 1.0 (%d)", conn->s_state.redir.uamprotocol); 
       }
 
       if (!redir_getparam(redir, httpreq->qs, "ntresponse", bt)) {
@@ -2214,19 +2212,23 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       else {
 	if ((conn->s_state.redir.uamprotocol == REDIR_UAMPROT_WISPR2) && 
 	    !redir_getparam(redir, httpreq->qs, "WISPrEAPMsg", bt)){
+	  int rc;
+
 	  if (conn->authdata.type != REDIR_AUTH_NONE){
 	    log_err(0, "Request contains both password and eap message");
 	    conn->response = REDIR_ERROR_PROTOCOL;
 	    bdestroy(bt);
 	    return 0;
 	  }
-	  int rc = base64decoder((char *)  bt->data, &(conn->authdata.v.eapmsg));
+
+	  rc = base64decoder((char *)  bt->data, &(conn->authdata.v.eapmsg));
+
 	  if (rc == 1) {
 	    log_err(0, "EAP message is too big, max allowed 1265 bytes");
 	    conn->response = REDIR_FAILED_MTU;
 	    bdestroy(bt);
 	    return 0;
-	  }
+	  } 
 	  if (rc == 2) {
 	    log_err(0, "Invalid EAP message encoding");
 	    conn->response = REDIR_ERROR_PROTOCOL;
