@@ -13,6 +13,8 @@
 ** Changes made by Laurent Frelechoux (Comfone AG)
 * Segfault bug fix in ''chilli_radconfig''
 * Fix for EAPOL, thanks to Francesco Sinopoli
+* Bug fix for ''--enable-chilliredir'' plus SSL
+* Signal handling clean-ups, using self-pipe technique
 
 == ChangeLog (CoovaChilli-v1.2.3 svn revision 356) ==
 
