@@ -19,7 +19,7 @@
 
 #include "chilli.h"
 
-#define _debug_ 0
+#define deeplog 0
 
 void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   struct in_addr inaddr;
@@ -52,7 +52,7 @@ void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pa
   radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen((char*)mac)); 
 }
 
-#if(_debug_)
+#if(deeplog)
 int radius_printqueue(struct radius_t *this) {
   int mx = 256;
   int n;
@@ -202,7 +202,7 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
   int qnext = this->qnext;
   int attempt = 0;
 
-#if(_debug_)
+#if(deeplog)
   if (_options.debug) {
     radius_printqueue(this);
   }
@@ -277,7 +277,7 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
     this->qnext %= this->qsize;
   }
   
-#if(_debug_)
+#if(deeplog)
   if (_options.debug) {
     log_dbg("sending radius packet (code=%d, id=%d, len=%d)\n",
 	    pack->code, pack->id, ntohs(pack->length));
@@ -332,7 +332,7 @@ radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
     return -1;
   }
 
-#if(_debug_)
+#if(deeplog)
   if (_options.debug) {
     log_dbg("radius_queue_out");
     radius_printqueue(this);
@@ -355,7 +355,7 @@ radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
   else
     this->queue[this->queue[idx].prev].next = this->queue[idx].next;
 
-#if(_debug_)
+#if(deeplog)
   if (_options.debug) {
     log_dbg("radius_queue_out end");
     radius_printqueue(this);
@@ -377,7 +377,7 @@ static int radius_queue_reschedule(struct radius_t *this, int idx) {
     return -1;
   }
 
-#if(_debug_)
+#if(deeplog)
   if (_options.debug) {
     log_dbg("radius_reschedule");
     radius_printqueue(this);
@@ -416,7 +416,7 @@ static int radius_queue_reschedule(struct radius_t *this, int idx) {
     this->first = idx;  /* First and last */
   }
   
-#if(_debug_)
+#if(deeplog)
   if (_options.debug) {
     radius_printqueue(this);
   }
@@ -564,7 +564,7 @@ int radius_timeout(struct radius_t *this) {
 
   gettimeofday(&now, NULL);
 
-#if(_debug_)
+#if(deeplog)
   if (_options.debug) {
     log_dbg("radius_timeout(%d) %8d %8d", this->first, 
 	    (int)now.tv_sec, (int)now.tv_usec);
@@ -637,7 +637,7 @@ int radius_timeout(struct radius_t *this) {
     }    
   }
   
-#if(_debug_)
+#if(deeplog)
   if (_options.debug) {
     log_dbg("radius_timeout");
     if (this->first > 0) {

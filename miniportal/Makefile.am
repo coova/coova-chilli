@@ -11,7 +11,7 @@ css.tmpl             js.tmpl             login.tmpl           terms.tmpl \
 email_contact.tmpl   login_footer.tmpl   map.tmpl             title.tmpl \
 email_owner.tmpl     login_form.tmpl     openid_form.tmpl error.tmpl
 
-sh_files=config-local.sh functions.sh payment.sh uam.sh
+sh_files=config-local.sh functions.sh payment.sh uam.sh wispr.sh
 
 wwwSCRIPTFILES = $(chi_files) $(sh_files)
 wwwDATAFILES = $(tmpl_files)
@@ -82,6 +82,11 @@ uam.sh: Makefile uam.sh.in
 	rm -f uam.sh uam.sh.tmp
 	$(edit) uam.sh.in >uam.sh.tmp
 	mv uam.sh.tmp uam.sh
+
+wispr.sh: Makefile wispr.sh.in
+	rm -f wispr.sh wispr.sh.tmp
+	$(edit) wispr.sh.in >wispr.sh.tmp
+	mv wispr.sh.tmp wispr.sh
 
 payment.sh: Makefile payment.sh.in
 	rm -f payment.sh payment.sh.tmp

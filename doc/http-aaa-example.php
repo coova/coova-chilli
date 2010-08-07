@@ -465,7 +465,7 @@ function do_admin_service(&$attrs) {
   //echo "ChilliSpot-Config:txqlen 1000\n";
   //echo "ChilliSpot-Config:tcpmss 1460\n";
   echo "ChilliSpot-Config:acctupdate\n";
-  echo "ChilliSpot-Config:macreauth\n";
+  //echo "ChilliSpot-Config:macreauth\n";
   exit;
 
   return do_auth_accept($attrs);

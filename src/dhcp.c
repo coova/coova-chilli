@@ -24,6 +24,8 @@ static uint8_t bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static uint8_t nmac[PKT_ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static int connections = 0;
 
+#define deeplog 0
+
 char *dhcp_state2name(int authstate) {
   switch(authstate) {
   case DHCP_AUTH_NONE:   return "none";
@@ -1430,7 +1432,9 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 
     } else if (do_reset) {
       /* otherwise, RESET and drop */
+#if(deeplog)
       log_dbg("Resetting connection on port %d->%d", ntohs(tcph->src), ntohs(tcph->dst));
+#endif
       dhcp_sendRESET(conn, pack, 1);
     }
   }
@@ -1597,8 +1601,10 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 #endif
 
   if (do_reset && iph->protocol == PKT_IP_PROTO_TCP) {
+#if(deeplog)
     log_dbg("Resetting connection on port %d->%d (undo)", 
 	    ntohs(tcph->src), ntohs(tcph->dst));
+#endif
     dhcp_sendRESET(conn, pack, 0);
     if (conn->peer) {
       tun_sendRESET(tun, pack, (struct app_conn_t *)conn->peer);
@@ -2746,7 +2752,9 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   case DHCP_AUTH_DNAT:
     /* Destination NAT if request to unknown web server */
     if (dhcp_doDNAT(conn, pack, len, 1, &do_checksum)) {
+#if(deeplog)
       log_dbg("dropping packet; not nat'ed");
+#endif
       return 0; /* drop */
     }
     break;

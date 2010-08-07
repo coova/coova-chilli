@@ -2229,12 +2229,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    bdestroy(bt);
 	    return 0;
 	  } 
+
 	  if (rc == 2) {
 	    log_err(0, "Invalid EAP message encoding");
 	    conn->response = REDIR_ERROR_PROTOCOL;
 	    bdestroy(bt);
 	    return 0;
 	  }
+
 	  if (_options.debug) {
 	    char buffer[conn->authdata.v.eapmsg.len*2+1];
 	    bytetohex(conn->authdata.v.eapmsg.data,
@@ -2243,9 +2245,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    log_dbg("decoded eap message from WISPr request (%d): %s", 
 		    conn->authdata.v.eapmsg.len, buffer);
 	  }
+
 	  conn->authdata.type = REDIR_AUTH_EAP;
 	}
-
       }
 
       if (conn->authdata.type == REDIR_AUTH_NONE) {
@@ -2646,12 +2648,6 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   RADIUS_SERVICE_TYPE_LOGIN,
 		   conn->nasport, conn->hismac,
 		   &conn->hisip, &conn->s_state);
-
-  if (conn->s_state.redir.classlen) {
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
-		   conn->s_state.redir.classbuf,
-		   conn->s_state.redir.classlen);
-  }
 
   if (snprintf(url, sizeof(url)-1, "http://%s:%d/logoff", 
 	       inet_ntoa(redir->addr), redir->port) > 0)
@@ -3542,14 +3538,16 @@ int redir_main(struct redir_t *redir,
 	msg.mtype = REDIR_NOTYET;
       }
 
-      redir_reply(redir, &socket, &conn, REDIR_FAILED_REJECT, hasnexturl ? besturl : NULL,
+      redir_reply(redir, &socket, &conn, conn.response, 
+		  hasnexturl ? besturl : NULL,
 		  0, hexchal, NULL, conn.s_state.redir.userurl, conn.reply,
 		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
 
       bdestroy(besturl);
 
       /* set params, redir data, and reset session-id */
-      redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS | REDIR_MSG_NSESSIONID);
+      redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS | 
+		     (conn.response == REDIR_CHALLENGE ? 0 : REDIR_MSG_NSESSIONID));
     }    
 
     if (optionsdebug) log_dbg("-->> Msg userurl=[%s]\n",conn.s_state.redir.userurl);

@@ -16,6 +16,7 @@
 
 . ./functions.sh
 . ./uam.sh
+. ./wispr.sh
 
 reg_mode=$(getconfig reg_mode)
 [ "$reg_mode" = "self" ] && register=1
@@ -67,7 +68,7 @@ EOF
 
 http_header() {
     [ "$(getconfig enabled)" = "true" ] || {
-	http_redirect "/www/disabled.chi"
+	http_redirect2 "/www/disabled.chi"
     }
     
     echo "HTTP/1.1 200 OK"
@@ -213,22 +214,7 @@ chi_login_url() {
 
 dologin() {
     url=$(chi_login_url "$FORM_username" "$FORM_password" "$FORM_userurl")
-    cat <<ENDHTML
-<html><head>
-<meta http-equiv="refresh" content="0;url=$url">
-</head></html>
-<!--
-<WISPAccessGatewayParam
-  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:noNamespaceSchemaLocation="http://www.acmewisp.com/WISPAccessGatewayParam.xsd">
-<AuthenticationReply>
-<MessageType>120</MessageType>
-<ResponseCode>201</ResponseCode>
-<LoginResultsURL>$(echo "$url" | sed 's/\&/&amp;/g')</LoginResultsURL>
-</AuthenticationReply>
-</WISPAccessGatewayParam>
--->
-ENDHTML
+    wisprLoginResultsURL "$url"
 }
 
 domail() {

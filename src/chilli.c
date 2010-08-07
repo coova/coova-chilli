@@ -811,29 +811,34 @@ int chilli_req_attrs(struct radius_t *radius,
 		   service_type, NULL, 0); 
 
 #ifdef ENABLE_IEEE8021Q
-  if (state->tag8021q)
+  if (state->tag8021q) {
     radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 
 		   (uint32_t)(ntohs(state->tag8021q) & 0x0FFF), 0, 0);
+  }
 #endif
 
-  if (state->sessionid[0])
+  if (state->sessionid[0]) {
     radius_addattr(radius, pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
 		   (uint8_t *) state->sessionid, REDIR_SESSIONID_LEN-1);
+  }
   
   if (state->redir.classlen) {
+    log_dbg("RADIUS Request + Class(%d)", state->redir.classlen);
     radius_addattr(radius, pack, RADIUS_ATTR_CLASS, 0, 0, 0,
 		   state->redir.classbuf,
 		   state->redir.classlen);
   }
 
   if (state->redir.cuilen > 1) {
+    log_dbg("RADIUS Request + CUI(%d)", state->redir.cuilen);
     radius_addattr(radius, pack, RADIUS_ATTR_CHARGEABLE_USER_IDENTITY, 0, 0, 0,
 		   state->redir.cuibuf,
 		   state->redir.cuilen);
   }
 
   if (state->redir.statelen) {
+    log_dbg("RADIUS Request + State(%d)", state->redir.statelen);
     radius_addattr(radius, pack, RADIUS_ATTR_STATE, 0, 0, 0,
 		   state->redir.statebuf,
 		   state->redir.statelen);
@@ -877,21 +882,24 @@ int chilli_req_attrs(struct radius_t *radius,
 #endif
 
   /* Include NAS-Identifier if given in configuration options */
-  if (_options.radiusnasid)
+  if (_options.radiusnasid) {
     radius_addattr(radius, pack, RADIUS_ATTR_NAS_IDENTIFIER, 0, 0, 0,
 		   (uint8_t*) _options.radiusnasid, strlen(_options.radiusnasid));
+  }
 
-  if (_options.radiuslocationid)
+  if (_options.radiuslocationid) {
     radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_ID, 0,
 		   (uint8_t*) _options.radiuslocationid, 
 		   strlen(_options.radiuslocationid));
+  }
 
-  if (_options.radiuslocationname)
+  if (_options.radiuslocationname) {
     radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOCATION_NAME, 0,
 		   (uint8_t*) _options.radiuslocationname, 
 		   strlen(_options.radiuslocationname));
+  }
   
   return 0;
 }
@@ -1189,12 +1197,6 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
 		   (uint8_t*) conn->s_state.redir.username, 
 		   strlen(conn->s_state.redir.username));
-    
-    if (conn->s_state.redir.classlen) {
-      radius_addattr(radius, &radius_pack, RADIUS_ATTR_CLASS, 0, 0, 0,
-		     conn->s_state.redir.classbuf,
-		     conn->s_state.redir.classlen);
-    }
     
     if (conn->is_adminsession) {
   
