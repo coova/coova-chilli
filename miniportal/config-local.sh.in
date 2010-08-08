@@ -85,8 +85,8 @@ header() {
 
     uamfile title 0
 
-    echo "<meta http-equiv=\"Cache-control\" content=\"no-cache\">
-<meta http-equiv=\"Pragma\" content=\"no-cache\">
+    echo "<meta http-equiv=\"Cache-control\" content=\"no-cache\"/>
+<meta http-equiv=\"Pragma\" content=\"no-cache\"/>
 <style>"
 
     uamfile "css" 0 
@@ -229,7 +229,7 @@ domail() {
 
 
 if [ "$FORM_uamip" != "" ]; then
-    if [ "$FORM_res" != "wispr1" -a "$FORM_res" != "wispr2" ]; then
+    if [ "$FORM_res" != "wispr" ]; then
 	QS=$(echo $QUERY_STRING | sed 's/&md=[^&=]*$//')
 	HTTP="http"
 	[ "$HTTPS" = "on" ] && HTTP="https"

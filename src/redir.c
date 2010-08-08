@@ -791,7 +791,7 @@ static void redir_wispr1_reply (struct redir_t *redir, struct redir_conn_t *conn
       bconcat(b, bt);
     }
     
-    bassignformat(bt, "<LoginURL>%s%sres=wispr1&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
+    bassignformat(bt, "<LoginURL>%s%sres=wispr&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
 		  _options.wisprlogin ? _options.wisprlogin : redir->url, 
 		  strchr(_options.wisprlogin ? _options.wisprlogin : redir->url, '?') ? "&amp;" : "?",
 		  inet_ntoa(redir->addr), redir->port, hexchal); 
@@ -1005,7 +1005,7 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
       bconcat(b, bt);
     }
     
-    bassignformat(bt, "<LoginURL>%s%sres=wispr2&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
+    bassignformat(bt, "<LoginURL>%s%sres=wispr&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
 		  _options.wisprlogin ? _options.wisprlogin : redir->url, 
 		  strchr(_options.wisprlogin ? _options.wisprlogin : redir->url, '?') ? "&amp;" : "?",
 		  inet_ntoa(redir->addr), redir->port, hexchal); 
@@ -1133,7 +1133,7 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
       log_dbg("Base64 encoding of radius eap message failed");
     }
     
-    bassignformat(bt, "<LoginURL>%s%sres=wispr2&amp;uamip=%s&amp;continue=1&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
+    bassignformat(bt, "<LoginURL>%s%sres=wispr&amp;uamip=%s&amp;continue=1&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
 		  _options.wisprlogin ? _options.wisprlogin : redir->url, 
 		  strchr(_options.wisprlogin ? _options.wisprlogin : redir->url, '?') ? "&amp;" : "?",
 		  inet_ntoa(redir->addr), redir->port, hexchal); 
