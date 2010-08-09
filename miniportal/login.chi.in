@@ -16,17 +16,6 @@
 
 . ./config.sh
 
-FORM_username="${FORM_username:-$FORM_UserName}"
-FORM_username="${FORM_username:-$FORM_Username}"
-FORM_password="${FORM_password:-$FORM_Password}"
-
-# For WISPr 2.0 EAP, bounce back to chilli
-[ "$FORM_res" = "wispr" ] && \
-    [ "$FORM_WISPrEAPMsg" != "" ] && \
-    [ "$FORM_WISPrVersion" = "2.0" ] && {
-    http_redirect2 "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=$FORM_username&WISPrEAPMsg=$FORM_WISPrEAPMsg&WISPrVersion=2.0"
-}
-
 if [ -n "$FORM_username" -a -n "$COOVA_CHALLENGE" ]; then
     
     http_header

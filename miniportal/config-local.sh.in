@@ -214,6 +214,11 @@ chi_login_url() {
 
 dologin() {
     url=$(chi_login_url "$FORM_username" "$FORM_password" "$FORM_userurl")
+    cat <<ENDHTML
+<html><head>
+<meta http-equiv="refresh" content="0;url=$url"/>
+</head></html>
+ENDHTML
     wisprLoginResultsURL "$url"
 }
 
@@ -227,6 +232,16 @@ domail() {
     return 1;
 }
 
+FORM_username="${FORM_username:-$FORM_UserName}"
+FORM_username="${FORM_username:-$FORM_Username}"
+FORM_password="${FORM_password:-$FORM_Password}"
+
+# For WISPr 2.0 EAP, bounce back to chilli
+[ "$FORM_res" = "wispr" ] && \
+    [ "$FORM_WISPrEAPMsg" != "" ] && \
+    [ "$FORM_WISPrVersion" = "2.0" ] && {
+    http_redirect2 "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=$FORM_username&WISPrEAPMsg=$FORM_WISPrEAPMsg&WISPrVersion=2.0"
+}
 
 if [ "$FORM_uamip" != "" ]; then
     if [ "$FORM_res" != "wispr" ]; then

@@ -20,46 +20,44 @@ http_header
 
 case "$FORM_res" in
     success|already)
-	header "<meta http-equiv=\"refresh\" content=\"5;url=${FORM_userurl}\">"
+	header "<meta http-equiv=\"refresh\" content=\"5;url=${FORM_userurl}\"/>"
 	uamfile "login_success" 1
 	footer
 	exit
 	;;
 esac
 
-FORM_username="${FORM_username:-$FORM_UserName}"
-FORM_username="${FORM_username:-$FORM_Username}"
-FORM_password="${FORM_password:-$FORM_Password}"
-FORM_password="${FORM_password:-$FORM_PassWord}"
 
 if [ -n "$FORM_username" -a -n "$FORM_challenge" -a -n "$FORM_password" ]; then
-
-   dologin
-
+ 
+    dologin
+    
 else
+    
+    if [ "$tos" = "1" ]; then
+	
+	if [ "$FORM_button" != "" ]; then
+	    
+	    FORM_username="tos-accept"
+	    FORM_password="_tos-password_"
+	    
+	    grep "^$FORM_username:" $USERS >/dev/null 2>&1 || \
+		echo "$FORM_username:$FORM_password::" >> $USERS
+	    
+	    dologin
 
-if [ "$tos" = "1" ]; then
-
-    if [ "$FORM_button" != "" ]; then
-	FORM_username="tos-accept"
-	FORM_password="_tos-password_"
-	grep "^$FORM_username:" $USERS >/dev/null 2>&1 || \
-	    echo "$FORM_username:$FORM_password::" >> $USERS
-	dologin
-    else
-	header
-
-        [ "$usemap" = "1" ] && { 
-           echo "<div style=\"float:right;padding-right:20px;\">"
-           uamfile "login_map" 1 
-           echo "</div>"
-        }
-
-	uamfile "terms" 1
-	termsform
-	footer
+	else
+	    header
+            [ "$usemap" = "1" ] && { 
+		echo "<div style=\"float:right;padding-right:20px;\">"
+		uamfile "login_map" 1 
+		echo "</div>"
+            }
+	    uamfile "terms" 1
+	    termsform
+	    footer
+	fi
     fi
-fi
 fi
 
 ?>
