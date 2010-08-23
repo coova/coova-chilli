@@ -25,6 +25,8 @@
 #include <glob.h>
 #endif
 
+#define QUERY_TIMEOUT 10
+
 struct options_t _options;
 
 typedef struct _cmd_info {
@@ -186,6 +188,11 @@ static int usage(char *program) {
   return 1;
 }
 
+static void timeout_alarm(int signum) {
+  fprintf(stderr, "Timeout\n");
+  exit(1);
+}
+
 int main(int argc, char **argv) {
   /*
    *   chilli_query [ -s <unix-socket> ] <command> [<argument>]
@@ -204,6 +211,20 @@ int main(int argc, char **argv) {
   char line[1024], *cmd;
   int argidx = 1;
 
+  struct itimerval itval;
+  
+  set_signal(SIGALRM, timeout_alarm);
+  
+  memset(&itval, 0, sizeof(itval));
+  itval.it_interval.tv_sec = QUERY_TIMEOUT;
+  itval.it_interval.tv_usec = 0; 
+  itval.it_value.tv_sec = QUERY_TIMEOUT;
+  itval.it_value.tv_usec = 0; 
+  
+  if (setitimer(ITIMER_REAL, &itval, NULL)) {
+    log_err(errno, "setitimer() failed!");
+  }
+  
   if (argc < 2) return usage(argv[0]);
 
   if (*argv[argidx] == '/') {
@@ -451,19 +472,24 @@ int main(int argc, char **argv) {
     exit(1);
   }
   
-  if (write(s, &request, sizeof(request)) != sizeof(request)) {
+  if (safe_write(s, &request, sizeof(request)) != sizeof(request)) {
     perror("write");
     exit(1);
   }
 
-  while((len = safe_read(s, line, sizeof(line)-1)) > 0) 
-    if (write(1, line, len) != len)
+  while((len = safe_read(s, line, sizeof(line)-1)) > 0) {
+    if (write(1, line, len) != len) {
       perror("write");
+      exit(1);
+    }
+  }
 
-  if (len < 0) 
+  if (len < 0) {
     perror("read");
+    exit(1);
+  }
 
-  shutdown(s,2);
+  shutdown(s, 2);
   close(s);
 
 #ifdef HAVE_GLOB

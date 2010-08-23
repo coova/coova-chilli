@@ -29,8 +29,6 @@ extern struct ippool_t *ippool;
 static int has_loaded = 0;
 
 int loadstatus() {
-  char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
-  struct stat statbuf;
   char filedest[512];
   FILE *file;
   char c;
@@ -43,20 +41,7 @@ int loadstatus() {
   if (!_options.usestatusfile) 
     return 1;
 
-  if (strlen(statedir)>sizeof(filedest)-1) 
-    return -1;
-
-  if (stat(statedir, &statbuf)) { 
-    log_err(errno, "statedir (%s) does not exist", statedir); 
-    return -1; 
-  }
-
-  if (!S_ISDIR(statbuf.st_mode)) { 
-    log_err(0, "statedir (%s) not a directory", statedir); 
-    return -1; 
-  }
-
-  snprintf(filedest, sizeof(filedest), "%s/%s", statedir, _options.usestatusfile);
+  statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
 
   file = fopen(filedest, "r");
   if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
@@ -240,9 +225,7 @@ int loadstatus() {
 }
 
 int printstatus() {
-  char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
   char filedest[512];
-  struct stat statbuf;
   FILE *file;
 
   struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
@@ -254,20 +237,7 @@ int printstatus() {
   if (!_options.usestatusfile) 
     return 0;
 
-  if (strlen(statedir)>sizeof(filedest)-1) 
-    return -1;
-
-  if (stat(statedir, &statbuf)) { 
-    log_err(errno, "statedir (%s) does not exist", statedir); 
-    return -1; 
-  }
-
-  if (!S_ISDIR(statbuf.st_mode)) { 
-    log_err(0, "statedir (%s) not a directory", statedir); 
-    return -1; 
-  }
-
-  snprintf(filedest, sizeof(filedest), "%s/%s", statedir, _options.usestatusfile);
+  statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
 
   log_dbg("Writing status file: %s", filedest);
 
@@ -307,10 +277,8 @@ int loadstatus() {
 }
 
 int printstatus() {
-  char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
   FILE *file;
   char filedest[512];
-  struct stat statbuf;
 
   struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
   struct app_conn_t *appconn;
@@ -318,20 +286,7 @@ int printstatus() {
   if (!_options.usestatusfile) 
     return 0;
 
-  if (strlen(statedir)>sizeof(filedest)-1) 
-    return -1;
-
-  if (stat(statedir, &statbuf)) { 
-    log_err(errno, "statedir (%s) does not exist", statedir); 
-    return -1; 
-  }
-
-  if (!S_ISDIR(statbuf.st_mode)) { 
-    log_err(0, "statedir (%s) not a directory", statedir); 
-    return -1; 
-  }
-
-  snprintf(filedest, sizeof(filedest), "%s/%s", statedir, _options.usestatusfile);
+  statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
 
   file = fopen(filedest, "w");
   if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }

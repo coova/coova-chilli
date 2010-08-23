@@ -103,17 +103,9 @@ sock_redir_getstate(struct redir_t *redir,
   size_t len = sizeof(remote);
   int s;
 
-  char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
   char filedest[512];
 
-  if (!_options.unixipc) {
-    snprintf(filedest, sizeof(filedest), "%s/chilli.ipc", statedir);
-  } else {
-    if (_options.unixipc[0]=='/')
-      snprintf(filedest, sizeof(filedest), "%s", _options.unixipc);
-    else
-      snprintf(filedest, sizeof(filedest), "%s/%s", statedir, _options.unixipc);
-  }
+  statedir_file(filedest, sizeof(filedest), _options.unixipc, "chilli.ipc");
 
   msg.mtype = REDIR_MSG_STATUS_TYPE;
   memcpy(&msg.mdata.address, address, sizeof(msg.mdata.address));

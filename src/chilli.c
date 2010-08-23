@@ -2853,7 +2853,7 @@ static int chilliauth_cb(struct radius_t *radius,
 				   RADIUS_VENDOR_CHILLISPOT,
 				   RADIUS_ATTR_CHILLISPOT_CONFIG, 
 				   0, &offset));
-	close(fd);
+	safe_close(fd);
       }
       
       /* 
@@ -2877,8 +2877,8 @@ static int chilliauth_cb(struct radius_t *radius,
 	  } 
 	  while (!differ && r1 > 0 && r2 > 0);
 	  
-	  close(newfd); newfd=0;
-	  close(oldfd); oldfd=0;
+	  safe_close(newfd); newfd=0;
+	  safe_close(oldfd); oldfd=0;
 	  
 	  if (differ) {
 	    log_dbg("Writing out new hs.conf file with administraive-user settings");
@@ -2891,14 +2891,14 @@ static int chilliauth_cb(struct radius_t *radius,
 	      while ((r1 = safe_read(newfd, b1, sizeof(b1))) > 0 &&
 		     safe_write(oldfd, b1, r1) > 0);
 	      
-	      close(newfd); newfd=0;
-	      close(oldfd); oldfd=0;
+	      safe_close(newfd); newfd=0;
+	      safe_close(oldfd); oldfd=0;
 	      do_interval = 1;
 	    }
 	  }
 	}
-	if (newfd > 0) close(newfd);
-	if (oldfd > 0) close(oldfd);
+	if (newfd > 0) safe_close(newfd);
+	if (oldfd > 0) safe_close(oldfd);
       }
     }
   }
@@ -3705,7 +3705,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 	if (ioctl(sockfd, SIOCDARP, &req) < 0) {
 	  perror("ioctrl()");
 	}
-	close(sockfd);
+	safe_close(sockfd);
       }
     }
   }
@@ -4073,7 +4073,7 @@ static int cmdsock_accept(void *nullData, int sock) {
 
   if (safe_read(csock, &req, sizeof(req)) != sizeof(req)) {
     log_err(errno, "cmdsock_accept()/read()");
-    close(csock);
+    safe_close(csock);
     return -1;
   }
 
@@ -4260,13 +4260,13 @@ static int cmdsock_accept(void *nullData, int sock) {
 
   default:
     perror("unknown command");
-    close(csock);
+    safe_close(csock);
     rval = -1;
   }
 
   if (s) bdestroy(s);
   shutdown(csock, 2);
-  close(csock);
+  safe_close(csock);
 
   return rval;
 }
@@ -4333,7 +4333,7 @@ int static redir_msg(struct redir_t *this) {
 	uam_msg(&msg);
       }
     }
-    close(socket);
+    safe_close(socket);
   }
   return 0;
 }
@@ -4997,18 +4997,22 @@ int chilli_main(int argc, char **argv) {
    */
 
 #ifdef ENABLE_RTMON_
-  if (rtmon_pid > 0)
+  if (rtmon_pid > 0) {
+    log_dbg("Killing rtmon");
     kill(rtmon_pid, SIGTERM);
+  }
 #endif
   
 #ifdef ENABLE_CHILLIREDIR
-  if (redir_pid > 0)
+  if (redir_pid > 0) {
+    log_dbg("Killing redir");
     kill(redir_pid, SIGTERM);
+  }
 #endif
 
 #if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC)
   if (proxy_pid > 0) {
-    sleep(1);
+    log_dbg("Killing proxy");
     kill(proxy_pid, SIGTERM);
   }
 #endif

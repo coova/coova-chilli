@@ -19,6 +19,19 @@
 
 #include "chilli.h"
 
+int statedir_file(char *dst, int dlen, char *file, char *deffile) {
+  char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
+  if (!file && deffile) {
+    return snprintf(dst, dlen, "%s/%s", statedir, deffile);
+  } else if (file) {
+    if (file[0]=='/')
+      return snprintf(dst, dlen, "%s", file);
+    else
+      return snprintf(dst, dlen, "%s/%s", statedir, file);
+  }
+  return 0;
+}
+
 int bstring_fromfd(bstring s, int fd) {
   int len = 128;
   int rd;

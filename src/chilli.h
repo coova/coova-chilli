@@ -222,6 +222,9 @@ void GenerateAuthenticatorResponse(u_char *Password, int PasswordLen,
 
 int chilli_handle_signal(void *ctx, int fd);
 
+/* utils.c */
+int statedir_file(char *dst, int dlen, char *file, char *deffile);
+
 /* sig.c */
 int ndelay_on (int fd);
 int ndelay_off (int fd);
