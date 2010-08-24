@@ -1,6 +1,8 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+== ChangeLog (CoovaChilli-v1.2.4 svn revision 371) ==
+
 * Integrated changes from Comfone AG
 ** Implemented support for WISPr 2.0 username/password and EAP
 ** Implemented support for Radius CUI
