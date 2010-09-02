@@ -2379,7 +2379,7 @@ int access_request(struct radius_packet_t *pack,
   }
 
   /* Store parameters for later use */
-  if (uidattr->l-2<=USERNAMESIZE) {
+  if (uidattr->l-2 <= USERNAMESIZE) {
     strncpy(appconn->s_state.redir.username, 
 	    (char *)uidattr->v.t, uidattr->l-2);
   }
@@ -3607,6 +3607,7 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
   if (appconn->s_state.authenticated == 1) { /* Only send accounting if logged in */
     dnprot_terminate(appconn);
     appconn->s_state.terminate_cause = terminate_cause;
+
     if (!(appconn->s_params.flags & NO_ACCOUNTING))
       acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
 
@@ -3963,17 +3964,20 @@ int static uam_msg(struct redir_msg_t *msg) {
     return 0;
   }
 
-  if (msg->mdata.opt & REDIR_MSG_OPT_REDIR)
-    memcpy(&appconn->s_state.redir, &msg->mdata.redir, sizeof(msg->mdata.redir));
-
-  if (msg->mdata.opt & REDIR_MSG_OPT_PARAMS)
-    memcpy(&appconn->s_params, &msg->mdata.params, sizeof(msg->mdata.params));
-
-  if (msg->mdata.opt & REDIR_MSG_NSESSIONID)
-    set_sessionid(appconn);
-
+  if (appconn->s_state.authenticated == 0 || msg->mtype == REDIR_LOGOUT) {
+    /* Ensure that the session is not already authenticated before changing session */
+    if (msg->mdata.opt & REDIR_MSG_OPT_REDIR)
+      memcpy(&appconn->s_state.redir, &msg->mdata.redir, sizeof(msg->mdata.redir));
+    
+    if (msg->mdata.opt & REDIR_MSG_OPT_PARAMS)
+      memcpy(&appconn->s_params, &msg->mdata.params, sizeof(msg->mdata.params));
+    
+    if (msg->mdata.opt & REDIR_MSG_NSESSIONID)
+      set_sessionid(appconn);
+  }
+  
   switch(msg->mtype) {
-
+    
   case REDIR_LOGIN:
     if (appconn->uamabort) {
       log_info("UAM login from username=%s IP=%s was aborted!", 

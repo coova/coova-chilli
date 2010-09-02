@@ -2280,8 +2280,6 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
   default:
     {
-      /* some basic checks for urls we don't care about */
-      
       snprintf(conn->s_state.redir.userurl, sizeof(conn->s_state.redir.userurl), "http://%s/%s%s%s", 
 	       httpreq->host, httpreq->path, httpreq->qs[0] ? "?" : "", httpreq->qs[0] ? httpreq->qs : "");
 
