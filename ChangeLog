@@ -1,6 +1,9 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+* Removed CoovaChilli-Version from Access-Accept/Challenge/Reject to EAP NAS
+* Fix to not update chilli session from a IPC request when already autheticated
+
 == ChangeLog (CoovaChilli-v1.2.4 svn revision 371) ==
 
 * Integrated changes from Comfone AG

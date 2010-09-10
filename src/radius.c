@@ -1576,8 +1576,10 @@ radius_default_pack(struct radius_t *this,
   }
 
   switch (code) {
-  case RADIUS_CODE_ACCESS_REJECT:
   case RADIUS_CODE_ACCESS_ACCEPT:
+  case RADIUS_CODE_ACCESS_REJECT:
+    break;
+
   case RADIUS_CODE_ACCESS_REQUEST:
   case RADIUS_CODE_ACCOUNTING_REQUEST:
 

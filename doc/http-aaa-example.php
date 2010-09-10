@@ -456,7 +456,7 @@ function do_admin_service(&$attrs) {
   set_interim_interval($attrs, 300);
 
   echo "Auth: 1\n";
-  echo "Acct-Interim-Interval:3600\n";
+  echo "Acct-Interim-Interval:120\n";
   echo "ChilliSpot-Config:uamanyip\n";
   echo "ChilliSpot-Config:uamnatanyip\n";
   //echo "ChilliSpot-Config:seskeepalive\n";
@@ -1079,10 +1079,16 @@ function start_session() {
   db_query($sql, false);
 }
 
+function _value_int($n) {
+  $v = $_GET[$n];
+  if ($v == '') $v = "0";
+  return $v;
+}
+
 function _ses_update() {
-  $result .= ',bytes_up='.$_GET['bytes_up'];
-  $result .= ',bytes_down='.$_GET['bytes_down'];
-  $result .= ',duration='.$_GET['duration'];
+  $result .= ',bytes_up='._value_int('bytes_up');
+  $result .= ',bytes_down='._value_int('bytes_down');
+  $result .= ',duration='._value_int('duration');
   return $result;
 }
 

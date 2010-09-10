@@ -286,16 +286,6 @@ update_new_file() {
     return 1;
 }
 
-checkforoutage() {
-    rm -f $RUN_D/chilli.failsafe
-    [ -s $HS_TEMP ] || {
-	[ -n "$HS_RADCONF_FAILSAFE" ] && {
-	    touch $RUN_D/chilli.failsafe
-	    cp -f $HS_RADCONF_FAILSAFE $HS_TEMP
-	}
-    }
-}
-
 checkfornew() {
     update_new_file $HS_TEMP $HS_CONF && {
 	killall -HUP chilli 2>/dev/null >/dev/null
@@ -305,7 +295,7 @@ checkfornew() {
 radiusconfig() {
     [ -e $LOCAL_CONF ] || touch $LOCAL_CONF 
     [ -e $HS_CONF ] || touch $HS_CONF 
-    if [ "x$HS_RADCONF" = "xurl" ]; then 
+    if [ "$HS_RADCONF" = "url" ]; then 
 	for s in $HS_RADCONF_URL $HS_RADCONF_URLS; do
 	    sep='?'
 	    opt=
@@ -314,7 +304,7 @@ radiusconfig() {
 	    [ "$HS_RADCONF_USER" = "" ] || opt="-u '$HS_RADCONF_USER:$HS_RADCONF_PWD'"
 	    curl -k -A CoovaAP $opt "$s$sep$qs" 2>/dev/null > $HS_TEMP && break;
 	done
-    elif [ "x$HS_RADCONF" = "xon" ]; then 
+    elif [ "$HS_RADCONF" = "on" ]; then 
 	for s in $HS_RADCONF_SERVER $HS_RADCONF_SERVERS; do
 	    $SBIN/chilli_radconfig \
 		--radiustimeout=30 \
@@ -330,10 +320,9 @@ radiusconfig() {
 		--adminpasswd="$HS_RADCONF_PWD" \
 		> $HS_TEMP && break;
 	done
-#    elif [ "x$HS_LOCAL" != "xon" ]; then 
+#    elif [ "$HS_LOCAL" != "on" ]; then 
 #	$SBIN/chilli_radconfig > $HS_TEMP && { checkfornew; break; }
     fi
-    checkforoutage
     checkfornew
 }
 

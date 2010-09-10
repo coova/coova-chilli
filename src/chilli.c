@@ -1133,7 +1133,7 @@ int static radius_access_accept(struct app_conn_t *conn) {
 		   RADIUS_VENDOR_MS, RADIUS_ATTR_MS_MPPE_SEND_KEY, 0,
 		   (uint8_t *)mppekey, mppelen);
   }
-
+  
   if (conn->recvlen) {
     radius_keyencode(radius, mppekey, RADIUS_ATTR_VLEN,
 		     &mppelen, conn->recvkey,
@@ -1147,7 +1147,7 @@ int static radius_access_accept(struct app_conn_t *conn) {
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
-
+  
   radius_resp(radius, &radius_pack, &conn->radiuspeer, conn->authenticator);
   return 0;
 }
@@ -3123,7 +3123,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 		      RADIUS_VENDOR_MS,
 		      RADIUS_ATTR_MS_MPPE_RECV_KEY, 0)) {
     if (radius_keydecode(radius, appconn->recvkey, RADIUS_ATTR_VLEN, &appconn->recvlen, 
-			 (uint8_t *)&recvattr->v.t, recvattr->l-2, 
+			 (uint8_t *)&recvattr->v.t, recvattr->l-2,
 			 pack_req->authenticator,
 			 radius->secret, radius->secretlen) ) {
       log_err(0, "radius_keydecode() failed!");
