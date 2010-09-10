@@ -3471,7 +3471,8 @@ int redir_main(struct redir_t *redir,
     }
 
     if (is_local_user(redir, &conn)) { 
-       conn.response = REDIR_SUCCESS;
+      session_param_defaults(&conn.s_params);
+      conn.response = REDIR_SUCCESS;
     }
     else {
 

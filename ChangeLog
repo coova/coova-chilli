@@ -3,6 +3,7 @@
 
 * Removed CoovaChilli-Version from Access-Accept/Challenge/Reject to EAP NAS
 * Fix to not update chilli session from a IPC request when already autheticated
+* Fix for non-null terminates username when proxying EAP
 
 == ChangeLog (CoovaChilli-v1.2.4 svn revision 371) ==
 

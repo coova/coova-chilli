@@ -970,6 +970,7 @@ int static auth_radius(struct app_conn_t *appconn,
       strncat(appconn->s_state.redir.username, _options.macsuffix, USERNAMESIZE);
   
     username = appconn->s_state.redir.username;
+
   } else {
     strncpy(appconn->s_state.redir.username, username, USERNAMESIZE);
   }
@@ -2379,11 +2380,12 @@ int access_request(struct radius_packet_t *pack,
   }
 
   /* Store parameters for later use */
-  if (uidattr->l-2 <= USERNAMESIZE) {
-    strncpy(appconn->s_state.redir.username, 
-	    (char *)uidattr->v.t, uidattr->l-2);
+  if (uidattr->l-2 < USERNAMESIZE) {
+    memcpy(appconn->s_state.redir.username, 
+	   (char *)uidattr->v.t, uidattr->l-2);
+    appconn->s_state.redir.username[uidattr->l-2]=0;
   }
-
+  
   appconn->radiuswait = 1;
   appconn->radiusid = pack->id;
 
@@ -2509,7 +2511,7 @@ int upprot_getip(struct app_conn_t *appconn,
   return dnprot_accept(appconn);
 }
 
-static void session_param_defaults(struct session_params *params) {
+void session_param_defaults(struct session_params *params) {
   
   if (_options.defsessiontimeout && !params->sessiontimeout)
     params->sessiontimeout = _options.defsessiontimeout;

@@ -178,10 +178,13 @@ int chilli_acct_fromsub(struct app_conn_t *appconn, size_t len);
 int chilli_acct_tosub(struct app_conn_t *appconn, size_t len);
 
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause);
+
 void config_radius_session(struct session_params *params, 
 			   struct radius_packet_t *pack, 
 			   struct dhcp_conn_t *dhcpconn,
 			   int reconfig);
+
+void session_param_defaults(struct session_params *params);
 
 int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos);
 
