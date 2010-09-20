@@ -43,6 +43,8 @@ option "ipup"        - "Script to run after link-up"   string no
 option "ipdown"      - "Script to run after link-down" string no
 option "conup"       - "Script to run after user logon"  string no
 option "condown"     - "Script to run after user logoff" string no
+option "macup"       - "Script to run after initial DHCP"  string no
+option "macdown"     - "Script to run after DHCP release" string no
 option "txqlen"      - "TX Queue length for tun interface (linux only)"  int default="100" no
 option "tundev"      - "TUN/TAP Device, as in tun0 or tap1" string no
 option "mtu"         - "MTU given in DHCP" int default="1500" no
@@ -51,6 +53,9 @@ option "autostatip"  - "Auto- static ip assignment" int default="0" no
 option "ringsize" - "TX/RX Ring Size (in kbytes; linux only)" int default="0" no
 option "sndbuf" - "SNDBUF size (in kb)" int default="0" no
 option "rcvbuf" - "RCVBUF size (in kb)" int default="0" no
+
+option "peerid" - "Cluster peer ID" int default="0" no
+option "peerkey" - "Cluster Blowfish key" string no
 
 # Radius parameters
 option "radiuslisten"       - "IP address to send from"       string no
@@ -189,6 +194,8 @@ option "maxclients"    - "Maximum number of clients/subscribers" int default="51
 
 option "challengetimeout" - "Timeout in seconds for the generated challenge" int default="600" no
 option "challengetimeout2" - "Timeout in seconds for challenge during login" int default="1200" no
+
+option "redir"  - "Enable redir (redirection) daemon" flag off
 
 option "sslkeyfile"  - "SSL private key file in PEM format" string no
 option "sslkeypass"  - "SSL private key password" string no

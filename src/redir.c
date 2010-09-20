@@ -19,6 +19,8 @@
 
 #include "chilli.h"
 
+#define _debug_ 0
+
 static int optionsdebug = 0; /* TODO: Should be changed to instance */
 
 static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
@@ -194,7 +196,7 @@ static int bstrtocstr(bstring src, char *dst, unsigned int len) {
   }
 
   l = src->slen;
-  if (l > len) l = len;
+  if (l > len-1) l = len-1;
   strncpy(dst, (char*)src->data, len);
   return 0;
 }
@@ -1722,7 +1724,7 @@ int redir_ipc(struct redir_t *redir) {
       safe_close(sock);
       sock = -1;
     } else {
-      if (listen(sock, 5) == -1) {
+      if (listen(sock, 128) == -1) {
 	log_err(errno, "could listen to UNIX Socket!");
 	safe_close(sock);
 	sock = -1;
@@ -1843,7 +1845,7 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring
 /* Read the an HTTP request from a client */
 static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 			struct redir_conn_t *conn, struct redir_httpreq_t *httpreq,
-			int forked) {
+			redir_request *rreq) {
   int fd = sock->fd[0];
   fd_set fds;
   struct timeval idleTime;
@@ -1851,12 +1853,16 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
   ssize_t recvlen = 0;
   size_t buflen = 0;
   char buffer[REDIR_MAXBUFFER];
-  int i, lines=0, done=0, eoh=0;
+  int i, lines=0;
   char *eol;
 
   char read_waiting;
 
   char *path = httpreq->path;
+
+  char forked = (rreq == 0);
+
+  char wblock = 0, done = 0, eoh = 0;
 
   memset(buffer, 0, sizeof(buffer));
   
@@ -1893,9 +1899,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       case -1:
 	log_err(errno,"select()");
 	return -1;
+
       case 0:
 	log_dbg("HTTP request timeout!");
 	done = 1;
+	break;
+
       default:
 	break;
       }
@@ -1908,10 +1917,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       }
     }
 
+    if (httpreq->data_in && !forked) {
+      buflen = 0;
+    }
+
     if (read_waiting || !forked) {
 
       if (buflen + 2 >= sizeof(buffer)) { /* ensure space for a least one more byte + null */
-        log_err(0, "Too much data in http request!");
+        log_err(0, "Too much data in http request! %d", (int) buflen);
         return -1;
       }
 
@@ -1927,11 +1940,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       recvlen = recv(fd, buffer + buflen, httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 0);
 
       if (recvlen < 0) {
+	recvlen = 0;
 	if (errno == EWOULDBLOCK && !forked) {
+#if(_debug_)
 	  log_dbg("Continue... (would block)");
-	  recvlen = 0;
-	}
-	else if (errno != ECONNRESET) {
+#endif
+	  wblock = 1;
+	} else {
 	  log_err(errno, "%s_read(%d) failed!", 
 #ifdef HAVE_SSL
 		  sock->sslcon ? "SSL" : 
@@ -1956,6 +1971,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
     }
     
     if (httpreq->data_in && !forked) {
+      /*log_dbg("buffer (%d)", httpreq->data_in->slen);*/
       if (httpreq->data_in->slen >= sizeof(buffer)) {
 	log_err(0, "buffer too long (%d)", httpreq->data_in->slen);
 	return -1;
@@ -1968,7 +1984,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
     
     if (buflen == 0) {
       log_dbg("No data in HTTP request!");
-      if (!forked) return 1;
+      if (!forked && wblock) return 1;
       return -1;
     }
 
@@ -2006,7 +2022,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
 	strncpy(path, p1, dstlen);
 
+#if(_debug_)
 	log_dbg("The path: %s", path); 
+#endif
 
 	/* TODO: Should also check the Host: to make sure we are talking directly to uamlisten */
 
@@ -2054,7 +2072,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
 	    strncpy(httpreq->qs, p1, dstlen);
 
+#if(_debug_)
 	    log_dbg("Query string: %s", httpreq->qs); 
+#endif
 	  }
 	}
       } else if (linelen == 0) { 
@@ -2076,14 +2096,18 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    len = sizeof(httpreq->host)-1;
 	  strncpy(httpreq->host, p, len);
 	  httpreq->host[len]=0;
+#if(_debug_)
 	  log_dbg("Host: %s",httpreq->host);
+#endif
 	} 
 	else if (!strncasecmp(buffer,"Content-Length:",15)) {
 	  p = buffer + 15;
 	  while (*p && isspace(*p)) p++;
 	  len = strlen(p);
 	  if (len > 0) httpreq->clen = atoi(p);
+#if(_debug_)
 	  log_dbg("Content-Length: %s",p);
+#endif
 	}
 	else if (!strncasecmp(buffer,"User-Agent:",11)) {
 	  p = buffer + 11;
@@ -2093,7 +2117,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    len = sizeof(conn->useragent)-1;
 	  strncpy(conn->useragent, p, len);
 	  conn->useragent[len]=0;
+#if(_debug_)
 	  log_dbg("User-Agent: %s",conn->useragent);
+#endif
 	}
 	else if (!strncasecmp(buffer,"Cookie:",7)) {
 	  p = buffer + 7;
@@ -2103,7 +2129,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    len = sizeof(conn->httpcookie)-1;
 	  strncpy(conn->httpcookie, p, len);
 	  conn->httpcookie[len] = 0;
+#if(_debug_)
 	  log_dbg("Cookie: %s",conn->httpcookie);
+#endif
 	}
       }
 
@@ -2112,11 +2140,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       for (i = 0; i < (int)(buflen - linelen); i++)
 	buffer[i] = buffer[(int)linelen + i];
 
+      /*log_dbg("linelen=%d buflen=%d", linelen, buflen);*/
       buflen -= linelen;
     }
 
-    if (!forked && !eoh) {
+    if (!forked && !eoh && wblock) {
+#if(_debug_)
       log_dbg("Didn't see end of headers, continue...");
+#endif
       /*log_dbg("%.*s",httpreq->data_in->slen,httpreq->data_in->data);*/
       return 1;
     }
@@ -2826,7 +2857,6 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   return match;
 }
 
-
 /* redir_accept() does the following:
  1) forks a child process
  2) Accepts the tcp connection 
@@ -2970,16 +3000,19 @@ int redir_send_msg(struct redir_t *this, struct redir_msg_t *msg) {
     return -1;
   }
 
-  shutdown(s,2);
+  shutdown(s, 2);
   safe_close(s);
   return 0;
 }
 #endif
 
 pid_t redir_fork(int in, int out) {
-  pid_t pid = fork();
+  pid_t pid = chilli_fork(CHILLI_PROC_REDIR, "[redir]");
   if (pid < 0) return -1;
   if (pid == 0) {
+    /*
+     *  Setup child process
+     */
     struct itimerval itval;
 
     set_signal(SIGALRM, redir_alarm);
@@ -3119,7 +3152,9 @@ int redir_main(struct redir_t *redir,
   }
   */
 
+#if(_debug_)
   log_dbg("Calling redir_getstate()");
+#endif
 
   /*
    *  Fetch the state of the client
@@ -3145,7 +3180,9 @@ int redir_main(struct redir_t *redir,
   /*
    *  Parse the request, updating the status
    */
+#if(_debug_)
   log_dbg("Receiving HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
+#endif
 
 #ifdef HAVE_SSL
   if ((conn.flags & USING_SSL) == USING_SSL) {
@@ -3179,17 +3216,21 @@ int redir_main(struct redir_t *redir,
       if (!loop) done = 1;
     }
 
+#if(_debug_)
     log_dbg("HTTPS Accepted");
+#endif
   }
 #endif
 
 
   termstate = REDIR_TERM_GETREQ;
-  switch (err = redir_getreq(redir, &socket, &conn, &httpreq, forked)) {
+  switch (err = redir_getreq(redir, &socket, &conn, &httpreq, rreq)) {
   case 0: 
     break;
   case 1: 
+#if(_debug_)
     log_dbg("Continue...");
+#endif
     return 1;
   default:
     log_dbg("Error calling get_req. Terminating %d", err);
@@ -3197,7 +3238,9 @@ int redir_main(struct redir_t *redir,
   }
 
 
+#if(_debug_)
   log_dbg("Processing HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
+#endif
   
   if (conn.type == REDIR_WWW) {
     pid_t forkpid;

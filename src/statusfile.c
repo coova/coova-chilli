@@ -36,6 +36,9 @@ int loadstatus() {
   struct dhcp_conn_t dhcpconn;
   struct app_conn_t appconn;
 
+  time_t r_wall, r_rt, r_rtoffset;
+  time_t wall, rt, rtoffset;
+
   has_loaded = 1;
 
   if (!_options.usestatusfile) 
@@ -43,12 +46,40 @@ int loadstatus() {
 
   statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
 
+  log_dbg("Loading file %s", filedest);
+
   file = fopen(filedest, "r");
   if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
 
   while ((c = fgetc(file)) != MARK_START) {
     if (c == EOF) { fclose(file); return -1; }
   }
+
+  time(&wall);
+  if (fread(&r_wall, sizeof(time_t), 1, file) != 1) {
+    log_err(errno, "bad binary file");
+    if (c == EOF) { fclose(file); return -1; }
+  }
+
+  rt = mainclock_tick();
+  if (fread(&r_rt, sizeof(time_t), 1, file) != 1) {
+    log_err(errno, "bad binary file");
+    if (c == EOF) { fclose(file); return -1; }
+  }
+
+  if ((c = fgetc(file)) != MARK_START) {
+    log_err(errno, "bad binary file");
+    fclose(file); 
+    return -1; 
+  }
+
+  rtoffset = wall - rt;
+  log_dbg("now: wall = %d, rt = %d, wall at rt=0 %d",
+	  (int)wall, (int)rt, (int)rtoffset);
+
+  r_rtoffset = r_wall - r_rt;
+  log_dbg("file: wall = %d, rt = %d, wall at rt=0 %d",
+	  (int)r_wall, (int)r_rt, (int)r_rtoffset);
 
   while (fread(&dhcpconn, sizeof(struct dhcp_conn_t), 1, file) == 1) {
     struct dhcp_conn_t *conn = 0;
@@ -79,7 +110,21 @@ int loadstatus() {
       dhcpconn.parent = dhcp;
 
       dhcpconn.is_reserved = 0; /* never a reserved ip if added here */
-      
+
+      /*
+       * Fix time_t values:
+       *  lasttime
+       */
+
+#define localizetime(t) \
+      /* to it's local real time */ \
+      t = r_rtoffset + t; \
+      /* now to our local rt offset */ \
+      t = t - rtoffset; \
+      if (t < 0) t = 0;
+
+      localizetime(dhcpconn.lasttime);
+
       /* initialize dhcp_conn_t */
       memcpy(conn, &dhcpconn, sizeof(struct dhcp_conn_t));
       
@@ -126,6 +171,18 @@ int loadstatus() {
 	    
 	    if (appconn.natip.s_addr)
 	      chilli_assign_snat(aconn, 1);
+
+	    /*
+	     * Fix time_t values:
+	     *  start_time, interim_time,
+	     *  last_sent_time, last_time,
+	     *  uamtime
+	     */
+	    localizetime(appconn.s_state.start_time);
+	    localizetime(appconn.s_state.interim_time);
+	    localizetime(appconn.s_state.last_sent_time);
+	    localizetime(appconn.s_state.last_time);
+	    localizetime(appconn.s_state.uamtime);
 	    
 	    dhcp_set_addrs(conn, 
 			   &newipm->addr, &_options.mask, 
@@ -226,6 +283,7 @@ int loadstatus() {
 
 int printstatus() {
   char filedest[512];
+  time_t tm;
   FILE *file;
 
   struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
@@ -247,6 +305,14 @@ int printstatus() {
   fprintf(file, "#Timestamp: %d\n", (int) mainclock);
 
   /* marker */
+  fputc(MARK_START, file);
+
+  time(&tm); /* wall time */
+  fwrite(&tm, sizeof(time_t), 1, file);
+
+  tm = mainclock_tick(); /* rt time */
+  fwrite(&tm, sizeof(time_t), 1, file);
+
   fputc(MARK_START, file);
 
   while (dhcpconn) {

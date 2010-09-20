@@ -18,6 +18,9 @@
 /* Define to enable Chilli XML */
 #undef ENABLE_CHILLIXML
 
+/* Define to enable cluster */
+#undef ENABLE_CLUSTER
+
 /* Define to enable CoovaEWT API */
 #undef ENABLE_EWTAPI
 

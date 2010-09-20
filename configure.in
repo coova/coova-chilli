@@ -254,6 +254,15 @@ fi
 
 AM_CONDITIONAL(WITH_CHILLISCRIPT, [test x"$enable_chilliscript" = xyes])
 
+AC_ARG_ENABLE(cluster, [AC_HELP_STRING([--enable-cluster],[Enable support for clustering])], 
+  enable_cluster=$enableval, enable_cluster=no)
+
+if test x"$enable_cluster" = xyes; then
+   AC_DEFINE(ENABLE_CLUSTER,1,[Define to enable cluster])
+fi
+
+AM_CONDITIONAL(WITH_CLUSTER, [test x"$enable_cluster" = xyes])
+
 AC_ARG_ENABLE(ieee8023, [AC_HELP_STRING([--enable-ieee8023],[Enable support for IEEE 802.3 Ethernet])], 
   enable_ieee8023=$enableval, enable_ieee8023=no)
 

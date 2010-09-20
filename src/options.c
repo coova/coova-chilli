@@ -170,7 +170,7 @@ int options_load(int argc, char **argv, bstring bt) {
   if (fd <= 0) return 0;
   done_before = 1;
 
-  log_dbg("rereading binary file %s", file);
+  log_dbg("PID %d rereading binary file %s", getpid(), file);
   return options_fromfd(fd, bt);
 }
 
@@ -250,6 +250,8 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.ipdown)) return 0;
   if (!option_s_l(bt, &o.conup)) return 0;
   if (!option_s_l(bt, &o.condown)) return 0;
+  if (!option_s_l(bt, &o.macup)) return 0;
+  if (!option_s_l(bt, &o.macdown)) return 0;
 
   if (!option_s_l(bt, &o.radiussecret)) return 0;
   if (!option_s_l(bt, &o.radiusnasid)) return 0;
@@ -260,6 +262,7 @@ int options_fromfd(int fd, bstring bt) {
   
   if (!option_s_l(bt, &o.dhcpif)) return 0;
   if (!option_s_l(bt, &o.routeif)) return 0;
+  if (!option_s_l(bt, &o.peerkey)) return 0;
 
   if (!option_s_l(bt, &o.macsuffix)) return 0;
   if (!option_s_l(bt, &o.macpasswd)) return 0;
@@ -338,6 +341,8 @@ int options_save(char *file, bstring bt) {
   mode_t oldmask;
   int fd, i;
 
+  log_dbg("PID %d saving options to %s", getpid(), file);
+
   memcpy(&o, &_options, sizeof(o));
 
 #ifdef ENABLE_CHILLIREDIR
@@ -362,6 +367,8 @@ int options_save(char *file, bstring bt) {
   if (!option_s_s(bt, &o.ipdown)) return 0;
   if (!option_s_s(bt, &o.conup)) return 0;
   if (!option_s_s(bt, &o.condown)) return 0;
+  if (!option_s_s(bt, &o.macup)) return 0;
+  if (!option_s_s(bt, &o.macdown)) return 0;
 
   if (!option_s_s(bt, &o.radiussecret)) return 0;
   if (!option_s_s(bt, &o.radiusnasid)) return 0;
@@ -372,6 +379,7 @@ int options_save(char *file, bstring bt) {
 
   if (!option_s_s(bt, &o.dhcpif)) return 0;
   if (!option_s_s(bt, &o.routeif)) return 0;
+  if (!option_s_s(bt, &o.peerkey)) return 0;
 
   if (!option_s_s(bt, &o.macsuffix)) return 0;
   if (!option_s_s(bt, &o.macpasswd)) return 0;
@@ -465,6 +473,7 @@ int options_binload(char *file) {
   int ok = 0;
   if (fd > 0) {
     bstring bt = bfromcstr("");
+    log_dbg("PID %d loading binary options file %s", getpid(), file);
     ok = options_fromfd(fd, bt);
     bdestroy(bt);
     return ok;
@@ -504,7 +513,7 @@ void reprocess_options(int argc, char **argv) {
 int reload_options(int argc, char **argv) {
   bstring bt = bfromcstr("");
   int ok = options_load(argc, argv, bt);
-  log_dbg("reloaded binary options file");
+  log_dbg("PID %d reloaded binary options file", getpid());
   bdestroy(bt);
   return ok;
 }

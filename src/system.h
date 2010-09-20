@@ -210,6 +210,9 @@
 #include <grp.h>
 #endif
 
+#include <sys/types.h>
+#include <dirent.h>
+
 #undef LITTLE_ENDIAN
 #undef BIG_ENDIAN
 

@@ -51,6 +51,11 @@ static cmd_info commands[] = {
   { CMDSOCK_DHCP_RELEASE,  "logoff",        NULL },
   { CMDSOCK_DHCP_DROP,     "drop",          NULL },
   { CMDSOCK_DHCP_DROP,     "block",         NULL },
+#ifdef ENABLE_CLUSTER
+  { CMDSOCK_PEERS,         "peers",         NULL },
+  { CMDSOCK_PEER_SET,      "peerset",       NULL },
+#endif
+  { CMDSOCK_PROCS,         "procs",         NULL },
 #ifdef ENABLE_STATFILE
   { CMDSOCK_STATUSFILE,    "statusfile",    NULL },
 #endif

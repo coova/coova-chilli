@@ -14,6 +14,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
+ * Author: David Bird <david@coova.com>
  */
 
 #define MAIN_FILE
@@ -238,12 +239,14 @@ int main(int argc, char **argv) {
   _options.max_clients = args_info.maxclients_arg;
   _options.seskeepalive = args_info.seskeepalive_flag;
   _options.uamallowpost = args_info.uamallowpost_flag;
+  _options.redir = args_info.redir_flag;
   _options.redirssl = args_info.redirssl_flag;
   _options.uamuissl = args_info.uamuissl_flag;
   _options.domaindnslocal = args_info.domaindnslocal_flag;
   _options.framedservice = args_info.framedservice_flag;
   _options.radsec = args_info.radsec_flag;
   _options.proxymacaccept = args_info.proxymacaccept_flag;
+  _options.peerid = args_info.peerid_arg;
 
 #ifdef ENABLE_LEAKYBUCKET
   _options.bwbucketupsize = args_info.bwbucketupsize_arg;
@@ -783,6 +786,9 @@ int main(int argc, char **argv) {
   }
 
   /** string parameters **/
+  if (_options.peerkey) free(_options.peerkey);
+  _options.peerkey = STRDUP(args_info.peerkey_arg);
+
   if (_options.routeif) free(_options.routeif);
   _options.routeif = STRDUP(args_info.routeif_arg);
 
@@ -910,6 +916,12 @@ int main(int argc, char **argv) {
 
   if (_options.condown) free(_options.condown);
   _options.condown = STRDUP(args_info.condown_arg);
+
+  if (_options.macup) free(_options.macup);
+  _options.macup = STRDUP(args_info.macup_arg);
+
+  if (_options.macdown) free(_options.macdown);
+  _options.macdown = STRDUP(args_info.macdown_arg);
 
   if (_options.pidfile) free(_options.pidfile);
   _options.pidfile = STRDUP(args_info.pidfile_arg);

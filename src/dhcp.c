@@ -37,6 +37,141 @@ char *dhcp_state2name(int authstate) {
   }
 }
 
+#ifdef ENABLE_CLUSTER
+int chilli_peer_count = 0;
+struct chilli_peer * chilli_peers = 0;
+struct chilli_peer * get_chilli_peer(int id) {
+  if (id < 0) id = _options.peerid;
+  if (_options.peerid >= 8) {
+    log_err(0, "Valid PEERID is 0-7!");
+    exit(-1);
+  }
+  if (!chilli_peers) {
+    /* initialize */
+    struct chilli_peer *p;
+    chilli_peers = (struct chilli_peer *)calloc(8, sizeof(struct chilli_peer));
+    p = chilli_peers + _options.peerid;
+    memcpy(p->mac, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
+    memcpy(&p->addr, &_options.uamlisten, sizeof(_options.uamlisten));
+    if (_options.peerid == 0)
+      p->state = PEER_STATE_ACTIVE;
+    else
+      p->state = PEER_STATE_STANDBY;
+  }
+  if (id < 8) 
+    return chilli_peers + id;
+  return 0;
+}
+
+void print_peers(bstring s) {
+  time_t now = mainclock_now();
+  char line[512];
+  int i;
+
+  for (i=0; i<8; i++) {
+    struct chilli_peer *peer = chilli_peers + i;
+    int age = (int)(now - peer->last_update);
+    char *state = "";
+
+    switch(peer->state) {
+    case PEER_STATE_ACTIVE:
+      state = "Active";
+      break;
+    case PEER_STATE_STANDBY:
+      state = "Standby";
+      break;
+    case PEER_STATE_OFFLINE:
+      state = "Offline";
+      age = 0;
+      break;
+    }
+
+    snprintf(line, sizeof(line)-1,
+	     "Peer %d %-4s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x / %-16s %-8s %d sec", 
+	     i, _options.peerid == i ? "(*)" : "",
+	     peer->mac[0],peer->mac[1],peer->mac[2],
+	     peer->mac[3],peer->mac[4],peer->mac[5],
+	     inet_ntoa(peer->addr), state, age);
+
+    bcatcstr(s, line);
+    bcatcstr(s, "\n");
+  }
+}
+
+static int
+dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
+  EVP_CIPHER_CTX ctx;
+
+  uint8_t packet[PKT_BUFFER];
+
+  struct pkt_ethhdr_t *packet_ethh;
+  struct pkt_chillihdr_t chilli_hdr;
+  unsigned char *outbuf;
+
+  int datalen = 0;
+  int olen = 0;
+  int tlen = 0;
+
+  int ret = -1;
+
+  unsigned char iv[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
+
+  if (_options.peerkey == 0)
+    _options.peerkey = "hello!";
+  
+  /* Get packet default values */
+  memset(packet, 0, sizeof(packet));
+  packet_ethh = ethhdr(packet);
+  outbuf = (unsigned char *)chilli_ethhdr(packet);
+	 
+  packet_ethh->prot = htons(PKT_ETH_PROTO_CHILLI);
+  memcpy(packet_ethh->dst, bmac, PKT_ETH_ALEN);
+  memcpy(packet_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
+
+  chilli_hdr.from = _options.peerid;
+  chilli_hdr.type = type;
+
+  if (!addr || !mac) {
+    struct chilli_peer *p = get_chilli_peer(-1);
+    addr = &p->addr;
+    mac = p->mac;
+    chilli_hdr.state = p->state;
+  }
+
+  memcpy(&chilli_hdr.addr, addr, sizeof(*addr));
+  memcpy(chilli_hdr.mac, mac, PKT_ETH_ALEN);
+ 
+  EVP_CIPHER_CTX_init(&ctx);
+  EVP_EncryptInit(&ctx, EVP_bf_cbc(), 
+		  (const unsigned char *)_options.peerkey, iv);
+
+  if (EVP_EncryptUpdate (&ctx, outbuf, &olen, 
+			 (const unsigned char *) &chilli_hdr, 
+			 sizeof(chilli_hdr)) != 1) {
+    log_err(errno, "CHILLI: peer %d error in encrypt update",
+	    _options.peerid);
+  } else {
+    datalen += olen;
+    if (EVP_EncryptFinal (&ctx, outbuf + olen, &tlen) != 1) {
+      log_err(errno, "CHILLI: peer %d error in encrypt final",
+	      _options.peerid);
+    } else {
+      datalen += tlen;
+      
+      log_dbg("CHILLI: peer %d sending %d bytes", 
+	      _options.peerid, datalen);
+      
+      ret = dhcp_send(dhcp, &dhcp->rawif, bmac, packet, 
+		      sizeofeth(packet) + datalen);
+    }
+  }
+
+  EVP_CIPHER_CTX_cleanup(&ctx);
+
+  return ret;
+}
+#endif
+
 void dhcp_list(struct dhcp_t *this, bstring s, bstring pre, bstring post, int listfmt) {
   struct dhcp_conn_t *conn = this->firstusedconn;
   if (listfmt == LIST_JSON_FMT) {
@@ -415,7 +550,7 @@ int dhcp_newconn(struct dhcp_t *this,
   /* Inform application that connection was created */
   if (this->cb_connect)
     this->cb_connect(*conn);
-  
+
   return 0; /* Success */
 }
 
@@ -778,7 +913,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
   dhcp->cb_request = 0;
   dhcp->cb_disconnect = 0;
   dhcp->cb_connect = 0;
-  
+
   return 0;
 }
 
@@ -2365,6 +2500,10 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
   
   switch(message_type->v[0]) {
     
+  case DHCPDECLINE:
+    log_dbg("DHCP-Decline");
+    /* drop through */
+
   case DHCPRELEASE:
     dhcp_release_mac(this, mac, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
     
@@ -2398,6 +2537,8 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	memcpy(tag->v, &_options.dhcpgwip.s_addr, 4);
       }
     }
+
+    pack_dhcp->hops++;
 
     log_dbg("Sending DHCP relay packet to %s",
 	    inet_ntoa(addr.sin_addr));
@@ -2786,9 +2927,384 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   return 0;
 }
 
+#ifdef ENABLE_PPPOE
+static int dhcp_pppoes(uint8_t *packet, size_t length) {
+  uint8_t *p = packet + sizeofeth(packet);
+  struct pkt_pppoe_hdr_t *hdr = (struct pkt_pppoe_hdr_t *)p;
+  if (hdr->version_type == PKT_PPPoE_VERSION &&
+      hdr->code == 0x0000) {
+    int len = ntohs(hdr->length);
+    if (len > 0) {
+      uint16_t ppp;
+      p += sizeof(struct pkt_pppoe_hdr_t);
+      ppp = ntohs(*((uint16_t *)p));
+      log_dbg("PPPoE Session Code 0x%.2x Session 0x%.4x Length %d Proto 0x%.4x", 
+	      hdr->code, ntohs(hdr->session_id), len, ppp); 
+      switch(ppp) {
+      case PKT_PPP_PROTO_LCP:
+	{
+	  struct pkt_ppp_lcp_t *lcp = (struct pkt_ppp_lcp_t *)(p + 2);
+	  log_dbg("PPP LCP code %.2x", lcp->code);
+	  switch (lcp->code) {
+	  case PPP_LCP_ConfigRequest:
+	    {
+	      uint8_t answer[PKT_BUFFER];
+	      
+	      struct pkt_ethhdr_t *ethh = ethhdr(packet);
+	      
+	      struct pkt_ethhdr_t *answer_ethh;
+	      
+	      struct dhcp_conn_t *conn;
+	      
+	      struct pkt_pppoe_hdr_t *pppoe;
+	      
+	      struct pkt_ppp_lcp_t *nlcp;
+	      
+	      struct pkt_lcp_opthdr_t *tag;
+	      
+	      uint16_t lcplen, taglen, pos;
+	      
+	      /* Find / create connection
+	       */
+	      
+	      if (dhcp_hashget(this, &conn, ethh->src)) {
+		if (dhcp_newconn(this, &conn, ethh->src, 0))
+		  break; /* Out of connections */
+	      }
+	      
+	      /* Copy over original packet,
+	       * get pointers to answer structure.
+	       */
+	      
+	      memcpy(answer, packet, length); 
+	      
+	      answer_ethh = ethhdr(answer);
+	      
+	      pppoe = (struct pkt_pppoe_hdr_t *) 
+		(answer + sizeofeth(answer));
+	      
+	      nlcp = (struct pkt_ppp_lcp_t *) 
+		(answer + sizeofeth(answer) + sizeof(struct pkt_pppoe_hdr_t) + 2);
+	      
+	      /* Start processing packet...
+	       */
+	      
+	      nlcp->code = PPP_LCP_ConfigNak;
+	      
+	      lcplen = sizeof(struct pkt_ppp_lcp_t);
+	      
+	      pos = sizeofeth(answer) + sizeof(struct pkt_pppoe_hdr_t) + 2;
+	      
+	      taglen = 3;
+	      tag = (struct pkt_lcp_opthdr_t *)(answer + pos + lcplen);
+	      tag->type = PPP_LCP_OptAuthProto;
+	      tag->length = taglen + 2;
+	      lcplen += tag->length;
+	      *(answer + pos + lcplen - 3) = 0xC2;
+	      *(answer + pos + lcplen - 2) = 0x23;
+	      *(answer + pos + lcplen - 1) = 0x81;
+	      
+	      length = 2;
+	      length += lcplen;
+	      
+	      nlcp->length = htons(lcplen);
+	      pppoe->length = htons(length);
+	      
+	      length += sizeof(struct pkt_pppoe_hdr_t);
+	      length += sizeofeth(answer);
+	      
+	      /* Send back answer.
+	       */
+	      
+	      memcpy(&answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
+	      memcpy(&answer_ethh->src, dhcp_nexthop(this), PKT_ETH_ALEN);
+	      
+	      dhcp_send(this, &this->rawif, conn->hismac, answer, length);
+	    }
+	    break;
+	  }
+	}
+	break;
+      }
+    }
+  }
+  return 0;
+}
+
+static int dhcp_pppoed(uint8_t *packet, size_t length) {
+  uint8_t *p = packet + sizeofeth(packet);
+  struct pkt_pppoe_hdr_t *hdr = (struct pkt_pppoe_hdr_t *)p;
+  if (hdr->version_type == PKT_PPPoE_VERSION &&
+      hdr->session_id == 0x0000) {
+    int len = ntohs(hdr->length);
+    uint16_t t, l;
+    
+    uint8_t host_uniq[32];
+    uint8_t host_uniq_len=0;
+    
+    log_dbg("PPPoE Discovery Code 0x%.2x Session 0x%.4x Length %d", 
+	    hdr->code, ntohs(hdr->session_id), len); 
+    
+    p += sizeof(struct pkt_pppoe_hdr_t);
+    
+    while (len > 0) {
+      struct pkt_pppoe_taghdr_t *tag = (struct pkt_pppoe_taghdr_t *) p;
+      
+      if (tag->type == 0x0000) break;
+      
+      t = ntohs(tag->type);
+      l = ntohs(tag->length);
+      
+      switch(t) {
+      case PPPoE_TAG_ServiceName:
+	log_dbg("PPPoE Service-Name: %.*s",
+		l, p + sizeof(struct pkt_pppoe_taghdr_t));
+	break;
+      case PPPoE_TAG_ACName:
+	log_dbg("PPPoE AC-Name: %.*s",
+		l, p + sizeof(struct pkt_pppoe_taghdr_t));
+	break;
+      case PPPoE_TAG_HostUniq:
+	log_dbg("PPPoE Host-Uniq: %.*x",
+		l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
+	if (l > sizeof(host_uniq)) break;
+	host_uniq_len = l;
+	memcpy(host_uniq, p + sizeof(struct pkt_pppoe_taghdr_t), l);
+	break;
+      default:
+	log_dbg("PPPoE Tag Type 0x%.4x = (%d)[%.*x]", 
+		t, l, l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
+	break;
+      }
+      
+      l += sizeof(struct pkt_pppoe_taghdr_t);
+      len -= l;
+      p += l;
+    }
+    
+    switch(hdr->code) {
+    case PKT_PPPoE_PADT:
+      /* terminate */
+      break;
+    case PKT_PPPoE_PADR:
+    case PKT_PPPoE_PADI:
+      {
+	uint8_t answer[PKT_BUFFER];
+	
+	struct pkt_ethhdr_t *ethh = ethhdr(packet);
+	
+	struct pkt_ethhdr_t *answer_ethh;
+	
+	struct dhcp_conn_t *conn;
+	
+	struct pkt_pppoe_hdr_t *pppoe;
+
+	struct pkt_pppoe_taghdr_t *tag;
+	
+	uint16_t pos=0, taglen=0;
+	
+	/* Find / create connection
+	 */
+	
+	if (dhcp_hashget(this, &conn, ethh->src)) {
+	  if (dhcp_newconn(this, &conn, ethh->src, 0))
+	    break; /* Out of connections */
+	}
+	
+	/* Copy over original packet,
+	 * get pointers to answer structure.
+	 */
+	
+	memcpy(answer, packet, length); 
+	
+	answer_ethh = ethhdr(answer);
+	
+	pppoe = (struct pkt_pppoe_hdr_t *) 
+	  (answer + sizeofeth(answer));
+	
+	/* Start processing packet...
+	 */
+	
+	pppoe->length = 0;
+	switch(hdr->code) {
+	case PKT_PPPoE_PADI:
+	  pppoe->code = PKT_PPPoE_PADO;
+	  break;
+	case PKT_PPPoE_PADR:
+	  pppoe->code = PKT_PPPoE_PADS;
+	  pppoe->session_id = rand();
+	  break;
+	}
+	
+	length  = sizeofeth(answer);
+	length += sizeof(struct pkt_pppoe_hdr_t);
+	
+	pos = length;
+	
+	taglen = 5;
+	tag = (struct pkt_pppoe_taghdr_t *)(answer + length);
+	tag->type = htons(PPPoE_TAG_ACName);
+	tag->length = htons(taglen);
+	length += sizeof(struct pkt_pppoe_taghdr_t);
+	memcpy(answer + length, "chilli", 5);
+	length += taglen;
+	
+	if (host_uniq_len) {
+	  taglen = host_uniq_len;
+	  tag = (struct pkt_pppoe_taghdr_t *)(answer + length);
+	  tag->type = htons(PPPoE_TAG_HostUniq);
+	  tag->length = htons(taglen);
+	  length += sizeof(struct pkt_pppoe_taghdr_t);
+	  memcpy(answer + length, host_uniq, host_uniq_len);
+	  length += taglen;
+	}
+	
+	pppoe->length = htons(length - pos);
+	
+	/* Send back answer.
+	 */
+	
+	memcpy(&answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
+	memcpy(&answer_ethh->src, dhcp_nexthop(this), PKT_ETH_ALEN);
+	
+	dhcp_send(this, &this->rawif, conn->hismac, answer, length);
+      }
+      break;
+    default:
+      break;
+    }
+  }
+  return 0;
+}
+#endif
+
+#ifdef ENABLE_CLUSTER
+static void update_peer(struct pkt_chillihdr_t *chillihdr) {
+  struct chilli_peer *p = get_chilli_peer(chillihdr->from);
+  p->last_update = mainclock_now();
+  memcpy(&p->addr, &chillihdr->addr, sizeof(struct in_addr));
+  memcpy(p->mac, chillihdr->mac, PKT_ETH_ALEN);
+  p->state = chillihdr->state;
+  if (p->state == PEER_STATE_ACTIVE) {
+    get_chilli_peer(-1)->state = PEER_STATE_STANDBY;
+  }
+}
+
+static int dhcp_chillipkt(uint8_t *packet, size_t length) {
+  EVP_CIPHER_CTX ctx;
+  
+  unsigned char iv[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
+  
+  struct pkt_ethhdr_t *ethh = ethhdr(packet);
+  
+  unsigned char *in = (unsigned char *)chilli_ethhdr(packet);
+  unsigned char out[PKT_BUFFER];
+  
+  int n = length - sizeofeth(packet);
+  
+  int olen = 0;
+  int tlen = 0;
+
+  if (_options.peerkey == 0)
+    _options.peerkey = "hello!";
+  
+  log_dbg("CHILLI: peer %d decrypting %d bytes", 
+	  _options.peerid, n);
+  
+  EVP_CIPHER_CTX_init(&ctx);
+  EVP_DecryptInit(&ctx, EVP_bf_cbc(), 
+		  (const unsigned char *)_options.peerkey, iv);
+  
+  if (EVP_DecryptUpdate(&ctx, out, &olen, in, n) != 1) {
+    log_err(errno, "CHILLI: peer %d error in decrypt update",
+	    _options.peerid);
+  } else {
+    log_dbg("CHILLI: peer %d decrypted %d byes", 
+	    _options.peerid, olen);
+    if (EVP_DecryptFinal(&ctx, out + olen, &tlen) != 1) {
+      log_err(errno, "CHILLI: peer %d error in decrypt final",
+	      _options.peerid);
+    } else {
+      log_dbg("CHILLI: peer %d decrypted %d byes", 
+	      _options.peerid, tlen);
+      
+      olen += tlen;
+      
+      if (olen == sizeof(struct pkt_chillihdr_t)) {
+	
+	struct pkt_chillihdr_t *chilli_hdr =
+	  (struct pkt_chillihdr_t *)out;
+
+	char *cmd = "Unknown";
+
+	switch(chilli_hdr->type) {
+	case CHILLI_PEER_INIT:
+	  cmd = "Init";
+	  if (chilli_hdr->from == _options.peerid) {
+	    log_err(0, "peer %d possible conflicting peerid, oops",
+		    _options.peerid);
+	  } else {
+	    dhcp_sendCHILLI(CHILLI_PEER_HELLO, 0, 0);
+	    update_peer(chilli_hdr);
+	  }
+	  break;
+	  
+	case CHILLI_PEER_HELLO:
+	  cmd = "Hello";
+	  if (chilli_hdr->from == _options.peerid) {
+	    log_err(0, "peer %d possible conflicting peerid",
+		    _options.peerid);
+	  } else {
+	    update_peer(chilli_hdr);
+	  }
+	  break;
+	}
+	
+	log_dbg("CHILLI: peer %d received %s from %.2x:%.2x:%.2x:%.2x:%.2x:%.2x peerid %d len=%d",
+		_options.peerid, cmd,
+		ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
+		chilli_hdr->from, olen);
+      }
+    }
+  }
+
+  EVP_CIPHER_CTX_cleanup(&ctx);
+
+  return 0;
+}
+
+static char dhcp_ignore(uint16_t prot, uint8_t *packet, size_t length) {
+  struct pkt_ethhdr_t *ethh = ethhdr(packet);
+  char ignore = 0;
+  
+  ignore = get_chilli_peer(-1)->state != PEER_STATE_ACTIVE;
+  
+  if (ignore)
+    log_dbg("ignore: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x %d len=%d",
+	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
+	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+	    prot, (int)prot, length);
+  
+  return ignore;
+}
+
+static time_t last_peer_update = 0;
+static time_t peer_update_time = 10;
+void dhcp_peer_update(char force) {
+  struct chilli_peer *me = get_chilli_peer(-1);
+  time_t now = mainclock_now();
+  if (force || now > (last_peer_update + peer_update_time)) {
+    dhcp_sendCHILLI(CHILLI_PEER_HELLO, 0, 0);
+    last_peer_update = now;
+    me->last_update = now;
+  }
+}
+#endif
+
 static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
   struct dhcp_t *this = (struct dhcp_t *)ctx;
   uint16_t prot;
+  char ignore = 0;
 
 #ifdef ENABLE_IEEE8021Q
   if (is_8021q(packet)) {
@@ -2801,299 +3317,82 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
     prot = ntohs(ethh->prot);
   }
 
-  /*
   if (_options.debug) {
     struct pkt_ethhdr_t *ethh = ethhdr(packet);
-    log_dbg("dhcp_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x len=%d",
+    log_dbg("dhcp_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x %d len=%d",
 	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
 	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
-	    prot, length);
+	    prot, (int)prot, length);
   }
+  /*
   */
+
+#ifdef ENABLE_CLUSTER
+  ignore = dhcp_ignore(prot, packet, length);
+#endif
 
   if (prot < 1518) {
 #ifdef ENABLE_IEEE8023
-    uint8_t *p = packet + sizeofeth(packet);
-    struct pkt_llc_t * llc = (struct pkt_llc_t *)p;
-    if (llc->dsap == 0xAA &&
-	llc->ssap == 0xAA &&
-	llc->cntl == 0x03) {
-      struct pkt_llc_snap_t * snap = p + sizeof(struct pkt_llc_t);
-      log_dbg("Layer2 PROT: IEEE 802.3 LLC SNAP "
-	      " EtherType 0x%.4x",
-	      ntohs(snap->type));
-    } else {
-      log_dbg("Layer2 PROT: Likely IEEE 802.3: "
-	      "length %d dsap=0x%.2x ssap=0x%.2x ctrl=0x%.2x", 
-	      (int) prot, llc->dsap, llc->ssap, llc->cntl); 
+    if (!ignore) {
+      uint8_t *p = packet + sizeofeth(packet);
+      struct pkt_llc_t * llc = (struct pkt_llc_t *)p;
+      if (llc->dsap == 0xAA &&
+	  llc->ssap == 0xAA &&
+	  llc->cntl == 0x03) {
+	struct pkt_llc_snap_t * snap = p + sizeof(struct pkt_llc_t);
+	log_dbg("Layer2 PROT: IEEE 802.3 LLC SNAP "
+		" EtherType 0x%.4x",
+		ntohs(snap->type));
+      } else {
+	log_dbg("Layer2 PROT: Likely IEEE 802.3: "
+		"length %d dsap=0x%.2x ssap=0x%.2x ctrl=0x%.2x", 
+		(int) prot, llc->dsap, llc->ssap, llc->cntl); 
+      }
     }
 #endif
     return 0;
   }
   
   switch (prot) {
+
   case PKT_ETH_PROTO_EAPOL: 
-    if (_options.eapolenable)
+    if (!ignore && _options.eapolenable)
       return dhcp_receive_eapol(this, packet);
     break;
-  case PKT_ETH_PROTO_ARP:   return dhcp_receive_arp(this, packet, length);
-  case PKT_ETH_PROTO_IP:    return dhcp_receive_ip(this, packet, length);
+
+  case PKT_ETH_PROTO_ARP:  
+    if (!ignore)
+      return dhcp_receive_arp(this, packet, length);
+    break;
+
+  case PKT_ETH_PROTO_IP:  
+    if (!ignore)
+      return dhcp_receive_ip(this, packet, length);
+    break;
+
 #ifdef ENABLE_PPPOE
   case PKT_ETH_PROTO_PPPOES:
-    {
-      uint8_t *p = packet + sizeofeth(packet);
-      struct pkt_pppoe_hdr_t *hdr = (struct pkt_pppoe_hdr_t *)p;
-      if (hdr->version_type == PKT_PPPoE_VERSION &&
-	  hdr->code == 0x0000) {
-	int len = ntohs(hdr->length);
-	if (len > 0) {
-	  uint16_t ppp;
-	  p += sizeof(struct pkt_pppoe_hdr_t);
-	  ppp = ntohs(*((uint16_t *)p));
-	  log_dbg("PPPoE Session Code 0x%.2x Session 0x%.4x Length %d Proto 0x%.4x", 
-		  hdr->code, ntohs(hdr->session_id), len, ppp); 
-	  switch(ppp) {
-	  case PKT_PPP_PROTO_LCP:
-	    {
-	      struct pkt_ppp_lcp_t *lcp = (struct pkt_ppp_lcp_t *)(p + 2);
-	      log_dbg("PPP LCP code %.2x", lcp->code);
-	      switch (lcp->code) {
-	      case PPP_LCP_ConfigRequest:
-		{
-		  uint8_t answer[PKT_BUFFER];
-		  
-		  struct pkt_ethhdr_t *ethh = ethhdr(packet);
-		  
-		  struct pkt_ethhdr_t *answer_ethh;
-
-		  struct dhcp_conn_t *conn;
-
-		  struct pkt_pppoe_hdr_t *pppoe;
-
-		  struct pkt_ppp_lcp_t *nlcp;
-
-		  struct pkt_lcp_opthdr_t *tag;
-
-		  uint16_t lcplen, taglen, pos;
-
-		  /* Find / create connection
-		   */
-		  
-		  if (dhcp_hashget(this, &conn, ethh->src)) {
-		    if (dhcp_newconn(this, &conn, ethh->src, 0))
-		      break; /* Out of connections */
-		  }
-		  
-		  /* Copy over original packet,
-		   * get pointers to answer structure.
-		   */
-		  
-		  memcpy(answer, packet, length); 
-		  
-		  answer_ethh = ethhdr(answer);
-		  
-		  pppoe = (struct pkt_pppoe_hdr_t *) 
-		    (answer + sizeofeth(answer));
-		  
-		  nlcp = (struct pkt_ppp_lcp_t *) 
-		    (answer + sizeofeth(answer) + sizeof(struct pkt_pppoe_hdr_t) + 2);
-		  
-		  /* Start processing packet...
-		   */
-		  
-		  nlcp->code = PPP_LCP_ConfigNak;
-		  
-		  lcplen = sizeof(struct pkt_ppp_lcp_t);
-
-		  pos = sizeofeth(answer) + sizeof(struct pkt_pppoe_hdr_t) + 2;
-
-		  taglen = 3;
-		  tag = (struct pkt_lcp_opthdr_t *)(answer + pos + lcplen);
-		  tag->type = PPP_LCP_OptAuthProto;
-		  tag->length = taglen + 2;
-		  lcplen += tag->length;
-		  *(answer + pos + lcplen - 3) = 0xC2;
-		  *(answer + pos + lcplen - 2) = 0x23;
-		  *(answer + pos + lcplen - 1) = 0x81;
-
-		  length = 2;
-		  length += lcplen;
-
-		  nlcp->length = htons(lcplen);
-		  pppoe->length = htons(length);
-
-		  length += sizeof(struct pkt_pppoe_hdr_t);
-		  length += sizeofeth(answer);
-
-		  /* Send back answer.
-		   */
-		  
-		  memcpy(&answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
-		  memcpy(&answer_ethh->src, dhcp_nexthop(this), PKT_ETH_ALEN);
-		  
-		  dhcp_send(this, &this->rawif, conn->hismac, answer, length);
-		}
-		break;
-	      }
-	    }
-	    break;
-	  }
-	}
-      }
-    }
+    if (!ignore)
+      return dhcp_pppoes(packet, length);
     break;
-  case PKT_ETH_PROTO_PPPOED:
-    {
-      uint8_t *p = packet + sizeofeth(packet);
-      struct pkt_pppoe_hdr_t *hdr = (struct pkt_pppoe_hdr_t *)p;
-      if (hdr->version_type == PKT_PPPoE_VERSION &&
-	  hdr->session_id == 0x0000) {
-	int len = ntohs(hdr->length);
-	uint16_t t, l;
 
-	uint8_t host_uniq[32];
-	uint8_t host_uniq_len=0;
-
-	log_dbg("PPPoE Discovery Code 0x%.2x Session 0x%.4x Length %d", 
-		hdr->code, ntohs(hdr->session_id), len); 
-
-	p += sizeof(struct pkt_pppoe_hdr_t);
-
-	while (len > 0) {
-	  struct pkt_pppoe_taghdr_t *tag = (struct pkt_pppoe_taghdr_t *) p;
-
-	  if (tag->type == 0x0000) break;
-
-	  t = ntohs(tag->type);
-	  l = ntohs(tag->length);
-
-	  switch(t) {
-	  case PPPoE_TAG_ServiceName:
-	    log_dbg("PPPoE Service-Name: %.*s",
-		    l, p + sizeof(struct pkt_pppoe_taghdr_t));
-	    break;
-	  case PPPoE_TAG_ACName:
-	    log_dbg("PPPoE AC-Name: %.*s",
-		    l, p + sizeof(struct pkt_pppoe_taghdr_t));
-	    break;
-	  case PPPoE_TAG_HostUniq:
-	    log_dbg("PPPoE Host-Uniq: %.*x",
-		    l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
-	    if (l > sizeof(host_uniq)) break;
-	    host_uniq_len = l;
-	    memcpy(host_uniq, p + sizeof(struct pkt_pppoe_taghdr_t), l);
-	    break;
-	  default:
-	    log_dbg("PPPoE Tag Type 0x%.4x = (%d)[%.*x]", 
-		    t, l, l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
-	    break;
-	  }
-
-	  l += sizeof(struct pkt_pppoe_taghdr_t);
-	  len -= l;
-	  p += l;
-	}
-
-	switch(hdr->code) {
-	case PKT_PPPoE_PADT:
-	  /* terminate */
-	  break;
-	case PKT_PPPoE_PADR:
-	case PKT_PPPoE_PADI:
-	  {
-	    uint8_t answer[PKT_BUFFER];
-
-	    struct pkt_ethhdr_t *ethh = ethhdr(packet);
-	    
-	    struct pkt_ethhdr_t *answer_ethh;
-
-	    struct dhcp_conn_t *conn;
-
-	    struct pkt_pppoe_hdr_t *pppoe;
-
-	    struct pkt_pppoe_taghdr_t *tag;
-
-	    uint16_t pos=0, taglen=0;
-
-	    /* Find / create connection
-	     */
-
-	    if (dhcp_hashget(this, &conn, ethh->src)) {
-	      if (dhcp_newconn(this, &conn, ethh->src, 0))
-		break; /* Out of connections */
-	    }
-	    
-	    /* Copy over original packet,
-	     * get pointers to answer structure.
-	     */
-
-	    memcpy(answer, packet, length); 
-	    
-	    answer_ethh = ethhdr(answer);
-
-	    pppoe = (struct pkt_pppoe_hdr_t *) 
-	      (answer + sizeofeth(answer));
-
-	    /* Start processing packet...
-	     */
-
-	    pppoe->length = 0;
-	    switch(hdr->code) {
-	    case PKT_PPPoE_PADI:
-	      pppoe->code = PKT_PPPoE_PADO;
-	      break;
-	    case PKT_PPPoE_PADR:
-	      pppoe->code = PKT_PPPoE_PADS;
-	      pppoe->session_id = rand();
-	      break;
-	    }
-
-	    length  = sizeofeth(answer);
-	    length += sizeof(struct pkt_pppoe_hdr_t);
-
-	    pos = length;
-
-	    taglen = 5;
-	    tag = (struct pkt_pppoe_taghdr_t *)(answer + length);
-	    tag->type = htons(PPPoE_TAG_ACName);
-	    tag->length = htons(taglen);
-	    length += sizeof(struct pkt_pppoe_taghdr_t);
-	    memcpy(answer + length, "chilli", 5);
-	    length += taglen;
-
-	    if (host_uniq_len) {
-	      taglen = host_uniq_len;
-	      tag = (struct pkt_pppoe_taghdr_t *)(answer + length);
-	      tag->type = htons(PPPoE_TAG_HostUniq);
-	      tag->length = htons(taglen);
-	      length += sizeof(struct pkt_pppoe_taghdr_t);
-	      memcpy(answer + length, host_uniq, host_uniq_len);
-	      length += taglen;
-	    }
-
-	    pppoe->length = htons(length - pos);
-
-	    /* Send back answer.
-	     */
-
-	    memcpy(&answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
-	    memcpy(&answer_ethh->src, dhcp_nexthop(this), PKT_ETH_ALEN);
-	    
-	    dhcp_send(this, &this->rawif, conn->hismac, answer, length);
-	  }
-	  break;
-	default:
-	  break;
-	}
-      }
-    }
+  case PKT_ETH_PROTO_PPPOED: 
+    if (!ignore)
+      return dhcp_pppoed(packet, length);
     break;
 #endif
+
+#ifdef ENABLE_CLUSTER
+  case PKT_ETH_PROTO_CHILLI:
+    return dhcp_chillipkt(packet, length);
+#endif
+
   case PKT_ETH_PROTO_IPv6:
   case PKT_ETH_PROTO_PPP:
   case PKT_ETH_PROTO_IPX:
   default: 
-    log_dbg("Layer2 PROT: 0x%.4x dropped", prot); 
+    if (!ignore)
+      log_dbg("Layer2 PROT: 0x%.4x dropped", prot); 
     break;
   }
   return 0;
@@ -3341,7 +3640,6 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
 
   return dhcp_send(this, &this->rawif, conn->hismac, pkt, length);
 }
-
 
 /**
  * dhcp_sendARP()

@@ -38,6 +38,7 @@
 #define PKT_ETH_PROTO_PPPOED 0x8863
 #define PKT_ETH_PROTO_PPPOES 0x8864
 #define PKT_ETH_PROTO_EAPOL  0x888e
+#define PKT_ETH_PROTO_CHILLI 0xbeef
 
 #define PKT_IP_PLEN            1500 /* IP Payload Length */
 #define PKT_IP_VER_HLEN        0x45 
@@ -369,6 +370,19 @@ struct eap_packet_t {
   uint8_t  payload[PKT_EAP_PLEN];
 } __attribute__((packed));
 
+#ifdef ENABLE_CLUSTER
+struct pkt_chillihdr_t {
+  uint8_t from;
+  uint8_t type;
+  struct in_addr addr;
+  uint8_t mac[PKT_ETH_ALEN];
+  uint8_t state;
+} __attribute__((packed));
+#define CHILLI_PEER_INIT    1
+#define CHILLI_PEER_HELLO   2
+#define CHILLI_PEER_GOODBYE 3
+#define CHILLI_PEER_LIST    4
+#endif
 
 #ifdef ENABLE_IEEE8021Q
 #define is_8021q(pkt) (((struct pkt_ethhdr8021q_t *)pkt)->tpid == htons(PKT_ETH_PROTO_8021Q))
@@ -426,6 +440,8 @@ struct eap_packet_t {
 #define arppkt(pkt)   ((struct arp_packet_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))
 #define dnspkt(pkt)   ((struct dns_packet_t *)  (((uint8_t*)(pkt)) + sizeofudp(pkt)))
 #define eappkt(pkt)   ((struct eap_packet_t *)  (((uint8_t*)(pkt)) + sizeofdot1x(pkt)))
+
+#define chilli_ethhdr(pkt)((struct pkt_chillihdr_t *)(((uint8_t*)(pkt)) + sizeofeth(pkt)))
 
 struct eapol_tag_t {
   uint8_t t;

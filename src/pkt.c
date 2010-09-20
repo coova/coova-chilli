@@ -44,10 +44,12 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
     log_dbg("-->> offset: %d", off);
 #endif
     
+    if (off > 15 || off < 0) return -1;
+
     if (off > 5) {
       uint8_t *opts = tcph->options;
       uint8_t type;
-      uint8_t len;
+      int len;
       int words = off - 5;
       int done = 0;
       int i = 0;
@@ -64,24 +66,26 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
 #endif
 	  break;
 	  
-	case 2: 
-#if(0)
-	  log_dbg("TCP OPTIONS: MSS");
-#endif
-	  len = opts[i++];
-	  if (ntohs(*((uint16_t *)&opts[i])) > optval) {
-	    *((uint16_t *)&opts[i]) = htons(optval);
-	    chksum(iph);
-	  }
-	  hasmss = 1;
-	  i += 2;
-	  break;
-	  
 	default:
-	  len = opts[i++];
+	  len = (int) opts[i++];
+	  if (len < 2 || len > TCP_MAX_OPTION_LEN) {
+	    log_err(0, "bad TCP option during parse, len=%d", len);
+	    return -1;
+	  }
+	  if (type == 2 && len == 4) {
 #if(0)
-	  log_dbg("TCP OPTIONS: type %d len %d", type, len); 
+	    log_dbg("TCP OPTIONS: MSS");
 #endif
+	    if (ntohs(*((uint16_t *)&opts[i])) > optval) {
+	      *((uint16_t *)&opts[i]) = htons(optval);
+	      chksum(iph);
+	    }
+	    hasmss = 1;
+	  } else {
+#if(0)
+	    log_dbg("TCP OPTIONS: type %d len %d", type, len); 
+#endif
+	  }
 	  i += len - 2;
 	  break;
 	}
@@ -95,22 +99,29 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
 	struct pkt_iphdr_t *p_iph = iphdr(p);
 	struct pkt_tcphdr_t *p_tcph = tcphdr(p);
 	
-	uint8_t *fopt = p_tcph->options + ((off - 5) * 4);
-	uint8_t *copt = tcph->options + ((off - 5) * 4);
+	uint8_t *dst_opt = p_tcph->options + ((off - 5) * 4);
+	uint8_t *src_opt = tcph->options + ((off - 5) * 4);
 	
 	int dlen = *length - sizeofip(packet) - (off * 4);
 	
-	/*log_dbg("TCP DATA: (%d - %d - %d) len %d", *length, sizeofip(packet), (off * 4), dlen); */
+	/*  
+	 *  log_dbg("TCP DATA: (%d - %d - %d) len %d", 
+	 *  *length, sizeofip(packet), (off * 4), dlen); 
+	 */
+	
+	/*
+	 *  TODO: This should back up and find any type=0 NULL or padding. 
+	 */
 	
 	p_tcph->offres = (off + 1) << 4;
 	
-	fopt[0] = 2;
-	fopt[1] = 4;
+	dst_opt[0] = 2;
+	dst_opt[1] = 4;
 	
-	*((uint16_t *)&fopt[2]) = htons(optval);
+	*((uint16_t *)&dst_opt[2]) = htons(optval);
 	
 	if (dlen > 0) {
-	  memcpy(fopt + 4, copt, dlen);
+	  memcpy(dst_opt + 4, src_opt, dlen);
 	}
 	
 	*length = *length + 4;
@@ -119,10 +130,10 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
 	chksum(p_iph);
 	
 	memcpy(packet, p, *length);
-	}
+      }
     }
   }
-
+  
   return 0;
 }
 

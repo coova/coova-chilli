@@ -119,6 +119,12 @@ struct gengetopt_args_info
   char * condown_arg;	/**< @brief Script to run after user logoff.  */
   char * condown_orig;	/**< @brief Script to run after user logoff original value given at command line.  */
   const char *condown_help; /**< @brief Script to run after user logoff help description.  */
+  char * macup_arg;	/**< @brief Script to run after initial DHCP.  */
+  char * macup_orig;	/**< @brief Script to run after initial DHCP original value given at command line.  */
+  const char *macup_help; /**< @brief Script to run after initial DHCP help description.  */
+  char * macdown_arg;	/**< @brief Script to run after DHCP release.  */
+  char * macdown_orig;	/**< @brief Script to run after DHCP release original value given at command line.  */
+  const char *macdown_help; /**< @brief Script to run after DHCP release help description.  */
   int txqlen_arg;	/**< @brief TX Queue length for tun interface (linux only) (default='100').  */
   char * txqlen_orig;	/**< @brief TX Queue length for tun interface (linux only) original value given at command line.  */
   const char *txqlen_help; /**< @brief TX Queue length for tun interface (linux only) help description.  */
@@ -140,6 +146,12 @@ struct gengetopt_args_info
   int rcvbuf_arg;	/**< @brief RCVBUF size (in kb) (default='0').  */
   char * rcvbuf_orig;	/**< @brief RCVBUF size (in kb) original value given at command line.  */
   const char *rcvbuf_help; /**< @brief RCVBUF size (in kb) help description.  */
+  int peerid_arg;	/**< @brief Cluster peer ID (default='0').  */
+  char * peerid_orig;	/**< @brief Cluster peer ID original value given at command line.  */
+  const char *peerid_help; /**< @brief Cluster peer ID help description.  */
+  char * peerkey_arg;	/**< @brief Cluster Blowfish key.  */
+  char * peerkey_orig;	/**< @brief Cluster Blowfish key original value given at command line.  */
+  const char *peerkey_help; /**< @brief Cluster Blowfish key help description.  */
   char * radiuslisten_arg;	/**< @brief IP address to send from.  */
   char * radiuslisten_orig;	/**< @brief IP address to send from original value given at command line.  */
   const char *radiuslisten_help; /**< @brief IP address to send from help description.  */
@@ -445,6 +457,8 @@ struct gengetopt_args_info
   int challengetimeout2_arg;	/**< @brief Timeout in seconds for challenge during login (default='1200').  */
   char * challengetimeout2_orig;	/**< @brief Timeout in seconds for challenge during login original value given at command line.  */
   const char *challengetimeout2_help; /**< @brief Timeout in seconds for challenge during login help description.  */
+  int redir_flag;	/**< @brief Enable redir (redirection) daemon (default=off).  */
+  const char *redir_help; /**< @brief Enable redir (redirection) daemon help description.  */
   char * sslkeyfile_arg;	/**< @brief SSL private key file in PEM format.  */
   char * sslkeyfile_orig;	/**< @brief SSL private key file in PEM format original value given at command line.  */
   const char *sslkeyfile_help; /**< @brief SSL private key file in PEM format help description.  */
@@ -505,6 +519,8 @@ struct gengetopt_args_info
   unsigned int ipdown_given ;	/**< @brief Whether ipdown was given.  */
   unsigned int conup_given ;	/**< @brief Whether conup was given.  */
   unsigned int condown_given ;	/**< @brief Whether condown was given.  */
+  unsigned int macup_given ;	/**< @brief Whether macup was given.  */
+  unsigned int macdown_given ;	/**< @brief Whether macdown was given.  */
   unsigned int txqlen_given ;	/**< @brief Whether txqlen was given.  */
   unsigned int tundev_given ;	/**< @brief Whether tundev was given.  */
   unsigned int mtu_given ;	/**< @brief Whether mtu was given.  */
@@ -512,6 +528,8 @@ struct gengetopt_args_info
   unsigned int ringsize_given ;	/**< @brief Whether ringsize was given.  */
   unsigned int sndbuf_given ;	/**< @brief Whether sndbuf was given.  */
   unsigned int rcvbuf_given ;	/**< @brief Whether rcvbuf was given.  */
+  unsigned int peerid_given ;	/**< @brief Whether peerid was given.  */
+  unsigned int peerkey_given ;	/**< @brief Whether peerkey was given.  */
   unsigned int radiuslisten_given ;	/**< @brief Whether radiuslisten was given.  */
   unsigned int radiusserver1_given ;	/**< @brief Whether radiusserver1 was given.  */
   unsigned int radiusserver2_given ;	/**< @brief Whether radiusserver2 was given.  */
@@ -621,6 +639,7 @@ struct gengetopt_args_info
   unsigned int maxclients_given ;	/**< @brief Whether maxclients was given.  */
   unsigned int challengetimeout_given ;	/**< @brief Whether challengetimeout was given.  */
   unsigned int challengetimeout2_given ;	/**< @brief Whether challengetimeout2 was given.  */
+  unsigned int redir_given ;	/**< @brief Whether redir was given.  */
   unsigned int sslkeyfile_given ;	/**< @brief Whether sslkeyfile was given.  */
   unsigned int sslkeypass_given ;	/**< @brief Whether sslkeypass was given.  */
   unsigned int sslcertfile_given ;	/**< @brief Whether sslcertfile was given.  */

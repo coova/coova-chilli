@@ -172,11 +172,13 @@ typedef struct _redir_request {
 
   char inuse:1;
   char proxy:1;
+  char headers:1;
   
   bstring url;
   bstring data;
   bstring post;
   bstring wbuf;
+  bstring hbuf;
 
   time_t last_active;
 

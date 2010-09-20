@@ -112,6 +112,10 @@ struct dhcp_conn_t {
   struct dhcp_t *parent;        /* Parent of all connections */
   void *peer;                   /* Peer protocol handler */
 
+#ifdef ENABLE_CLUSTER
+  uint8_t peerid;
+#endif
+
   uint8_t inuse:1;             /* Free = 0; Inuse = 1 */
   uint8_t noc2c:1;             /* Prevent client to client access using /32 subnets */
   uint8_t is_reserved:1;       /* If this is a static/reserved mapping */
@@ -134,7 +138,7 @@ struct dhcp_conn_t {
   uint16_t mtu;                /* Maximum transfer unit */
 
   struct in_addr migrateip;    /* Client IP address to migrate to */
-  time_t last_nak;
+  /*time_t last_nak;*/
 
 #ifdef ENABLE_IEEE8021Q
   uint16_t tag8021q;
@@ -302,5 +306,12 @@ int dhcp_gettag(struct dhcp_packet_t *pack, size_t length,
 		struct dhcp_tag_t **tag, uint8_t tagtype);
 
 int dhcp_hashadd(struct dhcp_t *this, struct dhcp_conn_t *conn);
+
+#ifdef ENABLE_CLUSTER
+void dhcp_peer_update(char force);
+void print_peers(bstring s);
+struct chilli_peer;
+struct chilli_peer * get_chilli_peer(int id);
+#endif
 
 #endif	/* !_DHCP_H */

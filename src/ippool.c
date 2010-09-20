@@ -29,6 +29,8 @@ int ippool_print(int fd, struct ippool_t *this) {
   char useLine[16];
   char peerLine[128];
 
+  time_t now = mainclock_now();
+
   char * sep = "-- %-15s ------------------------------------------------------------\n";
 
 #define ERR 0
@@ -39,10 +41,11 @@ int ippool_print(int fd, struct ippool_t *this) {
   int stat[4] = { 0, 0, 0, 0};
 
   snprintf(line, sizeof(line),
-	   "IP Address Pool:\n"
+	   "DHCP lease time: %d\n"
 	   "First available dynamic %d Last %d\n"
 	   "First available static %d Last %d\n"
 	   "List size %d\n",
+	   (int) (dhcp->lease),
 	   (int) (this->firstdyn ? this->firstdyn - this->member : -1),
 	   (int) (this->lastdyn ? this->lastdyn - this->member : -1),
 	   (int) (this->firststat ? this->firststat - this->member : -1),
@@ -81,11 +84,11 @@ int ippool_print(int fd, struct ippool_t *this) {
       struct app_conn_t *appconn = (struct app_conn_t *) this->member[n].peer;
       struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *) appconn->dnlink;
       snprintf(peerLine, sizeof(peerLine),
-	       "%s mac=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X ip=%s", 
+	       "%s mac=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X ip=%s age=%d", 
 	       dhcpconn ? dhcpconn->is_reserved ? " reserved" : "" : "",
 	       appconn->hismac[0],appconn->hismac[1],appconn->hismac[2],
 	       appconn->hismac[3],appconn->hismac[4],appconn->hismac[5],
-	       inet_ntoa(appconn->hisip));
+	       inet_ntoa(appconn->hisip), (int)(now - dhcpconn->lasttime));
     } else {
       peerLine[0]=0;
     }
@@ -105,6 +108,7 @@ int ippool_print(int fd, struct ippool_t *this) {
 	     this->member[n].is_static ? " static" : "",
 	     peerLine
 	     );
+
     safe_write(fd, line, strlen(line));
   }
 

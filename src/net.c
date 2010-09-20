@@ -392,12 +392,16 @@ int net_select_fd(select_ctx *sctx, int fd, char evts) {
     sctx->pfds[sctx->count].events |= POLLOUT;
 #endif
 #else
-  if (evts & SELECT_READ)
+  if (evts & SELECT_READ) {
     fd_set(fd, &sctx->rfds);
-  if (evts & SELECT_WRITE)
+    fd_set(fd, &sctx->efds);
+  }
+  if (evts & SELECT_WRITE) {
     fd_set(fd, &sctx->wfds);
-  if (fd > sctx->maxfd) 
+  }
+  if (fd > sctx->maxfd) {
     sctx->maxfd = fd;
+  }
 #endif
   sctx->count++;
   return 0;
@@ -415,8 +419,15 @@ int net_select(select_ctx *sctx) {
   sctx->idleTime.tv_sec = 1;
   sctx->idleTime.tv_usec = 0;
   do {
-    status = select(sctx->maxfd + 1, &sctx->rfds, &sctx->wfds, &sctx->efds, &sctx->idleTime);
+
+    status = select(sctx->maxfd + 1, 
+		    &sctx->rfds, 
+		    &sctx->wfds, 
+		    &sctx->efds, 
+		    &sctx->idleTime);
+
     if (status == -1) net_select_prepare(sctx); /* reset */
+
   } while (status == -1 && errno == EINTR);
 #endif
   return status;
@@ -438,6 +449,8 @@ int net_select_read_fd(select_ctx *sctx, int fd) {
   return 0;
 #endif
 #else
+  if (FD_ISSET(fd, &sctx->efds))
+    return -1;
   return FD_ISSET(fd, &sctx->rfds);
 #endif
 }

@@ -103,6 +103,8 @@
 #define TUN_NLBUFSIZE   1024
 #define TUN_MAX_INTERFACES 16
 
+#define TCP_MAX_OPTION_LEN 40
+
 #ifdef ENABLE_LARGELIMITS
 #define SESSION_PASS_THROUGH_MAX          16
 #define MAX_PASS_THROUGHS                512 /* Max number of allowed UAM pass-throughs */

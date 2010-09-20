@@ -4,6 +4,9 @@
 * Removed CoovaChilli-Version from Access-Accept/Challenge/Reject to EAP NAS
 * Fix to not update chilli session from a IPC request when already autheticated
 * Fix for non-null terminates username when proxying EAP
+* Added options ''--macup'' and ''--macdown'' defining scripts to run during DHCP up (assignment) and down (release)
+* Added option flag ''--redir'' to turn on redir daemon when built with ''--enable-chilliredir''
+* Release DHCP leave on a DHCP-Decline
 
 == ChangeLog (CoovaChilli-v1.2.4 svn revision 371) ==
 

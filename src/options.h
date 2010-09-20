@@ -57,6 +57,8 @@ struct options_t {
   char * ipdown;                 /* Script to run after link-down */
   char * conup;                  /* Script to run after session/connection-up */
   char * condown;                /* Script to run after session/connection-down */
+  char * macup;
+  char * macdown;
   int txqlen;
 
   int ringsize;
@@ -100,6 +102,9 @@ struct options_t {
   int lease;                     /* DHCP lease time */
   int dhcpstart;
   int dhcpend;
+
+  uint8_t peerid;
+  char *peerkey;
 
   /* XXX */
   uint8_t nexthop[PKT_ETH_ALEN];
@@ -171,6 +176,7 @@ struct options_t {
   uint8_t strictmacauth:1;          /* Be strict about DHCP macauth (don't reply DHCP until we get RADIUS) */
   uint8_t dhcpmacset:1;             /* Set the dhcpif interface with the dhcpmac */
   uint8_t uamallowpost:1;           /* Set to true if the UAMPORT is allowed to access a POST */
+  uint8_t redir:1;                  /* Launch redir sub-process instead of forking */
   uint8_t redirssl:1;               /* Enable redirection of SSL/HTTPS port (requires SSL support) */
   uint8_t uamuissl:1;               /* Enable SSL/HTTPS on uamuiport (requires SSL support) */
   uint8_t domaindnslocal:1;         /* Wildcard option to consider all hostnames *.domain local */

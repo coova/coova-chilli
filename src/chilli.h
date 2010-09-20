@@ -48,7 +48,6 @@
 #define MPPE_KEYSIZE  16
 #define NT_KEYSIZE    16
 
-
 #define DNPROT_NULL       1
 #define DNPROT_DHCP_NONE  2
 #define DNPROT_UAM        3
@@ -150,6 +149,18 @@ extern struct radius_t *radius;          /* Radius client instance */
 extern struct dhcp_t *dhcp;              /* DHCP instance */
 extern struct tun_t *tun;                /* TUN/TAP instance */
 
+#ifdef ENABLE_CLUSTER
+struct chilli_peer {
+  struct in_addr addr;
+  uint8_t mac[6];
+  uint8_t state;
+  time_t last_update;
+};
+#define PEER_STATE_OFFLINE 0
+#define PEER_STATE_ACTIVE  1
+#define PEER_STATE_STANDBY 2
+#endif
+
 #ifdef ENABLE_STATFILE
 int printstatus();
 int loadstatus();
@@ -196,6 +207,13 @@ time_t mainclock_rt();
 int mainclock_diff(time_t past);
 uint32_t mainclock_diffu(time_t past);
 
+pid_t chilli_fork(uint8_t type, char *name);
+
+#define CHILLI_PROC        0
+#define CHILLI_PROC_DAEMON 1
+#define CHILLI_PROC_REDIR  2
+#define CHILLI_PROC_SCRIPT 3
+
 #ifdef ENABLE_PROXYVSA
 int radius_addvsa(struct radius_packet_t *pack, struct redir_state *state);
 #endif
@@ -224,6 +242,8 @@ void GenerateAuthenticatorResponse(u_char *Password, int PasswordLen,
 #endif
 
 int chilli_handle_signal(void *ctx, int fd);
+
+int runscript(struct app_conn_t *appconn, char* script);
 
 /* utils.c */
 int statedir_file(char *dst, int dlen, char *file, char *deffile);

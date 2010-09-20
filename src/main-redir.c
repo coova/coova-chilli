@@ -20,6 +20,8 @@
 
 #include "chilli.h"
 
+#define _debug_ 0
+
 struct options_t _options;
 
 static select_ctx sctx;
@@ -74,8 +76,19 @@ static redir_request * get_request() {
     return 0;
   }
 
+  /*
+    log_dbg("url->len %d",req->url?req->url->slen:-1);
+    log_dbg("data->len %d",req->data?req->data->slen:-1);
+    log_dbg("post->len %d",req->post?req->post->slen:-1);
+    log_dbg("wbuf->len %d",req->wbuf?req->wbuf->slen:-1);
+  */
+  
+  if (!req->hbuf) req->hbuf = bfromcstr("");
+  else bassigncstr(req->hbuf, "");
+
   req->state = 0;
   req->next = req->prev = 0;
+  req->proxy = req->headers = 0;
   req->inuse = 1;
   return req;
 }
@@ -86,6 +99,7 @@ static void close_request(redir_request *req) {
   req->proxy = 0;
   req->socket_fd = 0;
   req->state = 0;
+  req->last_active = 0;
   if (requests_free) {
     requests_free->prev = req;
     req->next = requests_free;
@@ -172,17 +186,23 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
   redir_request *req = (redir_request *)ctx;
   char b[PKT_MAX_LEN];
 
-  int r = safe_read(conn->sock, b, sizeof(b));
+  int r = safe_read(conn->sock, b, sizeof(b)-1);
 
   log_dbg("conn_read: %d", r);
 
   if (r <= 0) {
+
     redir_conn_finish(conn, ctx);
+
   } else if (r > 0) {
-    int w;
+
+    int w = safe_write(req->socket_fd, b, r);
     req->last_active = mainclock_tick();
-    w = safe_write(req->socket_fd, b, r);
+
     log_dbg("write: %d", w);
+    b[r]=0;
+    log_dbg("write: [%s]", b);
+
     if (r != w) {
       log_err(errno, "problem writing what we read");
       redir_conn_finish(conn, ctx);
@@ -195,7 +215,9 @@ static int
 check_regex(regex_t *re, char *regex, char *s) {
   int ret;
 
+#if(_debug_)
   log_dbg("Checking %s =~ %s", s, regex);
+#endif
   
   if (!re->allocated) {
     if ((ret = regcomp(re, regex, REG_EXTENDED | REG_NOSUB)) != 0) {
@@ -236,12 +258,14 @@ redir_handle_url(struct redir_t *redir,
 	 ! _options.regex_pass_throughs[i].regex_qs[0] )
       break;
 
+#if(_debug_)
     log_dbg("REGEX host=[%s] path=[%s] qs=[%s]",
 	    _options.regex_pass_throughs[i].regex_host,
 	    _options.regex_pass_throughs[i].regex_path,
 	    _options.regex_pass_throughs[i].regex_qs);
 
     log_dbg("Host %s", httpreq->host);
+#endif
 
     if (_options.regex_pass_throughs[i].regex_host[0]) {
       switch(check_regex(&_options.regex_pass_throughs[i].re_host, 
@@ -300,7 +324,6 @@ int redir_accept2(struct redir_t *redir, int idx) {
   struct sockaddr_in baddress;
   socklen_t addrlen;
   char buffer[128];
-  int flags;
 
   addrlen = sizeof(struct sockaddr_in);
 
@@ -309,10 +332,10 @@ int redir_accept2(struct redir_t *redir, int idx) {
 				&addrlen)) < 0) {
     if (errno != ECONNABORTED)
       log_err(errno, "accept()");
-
+    
     return 0;
   }
-
+  
   addrlen = sizeof(struct sockaddr_in);
 
   if (getsockname(new_socket, (struct sockaddr *)&baddress, 
@@ -320,15 +343,8 @@ int redir_accept2(struct redir_t *redir, int idx) {
     log_warn(errno, "getsockname() failed!");
   }
 
-  flags = fcntl(new_socket, F_GETFL, 0);
-  if (flags < 0) flags = 0;
-
-#ifdef O_NDELAY
-  flags |= O_NDELAY;
-#endif
-  
-  if (fcntl(new_socket, F_SETFL, flags) < 0) {
-    log_err(errno, "could not set socket flags");
+  if (ndelay_on(new_socket) < 0) {
+    log_err(errno, "could not set ndelay");
   }
   
   if (idx == 1 && _options.uamui) {
@@ -500,6 +516,7 @@ int main(int argc, char **argv) {
 	  active++;
 	}
 	
+#if(_debug_ || 1)
 	if (_options.debug) {
 	  struct sockaddr_in address;
 	  socklen_t addrlen = sizeof(address);
@@ -533,6 +550,7 @@ int main(int argc, char **argv) {
 	    log_dbg("%s", line);
 	  }
 	}
+#endif
       }
     }
 
@@ -592,71 +610,83 @@ int main(int argc, char **argv) {
 	    }
 #endif
 	    
-	    if (net_select_read_fd(&sctx, fd)) {
-	      
-	      if (requests[idx].proxy) {
-		char b[1500];
-		int r;
-		
+	    switch (net_select_read_fd(&sctx, fd)) {
+	    case -1:
+	      {
+		log_dbg("EXCEPTION");
+	      }
+	      break;
+
+	    case 1:
+	      {
+		if (requests[idx].proxy) {
+		  char b[1500];
+		  int r;
+		  
 #ifdef HAVE_SSL
-		if (requests[idx].sslcon) {
-		  /*
-		  log_dbg("proxy_read_ssl");
-		  */
-		  r = openssl_read(requests[idx].sslcon, 
-				   b, sizeof(b), 0);
-		} else
+		  if (requests[idx].sslcon) {
+		    /*
+		      log_dbg("proxy_read_ssl");
+		    */
+		    r = openssl_read(requests[idx].sslcon, 
+				     b, sizeof(b)-1, 0);
+		  } else
 #endif
-		  r = recv(fd, b, sizeof(b), 0);
-		
-		/*
-		log_dbg("proxy_read: %d %d", fd, r);
-		*/
-		
-		if (r <= 0) {
-		  
-		  redir_conn_finish(&requests[idx].conn, &requests[idx]);
-		  
-		} else if (r > 0) {
-		  
-		  int w;
-		  requests[idx].last_active = mainclock_tick();
-		  w = safe_write(requests[idx].conn.sock, b, r);
+		    r = recv(fd, b, sizeof(b)-1, 0);
 		  
 		  /*
-		  log_dbg("proxy_write: %d", w);
-		   */
-		  if (r != w) {
-		    log_err(errno, "problem writing what we read");
+		    log_dbg("proxy_read: %d %d", fd, r);
+		  */
+		  
+		  if (r <= 0) {
+
 		    redir_conn_finish(&requests[idx].conn, &requests[idx]);
+		    
+		  } else if (r > 0) {
+
+		    int w;
+		    requests[idx].last_active = mainclock_tick();
+		    w = safe_write(requests[idx].conn.sock, b, r);
+		    
+		    /*
+		      log_dbg("proxy_write: %d", w);
+		    */
+		    if (r != w) {
+		      log_err(errno, "problem writing what we read");
+		      redir_conn_finish(&requests[idx].conn, &requests[idx]);
+		    }
+		  }
+		  
+		} else {
+#ifdef HAVE_SSL
+		go_again:
+#endif
+		  switch (redir_main(redir, fd, fd, 
+				     &requests[idx].conn.peer,
+				     &requests[idx].baddr, 
+				     requests[idx].uiidx, 
+				     &requests[idx])) {
+		  case 1:
+		    /*log_dbg("redir cont'ed");*/
+#ifdef HAVE_SSL
+		    if (requests[idx].sslcon && 
+			openssl_pending(requests[idx].sslcon) > 0) {
+		      log_dbg("ssl_pending, trying again");
+		      goto go_again;
+		    }
+#endif
+		  break;
+		  case -1: 
+		    log_dbg("redir error");
+		  default:
+		    log_dbg("redir completed");
+		    redir_conn_finish(&requests[idx].conn, &requests[idx]);
+		    break;
 		  }
 		}
-		
-	      } else {
-#ifdef HAVE_SSL
-	      go_again:
-#endif
-		switch (redir_main(redir, fd, fd, 
-				   &requests[idx].conn.peer,
-				   &requests[idx].baddr, 
-				   requests[idx].uiidx, 
-				   &requests[idx])) {
-		case 1:
-#ifdef HAVE_SSL
-		  if (requests[idx].sslcon && 
-		      openssl_pending(requests[idx].sslcon) > 0)
-		    goto go_again;
-#endif
-		  break;
-		case -1: 
-		  log_dbg("redir error");
-		default:
-		  log_dbg("redir completed");
-		  redir_conn_finish(&requests[idx].conn, &requests[idx]);
-		  break;
-		}
 	      }
-	    }
+	      break;
+	    } /* switch(net_select_read_fd()) */
 	  }
 	}
       }

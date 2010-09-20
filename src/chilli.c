@@ -68,11 +68,164 @@ static pid_t proxy_pid = 0;
 static pid_t redir_pid = 0;
 #endif
 
+typedef struct child {
+  pid_t pid;
+  uint8_t type;
+  time_t started;
+  char *name;
+  struct child *next;
+} CHILD;
+
+static unsigned int child_count_tot = 0;
+static int child_count_max = 128;
+static int child_count = 0;
+CHILD * children = 0;
+
+CHILD *child_create(uint8_t type, pid_t pid, char *name) {
+  CHILD *node;
+  if (!(node=malloc(sizeof(CHILD)))) return 0;
+  node->started = mainclock_now();
+  node->type = type;
+  node->pid = pid;
+  node->name = name;
+  node->next = 0;
+  return node;
+}
+
+CHILD *child_insert_head(CHILD *list, uint8_t type, pid_t pid, char *name) {
+  CHILD *newnode = child_create(type, pid, name);
+  newnode->next = list;
+  return newnode;
+}
+
+int child_add_pid(uint8_t type, pid_t pid, char *name) {
+  if (!children) {
+    /* Create the list head, the main process */
+    children = child_create(CHILLI_PROC, getpid(), "[chilli]");
+  }
+  children->next = child_insert_head(children->next, type, pid, name);
+  return 0;
+}
+
+int child_remove_pid(pid_t pid) {
+  /* Will never be the head "children"- 
+     which is the main process pid */
+  CHILD *list, *node;
+  if (children) {
+    list = children;
+    while (list->next && list->next->pid != pid) 
+      list = list->next;
+
+    if (list->next) {
+      node = list->next;
+      list->next = node->next;
+      log_dbg("Freed child process %d [%s]", node->pid, node->name);
+      free(node);
+      return 0;		
+    }
+  }
+  return -1;
+}
+
+static int proc_status(char *name, pid_t pid) {
+  char buffer[128];
+  char * line = 0;
+  size_t len = 0;
+  int ret = 0;
+  ssize_t read;
+  FILE* fp;
+
+  sprintf(buffer, "/proc/%i/status", pid);
+  fp = fopen(buffer, "r");
+  if (!fp) return -1;
+
+  while ((read = getline(&line, &len, fp)) != -1) {
+    if (!memcmp(line, name, strlen(name))) {
+      int i;
+      if (sscanf(line+strlen(name)+1, "%d %s", &i, buffer) == 2) {
+	ret = i;
+	if (buffer[0] == 'm') ret *= 1000;
+	else if (buffer[0] == 'g') ret *= 1000000;
+      }
+    }
+  }
+  
+  if (line)
+    free(line);
+  
+  fclose(fp);
+  return ret;
+}
+
+static int proc_countfds(pid_t pid) {
+  char buffer[128];
+  int ret = 0;
+  DIR *dir;
+
+  struct dirent * d = 0;
+
+  sprintf(buffer, "/proc/%i/fd", pid);
+  dir = opendir(buffer);
+  if (!dir) return -1;
+
+  while ((d = readdir(dir))) 
+    if (d->d_name[0] != '.')
+      ret++;
+
+  closedir(dir);
+  return ret;
+}
+
+void child_print(bstring s) {
+  time_t now = mainclock_now();
+  CHILD *node = children;
+  char line[256];
+
+  snprintf(line, sizeof(line)-1, "Children %d Max %d Total %d\n", 
+	   child_count, child_count_max, child_count_tot);
+  bcatcstr(s, line);
+
+  while (node) {
+    char *n = "";
+    switch (node->type) {
+    case CHILLI_PROC:        n = "Main";     break;
+    case CHILLI_PROC_DAEMON: n = "Daemon";   break;
+    case CHILLI_PROC_REDIR:  n = "Redirect"; break;
+    case CHILLI_PROC_SCRIPT: n = "Script";   break;
+    }
+    snprintf(line, sizeof(line)-1, 
+	     "PID %8d %-8s %-20s up %d [Vm Size: %d RSS: %d FDs: %d]\n", 
+	     node->pid, n, node->name,
+	     (int)(now - node->started),
+	     proc_status("VmSize:", node->pid), 
+	     proc_status("VmRSS:", node->pid),
+	     proc_countfds(node->pid));
+    bcatcstr(s, line);
+    node = node->next;
+  }
+}
+
+pid_t chilli_fork(uint8_t type, char *name) {
+  pid_t pid;
+  if (child_count == child_count_max) {
+    return -1;
+  }
+  pid = fork();
+  if (pid > 0) {
+    if (child_add_pid(type, pid, name) == 0)
+      child_count++;
+      child_count_tot++;
+  }
+  return pid;
+}
+
 static void _sigchld(int signum) { 
   pid_t pid;
   int stat;
   while ((pid = waitpid(-1, &stat, WNOHANG)) > 0) {
     log_dbg("child %d terminated", pid);
+    if (child_remove_pid(pid) == 0) 
+      child_count--;
   }
 }
 
@@ -416,7 +569,7 @@ int set_env(char *name, char type, void *value, int len) {
 int runscript(struct app_conn_t *appconn, char* script) {  
   int status;
 
-  if ((status = fork()) < 0) {
+  if ((status = chilli_fork(CHILLI_PROC_SCRIPT, script)) < 0) {
     log_err(errno, "forking %s", script);
     return 0;
   }
@@ -752,8 +905,7 @@ static int checkconn() {
 }
 
 /* Kill all connections and send Radius Acct Stop */
-int static killconn()
-{
+int static killconn() {
   struct app_conn_t *conn;
 
   for (conn = firstusedconn; conn; conn=conn->next) {
@@ -962,6 +1114,7 @@ int static auth_radius(struct app_conn_t *appconn,
 	   dhcpconn->hismac[4], dhcpconn->hismac[5]);
 
   if (!username) {
+
     service_type = RADIUS_SERVICE_TYPE_FRAMED;
 
     strncpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
@@ -3460,7 +3613,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     /* if not already authenticated, ensure DNAT authstate */
     conn->authstate = DHCP_AUTH_DNAT;
   }
-  
+
   /* If IP was requested before authentication it was UAM */
   if (appconn->dnprot == DNPROT_DHCP_NONE)
     appconn->dnprot = DNPROT_UAM;
@@ -3506,6 +3659,11 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
   printstatus();
 #endif
 
+  if (_options.macup) {
+    log_dbg("Calling MAC up script: %s",_options.macup);
+    runscript(appconn, _options.macup);
+  }
+  
   return 0;
 }
 
@@ -3721,6 +3879,11 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
   printstatus();
 #endif
 
+  if (_options.macdown && conn->peer) {
+    log_dbg("Calling MAC down script: %s",_options.macdown);
+    runscript(appconn, _options.macdown);
+  }
+
   return 0;
 }
 
@@ -3768,9 +3931,10 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   }
   
 
-  /* If the ip dst is uamlisten and pdst is uamport we won't call leaky_bucket,
-  *  and we always send these packets through to the tun/tap interface (index 0) 
-  */
+  /* 
+   * If the ip dst is uamlisten and pdst is uamport we won't call leaky_bucket,
+   * and we always send these packets through to the tun/tap interface (index 0) 
+   */
   if (ipph->daddr  == _options.uamlisten.s_addr && 
       (ipph->dport == htons(_options.uamport) ||
        ipph->dport == htons(_options.uamuiport)))
@@ -4069,7 +4233,7 @@ static int cmdsock_accept(void *nullData, int sock) {
   int rval = 0;
 
   if (_options.debug) 
-    log_dbg("Processing cmdsock request...\n");
+    log_dbg("Processing cmdsock request...");
 
   len = sizeof(remote);
   if ((csock = safe_accept(sock, (struct sockaddr *)&remote, &len)) == -1) {
@@ -4263,6 +4427,27 @@ static int cmdsock_accept(void *nullData, int sock) {
     printstatus();
     break;
 #endif
+
+#ifdef ENABLE_CLUSTER
+  case CMDSOCK_PEERS:
+    s = bfromcstr("");
+    print_peers(s);
+    if (safe_write(csock, s->data, s->slen) < 0)
+      log_err(errno, "write()");
+    break;
+
+  case CMDSOCK_PEER_SET:
+    get_chilli_peer(-1)->state = PEER_STATE_ACTIVE;
+    dhcp_peer_update(1);
+    break;
+#endif
+
+  case CMDSOCK_PROCS:
+    s = bfromcstr("");
+    child_print(s);
+    if (safe_write(csock, s->data, s->slen) < 0)
+      log_err(errno, "write()");
+    break;
 
   default:
     perror("unknown command");
@@ -4530,7 +4715,7 @@ int chilli_main(int argc, char **argv) {
   pipe(pkt_main_to_io);
   pipe(pkt_io_to_main);
 
-  chilli_fork = fork();
+  chilli_fork = chilli_fork(CHILLI_PROC_DAEMON, "[chilli-io]");
   is_slave = chilli_fork > 0;
   if (chilli_fork < 0) perror("fork()");
   if (chilli_fork == 0) 
@@ -4653,12 +4838,10 @@ int chilli_main(int argc, char **argv) {
     return -1;
   }
 
-#ifndef ENABLE_CHILLIREDIR
-  if (redir_listen(redir)) {
+  if (!_options.redir && redir_listen(redir)) {
     log_err(0, "Failed to create redir listen");
     return -1;
   }
-#endif
 
   if (redir_ipc(redir)) {
     log_err(0, "Failed to create redir IPC");
@@ -4676,7 +4859,8 @@ int chilli_main(int argc, char **argv) {
   
   if (_options.usetap && _options.rtmonfile) {
 #ifdef ENABLE_RTMON_
-    pid_t p = fork();
+    char *name = "[chilli_rtmon]";
+    pid_t p = chilli_fork(CHILLI_PROC_DAEMON, name);
     if (p < 0) {
       perror("fork");
     } else if (p == 0) {
@@ -4685,7 +4869,7 @@ int chilli_main(int argc, char **argv) {
       
       i=0;
       sprintf(pst,"%d",cpid);
-      newargs[i++] = "[chilli_rtmon]";
+      newargs[i++] = name;
       newargs[i++] = "-file";
       newargs[i++] = _options.rtmonfile;
       newargs[i++] = "-pid";
@@ -4707,7 +4891,8 @@ int chilli_main(int argc, char **argv) {
 
   if (_options.radsec) {
 #ifdef ENABLE_CHILLIRADSEC
-    pid_t p = fork();
+    char *name = "[chilli_radsec]";
+    pid_t p = chilli_fork(CHILLI_PROC_DAEMON, name);
     if (p < 0) {
       perror("fork");
     } else if (p == 0) {
@@ -4717,7 +4902,7 @@ int chilli_main(int argc, char **argv) {
       i=0;
       chilli_binconfig(file, sizeof(file), cpid);
       
-      newargs[i++] = "[chilli_radsec]";
+      newargs[i++] = name;
       newargs[i++] = "-b";
       newargs[i++] = file;
       newargs[i++] = NULL;
@@ -4732,10 +4917,12 @@ int chilli_main(int argc, char **argv) {
     }
 #else
     log_err(0, "Feature is not supported; use --enable-chilliradsec");
+    _options.radsec = 0;
 #endif
   } else if (_options.uamaaaurl) {
 #ifdef ENABLE_CHILLIPROXY
-    pid_t p = fork();
+    char *name = "[chilli_proxy]";
+    pid_t p = chilli_fork(CHILLI_PROC_DAEMON, name);
     if (p < 0) {
       perror("fork");
     } else if (p == 0) {
@@ -4745,7 +4932,7 @@ int chilli_main(int argc, char **argv) {
       i=0;
       chilli_binconfig(file, sizeof(file), cpid);
 
-      newargs[i++] = "[chilli_proxy]";
+      newargs[i++] = name;
       newargs[i++] = "-b";
       newargs[i++] = file;
       newargs[i++] = NULL;
@@ -4763,9 +4950,10 @@ int chilli_main(int argc, char **argv) {
 #endif
   }
 
+  if (_options.redir) { 
 #ifdef ENABLE_CHILLIREDIR
-  { 
-    pid_t p = fork();
+    char *name = "[chilli_redir]";
+    pid_t p = chilli_fork(CHILLI_PROC_DAEMON, name);
     if (p < 0) {
       perror("fork");
     } else if (p == 0) {
@@ -4775,7 +4963,7 @@ int chilli_main(int argc, char **argv) {
       i=0;
       chilli_binconfig(file, sizeof(file), cpid);
       
-      newargs[i++] = "[chilli_redir]";
+      newargs[i++] = name;
       newargs[i++] = "-b";
       newargs[i++] = file;
       newargs[i++] = NULL;
@@ -4788,8 +4976,11 @@ int chilli_main(int argc, char **argv) {
     } else {
       redir_pid = p;
     }
-  }
+#else
+    log_err(0, "Feature is not supported; use --enable-chilliredir");
+    _options.redir = 0;
 #endif
+  }
 
 
   if (_options.debug) 
@@ -4869,10 +5060,10 @@ int chilli_main(int argc, char **argv) {
   net_select_reg(&sctx, redir->msgfd, SELECT_READ, (select_callback)redir_msg, redir, 0);
 #endif
 
-#ifndef ENABLE_CHILLIREDIR
-  net_select_reg(&sctx, redir->fd[0], SELECT_READ, (select_callback)redir_accept, redir, 0);
-  net_select_reg(&sctx, redir->fd[1], SELECT_READ, (select_callback)redir_accept, redir, 1);
-#endif
+  if (!_options.redir) {
+    net_select_reg(&sctx, redir->fd[0], SELECT_READ, (select_callback)redir_accept, redir, 0);
+    net_select_reg(&sctx, redir->fd[1], SELECT_READ, (select_callback)redir_accept, redir, 1);
+  }
 
 #ifdef ENABLE_RTMON
   if (!rtmon_init(&_rtmon)) {
@@ -4924,7 +5115,10 @@ int chilli_main(int argc, char **argv) {
       
       checkconn();
       lastSecond = mainclock;
-      /*do_timeouts = 0;*/
+      
+#ifdef ENABLE_CLUSTER
+      dhcp_peer_update(0);
+#endif
     }
 
     if (net_select_prepare(&sctx))
