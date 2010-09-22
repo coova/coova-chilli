@@ -19,7 +19,7 @@
 
 #include "chilli.h"
 
-#define _debug_ 0
+#define _debug_ 1
 
 static int optionsdebug = 0; /* TODO: Should be changed to instance */
 
@@ -1819,6 +1819,8 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring
 
   safe_strncpy(sstr + len, "=", sizeof(sstr) - len);
 
+  log_dbg("getparam(%s)", sstr);
+
   if (!(p1 = strcasestr(src, sstr))) return -1;
   p1 += strlen(sstr);
 
@@ -1991,8 +1993,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       *eol = 0;
       
       if (lines++ == 0) { /* first line */
-	size_t dstlen = 0;
 	char *p1 = buffer;
+	char qs_delim = '?';
 	char *p2;
 	
 	if      (!strncmp("GET ",  p1, 4)) { p1 += 4; }
@@ -2010,8 +2012,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	else { log_err(0, "parse error"); return -1; }
 	
 	/* The path ends with a ? or a space */
-	p2 = strchr(p1, '?');
-	if (!p2) p2 = strchr(p1, ' ');
+	p2 = strchr(p1, qs_delim);
+	if (!p2) { qs_delim = ' '; p2 = strchr(p1, qs_delim); }
 	if (!p2) { log_err(0, "parse error"); return -1; }
 	*p2 = 0;
 
@@ -2055,7 +2057,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	else if (!strcmp(path, "abort"))
 	  { conn->type = REDIR_ABORT; return 0; }
 
-	if (*p2 == '?') {
+	if (qs_delim == '?') {
 	  p1 = p2 + 1;
 	  p2 = strchr(p1, ' ');
 
