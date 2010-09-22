@@ -24,7 +24,7 @@ static uint8_t bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static uint8_t nmac[PKT_ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static int connections = 0;
 
-#define _debug_ 0
+#define _debug_ 1
 
 char *dhcp_state2name(int authstate) {
   switch(authstate) {
@@ -2741,7 +2741,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	    sizeofeth(pack), (int)len);
     return 0;
   }
-
+  
   /*
    * Sanity check on UDP total length
    */
@@ -2752,7 +2752,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	    (int)ntohs(pack_udph->len));
     return 0;
   }
-
+  
   /* 
    *  Check that the destination MAC address is our MAC or Broadcast 
    */
@@ -3398,6 +3398,7 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
       }
     }
 #endif
+    log_dbg("Layer2 PROT: 0x%.4x dropped", prot); 
     return 0;
   }
   

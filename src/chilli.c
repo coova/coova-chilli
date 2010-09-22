@@ -1121,8 +1121,11 @@ int static auth_radius(struct app_conn_t *appconn,
 
     safe_strncpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
 
-    if (_options.macsuffix)
-      strncat(appconn->s_state.redir.username, _options.macsuffix, USERNAMESIZE);
+    if (_options.macsuffix) {
+      size_t ulen = strlen(appconn->s_state.redir.username);
+      safe_strncpy(appconn->s_state.redir.username + ulen,
+		   _options.macsuffix, USERNAMESIZE - ulen);
+    }
   
     username = appconn->s_state.redir.username;
 

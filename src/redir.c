@@ -1811,11 +1811,13 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring
   char *p1;
   char *p2;
   char sstr[255];
-  int len = 0;
+  ssize_t len = 0;
 
   safe_strncpy(sstr, param, sizeof(sstr));
-  strncat(sstr, "=", sizeof(sstr));
-  sstr[sizeof(sstr)-1] = 0;
+
+  len = strlen(sstr);
+
+  safe_strncpy(sstr + len, "=", sizeof(sstr) - len);
 
   if (!(p1 = strcasestr(src, sstr))) return -1;
   p1 += strlen(sstr);
@@ -2011,12 +2013,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	p2 = strchr(p1, '?');
 	if (!p2) p2 = strchr(p1, ' ');
 	if (!p2) { log_err(0, "parse error"); return -1; }
-	dstlen = p2 - p1;
+	*p2 = 0;
 
-	if (dstlen >= sizeof(httpreq->path)) 
-	  dstlen = sizeof(httpreq->path);
-	
-	safe_strncpy(path, p1, dstlen);
+	safe_strncpy(path, p1, sizeof(httpreq->path));
 
 #if(_debug_)
 	log_dbg("The path: %s", path); 
@@ -2061,12 +2060,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  p2 = strchr(p1, ' ');
 
 	  if (p2) {
-	    dstlen = p2 - p1;
+	    *p2 = 0;
 
-	    if (dstlen > sizeof(httpreq->qs)) 
-	      dstlen = sizeof(httpreq->qs);
-
-	    safe_strncpy(httpreq->qs, p1, dstlen);
+	    safe_strncpy(httpreq->qs, p1, sizeof(httpreq->qs));
 
 #if(_debug_)
 	    log_dbg("Query string: %s", httpreq->qs); 

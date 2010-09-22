@@ -54,9 +54,20 @@ int test_dhcp(int cnt) {
     while (x-- > 0) 
       packet[x] = rand();
 
-    if (1) { /* ip */
-      *(uint16_t *)&packet[12] = htons(PKT_ETH_PROTO_IP);
-      *(uint16_t *)&packet[14] = htons((rand() % 1000) + 20);
+    if (1) { /* vlan */
+      *(uint16_t *)&packet[12] = htons(PKT_ETH_PROTO_8021Q); /* tpid */
+      *(uint16_t *)&packet[16] = htons(PKT_ETH_PROTO_IP); /* Ether Proto */
+      *(uint8_t  *)&packet[18] = PKT_IP_VER_HLEN; /* ip version hlen */
+      *(uint16_t *)&packet[20] = htons((rand() % 1000) + 20); /* IP tot_len */
+      *(uint8_t  *)&packet[27] = PKT_IP_PROTO_TCP;
+      memcpy(packet, bcast, 6);
+    }
+    if (0) { /* ip */
+      *(uint16_t *)&packet[12] = htons(PKT_ETH_PROTO_IP); /* Ether Proto */
+      *(uint8_t  *)&packet[14] = PKT_IP_VER_HLEN; /* ip version hlen */
+      *(uint16_t *)&packet[16] = htons((rand() % 1000) + 20); /* IP tot_len */
+      *(uint8_t  *)&packet[23] = PKT_IP_PROTO_TCP;
+      memcpy(packet, bcast, 6);
     }
     if (0) { /* arp */
       *(uint16_t *)&packet[12] = htons(PKT_ETH_PROTO_ARP);
