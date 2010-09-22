@@ -135,7 +135,7 @@ static int proc_status(char *name, pid_t pid) {
   ssize_t read;
   FILE* fp;
 
-  sprintf(buffer, "/proc/%i/status", pid);
+  safe_snprintf(buffer, sizeof(buffer), "/proc/%i/status", pid);
   fp = fopen(buffer, "r");
   if (!fp) return -1;
 
@@ -164,7 +164,7 @@ static int proc_countfds(pid_t pid) {
 
   struct dirent * d = 0;
 
-  sprintf(buffer, "/proc/%i/fd", pid);
+  safe_snprintf(buffer, sizeof(buffer), "/proc/%i/fd", pid);
   dir = opendir(buffer);
   if (!dir) return -1;
 
@@ -181,8 +181,9 @@ void child_print(bstring s) {
   CHILD *node = children;
   char line[256];
 
-  snprintf(line, sizeof(line)-1, "Children %d Max %d Total %d\n", 
-	   child_count, child_count_max, child_count_tot);
+  safe_snprintf(line, sizeof(line), "Children %d Max %d Total %d\n", 
+		  child_count, child_count_max, child_count_tot);
+
   bcatcstr(s, line);
 
   while (node) {
@@ -193,13 +194,13 @@ void child_print(bstring s) {
     case CHILLI_PROC_REDIR:  n = "Redirect"; break;
     case CHILLI_PROC_SCRIPT: n = "Script";   break;
     }
-    snprintf(line, sizeof(line)-1, 
-	     "PID %8d %-8s %-20s up %d [Vm Size: %d RSS: %d FDs: %d]\n", 
-	     node->pid, n, node->name,
-	     (int)(now - node->started),
-	     proc_status("VmSize:", node->pid), 
-	     proc_status("VmRSS:", node->pid),
-	     proc_countfds(node->pid));
+    safe_snprintf(line, sizeof(line)-1, 
+		  "PID %8d %-8s %-20s up %d [Vm Size: %d RSS: %d FDs: %d]\n", 
+		  node->pid, n, node->name,
+		  (int)(now - node->started),
+		  proc_status("VmSize:", node->pid), 
+		  proc_status("VmRSS:", node->pid),
+		  proc_countfds(node->pid));
     bcatcstr(s, line);
     node = node->next;
   }
@@ -297,14 +298,16 @@ int chilli_binconfig(char *file, size_t flen, pid_t pid) {
   if (pid == 0) {
     char * bc = _options.binconfig;
     if (bc) {
-      return snprintf(file, flen, "%s", bc);
+      safe_snprintf(file, flen, "%s", bc);
+      return 0;
     } else {
       pid = chilli_pid;
       if (pid == 0) 
 	pid = getpid();
     }
   }
-  return snprintf(file, flen, DEFSTATEDIR "/chilli.%d.cfg.bin", pid);
+  safe_snprintf(file, flen, DEFSTATEDIR "/chilli.%d.cfg.bin", pid);
+  return 0;
 }
 
 time_t mainclock_tick() {
@@ -375,8 +378,8 @@ uint32_t mainclock_diffu(time_t past) {
 }
 
 static void set_sessionid(struct app_conn_t *appconn) {
-  snprintf(appconn->s_state.sessionid, sizeof(appconn->s_state.sessionid), 
-	   "%.8x%.8x", (int) mainclock_rt(), appconn->unit);
+  safe_snprintf(appconn->s_state.sessionid, sizeof(appconn->s_state.sessionid), 
+		"%.8x%.8x", (int) mainclock_rt(), appconn->unit);
   /*log_dbg("!!!! RESET CLASSLEN !!!!");*/
   appconn->s_state.redir.classlen = 0;
   appconn->s_state.redir.statelen = 0;
@@ -514,41 +517,39 @@ int set_env(char *name, char type, void *value, int len) {
   switch(type) {
 
   case VAL_IN_ADDR:
-    strncpy(s, inet_ntoa(*(struct in_addr *)value), sizeof(s)); 
+    safe_strncpy(s, inet_ntoa(*(struct in_addr *)value), sizeof(s)); 
     v = s;
     break;
 
   case VAL_MAC_ADDR:
     {
       uint8_t * mac = (uint8_t*)value;
-      snprintf(s, sizeof(s)-1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	       mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+      safe_snprintf(s, sizeof(s), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+		    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
       v = s;
     }
     break;
 
   case VAL_ULONG:
-    snprintf(s, sizeof(s)-1, "%ld", (long int)*(uint32_t *)value);
+    safe_snprintf(s, sizeof(s), "%ld", (long int)*(uint32_t *)value);
     v = s;
     break;
 
   case VAL_ULONG64:
-    snprintf(s, sizeof(s)-1, "%ld", (long int)*(uint64_t *)value);
+    safe_snprintf(s, sizeof(s), "%ld", (long int)*(uint64_t *)value);
     v = s;
     break;
 
   case VAL_USHORT:
-    snprintf(s, sizeof(s)-1, "%d", (int)(*(uint16_t *)value));
+    safe_snprintf(s, sizeof(s), "%d", (int)(*(uint16_t *)value));
     v = s;
     break;
 
   case VAL_STRING:
     if (len != 0) {
-      if (len >= sizeof(s)) {
-	return -1;
-      }
-      strncpy(s, (char*)value, len);
-      s[len] = 0;
+      if (len > sizeof(s))
+	len = sizeof(s);
+      safe_strncpy(s, (char*)value, len);
       v = s;
     } else {
       v = (char*)value;
@@ -762,6 +763,7 @@ int static getconn(struct app_conn_t **conn, uint32_t nasip, uint32_t nasport) {
   
   /* Count the number of used connections */
   appconn = firstusedconn;
+
   while (appconn) {
     if (!appconn->inuse) {
       log_err(0, "Connection with inuse == 0!");
@@ -1005,7 +1007,7 @@ int chilli_req_attrs(struct radius_t *radius,
 
   if (port) {
     char portid[16+1];
-    snprintf(portid, sizeof(portid), "%.8d", port);
+    safe_snprintf(portid, sizeof(portid), "%.8d", port);
 
     radius_addattr(radius, pack, RADIUS_ATTR_NAS_PORT, 0, 0,
 		   port, NULL, 0);
@@ -1016,10 +1018,10 @@ int chilli_req_attrs(struct radius_t *radius,
   
   /* Include his MAC address */
   if (hismac) {
-    snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	     hismac[0], hismac[1],
-	     hismac[2], hismac[3],
-	     hismac[4], hismac[5]);
+    safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+		  hismac[0], hismac[1],
+		  hismac[2], hismac[3],
+		  hismac[4], hismac[5]);
     
     radius_addattr(radius, pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
 		   (uint8_t*) mac, MACSTRLEN);
@@ -1108,16 +1110,16 @@ int static auth_radius(struct app_conn_t *appconn,
   }
 
   /* Include his MAC address */
-  snprintf(mac, MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	   dhcpconn->hismac[0], dhcpconn->hismac[1],
-	   dhcpconn->hismac[2], dhcpconn->hismac[3],
-	   dhcpconn->hismac[4], dhcpconn->hismac[5]);
+  safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+		dhcpconn->hismac[0], dhcpconn->hismac[1],
+		dhcpconn->hismac[2], dhcpconn->hismac[3],
+		dhcpconn->hismac[4], dhcpconn->hismac[5]);
 
   if (!username) {
 
     service_type = RADIUS_SERVICE_TYPE_FRAMED;
 
-    strncpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
+    safe_strncpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
 
     if (_options.macsuffix)
       strncat(appconn->s_state.redir.username, _options.macsuffix, USERNAMESIZE);
@@ -1125,7 +1127,7 @@ int static auth_radius(struct app_conn_t *appconn,
     username = appconn->s_state.redir.username;
 
   } else {
-    strncpy(appconn->s_state.redir.username, username, USERNAMESIZE);
+    safe_strncpy(appconn->s_state.redir.username, username, USERNAMESIZE);
   }
 
   if (!password) {
@@ -1379,17 +1381,17 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 			 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_SYS_UPTIME, 
 			 (uint32_t) the_info.uptime, NULL, 0);
 	  
-	  snprintf(b, sizeof(b), "%f %f %f",fav[0],fav[1],fav[2]);
+	  safe_snprintf(b, sizeof(b), "%f %f %f",fav[0],fav[1],fav[2]);
 	  
 	  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 			 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_SYS_LOADAVG, 
 			 0, (uint8_t *) b, strlen(b));
 	  
-	  snprintf(b, sizeof(b), "%ld %ld %ld %ld",
-		   the_info.totalram,
-		   the_info.freeram,
-		   the_info.sharedram,
-		   the_info.bufferram);
+	  safe_snprintf(b, sizeof(b), "%ld %ld %ld %ld",
+			  the_info.totalram,
+			  the_info.freeram,
+			  the_info.sharedram,
+			  the_info.bufferram);
 	  
 	  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 			 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_SYS_MEMORY, 
@@ -1535,7 +1537,7 @@ int static dnprot_reject(struct app_conn_t *appconn) {
   case DNPROT_MAC:
     /* remove the username since we're not logged in */
     if (!appconn->s_state.authenticated)
-      strncpy(appconn->s_state.redir.username, "-", USERNAMESIZE);
+      safe_strncpy(appconn->s_state.redir.username, "-", USERNAMESIZE);
 
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
       log_err(0, "No downlink protocol");
@@ -2853,8 +2855,7 @@ void config_radius_session(struct session_params *params,
 #ifdef ENABLE_SESSGARDEN
       else if (len > strlen(uamallowed) && len < 255 && !memcmp(val, uamallowed, strlen(uamallowed))) {
 	char name[256];
-	strncpy(name, val, len);
-	name[len] = 0;
+	safe_strncpy(name, val, len);
 	pass_throughs_from_string(params->pass_throughs,
 				  SESSION_PASS_THROUGH_MAX,
 				  &params->pass_through_count,
@@ -2881,8 +2882,7 @@ void config_radius_session(struct session_params *params,
       if (clen + nlen > sizeof(params->url)-1) 
 	nlen = sizeof(params->url)-clen-1;
 
-      strncpy((char*)(params->url + clen), url, nlen);
-      params->url[nlen+clen]=0;
+      safe_strncpy((char*)(params->url + clen), url, nlen);
 
       if (!is_splash) {
 	params->flags |= REQUIRE_REDIRECT;
@@ -3414,6 +3414,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 	    uattr->l-2, uattr->v.t, sattr ? sattr->l-2 : 3, sattr ? (char*)sattr->v.t : "all");
   
   for (appconn = firstusedconn; appconn; appconn = appconn->next) {
+
     if (!appconn->inuse) { log_err(0, "Connection with inuse == 0!"); }
 
     if ((appconn->s_state.authenticated) && 
@@ -3764,8 +3765,11 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
 }
 
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
+
   if (appconn->s_state.authenticated == 1) { /* Only send accounting if logged in */
+
     dnprot_terminate(appconn);
+
     appconn->s_state.terminate_cause = terminate_cause;
 
     if (!(appconn->s_params.flags & NO_ACCOUNTING))
@@ -3773,7 +3777,9 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
 
     /* should memory be cleared here?? */
     memset(&appconn->s_params, 0, sizeof(appconn->s_params));
+
     set_sessionid(appconn);
+
 #ifdef ENABLE_STATFILE
     printstatus();
 #endif
@@ -3861,7 +3867,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 	((struct sockaddr_in *) &req.arp_pa)->sin_addr.s_addr = appconn->hisip.s_addr;
 	req.arp_flags = ATF_PERM | ATF_PUBL;
 
-	strncpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
+	safe_strncpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
 
 	if (ioctl(sockfd, SIOCDARP, &req) < 0) {
 	  perror("ioctrl()");
@@ -3871,18 +3877,19 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
     }
   }
   
+  if (_options.macdown && conn->peer) {
+    log_dbg("Calling MAC down script: %s",_options.macdown);
+    runscript(appconn, _options.macdown);
+  }
+
   if (!conn->is_reserved) {
     freeconn(appconn);
+    conn->peer = 0;
   }
 
 #ifdef ENABLE_BINSTATFILE
   printstatus();
 #endif
-
-  if (_options.macdown && conn->peer) {
-    log_dbg("Calling MAC down script: %s",_options.macdown);
-    runscript(appconn, _options.macdown);
-  }
 
   return 0;
 }
@@ -3930,7 +3937,6 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
       return 0;
   }
   
-
   /* 
    * If the ip dst is uamlisten and pdst is uamport we won't call leaky_bucket,
    * and we always send these packets through to the tun/tap interface (index 0) 
@@ -4337,7 +4343,7 @@ static int cmdsock_accept(void *nullData, int sock) {
 	for (i=0; !err && i<tun->_interface_count; i++) {
 	  char gw[56];
 
-	  strncpy(gw, inet_ntoa(tun->_interfaces[i].gateway), sizeof(gw)-1);
+	  safe_strncpy(gw, inet_ntoa(tun->_interfaces[i].gateway), sizeof(gw));
 
 	  bassignformat(b, "idx: %d dev: %s %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X%s\n", 
 			i, tun->_interfaces[i].devname,
@@ -4402,7 +4408,7 @@ static int cmdsock_accept(void *nullData, int sock) {
 	    log_dbg("remotely authorized session %s",appconn->s_state.sessionid);
 	    memcpy(&appconn->s_params, &req.data.sess.params, sizeof(req.data.sess.params));
 
-	    if (uname[0]) strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
+	    if (uname[0]) safe_strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
 	    session_param_defaults(&appconn->s_params);
 
 	    if (req.type == CMDSOCK_LOGIN) {
@@ -4868,7 +4874,7 @@ int chilli_main(int argc, char **argv) {
       char *newargs[16];
       
       i=0;
-      sprintf(pst,"%d",cpid);
+      safe_snprintf(pst,sizeof(pst),"%d",cpid);
       newargs[i++] = name;
       newargs[i++] = "-file";
       newargs[i++] = _options.rtmonfile;
@@ -5007,9 +5013,9 @@ int chilli_main(int argc, char **argv) {
   
   if (_options.adminuser) {
     admin_session.is_adminsession = 1;
-    strncpy(admin_session.s_state.redir.username, 
-	    _options.adminuser, 
-	    sizeof(admin_session.s_state.redir.username));
+    safe_strncpy(admin_session.s_state.redir.username, 
+		 _options.adminuser, 
+		 sizeof(admin_session.s_state.redir.username));
     set_sessionid(&admin_session);
     chilli_auth_radius(radius);
   }

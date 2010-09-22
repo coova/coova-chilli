@@ -13,7 +13,7 @@ pkt.h conn.h lookup.h chilli_limits.h cmdline.h \
 radius_pkt.h ../bstring/bstrlib.h ../config.h system.h 
 
 lib_LTLIBRARIES = libchilli.la
-noinst_PROGRAMS = test_dhcp
+noinst_PROGRAMS = test_dhcp test_randpkt
 sbin_PROGRAMS = \
 chilli chilli_response chilli_radconfig chilli_query chilli_opt 
 
@@ -23,7 +23,7 @@ libchilli_la_SOURCES = \
 chilli.c tun.c ippool.c radius.c md5.c redir.c dhcp.c syserr.c \
 iphash.c lookup3.c sfhash.c lookup.c system.h cmdsock.c util.c \
 garden.c ssl.c dns.c session.c pkt.c chksum.c net.c \
-ms_chap.c options.c statusfile.c conn.c sig.c
+ms_chap.c options.c statusfile.c conn.c sig.c 
 
 AM_CFLAGS = -D_GNU_SOURCE -Wall -Werror -fno-builtin -fno-strict-aliasing \
   -O2 -fomit-frame-pointer -funroll-loops -pipe \
@@ -42,6 +42,7 @@ chilli_opt_SOURCES = main-opt.c ${cmdline_sources}
 #queue_SOURCES = queue_test.c 
 #test_radius_SOURCES = test-radius.c 
 test_dhcp_SOURCES = test-dhcp.c 
+test_randpkt_SOURCES = test-randpkt.c 
 
 LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBRT}
 

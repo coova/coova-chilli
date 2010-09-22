@@ -295,6 +295,9 @@ struct tagbstring {
 #define bwriteallow(t)       { if ((t).mlen == -1) (t).mlen = (t).slen + ((t).slen == 0); }
 #define biswriteprotected(t) ((t).mlen <= 0)
 
+extern int portable_snprintf(char *str, size_t str_m, const char *fmt, /*args*/ ...);
+extern int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap);
+
 #ifdef __cplusplus
 }
 #endif

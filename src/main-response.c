@@ -56,7 +56,7 @@ static int chartohex(unsigned char *src, char *dst, int len) {
   int n;
   
   for (n=0; n < len; n++) {
-    snprintf(x, 3, "%.2x", src[n]);
+    safe_snprintf(x, sizeof(x), "%.2x", src[n]);
     dst[n*2+0] = x[0];
     dst[n*2+1] = x[1];
   }
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
     int m, n, plen = strlen(argv[idx+3]);
     
     memset(p, 0, sizeof(p));
-    strncpy((char *)p, argv[idx+3], RADIUS_PWSIZE);
+    safe_strncpy((char *)p, argv[idx+3], RADIUS_PWSIZE);
     
     for (m=0; m < plen;) {
       for (n=0; n < REDIR_MD5LEN; m++, n++) {

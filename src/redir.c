@@ -102,7 +102,7 @@ int redir_chartohex(unsigned char *src, char *dst, size_t len) {
   int n;
  
   for (n=0; n < len; n++) {
-    snprintf(x, 3, "%.2x", src[n]);
+    safe_snprintf(x, 3, "%.2x", src[n]);
     dst[i++] = x[0];
     dst[i++] = x[1];
   }
@@ -116,7 +116,7 @@ static int bytetohex(uint8_t *src, const size_t IN_LEN, char *dst, const int MAX
   int n = 0;
   
   while (n < IN_LEN && n*2 < MAX_OUT_SIZE-1) {
-    snprintf(x, 3, "%.2x", src[n]);
+    safe_snprintf(x, 3, "%.2x", src[n]);
     dst[n*2+0] = x[0];
     dst[n*2+1] = x[1];
     n++;
@@ -141,7 +141,7 @@ static int bytetosphex(uint8_t *src, const size_t IN_LEN, char *dst, const int M
       dst[o++] = 0x20;   /* Add a space character */
     }
     
-    snprintf(x, 3, "%.2x", src[i]);
+    safe_snprintf(x, 3, "%.2x", src[i]);
     dst[o++] = x[0];
     dst[o++] = x[1];
   }
@@ -169,7 +169,7 @@ static int redir_xmlencode(char *src, int srclen, char *dst, int dstsize) {
     }
     if (x) {
       if (i < dstsize - strlen(x)) {
-	strncpy(dst + i, x, strlen(x));
+	safe_strncpy(dst + i, x, strlen(x));
 	i += strlen(x);
       }
     }
@@ -188,16 +188,12 @@ static void redir_http(bstring s, char *code) {
 }
 
 static int bstrtocstr(bstring src, char *dst, unsigned int len) {
-  int l;
-
   if (!src || src->slen == 0) {
-    strcpy(dst,"");
+    dst[0] = 0;
     return 0;
   }
 
-  l = src->slen;
-  if (l > len-1) l = len-1;
-  strncpy(dst, (char*)src->data, len);
+  safe_strncpy(dst, (char*)src->data, len);
   return 0;
 }
 
@@ -220,7 +216,7 @@ int redir_urlencode(bstring src, bstring dst) {
       bconchar(dst,src->data[n]);
     }
     else {
-      snprintf(x, 3, "%.2x", src->data[n]);
+      safe_snprintf(x, 3, "%.2x", src->data[n]);
       bconchar(dst, '%');
       bconchar(dst, x[0]);
       bconchar(dst, x[1]);
@@ -641,7 +637,7 @@ int redir_md_param(bstring str, char *secret, char *amp) {
   
   hex[0]=0;
   for (i=0; i<16; i++) {
-    sprintf(hex+2*i, "%.2X", cksum[i]);
+    safe_snprintf(hex+2*i, 3, "%.2X", cksum[i]);
   }
   
   bcatcstr(str, amp);
@@ -1715,7 +1711,8 @@ int redir_ipc(struct redir_t *redir) {
     
     local.sun_family = AF_UNIX;
     
-    strcpy(local.sun_path, filedest);
+    safe_strncpy(local.sun_path, filedest,
+		 sizeof(local.sun_path));
     unlink(local.sun_path);
     
     if (bind(sock, (struct sockaddr *)&local, 
@@ -1816,8 +1813,7 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring
   char sstr[255];
   int len = 0;
 
-  strncpy(sstr, param, sizeof(sstr));
-  sstr[sizeof(sstr)-1] = 0;
+  safe_strncpy(sstr, param, sizeof(sstr));
   strncat(sstr, "=", sizeof(sstr));
   sstr[sizeof(sstr)-1] = 0;
 
@@ -2017,10 +2013,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	if (!p2) { log_err(0, "parse error"); return -1; }
 	dstlen = p2 - p1;
 
-	if (dstlen >= sizeof(httpreq->path)-1) 
-	  dstlen = sizeof(httpreq->path)-1;
-
-	strncpy(path, p1, dstlen);
+	if (dstlen >= sizeof(httpreq->path)) 
+	  dstlen = sizeof(httpreq->path);
+	
+	safe_strncpy(path, p1, dstlen);
 
 #if(_debug_)
 	log_dbg("The path: %s", path); 
@@ -2067,10 +2063,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  if (p2) {
 	    dstlen = p2 - p1;
 
-	    if (dstlen >= sizeof(httpreq->qs)-1) 
-	      dstlen = sizeof(httpreq->qs)-1;
+	    if (dstlen > sizeof(httpreq->qs)) 
+	      dstlen = sizeof(httpreq->qs);
 
-	    strncpy(httpreq->qs, p1, dstlen);
+	    safe_strncpy(httpreq->qs, p1, dstlen);
 
 #if(_debug_)
 	    log_dbg("Query string: %s", httpreq->qs); 
@@ -2091,11 +2087,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	if (!strncasecmp(buffer,"Host:",5)) {
 	  p = buffer + 5;
 	  while (*p && isspace(*p)) p++;
-	  len = strlen(p);
-	  if (len >= sizeof(httpreq->host)-1)
-	    len = sizeof(httpreq->host)-1;
-	  strncpy(httpreq->host, p, len);
-	  httpreq->host[len]=0;
+	  safe_strncpy(httpreq->host, p, sizeof(httpreq->host));
 #if(_debug_)
 	  log_dbg("Host: %s",httpreq->host);
 #endif
@@ -2112,11 +2104,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	else if (!strncasecmp(buffer,"User-Agent:",11)) {
 	  p = buffer + 11;
 	  while (*p && isspace(*p)) p++;
-	  len = strlen(p);
-	  if (len >= sizeof(conn->useragent)-1)
-	    len = sizeof(conn->useragent)-1;
-	  strncpy(conn->useragent, p, len);
-	  conn->useragent[len]=0;
+	  safe_strncpy(conn->useragent, p, sizeof(conn->useragent));
 #if(_debug_)
 	  log_dbg("User-Agent: %s",conn->useragent);
 #endif
@@ -2124,11 +2112,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	else if (!strncasecmp(buffer,"Cookie:",7)) {
 	  p = buffer + 7;
 	  while (*p && isspace(*p)) p++;
-	  len = strlen(p);
-	  if (len >= sizeof(conn->httpcookie)-1)
-	    len = sizeof(conn->httpcookie)-1;
-	  strncpy(conn->httpcookie, p, len);
-	  conn->httpcookie[len] = 0;
+	  safe_strncpy(conn->httpcookie, p, sizeof(conn->httpcookie));
 #if(_debug_)
 	  log_dbg("Cookie: %s",conn->httpcookie);
 #endif
@@ -2311,8 +2295,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
   default:
     {
-      snprintf(conn->s_state.redir.userurl, sizeof(conn->s_state.redir.userurl), "http://%s/%s%s%s", 
-	       httpreq->host, httpreq->path, httpreq->qs[0] ? "?" : "", httpreq->qs[0] ? httpreq->qs : "");
+      safe_snprintf(conn->s_state.redir.userurl, 
+		      sizeof(conn->s_state.redir.userurl), 
+		      "http://%s/%s%s%s", 
+		      httpreq->host, httpreq->path, 
+		      httpreq->qs[0] ? "?" : "", 
+		      httpreq->qs[0] ? httpreq->qs : "");
 
       log_dbg("-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
     }
@@ -2670,12 +2658,13 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   conn->nasport, conn->hismac,
 		   &conn->hisip, &conn->s_state);
 
-  if (snprintf(url, sizeof(url)-1, "http://%s:%d/logoff", 
-	       inet_ntoa(redir->addr), redir->port) > 0)
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOGOFF_URL, 0,
-		   (uint8_t*)url, strlen(url));
+  safe_snprintf(url, sizeof(url), "http://%s:%d/logoff", 
+		  inet_ntoa(redir->addr), redir->port);
 
+  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
+		 RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOGOFF_URL, 0,
+		 (uint8_t*)url, strlen(url));
+  
   if (_options.openidauth)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
@@ -2919,10 +2908,10 @@ int redir_accept(struct redir_t *redir, int idx) {
     return 0; 
   }
 
-  snprintf(buffer,sizeof(buffer)-1,"%s",inet_ntoa(address.sin_addr));
+  safe_snprintf(buffer,sizeof(buffer),"%s",inet_ntoa(address.sin_addr));
   setenv("TCPREMOTEIP",buffer,1);
   setenv("REMOTE_ADDR",buffer,1);
-  snprintf(buffer,sizeof(buffer)-1,"%d",ntohs(address.sin_port));
+  safe_snprintf(buffer,sizeof(buffer),"%d",ntohs(address.sin_port));
   setenv("TCPREMOTEPORT",buffer,1);
   setenv("REMOTE_PORT",buffer,1);
 
@@ -2980,7 +2969,8 @@ int redir_send_msg(struct redir_t *this, struct redir_msg_t *msg) {
   }
 
   remote.sun_family = AF_UNIX;
-  strcpy(remote.sun_path, filedest);
+  safe_strncpy(remote.sun_path, filedest,
+	       sizeof(remote.sun_path));
 
 #if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
   remote.sun_len = strlen(remote.sun_path) + 1;
@@ -3395,7 +3385,7 @@ int redir_main(struct redir_t *redir,
 	  }
 #endif
 
-	  sprintf(buffer,"%d", httpreq.clen > 0 ? httpreq.clen : 0);
+	  safe_snprintf(buffer, sizeof(buffer), "%d", httpreq.clen > 0 ? httpreq.clen : 0);
 	  setenv("CONTENT_LENGTH", buffer, 1);
 	  
 	  setenv("REQUEST_METHOD", httpreq.is_post ? "POST" : "GET", 1);
@@ -3404,7 +3394,7 @@ int redir_main(struct redir_t *redir,
 	  setenv("SERVER_NAME", httpreq.host, 1);
 	  setenv("HTTP_COOKIE", conn.httpcookie, 1);
 	  
-	  sprintf(buffer, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	  safe_snprintf(buffer, sizeof(buffer), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 		  conn.hismac[0], conn.hismac[1], conn.hismac[2], 
 		  conn.hismac[3], conn.hismac[4], conn.hismac[5]);
 	  setenv("REMOTE_MAC", buffer, 1);
@@ -3415,18 +3405,18 @@ int redir_main(struct redir_t *redir,
 	  setenv("CHI_SESSION_ID", conn.s_state.sessionid, 1);
 	  setenv("CHI_USERNAME", conn.s_state.redir.username, 1);
 	  setenv("CHI_USERURL", conn.s_state.redir.userurl, 1);
-	  sprintf(buffer, "%lld", conn.s_state.input_octets);
+	  safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.input_octets);
 	  setenv("CHI_INPUT_BYTES", buffer, 1);
-	  sprintf(buffer, "%lld", conn.s_state.output_octets);
+	  safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.output_octets);
 	  setenv("CHI_OUTPUT_BYTES", buffer, 1);
-	  sprintf(buffer, "%lld", conn.s_params.sessiontimeout);
+	  safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_params.sessiontimeout);
 	  setenv("CHI_SESSION_TIMEOUT", buffer, 1);
 	  
 	  redir_chartohex(conn.s_state.redir.uamchal, buffer, REDIR_MD5LEN);
 	  setenv("CHI_CHALLENGE", buffer, 1);
 	  
 	  log_dbg("Running: %s %s/%s",_options.wwwbin, _options.wwwdir, filename);
-	  sprintf(buffer, "%s/%s", _options.wwwdir, filename);
+	  safe_snprintf(buffer, sizeof(buffer), "%s/%s", _options.wwwdir, filename);
 	  
 	  execv(*binqqargs, binqqargs);
 	}
@@ -3445,12 +3435,12 @@ int redir_main(struct redir_t *redir,
 	    log_err(errno, "fcntl() failed");
 	  }
 	  
-	  buflen = snprintf(buffer, bufsize,
-			    "HTTP/1.0 200 OK\r\n"
-			    "Connection: close\r\n"
-			    "Content-type: %s\r\n\r\n", ctype);
+	  safe_snprintf(buffer, bufsize,
+			  "HTTP/1.0 200 OK\r\n"
+			  "Connection: close\r\n"
+			  "Content-type: %s\r\n\r\n", ctype);
 	  
-	  if (tcp_write(&socket, buffer, (size_t) buflen) < 0) {
+	  if (tcp_write(&socket, buffer, strlen(buffer)) < 0) {
 	    log_err(errno, "tcp_write() failed!");
 	  }
 	  
@@ -3676,8 +3666,8 @@ int redir_main(struct redir_t *redir,
     }
 
   case REDIR_MSDOWNLOAD:
-    buflen = snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
-    tcp_write(&socket, buffer, buflen);
+    safe_snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
+    tcp_write(&socket, buffer, strlen(buffer));
     return redir_main_exit();
 
   }

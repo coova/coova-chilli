@@ -19,15 +19,21 @@
 
 #include "chilli.h"
 
+char *safe_strncpy(char *dst, const char *src, size_t size) {
+  if (!size) return dst;
+  dst[--size] = '\0';
+  return strncpy(dst, src, size);
+}
+
 int statedir_file(char *dst, int dlen, char *file, char *deffile) {
   char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
   if (!file && deffile) {
-    return snprintf(dst, dlen, "%s/%s", statedir, deffile);
+    safe_snprintf(dst, dlen, "%s/%s", statedir, deffile);
   } else if (file) {
     if (file[0]=='/')
-      return snprintf(dst, dlen, "%s", file);
+      safe_snprintf(dst, dlen, "%s", file);
     else
-      return snprintf(dst, dlen, "%s/%s", statedir, file);
+      safe_snprintf(dst, dlen, "%s/%s", statedir, file);
   }
   return 0;
 }
@@ -100,7 +106,7 @@ int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos) {
     return -1;
   }
 
-  strncpy(host, slashslash, hostsize);
+  safe_strncpy(host, slashslash, hostsize);
   host[hostlen] = 0;
 
   if (uripos) {

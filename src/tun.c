@@ -72,7 +72,7 @@ int tun_discover(struct tun_t *this) {
     memset(&netif, 0, sizeof(netif));
 
     /* device name and address */
-    strncpy(netif.devname, ifr->ifr_name, sizeof(netif.devname));
+    safe_strncpy(netif.devname, ifr->ifr_name, sizeof(netif.devname));
     netif.address = inaddr(ifr_addr);
 
     log_dbg("Interface: %s", ifr->ifr_name);
@@ -249,8 +249,7 @@ int tun_gifindex(struct tun_t *this, uint32_t *index) {
   ifr.ifr_addr.sa_family = AF_INET;
   ifr.ifr_dstaddr.sa_family = AF_INET;
   ifr.ifr_netmask.sa_family = AF_INET;
-  strncpy(ifr.ifr_name, tuntap(this).devname, IFNAMSIZ);
-  ifr.ifr_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
+  safe_strncpy(ifr.ifr_name, tuntap(this).devname, IFNAMSIZ);
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     log_err(errno, "socket() failed");
   }
@@ -382,8 +381,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   memset(&areq, 0, sizeof(areq));
 
   /* Set up interface name */
-  strncpy(areq.ifra_name, tuntap(this).devname, IFNAMSIZ);
-  areq.ifra_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
+  safe_strncpy(areq.ifra_name, tuntap(this).devname, IFNAMSIZ);
 
   ((struct sockaddr_in*) &areq.ifra_addr)->sin_family = AF_INET;
   ((struct sockaddr_in*) &areq.ifra_addr)->sin_len = sizeof(areq.ifra_addr);
@@ -485,7 +483,7 @@ int tuntap_interface(struct _net_interface *netif) {
 
   if (_options.tundev && *_options.tundev && 
       strcmp(_options.tundev, "tap") && strcmp(_options.tundev, "tun"))
-    strncpy(ifr.ifr_name, _options.tundev, IFNAMSIZ);
+    safe_strncpy(ifr.ifr_name, _options.tundev, IFNAMSIZ);
 
   if (ioctl(netif->fd, TUNSETIFF, (void *) &ifr) < 0) {
     log_err(errno, "ioctl() failed");
@@ -499,7 +497,7 @@ int tuntap_interface(struct _net_interface *netif) {
     int nfd;
     memset(&nifr, 0, sizeof(nifr));
     if ((nfd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) {
-      strncpy(nifr.ifr_name, ifr.ifr_name, IFNAMSIZ);
+      safe_strncpy(nifr.ifr_name, ifr.ifr_name, IFNAMSIZ);
       nifr.ifr_qlen = _options.txqlen;
       
       if (ioctl(nfd, SIOCSIFTXQLEN, (void *) &nifr) >= 0) 
@@ -514,8 +512,7 @@ int tuntap_interface(struct _net_interface *netif) {
   }
 #endif
   
-  strncpy(netif->devname, ifr.ifr_name, IFNAMSIZ);
-  netif->devname[IFNAMSIZ-1] = 0;
+  safe_strncpy(netif->devname, ifr.ifr_name, IFNAMSIZ);
   
   ioctl(netif->fd, TUNSETNOCSUM, 1); /* Disable checksums */
 
@@ -525,7 +522,7 @@ int tuntap_interface(struct _net_interface *netif) {
     netif->flags |= NET_ETHHDR;
     if ((fd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) {
       memset(&ifr, 0, sizeof(ifr));
-      strncpy(ifr.ifr_name, netif->devname, IFNAMSIZ);
+      safe_strncpy(ifr.ifr_name, netif->devname, IFNAMSIZ);
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
 	log_err(errno, "ioctl(d=%d, request=%d) failed", fd, SIOCGIFHWADDR);
       }
@@ -543,7 +540,7 @@ int tuntap_interface(struct _net_interface *netif) {
 
   /* Find suitable device */
   for (devnum = 0; devnum < 255; devnum++) { /* TODO 255 */ 
-    snprintf(devname, sizeof(devname), "/dev/tun%d", devnum);
+    safe_snprintf(devname, sizeof(devname), "/dev/tun%d", devnum);
     if ((netif->fd = open(devname, O_RDWR)) >= 0) break;
     if (errno != EBUSY) break;
   } 
@@ -552,7 +549,7 @@ int tuntap_interface(struct _net_interface *netif) {
     return -1;
   }
 
-  snprintf(netif->devname, sizeof(netif->devname), "tun%d", devnum);
+  safe_snprintf(netif->devname, sizeof(netif->devname), "tun%d", devnum);
 
   /* The tun device we found might have "old" IP addresses allocated */
   /* We need to delete those. This problem is not present on Linux */
@@ -560,7 +557,7 @@ int tuntap_interface(struct _net_interface *netif) {
   memset(&areq, 0, sizeof(areq));
 
   /* Set up interface name */
-  strncpy(areq.ifra_name, netif->devname, sizeof(areq.ifra_name));
+  safe_strncpy(areq.ifra_name, netif->devname, sizeof(areq.ifra_name));
 
   /* Create a channel to the NET kernel. */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -615,11 +612,11 @@ int tuntap_interface(struct _net_interface *netif) {
 
   close (if_fd);
   
-  snprintf(netif->devname, sizeof(netif->devname), "tun%d", ppa);
-  netif->devname[sizeof(netif->devname)-1] = 0;
+  safe_snprintf(netif->devname, sizeof(netif->devname),
+		"tun%d", ppa);
 
   memset(&ifr, 0, sizeof(ifr));
-  strcpy(ifr.ifr_name, netif->devname);
+  safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   ifr.ifr_ip_muxid = muxid;
   
   if (ioctl(ip_fd, SIOCSIFMUXID, &ifr) < 0) {
@@ -936,34 +933,31 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
     exit(0);
   }
 
-  strncpy(saddr, inet_ntoa(tuntap(tun).address), sizeof(saddr));
-  saddr[sizeof(saddr)-1] = 0;
+  safe_strncpy(saddr, inet_ntoa(tuntap(tun).address), sizeof(saddr));
   if (setenv("ADDR", saddr, 1 ) != 0) {
     log_err(errno, "setenv() did not return 0!");
     exit(0);
   }
 
-  strncpy(smask, inet_ntoa(tuntap(tun).netmask), sizeof(smask));
-  smask[sizeof(smask)-1] = 0;
+  safe_strncpy(smask, inet_ntoa(tuntap(tun).netmask), sizeof(smask));
   if (setenv("MASK", smask, 1) != 0) {
     log_err(errno, "setenv() did not return 0!");
     exit(0);
   }
 
-  strncpy(b, inet_ntoa(net), sizeof(b));
-  b[sizeof(b)-1] = 0;
+  safe_strncpy(b, inet_ntoa(net), sizeof(b));
   if (setenv("NET", b, 1 ) != 0) {
     log_err(errno, "setenv() did not return 0!");
     exit(0);
   }
 
-  snprintf(b, sizeof(b), "%d", _options.uamport);
+  safe_snprintf(b, sizeof(b), "%d", _options.uamport);
   if (setenv("UAMPORT", b, 1 ) != 0) {
     log_err(errno, "setenv() did not return 0!");
     exit(0);
   }
 
-  snprintf(b, sizeof(b), "%d", _options.uamuiport);
+  safe_snprintf(b, sizeof(b), "%d", _options.uamuiport);
   if (setenv("UAMUIPORT", b, 1 ) != 0) {
     log_err(errno, "setenv() did not return 0!");
     exit(0);

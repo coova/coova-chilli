@@ -27,13 +27,13 @@ kmod(char cmd, struct in_addr *addr) {
   int fd;
 
   if (!_options.kname) return -1;
-  snprintf(file, sizeof(file), kname_fmt, _options.kname);
+  chilli_snprintf(file, sizeof(file), kname_fmt, _options.kname);
   fd = open(file, O_RDWR, 0);
   if (fd > 0) {
     if (addr) 
-      snprintf(line, sizeof(line), "%c%s\n", cmd, inet_ntoa(*addr));
+      chilli_snprintf(line, sizeof(line), "%c%s\n", cmd, inet_ntoa(*addr));
     else
-      snprintf(line, sizeof(line), "%c\n", cmd);
+      chilli_snprintf(line, sizeof(line), "%c\n", cmd);
 
     int rd = write(fd, line, sizeof(line));
     close(fd);
@@ -78,7 +78,7 @@ kmod_coova_sync() {
   if (!_options.kname) return -1;
 
   log_dbg("Running kmod sync");
-  snprintf(file, sizeof(file), kname_fmt, _options.kname);
+  chilli_snprintf(file, sizeof(file), kname_fmt, _options.kname);
 
   fp = fopen(file, "r");
   if (fp == NULL)

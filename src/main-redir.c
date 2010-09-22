@@ -360,10 +360,10 @@ int redir_accept2(struct redir_t *redir, int idx) {
       return 0; 
     }
     
-    snprintf(buffer,sizeof(buffer)-1,"%s",inet_ntoa(address.sin_addr));
+    safe_snprintf(buffer,sizeof(buffer),"%s",inet_ntoa(address.sin_addr));
     setenv("TCPREMOTEIP",buffer,1);
     setenv("REMOTE_ADDR",buffer,1);
-    snprintf(buffer,sizeof(buffer)-1,"%d",ntohs(address.sin_port));
+    safe_snprintf(buffer,sizeof(buffer),"%d",ntohs(address.sin_port));
     setenv("TCPREMOTEPORT",buffer,1);
     setenv("REMOTE_PORT",buffer,1);
     
@@ -433,7 +433,7 @@ int main(int argc, char **argv) {
   
   process_options(argc, argv, 1);
   
-  strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
+  safe_strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
   
   if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
     memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
@@ -525,26 +525,26 @@ int main(int argc, char **argv) {
 			  &addrlen) >= 0) {
 	    char line[512];
 	    
-	    snprintf(line, sizeof(line),
-		     "#%d (%d) %d connection from %s %d",
-		     timeout ? -1 : active, fd, (int) requests[idx].last_active,
-		     inet_ntoa(address.sin_addr),
-		     ntohs(address.sin_port));
+	    safe_snprintf(line, sizeof(line),
+			  "#%d (%d) %d connection from %s %d",
+			  timeout ? -1 : active, fd, (int) requests[idx].last_active,
+			  inet_ntoa(address.sin_addr),
+			  ntohs(address.sin_port));
 	    
 	    if (requests[idx].conn.sock) {
 	      addrlen = sizeof(address);
 	      if (getpeername(requests[idx].conn.sock, (struct sockaddr *)&address,
 			      &addrlen) >= 0) {
-		snprintf(line+strlen(line), sizeof(line)-strlen(line),
-			 " to %s %d",
-			 inet_ntoa(address.sin_addr),
-			 ntohs(address.sin_port));
+		safe_snprintf(line+strlen(line), sizeof(line)-strlen(line),
+			      " to %s %d",
+			      inet_ntoa(address.sin_addr),
+			      ntohs(address.sin_port));
 	      }
 	    }
 	    
 	    if (timeout) {
-	      snprintf(line+strlen(line), sizeof(line)-strlen(line),
-		       " (timeout)");
+	      safe_snprintf(line+strlen(line), sizeof(line)-strlen(line),
+			    " (timeout)");
 	    }
 
 	    log_dbg("%s", line);

@@ -187,7 +187,7 @@ static char *lookup_name(struct msgnames_t *db,int id) {
   if (msgnamesiter->msg) {
     return msgnamesiter->msg;
   }
-  snprintf(name,sizeof(name),"#%i\n",id);
+  chilli_snprintf(name,sizeof(name),"#%i\n",id);
   return name;
 }
 
@@ -275,7 +275,7 @@ void check_updates(struct rtmon_t *rtmon, rtmon_callback func) {
 	      sin->sin_family = AF_INET;
 	      sin->sin_addr.s_addr = rtmon->_routes[i].gateway.s_addr;
 
-	      strncpy(areq.arp_dev, rtmon->_ifaces[j].devname, sizeof(areq.arp_dev));
+	      safe_strncpy(areq.arp_dev, rtmon->_ifaces[j].devname, sizeof(areq.arp_dev));
 
 	      while (attempt < retries) {
 		struct sockaddr_in addr;
@@ -355,7 +355,8 @@ void discover_ifaces(struct rtmon_t *rtmon) {
     rtmon->_ifaces[idx].has_data = 1;
     
     /* device name and address */
-    strncpy(rtmon->_ifaces[idx].devname, ifr->ifr_name, sizeof(rtmon->_ifaces[idx].devname));
+    safe_strncpy(rtmon->_ifaces[idx].devname, ifr->ifr_name, 
+		 sizeof(rtmon->_ifaces[idx].devname));
     rtmon->_ifaces[idx].address = inaddr(ifr_addr);
     
     /* index */

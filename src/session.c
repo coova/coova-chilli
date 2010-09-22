@@ -36,11 +36,11 @@ int session_redir_json_fmt(bstring json, char *userurl, char *redirurl,
   }
   bcatcstr(json,"\",\"macAddress\":\"");
   if (hismac) {
-    char mac[REDIR_MACSTRLEN+2];
-    snprintf(mac, REDIR_MACSTRLEN+1, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	     (unsigned int)hismac[0], (unsigned int)hismac[1],
-	     (unsigned int)hismac[2], (unsigned int)hismac[3],
-	     (unsigned int)hismac[4], (unsigned int)hismac[5]);
+    char mac[REDIR_MACSTRLEN+1];
+    safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+		  (unsigned int)hismac[0], (unsigned int)hismac[1],
+		  (unsigned int)hismac[2], (unsigned int)hismac[3],
+		  (unsigned int)hismac[4], (unsigned int)hismac[5]);
     bcatcstr(json, mac);
   }
   bcatcstr(json,"\"}");

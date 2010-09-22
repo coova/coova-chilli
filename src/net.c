@@ -78,8 +78,7 @@ int dev_set_flags(char const *dev, int flags) {
   
   memset(&ifr, 0, sizeof(ifr));
   ifr.ifr_flags = flags;
-  strncpy(ifr.ifr_name, dev, IFNAMSIZ);
-  ifr.ifr_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
+  safe_strncpy(ifr.ifr_name, dev, IFNAMSIZ);
 
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     log_err(errno,"socket() failed");
@@ -102,8 +101,7 @@ int dev_get_flags(char const *dev, int *flags) {
   int fd;
   
   memset(&ifr, 0, sizeof(ifr));
-  strncpy(ifr.ifr_name, dev, IFNAMSIZ);
-  ifr.ifr_name[IFNAMSIZ-1] = 0; 
+  safe_strncpy(ifr.ifr_name, dev, IFNAMSIZ);
 
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     log_err(errno, "socket() failed");
@@ -140,8 +138,7 @@ int dev_set_address(char const *devname, struct in_addr *address,
   ((struct sockaddr_in *) &ifr.ifr_dstaddr)->sin_len = sizeof (struct sockaddr_in);
 #endif
   
-  strncpy(ifr.ifr_name, devname, IFNAMSIZ);
-  ifr.ifr_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
+  safe_strncpy(ifr.ifr_name, devname, IFNAMSIZ);
   
   /* Create a channel to the NET kernel. */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -200,8 +197,7 @@ int dev_set_address(char const *devname, struct in_addr *address,
 int net_init(net_interface *netif, char *ifname, uint16_t protocol, int promisc, uint8_t *mac) {
   if (ifname) {
     memset(netif, 0, sizeof(net_interface));
-    strncpy(netif->devname, ifname, IFNAMSIZ);
-    netif->devname[IFNAMSIZ] = 0;
+    safe_strncpy(netif->devname, ifname, IFNAMSIZ);
   }
 
   netif->protocol = protocol;
@@ -664,7 +660,7 @@ int net_set_mtu(net_interface *netif, size_t mtu) {
 #if !defined(USING_PCAP)
   struct ifreq ifr;
   memset(&ifr, 0, sizeof(ifr));
-  strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+  safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   ifr.ifr_mtu = mtu;
   if (ioctl(netif->fd, SIOCSIFMTU, &ifr) < 0) {
     log_err(errno, "could not set MTU on fd %d",
@@ -839,7 +835,7 @@ int net_open_eth(net_interface *netif) {
   memset(&ifr, 0, sizeof(ifr));
 
   /* Get ifindex */
-  strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+  safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFINDEX, (caddr_t)&ifr) < 0) {
     log_err(errno, "ioctl(SIOCFIGINDEX) failed");
   }
@@ -847,7 +843,7 @@ int net_open_eth(net_interface *netif) {
   netif->ifindex = ifr.ifr_ifindex;
 
   /* Get the MAC address of our interface */
-  strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+  safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFHWADDR, (caddr_t)&ifr) < 0) {
     log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCGIFHWADDR);
     return -1;
@@ -858,7 +854,7 @@ int net_open_eth(net_interface *netif) {
     if ((netif->flags & NET_USEMAC) == 0) {
       memcpy(netif->hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
     } else if (_options.dhcpmacset) {
-      strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+      safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
       memcpy(ifr.ifr_hwaddr.sa_data, netif->hwaddr, PKT_ETH_ALEN);
       if (ioctl(netif->fd, SIOCSIFHWADDR, (caddr_t)&ifr) < 0) {
 	log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCSIFHWADDR);
@@ -922,7 +918,7 @@ int net_open_eth(net_interface *netif) {
 #endif
 
   /* Get the MAC address of our interface */
-  strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+  safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFHWADDR, (caddr_t)&ifr) < 0) {
     log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCGIFHWADDR);
     return -1;
@@ -935,7 +931,7 @@ int net_open_eth(net_interface *netif) {
     if ((netif->flags & NET_USEMAC) == 0) {
       memcpy(netif->hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
     } else if (_options.dhcpmacset) {
-      strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+      safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
       memcpy(ifr.ifr_hwaddr.sa_data, netif->hwaddr, PKT_ETH_ALEN);
       if (ioctl(netif->fd, SIOCSIFHWADDR, (caddr_t)&ifr) < 0) {
 	log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCSIFHWADDR);
@@ -951,7 +947,7 @@ int net_open_eth(net_interface *netif) {
   /* Get the current interface address, network, and any destination address */
   
   /* Verify that MTU = ETH_DATA_LEN */
-  strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+  safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFMTU, (caddr_t)&ifr) < 0) {
     log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCGIFMTU);
     return -1;
@@ -963,7 +959,7 @@ int net_open_eth(net_interface *netif) {
   netif->mtu = ifr.ifr_mtu;
   
   /* Get ifindex */
-  strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+  safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFINDEX, (caddr_t)&ifr) < 0) {
     log_err(errno, "ioctl(SIOCFIGINDEX) failed");
   }
@@ -977,7 +973,7 @@ int net_open_eth(net_interface *netif) {
   if (netif->flags & NET_PROMISC) {
 
     memset(&ifr, 0, sizeof(ifr));
-    strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+    safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
     if (ioctl(netif->fd, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
       log_err(errno, "ioctl(SIOCGIFFLAGS)");
     } else {
@@ -1114,7 +1110,7 @@ int net_open_eth(net_interface *netif) {
 
   /* Find suitable device */
   for (devnum = 0; devnum < 255; devnum++) { /* TODO 255 */ 
-    snprintf(devname, sizeof(devname), "/dev/bpf%d", devnum);
+    chilli_snprintf(devname, sizeof(devname), "/dev/bpf%d", devnum);
     devname[sizeof(devname)] = 0;
     if ((netif->fd = open(devname, O_RDWR)) >= 0) break;
     if (errno != EBUSY) break;
@@ -1126,7 +1122,7 @@ int net_open_eth(net_interface *netif) {
 
   /* Set the interface */
   memset(&ifr, 0, sizeof(ifr));
-  strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+  safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, BIOCSETIF, &ifr) < 0) {
     log_err(errno,"ioctl() failed");
     return -1;

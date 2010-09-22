@@ -237,6 +237,10 @@
 #include <unistd.h>
 #include <errno.h>
 
+#define safe_snprintf portable_snprintf
+char *safe_strncpy(char *dst, const char *src, size_t size);
+
+
 #ifndef TEMP_FAILURE_RETRY
 #define TEMP_FAILURE_RETRY(expression) \
     ({ \

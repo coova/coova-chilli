@@ -24,7 +24,7 @@ static uint8_t bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static uint8_t nmac[PKT_ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static int connections = 0;
 
-#define deeplog 0
+#define _debug_ 0
 
 char *dhcp_state2name(int authstate) {
   switch(authstate) {
@@ -86,13 +86,13 @@ void print_peers(bstring s) {
       break;
     }
 
-    snprintf(line, sizeof(line)-1,
-	     "Peer %d %-4s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x / %-16s %-8s %d sec", 
-	     i, _options.peerid == i ? "(*)" : "",
-	     peer->mac[0],peer->mac[1],peer->mac[2],
-	     peer->mac[3],peer->mac[4],peer->mac[5],
-	     inet_ntoa(peer->addr), state, age);
-
+    safe_snprintf(line, sizeof(line),
+		  "Peer %d %-4s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x / %-16s %-8s %d sec", 
+		  i, _options.peerid == i ? "(*)" : "",
+		  peer->mac[0],peer->mac[1],peer->mac[2],
+		  peer->mac[3],peer->mac[4],peer->mac[5],
+		  inet_ntoa(peer->addr), state, age);
+    
     bcatcstr(s, line);
     bcatcstr(s, "\n");
   }
@@ -1567,7 +1567,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 
     } else if (do_reset) {
       /* otherwise, RESET and drop */
-#if(deeplog)
+#if(_debug_)
       log_dbg("Resetting connection on port %d->%d", ntohs(tcph->src), ntohs(tcph->dst));
 #endif
       dhcp_sendRESET(conn, pack, 1);
@@ -1736,7 +1736,7 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 #endif
 
   if (do_reset && iph->protocol == PKT_IP_PROTO_TCP) {
-#if(deeplog)
+#if(_debug_)
     log_dbg("Resetting connection on port %d->%d (undo)", 
 	    ntohs(tcph->src), ntohs(tcph->dst));
 #endif
@@ -2641,8 +2641,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
   conn->dns2.s_addr = dns2->s_addr;
 
   if (domain) {
-    strncpy(conn->domain, domain, DHCP_DOMAIN_LEN);
-    conn->domain[DHCP_DOMAIN_LEN-1] = 0;
+    safe_strncpy(conn->domain, domain, DHCP_DOMAIN_LEN);
   }
   else {
     conn->domain[0] = 0;
@@ -2670,7 +2669,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
 	      conn->hismac[0], conn->hismac[1], conn->hismac[2],
 	      conn->hismac[3], conn->hismac[4], conn->hismac[5]);
 
-      strncpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
+      safe_strncpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
 
       if (ioctl(sockfd, SIOCSARP, &req) < 0) {
 	perror("ioctrl()");
@@ -2725,19 +2724,45 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   /*
    *  Only supports IPv4 currently.
    */
-  if (pack_iph->version_ihl != PKT_IP_VER_HLEN)
+  if (pack_iph->version_ihl != PKT_IP_VER_HLEN) {
+#if(_debug_)
+    log_dbg("dropping non-IPv4");
+#endif
     return 0;
-  
+  }
+
+  /*
+   * Sanity check on IP total length
+   */
+  if ((int)ntohs(pack_iph->tot_len) + sizeofeth(pack) > len) {
+    /* May have Ethernet trailer/padding added into 'len' */
+    log_err(0, "dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
+	    (int)ntohs(pack_iph->tot_len),
+	    sizeofeth(pack), (int)len);
+    return 0;
+  }
+
+  /*
+   * Sanity check on UDP total length
+   */
+  if (pack_iph->protocol == PKT_IP_PROTO_UDP &&
+      (int)ntohs(pack_iph->tot_len) != (int)ntohs(pack_udph->len) + PKT_IP_HLEN) {
+    log_err(0, "dropping udp packet; ip-len=%d != udp-len=%d + ip-hdr=20",
+	    (int)ntohs(pack_iph->tot_len),
+	    (int)ntohs(pack_udph->len));
+    return 0;
+  }
+
   /* 
    *  Check that the destination MAC address is our MAC or Broadcast 
    */
   if ((memcmp(pack_ethh->dst, dhcp_nexthop(this), PKT_ETH_ALEN)) && 
       (memcmp(pack_ethh->dst, bmac, PKT_ETH_ALEN))) {
-    /*
+#if(_debug_)
       log_dbg("Not for our MAC or broadcast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 	    pack_ethh->dst[0], pack_ethh->dst[1], pack_ethh->dst[2], 
 	    pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
-    */
+#endif
     return 0;
   }
   
@@ -2825,25 +2850,41 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     return 0;
   }
 
-  if (pack_iph->protocol == PKT_IP_PROTO_UDP &&
-      pack_udph->dst == htons(DHCP_DNS)) {
-    if (dhcp_localDNS(conn, pack, len)) 
+  switch (pack_iph->protocol) {
+    
+  case PKT_IP_PROTO_UDP:
+    
+    if (pack_udph->dst == htons(DHCP_DNS)) {
+      if (dhcp_localDNS(conn, pack, len)) 
+	return 0;
+    }
+
+    if ((pack_iph->daddr & ~_options.mask.s_addr) == 
+	(0xffffffff & ~_options.mask.s_addr)) {
+      log_dbg("Broadcasted UDP to port %d", ntohs(pack_udph->dst));
       return 0;
-  }
+    }
   
-  /* Was it a request for the auto-logout service? */
-  if ((pack_iph->daddr == _options.uamlogout.s_addr) &&
-      (pack_iph->protocol == PKT_IP_PROTO_TCP) &&
-      (pack_tcph->dst == htons(DHCP_HTTP))) {
-    if (conn->peer) {
-      struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-      if (appconn->s_state.authenticated) {
-	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
-	log_dbg("Dropping session due to request for auto-logout ip");
-	appconn->uamexit = 1;
+    break; /* UDP */
+    
+  case PKT_IP_PROTO_TCP:
+    
+    /* Was it a request for the auto-logout service? */
+    if ((pack_iph->daddr == _options.uamlogout.s_addr) &&
+	(pack_tcph->dst == htons(DHCP_HTTP))) {
+      if (conn->peer) {
+	struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+	if (appconn->s_state.authenticated) {
+	  terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
+	  log_dbg("Dropping session due to request for auto-logout ip");
+	  appconn->uamexit = 1;
+	}
       }
     }
+    
+    break; /* TCP */
   }
+  
   
   if (_options.uamalias.s_addr && 
       pack_iph->daddr == _options.uamalias.s_addr) {
@@ -2893,7 +2934,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   case DHCP_AUTH_DNAT:
     /* Destination NAT if request to unknown web server */
     if (dhcp_doDNAT(conn, pack, len, 1, &do_checksum)) {
-#if(deeplog)
+#if(_debug_)
       log_dbg("dropping packet; not nat'ed");
 #endif
       return 0; /* drop */
@@ -3306,6 +3347,13 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
   uint16_t prot;
   char ignore = 0;
 
+  int min_length = sizeof(struct pkt_ethhdr8021q_t);
+
+  if (length < min_length) {
+    log_err(0, "bad packet length %d", length);
+    return 0;
+  }
+
 #ifdef ENABLE_IEEE8021Q
   if (is_8021q(packet)) {
     struct pkt_ethhdr8021q_t *ethh = ethhdr8021q(packet);
@@ -3317,6 +3365,7 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
     prot = ntohs(ethh->prot);
   }
 
+#if(_debug_)
   if (_options.debug) {
     struct pkt_ethhdr_t *ethh = ethhdr(packet);
     log_dbg("dhcp_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x %d len=%d",
@@ -3324,8 +3373,7 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
 	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
 	    prot, (int)prot, length);
   }
-  /*
-  */
+#endif
 
 #ifdef ENABLE_CLUSTER
   ignore = dhcp_ignore(prot, packet, length);
@@ -3704,6 +3752,20 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
 
   struct pkt_ethhdr_t *pack_ethh = ethhdr(pack);
   struct arp_packet_t *pack_arp = arppkt(pack);
+
+  if (len < sizeofeth(pack) + sizeof(struct arp_packet_t)) {
+    log_err(0, "ARP too short %d < %d", len, 
+	    sizeofeth(pack) + sizeof(struct arp_packet_t));
+    return 0;
+  }
+
+  if (ntohs(pack_arp->hrd) != 1 ||       /* Ethernet Hardware */
+      pack_arp->hln != PKT_ETH_ALEN ||   /* MAC Address Size */
+      pack_arp->pln != PKT_IP_ALEN) {    /* IP Address Size */
+    log_err(0, "ARP reject hrd=%d hln=%d pln=%d", 
+	    ntohs(pack_arp->hrd), pack_arp->hln, pack_arp->pln);
+    return 0;
+  }
 
   /* Check that this is ARP request */
   if (pack_arp->op != htons(DHCP_ARP_REQUEST)) {

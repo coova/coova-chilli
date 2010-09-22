@@ -58,7 +58,7 @@ static int chilliauth_cb(struct radius_t *radius,
 			     RADIUS_ATTR_CHILLISPOT_CONFIG, 
 			     0, &offset)) {
     char value[RADIUS_ATTR_VLEN+1] = "";
-    strncpy(value, (const char *)attr->v.t, attr->l - 2);
+    safe_strncpy(value, (const char *)attr->v.t, attr->l - 2);
     printf("%s\n", value);
   }
 
@@ -93,7 +93,7 @@ int static chilliauth() {
     int fd;
     if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
       memset(&ifr, 0, sizeof(ifr));
-      strncpy(ifr.ifr_name, _options.dhcpif, IFNAMSIZ);
+      safe_strncpy(ifr.ifr_name, _options.dhcpif, IFNAMSIZ);
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
 	log_err(errno, "ioctl(d=%d, request=%d) failed", fd, SIOCGIFHWADDR);
       }

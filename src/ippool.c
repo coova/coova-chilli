@@ -40,21 +40,22 @@ int ippool_print(int fd, struct ippool_t *this) {
   int dyn[4] = { 0, 0, 0, 0};
   int stat[4] = { 0, 0, 0, 0};
 
-  snprintf(line, sizeof(line),
-	   "DHCP lease time: %d\n"
-	   "First available dynamic %d Last %d\n"
-	   "First available static %d Last %d\n"
-	   "List size %d\n",
-	   (int) (dhcp->lease),
-	   (int) (this->firstdyn ? this->firstdyn - this->member : -1),
-	   (int) (this->lastdyn ? this->lastdyn - this->member : -1),
-	   (int) (this->firststat ? this->firststat - this->member : -1),
-	   (int) (this->laststat ? this->laststat - this->member : -1),
-	   this->listsize);
+  safe_snprintf(line, sizeof(line),
+		"DHCP lease time: %d\n"
+		"First available dynamic %d Last %d\n"
+		"First available static %d Last %d\n"
+		"List size %d\n",
+		(int) (dhcp->lease),
+		(int) (this->firstdyn ? this->firstdyn - this->member : -1),
+		(int) (this->lastdyn ? this->lastdyn - this->member : -1),
+		(int) (this->firststat ? this->firststat - this->member : -1),
+		(int) (this->laststat ? this->laststat - this->member : -1),
+		this->listsize);
   
   safe_write(fd, line, strlen(line));
   
-  safe_write(fd, line, snprintf(line, sizeof(line), sep, "Dynamic Pool"));
+  safe_snprintf(line, sizeof(line), sep, "Dynamic Pool");
+  safe_write(fd, line, strlen(line));
 
   for (n=0; n < this->listsize; n++) {
     int *st = (n >= this->dynsize) ? stat : dyn;
@@ -77,37 +78,39 @@ int ippool_print(int fd, struct ippool_t *this) {
       }
     }
 
-    if (n == this->dynsize) 
-      safe_write(fd, line, snprintf(line, sizeof(line), sep, "Static Pool"));
+    if (n == this->dynsize) {
+      safe_snprintf(line, sizeof(line), sep, "Static Pool");
+      safe_write(fd, line, strlen(line));
+    }
     
     if (this->member[n].peer) {
       struct app_conn_t *appconn = (struct app_conn_t *) this->member[n].peer;
       struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *) appconn->dnlink;
-      snprintf(peerLine, sizeof(peerLine),
-	       "%s mac=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X ip=%s age=%d", 
-	       dhcpconn ? dhcpconn->is_reserved ? " reserved" : "" : "",
-	       appconn->hismac[0],appconn->hismac[1],appconn->hismac[2],
-	       appconn->hismac[3],appconn->hismac[4],appconn->hismac[5],
-	       inet_ntoa(appconn->hisip), (int)(now - dhcpconn->lasttime));
+      safe_snprintf(peerLine, sizeof(peerLine),
+		    "%s mac=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X ip=%s age=%d", 
+		    dhcpconn ? dhcpconn->is_reserved ? " reserved" : "" : "",
+		    appconn->hismac[0],appconn->hismac[1],appconn->hismac[2],
+		    appconn->hismac[3],appconn->hismac[4],appconn->hismac[5],
+		    inet_ntoa(appconn->hisip), (int)(now - dhcpconn->lasttime));
     } else {
       peerLine[0]=0;
     }
 
     if (this->member[n].in_use) {
-      snprintf(useLine, sizeof(useLine), "-inuse-");
+      safe_snprintf(useLine, sizeof(useLine), "-inuse-");
     } else {
-      snprintf(useLine, sizeof(useLine), "%3d/%3d",
-	       this->member[n].prev ? (int)(this->member[n].prev - this->member) : -1,
+      safe_snprintf(useLine, sizeof(useLine), "%3d/%3d",
+		    this->member[n].prev ? (int)(this->member[n].prev - this->member) : -1,
 	       this->member[n].next ? (int)(this->member[n].next - this->member) : -1);
     }
 
-    snprintf(line, sizeof(line), 
-	     "Unit %3d : %7s : %15s :%s%s\n", 
-	     n, useLine,
-	     inet_ntoa(this->member[n].addr),	
-	     this->member[n].is_static ? " static" : "",
-	     peerLine
-	     );
+    safe_snprintf(line, sizeof(line), 
+		  "Unit %3d : %7s : %15s :%s%s\n", 
+		  n, useLine,
+		  inet_ntoa(this->member[n].addr),	
+		  this->member[n].is_static ? " static" : "",
+		  peerLine
+		  );
 
     safe_write(fd, line, strlen(line));
   }
@@ -119,16 +122,16 @@ int ippool_print(int fd, struct ippool_t *this) {
     while (p) { stat[LIST]++; p = p->next; }
   }
   
-  snprintf(line, sizeof(line), 
-	   "Dynamic address: free %d, avail %d, used %d, err %d, sum %d/%d%s\n",
-	   dyn[FREE], dyn[LIST], dyn[USED], dyn[ERR], dyn[0]+dyn[1]+dyn[2], this->dynsize,
-	   dyn[FREE] != dyn[LIST] ? " - Problem!" : "");
+  safe_snprintf(line, sizeof(line), 
+		"Dynamic address: free %d, avail %d, used %d, err %d, sum %d/%d%s\n",
+		dyn[FREE], dyn[LIST], dyn[USED], dyn[ERR], dyn[0]+dyn[1]+dyn[2], this->dynsize,
+		dyn[FREE] != dyn[LIST] ? " - Problem!" : "");
   safe_write(fd, line, strlen(line));
   
-  snprintf(line, sizeof(line), 
-	   "Static address: free %d, avail %d, used %d, err %d, sum %d/%d%s\n",
-	   stat[FREE], stat[LIST], stat[USED], stat[ERR], stat[0]+stat[1]+stat[2], this->statsize,
-	   stat[FREE] != stat[LIST] ? " - Problem!" : "");
+  safe_snprintf(line, sizeof(line), 
+		"Static address: free %d, avail %d, used %d, err %d, sum %d/%d%s\n",
+		stat[FREE], stat[LIST], stat[USED], stat[ERR], stat[0]+stat[1]+stat[2], this->statsize,
+		stat[FREE] != stat[LIST] ? " - Problem!" : "");
   safe_write(fd, line, strlen(line));
 
   return 0;

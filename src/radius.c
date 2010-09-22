@@ -45,9 +45,9 @@ void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pa
   if (_options.nasmac)
     mac = (uint8_t *)_options.nasmac;
   else 
-    snprintf((char*)(mac = b), sizeof(b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
-	     radius->nas_hwaddr[0], radius->nas_hwaddr[1], radius->nas_hwaddr[2],
-	     radius->nas_hwaddr[3], radius->nas_hwaddr[4], radius->nas_hwaddr[5]);
+    safe_snprintf((char*)(mac = b), sizeof(b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+		  radius->nas_hwaddr[0], radius->nas_hwaddr[1], radius->nas_hwaddr[2],
+		  radius->nas_hwaddr[3], radius->nas_hwaddr[4], radius->nas_hwaddr[5]);
   
   radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen((char*)mac)); 
 }
@@ -1122,30 +1122,6 @@ int radius_pwencode(struct radius_t *this,
 
   log_dbg("pw encode secret=%s", secret);
 
-  /*
-  if (_options.debug) {
-    char out[1024];
-    out[0]=0;
-
-    log_dbg("pwencode src %s",src);
-    for (n=0; n< srclen; n++) {
-      sprintf(out + strlen(out), "%.2x ", src[n]);
-      if ((n % 16) == 15)
-	sprintf(out+strlen(out),"\n");
-    }
-    log_dbg("%s", out);
-
-    out[0]=0;
-    log_dbg("pwencode authenticator");
-    for (n=0; n< RADIUS_AUTHLEN; n++) {
-      sprintf(out+strlen(out),"%.2x ", authenticator[n]);
-      if ((n % 16) == 15)
-	sprintf(out+strlen(out),"\n");
-    }
-    log_dbg("%s", out);
-  }
-  */
-
   memset(dst, 0, dstsize);
 
   /* Make dstlen multiple of 16 */
@@ -1343,7 +1319,7 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
     this->hisaddr1.s_addr = this->hisaddr0.s_addr;
 
     this->secretlen = 6;
-    strncpy(this->secret, "radsec", sizeof(this->secret));
+    safe_strncpy(this->secret, "radsec", sizeof(this->secret));
   } else {
     this->hisaddr0.s_addr = _options.radiusserver1.s_addr;
     this->hisaddr1.s_addr = _options.radiusserver2.s_addr;

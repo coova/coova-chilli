@@ -544,13 +544,13 @@ static void http_aaa_register(int argc, char **argv, int i) {
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
 
-    strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
+    safe_strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
 
     if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
       memcpy(nas_hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
-      sprintf(mac, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
-	      nas_hwaddr[0],nas_hwaddr[1],nas_hwaddr[2],
-	      nas_hwaddr[3],nas_hwaddr[4],nas_hwaddr[5]);
+      safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+		    nas_hwaddr[0],nas_hwaddr[1],nas_hwaddr[2],
+		    nas_hwaddr[3],nas_hwaddr[4],nas_hwaddr[5]);
       bcatcstr(req.url, mac);
     }
       

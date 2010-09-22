@@ -285,7 +285,7 @@ int main(int argc, char **argv) {
 		case CMDSOCK_FIELD_NONE:
 		  break;
 		case CMDSOCK_FIELD_STRING:
-		  strncpy(((char *)args[i].field), argv[pos+1], args[i].length-1);
+		  safe_strncpy(((char *)args[i].field), argv[pos+1], args[i].length);
 		  break;
 		case CMDSOCK_FIELD_INTEGER:
 		  switch(args[i].length) {
@@ -449,7 +449,7 @@ int main(int argc, char **argv) {
     if (globbuf.gl_pathc>1) {
       char header[256];
       int headerlen;
-      snprintf(header, sizeof(header), "\nQuerying socket %s\n", cmdsock);
+      safe_snprintf(header, sizeof(header), "\nQuerying socket %s\n", cmdsock);
       headerlen=strlen(header);
       if (write(1, header, strlen(header))!=headerlen) {
         perror("write");

@@ -155,9 +155,9 @@ int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen,
       int is_negate = (*p == '!');
       if (is_negate) p++;
       switch (stage) {
-      case 0: strncpy(pt.regex_host, p, sizeof(pt.regex_host)-1); pt.neg_host = is_negate; break;
-      case 1: strncpy(pt.regex_path, p, sizeof(pt.regex_path)-1); pt.neg_path = is_negate; break;
-      case 2: strncpy(pt.regex_qs,   p, sizeof(pt.regex_qs)-1);   pt.neg_qs   = is_negate; break;
+      case 0: safe_strncpy(pt.regex_host, p, sizeof(pt.regex_host)); pt.neg_host = is_negate; break;
+      case 1: safe_strncpy(pt.regex_path, p, sizeof(pt.regex_path)); pt.neg_path = is_negate; break;
+      case 2: safe_strncpy(pt.regex_qs,   p, sizeof(pt.regex_qs));   pt.neg_qs   = is_negate; break;
       }
     }
   }

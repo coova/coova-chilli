@@ -22,6 +22,8 @@
 
 extern struct dhcp_t *dhcp;
 
+#define _debug_ 1
+
 char *
 dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, int lvl) {
   char *d = data;
@@ -31,15 +33,24 @@ dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, 
     return 0;
   
   while ((l = *res++) != 0) {
+
     if ((l & 0xC0) == 0xC0) {
+      
       unsigned short offset = ((l & ~0xC0) << 8) + *res;
+      
       if (offset > olen) {
 	log_dbg("bad value");
 	return 0;
       }
-      /*log_dbg("skip[%d]\n",offset);*/
-      dns_fullname(d, dlen, opkt + (size_t)offset, opkt, olen, lvl+1);
+      
+#if(_debug_)
+      log_dbg("skip[%d] dlen=%d", offset, dlen);
+#endif
+      
+      dns_fullname(d, dlen, opkt + (size_t) offset, opkt, olen, lvl+1);
+
       break;
+
     }
     
     if (l >= dlen) {
@@ -47,17 +58,21 @@ dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, 
       return 0;
     }
     
-    /*log_dbg("part[%.*s]\n",l,res);*/
+#if(_debug_)
+    log_dbg("part[%.*s] dlen=%d",l,res,dlen);
+#endif
     
     memcpy(d, res, l);
-    d += l; dlen -= l;
+    d += l; 
+    dlen -= l;
     res += l;
     
     *d = '.';
-    d += 1; dlen -= 1;
+    d += 1; 
+    dlen -= 1;
   }
   
-  if (!lvl && data[strlen((char*)data)-1]=='.')
+  if (!lvl && data[strlen((char*)data)-1] == '.')
     data[strlen((char*)data)-1]=0;
   
   return data;
