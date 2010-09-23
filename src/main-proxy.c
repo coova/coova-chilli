@@ -1101,6 +1101,9 @@ int main(int argc, char **argv) {
     }
   }
 
+  radius_free(radius_auth);
+  radius_free(radius_acct);
+
 #ifdef USING_CURL
   curl_multi_cleanup(curl_multi);
   curl_global_cleanup();

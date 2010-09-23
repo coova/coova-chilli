@@ -188,6 +188,7 @@ int main(int argc, char **argv) {
   _options.foreground = args_info.fg_flag;
   _options.interval = args_info.interval_arg;
   _options.lease = args_info.lease_arg;
+  _options.leaseplus = args_info.leaseplus_arg;
   _options.dhcpstart = args_info.dhcpstart_arg;
   _options.dhcpend = args_info.dhcpend_arg;
   _options.eapolenable = args_info.eapolenable_flag;

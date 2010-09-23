@@ -230,7 +230,7 @@ int dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
 
 int dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug);
 
-int dhcp_free(struct dhcp_t *dhcp);
+void dhcp_free(struct dhcp_t *dhcp);
 
 int dhcp_timeout(struct dhcp_t *this);
 

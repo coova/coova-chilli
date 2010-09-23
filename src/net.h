@@ -276,11 +276,12 @@ int net_select_fd(select_ctx *sctx, int fd, char evts);
 int net_select_read_fd(select_ctx *sctx, int fd);
 int net_select_write_fd(select_ctx *sctx, int fd);
 
-ssize_t net_read(net_interface *netif, void *d, size_t slen);
-ssize_t net_write(net_interface *netif, void *d, size_t slen);
-ssize_t net_write2(net_interface *netif, void *d, size_t dlen, struct sockaddr_ll *dest);
+ssize_t net_read_eth(net_interface *netif, void *d, size_t slen);
+
+ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockaddr_ll *dest);
 
 ssize_t net_read_dispatch(net_interface *netif, net_handler func, void *ctx);
+ssize_t net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx);
 
 int net_open_nfqueue(net_interface *netif, uint16_t q, int (*cb)());
 

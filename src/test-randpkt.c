@@ -54,7 +54,7 @@ int test_dhcp(int cnt) {
     while (x-- > 0) 
       packet[x] = rand();
 
-    if (1) { /* vlan */
+    if (0) { /* vlan */
       *(uint16_t *)&packet[12] = htons(PKT_ETH_PROTO_8021Q); /* tpid */
       *(uint16_t *)&packet[16] = htons(PKT_ETH_PROTO_IP); /* Ether Proto */
       *(uint8_t  *)&packet[18] = PKT_IP_VER_HLEN; /* ip version hlen */
@@ -69,7 +69,7 @@ int test_dhcp(int cnt) {
       *(uint8_t  *)&packet[23] = PKT_IP_PROTO_TCP;
       memcpy(packet, bcast, 6);
     }
-    if (0) { /* arp */
+    if (1) { /* arp */
       *(uint16_t *)&packet[12] = htons(PKT_ETH_PROTO_ARP);
       *(uint16_t *)&packet[20] = htons(DHCP_ARP_REQUEST);
       memcpy(packet, bcast, 6);

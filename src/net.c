@@ -64,6 +64,15 @@ int safe_write(int s, void *b, size_t blen) {
   return ret;
 }
 
+int safe_sendto(int s, const void *b, size_t blen, int flags,
+		const struct sockaddr *dest_addr, socklen_t addrlen) {
+  int ret;
+  do {
+    ret = sendto(s, b, blen, flags, dest_addr, addrlen);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
 int safe_close (int fd) {
   int ret;
   do {
@@ -195,6 +204,7 @@ int dev_set_address(char const *devname, struct in_addr *address,
 }
 
 int net_init(net_interface *netif, char *ifname, uint16_t protocol, int promisc, uint8_t *mac) {
+
   if (ifname) {
     memset(netif, 0, sizeof(net_interface));
     safe_strncpy(netif->devname, ifname, IFNAMSIZ);
@@ -535,7 +545,7 @@ net_pcap_handler(u_char *user, const struct pcap_pkthdr *hdr, const u_char *byte
 #endif
 
 ssize_t 
-net_read_dispatch(net_interface *netif, net_handler func, void *ctx) {
+net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx) {
 #if defined(USING_PCAP)
   if (netif->pd) {
     struct netpcap np; 
@@ -560,14 +570,22 @@ net_read_dispatch(net_interface *netif, net_handler func, void *ctx) {
 
   {
     uint8_t packet[PKT_MAX_LEN];
-    ssize_t length = net_read(netif, packet, sizeof(packet));
+    ssize_t length = net_read_eth(netif, packet, sizeof(packet));
     if (length <= 0) return length;
     return func(ctx, packet, length);
   }
 }
 
 ssize_t 
-net_read(net_interface *netif, void *d, size_t dlen) {
+net_read_dispatch(net_interface *netif, net_handler func, void *ctx) {
+  uint8_t packet[PKT_MAX_LEN];
+  ssize_t length = safe_read(netif->fd, packet, sizeof(packet));
+  if (length <= 0) return length;
+  return func(ctx, packet, length);
+}
+
+ssize_t 
+net_read_eth(net_interface *netif, void *d, size_t dlen) {
   ssize_t len = 0;
 
 #if defined(USING_PCAP)
@@ -613,11 +631,7 @@ net_read(net_interface *netif, void *d, size_t dlen) {
   return len;
 }
 
-ssize_t net_write(net_interface *netif, void *d, size_t dlen) {
-  return net_write2(netif, d, dlen, 0);
-}
-
-ssize_t net_write2(net_interface *netif, void *d, size_t dlen, struct sockaddr_ll *dest) {
+ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockaddr_ll *dest) {
   int fd = netif->fd;
   ssize_t len;
 
@@ -626,30 +640,36 @@ ssize_t net_write2(net_interface *netif, void *d, size_t dlen, struct sockaddr_l
     return tx_ring(netif, d, dlen);
 #endif
 
-  if (dest) {
-    len = sendto(fd, d, dlen, 0, (struct sockaddr *)dest, sizeof(struct sockaddr_ll));
-  } else {
-    len = safe_write(fd, d, dlen);
-  }
-
+  len = safe_sendto(fd, d, dlen, 0, 
+		    (struct sockaddr *)dest, 
+		    sizeof(struct sockaddr_ll));
+  
   if (len < 0) {
-#ifdef ENETDOWN
-    if (errno == ENETDOWN) {
+    switch (errno) {
+    case EWOULDBLOCK:
+      log_err(errno, "packet dropped due to congestion");
       net_reopen(netif);
-    }
-#endif
-#ifdef EMSGSIZE
-    if (errno == EMSGSIZE && dlen > netif->mtu) {
-      net_set_mtu(netif, dlen);
-    }
+      break;
+      
+#ifdef ENETDOWN
+    case ENETDOWN:
+      net_reopen(netif);
+      break;
 #endif
 #ifdef ENXIO
-    if (errno == ENXIO) {
+    case ENXIO:
       net_reopen(netif);
-    }
+      break;
 #endif
-    log_err(errno, "net_write(fd=%d, len=%d) failed", 
-	    netif->fd, dlen);
+#ifdef EMSGSIZE
+    case EMSGSIZE:
+      if (dlen > netif->mtu)
+	net_set_mtu(netif, dlen);
+      break;
+#endif
+    }
+    
+    log_err(errno, "net_write_eth(fd=%d, len=%d) failed", netif->fd, dlen);
     return -1;
   }
 
@@ -815,6 +835,17 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
 }
 
 
+static int net_setsockopt(int s, int l, int op, void *v, socklen_t vl) {
+
+  if (setsockopt(s, l, op, v, vl) < 0) {
+    log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
+	    s, l, op, (int) vl);
+    return -1;
+  }
+
+  return 0;
+}
+
 #if defined(USING_PCAP)
 
 int net_open_eth(net_interface *netif) {
@@ -901,19 +932,35 @@ int net_open_eth(net_interface *netif) {
   }
 
 #ifndef USING_MMAP
+  /* Let's make this non-blocking */
+  ndelay_on(netif->fd);
+
   option = 1;
-  if (setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY, &option, sizeof(option)) < 0) {
-    log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
-	    netif->fd, SOL_SOCKET, TCP_NODELAY, sizeof(option));
+  if (net_setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY, &option, sizeof(option)) < 0)
     return -1;
-  }
 
   /* Enable reception and transmission of broadcast frames */
   option = 1;
-  if (setsockopt(netif->fd, SOL_SOCKET, SO_BROADCAST, &option, sizeof(option)) < 0) {
-    log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
-	    netif->fd, SOL_SOCKET, SO_BROADCAST, sizeof(option));
+  if (net_setsockopt(netif->fd, SOL_SOCKET, SO_BROADCAST, &option, sizeof(option)) < 0)
     return -1;
+
+  if (_options.sndbuf > 0) {
+    option = _options.sndbuf;
+    net_setsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &option, sizeof(option));
+  }
+  
+  if (_options.rcvbuf > 0) {
+    option = _options.rcvbuf;
+    net_setsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
+  }
+  
+  if (_options.debug) {
+    socklen_t len = sizeof(option);
+    getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &option, &len);
+    log_dbg("Net SNDBUF %d", option);
+    len = sizeof(option);
+    getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, &len);
+    log_dbg("Net RCVBUF %d", option);
   }
 #endif
 
@@ -987,11 +1034,9 @@ int net_open_eth(net_interface *netif) {
     memset(&mr,0,sizeof(mr));
     mr.mr_ifindex = netif->ifindex;
     mr.mr_type = PACKET_MR_PROMISC;
-    if (setsockopt(netif->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, (char *)&mr, sizeof(mr)) < 0) {
-      log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
-	      netif->fd, SOL_SOCKET, PACKET_ADD_MEMBERSHIP, sizeof(mr));
+
+    if (net_setsockopt(netif->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, (char *)&mr, sizeof(mr)) < 0)
       return -1;
-    }
   }
 #endif
 
@@ -1023,10 +1068,10 @@ int net_open_eth(net_interface *netif) {
   setup_rings2(netif);
   /*setup_filter(netif);*/
 
-  if (_options.sndbuf)
+  if (_options.sndbuf > 0)
     set_buffer(netif, SO_SNDBUF, _options.sndbuf * 1024);
 
-  if (_options.rcvbuf)
+  if (_options.rcvbuf > 0)
     set_buffer(netif, SO_RCVBUF, _options.rcvbuf * 1024);
 #endif
 
@@ -1403,7 +1448,7 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
     
     req.tp_frame_nr = (req.tp_block_size / req.tp_frame_size) * req.tp_block_nr;
     
-    ret = setsockopt(iface->fd, SOL_PACKET, what, &req, sizeof(req));
+    ret = net_setsockopt(iface->fd, SOL_PACKET, what, &req, sizeof(req));
     if (!ret)
       break;
 
@@ -1433,7 +1478,7 @@ static void destroy_one_ring(net_interface *iface, int what) {
   ring = what == PACKET_RX_RING ? &iface->rx_ring : &iface->tx_ring;
   
   memset(&req, 0, sizeof(req));
-  setsockopt(iface->fd, SOL_PACKET, what, &req, sizeof(req));
+  net_setsockopt(iface->fd, SOL_PACKET, what, &req, sizeof(req));
   free(ring->frames);
   memset(ring, 0, sizeof(*ring));
 }
@@ -1473,7 +1518,7 @@ static void setup_rings(net_interface *iface, unsigned size, int mtu) {
   
   /* We want version 2 ring buffers to avoid 64-bit uncleanness */
   val = TPACKET_V2;
-  ret = setsockopt(iface->fd, SOL_PACKET, PACKET_VERSION, &val, sizeof(val));
+  ret = net_setsockopt(iface->fd, SOL_PACKET, PACKET_VERSION, &val, sizeof(val));
 
   if (ret) {
     log_err(errno, "Failed to set version 2 ring buffer format");
@@ -1493,7 +1538,7 @@ static void setup_rings(net_interface *iface, unsigned size, int mtu) {
   
   /* Drop badly formatted packets */
   val = 1;
-  ret = setsockopt(iface->fd, SOL_PACKET, PACKET_LOSS, &val, sizeof(val));
+  ret = net_setsockopt(iface->fd, SOL_PACKET, PACKET_LOSS, &val, sizeof(val));
 
   if (ret)
     log_err(errno, "Failed to set packet drop mode");
@@ -1547,7 +1592,7 @@ static void set_buffer(net_interface *iface, int what, int size) {
   socklen_t len;
   int ret, val;
   
-  ret = setsockopt(iface->fd, SOL_SOCKET, what, &size, sizeof(size));
+  ret = net_setsockopt(iface->fd, SOL_SOCKET, what, &size, sizeof(size));
   if (ret) {
     log_err(errno, "Failed to set the %s buffer size",
 	    what == SO_SNDBUF ? "send" : "receive");
@@ -1608,7 +1653,7 @@ static void setup_filter(net_interface *iface) {
       .len = sizeof(filter) / sizeof(struct sock_filter)
     };
     
-    if (setsockopt(iface->fd, SOL_SOCKET, SO_ATTACH_FILTER, &prog, sizeof(prog)))
+    if (net_setsockopt(iface->fd, SOL_SOCKET, SO_ATTACH_FILTER, &prog, sizeof(prog)))
       log_err(errno, "Failed to set up the socket filter");
   }
 }

@@ -464,10 +464,12 @@ int tuntap_interface(struct _net_interface *netif) {
 
 #if defined(__linux__)
   /* Open the actual tun device */
-  if ((netif->fd  = open("/dev/net/tun", O_RDWR)) < 0) {
+  if ((netif->fd = open("/dev/net/tun", O_RDWR)) < 0) {
     log_err(errno, "open() failed");
     return -1;
   }
+
+  ndelay_on(netif->fd);
   
   /* Set device flags. For some weird reason this is also the method
      used to obtain the network interface name */
@@ -680,22 +682,35 @@ struct tundecap {
 
 static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
   struct tundecap *c = (struct tundecap *)ctx;
+  struct pkt_iphdr_t *iph;
+  int ethsize = 0;
 
   /*
-  if (_options.debug && c->idx == 0)
+    if (_options.debug && c->idx == 0)
     log_dbg("tun_decaps(idx=%d, len=%d)", tun(c->this,c->idx).ifindex, length);
   */
 
+  if (length < PKT_IP_HLEN)
+    return -1;
+
 #if defined(HAVE_NETFILTER_QUEUE) || defined(HAVE_NETFILTER_COOVA)
   if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
-    struct pkt_iphdr_t *iph;
 
     int ethhdr = (tun(c->this, c->idx).flags & NET_ETHHDR) != 0;
 
-    if (ethhdr)
+    if (ethhdr) {
+
+      if (length < PKT_IP_HLEN + PKT_ETH_HLEN)
+	return -1;
+
+      ethsize = PKT_ETH_HLEN;
       iph = (struct pkt_iphdr_t *)((char *)packet + PKT_ETH_HLEN);
-    else
+
+    } else {
+
       iph = (struct pkt_iphdr_t *)packet;
+
+    }
 
     iph->daddr  = iph->daddr & ~(_options.mask.s_addr);
     iph->daddr |= _options.dhcplisten.s_addr & _options.mask.s_addr;
@@ -705,18 +720,43 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
 #endif
 
   if (c->idx > 0) {
-    struct pkt_iphdr_t *iph = iphdr(packet);
+
+    ethsize = PKT_ETH_HLEN;
+
+    if (length < PKT_IP_HLEN + PKT_ETH_HLEN)
+      return -1;
+    
+    iph = iphdr(packet);
+
 #ifdef ENABLE_NETNAT
-    struct pkt_udphdr_t *udph = udphdr(packet);
-    if (iph->daddr == tun(c->this, c->idx).address.s_addr &&
-	ntohs(udph->dst) > 10000 && ntohs(udph->dst) < 30000) {
-      if (nat_undo(c->this, c->idx, packet, length))
-	return -1;
-    } else 
+    {
+      struct pkt_udphdr_t *udph = udphdr(packet);
+      if (iph->daddr == tun(c->this, c->idx).address.s_addr &&
+	  ntohs(udph->dst) > 10000 && ntohs(udph->dst) < 30000) {
+	if (nat_undo(c->this, c->idx, packet, length))
+	  return -1;
+      }
+    }
 #endif
     if ((iph->daddr & _options.mask.s_addr) != _options.net.s_addr) {
       return -1;
     }
+  } else {
+    iph = (struct pkt_iphdr_t *)packet;
+  }
+
+  if (iph->version_ihl != PKT_IP_VER_HLEN) {
+#if(_debug_)
+    log_dbg("dropping non-IPv4");
+#endif
+    return -1;
+  }
+
+  if ((int)ntohs(iph->tot_len) + ethsize > length) {
+    log_dbg("dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
+	    (int)ntohs(iph->tot_len),
+	    ethsize, (int)length);
+    return -1;
   }
 
   return c->this->cb_ind(c->this, packet, length, c->idx);
@@ -727,26 +767,26 @@ int tun_decaps(struct tun_t *this, int idx) {
 #if defined(__linux__) 
   ssize_t length;
   struct tundecap c;
-
+  
   c.this = this;
   c.idx = idx;
   
   if ((length = net_read_dispatch(&tun(this, idx), tun_decaps_cb, &c)) < 0) 
     return -1;
-
+  
   return length;
-
+  
 #elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   unsigned char buffer[PACKET_MAX];
   ssize_t status;
-
-  if ((status = net_read(&tun(this, idx), buffer, sizeof(buffer))) <= 0) {
+  
+  if ((status = safe_read(&tun(this, idx).fd, buffer, sizeof(buffer))) <= 0) {
     log_err(errno, "read() failed");
     return -1;
   }
-
+  
   /*
-  log_dbg("tun_decaps(%d) %s",status,tun(tun,idx).devname);
+    log_dbg("tun_decaps(%d) %s",status,tun(tun,idx).devname);
   */
 
    if (this->cb_ind)
@@ -783,7 +823,7 @@ static uint32_t dnatip[1024];
 static uint16_t dnatport[1024];
 */
 
-int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
+ssize_t tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 #if defined (__OpenBSD__)
 
   unsigned char buffer[PACKET_MAX+4];
@@ -792,14 +832,14 @@ int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   *((uint32_t *)(&buffer))=htonl(AF_INET);
   memcpy(&buffer[4], pack, len);
 
-  return net_write(&tun(tun, idx), buffer, len+4);
+  return safe_write(tun(tun, idx).fd, buffer, len+4);
 
 #elif defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__) || defined (__NetBSD__)
 
   if (idx > 0) {
   }
 
-  return net_write(&tun(tun, idx), pack, len);
+  return safe_write(tun(tun, idx).fd, pack, len);
 
 #elif defined (__sun__)
 

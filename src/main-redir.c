@@ -20,7 +20,7 @@
 
 #include "chilli.h"
 
-#define _debug_ 0
+#define _debug_ 1
 
 struct options_t _options;
 
@@ -33,6 +33,12 @@ static select_ctx sctx;
 static int max_requests = 0;
 static redir_request * requests = 0;
 static redir_request * requests_free = 0;
+
+static bstring string_init_reset(bstring s) {
+  if (!s) return bfromcstr("");
+  bassigncstr(s, "");
+  return s;
+}
 
 static redir_request * get_request() {
   redir_request * req = 0;
@@ -76,16 +82,19 @@ static redir_request * get_request() {
     return 0;
   }
 
+  req->url  = string_init_reset(req->url);
+  req->data = string_init_reset(req->data);
+  req->post = string_init_reset(req->post);
+  req->wbuf = string_init_reset(req->wbuf);
+  req->hbuf = string_init_reset(req->hbuf);
+
   /*
-    log_dbg("url->len %d",req->url?req->url->slen:-1);
-    log_dbg("data->len %d",req->data?req->data->slen:-1);
-    log_dbg("post->len %d",req->post?req->post->slen:-1);
-    log_dbg("wbuf->len %d",req->wbuf?req->wbuf->slen:-1);
+    log_dbg("url->len  %d",req->url->slen);
+    log_dbg("data->len %d",req->data->slen);
+    log_dbg("post->len %d",req->post->slen);
+    log_dbg("wbuf->len %d",req->wbuf->slen);
   */
   
-  if (!req->hbuf) req->hbuf = bfromcstr("");
-  else bassigncstr(req->hbuf, "");
-
   req->state = 0;
   req->next = req->prev = 0;
   req->proxy = req->headers = 0;
@@ -121,6 +130,7 @@ sock_redir_getstate(struct redir_t *redir,
 
   statedir_file(filedest, sizeof(filedest), _options.unixipc, "chilli.ipc");
 
+  memset(&msg, 0, sizeof(msg));
   msg.mtype = REDIR_MSG_STATUS_TYPE;
   memcpy(&msg.mdata.address, address, sizeof(msg.mdata.address));
   memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress));
@@ -201,7 +211,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 
     log_dbg("write: %d", w);
     b[r]=0;
-    log_dbg("write: [%s]", b);
+    /*log_dbg("write: [%s]", b);*/
 
     if (r != w) {
       log_err(errno, "problem writing what we read");
@@ -383,8 +393,6 @@ int redir_accept2(struct redir_t *redir, int idx) {
 
     req->uiidx = idx;
     req->socket_fd = new_socket;
-    if (!req->wbuf) req->wbuf = bfromcstr("");
-    else bassigncstr(req->wbuf, "");
 
     conn_set_readhandler(&req->conn, redir_conn_read, req);
     conn_set_donehandler(&req->conn, redir_conn_finish, req);
@@ -694,6 +702,8 @@ int main(int argc, char **argv) {
       break;
     }
   }
+
+  redir_free(redir);
 
   selfpipe_finish();
   

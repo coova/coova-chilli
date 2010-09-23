@@ -906,11 +906,27 @@ static int checkconn() {
   return 0;
 }
 
+void chilli_freeconn() {
+  struct app_conn_t *conn, *c;
+
+  for (conn = firstusedconn; conn; ) {
+    c = conn;
+    conn = conn->next;
+    free(c);
+  }
+
+  for (conn = firstfreeconn; conn; ) {
+    c = conn;
+    conn = conn->next;
+    free(c);
+  }
+}
+
 /* Kill all connections and send Radius Acct Stop */
 int static killconn() {
   struct app_conn_t *conn;
 
-  for (conn = firstusedconn; conn; conn=conn->next) {
+  for (conn = firstusedconn; conn; conn = conn->next) {
     if ((conn->inuse != 0) && (conn->s_state.authenticated == 1)) {
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_NAS_REBOOT);
     }
@@ -923,6 +939,7 @@ int static killconn() {
 
   acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_OFF);
 
+  chilli_freeconn();
   return 0;
 }
 

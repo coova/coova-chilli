@@ -95,6 +95,7 @@ option "dhcpgateway" - "DHCP gateway addresss for relay" string no
 option "dhcpgatewayport" - "DHCP gateway port for relay" int default="67" no
 option "dhcprelayagent" - "DHCP relay agent IP addresss (default uamlisten)" string no
 option "lease"       - "Lease time to allocate to clients" int default="600" no
+option "leaseplus"   - "Lease grace period time before removal" int default="60" no
 option "noc2c" - "Setup clients for /32 network" flag   off
 
 # EAPOL parameters

@@ -242,6 +242,7 @@ void GenerateAuthenticatorResponse(u_char *Password, int PasswordLen,
 #endif
 
 int chilli_handle_signal(void *ctx, int fd);
+void chilli_freeconn();
 
 int runscript(struct app_conn_t *appconn, char* script);
 

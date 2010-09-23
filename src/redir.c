@@ -19,7 +19,7 @@
 
 #include "chilli.h"
 
-#define _debug_ 1
+#define _debug_ 0
 
 static int optionsdebug = 0; /* TODO: Should be changed to instance */
 
@@ -2003,11 +2003,21 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  p1 += 5; 
 	  httpreq->is_post = 1; 
 	} else { 
-	  log_dbg("Unhandled http request: %s", buffer);
+	  log_dbg("Unhandled http request: %s %d", p1, 
+		  _options.uamallowpost);
 	  return -1;
 	}
 
 	while (*p1 == ' ') p1++; /* Advance through additional white space */
+
+	if (!strncmp(p1, "http://", 7) && strlen(p1) > 8) {
+	  /*
+	   *   A proxy request, skip over the initial URL
+	   */
+	  p1 += 7;
+	  while (*p1 && *p1 != '/') p1++;
+	}
+
 	if (*p1 == '/') p1++;
 	else { log_err(0, "parse error"); return -1; }
 	
@@ -2947,6 +2957,8 @@ static int _redir_close(int infd, int outfd) {
 static int _redir_close_exit(int infd, int outfd) {
   log_dbg("close_exit");
   _redir_close(infd,outfd);
+  chilli_freeconn();
+  dhcp_free(dhcp);
   options_destroy();
   exit(0);
 }

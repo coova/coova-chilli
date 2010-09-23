@@ -7,6 +7,9 @@
 * Added options ''--macup'' and ''--macdown'' defining scripts to run during DHCP up (assignment) and down (release)
 * Added option flag ''--redir'' to turn on redir daemon when built with ''--enable-chilliredir''
 * Release DHCP leave on a DHCP-Decline
+* Added length checks in more places to verify proper packets
+* Reviewed use of all string functions, now including snprintf.c in bstring
+* Allow for the parsing of HTTP Proxy requests for clients configured with proxy
 
 == ChangeLog (CoovaChilli-v1.2.4 svn revision 371) ==
 

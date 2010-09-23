@@ -41,11 +41,11 @@ int ippool_print(int fd, struct ippool_t *this) {
   int stat[4] = { 0, 0, 0, 0};
 
   safe_snprintf(line, sizeof(line),
-		"DHCP lease time: %d\n"
+		"DHCP lease time %d sec, grace period %d sec\n"
 		"First available dynamic %d Last %d\n"
 		"First available static %d Last %d\n"
 		"List size %d\n",
-		(int) (dhcp->lease),
+		(int) (dhcp->lease), _options.leaseplus,
 		(int) (this->firstdyn ? this->firstdyn - this->member : -1),
 		(int) (this->lastdyn ? this->lastdyn - this->member : -1),
 		(int) (this->firststat ? this->firststat - this->member : -1),

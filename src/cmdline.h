@@ -243,6 +243,9 @@ struct gengetopt_args_info
   int lease_arg;	/**< @brief Lease time to allocate to clients (default='600').  */
   char * lease_orig;	/**< @brief Lease time to allocate to clients original value given at command line.  */
   const char *lease_help; /**< @brief Lease time to allocate to clients help description.  */
+  int leaseplus_arg;	/**< @brief Lease grace period time before removal (default='60').  */
+  char * leaseplus_orig;	/**< @brief Lease grace period time before removal original value given at command line.  */
+  const char *leaseplus_help; /**< @brief Lease grace period time before removal help description.  */
   int noc2c_flag;	/**< @brief Setup clients for /32 network (default=off).  */
   const char *noc2c_help; /**< @brief Setup clients for /32 network help description.  */
   int eapolenable_flag;	/**< @brief Enable IEEE 802.1x authentication (default=off).  */
@@ -561,6 +564,7 @@ struct gengetopt_args_info
   unsigned int dhcpgatewayport_given ;	/**< @brief Whether dhcpgatewayport was given.  */
   unsigned int dhcprelayagent_given ;	/**< @brief Whether dhcprelayagent was given.  */
   unsigned int lease_given ;	/**< @brief Whether lease was given.  */
+  unsigned int leaseplus_given ;	/**< @brief Whether leaseplus was given.  */
   unsigned int noc2c_given ;	/**< @brief Whether noc2c was given.  */
   unsigned int eapolenable_given ;	/**< @brief Whether eapolenable was given.  */
   unsigned int uamserver_given ;	/**< @brief Whether uamserver was given.  */

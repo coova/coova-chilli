@@ -100,6 +100,7 @@ struct options_t {
   uint8_t dhcpmac[PKT_ETH_ALEN]; /* Interface MAC address */
   struct in_addr dhcplisten;     /* IP address to listen to */
   int lease;                     /* DHCP lease time */
+  int leaseplus;                 /* DHCP lease grace period */
   int dhcpstart;
   int dhcpend;
 
