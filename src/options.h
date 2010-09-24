@@ -243,6 +243,10 @@ struct options_t {
   char *nasmac;
   char *nasip;
 
+#ifdef ENABLE_DNSLOG
+  char *dnslog;
+#endif
+
   /* Command-Socket */
   char *cmdsocket;
 

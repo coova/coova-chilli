@@ -25,9 +25,9 @@ int dns_getname(uint8_t **pktp, size_t *left, char *name, size_t namesz, size_t 
 
 char * dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, int lvl);
 
-int dns_copy_res(int q, 
+int dns_copy_res(struct dhcp_conn_t *conn, int q, 
 		 uint8_t **pktp, size_t *left, 
 		 uint8_t *opkt, size_t olen,
-		 char *question, size_t qsize);
+		 uint8_t *question, size_t qsize);
 
 #endif

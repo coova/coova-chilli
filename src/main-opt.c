@@ -829,6 +829,14 @@ int main(int argc, char **argv) {
   _options.kname = STRDUP(args_info.kname_arg);
 #endif
 
+#ifdef ENABLE_DNSLOG
+  if (_options.dnslog) free(_options.dnslog);
+  _options.dnslog = STRDUP(args_info.dnslog_arg);
+#else
+  if (args_info.dnslog_arg)
+    log_err(0, "option dnslog given when no support built-in");
+#endif
+  
   if (_options.uamurl) free(_options.uamurl);
   _options.uamurl = STRDUP(args_info.uamserver_arg);
 

@@ -10,6 +10,8 @@
 * Added length checks in more places to verify proper packets
 * Reviewed use of all string functions, now including snprintf.c in bstring
 * Allow for the parsing of HTTP Proxy requests for clients configured with proxy
+* Compile time option ''--enable-dnslog'' to allow for run-time option ''--dnslog'' to log all DNS requests
+* Consolidated DNS parsing functions into one
 
 == ChangeLog (CoovaChilli-v1.2.4 svn revision 371) ==
 

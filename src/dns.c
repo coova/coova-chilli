@@ -48,12 +48,10 @@ dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, 
 #endif
       
       dns_fullname(d, dlen, opkt + (size_t) offset, opkt, olen, lvl+1);
-
       break;
-
     }
     
-    if (l >= dlen) {
+    if (l >= dlen + 1) {
       log_dbg("bad value");
       return 0;
     }
@@ -72,8 +70,8 @@ dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, 
     dlen -= 1;
   }
   
-  if (!lvl && data[strlen((char*)data)-1] == '.')
-    data[strlen((char*)data)-1]=0;
+  if (!lvl && data[strlen((char *)data)-1] == '.')
+    data[strlen((char *)data)-1]=0;
   
   return data;
 }
@@ -144,10 +142,10 @@ add_A_to_garden(uint8_t *p) {
 }
 
 int 
-dns_copy_res(int q, 
+dns_copy_res(struct dhcp_conn_t *conn, int q, 
 	     uint8_t **pktp, size_t *left, 
 	     uint8_t *opkt,  size_t olen, 
-	     char *question, size_t qsize) {
+	     uint8_t *question, size_t qsize) {
 
 #define return_error \
 { log_dbg("%s:%d: failed parsing DNS packet",__FILE__,__LINE__); return -1; }
@@ -189,7 +187,6 @@ dns_copy_res(int q,
   
   log_dbg("It was a dns record type: %d class: %d", type, class);
 
-
   /* if dnsparanoia, checks here */
 
   if (antidnstunnel) {
@@ -214,13 +211,13 @@ dns_copy_res(int q,
   }
   
   if (q) {
-    dns_fullname(question, qsize, *pktp, opkt, olen, 0);
+    dns_fullname((char *)question, qsize, *pktp, opkt, olen, 0);
     
     log_dbg("Q: %s", question);
-
+    
     *pktp = p_pkt;
     *left = len;
-
+    
     return 0;
   } 
 
@@ -250,15 +247,15 @@ dns_copy_res(int q,
     
   case 1:/* A */
     log_dbg("A record");
-    if (_options.uamdomains[0]) {
+    if (_options.uamdomains && _options.uamdomains[0]) {
       int id;
       for (id=0; _options.uamdomains[id] && id < MAX_UAM_DOMAINS; id++) {
 
 	log_dbg("checking %s [%s]", _options.uamdomains[id], question);
 
-	if (strlen(question) >= strlen(_options.uamdomains[id]) &&
+	if (strlen((char *)question) >= strlen(_options.uamdomains[id]) &&
 	    !strcmp(_options.uamdomains[id],
-		    question + (strlen(question) - strlen(_options.uamdomains[id])))) {
+		    (char *)question + (strlen((char *)question) - strlen(_options.uamdomains[id])))) {
 	  size_t offset;
 	  for (offset=0; offset < rdlen; offset += 4) {
 	    add_A_to_garden(p_pkt+offset);

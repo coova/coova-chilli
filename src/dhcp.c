@@ -1304,67 +1304,42 @@ int dhcp_nakDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   return 0;
 }
 
-static inline int
-_filterDNSreq(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen) {
-  struct dns_packet_t *dnsp = dnspkt(pack);
-  size_t len = plen - DHCP_DNS_HLEN - sizeofudp(pack);
-  size_t olen = len;
-
-  uint16_t id = ntohs(dnsp->id);
-  uint16_t flags = ntohs(dnsp->flags);
-  uint16_t qdcount = ntohs(dnsp->qdcount);
-  uint16_t ancount = ntohs(dnsp->ancount);
-  uint16_t nscount = ntohs(dnsp->nscount);
-  uint16_t arcount = ntohs(dnsp->arcount);
-
-  uint8_t *p_pkt = (uint8_t *)dnsp->records;
-  char q[256];
-
-  int d = _options.debug; /* XXX: debug */
-  int i;
-
-  if (d) log_dbg("DNS ID:    %d", id);
-  if (d) log_dbg("DNS Flags: %d", flags);
-
-  /* it was a response? shouldn't be */
-  /*if (((flags & 0x8000) >> 15) == 1) return 0;*/
-
-  memset(q,0,sizeof(q));
-
-#undef  copyres
-#define copyres(isq,n)			        \
-  if (d) log_dbg(#n ": %d", n ## count);        \
-  for (i=0; i < n ## count; i++)                \
-    if (dns_copy_res(isq, &p_pkt, &len,         \
-		     (uint8_t *)dnsp, olen, 	\
-                     q, sizeof(q)))	        \
-      return dhcp_nakDNS(conn,pack,plen)
-
-  copyres(1,qd);
-  copyres(0,an);
-  copyres(0,ns);
-  copyres(0,ar);
-
-  if (d) log_dbg("left (should be zero): %d", len);
-
-  return 1;
+static int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
+  int r_len = strlen((char *)r);
+  int name_len = strlen(name);
+  int domain_len = _options.domain ? strlen(_options.domain) : 0;
+  
+  if (r_len == name_len && !memcmp(r, name, name_len)) {
+    return 1;
+  }
+  
+  if (domain_len > 0 && 
+      r_len == (name_len + domain_len + 1) &&
+      !memcmp(r, name, name_len) &&
+      !memcmp(r + name_len + 1, _options.domain, domain_len) &&
+      r[name_len] == '.') {
+    return 1;
+  }
+  
+  return 0;
 }
 
-static inline int
-_filterDNSresp(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen) {
+static int
+dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
   struct dns_packet_t *dnsp = dnspkt(pack);
+
   size_t len = plen - DHCP_DNS_HLEN - sizeofudp(pack);
   size_t olen = len;
 
-  uint16_t id = ntohs(dnsp->id);
-  uint16_t flags = ntohs(dnsp->flags);
+  uint16_t id      = ntohs(dnsp->id);
+  uint16_t flags   = ntohs(dnsp->flags);
   uint16_t qdcount = ntohs(dnsp->qdcount);
   uint16_t ancount = ntohs(dnsp->ancount);
   uint16_t nscount = ntohs(dnsp->nscount);
   uint16_t arcount = ntohs(dnsp->arcount);
 
   uint8_t *p_pkt = (uint8_t *)dnsp->records;
-  char q[256];
+  uint8_t q[512];
 
   int d = _options.debug; /* XXX: debug */
   int i;
@@ -1372,33 +1347,217 @@ _filterDNSresp(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen) {
   if (d) log_dbg("DNS ID:    %d", id);
   if (d) log_dbg("DNS Flags: %d", flags);
 
-  /* it was a query? shouldn't be */
-  if (((flags & 0x8000) >> 15) == 0) return 0;
+  if (!isReq) {
+    /* it was a query? shouldn't be */
+    if (((flags & 0x8000) >> 15) == 0) return 0;
+  } else {
+    /* it was a response? shouldn't be */
+    if (((flags & 0x8000) >> 15) == 1) return 0;
+  }
 
-  memset(q,0,sizeof(q));
+  memset(q, 0, sizeof(q));
 
 #undef  copyres
 #define copyres(isq,n)			        \
   if (d) log_dbg(#n ": %d", n ## count);        \
   for (i=0; i < n ## count; i++)                \
-    dns_copy_res(isq, &p_pkt, &len,             \
-		     (uint8_t *)dnsp, olen, 	\
-                     q, sizeof(q))
-
+    if (dns_copy_res(conn, isq, &p_pkt, &len,	\
+		     (uint8_t *)dnsp, olen,	\
+                     q, sizeof(q)))		\
+      if (isReq) return dhcp_nakDNS(conn,pack,plen)
+  
   copyres(1,qd);
   copyres(0,an);
   copyres(0,ns);
   copyres(0,ar);
 
-  if (d) log_dbg("left (should be zero): %d", len);
+  if (isReq &&
+      flags   == 0x0100 && 
+      qdcount == 0x0001 &&
+      ancount == 0x0000 && 
+      nscount == 0x0000 &&
+      arcount == 0x0000) {
 
-  /*
-  dnsp->flags = htons(flags);
-  dnsp->qdcount = htons(qdcount);
-  dnsp->ancount = htons(ancount);
-  dnsp->nscount = htons(nscount);
-  dnsp->arcount = htons(arcount);
-  */
+    char *hostname = _options.uamhostname;
+    char *aliasname = _options.uamaliasname;
+
+    uint8_t *p = dnsp->records;
+
+    uint8_t query[256];
+    uint8_t reply[4];
+
+    int match = dhcp_matchDNS(q, query, sizeof(query), "logout");
+    if (match) {
+      memcpy(reply, &_options.uamlogout.s_addr, 4);
+    }
+    
+    if (!match && hostname) {
+      match = dhcp_matchDNS(q, query, sizeof(query), hostname);
+      if (match) {
+	memcpy(reply, &_options.uamlisten.s_addr, 4);
+      }
+    }
+    
+    if (!match && aliasname) {
+      match = dhcp_matchDNS(q, query, sizeof(query), aliasname);
+      if (match) {
+	memcpy(reply, &_options.uamalias.s_addr, 4);
+      }
+    }
+    
+    if (!match && _options.domaindnslocal && _options.domain) {
+      int name_len = strlen((char *)q);
+      int domain_len = strlen(_options.domain);
+      
+      if (name_len > (domain_len + 1)) {
+	int off = name_len - domain_len;
+	
+	if (!memcmp(q + off, _options.domain, domain_len) &&
+	    q[off - 1] == '.') {
+	  
+	  /*
+	   * count (recent) dns requests vs responses to get an
+	   * overall picture of on-line status.
+	   */
+	  
+	  memcpy(reply, &_options.uamalias.s_addr, 4);
+	  match = 1;
+	}
+      }
+    }
+    
+    if (match) {
+      
+      uint8_t answer[PKT_BUFFER];
+      
+      struct pkt_ethhdr_t *ethh = ethhdr(pack);
+      struct pkt_iphdr_t  *iph  = iphdr(pack);
+      struct pkt_udphdr_t *udph = udphdr(pack);
+
+      struct pkt_ethhdr_t *answer_ethh;
+      struct pkt_iphdr_t  *answer_iph;
+      struct pkt_udphdr_t *answer_udph;
+      struct dns_packet_t *answer_dns;
+
+      size_t query_len = 0;
+      size_t udp_len;
+      size_t length;
+
+      int n;
+
+      p = dnsp->records;
+      
+      log_dbg("It was a matching query!\n");
+      
+      do {
+	if (query_len < 256)
+	  query[query_len++] = *p;
+      }
+      while (*p++ != 0); /* TODO */
+      
+      for (n=0; n<4; n++) {
+	if (query_len < 256)
+	  query[query_len++] = *p++;
+      }
+      
+      query[query_len++] = 0xc0;
+      query[query_len++] = 0x0c;
+      query[query_len++] = 0x00;
+      query[query_len++] = 0x01;
+      query[query_len++] = 0x00;
+      query[query_len++] = 0x01;
+      query[query_len++] = 0x00;
+      query[query_len++] = 0x00;
+      query[query_len++] = 0x01;
+      query[query_len++] = 0x2c;
+      query[query_len++] = 0x00;
+      query[query_len++] = 0x04;
+      memcpy(query + query_len, reply, 4);
+      query_len += 4;
+      
+      memcpy(answer, pack, plen); /* TODO */
+      
+      answer_ethh = ethhdr(answer);
+      answer_iph = iphdr(answer);
+      answer_udph = udphdr(answer);
+      answer_dns = dnspkt(answer);
+      
+      /* DNS Header */
+      answer_dns->id      = dnsp->id;
+      answer_dns->flags   = htons(0x8000);
+      answer_dns->qdcount = htons(0x0001);
+      answer_dns->ancount = htons(0x0001);
+      answer_dns->nscount = htons(0x0000);
+      answer_dns->arcount = htons(0x0000);
+      memcpy(answer_dns->records, query, query_len);
+      
+      /* UDP header */
+      udp_len = query_len + DHCP_DNS_HLEN + PKT_UDP_HLEN;
+      answer_udph->len = htons(udp_len);
+      answer_udph->src = udph->dst;
+      answer_udph->dst = udph->src;
+      
+      /* Ip header */
+      answer_iph->version_ihl = PKT_IP_VER_HLEN;
+      answer_iph->tos = 0;
+      answer_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
+      answer_iph->id = 0;
+      answer_iph->frag_off = 0;
+      answer_iph->ttl = 0x10;
+      answer_iph->protocol = 0x11;
+      answer_iph->check = 0; /* Calculate at end of packet */      
+      memcpy(&answer_iph->daddr, &iph->saddr, PKT_IP_ALEN);
+      memcpy(&answer_iph->saddr, &iph->daddr, PKT_IP_ALEN);
+
+      /* Ethernet header */
+      memcpy(answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
+      memcpy(answer_ethh->src, &ethh->dst, PKT_ETH_ALEN);
+
+      /* Work out checksums */
+      chksum(answer_iph);
+
+      /* Calculate total length */
+      length = udp_len + sizeofip(answer);
+      
+      dhcp_send(dhcp, &dhcp->rawif, conn->hismac, answer, length);
+      return 0;
+    }
+  }
+
+#ifdef ENABLE_DNSLOG
+  if (isReq && _options.dnslog) {
+    int fd = open(_options.dnslog, O_WRONLY|O_APPEND|O_CREAT, 0666);
+    if (fd > 0) {
+      char line[512];
+      char *username = 0;
+      int authenticated = 0;
+      
+      if (conn->peer) {
+	struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+	username = appconn->s_state.redir.username;
+	authenticated = appconn->s_state.authenticated;
+      }
+      
+      safe_snprintf(line, sizeof(line),
+		    "%d,%.2X-%.2X-%.2X-%.2X-%.2X-%.2X,%s,%s,%d,%s\n",
+		    time(0),
+		    conn->hismac[0], conn->hismac[1],
+		    conn->hismac[2], conn->hismac[3],
+		    conn->hismac[4], conn->hismac[5],
+		    inet_ntoa(conn->hisip),
+		    q, authenticated,
+		    username ? username : "");
+      
+      safe_write(fd, line, strlen(line));
+      
+      close(fd);
+    } else {
+      log_err(errno, "could not open log file %s", _options.dnslog);
+    }
+  }
+#endif
+
+  if (d) log_dbg("left (should be zero): %d", len);
 
   return 1;
 }
@@ -1498,9 +1657,13 @@ dhcp_dnsDNAT(struct dhcp_conn_t *conn,
       }
     }
 
-    return 1;
+    if (!dhcp_dns(conn, pack, len, 1)) 
+      return -1; /* Drop DNS */
+
+    return 1; /* Is allowed DNS */
   }
-  return 0;
+
+  return 0; /* Not DNS */
 }
 
 static inline int 
@@ -1526,9 +1689,13 @@ dhcp_dnsunDNAT(struct dhcp_conn_t *conn,
       *do_checksum = 1;
     }
 
-    return 1;
+    if (!dhcp_dns(conn, pack, len, 0)) 
+      return -1; /* Is not allowed DNS */
+
+    return 1; /* Is allowed DNS */
   }
-  return 0;
+
+  return 0; /* Not DNS */
 }
 
 
@@ -1555,17 +1722,6 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
     if (iph->daddr == conn->ourip.s_addr)
       return 0;
 
-  if (dhcp_dnsDNAT(conn, pack, len, do_checksum)) { /* DNS */
-    if (_options.dnsparanoia) {
-      if (_filterDNSreq(conn, pack, len)) 
-	return 0;
-      else /* drop */
-	return -1;
-    } else { /* allow */
-      return 0;
-    }
-  }
-  
   /* Was it a request for authentication server? */
   for (i = 0; i<this->authiplen; i++) {
     if ((iph->daddr == this->authip[i].s_addr) /* &&
@@ -1656,13 +1812,7 @@ static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
       dhcp_uam_unnat(conn, ethh, iph, tcph);
     }
 
-    dhcp_dnsunDNAT(conn, pack, len, do_checksum);
-
-  } else {
-
-    dhcp_dnsDNAT(conn, pack, len, do_checksum);
-
-  }
+  } 
 
   if (_options.postauth_proxyport > 0) {
     if (is_return) {
@@ -1721,17 +1871,6 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   /* Allow localhost through network... */
   if (iph->saddr == INADDR_LOOPBACK)
     return 0;
-
-  if (dhcp_dnsunDNAT(conn, pack, *plen, do_checksum)) { /* DNS */
-    if (_options.uamdomains && _options.uamdomains[0]) {
-      if (_filterDNSresp(conn, pack, *plen)) 
-	return 0;
-      else
-	return -1; /* drop */
-    } else { /* always let through dns when not filtering */
-      return 0;
-    }
-  }
 
   if (iph->protocol == PKT_IP_PROTO_ICMP) {
     /* Was it an ICMP reply from us? */
@@ -1809,235 +1948,12 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   return -1; /* Something else */
 }
 
-static int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
-  int r_len = strlen((char *)r);
-  int name_len = strlen(name);
-  int domain_len = _options.domain ? strlen(_options.domain) : 0;
-  
-  if (r_len == name_len && !memcmp(r, name, name_len)) {
-    return 1;
-  }
-  
-  if (domain_len > 0 && 
-      r_len == (name_len + domain_len + 1) &&
-      !memcmp(r, name, name_len) &&
-      !memcmp(r + name_len + 1, _options.domain, domain_len) &&
-      r[name_len] == '.') {
-    return 1;
-  }
-  
-  return 0;
-}
-
 /**
  * dhcp_localDNS()
  * Check if it was request for known domain name.
  * In case it was a request for a known keyword then
  * redirect to the login/logout page
  **/
-int dhcp_localDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
-
-  struct dhcp_t *this = conn->parent;
-  struct pkt_ethhdr_t *ethh = ethhdr(pack);
-  struct pkt_iphdr_t  *iph  = iphdr(pack);
-  struct pkt_udphdr_t *udph = udphdr(pack);
-  struct dns_packet_t *dnsp = dnspkt(pack);
-
-  size_t length;
-  size_t udp_len;
-  uint8_t query[256];
-  size_t query_len = 0;
-  int n;
-
-  char *hostname = _options.uamhostname;
-  char *aliasname = _options.uamaliasname;
-
-  log_dbg("DNS ID:    %d", ntohs(dnsp->id));
-  log_dbg("DNS flags: %d", ntohs(dnsp->flags));
-
-  if ((ntohs(dnsp->flags)   == 0x0100) &&
-      (ntohs(dnsp->qdcount) == 0x0001) &&
-      (ntohs(dnsp->ancount) == 0x0000) &&
-      (ntohs(dnsp->nscount) == 0x0000) &&
-      (ntohs(dnsp->arcount) == 0x0000)) {
-
-    uint8_t name[256];
-
-    int match = 0;
-    uint8_t reply[4];
-
-    uint8_t *p = dnsp->records;
-    size_t plen = len - DHCP_DNS_HLEN - sizeofudp(pack);
-    size_t olen = plen;
-
-    uint16_t type;
-    uint16_t class;
-    uint16_t us;
-    
-    if (dns_getname(&p, &plen, 0, 128, 0) || 
-	plen < 4) {
-      log_dbg("failed parsing DNS packet"); 
-      return -1; 
-    }
-    
-    memcpy(&us, p, sizeof(us));
-    type = ntohs(us);
-    p += 2;
-    plen -= 2;
-    
-    memcpy(&us, p, sizeof(us));
-    class = ntohs(us);
-    p += 2;
-    plen -= 2;
-    
-    log_dbg("LocalDNS: It was a dns record type: %d class: %d", type, class);
-
-    memset(name, 0, sizeof(name));
-    
-    dns_fullname((char *)name, sizeof(name), dnsp->records, (uint8_t *)dnsp, olen, 0);
-    
-    log_dbg("LocalDNS: Q: %s", name);
-    
-    switch (type) {
-    case 1: break; 
-    default: return 0;
-    }
-    
-    match = dhcp_matchDNS(name, query, sizeof(query), "logout");
-    
-    if (match) {
-      memcpy(reply, &_options.uamlogout.s_addr, 4);
-    }
-    
-    if (!match && hostname) {
-      match = dhcp_matchDNS(name, query, sizeof(query), hostname);
-
-      if (match) {
-	memcpy(reply, &_options.uamlisten.s_addr, 4);
-      }
-    }
-
-    if (!match && aliasname) {
-      match = dhcp_matchDNS(name, query, sizeof(query), aliasname);
-
-      if (match) {
-	memcpy(reply, &_options.uamalias.s_addr, 4);
-      }
-    }
-    
-    if (!match && _options.domaindnslocal && _options.domain) {
-      int name_len = strlen((char *)name);
-      int domain_len = strlen(_options.domain);
-      
-      if (name_len > (domain_len + 1)) {
-	int off = name_len - domain_len;
-
-	if (!memcmp(name + off, _options.domain, domain_len) &&
-	    name[off - 1] == '.') {
-	  
-	  /*
-	   * count (recent) dns requests vs responses to get an
-	   * overall picture of on-line status.
-	   */
-	  
-	  
-	  memcpy(reply, &_options.uamalias.s_addr, 4);
-	  match = 1;
-	}
-      }
-    }
-    
-    if (match) {
-      
-      uint8_t answer[PKT_BUFFER];
-      
-      struct pkt_ethhdr_t *answer_ethh;
-      struct pkt_iphdr_t  *answer_iph;
-      struct pkt_udphdr_t *answer_udph;
-      struct dns_packet_t *answer_dns;
-
-      p = dnsp->records;
-      
-      query_len = 0;
-      
-      log_dbg("It was a matching query!\n");
-      
-      do {
-	if (query_len < 256)
-	  query[query_len++] = *p;
-      }
-      while (*p++ != 0); /* TODO */
-      
-      for (n=0; n<4; n++) {
-	if (query_len < 256)
-	  query[query_len++] = *p++;
-      }
-      
-      query[query_len++] = 0xc0;
-      query[query_len++] = 0x0c;
-      query[query_len++] = 0x00;
-      query[query_len++] = 0x01;
-      query[query_len++] = 0x00;
-      query[query_len++] = 0x01;
-      query[query_len++] = 0x00;
-      query[query_len++] = 0x00;
-      query[query_len++] = 0x01;
-      query[query_len++] = 0x2c;
-      query[query_len++] = 0x00;
-      query[query_len++] = 0x04;
-      memcpy(query + query_len, reply, 4);
-      query_len += 4;
-      
-      memcpy(answer, pack, len); /* TODO */
-      
-      answer_ethh = ethhdr(answer);
-      answer_iph = iphdr(answer);
-      answer_udph = udphdr(answer);
-      answer_dns = dnspkt(answer);
-      
-      /* DNS Header */
-      answer_dns->id      = dnsp->id;
-      answer_dns->flags   = htons(0x8000);
-      answer_dns->qdcount = htons(0x0001);
-      answer_dns->ancount = htons(0x0001);
-      answer_dns->nscount = htons(0x0000);
-      answer_dns->arcount = htons(0x0000);
-      memcpy(answer_dns->records, query, query_len);
-      
-      /* UDP header */
-      udp_len = query_len + DHCP_DNS_HLEN + PKT_UDP_HLEN;
-      answer_udph->len = htons(udp_len);
-      answer_udph->src = udph->dst;
-      answer_udph->dst = udph->src;
-      
-      /* Ip header */
-      answer_iph->version_ihl = PKT_IP_VER_HLEN;
-      answer_iph->tos = 0;
-      answer_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
-      answer_iph->id = 0;
-      answer_iph->frag_off = 0;
-      answer_iph->ttl = 0x10;
-      answer_iph->protocol = 0x11;
-      answer_iph->check = 0; /* Calculate at end of packet */      
-      memcpy(&answer_iph->daddr, &iph->saddr, PKT_IP_ALEN);
-      memcpy(&answer_iph->saddr, &iph->daddr, PKT_IP_ALEN);
-
-      /* Ethernet header */
-      memcpy(answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
-      memcpy(answer_ethh->src, &ethh->dst, PKT_ETH_ALEN);
-
-      /* Work out checksums */
-      chksum(answer_iph);
-
-      /* Calculate total length */
-      length = udp_len + sizeofip(answer);
-      
-      return dhcp_send(this, &this->rawif, conn->hismac, answer, length);
-    }
-  }
-
-  return 0; /* Something else */
-}
 
 /**
  * dhcp_getdefault()
@@ -2776,6 +2692,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   struct in_addr addr;
 
   char do_checksum = 0;
+  char allowed = 0;
 
   if (len < PKT_IP_HLEN + PKT_ETH_HLEN + 4)
     return 0;
@@ -2900,9 +2817,9 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	return 0; /* Ignore request if IP address was not allocated */
       }
   }
-
+  
   conn->lasttime = mainclock_now();
-
+  
   if (pack_iph->saddr != conn->hisip.s_addr) {
     log_dbg("Received packet with spoofed source!");
     /*dhcp_sendRENEW(conn, pack, len);*/
@@ -2913,11 +2830,6 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     
   case PKT_IP_PROTO_UDP:
     
-    if (pack_udph->dst == htons(DHCP_DNS)) {
-      if (dhcp_localDNS(conn, pack, len)) 
-	return 0;
-    }
-
     if ((pack_iph->daddr & ~_options.mask.s_addr) == 
 	(0xffffffff & ~_options.mask.s_addr)) {
       log_dbg("Broadcasted UDP to port %d", ntohs(pack_udph->dst));
@@ -2944,7 +2856,6 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     break; /* TCP */
   }
   
-  
   if (_options.uamalias.s_addr && 
       pack_iph->daddr == _options.uamalias.s_addr) {
     
@@ -2952,6 +2863,12 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     dhcp_uam_nat(conn, pack_ethh, pack_iph, pack_tcph, &this->uamlisten,
 		 _options.uamuiport ? _options.uamuiport : this->uamport);
   }
+
+  switch (dhcp_dnsDNAT(conn, pack, len, &do_checksum)) { 
+  case 0:  /* Not DNS */ break;
+  case 1:  /* Allowed DNS */ allowed = 1; break; 
+  default: /* Drop */ return 0; 
+  } 
   
   switch (conn->authstate) {
   case DHCP_AUTH_PASS:
@@ -2992,7 +2909,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 
   case DHCP_AUTH_DNAT:
     /* Destination NAT if request to unknown web server */
-    if (dhcp_doDNAT(conn, pack, len, 1, &do_checksum)) {
+    if (dhcp_doDNAT(conn, pack, len, 1, &do_checksum) && !allowed) {
 #if(_debug_)
       log_dbg("dropping packet; not nat'ed");
 #endif
@@ -3413,16 +3330,22 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
   uint16_t prot;
   char ignore = 0;
 
-  int min_length = sizeof(struct pkt_ethhdr8021q_t);
-
+  int min_length = sizeof(struct pkt_ethhdr_t);
+  
   if (length < min_length) {
-    log_err(0, "bad packet length %d", length);
+    log_dbg("bad packet length %d", length);
     return 0;
   }
-
+  
 #ifdef ENABLE_IEEE8021Q
   if (is_8021q(packet)) {
-    struct pkt_ethhdr8021q_t *ethh = ethhdr8021q(packet);
+    struct pkt_ethhdr8021q_t *ethh;
+    min_length = sizeof(struct pkt_ethhdr8021q_t);
+    if (length < min_length) {
+      log_dbg("bad packet length %d", length);
+      return 0;
+    }
+    ethh = ethhdr8021q(packet);
     prot = ntohs(ethh->prot);
   } else 
 #endif
@@ -3450,14 +3373,14 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
     if (!ignore) {
       uint8_t *p = packet + sizeofeth(packet);
       struct pkt_llc_t * llc = (struct pkt_llc_t *)p;
-
+      
       if (llc->dsap == 0xAA &&
 	  llc->ssap == 0xAA &&
 	  llc->cntl == 0x03) {
-
+	
 	struct pkt_llc_snap_t * snap = 
 	  (struct pkt_llc_snap_t *)(p + sizeof(struct pkt_llc_t));
-
+	
 	log_dbg("Layer2 PROT: IEEE 802.3 LLC SNAP "
 		" EtherType 0x%.4x",
 		ntohs(snap->type));
@@ -3716,6 +3639,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   uint8_t * pkt = packet;
 
   char do_checksum = 0;
+  char allowed = 0;
 
   if (ethhdr) { /* Ethernet frame */
     length += sizeofeth2(tag) - sizeofeth(pack);
@@ -3734,6 +3658,12 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
 
   dhcp_ethhdr(conn, pkt, conn->hismac, dhcp_nexthop(this), PKT_ETH_PROTO_IP);
 
+  switch (dhcp_dnsunDNAT(conn, pkt, length, &do_checksum)) {
+  case 0:  /* Not DNS */break;
+  case 1:  /* Allowed DNS */ allowed = 1; break;
+  default: /* Drop */ return 0;
+  }
+  
   switch (conn->authstate) {
 
   case DHCP_AUTH_PASS:
@@ -3748,7 +3678,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
 
   case DHCP_AUTH_DNAT:
     /* undo destination NAT */
-    if (dhcp_undoDNAT(conn, pkt, &length, 1, &do_checksum)) { 
+    if (dhcp_undoDNAT(conn, pkt, &length, 1, &do_checksum) && !allowed) { 
       log_dbg("dhcp_undoDNAT() returns true");
       return 0;
     }

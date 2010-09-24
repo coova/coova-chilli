@@ -209,4 +209,6 @@ option "natport"   - "Port to use when oding nat on the WAN (routeidx)" int defa
 option "redirssl"  - "Enable redirection of SSL/HTTP port (requires SSL support)" flag off
 option "uamuissl"  - "Enable SSL/HTTPS support on the uamuiport" flag off
 
+option "dnslog"    - "Log DNS requests to a file." string no
+
 option "kname" - "Enable the use of the coova kernel module instance of this namem" string no

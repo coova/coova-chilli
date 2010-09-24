@@ -345,7 +345,7 @@ int loadstatus() {
 int printstatus() {
   FILE *file;
   char filedest[512];
-
+  
   struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
   struct app_conn_t *appconn;
 
@@ -356,31 +356,30 @@ int printstatus() {
 
   file = fopen(filedest, "w");
   if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
+
   fprintf(file, "#Version:1.1\n");
   fprintf(file, "#SessionID = SID\n#Start-Time = ST\n");
   fprintf(file, "#SessionTimeOut = STO\n#SessionTerminateTime = STT\n");
   fprintf(file, "#Timestamp: %d\n", (int) mainclock);
   fprintf(file, "#User, IP, MAC, SID, ST, STO, STT\n");
 
-  while(dhcpconn)
-  {
+  while(dhcpconn) {
     appconn = (struct app_conn_t *)dhcpconn->peer;
-    if (appconn && appconn->s_state.authenticated == 1)
-    {
+    if (appconn && appconn->s_state.authenticated == 1) {
       fprintf(file, "%s, %s, %.2X-%.2X-%.2X-%.2X-%.2X-%.2X, %s, %d, %d, %d\n",
-	appconn->s_state.redir.username,
-	inet_ntoa(appconn->hisip),
-	appconn->hismac[0], appconn->hismac[1],
-	appconn->hismac[2], appconn->hismac[3],
-	appconn->hismac[4], appconn->hismac[5],
-	appconn->s_state.sessionid,
-	appconn->s_state.start_time,
-	appconn->s_params.sessiontimeout,
-	appconn->s_params.sessionterminatetime);
+	      appconn->s_state.redir.username,
+	      inet_ntoa(appconn->hisip),
+	      appconn->hismac[0], appconn->hismac[1],
+	      appconn->hismac[2], appconn->hismac[3],
+	      appconn->hismac[4], appconn->hismac[5],
+	      appconn->s_state.sessionid,
+	      appconn->s_state.start_time,
+	      appconn->s_params.sessiontimeout,
+	      appconn->s_params.sessionterminatetime);
     }
     dhcpconn = dhcpconn->next;
   }
-
+  
   fclose(file);
   return 0;
 }

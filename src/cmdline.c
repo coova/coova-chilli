@@ -193,6 +193,7 @@ const char *gengetopt_args_info_help[] = {
   "      --natport=INT             Port to use when oding nat on the WAN \n                                  (routeidx)  (default=`0')",
   "      --redirssl                Enable redirection of SSL/HTTP port (requires \n                                  SSL support)  (default=off)",
   "      --uamuissl                Enable SSL/HTTPS support on the uamuiport  \n                                  (default=off)",
+  "      --dnslog=STRING           Log DNS requests to a file.",
   "      --kname=STRING            Enable the use of the coova kernel module \n                                  instance of this namem",
     0
 };
@@ -407,6 +408,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->natport_given = 0 ;
   args_info->redirssl_given = 0 ;
   args_info->uamuissl_given = 0 ;
+  args_info->dnslog_given = 0 ;
   args_info->kname_given = 0 ;
 }
 
@@ -691,6 +693,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->natport_orig = NULL;
   args_info->redirssl_flag = 0;
   args_info->uamuissl_flag = 0;
+  args_info->dnslog_arg = NULL;
+  args_info->dnslog_orig = NULL;
   args_info->kname_arg = NULL;
   args_info->kname_orig = NULL;
   
@@ -872,7 +876,8 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->natport_help = gengetopt_args_info_help[158] ;
   args_info->redirssl_help = gengetopt_args_info_help[159] ;
   args_info->uamuissl_help = gengetopt_args_info_help[160] ;
-  args_info->kname_help = gengetopt_args_info_help[161] ;
+  args_info->dnslog_help = gengetopt_args_info_help[161] ;
+  args_info->kname_help = gengetopt_args_info_help[162] ;
   
 }
 
@@ -1188,6 +1193,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->natip_arg));
   free_string_field (&(args_info->natip_orig));
   free_string_field (&(args_info->natport_orig));
+  free_string_field (&(args_info->dnslog_arg));
+  free_string_field (&(args_info->dnslog_orig));
   free_string_field (&(args_info->kname_arg));
   free_string_field (&(args_info->kname_orig));
   
@@ -1545,6 +1552,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "redirssl", 0, 0 );
   if (args_info->uamuissl_given)
     write_into_file(outfile, "uamuissl", 0, 0 );
+  if (args_info->dnslog_given)
+    write_into_file(outfile, "dnslog", args_info->dnslog_orig, 0);
   if (args_info->kname_given)
     write_into_file(outfile, "kname", args_info->kname_orig, 0);
   
@@ -2283,6 +2292,7 @@ cmdline_parser_internal (
         { "natport",	1, NULL, 0 },
         { "redirssl",	0, NULL, 0 },
         { "uamuissl",	0, NULL, 0 },
+        { "dnslog",	1, NULL, 0 },
         { "kname",	1, NULL, 0 },
         { 0,  0, 0, 0 }
       };
@@ -4436,6 +4446,20 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->uamuissl_flag), 0, &(args_info->uamuissl_given),
                 &(local_args_info.uamuissl_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "uamuissl", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Log DNS requests to a file..  */
+          else if (strcmp (long_options[option_index].name, "dnslog") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->dnslog_arg), 
+                 &(args_info->dnslog_orig), &(args_info->dnslog_given),
+                &(local_args_info.dnslog_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "dnslog", '-',
                 additional_error))
               goto failure;
           

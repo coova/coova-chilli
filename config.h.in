@@ -21,6 +21,9 @@
 /* Define to enable cluster */
 #undef ENABLE_CLUSTER
 
+/* Define to logging of DNS requests */
+#undef ENABLE_DNSLOG
+
 /* Define to enable CoovaEWT API */
 #undef ENABLE_EWTAPI
 

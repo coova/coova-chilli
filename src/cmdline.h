@@ -489,6 +489,9 @@ struct gengetopt_args_info
   const char *redirssl_help; /**< @brief Enable redirection of SSL/HTTP port (requires SSL support) help description.  */
   int uamuissl_flag;	/**< @brief Enable SSL/HTTPS support on the uamuiport (default=off).  */
   const char *uamuissl_help; /**< @brief Enable SSL/HTTPS support on the uamuiport help description.  */
+  char * dnslog_arg;	/**< @brief Log DNS requests to a file..  */
+  char * dnslog_orig;	/**< @brief Log DNS requests to a file. original value given at command line.  */
+  const char *dnslog_help; /**< @brief Log DNS requests to a file. help description.  */
   char * kname_arg;	/**< @brief Enable the use of the coova kernel module instance of this namem.  */
   char * kname_orig;	/**< @brief Enable the use of the coova kernel module instance of this namem original value given at command line.  */
   const char *kname_help; /**< @brief Enable the use of the coova kernel module instance of this namem help description.  */
@@ -654,6 +657,7 @@ struct gengetopt_args_info
   unsigned int natport_given ;	/**< @brief Whether natport was given.  */
   unsigned int redirssl_given ;	/**< @brief Whether redirssl was given.  */
   unsigned int uamuissl_given ;	/**< @brief Whether uamuissl was given.  */
+  unsigned int dnslog_given ;	/**< @brief Whether dnslog was given.  */
   unsigned int kname_given ;	/**< @brief Whether kname was given.  */
 
 } ;

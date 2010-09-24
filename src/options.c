@@ -289,6 +289,9 @@ int options_fromfd(int fd, bstring bt) {
 #ifdef HAVE_NETFILTER_COOVA
   if (!option_s_l(bt, &o.kname)) return 0;
 #endif
+#ifdef ENABLE_DNSLOG
+  if (!option_s_l(bt, &o.dnslog)) return 0;
+#endif
 
   if (!option_s_l(bt, &o.adminuser)) return 0;
   if (!option_s_l(bt, &o.adminpasswd)) return 0;
@@ -405,6 +408,9 @@ int options_save(char *file, bstring bt) {
 #endif
 #ifdef HAVE_NETFILTER_COOVA
   if (!option_s_s(bt, &o.kname)) return 0;
+#endif
+#ifdef ENABLE_DNSLOG
+  if (!option_s_s(bt, &o.dnslog)) return 0;
 #endif
 
   if (!option_s_s(bt, &o.adminuser)) return 0;
