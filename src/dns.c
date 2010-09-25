@@ -24,15 +24,17 @@ extern struct dhcp_t *dhcp;
 
 #define _debug_ 1
 
-char *
-dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, int lvl) {
+int
+dns_fullname(char *data, size_t dlen, 
+	     uint8_t *res, size_t reslen,
+	     uint8_t *opkt, size_t olen, int lvl) {
   char *d = data;
-  unsigned short l;
-  
+  unsigned char l;
+
   if (lvl >= 15) 
-    return 0;
+    return -1;
   
-  while ((l = *res++) != 0) {
+  while (reslen-- > 0 && (l = *res++) != 0) {
 
     if ((l & 0xC0) == 0xC0) {
       
@@ -40,24 +42,29 @@ dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, 
       
       if (offset > olen) {
 	log_dbg("bad value");
-	return 0;
+	return -1;
       }
       
 #if(_debug_)
       log_dbg("skip[%d] dlen=%d", offset, dlen);
 #endif
       
-      dns_fullname(d, dlen, opkt + (size_t) offset, opkt, olen, lvl+1);
+      if (dns_fullname(d, dlen, 
+		       opkt + (size_t) offset, 
+		       olen - (size_t) offset, 
+		       opkt, olen, lvl+1))
+	return -1;
       break;
     }
     
-    if (l >= dlen + 1) {
+    if (l >= dlen + 1 || l > reslen) {
       log_dbg("bad value");
-      return 0;
+      return -1;
     }
     
 #if(_debug_)
-    log_dbg("part[%.*s] dlen=%d",l,res,dlen);
+    log_dbg("part[%.*s] reslen=%d l=%d dlen=%d",
+	    l,res,reslen,l,dlen);
 #endif
     
     memcpy(d, res, l);
@@ -73,10 +80,11 @@ dns_fullname(char *data, size_t dlen, uint8_t *res, uint8_t *opkt, size_t olen, 
   if (!lvl && data[strlen((char *)data)-1] == '.')
     data[strlen((char *)data)-1]=0;
   
-  return data;
+  return 0;
 }
 
-int dns_getname(uint8_t **pktp, size_t *left, char *name, size_t namesz, size_t *nameln) {
+int dns_getname(uint8_t **pktp, size_t *left, 
+		char *name, size_t namesz, size_t *nameln) {
   size_t namelen = 0;
   uint8_t *p_pkt = *pktp;
   size_t len = *left;
@@ -147,8 +155,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	     uint8_t *opkt,  size_t olen, 
 	     uint8_t *question, size_t qsize) {
 
-#define return_error \
-{ log_dbg("%s:%d: failed parsing DNS packet",__FILE__,__LINE__); return -1; }
+#define return_error { log_dbg("failed parsing DNS packet"); return -1; }
 
   uint8_t *p_pkt = *pktp;
   size_t len = *left;
@@ -164,6 +171,8 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   uint32_t ul;
   uint16_t us;
 
+  log_dbg("copy_res(left=%d olen=%d qsize=%d)", *left, olen, qsize);
+
   if (dns_getname(&p_pkt, &len, (char *)name, sizeof(name), &namelen)) 
     return_error;
 
@@ -172,8 +181,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     return -1;
   }
 
-  if (len < 4) 
-    return_error;
+  if (len < 4) return_error;
 
   memcpy(&us, p_pkt, sizeof(us));
   type = ntohs(us);
@@ -211,7 +219,8 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   }
   
   if (q) {
-    dns_fullname((char *)question, qsize, *pktp, opkt, olen, 0);
+    if (dns_fullname((char *)question, qsize, *pktp, *left, opkt, olen, 0))
+      return_error;
     
     log_dbg("Q: %s", question);
     
@@ -221,8 +230,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     return 0;
   } 
 
-  if (len < 6) 
-    return_error;
+  if (len < 6) return_error;
   
   memcpy(&ul, p_pkt, sizeof(ul));
   ttl = ntohl(ul);
@@ -236,8 +244,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   
   /*log_dbg("-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);*/
   
-  if (len < rdlen)
-    return_error;
+  if (len < rdlen) return_error;
   
   /*
    *  dns records 
@@ -269,10 +276,10 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 
   case 5:/* CNAME */
     {
-      char cname[256];
-      memset(cname,0,sizeof(cname));
-      dns_fullname(cname, sizeof(cname)-1, p_pkt, opkt, olen, 0);
-      log_dbg("CNAME record %s", cname);
+      /*char cname[256];
+	memset(cname,0,sizeof(cname));
+	dns_fullname(cname, sizeof(cname)-1, p_pkt, opkt, olen, 0);
+	log_dbg("CNAME record %s", cname);*/
     }
     break;
 

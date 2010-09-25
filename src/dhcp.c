@@ -1328,8 +1328,8 @@ static int
 dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
   struct dns_packet_t *dnsp = dnspkt(pack);
 
-  size_t len = plen - DHCP_DNS_HLEN - sizeofudp(pack);
-  size_t olen = len;
+  size_t dlen = plen - DHCP_DNS_HLEN - sizeofudp(pack);
+  size_t olen = dlen;
 
   uint16_t id      = ntohs(dnsp->id);
   uint16_t flags   = ntohs(dnsp->flags);
@@ -1338,7 +1338,7 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
   uint16_t nscount = ntohs(dnsp->nscount);
   uint16_t arcount = ntohs(dnsp->arcount);
 
-  uint8_t *p_pkt = (uint8_t *)dnsp->records;
+  uint8_t *dptr = (uint8_t *)dnsp->records;
   uint8_t q[512];
 
   int d = _options.debug; /* XXX: debug */
@@ -1361,15 +1361,20 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 #define copyres(isq,n)			        \
   if (d) log_dbg(#n ": %d", n ## count);        \
   for (i=0; i < n ## count; i++)                \
-    if (dns_copy_res(conn, isq, &p_pkt, &len,	\
+    if (dns_copy_res(conn, isq, &dptr, &dlen,	\
 		     (uint8_t *)dnsp, olen,	\
-                     q, sizeof(q)))		\
-      if (isReq) return dhcp_nakDNS(conn,pack,plen)
+                     q, sizeof(q))) 		\
+    return isReq ? dhcp_nakDNS(conn,pack,plen) : 0;
+  
   
   copyres(1,qd);
   copyres(0,an);
   copyres(0,ns);
   copyres(0,ar);
+
+  if (d) log_dbg("left (should be zero): %d", dlen);
+
+  if (dlen) return 0;
 
   if (isReq &&
       flags   == 0x0100 && 
@@ -1556,8 +1561,6 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     }
   }
 #endif
-
-  if (d) log_dbg("left (should be zero): %d", len);
 
   return 1;
 }

@@ -62,14 +62,24 @@ int test_dhcp(int cnt) {
       *(uint8_t  *)&packet[27] = PKT_IP_PROTO_TCP;
       memcpy(packet, bcast, 6);
     }
-    if (0) { /* ip */
+    else if (1) { /* dns */
+      uint16_t len = (rand() % 1000);
+      *(uint16_t *)&packet[12] = htons(PKT_ETH_PROTO_IP); /* Ether Proto */
+      *(uint8_t  *)&packet[14] = PKT_IP_VER_HLEN; /* ip version hlen */
+      *(uint16_t *)&packet[16] = htons(len + 20); /* IP tot_len; ip + 2 */
+      *(uint8_t  *)&packet[23] = PKT_IP_PROTO_UDP; /* ip + 9; end + 20 */
+      *(uint16_t *)&packet[36] = htons(53); 
+      *(uint16_t *)&packet[38] = htons(len); 
+      memcpy(packet, bcast, 6);
+    }
+    else if (0) { /* ip */
       *(uint16_t *)&packet[12] = htons(PKT_ETH_PROTO_IP); /* Ether Proto */
       *(uint8_t  *)&packet[14] = PKT_IP_VER_HLEN; /* ip version hlen */
       *(uint16_t *)&packet[16] = htons((rand() % 1000) + 20); /* IP tot_len */
       *(uint8_t  *)&packet[23] = PKT_IP_PROTO_TCP;
       memcpy(packet, bcast, 6);
     }
-    if (1) { /* arp */
+    else if (0) { /* arp */
       *(uint16_t *)&packet[12] = htons(PKT_ETH_PROTO_ARP);
       *(uint16_t *)&packet[20] = htons(DHCP_ARP_REQUEST);
       memcpy(packet, bcast, 6);
