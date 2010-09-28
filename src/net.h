@@ -151,6 +151,35 @@ struct queue_item
 
 #endif
 
+#define SELECT_READ 1
+#define SELECT_WRITE 2
+
+typedef void (*select_callback)(void *data, int idx);
+
+typedef struct {
+  int fd;
+  int idx;
+  char evts;
+  select_callback cb;
+  void *ctx;
+} select_fd;
+
+typedef struct {
+  int count;
+  select_fd desc[MAX_SELECT];
+#ifdef USING_POLL
+#ifdef HAVE_SYS_EPOLL_H
+  int efd;
+  struct epoll_event events[MAX_SELECT];
+#else
+  struct pollfd pfds[MAX_SELECT];
+#endif
+#else
+  int maxfd;
+  fd_set rfds, wfds, efds;
+  struct timeval idleTime;
+#endif
+} select_ctx;
 
 typedef struct _net_interface {
   uint8_t idx;
@@ -209,41 +238,13 @@ typedef struct _net_interface {
   nat_t *nat;
 #endif
 
+  select_ctx *sctx;
+
   uint8_t flags;
 #define NET_PROMISC (1<<0)
 #define NET_USEMAC  (1<<1)
 #define NET_ETHHDR  (1<<2)
 } net_interface;
-
-#define SELECT_READ 1
-#define SELECT_WRITE 2
-
-typedef void (*select_callback)(void *data, int idx);
-
-typedef struct {
-  int fd;
-  int idx;
-  char evts;
-  select_callback cb;
-  void *ctx;
-} select_fd;
-
-typedef struct {
-  int count;
-  select_fd desc[MAX_SELECT];
-#ifdef USING_POLL
-#ifdef HAVE_SYS_EPOLL_H
-  int efd;
-  struct epoll_event events[MAX_SELECT];
-#else
-  struct pollfd pfds[MAX_SELECT];
-#endif
-#else
-  int maxfd;
-  fd_set rfds, wfds, efds;
-  struct timeval idleTime;
-#endif
-} select_ctx;
 
 typedef int (*net_handler)(void *ctx, void *data, size_t len);
 
@@ -286,6 +287,7 @@ ssize_t net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx)
 int net_open_nfqueue(net_interface *netif, uint16_t q, int (*cb)());
 
 int net_select_reg(select_ctx *sctx, int fd, char evts, select_callback cb, void *ctx, int idx);
+void net_select_rereg(select_ctx *sctx, int oldfd, int newfd);
 
 int net_close(net_interface *netif);
 

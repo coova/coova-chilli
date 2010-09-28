@@ -252,7 +252,10 @@ int statedir_file(char *dst, int dlen, char *file, char *deffile);
 /* sig.c */
 int ndelay_on (int fd);
 int ndelay_off (int fd);
+int coe (int fd);
+
 int set_signal (int signo, void (*func)(int));
+
 int selfpipe_init (void);
 int selfpipe_read (void);
 int selfpipe_trap (int signo);

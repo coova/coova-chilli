@@ -470,6 +470,7 @@ int tuntap_interface(struct _net_interface *netif) {
   }
 
   ndelay_on(netif->fd);
+  coe(netif->fd);
   
   /* Set device flags. For some weird reason this is also the method
      used to obtain the network interface name */
@@ -823,7 +824,7 @@ static uint32_t dnatip[1024];
 static uint16_t dnatport[1024];
 */
 
-ssize_t tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
+int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 #if defined (__OpenBSD__)
 
   unsigned char buffer[PACKET_MAX+4];
@@ -836,8 +837,8 @@ ssize_t tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
 #elif defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__) || defined (__NetBSD__)
 
-  if (idx > 0) {
-  }
+  /*if (idx > 0) {
+    }*/
 
   return safe_write(tun(tun, idx).fd, pack, len);
 
@@ -852,6 +853,7 @@ ssize_t tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 }
 
 int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
+  int result;
 
   if (_options.tcpwin)
     pkt_shape_tcpwin(pack, &len);
@@ -929,7 +931,13 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
   /*log_dbg("tun_encaps(%s) len=%d", tun(tun,idx).devname, len);*/
 
-  return tun_write(tun, pack, len, idx);
+  result = tun_write(tun, pack, len, idx);
+
+  if (result < 0) {
+    log_err(errno, "tun_write(%d)", result);
+  }
+
+  return result;
 }
 
 int tun_runscript(struct tun_t *tun, char* script, int wait) {

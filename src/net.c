@@ -32,6 +32,9 @@ static void destroy_one_ring(net_interface *iface, int what);
 static void setup_filter(net_interface *iface);
 #endif
 
+static int default_sndbuf = 0;
+static int default_rcvbuf = 0;
+
 int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr) {
   int ret;
   do {
@@ -55,6 +58,16 @@ int safe_read(int s, void *b, size_t blen) {
   } while (ret == -1 && errno == EINTR);
   return ret;
 }
+
+int safe_recvfrom(int sockfd, void *buf, size_t len, int flags,
+		  struct sockaddr *src_addr, socklen_t *addrlen) {
+  int ret;
+  do {
+    ret = recvfrom(sockfd, buf, len, flags, src_addr, addrlen);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
 
 int safe_write(int s, void *b, size_t blen) {
   int ret;
@@ -238,16 +251,54 @@ int net_open(net_interface *netif) {
   return net_open_eth(netif);
 }
 
+static int net_setsockopt(int s, int l, int op, void *v, socklen_t vl) {
+
+  if (setsockopt(s, l, op, v, vl) < 0) {
+    log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
+	    s, l, op, (int) vl);
+    return -1;
+  }
+
+  return 0;
+}
+
+
 int net_reopen(net_interface *netif) {
-  net_close(netif);
-  return net_open(netif);
+  int previous_fd = netif->fd;
+  int option;
+  socklen_t len;
+
+  log_dbg("net_reopen(%s)", netif->devname);
+
+  net_open(netif);
+
+  option = (int)(default_sndbuf * 1.1);
+  net_setsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &option, sizeof(option));
+  
+  option = (int)(default_rcvbuf * 1.1);
+  net_setsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
+  
+  len = sizeof(default_sndbuf);
+  getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
+  log_dbg("Net SNDBUF %d", default_sndbuf);
+
+  len = sizeof(default_sndbuf);
+  getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
+  log_dbg("Net RCVBUF %d", default_rcvbuf);
+
+  if (netif->sctx)
+    net_select_rereg(netif->sctx, previous_fd, netif->fd);
+
+  return 0;
 }
 
 int net_close(net_interface *netif) {
 #ifdef USING_PCAP
   if (netif->pd) pcap_close(netif->pd);
+  netif->pd = 0;
 #endif  
   if (netif->fd) close(netif->fd);
+  netif->fd = 0;
   return 0;
 }
 
@@ -286,6 +337,34 @@ int net_select_prepare(select_ctx *sctx) {
 #endif
 #endif
   return 0;
+}
+
+void net_select_rereg(select_ctx *sctx, int oldfd, int newfd) {
+  int i;
+  for (i=0; i<sctx->count; i++) {
+    if (sctx->desc[i].fd == oldfd) {
+      sctx->desc[i].fd = newfd;
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+      {
+	struct epoll_event event;
+	
+	memset(&event, 0, sizeof(event));
+	event.data.fd = oldfd;
+	event.events = EPOLLIN | EPOLLOUT;
+	if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, oldfd, &event))
+	  log_err(errno, "epoll fd %d not found", oldfd);
+
+	memset(&event, 0, sizeof(event));
+	if (sctx->desc[i].evts & SELECT_READ) event.events |= EPOLLIN;
+	if (sctx->desc[i].evts & SELECT_WRITE) event.events |= EPOLLOUT;
+	event.data.ptr = &sctx->desc[i];
+	if (epoll_ctl(sctx->efd, EPOLL_CTL_ADD, newfd, &event))
+	  log_err(errno, "Failed to watch fd");
+      }
+#endif
+      return;
+    }
+  }
 }
 
 int net_select_reg(select_ctx *sctx, int fd, char evts, 
@@ -612,22 +691,19 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 
   if (netif->fd) {
 
-    /*len = recvfrom(netif->fd, d, netif->mtu,
-      MSG_DONTWAIT | MSG_TRUNC, NULL, NULL);*/
+    len = safe_recvfrom(netif->fd, d, dlen,
+			MSG_DONTWAIT | MSG_TRUNC, 
+			NULL, NULL);
 
-    len = safe_read(netif->fd, d, dlen);
+    /*len = safe_read(netif->fd, d, dlen);*/
 
     if (len < 0) {
-#ifdef ENETDOWN
-      if (errno == ENETDOWN) {
-	net_reopen(netif);
-      }
-#endif
-      log_err(errno, "read(fd=%d, len=%d, mtu=%d) == %d", netif->fd, dlen, netif->mtu, len);
+      log_err(errno, "net_read_eth(fd=%d, len=%d, mtu=%d) == %d", 
+	      netif->fd, dlen, netif->mtu, len);
       return -1;
     }
   }
-
+  
   return len;
 }
 
@@ -835,17 +911,6 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
 }
 
 
-static int net_setsockopt(int s, int l, int op, void *v, socklen_t vl) {
-
-  if (setsockopt(s, l, op, v, vl) < 0) {
-    log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
-	    s, l, op, (int) vl);
-    return -1;
-  }
-
-  return 0;
-}
-
 #if defined(USING_PCAP)
 
 int net_open_eth(net_interface *netif) {
@@ -934,6 +999,7 @@ int net_open_eth(net_interface *netif) {
 #ifndef USING_MMAP
   /* Let's make this non-blocking */
   ndelay_on(netif->fd);
+  coe(netif->fd);
 
   option = 1;
   if (net_setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY, &option, sizeof(option)) < 0)
@@ -953,14 +1019,15 @@ int net_open_eth(net_interface *netif) {
     option = _options.rcvbuf;
     net_setsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
   }
-  
-  if (_options.debug) {
-    socklen_t len = sizeof(option);
-    getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &option, &len);
-    log_dbg("Net SNDBUF %d", option);
-    len = sizeof(option);
-    getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, &len);
-    log_dbg("Net RCVBUF %d", option);
+
+  {
+    socklen_t len;
+    len = sizeof(default_sndbuf);
+    getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
+    log_dbg("Net SNDBUF %d", default_sndbuf);
+    len = sizeof(default_sndbuf);
+    getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
+    log_dbg("Net RCVBUF %d", default_rcvbuf);
   }
 #endif
 

@@ -5072,6 +5072,7 @@ int chilli_main(int argc, char **argv) {
 #if defined(__linux__)
   net_select_reg(&sctx, dhcp->relayfd, SELECT_READ, (select_callback)dhcp_relay_decaps, dhcp, 0);
   net_select_reg(&sctx, dhcp->rawif.fd, SELECT_READ, (select_callback)dhcp_decaps, dhcp, 0);
+  dhcp->rawif.sctx = &sctx;
 #ifdef HAVE_NETFILTER_QUEUE
   if (dhcp->qif_in.fd && dhcp->qif_out.fd) {
     net_select_reg(&sctx, dhcp->qif_in.fd, SELECT_READ, (select_callback)dhcp_decaps, dhcp, 1);

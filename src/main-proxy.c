@@ -167,6 +167,7 @@ static int http_aaa_finish(proxy_request *req) {
   struct radius_t *radius = req->radius;
 
 #ifdef USING_CURL
+  log_dbg("calling curl_easy_cleanup()");
   curl_multi_remove_handle(curl_multi, req->curl);
   curl_easy_cleanup(req->curl);
   req->curl = 0;
@@ -465,13 +466,13 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
   req->radius = radius;
   req->past_headers = 0;
   req->nline = 0;
-
+  
   if (get_urlparts((char *) req->url->data, hostname, sizeof(hostname), &port, &uripos))
     return -1;
-
+  
   if (!req->wbuf) 
     req->wbuf = bfromcstr("");
-
+  
   bassignformat(req->wbuf, 
 		"GET %s HTTP/1.1\r\n"
 		"Host: %s:%d\r\n"
@@ -479,28 +480,30 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
 		"Connection: close\r\n"
 		"\r\n",
 		req->url->data + uripos, hostname, port);
-
+  
   if (conn_setup(&req->conn, hostname, port, req->wbuf))
     return -1;
-
+  
   conn_set_readhandler(&req->conn, http_conn_read, req);
   conn_set_donehandler(&req->conn, http_conn_finish, req);
-
+  
   return 0;
 }
 #endif
 
 static int http_aaa(struct radius_t *radius, proxy_request *req) {
-
+  
   if (http_aaa_setup(radius, req) == 0) {
     
 #ifdef USING_CURL
     curl_multi_add_handle(curl_multi, req->curl);
-
+    
     while(CURLM_CALL_MULTI_PERFORM ==
 	  curl_multi_perform(curl_multi, &still_running));
-#endif
 
+    log_dbg("curl still running %d", still_running);
+#endif
+    
     return 0;
   }
 
@@ -1070,12 +1073,15 @@ int main(int argc, char **argv) {
       }
       
 #ifdef USING_CURL
-      if (still_running) {
-	while(CURLM_CALL_MULTI_PERFORM ==
-	      curl_multi_perform(curl_multi, &still_running));
-      }
+      while(CURLM_CALL_MULTI_PERFORM ==
+	    curl_multi_perform(curl_multi, &still_running));
 
+      log_dbg("curl still running %d", still_running);
+      
       while ((msg = curl_multi_info_read(curl_multi, &msgs_left))) {
+
+	log_dbg("curl messages left %d", msgs_left);
+
 	if (msg->msg == CURLMSG_DONE) {
 	  
 	  int found = 0;
@@ -1088,6 +1094,8 @@ int main(int argc, char **argv) {
 	    --idx;
 	    log_dbg("HTTP completed with status %d\n", msg->data.result);
 	    http_aaa_finish(&requests[idx]);
+	  } else {
+	    log_err(0, "Could not find request in queue");
 	  }
 	}
       }

@@ -24,7 +24,7 @@ static uint8_t bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static uint8_t nmac[PKT_ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static int connections = 0;
 
-#define _debug_ 1
+#define _debug_ 0
 
 char *dhcp_state2name(int authstate) {
   switch(authstate) {
@@ -1365,7 +1365,6 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 		     (uint8_t *)dnsp, olen,	\
                      q, sizeof(q))) 		\
     return isReq ? dhcp_nakDNS(conn,pack,plen) : 0;
-  
   
   copyres(1,qd);
   copyres(0,an);
@@ -2939,7 +2938,9 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     chksum(pack_iph);
 
   if ((conn->hisip.s_addr) && (this->cb_data_ind)) {
+
     this->cb_data_ind(conn, pack, len);
+
   } else {
     log_dbg("no hisip; packet-drop");
   }

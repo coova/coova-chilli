@@ -213,6 +213,7 @@ writeconfig() {
 	[ "$HS_SWAPOCTETS" = "on" ] && addconfig2 "swapoctets"
 	[ "$HS_DOMAINDNSLOCAL" = "on" ] && addconfig2 "domaindnslocal"
 	[ "$HS_SESKEEPALIVE" = "on" ] && addconfig2 "seskeepalive"
+	[ -n "$HS_DNSLOG" ] && addconfig2 "dnslog \"$HS_DNSLOG\""
 	[ -n "$HS_USESTATUSFILE" ] && addconfig2 "usestatusfile \"$HS_USESTATUSFILE\""
 	[ -n "$HS_UAMALIASNAME" ] && addconfig2 "uamaliasname \"$HS_UAMALIASNAME\""
 	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile \"$HS_ADMINUPDATEFILE\""
