@@ -63,9 +63,6 @@
 /* Define to enable status file */
 #undef ENABLE_STATFILE
 
-/* Define to enable network interface nat */
-#undef ENABLE_WISPR2
-
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 

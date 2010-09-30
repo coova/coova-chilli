@@ -339,7 +339,7 @@ int net_select_prepare(select_ctx *sctx) {
   return 0;
 }
 
-void net_select_rereg(select_ctx *sctx, int oldfd, int newfd) {
+int net_select_rereg(select_ctx *sctx, int oldfd, int newfd) {
   int i;
   for (i=0; i<sctx->count; i++) {
     if (sctx->desc[i].fd == oldfd) {
@@ -362,9 +362,10 @@ void net_select_rereg(select_ctx *sctx, int oldfd, int newfd) {
 	  log_err(errno, "Failed to watch fd");
       }
 #endif
-      return;
+      return 0;
     }
   }
+  return -1;
 }
 
 int net_select_reg(select_ctx *sctx, int fd, char evts, 

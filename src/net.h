@@ -287,7 +287,7 @@ ssize_t net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx)
 int net_open_nfqueue(net_interface *netif, uint16_t q, int (*cb)());
 
 int net_select_reg(select_ctx *sctx, int fd, char evts, select_callback cb, void *ctx, int idx);
-void net_select_rereg(select_ctx *sctx, int oldfd, int newfd);
+int net_select_rereg(select_ctx *sctx, int oldfd, int newfd);
 
 int net_close(net_interface *netif);
 
