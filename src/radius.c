@@ -1579,6 +1579,10 @@ radius_default_pack(struct radius_t *this,
 		     RADIUS_VENDOR_CHILLISPOT,
 		     RADIUS_ATTR_CHILLISPOT_ACCT_VIEW_POINT, 
 		     v, 0, 0);
+
+      radius_addattr(this, pack, RADIUS_ATTR_EVENT_TIMESTAMP, 0, 0, 
+		     mainclock_wall(), NULL, 0); 
+      
     }
     break;
 

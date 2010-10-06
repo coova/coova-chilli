@@ -310,12 +310,25 @@ int chilli_binconfig(char *file, size_t flen, pid_t pid) {
   return 0;
 }
 
+#ifdef HAVE_LIBRT
+static struct timespec startup_real;
+static struct timespec startup_mono;
+#endif
+
+static time_t start_tick = 0;
+
+time_t mainclock_wall() {
+#ifdef HAVE_LIBRT
+  if (startup_real.tv_sec) 
+    return startup_real.tv_sec + (start_tick - mainclock);
+#endif
+  return mainclock;
+}
+
 time_t mainclock_tick() {
 #ifdef HAVE_LIBRT
   struct timespec ts;
-#if defined(CLOCK_SECOND)
-  clockid_t cid = CLOCK_SECOND;
-#elif defined(CLOCK_MONOTONIC)
+#if defined(CLOCK_MONOTONIC)
   clockid_t cid = CLOCK_MONOTONIC;
 #else
   clockid_t cid = CLOCK_REALTIME;
@@ -4595,11 +4608,6 @@ static int rtmon_accept(struct rtmon_t *rtmon, int idx) {
 }
 #endif
 
-#ifdef HAVE_LIBRT
-struct timespec startup_real;
-struct timespec startup_mono;
-#endif
-
 static inline void macauth_reserved() {
   struct dhcp_conn_t *conn = dhcp->firstusedconn;
   struct app_conn_t *appconn;
@@ -4783,7 +4791,7 @@ int chilli_main(int argc, char **argv) {
 #endif
 #endif
 
-  mainclock_tick();
+  start_tick = mainclock_tick();
 
   /* Create a tunnel interface */
   if (tun_new(&tun)) {

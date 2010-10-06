@@ -1553,7 +1553,6 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 		    username ? username : "");
       
       safe_write(fd, line, strlen(line));
-      
       close(fd);
     } else {
       log_err(errno, "could not open log file %s", _options.dnslog);
