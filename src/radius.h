@@ -241,6 +241,8 @@ int radius_new(struct radius_t **this,
 	       struct in_addr *proxyaddr, struct in_addr *proxymask,
 	       char* proxysecret);
 
+int radius_printqueue(int fd, struct radius_t *this);
+
 int radius_init_q(struct radius_t *this, int size);
 
 /* Delete existing radius instance */

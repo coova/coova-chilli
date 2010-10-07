@@ -67,8 +67,37 @@ int test_dhcp(int cnt) {
       *(uint16_t *)&packet[12] = htons(PKT_ETH_PROTO_IP); /* Ether Proto */
       *(uint8_t  *)&packet[14] = PKT_IP_VER_HLEN; /* ip version hlen */
       *(uint16_t *)&packet[16] = htons(len + 20); /* IP tot_len; ip + 2 */
+      *(uint16_t *)&packet[20] = 0; /* frag_off */
       *(uint8_t  *)&packet[23] = PKT_IP_PROTO_UDP; /* ip + 9; end + 20 */
+      *(uint8_t  *)&packet[26] = 192; /* ip + 12; */
+      *(uint8_t  *)&packet[27] = 168; /* ip + 12; */
+      *(uint8_t  *)&packet[28] = 10; /* ip + 12; */
+      *(uint8_t  *)&packet[29] = 1; /* ip + 12; */
+      *(uint8_t  *)&packet[30] = 10; /* ip + 16; */
+      *(uint8_t  *)&packet[31] = 1; 
+      *(uint8_t  *)&packet[32] = 0; 
+      *(uint8_t  *)&packet[33] = 2; 
+      *(uint16_t *)&packet[34] = htons(53); 
       *(uint16_t *)&packet[36] = htons(53); 
+      *(uint16_t *)&packet[38] = htons(len); 
+      chksum((struct pkt_iphdr_t *)&packet[14]);
+      memcpy(packet, bcast, 6);
+    }
+    else if (0) { /* radius */
+      uint16_t len = (rand() % 1000);
+      *(uint16_t *)&packet[12] = htons(PKT_ETH_PROTO_IP); /* Ether Proto */
+      *(uint8_t  *)&packet[14] = PKT_IP_VER_HLEN; /* ip version hlen */
+      *(uint16_t *)&packet[16] = htons(len + 20); /* IP tot_len; ip + 2 */
+      *(uint8_t  *)&packet[23] = PKT_IP_PROTO_UDP; /* ip + 9; */
+      *(uint8_t  *)&packet[26] = 127; /* ip + 12; */
+      *(uint8_t  *)&packet[27] = 0; /* ip + 12; */
+      *(uint8_t  *)&packet[28] = 0; /* ip + 12; */
+      *(uint8_t  *)&packet[29] = 1; /* ip + 12; */
+      *(uint8_t  *)&packet[30] = 10; /* ip + 16; */
+      *(uint8_t  *)&packet[31] = 1; 
+      *(uint8_t  *)&packet[32] = 0; 
+      *(uint8_t  *)&packet[33] = 1; 
+      *(uint16_t *)&packet[36] = htons(1812); 
       *(uint16_t *)&packet[38] = htons(len); 
       memcpy(packet, bcast, 6);
     }
@@ -100,7 +129,7 @@ int main(int argc, char **argv) {
 
   options_init();
 
-  _options.dhcpif = "eth0";
+  _options.dhcpif = "tap0";
 
   return test_dhcp(cnt);
 }

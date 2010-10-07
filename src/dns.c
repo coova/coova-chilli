@@ -33,31 +33,37 @@ dns_fullname(char *data, size_t dlen,
 
   if (lvl >= 15) 
     return -1;
+
+#if(_debug_)
+  log_dbg("dlen=%d reslen=%d olen=%d lvl=%d", 
+	  dlen, reslen, olen, lvl);
+#endif
   
   while (reslen-- > 0 && (l = *res++) != 0) {
-
     if ((l & 0xC0) == 0xC0) {
-      
-      unsigned short offset = ((l & ~0xC0) << 8) + *res;
-      
-      if (offset > olen) {
-	log_dbg("bad value");
-	return -1;
-      }
-      
+      if (reslen == 0) return -1;
+      else {
+	unsigned short offset = ((l & ~0xC0) << 8) + *res;
+	
+	if (offset > olen) {
+	  log_dbg("bad value");
+	  return -1;
+	}
+	
 #if(_debug_)
-      log_dbg("skip[%d] dlen=%d", offset, dlen);
+	log_dbg("skip[%d] dlen=%d", offset, dlen);
 #endif
-      
-      if (dns_fullname(d, dlen, 
-		       opkt + (size_t) offset, 
-		       olen - (size_t) offset, 
-		       opkt, olen, lvl+1))
-	return -1;
-      break;
+	
+	if (dns_fullname(d, dlen, 
+			 opkt + (size_t) offset, 
+			 olen - (size_t) offset, 
+			 opkt, olen, lvl+1))
+	  return -1;
+	break;
+      } 
     }
     
-    if (l >= dlen + 1 || l > reslen) {
+    if (l >= dlen || l >= reslen) {
       log_dbg("bad value");
       return -1;
     }
@@ -71,6 +77,7 @@ dns_fullname(char *data, size_t dlen,
     d += l; 
     dlen -= l;
     res += l;
+    reslen -= l;
     
     *d = '.';
     d += 1; 
@@ -171,7 +178,9 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   uint32_t ul;
   uint16_t us;
 
-  log_dbg("copy_res(left=%d olen=%d qsize=%d)", *left, olen, qsize);
+#if(_debug_)
+  log_dbg("dns_copy_res(left=%d olen=%d qsize=%d)", *left, olen, qsize);
+#endif
 
   if (dns_getname(&p_pkt, &len, (char *)name, sizeof(name), &namelen)) 
     return_error;

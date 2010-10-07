@@ -32,6 +32,8 @@
 #define inaddr(x)    (((struct sockaddr_in *)&ifr->x)->sin_addr)
 #define inaddr2(p,x) (((struct sockaddr_in *)&(p)->x)->sin_addr)
 
+#define _debug_ 1
+
 int tun_discover(struct tun_t *this) {
   net_interface netif;
   struct ifconf ic;
@@ -686,66 +688,51 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
   struct pkt_iphdr_t *iph;
   int ethsize = 0;
 
-  /*
-    if (_options.debug && c->idx == 0)
-    log_dbg("tun_decaps(idx=%d, len=%d)", tun(c->this,c->idx).ifindex, length);
-  */
+  char ethhdr = (tun(c->this, c->idx).flags & NET_ETHHDR) != 0;
+
+#if(_debug_)
+  log_dbg("tun_decaps(idx=%d, len=%d)", tun(c->this, c->idx).ifindex, length);
+#endif
 
   if (length < PKT_IP_HLEN)
     return -1;
 
+  if (ethhdr) {
+    
+    if (length < PKT_IP_HLEN + PKT_ETH_HLEN)
+      return -1;
+    
+    ethsize = PKT_ETH_HLEN;
+    iph = iphdr(packet);
+    
+  } else {
+    
+    iph = (struct pkt_iphdr_t *)packet;
+    
+  }
+
 #if defined(HAVE_NETFILTER_QUEUE) || defined(HAVE_NETFILTER_COOVA)
   if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
-
-    int ethhdr = (tun(c->this, c->idx).flags & NET_ETHHDR) != 0;
-
-    if (ethhdr) {
-
-      if (length < PKT_IP_HLEN + PKT_ETH_HLEN)
-	return -1;
-
-      ethsize = PKT_ETH_HLEN;
-      iph = (struct pkt_iphdr_t *)((char *)packet + PKT_ETH_HLEN);
-
-    } else {
-
-      iph = (struct pkt_iphdr_t *)packet;
-
-    }
-
     iph->daddr  = iph->daddr & ~(_options.mask.s_addr);
     iph->daddr |= _options.dhcplisten.s_addr & _options.mask.s_addr;
-
     chksum(iph);
   }
 #endif
 
   if (c->idx > 0) {
-
-    ethsize = PKT_ETH_HLEN;
-
-    if (length < PKT_IP_HLEN + PKT_ETH_HLEN)
-      return -1;
-    
-    iph = iphdr(packet);
-
 #ifdef ENABLE_NETNAT
-    {
-      struct pkt_udphdr_t *udph = udphdr(packet);
-      if (iph->daddr == tun(c->this, c->idx).address.s_addr &&
-	  ntohs(udph->dst) > 10000 && ntohs(udph->dst) < 30000) {
-	if (nat_undo(c->this, c->idx, packet, length))
-	  return -1;
-      }
+    struct pkt_udphdr_t *udph = udphdr(packet);
+    if (iph->daddr == tun(c->this, c->idx).address.s_addr &&
+	ntohs(udph->dst) > 10000 && ntohs(udph->dst) < 30000) {
+      if (nat_undo(c->this, c->idx, packet, length))
+	return -1;
     }
 #endif
     if ((iph->daddr & _options.mask.s_addr) != _options.net.s_addr) {
       return -1;
     }
-  } else {
-    iph = (struct pkt_iphdr_t *)packet;
-  }
-
+  } 
+  
   if (iph->version_ihl != PKT_IP_VER_HLEN) {
 #if(_debug_)
     log_dbg("dropping non-IPv4");

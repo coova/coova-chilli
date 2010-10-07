@@ -24,7 +24,7 @@ static uint8_t bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static uint8_t nmac[PKT_ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static int connections = 0;
 
-#define _debug_ 0
+#define _debug_ 1
 
 char *dhcp_state2name(int authstate) {
   switch(authstate) {
@@ -1326,239 +1326,253 @@ static int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
 
 static int
 dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
-  struct dns_packet_t *dnsp = dnspkt(pack);
 
-  size_t dlen = plen - DHCP_DNS_HLEN - sizeofudp(pack);
-  size_t olen = dlen;
-
-  uint16_t id      = ntohs(dnsp->id);
-  uint16_t flags   = ntohs(dnsp->flags);
-  uint16_t qdcount = ntohs(dnsp->qdcount);
-  uint16_t ancount = ntohs(dnsp->ancount);
-  uint16_t nscount = ntohs(dnsp->nscount);
-  uint16_t arcount = ntohs(dnsp->arcount);
-
-  uint8_t *dptr = (uint8_t *)dnsp->records;
-  uint8_t q[512];
-
-  int d = _options.debug; /* XXX: debug */
-  int i;
-
-  if (d) log_dbg("DNS ID:    %d", id);
-  if (d) log_dbg("DNS Flags: %d", flags);
-
-  if (!isReq) {
-    /* it was a query? shouldn't be */
-    if (((flags & 0x8000) >> 15) == 0) return 0;
+  if (plen < DHCP_DNS_HLEN + sizeofudp(pack)) {
+    
+    log_dbg("bad DNS packet of length %d", plen);
+    return -1;
+    
   } else {
-    /* it was a response? shouldn't be */
-    if (((flags & 0x8000) >> 15) == 1) return 0;
-  }
-
-  memset(q, 0, sizeof(q));
-
+    
+    struct dns_packet_t *dnsp = dnspkt(pack);
+    
+    size_t dlen = plen - DHCP_DNS_HLEN - sizeofudp(pack);
+    size_t olen = dlen;
+    
+    uint16_t id      = ntohs(dnsp->id);
+    uint16_t flags   = ntohs(dnsp->flags);
+    uint16_t qdcount = ntohs(dnsp->qdcount);
+    uint16_t ancount = ntohs(dnsp->ancount);
+    uint16_t nscount = ntohs(dnsp->nscount);
+    uint16_t arcount = ntohs(dnsp->arcount);
+    
+    uint8_t *dptr = (uint8_t *)dnsp->records;
+    uint8_t q[512];
+    
+    int d = _options.debug; /* XXX: debug */
+    int i;
+    
+    if (d) {
+#if(_debug_)
+      log_dbg("dhcp_dns plen=%d dlen=%d olen=%d", plen, dlen, olen);
+#endif
+      log_dbg("DNS ID:    %d", id);
+      log_dbg("DNS Flags: %d", flags);
+    }
+    
+    if (!isReq) {
+      /* it was a query? shouldn't be */
+      if (((flags & 0x8000) >> 15) == 0) return 0;
+    } else {
+      /* it was a response? shouldn't be */
+      if (((flags & 0x8000) >> 15) == 1) return 0;
+    }
+    
+    memset(q, 0, sizeof(q));
+    
 #undef  copyres
 #define copyres(isq,n)			        \
-  if (d) log_dbg(#n ": %d", n ## count);        \
-  for (i=0; i < n ## count; i++)                \
-    if (dns_copy_res(conn, isq, &dptr, &dlen,	\
-		     (uint8_t *)dnsp, olen,	\
-                     q, sizeof(q))) 		\
-    return isReq ? dhcp_nakDNS(conn,pack,plen) : 0;
-  
-  copyres(1,qd);
-  copyres(0,an);
-  copyres(0,ns);
-  copyres(0,ar);
-
-  if (d) log_dbg("left (should be zero): %d", dlen);
-
-  if (dlen) return 0;
-
-  if (isReq &&
-      flags   == 0x0100 && 
-      qdcount == 0x0001 &&
-      ancount == 0x0000 && 
-      nscount == 0x0000 &&
-      arcount == 0x0000) {
-
-    char *hostname = _options.uamhostname;
-    char *aliasname = _options.uamaliasname;
-
-    uint8_t *p = dnsp->records;
-
-    uint8_t query[256];
-    uint8_t reply[4];
-
-    int match = dhcp_matchDNS(q, query, sizeof(query), "logout");
-    if (match) {
-      memcpy(reply, &_options.uamlogout.s_addr, 4);
-    }
+    if (d) log_dbg(#n ": %d", n ## count);		\
+    for (i=0; i < n ## count; i++)			\
+      if (dns_copy_res(conn, isq, &dptr, &dlen,		\
+		       (uint8_t *)dnsp, olen,		\
+		       q, sizeof(q)))			\
+	return isReq ? dhcp_nakDNS(conn,pack,plen) : 0;
     
-    if (!match && hostname) {
-      match = dhcp_matchDNS(q, query, sizeof(query), hostname);
-      if (match) {
-	memcpy(reply, &_options.uamlisten.s_addr, 4);
-      }
-    }
+    copyres(1,qd);
+    copyres(0,an);
+    copyres(0,ns);
+    copyres(0,ar);
     
-    if (!match && aliasname) {
-      match = dhcp_matchDNS(q, query, sizeof(query), aliasname);
-      if (match) {
-	memcpy(reply, &_options.uamalias.s_addr, 4);
-      }
-    }
+    if (d) log_dbg("left (should be zero): %d", dlen);
     
-    if (!match && _options.domaindnslocal && _options.domain) {
-      int name_len = strlen((char *)q);
-      int domain_len = strlen(_options.domain);
+    if (dlen) return 0;
+    
+    if (isReq &&
+	flags   == 0x0100 && 
+	qdcount == 0x0001 &&
+	ancount == 0x0000 && 
+	nscount == 0x0000 &&
+	arcount == 0x0000) {
       
-      if (name_len > (domain_len + 1)) {
-	int off = name_len - domain_len;
-	
-	if (!memcmp(q + off, _options.domain, domain_len) &&
-	    q[off - 1] == '.') {
-	  
-	  /*
-	   * count (recent) dns requests vs responses to get an
-	   * overall picture of on-line status.
-	   */
-	  
-	  memcpy(reply, &_options.uamalias.s_addr, 4);
-	  match = 1;
+      char *hostname = _options.uamhostname;
+      char *aliasname = _options.uamaliasname;
+      
+      uint8_t *p = dnsp->records;
+      
+      uint8_t query[256];
+      uint8_t reply[4];
+      
+      int match = dhcp_matchDNS(q, query, sizeof(query), "logout");
+      if (match) {
+	memcpy(reply, &_options.uamlogout.s_addr, 4);
+      }
+      
+      if (!match && hostname) {
+	match = dhcp_matchDNS(q, query, sizeof(query), hostname);
+	if (match) {
+	  memcpy(reply, &_options.uamlisten.s_addr, 4);
 	}
       }
+      
+      if (!match && aliasname) {
+	match = dhcp_matchDNS(q, query, sizeof(query), aliasname);
+	if (match) {
+	  memcpy(reply, &_options.uamalias.s_addr, 4);
+	}
+      }
+      
+      if (!match && _options.domaindnslocal && _options.domain) {
+	int name_len = strlen((char *)q);
+	int domain_len = strlen(_options.domain);
+	
+	if (name_len > (domain_len + 1)) {
+	  int off = name_len - domain_len;
+	  
+	  if (!memcmp(q + off, _options.domain, domain_len) &&
+	      q[off - 1] == '.') {
+	    
+	    /*
+	     * count (recent) dns requests vs responses to get an
+	     * overall picture of on-line status.
+	     */
+	    
+	    memcpy(reply, &_options.uamalias.s_addr, 4);
+	    match = 1;
+	  }
+	}
+      }
+      
+      if (match) {
+	
+	uint8_t answer[PKT_BUFFER];
+	
+	struct pkt_ethhdr_t *ethh = ethhdr(pack);
+	struct pkt_iphdr_t  *iph  = iphdr(pack);
+	struct pkt_udphdr_t *udph = udphdr(pack);
+	
+	struct pkt_ethhdr_t *answer_ethh;
+	struct pkt_iphdr_t  *answer_iph;
+	struct pkt_udphdr_t *answer_udph;
+	struct dns_packet_t *answer_dns;
+	
+	size_t query_len = 0;
+	size_t udp_len;
+	size_t length;
+	
+	int n;
+	
+	p = dnsp->records;
+	
+	log_dbg("It was a matching query!\n");
+	
+	do {
+	  if (query_len < 256)
+	    query[query_len++] = *p;
+	}
+	while (*p++ != 0); /* TODO */
+	
+	for (n=0; n<4; n++) {
+	  if (query_len < 256)
+	    query[query_len++] = *p++;
+	}
+	
+	query[query_len++] = 0xc0;
+	query[query_len++] = 0x0c;
+	query[query_len++] = 0x00;
+	query[query_len++] = 0x01;
+	query[query_len++] = 0x00;
+	query[query_len++] = 0x01;
+	query[query_len++] = 0x00;
+	query[query_len++] = 0x00;
+	query[query_len++] = 0x01;
+	query[query_len++] = 0x2c;
+	query[query_len++] = 0x00;
+	query[query_len++] = 0x04;
+	memcpy(query + query_len, reply, 4);
+	query_len += 4;
+	
+	memcpy(answer, pack, plen); /* TODO */
+	
+	answer_ethh = ethhdr(answer);
+	answer_iph = iphdr(answer);
+	answer_udph = udphdr(answer);
+	answer_dns = dnspkt(answer);
+	
+	/* DNS Header */
+	answer_dns->id      = dnsp->id;
+	answer_dns->flags   = htons(0x8000);
+	answer_dns->qdcount = htons(0x0001);
+	answer_dns->ancount = htons(0x0001);
+	answer_dns->nscount = htons(0x0000);
+	answer_dns->arcount = htons(0x0000);
+	memcpy(answer_dns->records, query, query_len);
+	
+	/* UDP header */
+	udp_len = query_len + DHCP_DNS_HLEN + PKT_UDP_HLEN;
+	answer_udph->len = htons(udp_len);
+	answer_udph->src = udph->dst;
+	answer_udph->dst = udph->src;
+	
+	/* Ip header */
+	answer_iph->version_ihl = PKT_IP_VER_HLEN;
+	answer_iph->tos = 0;
+	answer_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
+	answer_iph->id = 0;
+	answer_iph->frag_off = 0;
+	answer_iph->ttl = 0x10;
+	answer_iph->protocol = 0x11;
+	answer_iph->check = 0; /* Calculate at end of packet */      
+	memcpy(&answer_iph->daddr, &iph->saddr, PKT_IP_ALEN);
+	memcpy(&answer_iph->saddr, &iph->daddr, PKT_IP_ALEN);
+	
+	/* Ethernet header */
+	memcpy(answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
+	memcpy(answer_ethh->src, &ethh->dst, PKT_ETH_ALEN);
+	
+	/* Work out checksums */
+	chksum(answer_iph);
+	
+	/* Calculate total length */
+	length = udp_len + sizeofip(answer);
+	
+	dhcp_send(dhcp, &dhcp->rawif, conn->hismac, answer, length);
+	return 0;
+      }
     }
     
-    if (match) {
-      
-      uint8_t answer[PKT_BUFFER];
-      
-      struct pkt_ethhdr_t *ethh = ethhdr(pack);
-      struct pkt_iphdr_t  *iph  = iphdr(pack);
-      struct pkt_udphdr_t *udph = udphdr(pack);
-
-      struct pkt_ethhdr_t *answer_ethh;
-      struct pkt_iphdr_t  *answer_iph;
-      struct pkt_udphdr_t *answer_udph;
-      struct dns_packet_t *answer_dns;
-
-      size_t query_len = 0;
-      size_t udp_len;
-      size_t length;
-
-      int n;
-
-      p = dnsp->records;
-      
-      log_dbg("It was a matching query!\n");
-      
-      do {
-	if (query_len < 256)
-	  query[query_len++] = *p;
-      }
-      while (*p++ != 0); /* TODO */
-      
-      for (n=0; n<4; n++) {
-	if (query_len < 256)
-	  query[query_len++] = *p++;
-      }
-      
-      query[query_len++] = 0xc0;
-      query[query_len++] = 0x0c;
-      query[query_len++] = 0x00;
-      query[query_len++] = 0x01;
-      query[query_len++] = 0x00;
-      query[query_len++] = 0x01;
-      query[query_len++] = 0x00;
-      query[query_len++] = 0x00;
-      query[query_len++] = 0x01;
-      query[query_len++] = 0x2c;
-      query[query_len++] = 0x00;
-      query[query_len++] = 0x04;
-      memcpy(query + query_len, reply, 4);
-      query_len += 4;
-      
-      memcpy(answer, pack, plen); /* TODO */
-      
-      answer_ethh = ethhdr(answer);
-      answer_iph = iphdr(answer);
-      answer_udph = udphdr(answer);
-      answer_dns = dnspkt(answer);
-      
-      /* DNS Header */
-      answer_dns->id      = dnsp->id;
-      answer_dns->flags   = htons(0x8000);
-      answer_dns->qdcount = htons(0x0001);
-      answer_dns->ancount = htons(0x0001);
-      answer_dns->nscount = htons(0x0000);
-      answer_dns->arcount = htons(0x0000);
-      memcpy(answer_dns->records, query, query_len);
-      
-      /* UDP header */
-      udp_len = query_len + DHCP_DNS_HLEN + PKT_UDP_HLEN;
-      answer_udph->len = htons(udp_len);
-      answer_udph->src = udph->dst;
-      answer_udph->dst = udph->src;
-      
-      /* Ip header */
-      answer_iph->version_ihl = PKT_IP_VER_HLEN;
-      answer_iph->tos = 0;
-      answer_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
-      answer_iph->id = 0;
-      answer_iph->frag_off = 0;
-      answer_iph->ttl = 0x10;
-      answer_iph->protocol = 0x11;
-      answer_iph->check = 0; /* Calculate at end of packet */      
-      memcpy(&answer_iph->daddr, &iph->saddr, PKT_IP_ALEN);
-      memcpy(&answer_iph->saddr, &iph->daddr, PKT_IP_ALEN);
-
-      /* Ethernet header */
-      memcpy(answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
-      memcpy(answer_ethh->src, &ethh->dst, PKT_ETH_ALEN);
-
-      /* Work out checksums */
-      chksum(answer_iph);
-
-      /* Calculate total length */
-      length = udp_len + sizeofip(answer);
-      
-      dhcp_send(dhcp, &dhcp->rawif, conn->hismac, answer, length);
-      return 0;
-    }
-  }
-
 #ifdef ENABLE_DNSLOG
-  if (isReq && _options.dnslog) {
-    int fd = open(_options.dnslog, O_WRONLY|O_APPEND|O_CREAT, 0666);
-    if (fd > 0) {
-      char line[512];
-      char *username = 0;
-      int authenticated = 0;
-      
-      if (conn->peer) {
-	struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-	username = appconn->s_state.redir.username;
-	authenticated = appconn->s_state.authenticated;
+    if (isReq && _options.dnslog) {
+      int fd = open(_options.dnslog, O_WRONLY|O_APPEND|O_CREAT, 0666);
+      if (fd > 0) {
+	char line[512];
+	char *username = 0;
+	int authenticated = 0;
+	
+	if (conn->peer) {
+	  struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+	  username = appconn->s_state.redir.username;
+	  authenticated = appconn->s_state.authenticated;
+	}
+	
+	safe_snprintf(line, sizeof(line),
+		      "%d,%.2X-%.2X-%.2X-%.2X-%.2X-%.2X,%s,%s,%d,%s\n",
+		      time(0),
+		      conn->hismac[0], conn->hismac[1],
+		      conn->hismac[2], conn->hismac[3],
+		      conn->hismac[4], conn->hismac[5],
+		      inet_ntoa(conn->hisip),
+		      q, authenticated,
+		      username ? username : "");
+	
+	safe_write(fd, line, strlen(line));
+	close(fd);
+      } else {
+	log_err(errno, "could not open log file %s", _options.dnslog);
       }
-      
-      safe_snprintf(line, sizeof(line),
-		    "%d,%.2X-%.2X-%.2X-%.2X-%.2X-%.2X,%s,%s,%d,%s\n",
-		    time(0),
-		    conn->hismac[0], conn->hismac[1],
-		    conn->hismac[2], conn->hismac[3],
-		    conn->hismac[4], conn->hismac[5],
-		    inet_ntoa(conn->hisip),
-		    q, authenticated,
-		    username ? username : "");
-      
-      safe_write(fd, line, strlen(line));
-      close(fd);
-    } else {
-      log_err(errno, "could not open log file %s", _options.dnslog);
     }
-  }
 #endif
+  }
 
   return 1;
 }
@@ -3656,7 +3670,9 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
     size_t hdrlen = sizeofeth2(tag);
     memcpy(packet + hdrlen, pack, len);
     length += hdrlen;
-    /*log_dbg("adding %d to IP frame", hdrlen);*/
+#if(_debug_)
+    log_dbg("adding %d to IP frame length %d", hdrlen, len);
+#endif
   }
 
   dhcp_ethhdr(conn, pkt, conn->hismac, dhcp_nexthop(this), PKT_ETH_PROTO_IP);

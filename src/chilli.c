@@ -4322,6 +4322,10 @@ static int cmdsock_accept(void *nullData, int sock) {
     ippool_print(csock, ippool);
     break;
 
+  case CMDSOCK_LIST_RADQUEUE:
+    radius_printqueue(csock, radius);
+    break;
+
   case CMDSOCK_ENTRY_FOR_IP:
     s = bfromcstr("");
     if (dhcp) dhcp_entry_for_ip(dhcp, s, &req.data.sess.ip,

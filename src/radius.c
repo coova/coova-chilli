@@ -52,34 +52,37 @@ void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pa
   radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen((char*)mac)); 
 }
 
-#if(deeplog)
-int radius_printqueue(struct radius_t *this) {
+int radius_printqueue(int fd, struct radius_t *this) {
+  char line[1024];
   int mx = 256;
   int n;
 
   if (this->qsize)
     mx = this->qsize;
 
-  log_dbg("next %d, first %d, last %d", 
-	 this->qnext, this->first, this ->last);
-
+  safe_snprintf(line, sizeof(line), "next %d, first %d, last %d\n", 
+		this->qnext, this->first, this->last);
+  
+  safe_write(fd, line, strlen(line));
+  
   for(n=0; n < mx; n++) {
     if (this->queue[n].state) {
-      log_dbg("n=%3d id=%3d state=%3d next=%3d prev=%3d %8d %8d %d",
-	      n, 
-	      this->queue[n].p.id,
-	      this->queue[n].state,
-	      this->queue[n].next,
-	      this->queue[n].prev,
-	      (int) this->queue[n].timeout.tv_sec,
-	      (int) this->queue[n].timeout.tv_usec,
-	      (int) this->queue[n].retrans);
+      safe_snprintf(line, sizeof(line), 
+		    "n=%3d id=%3d state=%3d next=%3d prev=%3d %8d %8d %d\n",
+		    n, 
+		    this->queue[n].p.id,
+		    this->queue[n].state,
+		    this->queue[n].next,
+		    this->queue[n].prev,
+		    (int) this->queue[n].timeout.tv_sec,
+		    (int) this->queue[n].timeout.tv_usec,
+		    (int) this->queue[n].retrans);
+      safe_write(fd, line, strlen(line));
     }
   }
-
+  
   return 0;
 }
-#endif
 
 /* 
  * radius_hmac_md5()
@@ -204,7 +207,7 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
 
 #if(deeplog)
   if (_options.debug) {
-    radius_printqueue(this);
+    radius_printqueue(0, this);
   }
 #endif
 
@@ -282,7 +285,7 @@ int radius_queue_in(struct radius_t *this, struct radius_packet_t *pack,
     log_dbg("sending radius packet (code=%d, id=%d, len=%d)\n",
 	    pack->code, pack->id, ntohs(pack->length));
 
-    radius_printqueue(this);
+    radius_printqueue(0, this);
   }
 #endif
 
@@ -335,7 +338,7 @@ radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
 #if(deeplog)
   if (_options.debug) {
     log_dbg("radius_queue_out");
-    radius_printqueue(this);
+    radius_printqueue(0, this);
   }
 #endif
   
@@ -358,7 +361,7 @@ radius_queue_out(struct radius_t *this, struct radius_packet_t *pack,
 #if(deeplog)
   if (_options.debug) {
     log_dbg("radius_queue_out end");
-    radius_printqueue(this);
+    radius_printqueue(0, this);
   }
 #endif
 
@@ -380,7 +383,7 @@ static int radius_queue_reschedule(struct radius_t *this, int idx) {
 #if(deeplog)
   if (_options.debug) {
     log_dbg("radius_reschedule");
-    radius_printqueue(this);
+    radius_printqueue(0, this);
   }
 #endif
 
@@ -418,7 +421,7 @@ static int radius_queue_reschedule(struct radius_t *this, int idx) {
   
 #if(deeplog)
   if (_options.debug) {
-    radius_printqueue(this);
+    radius_printqueue(0, this);
   }
 #endif
   
@@ -568,7 +571,7 @@ int radius_timeout(struct radius_t *this) {
   if (_options.debug) {
     log_dbg("radius_timeout(%d) %8d %8d", this->first, 
 	    (int)now.tv_sec, (int)now.tv_usec);
-    radius_printqueue(this);
+    radius_printqueue(0, this);
   }
 #endif
   
@@ -645,7 +648,7 @@ int radius_timeout(struct radius_t *this) {
 	     (int) this->queue[this->first].timeout.tv_sec, 
 	     (int) this->queue[this->first].timeout.tv_usec); 
     }
-    radius_printqueue(this);
+    radius_printqueue(0, this);
   }
 #endif
 
