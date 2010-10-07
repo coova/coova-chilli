@@ -803,7 +803,7 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
   */
 
   while (offset < len) {
-    t = (struct radius_attr_t *)(&pack->payload[offset]);
+    t = (struct radius_attr_t *) (&pack->payload[offset]);
 
     /*
     if (0) {
@@ -812,9 +812,9 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
     }
     */
 
-    offset +=  t->l;
+    offset += t->l;
 
-    if (t->t == 0)
+    if (t->t == 0 || t->l < 2)
       return -1;
     
     if (t->t != type) 
@@ -845,31 +845,6 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
   
   return -1; /* Not found */
 }
-
-/* 
- * radius_countattr()
- * Count the number of instances of an attribute in a packet.
- */
-int 
-radius_countattr(struct radius_packet_t *pack, uint8_t type) {
-  struct radius_attr_t *t;
-  size_t offset = 0;
-  int count = 0;
-  
-  /* Need to check pack -> length */
-  
-  do {
-    t = (struct radius_attr_t*)(&pack->payload[offset]);
-    if (t->t == type) {
-      count++;
-    }
-    offset +=  2 + t->l;
-  } while (offset < ntohs(pack->length));
-  
-  /*if (0) printf("Count %d\n", count);*/
-  return count;
-}
-
 
 /* 
  * radius_cmpattr()
