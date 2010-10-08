@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
 
   options_init();
 
-  _options.dhcpif = "tap0";
+  _options.dhcpif = "eth0";
 
   return test_dhcp(cnt);
 }
