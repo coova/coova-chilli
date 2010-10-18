@@ -1459,6 +1459,9 @@ static int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   case REDIR_ERROR_PROTOCOL:
     resp = "failed&reason=other";
     break;
+  case REDIR_REQERROR:
+    resp = "failed";
+    break;
   case REDIR_SUCCESS:
     resp = "success";
     break;
@@ -3171,8 +3174,12 @@ int redir_main(struct redir_t *redir,
   state = redir->cb_getstate(redir, address, baddress, &conn);
 
   if (state == -1) {
-    if (!_options.debug || !isui)
-      return redir_main_exit();
+
+    redir_reply(redir, &socket, &conn, REDIR_REQERROR, NULL, 
+		0, hexchal, NULL, NULL, NULL, 
+		0, conn.hismac, &conn.hisip, httpreq.qs);
+    
+    return redir_main_exit();
   }
 
   splash = (conn.s_params.flags & REQUIRE_UAM_SPLASH) == REQUIRE_UAM_SPLASH;
@@ -3761,7 +3768,7 @@ int redir_main(struct redir_t *redir,
 		0, hexchal, NULL, conn.s_state.redir.userurl, NULL, 
 		NULL, conn.hismac, &conn.hisip, httpreq.qs);
   }
-  
+
   return redir_main_exit();
 }
 
