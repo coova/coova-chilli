@@ -34,21 +34,20 @@ static int chilliauth_cb(struct radius_t *radius,
   size_t offset = 0;
 
   if (!pack) { 
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Radius request timed out");
+    log_err(0, "Radius request timed out");
     return 0;
   }
 
   if ((pack->code != RADIUS_CODE_ACCESS_REJECT) && 
       (pack->code != RADIUS_CODE_ACCESS_CHALLENGE) &&
       (pack->code != RADIUS_CODE_ACCESS_ACCEPT)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, 
-	    "Unknown radius access reply code %d", pack->code);
+    log_err(0, "Unknown radius access reply code %d", pack->code);
     return 0;
   }
 
   /* ACCESS-ACCEPT */
   if (pack->code != RADIUS_CODE_ACCESS_ACCEPT) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0, "Administrative-User Login Failed");
+    log_err(0, "Administrative-User Login Failed");
     return 0;
   }
 
@@ -57,9 +56,7 @@ static int chilliauth_cb(struct radius_t *radius,
 			     RADIUS_VENDOR_CHILLISPOT,
 			     RADIUS_ATTR_CHILLISPOT_CONFIG, 
 			     0, &offset)) {
-    char value[RADIUS_ATTR_VLEN+1] = "";
-    safe_strncpy(value, (const char *)attr->v.t, attr->l - 2);
-    printf("%s\n", value);
+    printf("%.*s\n", attr->l - 2, (const char *)attr->v.t);
   }
 
   return 0;
@@ -76,7 +73,10 @@ int static chilliauth() {
   int status;
   int ret=-1;
 
-  if (!_options.adminuser || !_options.adminpasswd) return 1;
+  if (!_options.adminuser || !_options.adminpasswd) {
+    log_err(0, "Must be used with --adminuser and --adminpasswd");
+    return 1;
+  }
 
   if (radius_new(&radius, &_options.radiuslisten, 0, 0, NULL, 0, NULL, NULL, NULL) ||
       radius_init_q(radius, 4)) {
@@ -129,7 +129,7 @@ int static chilliauth() {
 
     switch (status = select(maxfd + 1, &fds, NULL, NULL, &idleTime)) {
     case -1:
-      sys_err(LOG_ERR, __FILE__, __LINE__, errno, "select() returned -1!");
+      log_err(errno, "select() returned -1!");
       break;  
     case 0:
       radius_timeout(radius);
@@ -140,7 +140,7 @@ int static chilliauth() {
     if (status > 0) {
       if (FD_ISSET(radius->fd, &fds)) {
 	if (radius_decaps(radius, 0) < 0) {
-	  sys_err(LOG_ERR, __FILE__, __LINE__, 0, "radius_ind() failed!");
+	  log_err(0, "radius_ind() failed!");
 	}
 	else {
 	  ret = 0;
@@ -160,8 +160,10 @@ int main(int argc, char **argv)
 {
   options_init();
 
-  if (process_options(argc, argv, 1))
+  if (process_options(argc, argv, 1)) {
+    log_err(errno, "Exiting...");
     exit(1);
+  }
   
   return chilliauth();
 }
