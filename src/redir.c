@@ -736,6 +736,9 @@ static void redir_xmlchilli_reply (struct redir_t *redir, struct redir_conn_t *c
   case REDIR_ABORT_NAK:
     bcatcstr(b, "<Abort_nak>1</Abort_nak>\r\n");
     break;
+
+  case REDIR_REQERROR:
+    break;
     
   default:
     log_err(0, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
@@ -921,6 +924,9 @@ static void redir_wispr1_reply (struct redir_t *redir, struct redir_conn_t *conn
 	       "<ReplyMessage>Already logged on</ReplyMessage>\r\n");
     }
     bcatcstr(b, "</AuthenticationPollReply>\r\n");
+    break;
+
+  case REDIR_REQERROR:
     break;
     
   default:
@@ -1218,6 +1224,8 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
     bcatcstr(b, "</StatusReply>\r\n");
     break;
     
+  case REDIR_REQERROR:
+    break;
     
   default:
     log_err(0, "redir_wispr1_reply: Unhandled response code in switch: %d", res);

@@ -1178,6 +1178,34 @@ struct timeval* dhcp_timeleft(struct dhcp_t *this, struct timeval *tvp) {
   return tvp;
 }
 
+#ifdef ENABLE_IPWHITELIST
+int dhcp_ipwhitelist(uint8_t *pack, unsigned int dnat) {
+  struct pkt_iphdr_t *iph = iphdr(pack);
+  struct in_addr inp; 
+  FILE *fp; 
+
+  if ((fp = fopen(_options.ipwhitelist, "r")) == NULL) {
+    log_err(errno, "error openning %s", _options.ipwhitelist);
+    return 0;
+  }
+  
+  while (fread(&inp, sizeof(inp), 1, fp) != 0) {
+    if (inp.s_addr == (dnat ? iph->daddr : iph->saddr)) {
+      if (iph->protocol == PKT_IP_PROTO_TCP || 
+	  iph->protocol == PKT_IP_PROTO_UDP) {
+	log_dbg("DYNAMIC WHITELIST: %s\n", inet_ntoa(inp));
+	fclose(fp);
+	return 1;
+      }
+    }
+  }
+
+  fclose(fp);
+  log_dbg("NO WHITELIST: %s", inet_ntoa(inp));
+  return 0;
+}
+#endif
+  
 int check_garden(pass_through *ptlist, int ptcnt, uint8_t *pack, int dst) {
   struct pkt_iphdr_t *iph = iphdr(pack);
   struct pkt_tcphdr_t *tcph = tcphdr(pack);
@@ -1783,6 +1811,13 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
   }
 #endif
 
+#ifdef ENABLE_IPWHITELIST
+  /* dynamic list pass-through entry? */
+  if (_options.ipwhitelist &&
+      dhcp_ipwhitelist(pack, 1))
+    return 0;
+#endif
+
   if (iph->protocol == PKT_IP_PROTO_TCP) {
     if (tcph->dst == htons(DHCP_HTTP)
 #ifdef HAVE_SSL
@@ -1947,6 +1982,12 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 		     appconn->s_params.pass_through_count, pack, 0))
       return 0;
   }
+#endif
+
+#ifdef ENABLE_IPWHITELIST
+  if (_options.ipwhitelist &&
+      dhcp_ipwhitelist(pack, 0))
+    return 0;
 #endif
 
   if (do_reset && iph->protocol == PKT_IP_PROTO_TCP) {

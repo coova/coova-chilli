@@ -492,6 +492,9 @@ struct gengetopt_args_info
   char * dnslog_arg;	/**< @brief Log DNS requests to a file..  */
   char * dnslog_orig;	/**< @brief Log DNS requests to a file. original value given at command line.  */
   const char *dnslog_help; /**< @brief Log DNS requests to a file. help description.  */
+  char * ipwhitelist_arg;	/**< @brief Binary IP White List file.  */
+  char * ipwhitelist_orig;	/**< @brief Binary IP White List file original value given at command line.  */
+  const char *ipwhitelist_help; /**< @brief Binary IP White List file help description.  */
   char * kname_arg;	/**< @brief Enable the use of the coova kernel module instance of this namem.  */
   char * kname_orig;	/**< @brief Enable the use of the coova kernel module instance of this namem original value given at command line.  */
   const char *kname_help; /**< @brief Enable the use of the coova kernel module instance of this namem help description.  */
@@ -658,6 +661,7 @@ struct gengetopt_args_info
   unsigned int redirssl_given ;	/**< @brief Whether redirssl was given.  */
   unsigned int uamuissl_given ;	/**< @brief Whether uamuissl was given.  */
   unsigned int dnslog_given ;	/**< @brief Whether dnslog was given.  */
+  unsigned int ipwhitelist_given ;	/**< @brief Whether ipwhitelist was given.  */
   unsigned int kname_given ;	/**< @brief Whether kname was given.  */
 
 } ;

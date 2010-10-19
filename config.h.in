@@ -33,6 +33,9 @@
 /* Define to enable IEEE 802.3 */
 #undef ENABLE_IEEE8023
 
+/* Define to support file based whitelists */
+#undef ENABLE_IPWHITELIST
+
 /* Define to enable Chilli JSON */
 #undef ENABLE_JSON
 

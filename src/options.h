@@ -247,6 +247,10 @@ struct options_t {
   char *dnslog;
 #endif
 
+#ifdef ENABLE_IPWHITELIST
+  char *ipwhitelist;
+#endif
+
   /* Command-Socket */
   char *cmdsocket;
 

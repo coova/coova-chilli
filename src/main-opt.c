@@ -836,6 +836,14 @@ int main(int argc, char **argv) {
   if (args_info.dnslog_arg)
     log_err(0, "option dnslog given when no support built-in");
 #endif
+
+#ifdef ENABLE_IPWHITELIST
+  if (_options.ipwhitelist) free(_options.ipwhitelist);
+  _options.ipwhitelist = STRDUP(args_info.ipwhitelist_arg);
+#else
+  if (args_info.ipwhitelist_arg)
+    log_err(0, "option ipwhitelist given when no support built-in");
+#endif
   
   if (_options.uamurl) free(_options.uamurl);
   _options.uamurl = STRDUP(args_info.uamserver_arg);
