@@ -481,10 +481,21 @@ int tuntap_interface(struct _net_interface *netif) {
 
   /* Tun device, no packet info */
   ifr.ifr_flags = (_options.usetap ? IFF_TAP : IFF_TUN) | IFF_NO_PI; 
-
-#if defined(IFF_ONE_QUEUE) && defined(SIOCSIFTXQLEN)
-  ifr.ifr_flags |= IFF_ONE_QUEUE;
+  
+  ifr.ifr_flags = ifr.ifr_flags
+#ifdef IFF_MULTICAST
+    | IFF_MULTICAST
 #endif
+#ifdef IFF_BROADCAST
+    | IFF_BROADCAST
+#endif
+#ifdef IFF_PROMISC
+    | IFF_PROMISC
+#endif
+#if defined(IFF_ONE_QUEUE) && defined(SIOCSIFTXQLEN)
+    | IFF_ONE_QUEUE
+#endif
+    ;
 
   if (_options.tundev && *_options.tundev && 
       strcmp(_options.tundev, "tap") && strcmp(_options.tundev, "tun"))

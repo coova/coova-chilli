@@ -50,6 +50,11 @@ static int do_interval = 0;
 /* some IPv4LL/APIPA(rfc 3927) specific stuff for uamanyip */
 struct in_addr ipv4ll_ip;
 struct in_addr ipv4ll_mask;
+#ifdef ENABLE_SSDP
+#define SSDP_MCAST_ADDR ("239.255.255.250")
+#define SSDP_PORT 1900
+struct in_addr ssdp;
+#endif
 
 /* Forward declarations */
 static int acct_req(struct app_conn_t *conn, uint8_t status_type);
@@ -1936,6 +1941,46 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
     /*
      *  TODO: If within statip range, allow the packet through (?)
      */
+
+#ifdef ENABLE_SSDP
+    struct pkt_ethhdr_t *ethh = ethhdr(pack);
+
+    log_dbg("src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+	    "prot=%.4x",
+	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
+	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+	    ntohs(ethh->prot));
+
+    if (dst.s_addr == ssdp.s_addr ) {
+      /* TODO: also check that the source is from this machine in case we 
+       * are forwarding packets that we dont want to. */
+
+      if (_options.debug) {
+	size_t hlen = (ipph->version_ihl & 0x0f) << 2;
+	struct pkt_udphdr_t *udph = (struct pkt_udphdr_t *)(((void *)ipph) + hlen);
+	char *bufr = (char *)(((void *)udph) + sizeof(struct pkt_udphdr_t));
+	struct in_addr src;
+	
+	src.s_addr = ipph->saddr;
+
+	log_dbg("ssdp multicast from %s\n%.*s", inet_ntoa(src), ntohs(udph->len),bufr);
+      }
+      
+      /* This sends to a unicast MAC address but a multicast IP address.
+       */
+      struct dhcp_conn_t *conn = dhcp->firstusedconn;
+      while (conn) {
+	if (conn->inuse && conn->authstate == DHCP_AUTH_PASS) {
+	  /*
+	    log_dbg("sending to %s.", inet_ntoa(conn->hisip ));
+          */
+	  dhcp_data_req(conn, pack, len, ethhdr);
+	}
+	conn = conn->next;
+      }
+      return 0;
+    }      
+#endif
     
     if (_options.debug) 
       log_dbg("dropping packet with unknown destination: %s", inet_ntoa(dst));
@@ -4784,6 +4829,9 @@ int chilli_main(int argc, char **argv) {
   /* setup IPv4LL/APIPA network ip and mask for uamanyip exception */
   inet_aton("169.254.0.0", &ipv4ll_ip);
   inet_aton("255.255.0.0", &ipv4ll_mask);
+#ifdef ENABLE_SSDP
+  ssdp.s_addr = inet_addr(SSDP_MCAST_ADDR);
+#endif
 
   syslog(LOG_INFO, "CoovaChilli(ChilliSpot) %s. Copyright 2002-2005 Mondru AB. Licensed under GPL. "
 	 "Copyright 2006-2010 Coova Technologies, LLC <support@coova.com>. Licensed under GPL. "
