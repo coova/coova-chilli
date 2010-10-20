@@ -11,6 +11,8 @@
 * Reviewed use of all string functions, now including snprintf.c in bstring
 * Allow for the parsing of HTTP Proxy requests for clients configured with proxy
 * Compile time option ''--enable-dnslog'' to allow for run-time option ''--dnslog'' to log all DNS requests
+* Added compile time option ''--enable-ipwhitelist'' and runtime option --ipwhitelist to define a binary IP white list file (thanks to FON)
+* Added compile time support for SSDP Multicast with ''--enable-ssdp'' thanks to Colin McFarlane 
 * Consolidated DNS parsing functions into one
 
 == ChangeLog (CoovaChilli-v1.2.4 svn revision 371) ==
