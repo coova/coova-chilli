@@ -58,9 +58,8 @@ static int chilliauth_cb(struct radius_t *radius,
 			     0, &offset)) {
     printf("%.*s\n", attr->l - 2, (const char *)attr->v.t);
   }
-
-  return 0;
   
+  return 0;
 }
 
 int static chilliauth() {
@@ -158,6 +157,7 @@ int static chilliauth() {
 
 int main(int argc, char **argv)
 {
+  int ret;
   options_init();
 
   if (process_options(argc, argv, 1)) {
@@ -165,5 +165,7 @@ int main(int argc, char **argv)
     exit(1);
   }
   
-  return chilliauth();
+  ret = chilliauth();
+  options_cleanup();
+  return ret;
 }

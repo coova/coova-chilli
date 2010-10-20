@@ -1179,7 +1179,7 @@ struct timeval* dhcp_timeleft(struct dhcp_t *this, struct timeval *tvp) {
 }
 
 #ifdef ENABLE_IPWHITELIST
-int dhcp_ipwhitelist(uint8_t *pack, unsigned int dnat) {
+int dhcp_ipwhitelist(uint8_t *pack, unsigned char dst) {
   struct pkt_iphdr_t *iph = iphdr(pack);
   struct in_addr inp; 
   FILE *fp; 
@@ -1190,7 +1190,7 @@ int dhcp_ipwhitelist(uint8_t *pack, unsigned int dnat) {
   }
   
   while (fread(&inp, sizeof(inp), 1, fp) != 0) {
-    if (inp.s_addr == (dnat ? iph->daddr : iph->saddr)) {
+    if (inp.s_addr == (dst ? iph->daddr : iph->saddr)) {
       if (iph->protocol == PKT_IP_PROTO_TCP || 
 	  iph->protocol == PKT_IP_PROTO_UDP) {
 	log_dbg("DYNAMIC WHITELIST: %s\n", inet_ntoa(inp));
@@ -1812,7 +1812,6 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 #endif
 
 #ifdef ENABLE_IPWHITELIST
-  /* dynamic list pass-through entry? */
   if (_options.ipwhitelist &&
       dhcp_ipwhitelist(pack, 1))
     return 0;

@@ -161,9 +161,26 @@ int options_load(int argc, char **argv, bstring bt) {
     if (WIFEXITED(status) && WEXITSTATUS(status) == 2) exit(0);
     fd = open(file, O_RDONLY);
     if (fd <= 0) {
-      log_warn(0, "could not generate configuration (%s), sleeping one second", file);
       if (done_before) break;
-      sleep(1);
+      else {
+	char *offline = getenv("CHILLI_OFFLINE");
+
+	if (offline) {
+
+	  execl(
+#ifdef ENABLE_CHILLISCRIPT
+		SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig, 
+#else
+		offline,
+#endif
+		offline, (char *) 0);
+
+	  break;
+	} 
+
+	log_warn(0, "could not generate configuration (%s), sleeping one second", file);
+	sleep(1);
+      }
     }
   }
 
@@ -514,7 +531,6 @@ int process_options(int argc, char **argv, int minimal) {
   }
   
   umask(process_mask);
-  
   return !reload_options(argc, argv);
 }
 
@@ -533,4 +549,12 @@ int reload_options(int argc, char **argv) {
 void options_destroy() {
   if (_options._data) 
     free(_options._data);
+}
+
+void options_cleanup() {
+  char file[128];
+  chilli_binconfig(file, sizeof(file), getpid());
+  log_dbg("Removing %s", file);
+  if (remove(file)) log_dbg("remove(%s) failed", file);
+  options_destroy();
 }

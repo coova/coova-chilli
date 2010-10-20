@@ -559,10 +559,11 @@ int set_env(char *name, char type, void *value, int len) {
     break;
 
   case VAL_STRING:
-    if (len != 0) {
-      if (len > sizeof(s))
-	len = sizeof(s);
-      safe_strncpy(s, (char*)value, len);
+    if (len > 0) {
+      if (len > sizeof(s) - 1)
+	len = sizeof(s) - 1;
+      memcpy(s, (char*)value, len);
+      s[len]=0;
       v = s;
     } else {
       v = (char*)value;
@@ -2865,6 +2866,7 @@ void config_radius_session(struct session_params *params,
 
 #ifdef ENABLE_SESSGARDEN
     const char *uamallowed = "uamallowed=";
+    const int uamallowed_len = strlen(uamallowed);
 
     /* Always reset the per session passthroughs */
     params->pass_through_count = 0;
@@ -2873,9 +2875,9 @@ void config_radius_session(struct session_params *params,
     while (!radius_getnextattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
 			       RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
 			       0, &offset)) { 
-      size_t len = (size_t)attr->l-2;
-      char *val = (char *)attr->v.t;
-
+      size_t len = (size_t) attr->l - 2;
+      char *val = (char *) attr->v.t;
+      
       if (len == strlen(uamauth) && !memcmp(val, uamauth, len)) {
 	log_dbg("received require-uam-auth");
 	params->flags |= REQUIRE_UAM_AUTH;
@@ -2886,13 +2888,19 @@ void config_radius_session(struct session_params *params,
 	is_splash = 1;
       }
 #ifdef ENABLE_SESSGARDEN
-      else if (len > strlen(uamallowed) && len < 255 && !memcmp(val, uamallowed, strlen(uamallowed))) {
+      else if (len > uamallowed_len && len < 255 && !memcmp(val, uamallowed, uamallowed_len)) {
 	char name[256];
-	safe_strncpy(name, val, len);
+
+	/* copy and null-terminate */
+	len -= uamallowed_len;
+	val += uamallowed_len;
+	memcpy(name, val, len);
+	name[len]=0;
+
 	pass_throughs_from_string(params->pass_throughs,
 				  SESSION_PASS_THROUGH_MAX,
 				  &params->pass_through_count,
-				  name + strlen(uamallowed));
+				  name);
       }
 #endif
       else if (dhcpconn && len >= strlen(logout) && !memcmp(val, logout, strlen(logout))) {
@@ -2902,20 +2910,23 @@ void config_radius_session(struct session_params *params,
 	dhcp_release_mac(dhcp, dhcpconn->hismac, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
       }
     }
-
+    
     offset = 0;
     params->url[0]=0;
     while (!radius_getnextattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
 			       RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_REDIRECTION_URL, 
 			       0, &offset)) { 
-      size_t clen, nlen = (size_t)attr->l-2;
-      char *url = (char*)attr->v.t;
+      ssize_t clen, nlen = (ssize_t) attr->l - 2;
+      char *url = (char*) attr->v.t;
       clen = strlen((char*)params->url);
 
-      if (clen + nlen > sizeof(params->url)-1) 
-	nlen = sizeof(params->url)-clen-1;
+      if (clen + nlen > sizeof(params->url) - 1) 
+	nlen = sizeof(params->url) - clen - 1;
 
-      safe_strncpy((char*)(params->url + clen), url, nlen);
+      if (nlen > 0) {
+	memcpy(params->url + clen, url, nlen);
+	params->url[clen + nlen] = 0;
+      }
 
       if (!is_splash) {
 	params->flags |= REQUIRE_REDIRECT;
@@ -5256,17 +5267,9 @@ int chilli_main(int argc, char **argv) {
   }
 #endif
   
-  { /* clean up run-time files */
-    char file[128];
-
-    chilli_binconfig(file, sizeof(file), cpid);
-    log_dbg("Removing %s", file);
-    if (remove(file)) log_err(errno, file);
-  }
-
   selfpipe_finish();
 
-  options_destroy();
+  options_cleanup();
 
   return 0;
 }

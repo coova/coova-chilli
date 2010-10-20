@@ -281,6 +281,7 @@ int reload_options(int argc, char **argv);
 int options_save(char *file, bstring bt);
 void options_init();
 void options_destroy();
+void options_cleanup();
 
 #ifndef MAIN_FILE /* all main() files must implement _options */
 extern struct options_t _options;

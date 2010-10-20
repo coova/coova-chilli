@@ -169,7 +169,7 @@ static int redir_xmlencode(char *src, int srclen, char *dst, int dstsize) {
     }
     if (x) {
       if (i < dstsize - strlen(x)) {
-	safe_strncpy(dst + i, x, strlen(x));
+        memcpy(dst + i, x, strlen(x));
 	i += strlen(x);
       }
     }
