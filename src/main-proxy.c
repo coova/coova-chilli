@@ -80,11 +80,27 @@ static CURLM * curl_multi;
 static int still_running = 0;
 #endif
 
+static void print_requests() {
+  proxy_request * req = 0;
+  int i;
+
+  for (i=0; i < max_requests; i++) {
+    req = &requests[i];
+    log_info("%.3d. inuse=%d prev=%.3d next=%.3d url=%s fd=%d", 
+	     req->index, req->inuse,
+	     req->prev ? req->prev->index : -1,
+	     req->next ? req->next->index : -1,
+	     req->url ? (char *)req->url->data : "",
+	     req->conn.sock);
+  }
+}
+
 static proxy_request * get_request() {
   proxy_request * req = 0;
   int i;
 
-  if (!max_requests) {
+  if (!requests) {
+
     /* Initialize linked list */
     max_requests = 16; /* hard maximum! (should be configurable) */
 
@@ -109,14 +125,15 @@ static proxy_request * get_request() {
     num_requests_free--;
   }
   
+  log_dbg("connections free %d", num_requests_free);
+  
   if (!req) {
     /* problem */
     log_err(0,"out of connections");
+    print_requests();
     return 0;
   }
 
-  log_dbg("connections free %d", num_requests_free);
-  
   req->next = req->prev = 0;
   req->inuse = 1;
   return req;
@@ -900,7 +917,8 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
       redir_md_param(req->url, _options.uamsecret, "&");
     
     log_dbg("==> %s", req->url->data);
-    http_aaa(radius, req);
+    if (http_aaa(radius, req) < 0)
+      close_request(req);
     
   } else {
     log_err(0, "problem: %s", error);
@@ -941,6 +959,7 @@ int main(int argc, char **argv) {
   selfpipe = selfpipe_init();
 
   chilli_signals(&keep_going, &reload_config);
+  selfpipe_trap(SIGUSR2);
 
   /*
    *  Support a --register mode whereby all subsequent arguments are 
@@ -1019,7 +1038,7 @@ int main(int argc, char **argv) {
     
     timeout.tv_sec = 1;
     timeout.tv_usec = 0;
- 
+
     status = select(maxfd + 1, &fdread, &fdwrite, &fdexcep, &timeout);
 
     switch (status) {
@@ -1037,7 +1056,14 @@ int main(int argc, char **argv) {
 	socklen_t fromlen = sizeof(addr);
 	
 	if (FD_ISSET(selfpipe, &fdread)) {
-	  chilli_handle_signal(0, 0);
+	  int signo = chilli_handle_signal(0, 0);
+	  if (signo) {
+	    log_dbg("main-proxy signal %d", signo);
+	    switch(signo) {
+	    case SIGUSR2: print_requests(); break;
+	    default: break;
+	    }
+	  }
 	}
 
 	if (FD_ISSET(radius_auth->fd, &fdread)) {

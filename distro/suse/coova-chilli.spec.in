@@ -57,6 +57,16 @@ make clean
 %post
 /sbin/chkconfig --add chilli
 
+%pre
+grep ^chilli /etc/group >/dev/null
+if [ $? -ne 0 ]; then
+  %{_sbindir}/groupadd -r chilli
+fi
+grep ^chilli /etc/passwd >/dev/null
+if [ $? -ne 0 ]; then
+  %{_sbindir}/useradd -g chilli -r chilli
+fi
+
 %preun
 if [ $1 = 0 ]; then
         /sbin/service chilli stop > /dev/null 2>&1

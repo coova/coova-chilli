@@ -278,6 +278,7 @@ int chilli_handle_signal(void *ctx, int fd) {
   case SIGUSR1: _sigusr1(signo); break;
   case SIGTERM:
   case SIGINT:  _sigterm(signo); break;
+  default: return signo;
   }
   return 0;
 }
@@ -1962,8 +1963,9 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 	struct in_addr src;
 	
 	src.s_addr = ipph->saddr;
-
-	log_dbg("ssdp multicast from %s\n%.*s", inet_ntoa(src), ntohs(udph->len),bufr);
+	
+	log_dbg("ssdp multicast from %s\n%.*s", inet_ntoa(src), 
+		ntohs(udph->len), bufr);
       }
       
       /* This sends to a unicast MAC address but a multicast IP address.

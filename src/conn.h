@@ -36,6 +36,8 @@ struct conn_t {
   bstring write_buf;
   int write_pos;
 
+  time_t start_time;
+
 #ifdef HAVE_SSL
   openssl_con * sslcon;
 #endif
