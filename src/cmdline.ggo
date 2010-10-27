@@ -212,4 +212,6 @@ option "uamuissl"  - "Enable SSL/HTTPS support on the uamuiport" flag off
 option "dnslog"    - "Log DNS requests to a file." string no
 option "ipwhitelist" - "Binary IP White List file" string no
 
+option "layer3" - "Layer3 only" flag off
+
 option "kname" - "Enable the use of the coova kernel module instance of this namem" string no

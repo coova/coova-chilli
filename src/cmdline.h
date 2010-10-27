@@ -495,6 +495,8 @@ struct gengetopt_args_info
   char * ipwhitelist_arg;	/**< @brief Binary IP White List file.  */
   char * ipwhitelist_orig;	/**< @brief Binary IP White List file original value given at command line.  */
   const char *ipwhitelist_help; /**< @brief Binary IP White List file help description.  */
+  int layer3_flag;	/**< @brief Layer3 only (default=off).  */
+  const char *layer3_help; /**< @brief Layer3 only help description.  */
   char * kname_arg;	/**< @brief Enable the use of the coova kernel module instance of this namem.  */
   char * kname_orig;	/**< @brief Enable the use of the coova kernel module instance of this namem original value given at command line.  */
   const char *kname_help; /**< @brief Enable the use of the coova kernel module instance of this namem help description.  */
@@ -662,6 +664,7 @@ struct gengetopt_args_info
   unsigned int uamuissl_given ;	/**< @brief Whether uamuissl was given.  */
   unsigned int dnslog_given ;	/**< @brief Whether dnslog was given.  */
   unsigned int ipwhitelist_given ;	/**< @brief Whether ipwhitelist was given.  */
+  unsigned int layer3_given ;	/**< @brief Whether layer3 was given.  */
   unsigned int kname_given ;	/**< @brief Whether kname was given.  */
 
 } ;

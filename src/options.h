@@ -144,6 +144,7 @@ struct options_t {
   char *uamhostname;             /* Simple hostname (no dots) DNS name for uamlisten */
 
   /* booleans */
+  uint8_t layer3;                   /* Layer3 only support */
   uint8_t allowdyn:1;               /* Allow dynamic address allocation */
   uint8_t allowstat:1;              /* Allow static address allocation */
   uint8_t dhcpusemac:1;             /* Use given MAC or interface default */

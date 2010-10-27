@@ -92,6 +92,9 @@ struct dhcp_t; /* Forward declaration */
 #define DHCP_AUTH_AUTH_TOS    4
 #define DHCP_AUTH_DNAT        5
 #define DHCP_AUTH_SPLASH      6
+#ifdef ENABLE_LAYER3
+#define DHCP_AUTH_ROUTER      7
+#endif
 
 #define DHCP_DOMAIN_LEN      30
 

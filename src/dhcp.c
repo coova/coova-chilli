@@ -33,6 +33,9 @@ char *dhcp_state2name(int authstate) {
   case DHCP_AUTH_PASS:   return "pass";
   case DHCP_AUTH_DNAT:   return "dnat";
   case DHCP_AUTH_SPLASH: return "splash";
+#ifdef ENABLE_LAYER3
+  case DHCP_AUTH_ROUTER: return "router";
+#endif
   default:               return "unknown";
   }
 }

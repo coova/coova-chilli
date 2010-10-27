@@ -195,6 +195,7 @@ const char *gengetopt_args_info_help[] = {
   "      --uamuissl                Enable SSL/HTTPS support on the uamuiport  \n                                  (default=off)",
   "      --dnslog=STRING           Log DNS requests to a file.",
   "      --ipwhitelist=STRING      Binary IP White List file",
+  "      --layer3                  Layer3 only  (default=off)",
   "      --kname=STRING            Enable the use of the coova kernel module \n                                  instance of this namem",
     0
 };
@@ -411,6 +412,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamuissl_given = 0 ;
   args_info->dnslog_given = 0 ;
   args_info->ipwhitelist_given = 0 ;
+  args_info->layer3_given = 0 ;
   args_info->kname_given = 0 ;
 }
 
@@ -699,6 +701,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->dnslog_orig = NULL;
   args_info->ipwhitelist_arg = NULL;
   args_info->ipwhitelist_orig = NULL;
+  args_info->layer3_flag = 0;
   args_info->kname_arg = NULL;
   args_info->kname_orig = NULL;
   
@@ -882,7 +885,8 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->uamuissl_help = gengetopt_args_info_help[160] ;
   args_info->dnslog_help = gengetopt_args_info_help[161] ;
   args_info->ipwhitelist_help = gengetopt_args_info_help[162] ;
-  args_info->kname_help = gengetopt_args_info_help[163] ;
+  args_info->layer3_help = gengetopt_args_info_help[163] ;
+  args_info->kname_help = gengetopt_args_info_help[164] ;
   
 }
 
@@ -1563,6 +1567,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "dnslog", args_info->dnslog_orig, 0);
   if (args_info->ipwhitelist_given)
     write_into_file(outfile, "ipwhitelist", args_info->ipwhitelist_orig, 0);
+  if (args_info->layer3_given)
+    write_into_file(outfile, "layer3", 0, 0 );
   if (args_info->kname_given)
     write_into_file(outfile, "kname", args_info->kname_orig, 0);
   
@@ -2303,6 +2309,7 @@ cmdline_parser_internal (
         { "uamuissl",	0, NULL, 0 },
         { "dnslog",	1, NULL, 0 },
         { "ipwhitelist",	1, NULL, 0 },
+        { "layer3",	0, NULL, 0 },
         { "kname",	1, NULL, 0 },
         { 0,  0, 0, 0 }
       };
@@ -4484,6 +4491,18 @@ cmdline_parser_internal (
                 &(local_args_info.ipwhitelist_given), optarg, 0, 0, ARG_STRING,
                 check_ambiguity, override, 0, 0,
                 "ipwhitelist", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Layer3 only.  */
+          else if (strcmp (long_options[option_index].name, "layer3") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->layer3_flag), 0, &(args_info->layer3_given),
+                &(local_args_info.layer3_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "layer3", '-',
                 additional_error))
               goto failure;
           

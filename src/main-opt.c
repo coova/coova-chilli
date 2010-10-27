@@ -51,6 +51,9 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_CHILLIXML
   "ENABLE_CHILLIXML "
 #endif
+#ifdef ENABLE_CLUSTER
+  "ENABLE_CLUSTER "
+#endif
 #ifdef ENABLE_EWTAPI
   "ENABLE_EWTAPI "
 #endif
@@ -65,6 +68,9 @@ static const char *compile_options = "Compiled with "
 #endif
 #ifdef ENABLE_LARGELIMITS
   "ENABLE_LARGELIMITS "
+#endif
+#ifdef ENABLE_LAYER3
+  "ENABLE_LAYER3 "
 #endif
 #ifdef ENABLE_LEAKYBUCKET
   "ENABLE_LEAKYBUCKET "
@@ -86,6 +92,9 @@ static const char *compile_options = "Compiled with "
 #endif
 #ifdef ENABLE_SESSGARDEN
   "ENABLE_SESSGARDEN "
+#endif
+#ifdef ENABLE_SSDP
+  "ENABLE_SSDP "
 #endif
 #ifdef ENABLE_STATFILE
   "ENABLE_STATFILE "
@@ -181,6 +190,7 @@ int main(int argc, char **argv) {
     _options.debug = 0;
 
   /** simple configuration parameters **/
+  _options.layer3 = args_info.layer3_flag;
   _options.uid = args_info.uid_arg;
   _options.gid = args_info.gid_arg;
   _options.mtu = args_info.mtu_arg;

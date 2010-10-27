@@ -83,7 +83,7 @@ int loadstatus() {
 
   while (fread(&dhcpconn, sizeof(struct dhcp_conn_t), 1, file) == 1) {
     struct dhcp_conn_t *conn = 0;
-    struct ippoolm_t *newipm;
+    struct ippoolm_t *newipm = 0;
     int n;
 
     /* todo: read a md5 checksum or magic token */
@@ -137,8 +137,6 @@ int loadstatus() {
 	if (ippool_newip(ippool, &newipm, &dhcpconn.hisip, 1)) {
 	  if (ippool_newip(ippool, &newipm, &dhcpconn.hisip, 0)) {
 	    log_err(0, "Failed to allocate either static or dynamic IP address");
-	    fclose(file); 
-	    return -1;
 	  }
 	}
       }
@@ -167,10 +165,6 @@ int loadstatus() {
 	    /* initialize app_conn_t */
 	    memcpy(aconn, &appconn, sizeof(struct app_conn_t));
 	    conn->peer = aconn;
-	    newipm->peer = aconn;
-	    
-	    if (appconn.natip.s_addr)
-	      chilli_assign_snat(aconn, 1);
 
 	    /*
 	     * Fix time_t values:
@@ -184,11 +178,18 @@ int loadstatus() {
 	    localizetime(appconn.s_state.last_time);
 	    localizetime(appconn.s_state.uamtime);
 	    
-	    dhcp_set_addrs(conn, 
-			   &newipm->addr, &_options.mask, 
-			   &aconn->ourip, &aconn->mask,
-			   &_options.dns1, &_options.dns2, 
-			   _options.domain);
+	    if (newipm) {
+	      newipm->peer = aconn;
+	      
+	      if (appconn.natip.s_addr)
+		chilli_assign_snat(aconn, 1);
+	      
+	      dhcp_set_addrs(conn, 
+			     &newipm->addr, &_options.mask, 
+			     &aconn->ourip, &aconn->mask,
+			     &_options.dns1, &_options.dns2, 
+			     _options.domain);
+	    }
 	  }
 	  
 	  /* todo: read a md5 checksum or magic token */
