@@ -123,7 +123,7 @@ struct dhcp_conn_t {
   uint8_t noc2c:1;             /* Prevent client to client access using /32 subnets */
   uint8_t is_reserved:1;       /* If this is a static/reserved mapping */
   uint8_t padding:5;
-
+  
   time_t lasttime;             /* Last time we heard anything from client */
   uint8_t hismac[PKT_ETH_ALEN];/* Peer's MAC address */
   struct in_addr ourip;        /* IP address to listen to */

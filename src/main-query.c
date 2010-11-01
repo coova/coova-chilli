@@ -48,8 +48,8 @@ static cmd_info commands[] = {
   { CMDSOCK_DHCP_RELEASE,  "dhcp-release",  NULL },
   { CMDSOCK_AUTHORIZE,     "authorize",     NULL },
   { CMDSOCK_LOGIN,         "login",         NULL },
-  { CMDSOCK_DHCP_RELEASE,  "logout",        NULL },
-  { CMDSOCK_DHCP_RELEASE,  "logoff",        NULL },
+  { CMDSOCK_LOGOUT,        "logout",        NULL },
+  { CMDSOCK_LOGOUT,        "logoff",        NULL },
   { CMDSOCK_DHCP_DROP,     "drop",          NULL },
   { CMDSOCK_DHCP_DROP,     "block",         NULL },
 #ifdef ENABLE_CLUSTER
@@ -258,27 +258,28 @@ int main(int argc, char **argv) {
   for (s = 0; commands[s].command; s++) {
     if (!strcmp(cmd, commands[s].command)) {
       request.type = commands[s].type;
+
       switch(request.type) {
+
       case CMDSOCK_LOGIN:
+      case CMDSOCK_LOGOUT:
       case CMDSOCK_AUTHORIZE:
 	{
-	  int pos = argidx;
+	  int c = argc - argidx;
 	  
-	  argc -= argidx;
-	  
-	  while(argc > 0) {
+	  while(c > 0) {
 	    int i;
 	    
 	    for (i=0; i<count; i++) {
 	      
-	      if (!strcmp(argv[pos],args[i].name)) {
+	      if (!strcmp(argv[argidx],args[i].name)) {
 		
 		if (args[i].flag) {
 		  *(args[i].flag) |= args[i].flagbit;
 		}
 		
-		if (argc == 1 && args[i].length) {
-		  fprintf(stderr, "Argument %s requires a value\n", argv[pos]);
+		if (c == 1 && args[i].length) {
+		  fprintf(stderr, "Argument %s requires a value\n", argv[argidx]);
 		  return usage(argv[0]);
 		}
 		
@@ -286,27 +287,27 @@ int main(int argc, char **argv) {
 		case CMDSOCK_FIELD_NONE:
 		  break;
 		case CMDSOCK_FIELD_STRING:
-		  safe_strncpy(((char *)args[i].field), argv[pos+1], args[i].length);
+		  safe_strncpy(((char *)args[i].field), argv[argidx+1], args[i].length);
 		  break;
 		case CMDSOCK_FIELD_INTEGER:
 		  switch(args[i].length) {
 		  case 1:
-		    *((uint8_t *)args[i].field) |= (uint8_t)atoi(argv[pos+1]);
+		    *((uint8_t *)args[i].field) |= (uint8_t)atoi(argv[argidx+1]);
 		    break;
 		  case 2:
-		    *((uint16_t *)args[i].field) |= (uint16_t)atoi(argv[pos+1]);
+		    *((uint16_t *)args[i].field) |= (uint16_t)atoi(argv[argidx+1]);
 		    break;
 		  case 4:
-		    *((uint32_t *)args[i].field) |= (uint32_t)atol(argv[pos+1]);
+		    *((uint32_t *)args[i].field) |= (uint32_t)atol(argv[argidx+1]);
 		    break;
 		  case 8:
-		    *((uint64_t *)args[i].field) |= (uint64_t)atol(argv[pos+1]);
+		    *((uint64_t *)args[i].field) |= (uint64_t)atol(argv[argidx+1]);
 		    break;
 		  }
 		  break;
 		case CMDSOCK_FIELD_IPV4:
-		  if (!inet_aton(argv[pos+1], ((struct in_addr *)args[i].field))) {
-		    fprintf(stderr, "Invalid IP Address: %s\n", argv[pos+1]);
+		  if (!inet_aton(argv[argidx+1], ((struct in_addr *)args[i].field))) {
+		    fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx+1]);
 		    return usage(argv[0]);
 		  }
 		  break;
@@ -316,34 +317,22 @@ int main(int argc, char **argv) {
 	    }
 
 	    if (i == count) {
-	      fprintf(stderr, "Unknown argument: %s\n", argv[pos]);
+	      fprintf(stderr, "Unknown argument: %s\n", argv[argidx]);
 	      return usage(argv[0]);
 	    }
 
 	    if (args[i].length) {
-	      argc -= 2;
-	      pos += 2;
+	      c -= 2;
+	      argidx += 2;
 	    } else {
-	      argc --;
-	      pos ++;
+	      c --;
+	      argidx ++;
 	    }
 	  }
 	}
-	break;
-      case CMDSOCK_ENTRY_FOR_IP:
-	{
-	  /* Test for a valid ip argument. */
-  	  if (argc < argidx+1) {
-  	    fprintf(stderr, "%s requires an IP address argument\n", cmd);
-  	    return usage(argv[0]);
-  	  }
-	  
-	  if (!inet_aton(argv[argidx], &request.data.sess.ip)) {
-	    fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx]);
-	    return usage(argv[0]);
-	  }
-	}
-	break;
+	if (request.type != CMDSOCK_LOGOUT || argidx >= argc)
+	  break;
+	/* else, drop through */
       case CMDSOCK_DHCP_DROP:
       case CMDSOCK_DHCP_RELEASE:
       case CMDSOCK_ENTRY_FOR_MAC:
@@ -381,6 +370,20 @@ int main(int argc, char **argv) {
 	    request.data.mac[i] = temp[i];
 	  
 	  /* do another switch to pick up param configs for authorize */
+	}
+	break;
+      case CMDSOCK_ENTRY_FOR_IP:
+	{
+	  /* Test for a valid ip argument. */
+  	  if (argc < argidx+1) {
+  	    fprintf(stderr, "%s requires an IP address argument\n", cmd);
+  	    return usage(argv[0]);
+  	  }
+	  
+	  if (!inet_aton(argv[argidx], &request.data.sess.ip)) {
+	    fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx]);
+	    return usage(argv[0]);
+	  }
 	}
 	break;
       case CMDSOCK_ROUTE:

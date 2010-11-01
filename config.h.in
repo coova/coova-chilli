@@ -42,6 +42,9 @@
 /* Enable larger limits for use with non-embedded systems */
 #undef ENABLE_LARGELIMITS
 
+/* Define to enable Layer3 only support */
+#undef ENABLE_LAYER3
+
 /* Define to enable Chilli Leaky Bucket shaping */
 #undef ENABLE_LEAKYBUCKET
 

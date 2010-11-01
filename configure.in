@@ -327,6 +327,13 @@ if test x"$enable_ssdp" = xyes ; then
    AC_DEFINE(ENABLE_SSDP,1,[Define to enable Simple Service Discovery Protocol])
 fi
 
+AC_ARG_ENABLE(layer3, [AC_HELP_STRING([--enable-layer3],[Enable support for Layer3 only operation])], 
+  enable_layer3=$enableval, enable_layer3=no)
+
+if test x"$enable_layer3" = xyes ; then
+   AC_DEFINE(ENABLE_LAYER3,1,[Define to enable Layer3 only support])
+fi
+
 
 AC_ARG_ENABLE(netnat, [AC_HELP_STRING([--enable-netnat],[Enable net interface nat (experimental)])], 
   enable_netnat=$enableval, enable_netnat=no)

@@ -32,7 +32,7 @@
 #define inaddr(x)    (((struct sockaddr_in *)&ifr->x)->sin_addr)
 #define inaddr2(p,x) (((struct sockaddr_in *)&(p)->x)->sin_addr)
 
-#define _debug_ 1
+#define _debug_ 0
 
 int tun_discover(struct tun_t *this) {
   net_interface netif;
@@ -484,16 +484,16 @@ int tuntap_interface(struct _net_interface *netif) {
   
   ifr.ifr_flags = ifr.ifr_flags
 #ifdef IFF_MULTICAST
-    | IFF_MULTICAST
+     | IFF_MULTICAST
 #endif
 #ifdef IFF_BROADCAST
-    | IFF_BROADCAST
+     | IFF_BROADCAST
 #endif
 #ifdef IFF_PROMISC
-    | IFF_PROMISC
+     | IFF_PROMISC
 #endif
-#if defined(IFF_ONE_QUEUE) && defined(SIOCSIFTXQLEN)
-    | IFF_ONE_QUEUE
+#ifdef IFF_ONE_QUEUE
+     | IFF_ONE_QUEUE
 #endif
     ;
 
@@ -835,9 +835,6 @@ int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
 #elif defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__) || defined (__NetBSD__)
 
-  /*if (idx > 0) {
-    }*/
-
   return safe_write(tun(tun, idx).fd, pack, len);
 
 #elif defined (__sun__)
@@ -927,7 +924,9 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     len  -= ethlen;
   }
 
-  /*log_dbg("tun_encaps(%s) len=%d", tun(tun,idx).devname, len);*/
+#if(_debug_)
+  log_dbg("tun_encaps(%s) len=%d", tun(tun,idx).devname, len);
+#endif
 
   result = tun_write(tun, pack, len, idx);
 

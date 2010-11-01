@@ -22,7 +22,7 @@
 
 extern struct dhcp_t *dhcp;
 
-#define _debug_ 1
+#define _debug_ 0
 
 int
 dns_fullname(char *data, size_t dlen, 
@@ -202,19 +202,26 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   p_pkt += 2;
   len -= 2;
   
+#if(_debug_)
   log_dbg("It was a dns record type: %d class: %d", type, class);
+#endif
 
   /* if dnsparanoia, checks here */
 
   if (antidnstunnel) {
     switch (type) {
     case 1:/* A */ 
+#if(_debug_)
       log_dbg("A record");
+#endif
       break;
     case 5:/* CNAME */ 
+#if(_debug_)
       log_dbg("CNAME record");
+#endif
       break;
     default:
+#if(_debug_)
       if (_options.debug) switch(type) {
 	case 6:  log_dbg("SOA record"); break;
 	case 12: log_dbg("PTR record"); break;
@@ -222,6 +229,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	case 16: log_dbg("TXT record"); break;
 	default: log_dbg("Record type %d", type); break;
 	}
+#endif
       log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, namelen);
       return -1;
     }
@@ -231,7 +239,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     if (dns_fullname((char *)question, qsize, *pktp, *left, opkt, olen, 0))
       return_error;
     
-    log_dbg("Q: %s", question);
+    log_dbg("DNS: %s", question);
     
     *pktp = p_pkt;
     *left = len;
@@ -262,12 +270,16 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   switch (type) {
     
   case 1:/* A */
+#if(_debug_)
     log_dbg("A record");
+#endif
     if (_options.uamdomains && _options.uamdomains[0]) {
       int id;
       for (id=0; _options.uamdomains[id] && id < MAX_UAM_DOMAINS; id++) {
 
+#if(_debug_)
 	log_dbg("checking %s [%s]", _options.uamdomains[id], question);
+#endif
 
 	if (strlen((char *)question) >= strlen(_options.uamdomains[id]) &&
 	    !strcmp(_options.uamdomains[id],
@@ -294,6 +306,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 
   default:
 
+#if(_debug_)
     if (_options.debug) switch(type) {
     case 6:  log_dbg("SOA record"); break;
     case 12: log_dbg("PTR record"); break;
@@ -301,6 +314,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     case 16: log_dbg("TXT record"); break;
     default: log_dbg("Record type %d", type); break;
     }
+#endif
 
     if (antidnstunnel) {
       log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, rdlen);

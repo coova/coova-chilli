@@ -27,6 +27,8 @@
 #include <curl/easy.h>
 #endif
 
+#define _debug_ 0
+
 /*
  * Plans (todo):
  *  - Provide a simple RADIUS->HTTP AAA proxy (loosly based on WiFiDog). 
@@ -125,7 +127,9 @@ static proxy_request * get_request() {
     num_requests_free--;
   }
   
+#if(_debug_)
   log_dbg("connections free %d", num_requests_free);
+#endif
   
   if (!req) {
     /* problem */
@@ -176,7 +180,9 @@ static void close_request(proxy_request *req) {
   requests_free = req;
   num_requests_free++;
 
+#if(_debug_)
   log_dbg("connections free %d", num_requests_free);
+#endif
 }
 
 static int http_aaa_finish(proxy_request *req) {
@@ -184,7 +190,9 @@ static int http_aaa_finish(proxy_request *req) {
   struct radius_t *radius = req->radius;
 
 #ifdef USING_CURL
+#if(_debug_)
   log_dbg("calling curl_easy_cleanup()");
+#endif
   curl_multi_remove_handle(curl_multi, req->curl);
   curl_easy_cleanup(req->curl);
   req->curl = 0;
@@ -193,19 +201,25 @@ static int http_aaa_finish(proxy_request *req) {
 #endif
 
   if (req->data->slen) {
+#if(_debug_)
     log_dbg("Received: %s\n",req->data->data);
+#endif
     req->authorized = !memcmp(req->data->data, "Auth: 1", 7);
   }
 
   /* initialize response packet */
   switch(req->radius_req.code) {
   case RADIUS_CODE_ACCOUNTING_REQUEST:
+#if(_debug_)
     log_dbg("Accounting-Response");
+#endif
     radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCOUNTING_RESPONSE);
     break;
     
   case RADIUS_CODE_ACCESS_REQUEST:
+#if(_debug_)
     log_dbg("Access-%s", req->authorized ? "Accept" : "Reject");
+#endif
     radius_default_pack(radius, &req->radius_res, 
 			req->authorized ? RADIUS_CODE_ACCESS_ACCEPT :
 			RADIUS_CODE_ACCESS_REJECT);
@@ -288,7 +302,9 @@ static int http_aaa_finish(proxy_request *req) {
 		uint32_t v = (uint32_t) atoi(ptr+strlen(attrs[i].n));
 		if (v > 0) {
 		  radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, v, NULL, 0);
+#if(_debug_)
 		  log_dbg("Setting %s = %d", attrs[i].n, v);
+#endif
 		}
 	      }
 	      break;
@@ -296,7 +312,9 @@ static int http_aaa_finish(proxy_request *req) {
 	      {
 		radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, 0, 
 			       (uint8_t *)ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
+#if(_debug_)
 		log_dbg("Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
+#endif
 	      }
 	      break;
 	    }
@@ -381,17 +399,23 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
 #ifdef HAVE_OPENSSL
 
     if (cert && strlen(cert)) {
+#if(_debug_)
       log_dbg("using cert [%s]",cert);
+#endif
       curl_easy_setopt(curl, CURLOPT_SSLCERT, cert);
       curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, "PEM");
     }
 
     if (key && strlen(key)) {
+#if(_debug_)
       log_dbg("using key [%s]",key);
+#endif
       curl_easy_setopt(curl, CURLOPT_SSLKEY, key);
       curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, "PEM");
       if (keypwd && strlen(keypwd)) {
+#if(_debug_)
 	log_dbg("using key pwd [%s]",keypwd);
+#endif
 #ifdef CURLOPT_SSLCERTPASSWD
 	curl_easy_setopt(curl, CURLOPT_SSLCERTPASSWD, keypwd);
 #else
@@ -408,7 +432,9 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
 
     if (ca && strlen(ca)) {
 #ifdef CURLOPT_ISSUERCERT
+#if(_debug_)
       log_dbg("using ca [%s]",ca);
+#endif
       curl_easy_setopt(curl, CURLOPT_ISSUERCERT, ca);
       curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1);
 #else
@@ -518,7 +544,9 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
     while(CURLM_CALL_MULTI_PERFORM ==
 	  curl_multi_perform(curl_multi, &still_running));
 
+#if(_debug_)
     log_dbg("curl still running %d", still_running);
+#endif
 #endif
     
     return 0;
@@ -606,13 +634,17 @@ static void http_aaa_register(int argc, char **argv, int i) {
 
   if (http_aaa_setup(0, &req) == 0) {
 
+#if(_debug_)
     log_dbg("==> %s\npost:%s", req.url->data, req.post->data);
+#endif
 
 #ifdef USING_CURL
     curl_easy_perform(req.curl);
 #endif
 
+#if(_debug_)
     log_dbg("<== %s", req.data->data);
+#endif
 
 #ifdef USING_CURL
     curl_easy_cleanup(req.curl);
@@ -916,7 +948,9 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
     if (_options.uamsecret && _options.uamsecret[0])
       redir_md_param(req->url, _options.uamsecret, "&");
     
+#if(_debug_)
     log_dbg("==> %s", req->url->data);
+#endif
     if (http_aaa(radius, req) < 0)
       close_request(req);
     
@@ -1058,7 +1092,9 @@ int main(int argc, char **argv) {
 	if (FD_ISSET(selfpipe, &fdread)) {
 	  int signo = chilli_handle_signal(0, 0);
 	  if (signo) {
+#if(_debug_)
 	    log_dbg("main-proxy signal %d", signo);
+#endif
 	    switch(signo) {
 	    case SIGUSR2: print_requests(); break;
 	    default: break;
@@ -1086,7 +1122,9 @@ int main(int argc, char **argv) {
 	   *    ---> Accounting
 	   */
 	  
+#if(_debug_)
 	  log_dbg("received accounting");
+#endif
 	  
 	  if ((status = recvfrom(radius_acct->fd, &radius_pack, sizeof(radius_pack), 0, 
 			       (struct sockaddr *) &addr, &fromlen)) <= 0) {
@@ -1102,11 +1140,15 @@ int main(int argc, char **argv) {
       while(CURLM_CALL_MULTI_PERFORM ==
 	    curl_multi_perform(curl_multi, &still_running));
 
+#if(_debug_)
       log_dbg("curl still running %d", still_running);
+#endif
       
       while ((msg = curl_multi_info_read(curl_multi, &msgs_left))) {
 
+#if(_debug_)
 	log_dbg("curl messages left %d", msgs_left);
+#endif
 
 	if (msg->msg == CURLMSG_DONE) {
 	  
@@ -1118,7 +1160,9 @@ int main(int argc, char **argv) {
 	  
 	  if (found) {
 	    --idx;
+#if(_debug_)
 	    log_dbg("HTTP completed with status %d\n", msg->data.result);
+#endif
 	    http_aaa_finish(&requests[idx]);
 	  } else {
 	    log_err(0, "Could not find request in queue");

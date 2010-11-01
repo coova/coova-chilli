@@ -530,8 +530,10 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
 
 #ifdef ENABLE_PROXYVSA
   if (_options.proxy_loc[0].attr) {
-    
+
+#if(_debug_)    
     log_dbg("vsalen %d", conn->s_state.redir.vsalen);
+#endif
     
     if (conn->s_state.redir.vsalen) {
       uint16_t len = conn->s_state.redir.vsalen;
@@ -1367,9 +1369,9 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   bcatcstr(s, "\r\n\r\n");
   bconcat(s, json);
 
-  if (_options.debug) {
-    log_dbg("sending json: %s\n", json->data);
-  }
+#if(_debug_)    
+  log_dbg("sending json: %s\n", json->data);
+#endif
 
   bdestroy(json);
   bdestroy(tmp);
@@ -1830,7 +1832,9 @@ static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring
 
   safe_strncpy(sstr + len, "=", sizeof(sstr) - len);
 
+#if(_debug_)    
   log_dbg("getparam(%s)", sstr);
+#endif
 
   if (!(p1 = strcasestr(src, sstr))) return -1;
   p1 += strlen(sstr);
@@ -2094,7 +2098,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	}
       } else if (linelen == 0) { 
 	/* end of headers */
+#if(_debug_)    
 	log_dbg("end of http-request");
+#endif
 	done = 1;
 	eoh = 1;
 	break;
@@ -2966,7 +2972,9 @@ static int _redir_close(int infd, int outfd) {
 }
 
 static int _redir_close_exit(int infd, int outfd) {
+#if(_debug_)    
   log_dbg("close_exit");
+#endif
   _redir_close(infd,outfd);
   chilli_freeconn();
   dhcp_free(dhcp);
@@ -3487,7 +3495,10 @@ int redir_main(struct redir_t *redir,
   }
 
   termstate = REDIR_TERM_PROCESS;
-  if (optionsdebug) log_dbg("Processing received request");
+
+#if(_debug_)
+  log_dbg("Processing received request");
+#endif
 
   /* default hexchal for use in replies */
   redir_chartohex(conn.s_state.redir.uamchal, hexchal, REDIR_MD5LEN);
@@ -3553,8 +3564,9 @@ int redir_main(struct redir_t *redir,
       redir_radius(redir, &address->sin_addr, &conn, reauth);
       termstate = REDIR_TERM_REPLY;
 
-      if (optionsdebug) 
-	log_dbg("Received RADIUS reply");
+#if(_debug_)
+      log_dbg("Received RADIUS reply");
+#endif
     }
 
     if (conn.response == REDIR_SUCCESS) { /* Accept-Accept */
@@ -3597,7 +3609,7 @@ int redir_main(struct redir_t *redir,
 		     (conn.response == REDIR_CHALLENGE ? 0 : REDIR_MSG_NSESSIONID));
     }    
 
-    if (optionsdebug) log_dbg("-->> Msg userurl=[%s]\n",conn.s_state.redir.userurl);
+    log_dbg("-->> Msg userurl=[%s]\n",conn.s_state.redir.userurl);
     return redir_main_exit();
   }
 
@@ -3701,8 +3713,7 @@ int redir_main(struct redir_t *redir,
    *  It was not a request for a known path. 
    *  It must be an original request 
    */
-  if (optionsdebug) 
-    log_dbg("redir_accept: Original request");
+  log_dbg("redir_accept: Original request");
 
 
   /*
@@ -3732,7 +3743,9 @@ int redir_main(struct redir_t *redir,
     redir_msg_send(REDIR_MSG_OPT_REDIR);
   }
 
+#if(_debug_)
   log_dbg("---->>> challenge: %s", hexchal);
+#endif
 
   if (_options.macreauth && !conn.s_state.authenticated) {
     msg.mtype = REDIR_MACREAUTH;

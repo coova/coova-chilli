@@ -241,10 +241,15 @@ int net_open(net_interface *netif) {
   net_close(netif);
   net_gflags(netif);
 
-  if (!(netif->devflags & IFF_UP) || !(netif->devflags & IFF_RUNNING)) {
+  if (
+#ifdef ENABLE_LAYER3
+      !_options.layer3 &&
+#endif
+      ( !(netif->devflags & IFF_UP) || !(netif->devflags & IFF_RUNNING) )) {
     struct in_addr noaddr;
     net_sflags(netif, netif->devflags | IFF_NOARP);
     memset(&noaddr, 0, sizeof(noaddr));
+    log_dbg("removing ip address from %s", netif->devname);
     dev_set_address(netif->devname, &noaddr, NULL, NULL);
   }
 
@@ -986,7 +991,8 @@ int net_open_eth(net_interface *netif) {
   memset(&ifr, 0, sizeof(ifr));
 
   /* Create socket */
-  if ((netif->fd = socket(PF_PACKET, SOCK_RAW, htons(netif->protocol))) < 0) {
+  if ((netif->fd = socket(PF_PACKET, SOCK_RAW, 
+			  htons(netif->protocol))) < 0) {
     if (errno == EPERM) {
       log_err(errno, "Cannot create raw socket. Must be root.");
     }
@@ -1003,12 +1009,14 @@ int net_open_eth(net_interface *netif) {
   coe(netif->fd);
 
   option = 1;
-  if (net_setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY, &option, sizeof(option)) < 0)
+  if (net_setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY, 
+		     &option, sizeof(option)) < 0)
     return -1;
 
   /* Enable reception and transmission of broadcast frames */
   option = 1;
-  if (net_setsockopt(netif->fd, SOL_SOCKET, SO_BROADCAST, &option, sizeof(option)) < 0)
+  if (net_setsockopt(netif->fd, SOL_SOCKET, SO_BROADCAST, 
+		     &option, sizeof(option)) < 0)
     return -1;
 
   if (_options.sndbuf > 0) {
@@ -1103,7 +1111,8 @@ int net_open_eth(net_interface *netif) {
     mr.mr_ifindex = netif->ifindex;
     mr.mr_type = PACKET_MR_PROMISC;
 
-    if (net_setsockopt(netif->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, (char *)&mr, sizeof(mr)) < 0)
+    if (net_setsockopt(netif->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, 
+		       (char *)&mr, sizeof(mr)) < 0)
       return -1;
   }
 #endif

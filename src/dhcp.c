@@ -24,7 +24,9 @@ static uint8_t bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 static uint8_t nmac[PKT_ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static int connections = 0;
 
-#define _debug_ 1
+extern struct ippool_t *ippool;
+
+#define _debug_ 0
 
 char *dhcp_state2name(int authstate) {
   switch(authstate) {
@@ -34,7 +36,7 @@ char *dhcp_state2name(int authstate) {
   case DHCP_AUTH_DNAT:   return "dnat";
   case DHCP_AUTH_SPLASH: return "splash";
 #ifdef ENABLE_LAYER3
-  case DHCP_AUTH_ROUTER: return "router";
+  case DHCP_AUTH_ROUTER: return "layer2";
 #endif
   default:               return "unknown";
   }
@@ -592,10 +594,18 @@ int dhcp_newconn(struct dhcp_t *this,
 #ifdef ENABLE_IEEE8021Q
   if (pkt) dhcp_checktag(*conn, pkt);
 #endif
-  
-  /* Inform application that connection was created */
-  if (this->cb_connect)
-    this->cb_connect(*conn);
+
+#ifdef ENABLE_LAYER3
+  if (_options.layer3) {
+    (*conn)->authstate = DHCP_AUTH_ROUTER;
+    (*conn)->dns1.s_addr = _options.dns1.s_addr;
+    (*conn)->dns2.s_addr = _options.dns2.s_addr;
+  }
+  else 
+#endif
+    /* Inform application that connection was created */
+    if (this->cb_connect)
+      this->cb_connect(*conn);
 
   return 0; /* Success */
 }
@@ -762,8 +772,6 @@ static int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
   return nfq_set_verdict(qh, id, result, 0, NULL);
 }
 
-extern struct ippool_t *ippool;
-
 static int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 			 struct nfq_data *nfa, void *cbdata) {
   struct nfqnl_msg_packet_hdr *ph;
@@ -855,7 +863,8 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
     return -1;
   }
 
-  if (net_init(&dhcp->rawif, interface, ETH_P_ALL, promisc, usemac ? mac : 0) < 0) {
+  if (net_init(&dhcp->rawif, interface, ETH_P_ALL, 
+	       promisc, usemac ? mac : 0) < 0) {
     free(dhcp);
     return -1; 
   }
@@ -1096,7 +1105,8 @@ int dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug) {
     return -1;
   }
   
-  memcpy(dhcp->authip, &_options.uamserver, sizeof(struct in_addr) * _options.uamserverlen);
+  memcpy(dhcp->authip, &_options.uamserver, 
+	 sizeof(struct in_addr) * _options.uamserverlen);
 
   if (ethers && *ethers) {
     int fd = open(ethers, O_RDONLY);
@@ -1370,7 +1380,6 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     size_t dlen = plen - DHCP_DNS_HLEN - sizeofudp(pack);
     size_t olen = dlen;
     
-    uint16_t id      = ntohs(dnsp->id);
     uint16_t flags   = ntohs(dnsp->flags);
     uint16_t qdcount = ntohs(dnsp->qdcount);
     uint16_t ancount = ntohs(dnsp->ancount);
@@ -1380,16 +1389,18 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     uint8_t *dptr = (uint8_t *)dnsp->records;
     uint8_t q[512];
     
-    int d = _options.debug; /* XXX: debug */
     int i;
     
-    if (d) {
 #if(_debug_)
-      log_dbg("dhcp_dns plen=%d dlen=%d olen=%d", plen, dlen, olen);
+    uint16_t id      = ntohs(dnsp->id);
+
+    log_dbg("dhcp_dns plen=%d dlen=%d olen=%d", plen, dlen, olen);
+    log_dbg("DNS ID:    %d", id);
+    log_dbg("DNS Flags: %d", flags);
+    int d = 1;
+#else
+    int d = 0;
 #endif
-      log_dbg("DNS ID:    %d", id);
-      log_dbg("DNS Flags: %d", flags);
-    }
     
     if (!isReq) {
       /* it was a query? shouldn't be */
@@ -1414,8 +1425,10 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     copyres(0,an);
     copyres(0,ns);
     copyres(0,ar);
-    
-    if (d) log_dbg("left (should be zero): %d", dlen);
+
+#if(_debug_)
+    log_dbg("left (should be zero): %d", dlen);
+#endif
     
     if (dlen) return 0;
     
@@ -1495,7 +1508,9 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 	
 	p = dnsp->records;
 	
+#if(_debug_)
 	log_dbg("It was a matching query!\n");
+#endif
 	
 	do {
 	  if (query_len < 256)
@@ -1693,7 +1708,11 @@ dhcp_dnsDNAT(struct dhcp_conn_t *conn,
       udph->dst == htons(DHCP_DNS)) {
 
     if (this->anydns) {
-      if (iph->daddr != conn->dns1.s_addr && 
+      if (
+#ifdef ENABLE_LAYER3
+	  ! _options.layer3 &&
+#endif
+	  iph->daddr != conn->dns1.s_addr && 
 	  iph->daddr != conn->dns2.s_addr) {
 	conn->dnatdns = iph->daddr;
 	iph->daddr = conn->dns1.s_addr;
@@ -1703,8 +1722,12 @@ dhcp_dnsDNAT(struct dhcp_conn_t *conn,
       }
     }
 
-    if (!dhcp_dns(conn, pack, len, 1)) 
+    if (!dhcp_dns(conn, pack, len, 1)) {
+#if(_debug_)
+      log_dbg("dhcp_dns()");
+#endif
       return -1; /* Drop DNS */
+    }
 
     return 1; /* Is allowed DNS */
   }
@@ -1735,8 +1758,12 @@ dhcp_dnsunDNAT(struct dhcp_conn_t *conn,
       *do_checksum = 1;
     }
 
-    if (!dhcp_dns(conn, pack, len, 0)) 
+    if (!dhcp_dns(conn, pack, len, 0)) {
+#if(_debug_)
+      log_dbg("dhcp_dns()");
+#endif
       return -1; /* Is not allowed DNS */
+    }
 
     return 1; /* Is allowed DNS */
   }
@@ -1787,10 +1814,10 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
   }
 
   /* shouldn't ever get here
-  if ( (iph->protocol == PKT_IP_PROTO_TCP) &&
-       (_options.uamalias.s_addr) &&
-       (iph->daddr == _options.uamalias.s_addr) )
-    return 0; 
+     if ( (iph->protocol == PKT_IP_PROTO_TCP) &&
+     (_options.uamalias.s_addr) &&
+     (iph->daddr == _options.uamalias.s_addr) )
+     return 0; 
   */
 
   /* Was it a request for a pass-through entry? */
@@ -1836,7 +1863,8 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
     } else if (do_reset) {
       /* otherwise, RESET and drop */
 #if(_debug_)
-      log_dbg("Resetting connection on port %d->%d", ntohs(tcph->src), ntohs(tcph->dst));
+      log_dbg("Resetting connection on port %d->%d", 
+	      ntohs(tcph->src), ntohs(tcph->dst));
 #endif
       dhcp_sendRESET(conn, pack, 1);
     }
@@ -2028,7 +2056,9 @@ dhcp_getdefault(uint8_t *pack) {
  * Create a new typed DHCP packet
  */
 int
-dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req, struct dhcp_conn_t *conn) {
+dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req, 
+		struct dhcp_conn_t *conn) {
+
   struct dhcp_t *this = conn->parent;
 
   struct dhcp_packet_t *req_dhcp = dhcppkt(req);
@@ -2751,6 +2781,9 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 
   char do_checksum = 0;
   char allowed = 0;
+  char has_ip = 0;
+
+  int authstate = 0;
 
   if (len < PKT_IP_HLEN + PKT_ETH_HLEN + 4)
     return 0;
@@ -2810,6 +2843,12 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
        (pack_iph->daddr == ourip.s_addr)) &&
       ((pack_iph->protocol == PKT_IP_PROTO_UDP) &&
        (pack_udph->dst == htons(DHCP_BOOTPS)))) {
+#ifdef ENABLE_LAYER3
+    if (_options.layer3) {
+      log_dbg("ignoring layer2 dhcp/bootps request");
+      return 0;
+    }
+#endif
     log_dbg("dhcp/bootps request being processed");
     return dhcp_getreq(this, pack, len);
   }
@@ -2833,7 +2872,11 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     log_dbg("Address not found (%s)", inet_ntoa(reqaddr)); 
     
     /* Do we allow dynamic allocation of IP addresses? */
-    if (!this->allowdyn && !_options.uamanyip) {
+    if (!this->allowdyn && !_options.uamanyip
+#ifdef ENABLE_LAYER3
+	&& !_options.layer3
+#endif
+	) {
       log_dbg("dropping packet; no dynamic ip and no anyip");
       return 0; 
     }
@@ -2845,18 +2888,84 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     }
   }
 
-  /* Request an IP address 
-  if (_options.uamanyip && 
-      conn->authstate == DHCP_AUTH_NONE) {
-    this->cb_request(conn, &pack_iph->saddr);
-  } */
-  
   /* Return if we do not know peer */
   if (!conn) {
     log_dbg("dropping packet; no peer");
     return 0;
   }
 
+#ifdef ENABLE_LAYER3
+  /*
+   *  A bit of a hack to decouple the one-to-one relationship
+   *  of "dhcp connections" and "app connections". Look for the 
+   *  app session based on IP (Layer3) and adjust authstate.
+   */
+  switch (conn->authstate) {
+  case DHCP_AUTH_ROUTER:
+    {
+      struct app_conn_t *appconn = 0;
+      struct ippoolm_t *ipm = 0;
+      struct in_addr src;
+
+      src.s_addr = pack_iph->saddr;
+
+      if (ippool_getip(ippool, &ipm, &src)) {
+	log_dbg("new router %s", inet_ntoa(src));
+	if (ippool_newip(ippool, &ipm, &src, 1)) {
+	  if (ippool_newip(ippool, &ipm, &src, 0)) {
+	    log_err(0, "Failed to allocate either static or dynamic IP address");
+	    return -1;
+	  }
+	}
+      }
+
+      if (!ipm) {
+	log_dbg("unknown ip");
+	return -1;
+      }
+      
+      if ((appconn = (struct app_conn_t *)ipm->peer) == NULL) {
+	if (chilli_getconn(&appconn, src.s_addr, 0, 0)) {
+	  if (chilli_connect(&appconn, conn)) {
+	    log_err(0, "chilli_connect()");
+	    return 0;
+	  }
+	}
+      }
+      
+      appconn->hisip.s_addr = src.s_addr;
+      appconn->dnprot = DNPROT_LAYER3;
+      appconn->uplink = ipm;
+      ipm->peer = appconn; 
+      
+      switch (appconn->s_state.authenticated) {
+      case 1:
+	authstate = DHCP_AUTH_PASS;
+	break;
+      default:
+	authstate = DHCP_AUTH_DNAT;
+	break;
+      }
+
+      has_ip = 1;
+    }
+    break;
+  default:
+    has_ip = conn->hisip.s_addr != 0;
+    authstate = conn->authstate;
+    break;
+  }
+#else
+  has_ip = conn->hisip.s_addr != 0;
+  authstate = conn->authstate;
+#endif
+
+  /* Request an IP address 
+  if (_options.uamanyip && 
+      authstate == DHCP_AUTH_NONE) {
+    this->cb_request(conn, &pack_iph->saddr);
+  } */
+  
 #ifdef ENABLE_IEEE8021Q
   dhcp_checktag(conn, pack);
 #endif
@@ -2864,7 +2973,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   /* 
    *  Request an IP address 
    */
-  if ((conn->authstate == DHCP_AUTH_NONE) && 
+  if ((authstate == DHCP_AUTH_NONE) && 
       (_options.uamanyip || 
        ((pack_iph->daddr != 0) && 
 	(pack_iph->daddr != 0xffffffff)))) {
@@ -2878,7 +2987,11 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   
   conn->lasttime = mainclock_now();
   
-  if (pack_iph->saddr != conn->hisip.s_addr) {
+  if (
+#ifdef ENABLE_LAYER3
+      !_options.layer3 &&
+#endif
+      pack_iph->saddr != conn->hisip.s_addr) {
     log_dbg("Received packet with spoofed source!");
     /*dhcp_sendRENEW(conn, pack, len);*/
     return 0;
@@ -2921,14 +3034,15 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     dhcp_uam_nat(conn, pack_ethh, pack_iph, pack_tcph, &this->uamlisten,
 		 _options.uamuiport ? _options.uamuiport : this->uamport);
   }
-
+  
   switch (dhcp_dnsDNAT(conn, pack, len, &do_checksum)) { 
   case 0:  /* Not DNS */ break;
   case 1:  /* Allowed DNS */ allowed = 1; break; 
   default: /* Drop */ return 0; 
   } 
   
-  switch (conn->authstate) {
+  switch (authstate) {
+
   case DHCP_AUTH_PASS:
 #ifdef HAVE_NETFILTER_QUEUE
     if (this->qif_in.fd && this->qif_out.fd) {
@@ -2964,7 +3078,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   case DHCP_AUTH_SPLASH:
     dhcp_doDNAT(conn, pack, len, 0, &do_checksum);
     break;
-
+    
   case DHCP_AUTH_DNAT:
     /* Destination NAT if request to unknown web server */
     if (dhcp_doDNAT(conn, pack, len, 1, &do_checksum) && !allowed) {
@@ -2980,7 +3094,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     return 0;
     
   default:
-    log_dbg("dropping packet; unhandled auth state %d", conn->authstate);
+    log_dbg("dropping packet; unhandled auth state %d", authstate);
     return 0;
   }
 
@@ -2993,12 +3107,14 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   if (do_checksum)
     chksum(pack_iph);
 
-  if ((conn->hisip.s_addr) && (this->cb_data_ind)) {
+  if (has_ip && (this->cb_data_ind)) {
 
     this->cb_data_ind(conn, pack, len);
 
   } else {
+
     log_dbg("no hisip; packet-drop");
+
   }
   
   return 0;
@@ -3417,9 +3533,12 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
 #if(_debug_)
   if (_options.debug) {
     struct pkt_ethhdr_t *ethh = ethhdr(packet);
-    log_dbg("dhcp_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x %d len=%d",
-	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
-	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+    log_dbg("dhcp_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+	    "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x %d len=%d",
+	    ethh->src[0],ethh->src[1],ethh->src[2],
+	    ethh->src[3],ethh->src[4],ethh->src[5],
+	    ethh->dst[0],ethh->dst[1],ethh->dst[2],
+	    ethh->dst[3],ethh->dst[4],ethh->dst[5],
 	    prot, (int)prot, length);
   }
 #endif
@@ -3501,6 +3620,7 @@ static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
       log_dbg("Layer2 PROT: 0x%.4x dropped", prot); 
     break;
   }
+
   return 0;
 }
 
@@ -3701,6 +3821,8 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   char do_checksum = 0;
   char allowed = 0;
 
+  int authstate = 0;
+
   if (ethhdr) { /* Ethernet frame */
     length += sizeofeth2(tag) - sizeofeth(pack);
     if (length > len) {
@@ -3718,6 +3840,60 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
 #endif
   }
 
+
+#ifdef ENABLE_LAYER3
+  /*
+   *  A bit of a hack to decouple the one-to-one relationship
+   *  of "dhcp connections" and "app connections". Look for the 
+   *  app session based on IP (Layer3) and adjust authstate.
+   */
+  switch (conn->authstate) {
+  case DHCP_AUTH_ROUTER:
+    {
+      struct app_conn_t *appconn = 0;
+      struct ippoolm_t *ipm = 0;
+      struct in_addr dst;
+
+      dst.s_addr = iphdr(pkt)->daddr;
+
+      if (ippool_getip(ippool, &ipm, &dst)) {
+	log_dbg("for unknown destination %s", inet_ntoa(dst));
+	return 0;
+      }
+
+      if (!ipm) {
+	log_dbg("unknown ip");
+	return -1;
+      }
+      
+      if ((appconn = (struct app_conn_t *)ipm->peer) == NULL) {
+	if (chilli_getconn(&appconn, dst.s_addr, 0, 0)) {
+	  if (chilli_connect(&appconn, conn)) {
+	    log_err(0, "chilli_connect()");
+	    return 0;
+	  }
+	}
+      }
+      
+      switch (appconn->s_state.authenticated) {
+      case 1:
+	authstate = DHCP_AUTH_PASS;
+	break;
+      default:
+	authstate = DHCP_AUTH_DNAT;
+	break;
+      }
+    }
+    break;
+  default:
+    authstate = conn->authstate;
+    break;
+  }
+#else
+  authstate = conn->authstate;
+#endif
+
+
   dhcp_ethhdr(conn, pkt, conn->hismac, dhcp_nexthop(this), PKT_ETH_PROTO_IP);
 
   switch (dhcp_dnsunDNAT(conn, pkt, length, &do_checksum)) {
@@ -3726,7 +3902,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   default: /* Drop */ return 0;
   }
   
-  switch (conn->authstate) {
+  switch (authstate) {
 
   case DHCP_AUTH_PASS:
   case DHCP_AUTH_AUTH_TOS:
@@ -3741,13 +3917,23 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   case DHCP_AUTH_DNAT:
     /* undo destination NAT */
     if (dhcp_undoDNAT(conn, pkt, &length, 1, &do_checksum) && !allowed) { 
+#if(_debug_)
       log_dbg("dhcp_undoDNAT() returns true");
+#endif
       return 0;
     }
     break;
 
   case DHCP_AUTH_DROP: 
-  default: return 0;
+#if(_debug_)
+    log_dbg("drop");
+#endif
+    return 0;
+  default: 
+#if(_debug_)
+    log_dbg("unhandled authstate %d", authstate);
+#endif
+    return 0;
   }
 
   if (do_checksum)

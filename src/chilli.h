@@ -54,6 +54,9 @@
 #define DNPROT_WPA        4
 #define DNPROT_EAPOL      5
 #define DNPROT_MAC        6
+#ifdef ENABLE_LAYER3
+#define DNPROT_LAYER3     7
+#endif
 
 /* Debug facility */
 #define DEBUG_DHCP        2
@@ -165,6 +168,11 @@ struct chilli_peer {
 int printstatus();
 int loadstatus();
 #endif
+
+int chilli_connect(struct app_conn_t **appconn, struct dhcp_conn_t *conn);
+
+int chilli_getconn(struct app_conn_t **conn, uint32_t ip, 
+		   uint32_t nasip, uint32_t nasport);
 
 int chilli_req_attrs(struct radius_t *radius, 
 		     struct radius_packet_t *pack,
