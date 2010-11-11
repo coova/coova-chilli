@@ -60,6 +60,9 @@
 /* Define to enable VSA proxy */
 #undef ENABLE_PROXYVSA
 
+/* Define to DNS query on redirect to pick up dynamic walled garden */
+#undef ENABLE_REDIRDNSREQ
+
 /* Define to enable route monitoring deamon */
 #undef ENABLE_RTMON
 
@@ -71,6 +74,9 @@
 
 /* Define to enable status file */
 #undef ENABLE_STATFILE
+
+/* Define to support loading of uamdomains (with regex) from file */
+#undef ENABLE_UAMDOMAINFILE
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
@@ -176,6 +182,9 @@
 
 /* Define to 1 if you have the <pwd.h> header file. */
 #undef HAVE_PWD_H
+
+/* Define to 1 if you have the <regex.h> header file. */
+#undef HAVE_REGEX_H
 
 /* Define to 1 if you have the <resolv.h> header file. */
 #undef HAVE_RESOLV_H

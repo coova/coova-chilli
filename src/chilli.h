@@ -20,6 +20,7 @@
 #ifndef _CHILLI_H
 #define _CHILLI_H
 
+#include "system.h"
 #include "chilli_limits.h"
 #include "tun.h"
 #include "ippool.h"

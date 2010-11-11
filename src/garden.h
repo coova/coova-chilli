@@ -16,14 +16,8 @@
  * 
  */
 
-
 #ifndef _GARDEN_H_
 #define _GARDEN_H_
-
-#ifdef ENABLE_CHILLIREDIR
-#include <sys/types.h>
-#include <regex.h>
-#endif
 
 typedef struct pass_through_t {
   struct in_addr host;              /* IP or Network */
@@ -51,5 +45,11 @@ int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen, 
 
 int pass_through_add(pass_through *ptlist, uint32_t ptlen, uint32_t *ptcnt, pass_through *pt);
 int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen, uint32_t *ptcnt, char *s);
+
+#ifdef ENABLE_UAMDOMAINFILE
+void garden_load_domainfile();
+void garden_free_domainfile();
+int  garden_check_domainfile(char *question);
+#endif
 
 #endif

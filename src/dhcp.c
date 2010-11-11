@@ -1388,7 +1388,8 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     
     uint8_t *dptr = (uint8_t *)dnsp->records;
     uint8_t q[512];
-    
+
+    int qmatch = -1;
     int i;
     
 #if(_debug_)
@@ -1418,7 +1419,7 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     for (i=0; i < n ## count; i++)			\
       if (dns_copy_res(conn, isq, &dptr, &dlen,		\
 		       (uint8_t *)dnsp, olen,		\
-		       q, sizeof(q)))			\
+		       q, sizeof(q), &qmatch))		\
 	return isReq ? dhcp_nakDNS(conn,pack,plen) : 0;
     
     copyres(1,qd);

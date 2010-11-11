@@ -3,6 +3,9 @@
 
 * Added compile time option ''--enable-layer3'' and run-time option ''--layer3'' to enable a Layer3 (IP-Only) style captive portal - no DHCP
 * Change to ''chilli_query logout'' to identify sessions based on options ''sessionid ...'' or ''ip ...'', not just MAC address
+* Added compile time option ''--enable-uamdomainfile'' and run-time option ''--uamdomainfile filename'' to load regex style uamdomains
+* Added compile time option ''--enable-redirdnsreq'' and run-time option ''--redirdnsreq'' to have chilli send a DNS query for the hostname found in the redirect (useful when relying heavily on DNS based walled garden using ''uamdomain'' or ''uamdomainfile'')
+* Added Pragma no cache and Expires headers to redirect HTTP responses
 * Fixed ''chilli_proxy'' bug for when DNS is down
 
 == ChangeLog (CoovaChilli-v1.2.5 svn revision 394) ==

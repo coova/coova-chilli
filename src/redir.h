@@ -24,6 +24,7 @@
 #include "dhcp.h"
 #include "session.h"
 #include "conn.h"
+#include "bstrlib.h"
 
 #define REDIR_TERM_INIT       0  /* Nothing done yet */
 #define REDIR_TERM_GETREQ     1  /* Before calling redir_getreq */
@@ -296,5 +297,14 @@ int redir_listen(struct redir_t *redir);
 pid_t redir_fork(int in, int out);
 
 int redir_ipc(struct redir_t *redir);
+
+
+int session_json_fmt(struct session_state *state,
+                     struct session_params *params,
+                     bstring json, int init);
+
+int session_redir_json_fmt(bstring json, char *userurl, char *redirurl,
+                           bstring logouturl, uint8_t *hismac);
+
 
 #endif	/* !_REDIR_H */

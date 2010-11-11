@@ -121,11 +121,4 @@ struct session_state {
 } __attribute__((packed));
 
 
-int session_json_fmt(struct session_state *state, 
-		     struct session_params *params,
-		     bstring json, int init);
-
-int session_redir_json_fmt(bstring json, char *userurl, char *redirurl, 
-			   bstring logouturl, uint8_t *hismac);
-
 #endif

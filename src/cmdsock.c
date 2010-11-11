@@ -24,8 +24,11 @@ cmdsock_init() {
   int cmdsock;
   
   if ((cmdsock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+
     log_err(errno, "could not allocate UNIX Socket!");
+
   } else {
+
     local.sun_family = AF_UNIX;
 
     strcpy(local.sun_path, _options.cmdsocket);

@@ -20,8 +20,6 @@
 #ifndef _LIMITS_H
 #define _LIMITS_H
 
-#include "system.h"
-
 /*
  * extracted from various .h files, needs some cleanup.
  */

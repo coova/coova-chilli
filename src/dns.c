@@ -22,7 +22,7 @@
 
 extern struct dhcp_t *dhcp;
 
-#define _debug_ 0
+#define _debug_ 1
 
 int
 dns_fullname(char *data, size_t dlen, 
@@ -160,7 +160,8 @@ int
 dns_copy_res(struct dhcp_conn_t *conn, int q, 
 	     uint8_t **pktp, size_t *left, 
 	     uint8_t *opkt,  size_t olen, 
-	     uint8_t *question, size_t qsize) {
+	     uint8_t *question, size_t qsize,
+	     int *qmatch) {
 
 #define return_error { log_dbg("failed parsing DNS packet"); return -1; }
 
@@ -169,7 +170,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   
   uint8_t name[PKT_IP_PLEN];
   size_t namelen = 0;
-
+  
   uint16_t type;
   uint16_t class;
   uint32_t ttl;
@@ -259,7 +260,9 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   p_pkt += 2;
   len -= 2;
   
-  /*log_dbg("-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);*/
+#if(_debug_)
+  log_dbg("-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);
+#endif
   
   if (len < rdlen) return_error;
   
@@ -273,28 +276,51 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 #if(_debug_)
     log_dbg("A record");
 #endif
-    if (_options.uamdomains && _options.uamdomains[0]) {
+    if (*qmatch == -1 &&_options.uamdomains && _options.uamdomains[0]) {
       int id;
       for (id=0; _options.uamdomains[id] && id < MAX_UAM_DOMAINS; id++) {
-
+	
+	size_t qst_len = strlen((char *)question);
+	size_t dom_len = strlen(_options.uamdomains[id]);
+	
 #if(_debug_)
 	log_dbg("checking %s [%s]", _options.uamdomains[id], question);
 #endif
-
-	if (strlen((char *)question) >= strlen(_options.uamdomains[id]) &&
-	    !strcmp(_options.uamdomains[id],
-		    (char *)question + (strlen((char *)question) - strlen(_options.uamdomains[id])))) {
-	  size_t offset;
-	  for (offset=0; offset < rdlen; offset += 4) {
-	    add_A_to_garden(p_pkt+offset);
-	  }
-
+	
+	if ( qst_len && dom_len && 
+	     (
+	      /*
+	       *  Match if question equals the uamdomain
+	       */
+	      ( qst_len == dom_len &&
+		!strcmp(_options.uamdomains[id], (char *)question) ) ||
+	      /*
+	       *  Match if the question is longer than uamdomain,
+	       *  and ends with the '.' followed by uamdomain
+	       */
+	      ( qst_len > dom_len && 
+		question[qst_len - dom_len - 1] == '.' &&
+		!strcmp(_options.uamdomains[id], 
+			(char *)question + qst_len - dom_len) )
+	      ) ) {
+	  *qmatch = 1;
 	  break;
 	}
       }
     }
+#ifdef ENABLE_UAMDOMAINFILE
+    if (*qmatch == -1 && _options.uamdomainfile) {
+      *qmatch = garden_check_domainfile((char *) question);
+    }
+#endif
+    if (*qmatch == 1) {
+      size_t offset;
+      for (offset=0; offset < rdlen; offset += 4) {
+	add_A_to_garden(p_pkt+offset);
+      }
+    }
     break;
-
+    
   case 5:/* CNAME */
     {
       /*char cname[256];
@@ -308,11 +334,11 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 
 #if(_debug_)
     if (_options.debug) switch(type) {
-    case 6:  log_dbg("SOA record"); break;
-    case 12: log_dbg("PTR record"); break;
-    case 15: log_dbg("MX record");  break;
-    case 16: log_dbg("TXT record"); break;
-    default: log_dbg("Record type %d", type); break;
+      case 6:  log_dbg("SOA record"); break;
+      case 12: log_dbg("PTR record"); break;
+      case 15: log_dbg("MX record");  break;
+      case 16: log_dbg("TXT record"); break;
+      default: log_dbg("Record type %d", type); break;
     }
 #endif
 

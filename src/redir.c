@@ -17,9 +17,10 @@
  * 
  */
 
+#include "system.h"
 #include "chilli.h"
 
-#define _debug_ 0
+#define _debug_ 1
 
 static int optionsdebug = 0; /* TODO: Should be changed to instance */
 
@@ -183,7 +184,11 @@ static void redir_http(bstring s, char *code) {
   bassigncstr(s, "HTTP/1.0 ");
   bcatcstr(s, code);
   bcatcstr(s, "\r\n");
-  bcatcstr(s, "Connection: close\r\nCache-Control: no-cache, must-revalidate\r\n");
+  bcatcstr(s, 
+	   "Connection: close\r\n"
+	   "Pragma: no-cache\r\n"
+	   "Expires: Fri, 01 Jan 1971 00:00:00 GMT\r\n"
+	   "Cache-Control: no-cache, must-revalidate\r\n");
   bcatcstr(s, "P3P: CP=\"IDC DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT\"\r\n");
 }
 
@@ -1452,6 +1457,8 @@ static int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   char *resp = NULL;
   bstring buffer;
 
+  log_dbg("redir_reply()");
+
   switch (res) {
   case REDIR_ALREADY:
     resp = "already";
@@ -1553,7 +1560,9 @@ static int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 	redir_xmlchilli_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
     } else {
       /* WISPr 1 and not WISPr 2 */
+
       log_dbg("redir_reply(): %d, res %d\n", conn->s_state.redir.uamprotocol, res);
+
       /* WISPr 2 with or without WISPr 1 */
       if (conn->s_state.redir.uamprotocol & REDIR_UAMPROT_WISPR2)
 	redir_wispr2_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
@@ -3713,8 +3722,92 @@ int redir_main(struct redir_t *redir,
    *  It was not a request for a known path. 
    *  It must be an original request 
    */
-  log_dbg("redir_accept: Original request");
+  log_dbg("redir_accept: Original request host=%s", httpreq.host);
 
+#ifdef ENABLE_REDIRDNSREQ
+  if (_options.redirdnsreq) {
+    uint8_t answer[PKT_BUFFER];
+    
+    struct pkt_ethhdr_t *answer_ethh;
+    struct pkt_iphdr_t  *answer_iph;
+    struct pkt_udphdr_t *answer_udph;
+    struct dns_packet_t *answer_dns;
+    
+    uint8_t query[512];
+    size_t query_len = 0;
+    size_t udp_len = 0;
+    size_t length;
+
+    char *host = httpreq.host;
+    char *idx;
+    int i;
+
+    do {
+      idx = strchr(host, '.');
+      size_t len = idx ? idx - host : strlen(host);
+
+      query[query_len++] = (uint8_t) len;
+
+      for (i=0; i < len; i++)
+	query[query_len++] = host[i];
+
+      if (idx) host = idx + 1;
+    } while(idx);
+
+    query[query_len++] = 0;
+
+    query[query_len++] = 0;
+    query[query_len++] = 1;
+    query[query_len++] = 0;
+    query[query_len++] = 1;
+    
+    answer_ethh = ethhdr(answer);
+    answer_iph = iphdr(answer);
+    answer_udph = udphdr(answer);
+    answer_dns = dnspkt(answer);
+	
+    /* DNS Header */
+    answer_dns->id      = 1;
+    answer_dns->flags   = htons(0x0100);
+    answer_dns->qdcount = htons(0x0001);
+    answer_dns->ancount = htons(0x0000);
+    answer_dns->nscount = htons(0x0000);
+    answer_dns->arcount = htons(0x0000);
+
+    memcpy(answer_dns->records, query, query_len);
+    
+    /* UDP header */
+    udp_len = query_len + DHCP_DNS_HLEN + PKT_UDP_HLEN;
+    answer_udph->len = htons(udp_len);
+    answer_udph->src = htons(10000);
+    answer_udph->dst = htons(53);
+    
+    /* Ip header */
+    answer_iph->version_ihl = PKT_IP_VER_HLEN;
+    answer_iph->tos = 0;
+    answer_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
+    answer_iph->id = 0;
+    answer_iph->frag_off = 0;
+    answer_iph->ttl = 0x10;
+    answer_iph->protocol = 0x11;
+    answer_iph->check = 0; /* Calculate at end of packet */      
+    memcpy(&answer_iph->daddr, &_options.dns1.s_addr, PKT_IP_ALEN);
+    memcpy(&answer_iph->saddr, &conn.hisip.s_addr, PKT_IP_ALEN);
+    
+    /* Ethernet header 
+    memcpy(answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
+    memcpy(answer_ethh->src, &ethh->dst, PKT_ETH_ALEN);
+    */
+    
+    /* Work out checksums */
+    chksum(answer_iph);
+    
+    /* Calculate total length */
+    length = udp_len + sizeofip(answer);
+    
+    tun_encaps(tun, answer, length, 0);
+  }
+#endif
 
   /*
    *  XXX: chilli_redir
@@ -3729,7 +3822,6 @@ int redir_main(struct redir_t *redir,
       break;
     }
   }
-
 
   /* Did the challenge expire? */
   if (_options.challengetimeout &&

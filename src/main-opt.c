@@ -54,6 +54,12 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_CLUSTER
   "ENABLE_CLUSTER "
 #endif
+#ifdef ENABLE_DNSLOG
+  "ENABLE_DNSLOG "
+#endif
+#ifdef ENABLE_UAMDOMAINFILE
+  "ENABLE_UAMDOMAINFILE "
+#endif
 #ifdef ENABLE_EWTAPI
   "ENABLE_EWTAPI "
 #endif
@@ -62,6 +68,9 @@ static const char *compile_options = "Compiled with "
 #endif
 #ifdef ENABLE_IEEE8023
   "ENABLE_IEEE8023 "
+#endif
+#ifdef ENABLE_IPWHITELIST
+  "ENABLE_IPWHITELIST "
 #endif
 #ifdef ENABLE_JSON
   "ENABLE_JSON "
@@ -86,6 +95,9 @@ static const char *compile_options = "Compiled with "
 #endif
 #ifdef ENABLE_PROXYVSA
   "ENABLE_PROXYVSA "
+#endif
+#ifdef ENABLE_REDIRDNSREQ
+  "ENABLE_REDIRDNSREQ "
 #endif
 #ifdef ENABLE_RTMON
   "ENABLE_RTMON "
@@ -263,6 +275,10 @@ int main(int argc, char **argv) {
   _options.bwbucketupsize = args_info.bwbucketupsize_arg;
   _options.bwbucketdnsize = args_info.bwbucketdnsize_arg;
   _options.bwbucketminsize = args_info.bwbucketminsize_arg;
+#endif
+
+#ifdef ENABLE_REDIRDNSREQ
+  _options.redirdnsreq = args_info.redirdnsreq_flag;
 #endif
 
 #ifdef ENABLE_PROXYVSA
@@ -853,6 +869,14 @@ int main(int argc, char **argv) {
 #else
   if (args_info.ipwhitelist_arg)
     log_err(0, "option ipwhitelist given when no support built-in");
+#endif
+
+#ifdef ENABLE_UAMDOMAINFILE
+  if (_options.uamdomainfile) free(_options.uamdomainfile);
+  _options.uamdomainfile = STRDUP(args_info.uamdomainfile_arg);
+#else
+  if (args_info.uamdomainfile_arg)
+    log_err(0, "option uamdomainfile given when no support built-in");
 #endif
   
   if (_options.uamurl) free(_options.uamurl);

@@ -195,7 +195,9 @@ const char *gengetopt_args_info_help[] = {
   "      --uamuissl                Enable SSL/HTTPS support on the uamuiport  \n                                  (default=off)",
   "      --dnslog=STRING           Log DNS requests to a file.",
   "      --ipwhitelist=STRING      Binary IP White List file",
+  "      --uamdomainfile=STRING    Load uamdomains (regex) from file",
   "      --layer3                  Layer3 only  (default=off)",
+  "      --redirdnsreq             Send DNS query on redirect to pick of DNS based \n                                  walled garden  (default=off)",
   "      --kname=STRING            Enable the use of the coova kernel module \n                                  instance of this namem",
     0
 };
@@ -412,7 +414,9 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->uamuissl_given = 0 ;
   args_info->dnslog_given = 0 ;
   args_info->ipwhitelist_given = 0 ;
+  args_info->uamdomainfile_given = 0 ;
   args_info->layer3_given = 0 ;
+  args_info->redirdnsreq_given = 0 ;
   args_info->kname_given = 0 ;
 }
 
@@ -701,7 +705,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->dnslog_orig = NULL;
   args_info->ipwhitelist_arg = NULL;
   args_info->ipwhitelist_orig = NULL;
+  args_info->uamdomainfile_arg = NULL;
+  args_info->uamdomainfile_orig = NULL;
   args_info->layer3_flag = 0;
+  args_info->redirdnsreq_flag = 0;
   args_info->kname_arg = NULL;
   args_info->kname_orig = NULL;
   
@@ -885,8 +892,10 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->uamuissl_help = gengetopt_args_info_help[160] ;
   args_info->dnslog_help = gengetopt_args_info_help[161] ;
   args_info->ipwhitelist_help = gengetopt_args_info_help[162] ;
-  args_info->layer3_help = gengetopt_args_info_help[163] ;
-  args_info->kname_help = gengetopt_args_info_help[164] ;
+  args_info->uamdomainfile_help = gengetopt_args_info_help[163] ;
+  args_info->layer3_help = gengetopt_args_info_help[164] ;
+  args_info->redirdnsreq_help = gengetopt_args_info_help[165] ;
+  args_info->kname_help = gengetopt_args_info_help[166] ;
   
 }
 
@@ -1206,6 +1215,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->dnslog_orig));
   free_string_field (&(args_info->ipwhitelist_arg));
   free_string_field (&(args_info->ipwhitelist_orig));
+  free_string_field (&(args_info->uamdomainfile_arg));
+  free_string_field (&(args_info->uamdomainfile_orig));
   free_string_field (&(args_info->kname_arg));
   free_string_field (&(args_info->kname_orig));
   
@@ -1567,8 +1578,12 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "dnslog", args_info->dnslog_orig, 0);
   if (args_info->ipwhitelist_given)
     write_into_file(outfile, "ipwhitelist", args_info->ipwhitelist_orig, 0);
+  if (args_info->uamdomainfile_given)
+    write_into_file(outfile, "uamdomainfile", args_info->uamdomainfile_orig, 0);
   if (args_info->layer3_given)
     write_into_file(outfile, "layer3", 0, 0 );
+  if (args_info->redirdnsreq_given)
+    write_into_file(outfile, "redirdnsreq", 0, 0 );
   if (args_info->kname_given)
     write_into_file(outfile, "kname", args_info->kname_orig, 0);
   
@@ -2309,7 +2324,9 @@ cmdline_parser_internal (
         { "uamuissl",	0, NULL, 0 },
         { "dnslog",	1, NULL, 0 },
         { "ipwhitelist",	1, NULL, 0 },
+        { "uamdomainfile",	1, NULL, 0 },
         { "layer3",	0, NULL, 0 },
+        { "redirdnsreq",	0, NULL, 0 },
         { "kname",	1, NULL, 0 },
         { 0,  0, 0, 0 }
       };
@@ -4495,6 +4512,20 @@ cmdline_parser_internal (
               goto failure;
           
           }
+          /* Load uamdomains (regex) from file.  */
+          else if (strcmp (long_options[option_index].name, "uamdomainfile") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->uamdomainfile_arg), 
+                 &(args_info->uamdomainfile_orig), &(args_info->uamdomainfile_given),
+                &(local_args_info.uamdomainfile_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "uamdomainfile", '-',
+                additional_error))
+              goto failure;
+          
+          }
           /* Layer3 only.  */
           else if (strcmp (long_options[option_index].name, "layer3") == 0)
           {
@@ -4503,6 +4534,18 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->layer3_flag), 0, &(args_info->layer3_given),
                 &(local_args_info.layer3_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "layer3", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Send DNS query on redirect to pick of DNS based walled garden.  */
+          else if (strcmp (long_options[option_index].name, "redirdnsreq") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->redirdnsreq_flag), 0, &(args_info->redirdnsreq_given),
+                &(local_args_info.redirdnsreq_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "redirdnsreq", '-',
                 additional_error))
               goto failure;
           

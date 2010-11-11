@@ -213,6 +213,10 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+#ifdef HAVE_REGEX_H
+#include <regex.h>
+#endif
+
 #undef LITTLE_ENDIAN
 #undef BIG_ENDIAN
 
@@ -256,10 +260,6 @@ char *safe_strncpy(char *dst, const char *src, size_t size);
 #define SET_SA_FAMILY(addr, family)			\
     memset ((char *) &(addr), '\0', sizeof(addr));	\
     addr.sa_family = (family);
-
-#include "bstrlib.h"
-
-int bstring_fromfd(bstring s, int fd);
 
 void copy_mac6(uint8_t *, uint8_t *);
 

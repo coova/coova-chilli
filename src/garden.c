@@ -19,6 +19,8 @@
 
 #include "chilli.h"
 
+#define _debug_ 1
+
 int pass_through_add(pass_through *ptlist, uint32_t ptlen,
 		     uint32_t *ptcnt, pass_through *pt) {
   uint32_t cnt = *ptcnt;
@@ -146,9 +148,9 @@ int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen,
   regex_pass_through pt;
   char *p, *st;
   int stage = 0;
-
+  
   memset(&pt, 0, sizeof(pt));
-
+  
   for (st = s; (p = strtok(st, "::")); st = 0, stage++) {
     int is_wild = !strcmp(p,"*");
     if (!is_wild) {
@@ -161,9 +163,106 @@ int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen,
       }
     }
   }
-
+  
   memcpy(&ptlist[cnt], &pt, sizeof(pt));
   *ptcnt = cnt + 1;
   return 0;
 }
+#endif
+
+#ifdef ENABLE_UAMDOMAINFILE
+
+typedef struct uamdomain_regex_t {
+  regex_t re;
+  char neg;
+  struct uamdomain_regex_t *next;
+} uamdomain_regex;
+
+static uamdomain_regex * _list_head = 0;
+
+void garden_free_domainfile() {
+  while (_list_head) {
+    uamdomain_regex * n = _list_head;
+    _list_head = _list_head->next;
+    regfree(&n->re);
+    free(n);
+  }
+}
+
+void garden_load_domainfile() {
+  garden_free_domainfile();
+  if (!_options.uamdomainfile) return;
+  else {
+    char * line = 0;
+    size_t len = 0;
+    ssize_t read;
+    FILE* fp;
+
+    uamdomain_regex * uam_end = 0;
+
+    fp = fopen(_options.uamdomainfile, "r");
+    if (!fp) { 
+      log_err(errno, "could not open file %s", _options.uamdomainfile); 
+      return; 
+    }
+    
+    while ((read = getline(&line, &len, fp)) != -1) {
+      if (read == 0) continue;
+      else {
+	
+	uamdomain_regex * uam_re = (uamdomain_regex *)
+	  calloc(sizeof(uamdomain_regex), 1);
+
+	char * pline = line;
+	
+	while (isspace(pline[read-1]))
+	  pline[--read] = 0;
+
+	if (pline[0] == '!') {
+	  uam_re->neg = 1;
+	  pline++;
+	}
+	
+	log_dbg("compiling %s", pline);
+	if (regcomp(&uam_re->re, pline, REG_EXTENDED | REG_NOSUB)) {
+	  log_err(0, "could not compile regex %s", line);
+	  free(uam_re);
+	  continue;
+	}
+	
+	if (uam_end) {
+	  uam_end->next = uam_re;
+	  uam_end = uam_re;
+	} else {
+	  _list_head = uam_end = uam_re;
+	}
+      }
+    }	
+    
+    fclose(fp);
+    
+    if (line)
+      free(line);
+  }
+}
+
+int garden_check_domainfile(char *question) {
+  uamdomain_regex * uam_re = _list_head;
+  
+  while (uam_re) {
+    int match = !regexec(&uam_re->re, question, 0, 0, 0);
+    
+#if(_debug_)
+    if (match)
+      log_dbg("matched DNS name %s", question);
+#endif
+
+    if (match) return uam_re->neg ? 0 : 1;
+    
+    uam_re = uam_re->next;
+  }
+
+  return 0;
+}
+
 #endif

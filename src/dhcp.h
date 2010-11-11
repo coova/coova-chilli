@@ -24,6 +24,7 @@
 #include "pkt.h"
 #include "garden.h"
 #include "net.h"
+#include "bstrlib.h"
 
 /* Option constants */
 #define DHCP_OPTION_MAGIC_LEN       4

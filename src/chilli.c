@@ -19,6 +19,7 @@
  */
 
 #include "chilli.h"
+#include "bstrlib.h"
 
 struct tun_t *tun;                /* TUN instance            */
 struct ippool_t *ippool;          /* Pool of IP addresses */
@@ -47,7 +48,6 @@ static int *p_keep_going = 0;
 static int *p_reload_config = 0;
 /*static int do_timeouts = 1;*/
 static int do_interval = 0;
-
 
 /* some IPv4LL/APIPA(rfc 3927) specific stuff for uamanyip */
 struct in_addr ipv4ll_ip;
@@ -5297,6 +5297,9 @@ int chilli_main(int argc, char **argv) {
     chilli_auth_radius(radius);
   }
   
+#ifdef ENABLE_UAMDOMAINFILE
+  garden_load_domainfile();
+#endif
 
   /******************************************************************/
   /* Main select loop                                               */
@@ -5377,6 +5380,10 @@ int chilli_main(int argc, char **argv) {
       
       /* Reinit Redir parameters */
       redir_set(redir, dhcp->rawif.hwaddr, _options.debug);
+
+#ifdef ENABLE_UAMDOMAINFILE
+      garden_load_domainfile();
+#endif
     }
 
     if (do_interval) {
