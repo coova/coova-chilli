@@ -1556,8 +1556,11 @@ static int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
       else if (!_options.no_wispr2)
 	redir_wispr2_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
 
+#ifdef ENABLE_CHILLIXML
       if (_options.chillixml)
 	redir_xmlchilli_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
+#endif
+
     } else {
       /* WISPr 1 and not WISPr 2 */
 
@@ -1569,8 +1572,10 @@ static int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
       else
 	redir_wispr1_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
       
+#ifdef ENABLE_CHILLIXML
       if (conn->s_state.redir.uamprotocol == REDIR_UAMPROT_CHILLI)
 	redir_xmlchilli_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
+#endif
     }
 
     /*redir_xmlreply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);*/

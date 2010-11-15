@@ -3841,6 +3841,7 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
   return 0;
 }
 
+#ifdef ENABLE_CHILLIQUERY
 int chilli_getinfo(struct app_conn_t *appconn, bstring b, int fmt) {
   uint32_t sessiontime = 0;
   uint32_t idletime = 0;
@@ -3941,6 +3942,7 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
 
   return chilli_getinfo(appconn, b, fmt);
 }
+#endif
 
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
 
@@ -4428,6 +4430,7 @@ int static uam_msg(struct redir_msg_t *msg) {
   return 0;
 }
 
+#ifdef ENABLE_CHILLIQUERY
 static int cmdsock_accept(void *nullData, int sock) {
   struct sockaddr_un remote; 
   struct cmdsock_request req;
@@ -4742,6 +4745,7 @@ static int cmdsock_accept(void *nullData, int sock) {
 
   return rval;
 }
+#endif
 
 #if XXX_IO_DAEMON 
 int chilli_io(int fd_ctrl_r, int fd_ctrl_w, int fd_pkt_r, int fd_pkt_w) {
@@ -4872,7 +4876,9 @@ int chilli_main(int argc, char **argv) {
   /*  struct itimerval itval; */
   int lastSecond = 0;
 
+#ifdef ENABLE_CHILLIQUERY
   int cmdsock = -1;
+#endif
 
   pid_t cpid = getpid();
 
@@ -5081,7 +5087,9 @@ int chilli_main(int argc, char **argv) {
   dhcp_set_cb_disconnect(dhcp, cb_dhcp_disconnect);
   dhcp_set_cb_data_ind(dhcp, cb_dhcp_data_ind);
   dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
+#ifdef ENABLE_CHILLIQUERY
   dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
+#endif
   
   if (dhcp_set(dhcp, 
 	       _options.ethers, 
@@ -5135,9 +5143,11 @@ int chilli_main(int argc, char **argv) {
   /* not really needed for chilliredir */
   redir_set_cb_getstate(redir, cb_redir_getstate);
   
+#ifdef ENABLE_CHILLIQUERY
   if (_options.cmdsocket) {
     cmdsock = cmdsock_init();
   }
+#endif
   
   if (_options.usetap && _options.rtmonfile) {
 #ifdef ENABLE_RTMON_
@@ -5358,7 +5368,9 @@ int chilli_main(int argc, char **argv) {
   }
 #endif
 
+#ifdef ENABLE_CHILLIQUERY
   net_select_reg(&sctx, cmdsock, SELECT_READ, (select_callback)cmdsock_accept, 0, cmdsock);
+#endif
 
   mainclock_tick();
   while (keep_going) {
@@ -5508,6 +5520,10 @@ int chilli_main(int argc, char **argv) {
   }
 #endif
   
+#ifdef ENABLE_UAMDOMAINFILE
+  garden_free_domainfile();
+#endif
+
   selfpipe_finish();
 
   options_cleanup();

@@ -20,6 +20,8 @@
 
 #define _debug_ 0
 
+#if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC) || defined(ENABLE_CHILLIREDIR)
+
 int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
   struct sockaddr_in server;
   int sock;
@@ -236,3 +238,5 @@ int conn_close(struct conn_t *conn) {
   conn->sock = 0;
   return 0;
 }
+
+#endif

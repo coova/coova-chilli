@@ -53,18 +53,20 @@ memset select socket strdup strerror strstr strtol getline dirname \
 glob])
 AC_CHECK_LIB(resolv, res_init)
 
+AC_ARG_ENABLE(chilliquery, [AC_HELP_STRING([--disable-chilliquery],[Disable chilli_query])], 
+  enable_chilliquery=$enableval, enable_chilliquery=yes)
+
+if test x"$enable_chilliquery" = xyes; then
+   AC_DEFINE(ENABLE_CHILLIQUERY,1,[Define to enable chilli_query])
+fi
+
+AM_CONDITIONAL(WITH_CHILLIQUERY, [test x"$enable_chilliquery" != xno])
+
 AC_ARG_ENABLE(leakybucket, [AC_HELP_STRING([--disable-leakybucket],[disable use of leaky bucket shaping])], 
   enable_leakybucket=$enableval, enable_leakybucket=yes)
 
 if test x"$enable_leakybucket" = xyes; then
    AC_DEFINE(ENABLE_LEAKYBUCKET,1,[Define to enable Chilli Leaky Bucket shaping])
-fi
-
-AC_ARG_ENABLE(chillixml, [AC_HELP_STRING([--disable-chillixml],[disable use of chillixml])], 
-  enable_chillixml=$enableval, enable_chillixml=yes)
-
-if test x"$enable_chillixml" = xyes; then
-   AC_DEFINE(ENABLE_CHILLIXML,1,[Define to enable Chilli XML])
 fi
 
 AC_ARG_ENABLE(json, [AC_HELP_STRING([--disable-json],[disable support for JSON])], 
@@ -79,6 +81,15 @@ AC_ARG_ENABLE(sessgarden, [AC_HELP_STRING([--disable-sessgarden],[disable suppor
 
 if test x"$enable_sessgarden" = xyes; then
    AC_DEFINE(ENABLE_SESSGARDEN,1,[Define to enable Chilli session walled garden])
+fi
+
+
+
+AC_ARG_ENABLE(chillixml, [AC_HELP_STRING([--enable-chillixml],[Enable use of chillixml])], 
+  enable_chillixml=$enableval, enable_chillixml=no)
+
+if test x"$enable_chillixml" = xyes; then
+   AC_DEFINE(ENABLE_CHILLIXML,1,[Define to enable Chilli XML])
 fi
 
 AC_ARG_ENABLE(proxyvsa, [AC_HELP_STRING([--enable-proxyvsa],[Enable support for VSA attribute proxy])], 
@@ -161,6 +172,8 @@ AS_IF([test x"$with_matrixssl" != xno],
 
 AM_CONDITIONAL(WITH_MATRIXSSL, [test x"$with_matrixssl" != xno])
 
+AM_CONDITIONAL(WITH_SSL, [test x"$with_openssl" != xno || test x"$with_matrixssl" != xno])
+
 AC_ARG_WITH([nfqueue],
  [AS_HELP_STRING([--with-nfqueue], [enable support for netfilter_queue])],[],[with_nfqueue=no])
 
@@ -183,6 +196,22 @@ AS_IF([test x"$with_nfcoova" != xno],
   [AC_DEFINE([HAVE_NETFILTER_COOVA], [1], [Define to use coova kernel module])])
 
 AM_CONDITIONAL(WITH_NETFILTER_COOVA, [test x"$with_nfcoova" != xno])
+
+AC_ARG_WITH([sfhash],
+ [AS_HELP_STRING([--without-sfhash], [enable SuperFashHash use])],[],[with_sfhash=yes])
+
+AS_IF([test x"$with_sfhash" != xno],
+  [AC_DEFINE([HAVE_SFHASH], [1], [Define to use SuperFastHash])])
+
+AM_CONDITIONAL(WITH_SFHASH, [test x"$with_sfhash" != xno])
+
+AC_ARG_WITH([lookup3],
+ [AS_HELP_STRING([--with-lookup3], [enable Jenkins lookup3 use])],[],[with_lookup3=no])
+
+AS_IF([test x"$with_lookup3" != xno],
+  [AC_DEFINE([HAVE_LOOKUP3], [1], [Define to use Jenkins lookup3])])
+
+AM_CONDITIONAL(WITH_LOOKUP3, [test x"$with_lookup3" != xno])
 
 AC_ARG_WITH([pcap],
  [AS_HELP_STRING([--with-pcap], [enable support for pcap])],[],[with_pcap=no])

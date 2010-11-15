@@ -28,6 +28,7 @@ extern struct ippool_t *ippool;
 
 #define _debug_ 0
 
+#ifdef ENABLE_CHILLIQUERY
 char *dhcp_state2name(int authstate) {
   switch(authstate) {
   case DHCP_AUTH_NONE:   return "none";
@@ -41,6 +42,7 @@ char *dhcp_state2name(int authstate) {
   default:               return "unknown";
   }
 }
+#endif
 
 #ifdef ENABLE_CLUSTER
 int chilli_peer_count = 0;
@@ -220,6 +222,7 @@ dhcp_sendGARP(struct dhcp_t *this) {
   return dhcp_send(this, &this->rawif, bmac, packet, sizeofarp(packet));
 }
 
+#ifdef ENABLE_CHILLIQUERY
 void dhcp_list(struct dhcp_t *this, bstring s, bstring pre, bstring post, int listfmt) {
   struct dhcp_conn_t *conn = this->firstusedconn;
   if (listfmt == LIST_JSON_FMT) {
@@ -333,6 +336,7 @@ void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t 
   bdestroy(b);
   bdestroy(tmp);
 }
+#endif
 
 void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause) {
   struct dhcp_conn_t *conn;
@@ -3813,8 +3817,6 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
 
 #ifdef ENABLE_IEEE8021Q
   uint16_t tag = conn->tag8021q;
-#else
-  uint16_t tag = 0;
 #endif
 
   uint8_t * pkt = packet;
@@ -4364,11 +4366,13 @@ int dhcp_set_cb_disconnect(struct dhcp_t *this,
   return 0;
 }
 
+#ifdef ENABLE_CHILLIQUERY
 int dhcp_set_cb_getinfo(struct dhcp_t *this, 
   int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt)) {
   this->cb_getinfo = cb_getinfo;
   return 0;
 }
+#endif
 
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)

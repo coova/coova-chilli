@@ -6,6 +6,9 @@
 /* Define to enable HTTP AAA Proxy */
 #undef ENABLE_CHILLIPROXY
 
+/* Define to enable chilli_query */
+#undef ENABLE_CHILLIQUERY
+
 /* Define to enable RadSec AAA Proxy */
 #undef ENABLE_CHILLIRADSEC
 
@@ -135,6 +138,9 @@
 /* Define to 1 if you have the `rt' library (-lrt). */
 #undef HAVE_LIBRT
 
+/* Define to use Jenkins lookup3 */
+#undef HAVE_LOOKUP3
+
 /* Define if you have matrixssl */
 #undef HAVE_MATRIXSSL
 
@@ -191,6 +197,9 @@
 
 /* Define to 1 if you have the `select' function. */
 #undef HAVE_SELECT
+
+/* Define to use SuperFastHash */
+#undef HAVE_SFHASH
 
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET

@@ -207,7 +207,8 @@ void garden_load_domainfile() {
     }
     
     while ((read = getline(&line, &len, fp)) != -1) {
-      if (read == 0) continue;
+      if (read <= 0) continue;
+      else if (!line[0] || line[0] == '#' || isspace(line[0])) continue;
       else {
 	
 	uamdomain_regex * uam_re = (uamdomain_regex *)

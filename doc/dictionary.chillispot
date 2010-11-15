@@ -17,6 +17,7 @@ ATTRIBUTE       ChilliSpot-Lang                    	7       string
 ATTRIBUTE       ChilliSpot-Version                 	8       string
 ATTRIBUTE       ChilliSpot-OriginalURL             	9       string
 ATTRIBUTE       ChilliSpot-Acct-View-Point             10	integer
+ATTRIBUTE       ChilliSpot-Config-File                 11       string
 
 VALUE	ChilliSpot-Acct-View-Point ChilliSpot-NAS-View-Point	1
 VALUE	ChilliSpot-Acct-View-Point ChilliSpot-Client-View-Point 2

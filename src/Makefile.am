@@ -6,7 +6,7 @@ linux/ipt_coova.h linux/libxt_coova.c
 
 chilliincludedir = $(includedir)/chilli
 chilliinclude_HEADERS = \
-chilli.h session.h cmdsock.h garden.h radius.h options.h \
+chilli.h session.h garden.h radius.h options.h \
 tun.h ippool.h md5.h redir.h dhcp.h syserr.h iphash.h \
 radius_wispr.h radius_chillispot.h ssl.h dns.h net.h \
 pkt.h conn.h lookup.h chilli_limits.h cmdline.h \
@@ -15,15 +15,14 @@ radius_pkt.h ../bstring/bstrlib.h ../config.h system.h
 lib_LTLIBRARIES = libchilli.la
 noinst_PROGRAMS = test_dhcp test_randpkt
 sbin_PROGRAMS = \
-chilli chilli_response chilli_radconfig chilli_query chilli_opt 
+chilli chilli_response chilli_radconfig chilli_opt 
 
 suid_programs =
 
 libchilli_la_SOURCES = \
 chilli.c tun.c ippool.c radius.c md5.c redir.c dhcp.c syserr.c \
-iphash.c lookup3.c sfhash.c lookup.c system.h cmdsock.c util.c \
-garden.c ssl.c dns.c session.c pkt.c chksum.c net.c \
-ms_chap.c options.c statusfile.c conn.c sig.c 
+iphash.c lookup.c system.h util.c options.c statusfile.c conn.c sig.c \
+garden.c dns.c session.c pkt.c chksum.c net.c 
 
 AM_CFLAGS = -D_GNU_SOURCE -Wall -Werror -fno-builtin -fno-strict-aliasing \
   -O2 -fomit-frame-pointer -funroll-loops -pipe \
@@ -46,14 +45,25 @@ test_randpkt_SOURCES = test-randpkt.c
 
 LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBRT}
 
+if WITH_SFHASH
+libchilli_la_SOURCES += sfhash.c
+endif
+
+if WITH_LOOKUP3
+libchilli_la_SOURCES += lookup3.c
+endif
+
 if WITH_OPENSSL
 LDADD += ${LIBSSL}
 endif
 
 if WITH_MATRIXSSL
 libchilli_la_SOURCES += matrixssl.c matrixssl.h
-#LDADD += ${LIBSSL}
 LDADD += -lmatrixssl
+endif
+
+if WITH_SSL
+libchilli_la_SOURCES += ssl.c ms_chap.c 
 endif
 
 if WITH_NETFILTER_QUEUE
@@ -74,6 +84,12 @@ if WITH_RTMON
 #sbin_PROGRAMS += chilli_rtmon
 #chilli_rtmon_SOURCES = main-rtmon.c 
 libchilli_la_SOURCES += rtmon.c rtmon.h
+endif
+
+if WITH_CHILLIQUERY
+sbin_PROGRAMS += chilli_query
+libchilli_la_SOURCES += cmdsock.c
+chilliinclude_HEADERS += cmdsock.h
 endif
 
 if WITH_CHILLIPROXY
