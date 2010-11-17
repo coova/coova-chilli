@@ -3,6 +3,7 @@ getcfg() { echo $(grep "$1=" /tmp/system.cfg|sed "s/$1=//"); }
 
 HS_LANIF=ath0
 HS_USELOCALUSERS=on
+HS_LOCALUSERS=/etc/persistent/localusers
 HS_RADIUS=$(getcfg hotspot.radius1)
 HS_RADIUS2=$(getcfg hotspot.radius2)
 HS_RADAUTH=$(getcfg hotspot.authport)

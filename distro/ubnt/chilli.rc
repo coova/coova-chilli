@@ -4,6 +4,8 @@ getcfg() { echo $(grep "$1=" /tmp/system.cfg|sed "s/$1=//"); }
 
 if [ "$(getcfg hotspot.status)" = "enabled" ]; then
     if [ "$(getcfg hotspot.onboot)" = "enabled" ]; then
-	(sleep 30; /usr/etc/init.d/chilli start) 2>/dev/null >/dev/null &
+	script=/tmp/run.$$
+	echo "sleep 30; /usr/etc/init.d/chilli start; rm -f $script" > $script
+	bkgexec $script
     fi
 fi

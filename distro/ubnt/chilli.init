@@ -30,7 +30,8 @@ case $1 in
 
 	writeconfig
         radiusconfig
-	
+
+	rm -f /var/run/chilli.*
 	ifconfig $HS_LANIF 0.0.0.0
         chilli --pidfile /tmp/chilli.pid &
         echo
@@ -40,6 +41,10 @@ case $1 in
         echo -n $"Shutting down $prog: "
         [ -f /tmp/chilli.pid ] && { 
 	    kill $(cat /tmp/chilli.pid)
+	    sleep 1
+	    kill -9 $(cat /tmp/chilli.pid)
+	    rm -f /var/run/chilli.*
+	    rm -f /tmp/chilli.pid
 	}
         echo
 	;;

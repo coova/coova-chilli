@@ -2589,12 +2589,15 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
 
   switch (conn->authdata.type) {
+
   case REDIR_AUTH_PAP:
+
     for (m=0; m < RADIUS_PWSIZE;) {
       for (n=0; n < REDIR_MD5LEN; m++, n++) {
-	user_password[m] = conn->authdata.v.papmsg.password[n] ^ chap_challenge[n];
+	user_password[m] = conn->authdata.v.papmsg.password[m] ^ chap_challenge[n];
       }
     }
+
     user_password[conn->authdata.v.papmsg.len] = 0;
     
     log_dbg("User password %d [%s]", conn->authdata.v.papmsg.len, user_password);

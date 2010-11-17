@@ -165,8 +165,9 @@ writeconfig() {
     [ "$HS_LOCAL" = "on" ] && webadmin="$webadmin,$HS_UAMLISTEN:$HS_LOCAL_PORT"
 
     [ "$HS_USELOCALUSERS" = "on" ] && {
-	touch $CHILLI/localusers
-	addconfig1 "localusers $CHILLI/localusers"
+	HS_LOCALUSERS=${HS_LOCALUSERS:-$CHILLI/localusers}
+	touch $HS_LOCALUSERS
+	addconfig1 "localusers $HS_LOCALUSERS"
     }
 
     [ -n "$HS_LOC_NAME" ] && {

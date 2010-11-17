@@ -142,7 +142,7 @@ $redirurldecode =~ s/\+/ /g;
 $redirurldecode =~s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
 
 $password =~ s/\+/ /g;
-$password =~s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
+$password =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
 
 # If attempt to login
 
@@ -175,7 +175,7 @@ if ($button =~ /^Login$/) {
 		$newchal .= $newchal;
         }
 
-	$pappassword = unpack "H*", ($password ^ $newchal);
+	$pappassword = unpack "H*", substr($password ^ $newchal, 0, length($password));
 
 	$logonUrl = "http://$uamip:$uamport/logon?username=$username&password=$pappassword";
 
