@@ -217,3 +217,5 @@ option "layer3" - "Layer3 only" flag off
 option "redirdnsreq" - "Send DNS query on redirect to pick of DNS based walled garden" flag off
 
 option "kname" - "Enable the use of the coova kernel module instance of this namem" string no
+option "moddir"   - "Directory for dynamically loaded modules" string no 
+option "module"   - "Dynamically loaded module" string no multiple

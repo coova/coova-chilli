@@ -1,0 +1,97 @@
+#!/bin/sh
+# Copyright (c) 2010 Coova Technologies, LLC
+/sbin/chilli_query list 2>/dev/null >/tmp/chilli.$$ || exit 1                                                             
+cat<<EOF
+<script>
+function chilliInfo(obj, e)
+{
+	obj = document.getElementById('chilliInfo' + obj);
+	obj.style.left = e.style.right;
+	obj.style.display =  'block';
+        return true;
+}
+function chilliInfoOff(obj)
+{
+	obj = document.getElementById('chilliInfo' + obj);
+	obj.style.display = 'none';
+        return true;
+}
+</script>
+<style>
+#chilliSessions {
+  font-size: small;
+}
+.chilliSession {
+  text-decoration: none;
+}
+.chilliInfoBox {
+  position: absolute;
+  border: 1px solid grey;
+  background-color: white;
+  border-radius: 10px;
+}
+table .chilliInfoBox table td,
+table .chilliInfoBox table th {
+  border: 0;
+  padding: 0 1em 0 0;
+}
+</style>
+<table id=chilliSessions>
+<th>MAC</th>
+<th>IP Address</th>
+<th>Username</th>
+<th>Time</th>
+<th>Up</th>
+<th>Down</th>
+<th>State</th></tr>
+EOF
+
+awk '{
+  if ($3 == "pass") { state="<span style=\"color:green\">Authorized</span>"; }
+  else { state="<span style=\"color:red\">Unauthorized</span>"; }
+  print "<tr><td>";
+  print "<a href=# class=chilliSession onclick=\"javascript:return false;\" onmouseover=\"return chilliInfo(" NR ", this);\" onmouseout=\"return chilliInfoOff(" NR ");\">" $1;
+  print "<div id=chilliInfo" NR " class=chilliInfoBox style=\"display:none;\">";
+  print "<table>";
+  up = "";
+  down = "";
+  tm = "";
+  if ($5 == 1) {
+    tm=$7
+    swap=$12
+    up=$10;
+    down=$9;
+    if (swap == 1) {
+      up=$10;
+      down=$9;
+    }
+    print "<tr><th>Session ID</th><td>" $4 "</td><th>Session Time/Max</th><td>" $7 "</td><th>Bytes Up/Max</th><td>" up "</td><th>URL</th><td>" $15 "</td></tr>";
+    print "<tr><th>Username</th><td>" $6 "</td><th>Idle Time/Max</th><td>" $8 "</td><th>Bytes Down/Max</th><td>" down "</td></tr>";
+  } else {
+    print "<tr><th>Session ID</th><td>" $4 "</td><th>URL</th><td>" $15 "</td></tr>";
+    print "<tr><th>Username</th><td>" $6 "</td></tr>";
+  }
+  print "</table>";
+  print "</div>";
+  print "</a></td>";
+  print "<td>" $2 "</td>";
+  print "<td>" $6 "</td>";
+  split(tm,t,"/");
+  print "<td>" t[1] "</td>";
+  split(up,t,"/");
+  print "<td>" t[1] "</td>";
+  split(down,t,"/");
+  print "<td>" t[1] "</td>";
+  print "<td>" state "</td><td>"
+  if ($5 == 1) {
+    print "<a href=\"?action=release&mac=" $1 "\">Logout</a>";
+  } else {
+    print "<a href=\"?action=authorize&sessionid=" $4 "\">Authorize</a> / <a href=\"?action=release&mac=" $1 "\">Release</a>";
+  }
+  print "</td></tr>";
+}' /tmp/chilli.$$
+rm /tmp/chilli.$$
+
+cat<<EOF
+</table>
+EOF

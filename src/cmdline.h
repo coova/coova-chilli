@@ -505,6 +505,14 @@ struct gengetopt_args_info
   char * kname_arg;	/**< @brief Enable the use of the coova kernel module instance of this namem.  */
   char * kname_orig;	/**< @brief Enable the use of the coova kernel module instance of this namem original value given at command line.  */
   const char *kname_help; /**< @brief Enable the use of the coova kernel module instance of this namem help description.  */
+  char * moddir_arg;	/**< @brief Directory for dynamically loaded modules.  */
+  char * moddir_orig;	/**< @brief Directory for dynamically loaded modules original value given at command line.  */
+  const char *moddir_help; /**< @brief Directory for dynamically loaded modules help description.  */
+  char ** module_arg;	/**< @brief Dynamically loaded module.  */
+  char ** module_orig;	/**< @brief Dynamically loaded module original value given at command line.  */
+  unsigned int module_min; /**< @brief Dynamically loaded module's minimum occurreces */
+  unsigned int module_max; /**< @brief Dynamically loaded module's maximum occurreces */
+  const char *module_help; /**< @brief Dynamically loaded module help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -673,6 +681,8 @@ struct gengetopt_args_info
   unsigned int layer3_given ;	/**< @brief Whether layer3 was given.  */
   unsigned int redirdnsreq_given ;	/**< @brief Whether redirdnsreq was given.  */
   unsigned int kname_given ;	/**< @brief Whether kname was given.  */
+  unsigned int moddir_given ;	/**< @brief Whether moddir was given.  */
+  unsigned int module_given ;	/**< @brief Whether module was given.  */
 
 } ;
 

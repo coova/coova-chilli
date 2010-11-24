@@ -276,6 +276,16 @@ struct options_t {
   char *kname;
 #endif
 
+#ifdef ENABLE_MODULES
+#define MAX_MODULES 4
+  struct {
+    char name[32];
+    char conf[128];
+    void *ctx;
+  } modules[MAX_MODULES];
+  char *moddir;
+#endif
+
   char * _data; /* actual data buffer for loaded options */
 };
 

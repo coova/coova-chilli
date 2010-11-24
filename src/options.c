@@ -19,6 +19,9 @@
  */
 
 #include "chilli.h"
+#ifdef ENABLE_MODULES
+#include "chilli_module.h"
+#endif
 
 void options_init() {
   memset(&_options, 0, sizeof(_options));
@@ -315,6 +318,9 @@ int options_fromfd(int fd, bstring bt) {
 #ifdef ENABLE_UAMDOMAINFILE
   if (!option_s_l(bt, &o.uamdomainfile)) return 0;
 #endif
+#ifdef ENABLE_MODULES
+  if (!option_s_l(bt, &o.moddir)) return 0;
+#endif
 
   if (!option_s_l(bt, &o.adminuser)) return 0;
   if (!option_s_l(bt, &o.adminpasswd)) return 0;
@@ -346,9 +352,40 @@ int options_fromfd(int fd, bstring bt) {
   }
 #endif
 
+#ifdef ENABLE_MODULES
+  for (i=0; i < MAX_MODULES; i++) {
+    if (!_options.modules[i].name[0]) break;
+    if (!_options.modules[i].ctx) continue;
+    else {
+      struct chilli_module *m = 
+	(struct chilli_module *)_options.modules[i].ctx;
+      if (m->destroy)
+	m->destroy();
+    }
+    log_dbg("Unloading module %s",_options.modules[i].name);
+    chilli_module_unload(_options.modules[i].ctx);
+  }
+#endif
+
   if (_options._data) free(_options._data);
   memcpy(&_options, &o, sizeof(o));
   _options._data = (char *)bt->data;
+
+#ifdef ENABLE_MODULES
+  log_dbg("Loading modules");
+  for (i=0; i < MAX_MODULES; i++) {
+    if (!_options.modules[i].name[0]) break;
+    log_dbg("Loading module %s",_options.modules[i].name);
+    chilli_module_load(&_options.modules[i].ctx, 
+		       _options.modules[i].name);
+    if (_options.modules[i].ctx) {
+      struct chilli_module *m = 
+	(struct chilli_module *)_options.modules[i].ctx;
+      if (m->initialize)
+	m->initialize(_options.modules[i].conf); 
+    }
+  }
+#endif
 
   /* 
    *  We took the buffer and this bt will be destroyed.
@@ -440,6 +477,9 @@ int options_save(char *file, bstring bt) {
 #endif
 #ifdef ENABLE_UAMDOMAINFILE
   if (!option_s_s(bt, &o.uamdomainfile)) return 0;
+#endif
+#ifdef ENABLE_MODULES
+  if (!option_s_s(bt, &o.moddir)) return 0;
 #endif
 
   if (!option_s_s(bt, &o.adminuser)) return 0;
@@ -564,3 +604,4 @@ void options_cleanup() {
   if (remove(file)) log_dbg("remove(%s) failed", file);
   options_destroy();
 }
+

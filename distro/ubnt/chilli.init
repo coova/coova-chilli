@@ -1,26 +1,28 @@
 #!/bin/sh
 
-. /etc/chilli/functions
-
-check_required
-
 case $1 in
     start)
-        echo -n "Starting $prog: "
+	$0 stop
 
-	brctl delif br0 ath0
+	. /etc/chilli/functions
+	
+	check_required
+	
+        echo "Starting CoovaChilli"
 
-	insmod tun
-	insmod ip_tables
-	insmod iptable_filter
-	insmod ip_conntrack
-	insmod iptable_nat
-	insmod ipt_MASQUERADE
+	for mod in tun ip_tables iptable_filter ip_conntrack iptable_nat ipt_MASQUERADE; do
+	    insmod $mod 2>/dev/null
+	done
 
         echo 1 > /proc/sys/net/ipv4/ip_forward
 
-	iptables -t nat -I POSTROUTING -o br0 -j MASQUERADE 
-
+	for dev in br0 eth0; do
+	    ifconfig $dev >/dev/null 2>/dev/null && {
+		brctl delif $dev ath0 2>/dev/null
+		iptables -t nat -I POSTROUTING -o $dev -j MASQUERADE 
+	    }
+	done
+	
 	[ -e /dev/net/tun ] || {
 	    (cd /dev; 
 		mkdir net; 
@@ -34,23 +36,97 @@ case $1 in
 	rm -f /var/run/chilli.*
 	ifconfig $HS_LANIF 0.0.0.0
         chilli --pidfile /tmp/chilli.pid &
-        echo
+
+        mkdir /etc/crontabs 2>/dev/null
+        (crontab -l | grep -v $0; echo "*/5 * * * * sh $0 check") | crontab -
+        [ "$(ps|grep -v grep|grep crond)" = "" ] && crond
+	echo "Done"
 	;;
     
     stop)
-        echo -n $"Shutting down $prog: "
+        echo "Shutting down CoovaChilli"
+
+        crontab -l | grep -v $0 | crontab -
+
         [ -f /tmp/chilli.pid ] && { 
 	    kill $(cat /tmp/chilli.pid)
-	    sleep 1
-	    kill -9 $(cat /tmp/chilli.pid)
-	    rm -f /var/run/chilli.*
-	    rm -f /tmp/chilli.pid
+	    sleep 4
 	}
-        echo
+        killall -9 chilli_redir 2>/dev/null
+        killall -9 chilli_proxy 2>/dev/null
+        killall -9 chilli_radsec 2>/dev/null
+  	pids=$(ps|grep chilli|grep /tmp/chilli.pid|grep -v grep|awk '{ print $1 }')
+        [ -n "$pids" ] && kill -9 $pids
+	rm -f /tmp/chilli.pid
+	rm -f /var/run/chilli.*
+        brctl addif eth0 ath0 2>/dev/null || brctl addif br0 ath0 2>/dev/null 
+	echo "Done"
 	;;
+
+    restart)
+        sh $0 stop
+        sleep 10
+        echo "Restarting chilli"
+        if [ "$(getcfg hotspot.status)" = "enabled" ]; then
+            sh $0 start
+        fi
+        ;;
+
+    status)
+        if [ -f /tmp/chilli.pid ]; then
+            if [ "$(ps | awk -v "pid=$(cat /tmp/chilli.pid)" '($1 == pid) {print $1}')" = "$(cat /tmp/chilli.pid)" ]; then
+                echo "Running"
+            else
+                echo "Stopped"
+            fi
+        else
+            echo "Stopped"
+        fi
+        ;;
+
+    check)
+        running=0
+
+        chilli_query list 2>/dev/null >/dev/null
+        if test $? -eq 1;
+        then
+            # Problem with chilli
+            attempt=$(cat /tmp/chilli.down 2>/dev/null)
+            attempt=${attempt:-0}
+            if test $attempt -ge 2; then
+                rm -f /tmp/chilli.down
+                sh $0 stop
+                sh $0 start
+            else
+                attempt=$(expr $attempt '+' 1)
+                echo "$attempt" > /tmp/chilli.down
+            fi
+        else
+            # No problem with chilli
+            [ -e /tmp/chilli.down ] && rm -f /tmp/chilli.down
+            running=1
+        fi
+
+        . /etc/chilli/config
+
+        # Upload DNS Log, or delete
+        TMP=/tmp/upload.$$
+        mv -f $HS_DNSLOG $TMP 2>/dev/null || rm -f $HS_DNSLOG 2>/dev/null 
+        
+        [ -e $TMP ] && {
+            MD5=$(md5sum $TMP|cut -f 1 -d' ')
+            RESP=$(chilli_response "$MD5" "$HS_UAMSECRET" "$HS_ADMPWD")
+            URL="$HS_UAMAAAURL?upload=dnslog&nasid=$HS_NASID&user=$HS_ADMUSR&response=$RESP"
+            curl -k -T $TMP \
+                --connect-timeout 120 \
+                $URL
+            rm -f $TMP
+        }
+        ;;
     
+   
     *)
-        echo "Usage: $0 {start|stop}"
+        echo "Usage: $0 {start|stop|restart|status|check}"
         exit 1
 esac
 

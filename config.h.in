@@ -54,6 +54,9 @@
 /* Define to enable Coova miniportal */
 #undef ENABLE_MINIPORTAL
 
+/* Define to enable dynamically loadable modules */
+#undef ENABLE_MODULES
+
 /* Define to enable network interface nat */
 #undef ENABLE_NETNAT
 

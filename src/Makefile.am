@@ -25,11 +25,11 @@ iphash.c lookup.c system.h util.c options.c statusfile.c conn.c sig.c \
 garden.c dns.c session.c pkt.c chksum.c net.c 
 
 AM_CFLAGS = -D_GNU_SOURCE -Wall -Werror -fno-builtin -fno-strict-aliasing \
-  -O2 -fomit-frame-pointer -funroll-loops -pipe \
+  -O2 -fomit-frame-pointer -funroll-loops -pipe -I$(top_builddir)/bstring \
  -DDEFCHILLICONF='"$(sysconfdir)/chilli.conf"'\
  -DDEFPIDFILE='"$(localstatedir)/run/chilli.pid"'\
  -DDEFSTATEDIR='"$(localstatedir)/run"'\
- -DSBINDIR='"$(sbindir)"' -I$(top_builddir)/bstring 
+ -DSBINDIR='"$(sbindir)"' 
 
 cmdline_sources=cmdline.c 
 
@@ -44,6 +44,7 @@ test_dhcp_SOURCES = test-dhcp.c
 test_randpkt_SOURCES = test-randpkt.c 
 
 LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBRT}
+libchilli_la_LIBADD = $(top_builddir)/bstring/libbstring.la 
 
 if WITH_SFHASH
 libchilli_la_SOURCES += sfhash.c
@@ -128,6 +129,18 @@ SUBDIRS = linux
 libchilli_la_SOURCES += kcoova.c
 endif
 
+if WITH_MODULES
+sample_la_SOURCES = sample-mod.c
+sample_la_LDFLAGS = -module -avoid-version
+pkglibdir = $(libdir)/coova-chilli
+pkglib_LTLIBRARIES = sample.la
+libchilli_la_SOURCES += chilli_module.c
+libchilli_la_LIBADD += -ldl
+LDADD += -ldl
+chilliinclude_HEADERS += chilli_module.h
+AM_CFLAGS += -DDEFLIBDIR='"$(libdir)/coova-chilli"'
+endif
+
 install-exec-hook:
 	@for f in $(suid_programs); do \
 		echo "Setting SUID on $(DESTDIR)$(sbindir)/$$f !"; \
@@ -137,4 +150,5 @@ install-exec-hook:
 
 cmdline.c cmdline.h: cmdline.ggo cmdline.patch
 	gengetopt -C < cmdline.ggo 
+	cp cmdline.c cmdline.c.orig
 	patch -p0 < cmdline.patch

@@ -1,6 +1,6 @@
---- cmdline.c.orig	2010-01-25 10:15:01.000000000 +0100
-+++ cmdline.c	2010-01-25 10:19:10.000000000 +0100
-@@ -1724,14 +1724,13 @@
+--- cmdline.c.orig	2010-11-23 10:30:18.000000000 +0100
++++ cmdline.c	2010-11-23 10:35:49.000000000 +0100
+@@ -1902,14 +1902,13 @@
    if (!multiple_option && prev_given && (*prev_given || (check_ambiguity && *field_given)))
      {
        if (short_opt != '-')

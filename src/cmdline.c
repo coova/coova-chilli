@@ -199,6 +199,8 @@ const char *gengetopt_args_info_help[] = {
   "      --layer3                  Layer3 only  (default=off)",
   "      --redirdnsreq             Send DNS query on redirect to pick of DNS based \n                                  walled garden  (default=off)",
   "      --kname=STRING            Enable the use of the coova kernel module \n                                  instance of this namem",
+  "      --moddir=STRING           Directory for dynamically loaded modules",
+  "      --module=STRING           Dynamically loaded module",
     0
 };
 
@@ -418,6 +420,8 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->layer3_given = 0 ;
   args_info->redirdnsreq_given = 0 ;
   args_info->kname_given = 0 ;
+  args_info->moddir_given = 0 ;
+  args_info->module_given = 0 ;
 }
 
 static
@@ -711,6 +715,10 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->redirdnsreq_flag = 0;
   args_info->kname_arg = NULL;
   args_info->kname_orig = NULL;
+  args_info->moddir_arg = NULL;
+  args_info->moddir_orig = NULL;
+  args_info->module_arg = NULL;
+  args_info->module_orig = NULL;
   
 }
 
@@ -896,6 +904,10 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->layer3_help = gengetopt_args_info_help[164] ;
   args_info->redirdnsreq_help = gengetopt_args_info_help[165] ;
   args_info->kname_help = gengetopt_args_info_help[166] ;
+  args_info->moddir_help = gengetopt_args_info_help[167] ;
+  args_info->module_help = gengetopt_args_info_help[168] ;
+  args_info->module_min = 0;
+  args_info->module_max = 0;
   
 }
 
@@ -1219,6 +1231,9 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->uamdomainfile_orig));
   free_string_field (&(args_info->kname_arg));
   free_string_field (&(args_info->kname_orig));
+  free_string_field (&(args_info->moddir_arg));
+  free_string_field (&(args_info->moddir_orig));
+  free_multiple_string_field (args_info->module_given, &(args_info->module_arg), &(args_info->module_orig));
   
   
 
@@ -1586,6 +1601,9 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "redirdnsreq", 0, 0 );
   if (args_info->kname_given)
     write_into_file(outfile, "kname", args_info->kname_orig, 0);
+  if (args_info->moddir_given)
+    write_into_file(outfile, "moddir", args_info->moddir_orig, 0);
+  write_multiple_into_file(outfile, args_info->module_given, "module", args_info->module_orig, 0);
   
 
   i = EXIT_SUCCESS;
@@ -1850,6 +1868,9 @@ cmdline_parser_required2 (struct gengetopt_args_info *args_info, const char *pro
      error = 1;
   
   if (check_multiple_option_occurrences(prog_name, args_info->macallowed_given, args_info->macallowed_min, args_info->macallowed_max, "'--macallowed'"))
+     error = 1;
+  
+  if (check_multiple_option_occurrences(prog_name, args_info->module_given, args_info->module_min, args_info->module_max, "'--module'"))
      error = 1;
   
   
@@ -2131,6 +2152,7 @@ cmdline_parser_internal (
   struct generic_list * uamdomain_list = NULL;
   struct generic_list * uamregex_list = NULL;
   struct generic_list * macallowed_list = NULL;
+  struct generic_list * module_list = NULL;
   int error = 0;
   struct gengetopt_args_info local_args_info;
   
@@ -2328,6 +2350,8 @@ cmdline_parser_internal (
         { "layer3",	0, NULL, 0 },
         { "redirdnsreq",	0, NULL, 0 },
         { "kname",	1, NULL, 0 },
+        { "moddir",	1, NULL, 0 },
+        { "module",	1, NULL, 0 },
         { 0,  0, 0, 0 }
       };
 
@@ -4564,6 +4588,31 @@ cmdline_parser_internal (
               goto failure;
           
           }
+          /* Directory for dynamically loaded modules.  */
+          else if (strcmp (long_options[option_index].name, "moddir") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->moddir_arg), 
+                 &(args_info->moddir_orig), &(args_info->moddir_given),
+                &(local_args_info.moddir_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "moddir", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Dynamically loaded module.  */
+          else if (strcmp (long_options[option_index].name, "module") == 0)
+          {
+          
+            if (update_multiple_arg_temp(&module_list, 
+                &(local_args_info.module_given), optarg, 0, 0, ARG_STRING,
+                "module", '-',
+                additional_error))
+              goto failure;
+          
+          }
           
           break;
         case '?':	/* Invalid option.  */
@@ -4597,6 +4646,10 @@ cmdline_parser_internal (
     &(args_info->macallowed_orig), args_info->macallowed_given,
     local_args_info.macallowed_given, 0,
     ARG_STRING, macallowed_list);
+  update_multiple_arg((void *)&(args_info->module_arg),
+    &(args_info->module_orig), args_info->module_given,
+    local_args_info.module_given, 0,
+    ARG_STRING, module_list);
 
   args_info->proxylocattr_given += local_args_info.proxylocattr_given;
   local_args_info.proxylocattr_given = 0;
@@ -4608,6 +4661,8 @@ cmdline_parser_internal (
   local_args_info.uamregex_given = 0;
   args_info->macallowed_given += local_args_info.macallowed_given;
   local_args_info.macallowed_given = 0;
+  args_info->module_given += local_args_info.module_given;
+  local_args_info.module_given = 0;
   
   if (check_required)
     {
@@ -4627,6 +4682,7 @@ failure:
   free_list (uamdomain_list, 1 );
   free_list (uamregex_list, 1 );
   free_list (macallowed_list, 1 );
+  free_list (module_list, 1 );
   
   cmdline_parser_release (&local_args_info);
   return (EXIT_FAILURE);

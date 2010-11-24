@@ -20,6 +20,9 @@
 
 #include "chilli.h"
 #include "bstrlib.h"
+#ifdef ENABLE_MODULES
+#include "chilli_module.h"
+#endif
 
 struct tun_t *tun;                /* TUN instance            */
 struct ippool_t *ippool;          /* Pool of IP addresses */
@@ -900,9 +903,24 @@ void session_interval(struct app_conn_t *conn) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.interim_interval) &&
-	   (interimtime >= conn->s_params.interim_interval) &&
-          !(conn->s_params.flags & NO_ACCOUNTING)) {
-    acct_req(conn, RADIUS_STATUS_TYPE_INTERIM_UPDATE);
+	   (interimtime >= conn->s_params.interim_interval)) {
+
+#ifdef ENABLE_MODULES
+    { int i;
+      for (i=0; i < MAX_MODULES; i++) {
+	if (!_options.modules[i].name[0]) break;
+	if (_options.modules[i].ctx) {
+	  struct chilli_module *m = 
+	    (struct chilli_module *)_options.modules[i].ctx;
+	  if (m->session_update)
+	    m->session_update(conn); 
+	}
+      }
+    }
+#endif
+
+    if (!(conn->s_params.flags & NO_ACCOUNTING))
+      acct_req(conn, RADIUS_STATUS_TYPE_INTERIM_UPDATE);
   }
 }
 
@@ -1780,9 +1798,23 @@ int static dnprot_accept(struct app_conn_t *appconn) {
 #ifdef HAVE_NETFILTER_COOVA
     kmod_coova_update(appconn);
 #endif
+
+#ifdef ENABLE_MODULES
+    { int i;
+      for (i=0; i < MAX_MODULES; i++) {
+	if (!_options.modules[i].name[0]) break;
+	if (_options.modules[i].ctx) {
+	  struct chilli_module *m = 
+	    (struct chilli_module *)_options.modules[i].ctx;
+	  if (m->session_start)
+	    m->session_start(appconn); 
+	}
+      }
+    }
+#endif
     
     /* Run connection up script */
-    if (_options.conup) {
+    if (_options.conup && !(appconn->s_params.flags & NO_SCRIPT)) {
       log_dbg("Calling connection up script: %s\n", _options.conup);
       runscript(appconn, _options.conup);
     }
@@ -3741,6 +3773,20 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 	conn->hismac[2], conn->hismac[3],
 	conn->hismac[4], conn->hismac[5], 
 	inet_ntoa(appconn->hisip));
+
+#ifdef ENABLE_MODULES
+    { int i;
+      for (i=0; i < MAX_MODULES; i++) {
+	if (!_options.modules[i].name[0]) break;
+	if (_options.modules[i].ctx) {
+	  struct chilli_module *m = 
+	    (struct chilli_module *)_options.modules[i].ctx;
+	  if (m->dhcp_connect)
+	    m->dhcp_connect(appconn, conn); 
+	}
+      }
+    }
+#endif
     
     /* TODO: Too many "listen" and "our" addresses hanging around */
     appconn->ourip.s_addr = _options.dhcplisten.s_addr;
@@ -3952,6 +3998,20 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
 
     appconn->s_state.terminate_cause = terminate_cause;
 
+#ifdef ENABLE_MODULES
+    { int i;
+      for (i=0; i < MAX_MODULES; i++) {
+	if (!_options.modules[i].name[0]) break;
+	if (_options.modules[i].ctx) {
+	  struct chilli_module *m = 
+	    (struct chilli_module *)_options.modules[i].ctx;
+	  if (m->session_stop)
+	    m->session_stop(appconn); 
+	}
+      }
+    }
+#endif
+
     if (!(appconn->s_params.flags & NO_ACCOUNTING))
       acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
 
@@ -3976,7 +4036,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
       conn->hismac[2], conn->hismac[3],
       conn->hismac[4], conn->hismac[5], 
       inet_ntoa(conn->hisip));
-  
+
   log_dbg("DHCP connection removed");
 
   if (!conn->peer) {
@@ -3989,6 +4049,20 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 
   appconn = (struct app_conn_t*) conn->peer;
 
+#ifdef ENABLE_MODULES
+    { int i;
+      for (i=0; i < MAX_MODULES; i++) {
+	if (!_options.modules[i].name[0]) break;
+	if (_options.modules[i].ctx) {
+	  struct chilli_module *m = 
+	    (struct chilli_module *)_options.modules[i].ctx;
+	  if (m->dhcp_disconnect)
+	    m->dhcp_disconnect(appconn, conn); 
+	}
+      }
+    }
+#endif
+  
   if ((appconn->dnprot != DNPROT_DHCP_NONE) &&
       (appconn->dnprot != DNPROT_UAM) &&
       (appconn->dnprot != DNPROT_MAC) &&
@@ -5370,6 +5444,18 @@ int chilli_main(int argc, char **argv) {
 
 #ifdef ENABLE_CHILLIQUERY
   net_select_reg(&sctx, cmdsock, SELECT_READ, (select_callback)cmdsock_accept, 0, cmdsock);
+#endif
+
+#ifdef ENABLE_MODULES
+  for (i=0; i < MAX_MODULES; i++) {
+    if (!_options.modules[i].name[0]) break;
+    if (_options.modules[i].ctx) {
+      struct chilli_module *m = 
+	(struct chilli_module *)_options.modules[i].ctx;
+      if (m->net_select)
+	m->net_select(&sctx); 
+    }
+  }
 #endif
 
   mainclock_tick();
