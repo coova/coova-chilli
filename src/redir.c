@@ -1451,11 +1451,11 @@ tcp_write(struct redir_socket_t *sock, char *buf, size_t len) {
 }
 
 /* Make an HTTP redirection reply and send it to the client */
-static int redir_reply(struct redir_t *redir, struct redir_socket_t *sock, 
-		       struct redir_conn_t *conn, int res, bstring url,
-		       long int timeleft, char* hexchal, char* uid, 
-		       char* userurl, char* reply, char* redirurl,
-		       uint8_t *hismac, struct in_addr *hisip, char *qs) {
+int redir_reply(struct redir_t *redir, struct redir_socket_t *sock, 
+		struct redir_conn_t *conn, int res, bstring url,
+		long int timeleft, char* hexchal, char* uid, 
+		char* userurl, char* reply, char* redirurl,
+		uint8_t *hismac, struct in_addr *hisip, char *qs) {
 
   char *resp = NULL;
   bstring buffer;

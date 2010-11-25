@@ -306,5 +306,10 @@ int session_json_fmt(struct session_state *state,
 int session_redir_json_fmt(bstring json, char *userurl, char *redirurl,
                            bstring logouturl, uint8_t *hismac);
 
+int redir_reply(struct redir_t *redir, struct redir_socket_t *sock, 
+		struct redir_conn_t *conn, int res, bstring url,
+		long int timeleft, char* hexchal, char* uid, 
+		char* userurl, char* reply, char* redirurl,
+		uint8_t *hismac, struct in_addr *hisip, char *qs);
 
 #endif	/* !_REDIR_H */
