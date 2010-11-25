@@ -28,7 +28,6 @@
 #include "redir.h"
 #include "syserr.h"
 #include "dhcp.h"
-#include "cmdline.h"
 #include "session.h"
 #include "chilli.h"
 #include "options.h"

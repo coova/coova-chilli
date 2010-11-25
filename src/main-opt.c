@@ -20,6 +20,7 @@
 #define MAIN_FILE
 
 #include "chilli.h"
+#include "cmdline.h"
 
 struct options_t _options;
 
