@@ -19,6 +19,9 @@
 
 #include "system.h"
 #include "chilli.h"
+#ifdef ENABLE_MODULES
+#include "chilli_module.h"
+#endif
 
 #define _debug_ 1
 
@@ -3322,7 +3325,6 @@ int redir_main(struct redir_t *redir,
 	return redir_main_exit();
       }
 
-
       if (!forked) {
 	/*
 	 *  If not forked off the main process already, fork now
@@ -3562,6 +3564,11 @@ int redir_main(struct redir_t *redir,
     }
     else {
 
+#ifdef ENABLE_MODULES
+      int i;
+      int flags = 0;
+#endif
+
       if (!forked) {
 	/*
 	 *  When waiting for RADIUS, we need to be forked.
@@ -3573,14 +3580,39 @@ int redir_main(struct redir_t *redir,
 	}
       }
 
+#ifdef ENABLE_MODULES
+      for (i=0; i < MAX_MODULES; i++) {
+	if (!_options.modules[i].name[0]) break;
+	if (_options.modules[i].ctx) {
+	  struct chilli_module *m = 
+	    (struct chilli_module *)_options.modules[i].ctx;
+	  if (m->redir_login) {
+	    int modresult = m->redir_login(redir, &conn, &socket);
+	    flags |= modresult;
+	    switch(chilli_mod_state(modresult)) {
+	    case CHILLI_MOD_ERROR:
+	      return redir_main_exit();
+	    default: 
+	      break;
+	    }
+	  }
+	}
+      }
+      if (!(flags & CHILLI_MOD_REDIR_SKIP_RADIUS)) {
+#endif
+      
       termstate = REDIR_TERM_RADIUS;
-
+      
       if (optionsdebug) 
 	log_dbg("redir_accept: Sending RADIUS request");
-
+      
       redir_radius(redir, &address->sin_addr, &conn, reauth);
       termstate = REDIR_TERM_REPLY;
 
+#ifdef ENABLE_MODULES
+      }
+#endif
+      
 #if(_debug_)
       log_dbg("Received RADIUS reply");
 #endif

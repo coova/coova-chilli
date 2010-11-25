@@ -21,16 +21,40 @@
 
 struct chilli_module {
   void *lib;
+
+  /*
+   *   Modules shall return an integer code. 
+   *   We shall use the lower 8 bits as a main code,
+   *   the rest of the integer available for handler
+   *   specific flags. 
+   */
+
+# define CHILLI_MOD_OK        0
+# define CHILLI_MOD_ERROR    -1
+# define CHILLI_MOD_CONTINUE  1
+# define CHILLI_MOD_BREAK     2
+
   int (* initialize)      (char *);
   int (* net_select)      (select_ctx *sctx);
-  int (* redir_login)     ();
-  int (* dhcp_connect)    ();
-  int (* dhcp_disconnect) ();
+
+# define CHILLI_MOD_REDIR_SKIP_RADIUS (1 << 8)
+  int (* redir_login)     (struct redir_t *, 
+			   struct redir_conn_t *,
+			   struct redir_socket_t *);
+
+  int (* dhcp_connect)    (struct app_conn_t *, 
+			   struct dhcp_conn_t *);
+
+  int (* dhcp_disconnect) (struct app_conn_t *, 
+			   struct dhcp_conn_t *);
+
   int (* session_start)   (struct app_conn_t *);
   int (* session_update)  (struct app_conn_t *);
   int (* session_stop)    (struct app_conn_t *);
   int (* destroy)         ();
 };
+
+#define chilli_mod_state(x) ((x)&0xff)
 
 int chilli_module_load(void **ctx, char *name);
 int chilli_module_unload(void *ctx);

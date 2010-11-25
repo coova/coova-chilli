@@ -17,7 +17,7 @@ static int acc(void *nullData, int sock) {
 
   log_dbg("Received echo %.*s", rlen, req);
 
-  return 0;
+  return CHILLI_MOD_OK;
 }
 
 static int module_initialize(char *conf) {
@@ -43,50 +43,52 @@ static int module_initialize(char *conf) {
     }
   }
 
-  return 0;
+  return CHILLI_MOD_OK;
 }
 
 static int module_net_select(select_ctx *sctx) {
   log_dbg("%s", __FUNCTION__);
   net_select_reg(sctx, fd, SELECT_READ, (select_callback) acc, 0, 0);
-  return 0;
+  return CHILLI_MOD_OK;
 }
 
-static int module_redir_login() {
+static int module_redir_login(struct redir_t *redir, 
+			      struct redir_conn_t *conn,
+			      struct redir_socket_t *sock) {
   log_dbg("%s", __FUNCTION__);
-  return 0;
+  return CHILLI_MOD_OK;
 }
 
 static int module_dhcp_connect(struct app_conn_t *appconn, 
 			       struct dhcp_conn_t *dhcpconn) {
   log_dbg("%s", __FUNCTION__);
-  return 0;
+  return CHILLI_MOD_OK;
 }
 
 static int module_dhcp_disconnect(struct app_conn_t *appconn, 
 				  struct dhcp_conn_t *dhcpconn) {
   log_dbg("%s", __FUNCTION__);
-  return 0;
+  return CHILLI_MOD_OK;
 }
 
 static int module_session_start(struct app_conn_t *appconn) {
   log_dbg("%s", __FUNCTION__);
-  return 0;
+  return CHILLI_MOD_OK;
 }
 
 static int module_session_update(struct app_conn_t *appconn) {
   log_dbg("%s", __FUNCTION__);
-  return 0;
+  return CHILLI_MOD_OK;
 }
 
 static int module_session_stop(struct app_conn_t *appconn) {
   log_dbg("%s", __FUNCTION__);
-  return 0;
+  return CHILLI_MOD_OK;
 }
 
 static int module_destroy() {
   close(fd);
-  return 0;
+  return CHILLI_MOD_OK;
 }
 
 struct chilli_module sample_module = {
