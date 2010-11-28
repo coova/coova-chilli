@@ -1,3 +1,20 @@
+/* 
+ * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
 
 #include "chilli.h"
 #include "chilli_module.h"
@@ -15,7 +32,7 @@ int chilli_module_load(void **ctx, char *name) {
   
   lib_handle = dlopen(path, RTLD_LAZY);
   if (!lib_handle) {
-    log_err(errno, "chilli_module_load() %s", dlerror);
+    log_err(errno, "chilli_module_load() %s", dlerror());
     return -1;
   }
 
@@ -43,31 +60,3 @@ int chilli_module_unload(void *ctx) {
   dlclose(m->lib);
   return 0;
 }
-
-#ifdef TEST
-int main(int argc, char **argv) {
-  void *lib_handle;
-  double (*fn)(int *);
-  int x;
-  char *error;
-  
-  lib_handle = dlopen("/tmp/sample.so", RTLD_LAZY);
-  if (!lib_handle) {
-    fprintf(stderr, "%s\n", dlerror());
-    exit(1);
-  }
-  
-  fn = dlsym(lib_handle, "ctest1");
-  if ((error = dlerror()) != NULL) {
-    fprintf(stderr, "%s\n", error);
-    exit(1);
-  }
-  
-  (*fn)(&x);
-  printf("Valx=%d\n",x);
-  
-  dlclose(lib_handle);
-  return 0;
-}
-#endif
-

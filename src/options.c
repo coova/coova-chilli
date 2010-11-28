@@ -147,7 +147,6 @@ static int opt_run(int argc, char **argv, int reload) {
   exit(0);
 }
 
-
 int options_load(int argc, char **argv, bstring bt) {
   static char done_before = 0;
   char file[128];

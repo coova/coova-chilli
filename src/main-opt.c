@@ -30,7 +30,7 @@ static const char *description =
   "  http://www.coova.org/\n";
 
 static const char *copyright = 
-  "Copyright (c) 2003-2005 Mondru AB., 2006-2010 Coova Technologies LLC, and others.\n"
+  "Copyright (c) 2003-2005 Mondru AB., 2006-2010 Coova Technologies LLC.\n"
   "Licensed under the GNU General Public License (GPL).\n";
 
 static const char *usage =
@@ -126,6 +126,43 @@ static const char *compile_options = "Compiled with "
 #endif
 ;
 
+char *STRDUP(char *s) {
+  if (!s) return 0;
+  while (isspace(*s)) s++;
+  if (!*s) return 0;
+  return s;
+}
+
+#ifdef ENABLE_MINICONFIG
+
+#define cmdline_parser2 mini_cmdline_parser2
+extern int mini_cmdline_parser2(int argc, char **argv, 
+				struct gengetopt_args_info *args_info, 
+				int, int, int);
+
+#define cmdline_parser_free mini_cmdline_free
+extern int mini_cmdline_free(struct gengetopt_args_info *args_info);
+
+#define cmdline_parser_configfile mini_cmdline_file
+extern int mini_cmdline_file(char *file, struct gengetopt_args_info *args_info,
+			     int, int, int);
+
+static void
+options_print_version (void) {
+  printf ("%s %s\n", PACKAGE, VERSION);
+}
+
+static void
+options_print_help (void) {
+  options_print_version();
+  printf("\n%s", description);
+  printf("\n%s\n", usage);
+  printf("\n%s\n", compile_options);
+  printf("\n%s\n", copyright);
+}
+
+#else
+
 extern const char *gengetopt_args_info_help[];
 
 static void
@@ -136,6 +173,7 @@ options_print_version (void) {
 static void
 options_print_help (void) {
   int i = 0;
+
   options_print_version();
 
   printf("\n%s", description);
@@ -149,12 +187,7 @@ options_print_help (void) {
   printf("\n%s\n", copyright);
 }
 
-char *STRDUP(char *s) {
-  if (!s) return 0;
-  while (isspace(*s)) s++;
-  if (!*s) return 0;
-  return s;
-}
+#endif
 
 int main(int argc, char **argv) {
   struct gengetopt_args_info args_info;
@@ -478,7 +511,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  if (args_info.uamhomepage_arg) {
+  if (args_info.uamhomepage_arg && *args_info.uamhomepage_arg) {
     if (get_urlparts(args_info.uamhomepage_arg, hostname, USERURLSIZE, 
 		     &_options.uamhomepageport, 0)) {
       log_err(0,"Failed to parse uamhomepage: %s!", 
@@ -549,6 +582,7 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef ENABLE_CHILLIREDIR
+  /*
   for (numargs = 0; numargs < MAX_REGEX_PASS_THROUGHS; ++numargs) {
     if (_options.regex_pass_throughs[numargs].re_host.allocated)
       regfree(&_options.regex_pass_throughs[numargs].re_host);
@@ -557,6 +591,7 @@ int main(int argc, char **argv) {
     if (_options.regex_pass_throughs[numargs].re_qs.allocated)
       regfree(&_options.regex_pass_throughs[numargs].re_qs);
   }
+  */
   
   memset(_options.regex_pass_throughs, 0, sizeof(_options.regex_pass_throughs));
   _options.regex_num_pass_throughs = 0;
@@ -837,50 +872,22 @@ int main(int argc, char **argv) {
   }
 
   /** string parameters **/
-  if (_options.peerkey) free(_options.peerkey);
-  _options.peerkey = STRDUP(args_info.peerkey_arg);
-
-  if (_options.routeif) free(_options.routeif);
-  _options.routeif = STRDUP(args_info.routeif_arg);
-
-  if (_options.wwwdir) free(_options.wwwdir);
-  _options.wwwdir = STRDUP(args_info.wwwdir_arg);
-
-  if (_options.wwwbin) free(_options.wwwbin);
-  _options.wwwbin = STRDUP(args_info.wwwbin_arg);
-
-  if (_options.uamui) free(_options.uamui);
-  _options.uamui = STRDUP(args_info.uamui_arg);
-
-  if (_options.localusers) free(_options.localusers);
-  _options.localusers = STRDUP(args_info.localusers_arg);
-
 #ifdef HAVE_SSL
-  if (_options.sslkeyfile) free(_options.sslkeyfile);
   _options.sslkeyfile = STRDUP(args_info.sslkeyfile_arg);
-
-  if (_options.sslkeypass) free(_options.sslkeypass);
   _options.sslkeypass = STRDUP(args_info.sslkeypass_arg);
-
-  if (_options.sslcertfile) free(_options.sslcertfile);
   _options.sslcertfile = STRDUP(args_info.sslcertfile_arg);
-
-  if (_options.sslcafile) free(_options.sslcafile);
   _options.sslcafile = STRDUP(args_info.sslcafile_arg);
 #endif
 
 #ifdef USING_IPC_UNIX
-  if (_options.unixipc) free(_options.unixipc);
   _options.unixipc = STRDUP(args_info.unixipc_arg);
 #endif
 
 #ifdef HAVE_NETFILTER_COOVA
-  if (_options.kname) free(_options.kname);
   _options.kname = STRDUP(args_info.kname_arg);
 #endif
 
 #ifdef ENABLE_DNSLOG
-  if (_options.dnslog) free(_options.dnslog);
   _options.dnslog = STRDUP(args_info.dnslog_arg);
 #else
   if (args_info.dnslog_arg)
@@ -888,7 +895,6 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef ENABLE_IPWHITELIST
-  if (_options.ipwhitelist) free(_options.ipwhitelist);
   _options.ipwhitelist = STRDUP(args_info.ipwhitelist_arg);
 #else
   if (args_info.ipwhitelist_arg)
@@ -896,7 +902,6 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef ENABLE_UAMDOMAINFILE
-  if (_options.uamdomainfile) free(_options.uamdomainfile);
   _options.uamdomainfile = STRDUP(args_info.uamdomainfile_arg);
 #else
   if (args_info.uamdomainfile_arg)
@@ -904,29 +909,12 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef ENABLE_MODULES
-  if (_options.moddir) free(_options.moddir);
   _options.moddir = STRDUP(args_info.moddir_arg);
 #else
   if (args_info.moddir_arg)
     log_err(0, "option moddir given when no support built-in");
 #endif
   
-  if (_options.uamurl) free(_options.uamurl);
-  _options.uamurl = STRDUP(args_info.uamserver_arg);
-
-  if (_options.uamaaaurl) free(_options.uamaaaurl);
-  _options.uamaaaurl = STRDUP(args_info.uamaaaurl_arg);
-
-  if (_options.uamhomepage) free(_options.uamhomepage);
-  _options.uamhomepage = STRDUP(args_info.uamhomepage_arg);
-
-  if (_options.wisprlogin) free(_options.wisprlogin);
-  _options.wisprlogin = STRDUP(args_info.wisprlogin_arg);
-
-  if (_options.uamsecret) free(_options.uamsecret);
-  _options.uamsecret = STRDUP(args_info.uamsecret_arg);
-
-  if (_options.proxysecret) free(_options.proxysecret);
   if (!args_info.proxysecret_arg) {
     _options.proxysecret = STRDUP(args_info.radiussecret_arg);
   }
@@ -934,97 +922,47 @@ int main(int argc, char **argv) {
     _options.proxysecret = STRDUP(args_info.proxysecret_arg);
   }
 
-  if (_options.macsuffix) free(_options.macsuffix);
+  _options.peerkey = STRDUP(args_info.peerkey_arg);
+  _options.routeif = STRDUP(args_info.routeif_arg);
+  _options.wwwdir = STRDUP(args_info.wwwdir_arg);
+  _options.wwwbin = STRDUP(args_info.wwwbin_arg);
+  _options.uamui = STRDUP(args_info.uamui_arg);
+  _options.localusers = STRDUP(args_info.localusers_arg);
+  _options.uamurl = STRDUP(args_info.uamserver_arg);
+  _options.uamaaaurl = STRDUP(args_info.uamaaaurl_arg);
+  _options.uamhomepage = STRDUP(args_info.uamhomepage_arg);
+  _options.wisprlogin = STRDUP(args_info.wisprlogin_arg);
+  _options.uamsecret = STRDUP(args_info.uamsecret_arg);
   _options.macsuffix = STRDUP(args_info.macsuffix_arg);
-
-  if (_options.macpasswd) free(_options.macpasswd);
   _options.macpasswd = STRDUP(args_info.macpasswd_arg);
-
-  if (_options.adminuser) free(_options.adminuser);
   _options.adminuser = STRDUP(args_info.adminuser_arg);
-
-  if (_options.adminpasswd) free(_options.adminpasswd);
   _options.adminpasswd = STRDUP(args_info.adminpasswd_arg);
-
-  if (_options.adminupdatefile) free(_options.adminupdatefile);
   _options.adminupdatefile = STRDUP(args_info.adminupdatefile_arg);
-
-  if (_options.rtmonfile) free(_options.rtmonfile);
   _options.rtmonfile = STRDUP(args_info.rtmonfile_arg);
-
-  if (_options.ssid) free(_options.ssid);
   _options.ssid = STRDUP(args_info.ssid_arg);
-
-  if (_options.vlan) free(_options.vlan);
   _options.vlan = STRDUP(args_info.vlan_arg);
-
-  if (_options.nasmac) free(_options.nasmac);
   _options.nasmac = STRDUP(args_info.nasmac_arg);
-
-  if (_options.nasip) free(_options.nasip);
   _options.nasip = STRDUP(args_info.nasip_arg);
-
-  if (_options.tundev) free(_options.tundev);
   _options.tundev = STRDUP(args_info.tundev_arg);
-
-  if (_options.radiusnasid) free(_options.radiusnasid);
   _options.radiusnasid = STRDUP(args_info.radiusnasid_arg);
-
-  if (_options.radiuslocationid) free(_options.radiuslocationid);
   _options.radiuslocationid = STRDUP(args_info.radiuslocationid_arg);
-
-  if (_options.radiuslocationname) free(_options.radiuslocationname);
   _options.radiuslocationname = STRDUP(args_info.radiuslocationname_arg);
-
-  if (_options.locationname) free(_options.locationname);
   _options.locationname = STRDUP(args_info.locationname_arg);
-
-  if (_options.radiussecret) free(_options.radiussecret);
   _options.radiussecret = STRDUP(args_info.radiussecret_arg);
-
-  if (_options.cmdsocket) free(_options.cmdsocket);
   _options.cmdsocket = STRDUP(args_info.cmdsocket_arg);
-
-  if (_options.domain) free(_options.domain);
   _options.domain = STRDUP(args_info.domain_arg);
-
-  if (_options.ipup) free(_options.ipup);
   _options.ipup = STRDUP(args_info.ipup_arg);
-
-  if (_options.ipdown) free(_options.ipdown);
   _options.ipdown = STRDUP(args_info.ipdown_arg);
-
-  if (_options.conup) free(_options.conup);
   _options.conup = STRDUP(args_info.conup_arg);
-
-  if (_options.condown) free(_options.condown);
   _options.condown = STRDUP(args_info.condown_arg);
-
-  if (_options.macup) free(_options.macup);
   _options.macup = STRDUP(args_info.macup_arg);
-
-  if (_options.macdown) free(_options.macdown);
   _options.macdown = STRDUP(args_info.macdown_arg);
-
-  if (_options.pidfile) free(_options.pidfile);
   _options.pidfile = STRDUP(args_info.pidfile_arg);
-
-  if (_options.statedir) free(_options.statedir);
   _options.statedir = STRDUP(args_info.statedir_arg);
-
-  if (_options.usestatusfile) free(_options.usestatusfile);
   _options.usestatusfile = STRDUP(args_info.usestatusfile_arg);
-
-  if (_options.uamaliasname) free(_options.uamaliasname);
   _options.uamaliasname = STRDUP(args_info.uamaliasname_arg);
-
-  if (_options.uamhostname) free(_options.uamhostname);
   _options.uamhostname = STRDUP(args_info.uamhostname_arg);
-
-  if (_options.binconfig) free(_options.binconfig);
   _options.binconfig = STRDUP(args_info.bin_arg);
-
-  if (_options.ethers) free(_options.ethers);
   _options.ethers = STRDUP(args_info.ethers_arg);
 
   ret = 0;
@@ -1049,3 +987,4 @@ int main(int argc, char **argv) {
 
   return ret;
 }
+

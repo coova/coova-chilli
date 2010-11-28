@@ -31,7 +31,11 @@ AM_CFLAGS = -D_GNU_SOURCE -Wall -Werror -fno-builtin -fno-strict-aliasing \
  -DDEFSTATEDIR='"$(localstatedir)/run"'\
  -DSBINDIR='"$(sbindir)"' 
 
+if WITH_MINICONFIG
+cmdline_sources=cmdline.mini.c
+else
 cmdline_sources=cmdline.c 
+endif
 
 chilli_SOURCES= main.c
 chilli_radconfig_SOURCES = main-radconfig.c 
@@ -152,3 +156,8 @@ cmdline.c cmdline.h: cmdline.ggo cmdline.patch
 	gengetopt -C < cmdline.ggo 
 	cp cmdline.c cmdline.c.orig
 	patch -p0 < cmdline.patch
+
+cmdline.mini.gen: cmdline.ggo 
+	sh cmdline.mini.sh > cmdline.mini.gen
+
+cmdline.mini.c: cmdline.mini.gen

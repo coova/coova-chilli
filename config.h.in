@@ -51,6 +51,9 @@
 /* Define to enable Chilli Leaky Bucket shaping */
 #undef ENABLE_LEAKYBUCKET
 
+/* Define to enable minimal cmdline config */
+#undef ENABLE_MINICONFIG
+
 /* Define to enable Coova miniportal */
 #undef ENABLE_MINIPORTAL
 

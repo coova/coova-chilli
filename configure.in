@@ -356,6 +356,15 @@ fi
 
 AM_CONDITIONAL(WITH_MINIPORTAL, [test x"$enable_miniportal" = xyes])
 
+AC_ARG_ENABLE(miniconfig, [AC_HELP_STRING([--enable-miniconfig],[Enable support minimal cmdline config])], 
+  enable_miniconfig=$enableval, enable_miniconfig=no)
+
+if test x"$enable_miniconfig" = xyes ; then
+   AC_DEFINE(ENABLE_MINICONFIG,1,[Define to enable minimal cmdline config])
+fi
+
+AM_CONDITIONAL(WITH_MINICONFIG, [test x"$enable_miniconfig" = xyes])
+
 AC_ARG_ENABLE(ewtapi, [AC_HELP_STRING([--enable-ewtapi],[Enable support for CoovaEWT API])], 
   enable_ewtapi=$enableval, enable_ewtapi=no)
 
