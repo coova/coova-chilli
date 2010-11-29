@@ -1435,6 +1435,7 @@ ssize_t
 tcp_write(struct redir_socket_t *sock, char *buf, size_t len) {
   ssize_t c;
   size_t r = 0;
+
   while (r < len) {
 #ifdef HAVE_SSL
     if (sock->sslcon) {
@@ -1447,6 +1448,7 @@ tcp_write(struct redir_socket_t *sock, char *buf, size_t len) {
     if (c <= 0) return (ssize_t) r;
     r += (size_t)c;
   }
+
   return (ssize_t)r;
 }
 

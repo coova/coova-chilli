@@ -180,7 +180,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   uint16_t us;
 
 #if(_debug_)
-  log_dbg("dns_copy_res(left=%d olen=%d qsize=%d)", *left, olen, qsize);
+  log_dbg("%s: left=%d olen=%d qsize=%d", __FUNCTION__, *left, olen, qsize);
 #endif
 
   if (dns_getname(&p_pkt, &len, (char *)name, sizeof(name), &namelen)) 

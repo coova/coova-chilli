@@ -1420,7 +1420,7 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 #undef  copyres
 #define copyres(isq,n)			        \
     if (d) log_dbg(#n ": %d", n ## count);		\
-    for (i=0; i < n ## count; i++)			\
+    for (i=0; dlen && i < n ## count; i++)		\
       if (dns_copy_res(conn, isq, &dptr, &dlen,		\
 		       (uint8_t *)dnsp, olen,		\
 		       q, sizeof(q), &qmatch))		\
