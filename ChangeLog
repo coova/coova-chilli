@@ -10,6 +10,7 @@
 * Fixed ''chilli_proxy'' bug for when DNS is down
 * The default will now be to --disable-chillixml (enable with --enable-chillixml)
 * Support for a module based approach to adding features to chilli, enabled with ''--enable-modules''
+* A new light-weight configuration sub-system without help text enabled with ''--endable-miniconfig''
 * Support for ''chilli_query'' can be removed at build-time with ''--disable-chilliquery''
 
 == ChangeLog (CoovaChilli-v1.2.5 svn revision 394) ==
