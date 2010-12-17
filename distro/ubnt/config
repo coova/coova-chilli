@@ -22,8 +22,10 @@ HS_UAMFORMAT=$(getcfg hotspot.uamformat)
 HS_UAMSERVER=$(getcfg hotspot.uamserver)
 HS_UAMHOMEPAGE=$(getcfg hotspot.uamhomepage)
 HS_NASID=$(getcfg hotspot.nasid)
-HS_UAMALIASNAME=coova
-HS_DNS_DOMAIN=hotspot
+HS_UAMALIASNAME=$(getcfg hotspot.uamaliasname)
+HS_UAMALIASNAME=${HS_UAMALIASNAME:-coova}
+HS_DNS_DOMAIN=$(getcfg hotspot.dns_domain)
+HS_DNS_DOMAIN=${HS_DNS_DOMAIN:-hotspot}
 HS_DOMAINDNSLOCAL=on
 HS_RADPROXY=on
 HS_ACCTUPDATE=on
@@ -43,7 +45,19 @@ HS_DNS2=${HS_DNS2:-208.67.220.220}
 
 HS_MACALLOW=$(getcfg hotspot.macallow)
 
-HS_UAMHOMEPAGE=${HS_UAMHOMEPAGE:-"http://coova.hotspot/www/coova.html"}
+SCHEME=http
+[ -e /etc/persistent/node_key.pem -a \
+  -e /etc/persistent/node_cert.pem ] && \
+    grep 'BEGIN RSA PRIVATE KEY' /etc/persistent/node_key.pem >/dev/null && \
+    grep 'BEGIN CERTIFICATE' /etc/persistent/node_cert.pem >/dev/null && {
+    HS_SSLKEYFILE=/etc/persistent/node_key.pem
+    HS_SSLCERTFILE=/etc/persistent/node_cert.pem
+    HS_UAMUISSL=on
+    HS_REDIRSSL=on
+    SCHEME=https
+}
+
+HS_UAMHOMEPAGE=${HS_UAMHOMEPAGE:-"http://$HS_UAMALIASNAME.$HS_DNS_DOMAIN/www/coova.html"}
 [ "$HS_UAMHOMEPAGE" = "none" ] && HS_UAMHOMEPAGE=
 
 [ "$(getcfg hotspot.macauth)" = "enabled" ] && HS_MACAUTH=on
@@ -60,7 +74,7 @@ HS_UAMHOMEPAGE=${HS_UAMHOMEPAGE:-"http://coova.hotspot/www/coova.html"}
 }
 
 if [ "$(getcfg hotspot.miniportal)" = "enabled" ]; then
-   HS_UAMFORMAT="http://coova.hotspot/www/login.chi"
+   HS_UAMFORMAT="$SCHEME://$HS_UAMALIASNAME.$HS_DNS_DOMAIN/www/login.chi"
 fi
 
 if [ "$(getcfg hotspot.uamaaaurl)" != "" ]; then
@@ -76,5 +90,19 @@ fi
 if [ "$(getcfg hotspot.bridge)" = "enabled" ]; then
    HS_USETAP=on
    HS_BRIDGE=on
+fi
+
+if [ "$(getcfg pptp.status)" = "enabled" ]; then
+    script=/tmp/run.$$
+    PPTP_PID=$(ps|grep pptp|grep manager|grep -v grep|awk '{print $1}')
+    if [ -z "$PPTP_PID" ]; then
+	pptp_server=$(getcfg pptp.server)
+	pptp_username=$(getcfg pptp.username)
+	pptp_password=$(getcfg pptp.password)
+	mkdir -p /etc/ppp
+	echo "$pptp_username pptp $pptp_password" > /etc/ppp/chap-secrets
+	echo "pptp $pptp_server -- require-mppe-128 name $pptp_username remotename pptp ipparam coova; rm -f $script" > $script
+	bkgexec $script
+    fi
 fi
 

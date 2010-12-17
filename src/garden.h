@@ -46,6 +46,12 @@ int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen, 
 int pass_through_add(pass_through *ptlist, uint32_t ptlen, uint32_t *ptcnt, pass_through *pt);
 int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen, uint32_t *ptcnt, char *s);
 
+int garden_check(pass_through *ptlist, int ptcnt, uint8_t *pack, int dst);
+
+#ifdef ENABLE_CHILLIQUERY
+void garden_print(int fd);
+#endif
+
 #ifdef ENABLE_UAMDOMAINFILE
 void garden_load_domainfile();
 void garden_free_domainfile();

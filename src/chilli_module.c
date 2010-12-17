@@ -30,7 +30,8 @@ int chilli_module_load(void **ctx, char *name) {
   safe_snprintf(path, sizeof(path), "%s/%s.so", 
 		_options.moddir ? _options.moddir : DEFLIBDIR, name);
   
-  lib_handle = dlopen(path, RTLD_LAZY);
+  lib_handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+
   if (!lib_handle) {
     log_err(errno, "chilli_module_load() %s", dlerror());
     return -1;

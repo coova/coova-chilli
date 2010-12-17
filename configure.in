@@ -84,7 +84,6 @@ if test x"$enable_sessgarden" = xyes; then
 fi
 
 
-
 AC_ARG_ENABLE(chillixml, [AC_HELP_STRING([--enable-chillixml],[Enable use of chillixml])], 
   enable_chillixml=$enableval, enable_chillixml=no)
 
@@ -284,6 +283,15 @@ fi
 
 AM_CONDITIONAL(WITH_CHILLIPROXY, [test x"$enable_chilliproxy" = xyes])
 
+AC_ARG_ENABLE(multiroute, [AC_HELP_STRING([--enable-multiroute],[Enable support for multiple routes])], 
+  enable_multiroute=$enableval, enable_multiroute=no)
+
+if test x"$enable_multiroute" = xyes; then
+   AC_DEFINE(ENABLE_MULTIROUTE,1,[Define to enable multiple routes])
+fi
+
+AM_CONDITIONAL(WITH_MULTIROUTE, [test x"$enable_multiroute" = xyes])
+
 AC_ARG_ENABLE(chilliradsec, [AC_HELP_STRING([--enable-chilliradsec],[Enable support for RadSec AAA Proxy])], 
   enable_chilliradsec=$enableval, enable_chilliradsec=no)
 
@@ -337,15 +345,6 @@ if test x"$enable_pppoe" = xyes; then
 fi
 
 AM_CONDITIONAL(WITH_PPPOE, [test x"$enable_pppoe" = xyes])
-
-AC_ARG_ENABLE(rtmon, [AC_HELP_STRING([--enable-rtmon],[Enable support for route monitoring deamon])], 
-  enable_rtmon=$enableval, enable_rtmon=no)
-
-if test x"$enable_rtmon" = xyes ; then
-   AC_DEFINE(ENABLE_RTMON,1,[Define to enable route monitoring deamon])
-fi
-
-AM_CONDITIONAL(WITH_RTMON, [test x"$enable_rtmon" = xyes])
 
 AC_ARG_ENABLE(miniportal, [AC_HELP_STRING([--enable-miniportal],[Enable support Coova miniportal])], 
   enable_miniportal=$enableval, enable_miniportal=no)

@@ -284,7 +284,8 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	size_t dom_len = strlen(_options.uamdomains[id]);
 	
 #if(_debug_)
-	log_dbg("checking %s [%s]", _options.uamdomains[id], question);
+	log_dbg("checking %s [%s]",
+		_options.uamdomains[id], question);
 #endif
 	
 	if ( qst_len && dom_len && 
@@ -299,10 +300,14 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	       *  and ends with the '.' followed by uamdomain
 	       */
 	      ( qst_len > dom_len && 
-		question[qst_len - dom_len - 1] == '.' &&
+		(_options.uamdomains[id][0] == '.' ||
+		 question[qst_len - dom_len - 1] == '.') &&
 		!strcmp(_options.uamdomains[id], 
 			(char *)question + qst_len - dom_len) )
 	      ) ) {
+#if(_debug_)
+	  log_dbg("matched %s [%s]", _options.uamdomains[id], question);
+#endif
 	  *qmatch = 1;
 	  break;
 	}

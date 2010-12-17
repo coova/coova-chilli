@@ -696,10 +696,15 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 #endif
 
   if (netif->fd) {
+    int addr_len;
+    struct sockaddr_ll s_addr;
+    memset (&s_addr, 0, sizeof (struct sockaddr_ll));
+    addr_len = sizeof (s_addr);
 
     len = safe_recvfrom(netif->fd, d, dlen,
 			MSG_DONTWAIT | MSG_TRUNC, 
-			NULL, NULL);
+			(struct sockaddr *) &s_addr, 
+			(socklen_t *) &addr_len);
 
     /*len = safe_read(netif->fd, d, dlen);*/
 
@@ -991,7 +996,8 @@ int net_open_eth(net_interface *netif) {
   memset(&ifr, 0, sizeof(ifr));
 
   /* Create socket */
-  if ((netif->fd = socket(PF_PACKET, SOCK_RAW, 
+  if ((netif->fd = socket(PF_PACKET, 
+			  netif->idx ? SOCK_DGRAM : SOCK_RAW, 
 			  htons(netif->protocol))) < 0) {
     if (errno == EPERM) {
       log_err(errno, "Cannot create raw socket. Must be root.");

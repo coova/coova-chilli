@@ -26,7 +26,7 @@ static int connections = 0;
 
 extern struct ippool_t *ippool;
 
-#define _debug_ 0
+#define _debug_ 1
 
 #ifdef ENABLE_CHILLIQUERY
 char *dhcp_state2name(int authstate) {
@@ -1223,27 +1223,6 @@ int dhcp_ipwhitelist(uint8_t *pack, unsigned char dst) {
 }
 #endif
   
-int check_garden(pass_through *ptlist, int ptcnt, uint8_t *pack, int dst) {
-  struct pkt_iphdr_t *iph = iphdr(pack);
-  struct pkt_tcphdr_t *tcph = tcphdr(pack);
-  struct pkt_udphdr_t *udph = udphdr(pack);
-  pass_through *pt;
-  int i;
-
-  for (i = 0; i < ptcnt; i++) {
-    pt = &ptlist[i];
-    if (pt->proto == 0 || iph->protocol == pt->proto)
-      if (pt->host.s_addr == 0 || 
-	  pt->host.s_addr == ((dst ? iph->daddr : iph->saddr) & pt->mask.s_addr))
-	if (pt->port == 0 || 
-	    (iph->protocol == PKT_IP_PROTO_TCP && (dst ? tcph->dst : tcph->src) == htons(pt->port)) ||
-	    (iph->protocol == PKT_IP_PROTO_UDP && (dst ? udph->dst : udph->src) == htons(pt->port)))
-	  return 1;
-  }
-
-  return 0;
-}
-
 size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
 
   size_t len = sizeofeth(orig_pack) + PKT_IP_HLEN + PKT_TCP_HLEN;
@@ -1826,13 +1805,13 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
   */
 
   /* Was it a request for a pass-through entry? */
-  if (check_garden(_options.pass_throughs, 
+  if (garden_check(_options.pass_throughs, 
 		   _options.num_pass_throughs, 
 		   pack, 1))
     return 0;
 
   /* Check uamdomain driven walled garden */
-  if (check_garden(this->pass_throughs, 
+  if (garden_check(this->pass_throughs, 
 		   this->num_pass_throughs, pack, 1))
     return 0;
 
@@ -1840,7 +1819,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
   /* Check appconn session specific pass-throughs */
   if (conn->peer) {
     struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-    if (check_garden(appconn->s_params.pass_throughs, 
+    if (garden_check(appconn->s_params.pass_throughs, 
 		     appconn->s_params.pass_through_count, pack, 1))
       return 0;
   }
@@ -1866,12 +1845,16 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
       return dhcp_uam_nat(conn, ethh, iph, tcph, &this->uamlisten, this->uamport);
 
     } else if (do_reset) {
+
       /* otherwise, RESET and drop */
+
 #if(_debug_)
       log_dbg("Resetting connection on port %d->%d", 
 	      ntohs(tcph->src), ntohs(tcph->dst));
 #endif
+
       dhcp_sendRESET(conn, pack, 1);
+
     }
   }
   
@@ -2004,16 +1987,16 @@ static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   }
   
   /* Was it a reply for a pass-through entry? */
-  if (check_garden(_options.pass_throughs, _options.num_pass_throughs, pack, 0))
+  if (garden_check(_options.pass_throughs, _options.num_pass_throughs, pack, 0))
     return 0;
-  if (check_garden(this->pass_throughs, this->num_pass_throughs, pack, 0))
+  if (garden_check(this->pass_throughs, this->num_pass_throughs, pack, 0))
     return 0;
 
 #ifdef ENABLE_SESSGARDEN
   /* Check appconn session specific pass-throughs */
   if (conn->peer) {
     struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-    if (check_garden(appconn->s_params.pass_throughs, 
+    if (garden_check(appconn->s_params.pass_throughs, 
 		     appconn->s_params.pass_through_count, pack, 0))
       return 0;
   }

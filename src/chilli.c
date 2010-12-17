@@ -32,8 +32,9 @@ struct redir_t *redir = NULL;     /* Redir instance */
 
 #define _debug_ 0
 
-#ifdef ENABLE_RTMON
+#ifdef ENABLE_MULTIROUTE
 #include "rtmon.h"
+struct rtmon_t _rtmon;
 #endif
 
 static int connections=0;
@@ -65,10 +66,6 @@ struct in_addr ssdp;
 static int acct_req(struct app_conn_t *conn, uint8_t status_type);
 
 static pid_t chilli_pid = 0;
-
-#ifdef ENABLE_RTMON_
-static pid_t rtmon_pid = 0;
-#endif
 
 #if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC)
 static pid_t proxy_pid = 0;
@@ -620,7 +617,7 @@ int runscript(struct app_conn_t *appconn, char* script) {
   }
 */
 
-  set_env("DEV", VAL_STRING, tun->_interfaces[0].devname, 0);
+  set_env("DEV", VAL_STRING, tun(tun, 0).devname, 0);
   set_env("NET", VAL_IN_ADDR, &appconn->net, 0);
   set_env("MASK", VAL_IN_ADDR, &appconn->mask, 0);
   set_env("ADDR", VAL_IN_ADDR, &appconn->ourip, 0);
@@ -1849,6 +1846,8 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
   
   int ethhdr = (tun(tun, idx).flags & NET_ETHHDR) != 0;
 
+  if (idx) ethhdr = 0;
+
   if (ethhdr) {
     /*
      *   Will never be 802.1Q
@@ -2975,6 +2974,7 @@ void config_radius_session(struct session_params *params,
     params->maxtotaloctets |= ((uint64_t)ntohl(attr->v.i) & 0xffffffff) << 32;
 
 
+#ifdef ENABLE_MULTIROUTE
   if (tun) {
     /* Route Index, look-up by interface name */
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, 
@@ -2989,6 +2989,7 @@ void config_radius_session(struct session_params *params,
       params->routeidx = tun->routeidx;
     }
   }
+#endif
 
   {
     /*
@@ -3201,21 +3202,25 @@ static int chilliauth_cb(struct radius_t *radius,
 	int newfd = open(hs_temp, O_RDONLY);
 	int oldfd = open(hs_conf, O_RDONLY);
 	
-	if (newfd > 0 && oldfd > 0) {
-	  int differ = 0;
+	if (newfd > 0) {
+	  int differ = (oldfd > 0) ? 0 : 1;
 	  char b1[100], b2[100];
 	  ssize_t r1, r2;
+
+	  if (!differ) {
+
+	    do {
+	      r1 = safe_read(newfd, b1, sizeof(b1));
+	      r2 = safe_read(oldfd, b2, sizeof(b2));
+	      
+	      if (r1 != r2 || strncmp(b1, b2, r1)) 
+		differ = 1;
+	    } 
+	    while (!differ && r1 > 0 && r2 > 0);
+
+	    safe_close(newfd); newfd=0;
+	  }
 	  
-	  do {
-	    r1 = safe_read(newfd, b1, sizeof(b1));
-	    r2 = safe_read(oldfd, b2, sizeof(b2));
-	    
-	    if (r1 != r2 || strncmp(b1, b2, r1)) 
-	      differ = 1;
-	  } 
-	  while (!differ && r1 > 0 && r2 > 0);
-	  
-	  safe_close(newfd); newfd=0;
 	  safe_close(oldfd); oldfd=0;
 	  
 	  if (differ) {
@@ -4607,6 +4612,10 @@ static int cmdsock_accept(void *nullData, int sock) {
     ippool_print(csock, ippool);
     break;
 
+  case CMDSOCK_LIST_GARDEN:
+    garden_print(csock);
+    break;
+
   case CMDSOCK_LIST_RADQUEUE:
     radius_printqueue(csock, radius);
     break;
@@ -4633,6 +4642,7 @@ static int cmdsock_accept(void *nullData, int sock) {
     /*ToDo*/
     break;
 
+#ifdef ENABLE_MULTIROUTE
   case CMDSOCK_ROUTE_SET:
   case CMDSOCK_ROUTE_GW:
     {
@@ -4712,7 +4722,10 @@ static int cmdsock_accept(void *nullData, int sock) {
       }
       bdestroy(b);
     }
+    rtmon_print_ifaces(&_rtmon, csock);
+    rtmon_print_routes(&_rtmon, csock);
     break;
+#endif
 
   case CMDSOCK_LOGIN:
   case CMDSOCK_AUTHORIZE:
@@ -4889,7 +4902,7 @@ int static redir_msg(struct redir_t *this) {
 }
 #endif
 
-#ifdef ENABLE_RTMON
+#ifdef ENABLE_MULTIROUTE
 static int rtmon_proc_route(struct rtmon_t *rtmon, 
 			    struct rtmon_iface *iface,
 			    struct rtmon_route *route) {
@@ -4904,25 +4917,8 @@ static int rtmon_proc_route(struct rtmon_t *rtmon,
   return 0;
 }
 
-static int rtmon_init(struct rtmon_t *rtmon) {
-  rtmon->fd = rtmon_open_netlink();
-  if (rtmon->fd > 0) {
-    discover_ifaces(rtmon);
-    discover_routes(rtmon);
-    
-    if (_options.debug) {
-      print_ifaces(rtmon);
-      print_routes(rtmon);
-    }
-    
-    check_updates(rtmon, rtmon_proc_route);
-    return 0;
-  }
-  return -1;
-}
-
 static int rtmon_accept(struct rtmon_t *rtmon, int idx) {
-  if (rtmon_read_event(rtmon, rtmon_proc_route))
+  if (rtmon_read_event(rtmon))
     log_err(errno, "error reading netlink message");
   return 0;
 }
@@ -4969,10 +4965,6 @@ int chilli_main(int argc, char **argv) {
   int ctrl_io_to_main[2];  /* 0/1 read/write - control messages from io -> main */
   int pkt_main_to_io[2];
   int pkt_io_to_main[2];
-#endif
-
-#ifdef ENABLE_RTMON
-  struct rtmon_t _rtmon;
 #endif
 
   int i;
@@ -5161,6 +5153,7 @@ int chilli_main(int argc, char **argv) {
   dhcp_set_cb_disconnect(dhcp, cb_dhcp_disconnect);
   dhcp_set_cb_data_ind(dhcp, cb_dhcp_data_ind);
   dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
+
 #ifdef ENABLE_CHILLIQUERY
   dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
 #endif
@@ -5223,38 +5216,6 @@ int chilli_main(int argc, char **argv) {
   }
 #endif
   
-  if (_options.usetap && _options.rtmonfile) {
-#ifdef ENABLE_RTMON_
-    char *name = "[chilli_rtmon]";
-    pid_t p = chilli_fork(CHILLI_PROC_DAEMON, name);
-    if (p < 0) {
-      perror("fork");
-    } else if (p == 0) {
-      char pst[16];
-      char *newargs[16];
-      
-      i=0;
-      safe_snprintf(pst,sizeof(pst),"%d",cpid);
-      newargs[i++] = name;
-      newargs[i++] = "-file";
-      newargs[i++] = _options.rtmonfile;
-      newargs[i++] = "-pid";
-      newargs[i++] = pst;
-      newargs[i++] = NULL;
-      
-      if (execv(SBINDIR "/chilli_rtmon", newargs) != 0) {
-	log_err(errno, "execl() did not return 0!");
-	exit(0);
-      }
-
-    } else {
-      rtmon_pid = p;
-    }
-#else
-    log_err(0, "Feature is not supported; use --enable-rtmon");
-#endif
-  }
-
   if (_options.radsec) {
 #ifdef ENABLE_CHILLIRADSEC
     char *name = "[chilli_radsec]";
@@ -5400,11 +5361,18 @@ int chilli_main(int argc, char **argv) {
   if (net_select_init(&sctx))
     log_err(errno, "select init");
 
+#ifdef ENABLE_MULTIROUTE
   for (i=0; i < tun->_interface_count; i++) 
     net_select_reg(&sctx, 
 		   (tun)->_interfaces[i].fd,
 		   SELECT_READ, (select_callback) tun_decaps, 
 		   tun, i);
+#else
+  net_select_reg(&sctx, 
+		 (tun)->_tuntap.fd,
+		 SELECT_READ, (select_callback) tun_decaps, 
+		 tun, 0);
+#endif
 
   net_select_reg(&sctx, selfpipe_init(), 
 		 SELECT_READ, (select_callback)chilli_handle_signal, 
@@ -5436,8 +5404,8 @@ int chilli_main(int argc, char **argv) {
     net_select_reg(&sctx, redir->fd[1], SELECT_READ, (select_callback)redir_accept, redir, 1);
   }
 
-#ifdef ENABLE_RTMON
-  if (!rtmon_init(&_rtmon)) {
+#ifdef ENABLE_MULTIROUTE
+  if (!rtmon_init(&_rtmon, rtmon_proc_route)) {
     net_select_reg(&sctx, _rtmon.fd, SELECT_READ, (select_callback)rtmon_accept, &_rtmon, 0);
   }
 #endif
@@ -5585,13 +5553,6 @@ int chilli_main(int argc, char **argv) {
    *  Terminate nicely
    */
 
-#ifdef ENABLE_RTMON_
-  if (rtmon_pid > 0) {
-    log_dbg("Killing rtmon");
-    kill(rtmon_pid, SIGTERM);
-  }
-#endif
-  
 #ifdef ENABLE_CHILLIREDIR
   if (redir_pid > 0) {
     log_dbg("Killing redir");

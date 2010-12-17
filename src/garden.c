@@ -21,6 +21,58 @@
 
 #define _debug_ 1
 
+#ifdef ENABLE_CHILLIQUERY
+void garden_print_list(int fd, pass_through *ptlist, int ptcnt) {
+  char line[512];
+  pass_through *pt;
+  int i;
+
+  for (i = 0; i < ptcnt; i++) {
+    pt = &ptlist[i];
+
+    safe_snprintf(line, sizeof(line),
+		  "host=%-16s proto=%-3d port=%-3d\n", inet_ntoa(pt->host),
+		  pt->proto, pt->port);
+
+    if (!write(fd, line, strlen(line))) /* error */;
+  }
+}
+
+void garden_print(int fd) {
+  char *line = "main garden:\n";
+  if (!write(fd, line, strlen(line))) /* error */;
+  garden_print_list(fd, 
+		    _options.pass_throughs, 
+		    _options.num_pass_throughs);
+  line = "dhcp(dns) garden:\n";
+  if (!write(fd, line, strlen(line))) /* error */;
+  garden_print_list(fd, 
+		    dhcp->pass_throughs, 
+		    dhcp->num_pass_throughs);
+}
+#endif
+
+int garden_check(pass_through *ptlist, int ptcnt, uint8_t *pack, int dst) {
+  struct pkt_iphdr_t *iph = iphdr(pack);
+  struct pkt_tcphdr_t *tcph = tcphdr(pack);
+  struct pkt_udphdr_t *udph = udphdr(pack);
+  pass_through *pt;
+  int i;
+
+  for (i = 0; i < ptcnt; i++) {
+    pt = &ptlist[i];
+    if (pt->proto == 0 || iph->protocol == pt->proto)
+      if (pt->host.s_addr == 0 || 
+	  pt->host.s_addr == ((dst ? iph->daddr : iph->saddr) & pt->mask.s_addr))
+	if (pt->port == 0 || 
+	    (iph->protocol == PKT_IP_PROTO_TCP && (dst ? tcph->dst : tcph->src) == htons(pt->port)) ||
+	    (iph->protocol == PKT_IP_PROTO_UDP && (dst ? udph->dst : udph->src) == htons(pt->port)))
+	  return 1;
+  }
+
+  return 0;
+}
+
 int pass_through_add(pass_through *ptlist, uint32_t ptlen,
 		     uint32_t *ptcnt, pass_through *pt) {
   uint32_t cnt = *ptcnt;

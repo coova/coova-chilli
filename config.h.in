@@ -60,6 +60,9 @@
 /* Define to enable dynamically loadable modules */
 #undef ENABLE_MODULES
 
+/* Define to enable multiple routes */
+#undef ENABLE_MULTIROUTE
+
 /* Define to enable network interface nat */
 #undef ENABLE_NETNAT
 

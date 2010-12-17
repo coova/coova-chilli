@@ -11,3 +11,21 @@ if [ "$(getcfg hotspot.status)" = "enabled" ]; then
 	bkgexec $script
     fi
 fi
+
+if [ "$(getcfg pptp.status)" = "enabled" ]; then
+    script=/tmp/run.$$
+    pptp_server=$(getcfg pptp.server)
+    pptp_username=$(getcfg pptp.username)
+    pptp_password=$(getcfg pptp.password)
+    mkdir -p /etc/ppp
+    echo "$pptp_username pptp $pptp_password" > /etc/ppp/chap-secrets
+    echo "pptp $pptp_server -- require-mppe-128 name $pptp_username remotename pptp ipparam coova; rm -f $script" > $script
+    bkgexec $script
+fi
+
+[ -d /etc/persistent/www/ ] && {
+    cd /etc/chilli/www && {
+	rm -f *.txt
+	ln -s /etc/persistent/www/*.txt .
+    }
+}

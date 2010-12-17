@@ -91,6 +91,9 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_MINIPORTAL
   "ENABLE_MINIPORTAL "
 #endif
+#ifdef ENABLE_MULTIROUTE
+  "ENABLE_MULTIROUTE "
+#endif
 #ifdef ENABLE_NETNAT
   "ENABLE_NETNAT "
 #endif
@@ -102,9 +105,6 @@ static const char *compile_options = "Compiled with "
 #endif
 #ifdef ENABLE_REDIRDNSREQ
   "ENABLE_REDIRDNSREQ "
-#endif
-#ifdef ENABLE_RTMON
-  "ENABLE_RTMON "
 #endif
 #ifdef ENABLE_SESSGARDEN
   "ENABLE_SESSGARDEN "
@@ -565,10 +565,15 @@ int main(int argc, char **argv) {
   memset(_options.modules, 0, sizeof(_options.modules));
   for (numargs = 0; numargs < args_info.module_given; ++numargs) {
     if (numargs < MAX_MODULES) {
-      char *n = args_info.module_arg[numargs];
-      int len = strlen(n);
-      char *sc = strchr(n, ';');
-      int nlen = sc ? (sc - n) : len;
+      char *n, *sc;
+      int len, nlen;
+
+      n = args_info.module_arg[numargs];
+      len = strlen(n);
+      sc = strchr(n, ';');
+      if (!sc) sc = strchr(n, ':');
+      nlen = sc ? (sc - n) : len;
+
       safe_snprintf(_options.modules[numargs].name, 
 		    sizeof(_options.modules[numargs].name),
 		    "%.*s", nlen, n);

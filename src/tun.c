@@ -34,6 +34,7 @@
 
 #define _debug_ 0
 
+#ifdef ENABLE_MULTIROUTE
 int tun_discover(struct tun_t *this) {
   net_interface netif;
   struct ifconf ic;
@@ -100,14 +101,15 @@ int tun_discover(struct tun_t *this) {
 
     } else log_err(errno, "ioctl(SIOCGIFNETMASK)");
 
-
     /* hardware address */
 #ifdef SIOCGIFHWADDR
     if (-1 < ioctl(fd, SIOCGIFHWADDR, (caddr_t)ifr)) {
       switch (ifr->ifr_hwaddr.sa_family) {
+      case  ARPHRD_PPP:
+	netif.flags |= NET_PPPHDR | NET_ETHHDR;
+	break;
       case  ARPHRD_NETROM:  
       case  ARPHRD_ETHER:  
-      case  ARPHRD_PPP:
       case  ARPHRD_EETHER:  
       case  ARPHRD_IEEE802: 
 	{
@@ -147,6 +149,7 @@ int tun_discover(struct tun_t *this) {
     if (netif.devflags & IFF_POINTOPOINT) {
       if (-1 < ioctl(fd, SIOCGIFDSTADDR, (caddr_t)ifr)) {
 
+	netif.flags |= NET_PPPHDR;
 	netif.gateway = inaddr(ifr_addr);
 	log_dbg("\tPoint-to-Point:\t%s", inet_ntoa(inaddr(ifr_dstaddr)));
 
@@ -203,21 +206,26 @@ int tun_discover(struct tun_t *this) {
   close(fd);
   return 0;
 }
+#endif
 
 net_interface * tun_nextif(struct tun_t *tun) {
   net_interface *netif;
 
+#ifdef ENABLE_MULTIROUTE
   if (tun->_interface_count == TUN_MAX_INTERFACES)
     return 0;
 
   netif = &tun->_interfaces[tun->_interface_count];
   netif->idx = tun->_interface_count;
-
   tun->_interface_count++;
+#else
+  netif = &tun->_tuntap;
+#endif
 
   return netif;
 }
 
+#ifdef ENABLE_MULTIROUTE
 int tun_name2idx(struct tun_t *tun, char *name) {
   int i;
 
@@ -227,6 +235,7 @@ int tun_name2idx(struct tun_t *tun, char *name) {
 
   return 0; /* tun/tap index */
 }
+#endif
 
 #if defined(__linux__)
 
@@ -649,7 +658,6 @@ int tuntap_interface(struct _net_interface *netif) {
 #else
 #error  "Unknown platform!"
 #endif
-
 }
 
 int tun_new(struct tun_t **ptun) {
@@ -662,9 +670,11 @@ int tun_new(struct tun_t **ptun) {
 
   tuntap_interface(tun_nextif(tun));
 
+#ifdef ENABLE_MULTIROUTE
   if (_options.routeif) {
     tun_discover(tun);
   }
+#endif
 
   return 0;
 }
@@ -700,6 +710,8 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
   int ethsize = 0;
 
   char ethhdr = (tun(c->this, c->idx).flags & NET_ETHHDR) != 0;
+
+  if (c->idx) ethhdr = 0;
 
 #if(_debug_)
   log_dbg("tun_decaps(idx=%d, len=%d)", tun(c->this, c->idx).ifindex, length);
@@ -740,6 +752,9 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
     }
 #endif
     if ((iph->daddr & _options.mask.s_addr) != _options.net.s_addr) {
+#if(_debug_)
+      log_dbg("pkt not for our network");
+#endif
       return -1;
     }
   } 
@@ -769,8 +784,13 @@ int tun_decaps(struct tun_t *this, int idx) {
   
   c.this = this;
   c.idx = idx;
-  
-  if ((length = net_read_dispatch(&tun(this, idx), tun_decaps_cb, &c)) < 0) 
+
+  if (idx > 0) 
+    length = net_read_dispatch_eth(&tun(this, idx), tun_decaps_cb, &c);
+  else
+    length = net_read_dispatch(&tun(this, idx), tun_decaps_cb, &c);
+
+  if (length < 0) 
     return -1;
   
   return length;
@@ -835,6 +855,20 @@ int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
 #elif defined(__linux__) || defined (__FreeBSD__) || defined (__APPLE__) || defined (__NetBSD__)
 
+#ifdef ENABLE_MULTIROUTE
+  if (idx > 0 && tun(tun, idx).flags & NET_PPPHDR) {
+    struct sockaddr_ll addr;
+    size_t ethlen = sizeofeth(pack);
+    memset(&addr,0,sizeof(addr));
+    addr.sll_family = AF_PACKET;
+    addr.sll_protocol = ethhdr(pack)->prot;
+    addr.sll_ifindex = tun(tun, idx).ifindex;
+    pack += ethlen;
+    len  -= ethlen;
+    return net_write_eth(&tun(tun, idx), pack, len, &addr);
+  }
+#endif
+
   return safe_write(tun(tun, idx).fd, pack, len);
 
 #elif defined (__sun__)
@@ -856,6 +890,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   if (_options.tcpmss)
     pkt_shape_tcpmss(pack, &len);
 
+#ifdef ENABLE_MULTIROUTE
   if (idx > 0) {
     struct pkt_iphdr_t *iph = iphdr(pack);
     if ((iph->daddr & _options.mask.s_addr) == _options.net.s_addr ||
@@ -864,6 +899,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
       idx = 0;
     }
   }
+#endif
 
 #ifdef ENABLE_NETNAT
   if (idx > 0) {
@@ -893,7 +929,6 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
      * TODO: When using ieee8021q, the vlan tag has to be stripped
      * off for the non-vlan WAN.
      */
-
     if (gwaddr[0] == 0 && gwaddr[1] == 0 && gwaddr[2] == 0 && 
 	gwaddr[3] == 0 && gwaddr[4] == 0 && gwaddr[5] == 0) {
       /*  

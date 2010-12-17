@@ -35,14 +35,41 @@ struct tun_t {
   int routeidx; /* default route interface index */
   int (*cb_ind) (struct tun_t *tun, void *pack, size_t len, int idx);
 
+#ifdef ENABLE_MULTIROUTE
   int _interface_count;
   struct _net_interface _interfaces[TUN_MAX_INTERFACES];
 
-  void *table;
-};
-
 #define tun(x,i) ((x)->_interfaces[(i)])
 #define tuntap(x) tun((x),0)
+
+#define tun_fdsetR(tun,fds) { int i; \
+  for (i=0; i<(tun)->_interface_count; i++) \
+    net_fdsetR(&(tun)->_interfaces[i], (fds)); }
+
+#define tun_ckread(tun,fds) { int i;\
+  for (i=0; i<(tun)->_interface_count; i++) {\
+    if (net_issetR(&(tun)->_interfaces[i], (fds)) &&\
+        tun_decaps((tun), i) < 0)\
+      log_err(0, "tun_decaps()"); } }
+
+#define tun_close(tun) { int i; \
+    for (i=0; i<(tun)->_interface_count; i++) \
+      net_close(&(tun)->_interfaces[i]);}
+
+#else
+  struct _net_interface _tuntap;
+
+#define tun(x,i) ((x)->_tuntap)
+#define tuntap(x) tun((x),0)
+#define tun_fdsetR(tun,fds) net_fdsetR(&(tun)->_tuntap, (fds))
+#define tun_ckread(tun,fds) \
+  if (net_issetR(&(tun)->_tuntap, (fds)) && tun_decaps((tun), i) < 0)\
+    log_err(0, "tun_decaps()"))
+#define tun_close(tun) net_close(&(tun)->_tuntap)
+#endif
+
+  void *table;
+};
 
 int tun_new(struct tun_t **tun);
 int tun_free(struct tun_t *this);
@@ -64,21 +91,5 @@ int tun_runscript(struct tun_t *tun, char* script, int wait);
 net_interface *tun_nextif(struct tun_t *tun);
 int tun_name2idx(struct tun_t *tun, char *name);
 
-#define tun_fdsetR(tun,fds) {\
-  int i; \
-  for (i=0; i<(tun)->_interface_count; i++) \
-    net_fdsetR(&(tun)->_interfaces[i], (fds));\
-}
-
-#define tun_ckread(tun,fds) {\
-  int i;\
-  for (i=0; i<(tun)->_interface_count; i++) {\
-    if (net_issetR(&(tun)->_interfaces[i], (fds)) &&\
-        tun_decaps((tun), i) < 0)\
-      log_err(0, "tun_decaps()");\
-  }\
-}
-
-#define tun_close(tun) {int i; for (i=0; i<(tun)->_interface_count; i++) net_close(&(tun)->_interfaces[i]);}
 
 #endif	/* !_TUN_H */

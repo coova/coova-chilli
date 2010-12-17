@@ -3643,7 +3643,8 @@ int redir_main(struct redir_t *redir,
       int hasnexturl = (besturl && besturl->slen > 5);
 
       if (!hasnexturl) {
-	redir_memcopy(REDIR_CHALLENGE);
+	if (_options.challengetimeout)
+	  redir_memcopy(REDIR_CHALLENGE);
       } else {
 	msg.mtype = REDIR_NOTYET;
       }

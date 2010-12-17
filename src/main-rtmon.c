@@ -31,22 +31,35 @@
 #include <linux/rtnetlink.h>
 
 #include "chilli.h"
+#include "rtmon.h"
 
 struct options_t _options;
 
-static int debug = 0;
+static int debug = 1;
 static int chilli_pid = 0;
 static char * chilli_conf = "/tmp/local.conf";
+
+static int proc_route(struct rtmon_t *rtmon, 
+		      struct rtmon_iface *iface,
+		      struct rtmon_route *route) {
+
+  rtmon_print_ifaces(rtmon, 1);
+  rtmon_print_routes(rtmon, 1);
+  return 0;
+}
 
 int main(int argc, char *argv[]) {
   int keep_going = 1;
   int reload_config = 1;
-  int nls = open_netlink();
   int i;
 
-  int selfpipe = selfpipe_init();
+  struct rtmon_t _rtmon;
 
-  if (nls < 0) {
+  /*int selfpipe = selfpipe_init();*/
+
+  memset(&_options, 0, sizeof(_options));
+
+  if (rtmon_init(&_rtmon, proc_route)) {
     err(1,"netlink");
   }
 
@@ -60,27 +73,32 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  _options.foreground = debug;
+  _options.debug = debug;
+
+  log_dbg("running");
+
   chilli_signals(&keep_going, &reload_config);
 
-  discover_ifaces();
-  discover_routes();
+  rtmon_discover_ifaces(&_rtmon);
+  rtmon_discover_routes(&_rtmon);
 
   if (debug) {
-    print_ifaces();
-    print_routes();
+    rtmon_print_ifaces(&_rtmon, 1);
+    rtmon_print_routes(&_rtmon, 1);
   }
 
-  check_updates();
+  rtmon_check_updates(&_rtmon);
   
   while (keep_going) {
     /* select */
 
     /* check selfpipe */
 
-    read_event(nls);
+    rtmon_read_event(&_rtmon);
   }
 
-  selfpipe_finish();
+  /* selfpipe_finish();*/
 
   return 0;
 }

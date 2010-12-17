@@ -39,6 +39,7 @@ static cmd_info commands[] = {
   { CMDSOCK_LIST,          "list",          NULL },
   { CMDSOCK_LIST_IPPOOL,   "listippool",    NULL },
   { CMDSOCK_LIST_RADQUEUE, "listradqueue",  NULL },
+  { CMDSOCK_LIST_GARDEN,   "listgarden",    NULL },
   { CMDSOCK_ENTRY_FOR_IP,  "listip",        NULL },
   { CMDSOCK_ENTRY_FOR_MAC, "listmac",       NULL },
   { CMDSOCK_ROUTE,         "route",         NULL },

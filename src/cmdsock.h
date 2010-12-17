@@ -37,11 +37,12 @@
 #define  CMDSOCK_ROUTE_GW      14
 #define  CMDSOCK_LIST_IPPOOL   15
 #define  CMDSOCK_LIST_RADQUEUE 16
+#define  CMDSOCK_LIST_GARDEN   17
 #ifdef ENABLE_CLUSTER
-#define  CMDSOCK_PEERS         17
-#define  CMDSOCK_PEER_SET      18
+#define  CMDSOCK_PEERS         18
+#define  CMDSOCK_PEER_SET      19
 #endif
-#define  CMDSOCK_PROCS         19
+#define  CMDSOCK_PROCS         20
 #define  CMDSOCK_OPT_JSON      (1)
 
 #include "pkt.h"

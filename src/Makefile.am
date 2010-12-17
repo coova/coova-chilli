@@ -76,7 +76,6 @@ libchilli_la_SOURCES += queue.c
 LDADD += ${LIBNETFILTER_QUEUE}
 endif
 
-# add -pg to enable gprof
 if WITH_NETNAT
 libchilli_la_SOURCES += nat.c nat.h
 endif
@@ -85,9 +84,9 @@ if WITH_PCAP
 LDADD += ${LIBPCAP}
 endif
 
-if WITH_RTMON
-#sbin_PROGRAMS += chilli_rtmon
-#chilli_rtmon_SOURCES = main-rtmon.c 
+if WITH_MULTIROUTE
+sbin_PROGRAMS += chilli_rtmon
+chilli_rtmon_SOURCES = main-rtmon.c 
 libchilli_la_SOURCES += rtmon.c rtmon.h
 endif
 

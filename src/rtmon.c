@@ -29,6 +29,7 @@
 #include <linux/rtnetlink.h>
 
 #include "chilli.h"
+#include "rtmon.h"
 
 #define MYPROTO NETLINK_ROUTE
 #define MYMGRP RTMGRP_IPV4_ROUTE
@@ -41,6 +42,47 @@ struct netlink_req {
   struct rtmsg rtmsg_info;
   char buffer[2048];
 };
+
+static int open_netlink() {
+  int sock = socket(AF_NETLINK, SOCK_RAW, MYPROTO);
+  struct sockaddr_nl addr;
+  
+  memset((void *)&addr, 0, sizeof(addr));
+  
+  if (sock<0)
+    return sock;
+
+  addr.nl_family = AF_NETLINK;
+  addr.nl_pid = getpid();
+  addr.nl_groups = MYMGRP;
+
+  if (bind(sock,(struct sockaddr *)&addr,sizeof(addr)) < 0)
+    return -1;
+
+  return sock;
+}
+
+int rtmon_init(struct rtmon_t *rtmon, rtmon_callback func) {
+  memset(rtmon, 0, sizeof(*rtmon));
+
+  rtmon->fd = open_netlink();
+  rtmon->cb = func;
+
+  if (rtmon->fd > 0) {
+
+    rtmon_discover_ifaces(rtmon);
+    rtmon_discover_routes(rtmon);
+    
+    if (_options.debug) {
+      rtmon_print_ifaces(rtmon, 1);
+      rtmon_print_routes(rtmon, 1);
+    }
+    
+    rtmon_check_updates(rtmon);
+    return 0;
+  }
+  return -1;
+}
 
 static int netlink_route_request(int fd) {
   struct sockaddr_nl local;
@@ -120,16 +162,52 @@ static int netlink_route_results(int fd, char *b, size_t blen) {
   return len;
 }
 
+static int rtmon_add_route(struct rtmon_t *rtmon, struct rtmon_route *rt) {
+  int sz = rtmon->_route_sz;
+  struct rtmon_route *dst = 0;
+  int i;
+
+  rt->has_data = 1;
+
+  for (i=0; i < sz; i++) {
+    if (!memcmp(&rtmon->_routes[i], rt, sizeof(struct rtmon_route))) {
+      log_dbg("Already have this route for &s", inet_ntoa(rt->destination));
+      return 0;
+    }
+    if (!dst && !rtmon->_routes[i].has_data) {
+      dst = &rtmon->_routes[i];
+    }
+  }
+
+  if (!dst) {
+    if (sz) {
+      rtmon->_routes = 
+	(struct rtmon_route *)realloc(rtmon->_routes, 
+				      (sz + 1) * sizeof(struct rtmon_route));
+      dst = &rtmon->_routes[sz];
+    } else {
+      dst = rtmon->_routes = 
+	(struct rtmon_route *)malloc(sizeof(struct rtmon_route));
+    }
+
+    rtmon->_route_sz++;
+  }
+
+  if (!dst) return -1;
+  memcpy(dst, rt, sizeof(struct rtmon_route));
+  return 0;
+}
+
 /**
 * Extract each route table entry and print
 */
 static void netlink_parse_routes(struct rtmon_t *rtmon, char *b, int blen) {
   struct nlmsghdr *hdr = (struct nlmsghdr *) b;
   struct rtattr * attr;
+  struct rtmon_route rt;
   int payload;
-  int idx = 0;
 
-  for(; NLMSG_OK(hdr, blen); hdr = NLMSG_NEXT(hdr, blen), idx++) {
+  for(; NLMSG_OK(hdr, blen); hdr = NLMSG_NEXT(hdr, blen)) {
     struct rtmsg * rtm = (struct rtmsg *) NLMSG_DATA(hdr);
 
     if (rtm->rtm_table != RT_TABLE_MAIN)
@@ -138,30 +216,35 @@ static void netlink_parse_routes(struct rtmon_t *rtmon, char *b, int blen) {
     attr = (struct rtattr *) RTM_RTA(rtm);
     payload = RTM_PAYLOAD(hdr);
 
+    memset(&rt, 0, sizeof(rt));
+
     for (;RTA_OK(attr, payload); attr = RTA_NEXT(attr, payload)) {
       switch(attr->rta_type) {
       case RTA_DST:
-	rtmon->_routes[idx].destination = *(struct in_addr *)RTA_DATA(attr);
+	rt.destination = *(struct in_addr *)RTA_DATA(attr);
 	break;
       case RTA_GATEWAY:
-	rtmon->_routes[idx].gateway = *(struct in_addr *)RTA_DATA(attr);
+	rt.gateway = *(struct in_addr *)RTA_DATA(attr);
 	break;
       case RTA_OIF:
-	rtmon->_routes[idx].if_index = *((int *) RTA_DATA(attr));
+	rt.if_index = *((int *) RTA_DATA(attr));
       default:
 	break; 
       }
     }
 
     {
-      rtmon->_routes[idx].has_data = 1;
       uint32_t mask = 0;
       int i;
+
       for (i=0; i<rtm->rtm_dst_len; i++) {
 	mask |= (1 << (32-i-1));
       }
-      rtmon->_routes[idx].netmask.s_addr = htonl(mask);
+
+      rt.netmask.s_addr = htonl(mask);
     }
+
+    rtmon_add_route(rtmon, &rt);
   }
 }
 
@@ -177,92 +260,125 @@ struct msgnames_t {
   {0,0}
 };
 
-static char *lookup_name(struct msgnames_t *db,int id) {
+static char *lookup_name(struct msgnames_t *db, int id) {
   static char name[512];
   struct msgnames_t *msgnamesiter;
-  for (msgnamesiter=db;msgnamesiter->msg;++msgnamesiter) {
+  for (msgnamesiter=db; msgnamesiter->msg; ++msgnamesiter) {
     if (msgnamesiter->id == id)
       break;
   }
   if (msgnamesiter->msg) {
     return msgnamesiter->msg;
   }
-  chilli_snprintf(name,sizeof(name),"#%i\n",id);
+  safe_snprintf(name,sizeof(name),"#%i\n",id);
   return name;
 }
 
-int rtmon_open_netlink() {
-  int sock = socket(AF_NETLINK, SOCK_RAW, MYPROTO);
-  struct sockaddr_nl addr;
-  
-  memset((void *)&addr, 0, sizeof(addr));
-  
-  if (sock<0)
-    return sock;
+static char * idx2name(struct rtmon_t *rtmon, int idx) {
+  int i;
 
-  addr.nl_family = AF_NETLINK;
-  addr.nl_pid = getpid();
-  addr.nl_groups = MYMGRP;
+  for (i=0; i<rtmon->_iface_sz; i++) 
+    if (rtmon->_ifaces[i].has_data) 
+      if (rtmon->_ifaces[i].index == idx)
+	return rtmon->_ifaces[i].devname;
 
-  if (bind(sock,(struct sockaddr *)&addr,sizeof(addr)) < 0)
-    return -1;
-
-  return sock;
+  return "n/a";
 }
 
-void print_ifaces(struct rtmon_t *rtmon) {
+void rtmon_print_ifaces(struct rtmon_t *rtmon, int fd) {
+  char line[512];
   int i;
-  for (i=0; i < MAX_IFACES; i++) {
+
+  safe_snprintf(line,512,"\nSystem Interfaces\n");
+  safe_write(fd, line, strlen(line));
+  
+  for (i=0; i < rtmon->_iface_sz; i++) {
+
     if (rtmon->_ifaces[i].has_data) {
       unsigned char *u = rtmon->_ifaces[i].hwaddr;
-      log_dbg("Interface(%d)[ifindex=%d]: %s\n", i, rtmon->_ifaces[i].index, rtmon->_ifaces[i].devname);
-      log_dbg("IP Address:\t%s\n", inet_ntoa(rtmon->_ifaces[i].address));
-      log_dbg("Network:\t%s\n", inet_ntoa(rtmon->_ifaces[i].network));
-      log_dbg("Netmask:\t%s\n", inet_ntoa(rtmon->_ifaces[i].netmask));
-      log_dbg("Broadcast:\t%s\n", inet_ntoa(rtmon->_ifaces[i].broadcast));
-      log_dbg("Point-to-Point:\t%s\n", inet_ntoa(rtmon->_ifaces[i].gateway));
-      log_dbg("HW Address:\t%2.2X-%2.2X-%2.2X-%2.2X-%2.2X-%2.2x\n",
-	      u[0], u[1], u[2], u[3], u[4], u[5]);
-      log_dbg("MTU:      \t%u\n",  rtmon->_ifaces[i].mtu);
+
+      safe_snprintf(line,512,"%d) %s (%d)", 
+		    i, rtmon->_ifaces[i].devname, rtmon->_ifaces[i].index);
+      safe_write(fd, line, strlen(line));
+
+      if (rtmon->_ifaces[i].address.s_addr) {
+	safe_snprintf(line,512," ip=%s", inet_ntoa(rtmon->_ifaces[i].address));
+	safe_write(fd, line, strlen(line));
+      }
+
+      safe_snprintf(line,512," net=%s", inet_ntoa(rtmon->_ifaces[i].network));
+      safe_write(fd, line, strlen(line));
+
+      safe_snprintf(line,512," mask=%s", inet_ntoa(rtmon->_ifaces[i].netmask));
+      safe_write(fd, line, strlen(line));
+
+      if (rtmon->_ifaces[i].broadcast.s_addr) {
+	safe_snprintf(line,512," bcase=%s", inet_ntoa(rtmon->_ifaces[i].broadcast));
+	safe_write(fd, line, strlen(line));
+      }
+
+      if (rtmon->_ifaces[i].gateway.s_addr) {
+	safe_snprintf(line,512," peer=%s", inet_ntoa(rtmon->_ifaces[i].gateway));
+	safe_write(fd, line, strlen(line));
+      }
+
+      safe_snprintf(line,512," mac=%2.2X-%2.2X-%2.2X-%2.2X-%2.2X-%2.2x",
+		    u[0], u[1], u[2], u[3], u[4], u[5]);
+      safe_write(fd, line, strlen(line));
+
+      safe_snprintf(line,512," mtu=%u\n",  rtmon->_ifaces[i].mtu);
+      safe_write(fd, line, strlen(line));
     }
   }
 }
 
-void print_routes(struct rtmon_t *rtmon) {
+void rtmon_print_routes(struct rtmon_t *rtmon, int fd) {
+  char line[512];
   int i;
-  for (i=0; i < MAX_ROUTES; i++) {
+
+  safe_snprintf(line,512,"\nSystem Routes\n");
+  safe_write(fd, line, strlen(line));
+
+  for (i=0; i < rtmon->_route_sz; i++) {
     if (rtmon->_routes[i].has_data) {
-      log_dbg("Route(%d)[-> ifindex=%d]\n", i, rtmon->_routes[i].if_index);
-      log_dbg("Destination:\t%s\n", inet_ntoa(rtmon->_routes[i].destination));
-      log_dbg("Netmask:\t%s\n", inet_ntoa(rtmon->_routes[i].netmask));
-      log_dbg("Gateway:\t%s\n", inet_ntoa(rtmon->_routes[i].gateway));
+      safe_snprintf(line,512,"%d) dst=%s", i, inet_ntoa(rtmon->_routes[i].destination));
+      safe_write(fd, line, strlen(line));
+      safe_snprintf(line,512," mask=%s", inet_ntoa(rtmon->_routes[i].netmask));
+      safe_write(fd, line, strlen(line));
+      if (rtmon->_routes[i].gateway.s_addr) {
+	safe_snprintf(line,512," gw=%s", inet_ntoa(rtmon->_routes[i].gateway));
+	safe_write(fd, line, strlen(line));
+      }
+      safe_snprintf(line,512," dev=%s (%d)\n", idx2name(rtmon, rtmon->_routes[i].if_index), rtmon->_routes[i].if_index);
+      safe_write(fd, line, strlen(line));
     }
   }
 }
 
 static const char *mactoa(uint8_t *m) {
   static char buff[256];
-  sprintf(buff, "%02x:%02x:%02x:%02x:%02x:%02x",
-	  m[0], m[1], m[2], m[3], m[4], m[5]);
+  safe_snprintf(buff, sizeof(buff), 
+		"%02x:%02x:%02x:%02x:%02x:%02x",
+		m[0], m[1], m[2], m[3], m[4], m[5]);
   return (buff);
 }
 
-void check_updates(struct rtmon_t *rtmon, rtmon_callback func) {
+void rtmon_check_updates(struct rtmon_t *rtmon) {
   int i, j;
-  for (i=0; i < MAX_ROUTES; i++) {
+  for (i=0; i < rtmon->_route_sz; i++) {
     if (rtmon->_routes[i].has_data) {
       if (rtmon->_routes[i].destination.s_addr == 0) {
 
-	log_dbg("Default Route %s\n", inet_ntoa(rtmon->_routes[i].gateway));
+	log_dbg("Default Route %s", inet_ntoa(rtmon->_routes[i].gateway));
 
-	for (j=0; j < MAX_IFACES; j++) {
+	for (j=0; j < rtmon->_iface_sz; j++) {
 	  if (rtmon->_ifaces[j].has_data) {
 	    if (rtmon->_routes[i].if_index == rtmon->_ifaces[j].index) {
 	      struct arpreq areq;
 	      struct sockaddr_in *sin;
 	      int s, attempt=0, retries=3;
 	      
-	      log_dbg("Route Interface %s\n", rtmon->_ifaces[j].devname);
+	      log_dbg("Route Interface %s", rtmon->_ifaces[j].devname);
 
 	      if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
 		perror("socket");
@@ -303,10 +419,10 @@ void check_updates(struct rtmon_t *rtmon, rtmon_callback func) {
 
 		} else {
 
-		  log_dbg("MAC %s\n", mactoa((uint8_t *)&areq.arp_ha.sa_data));
+		  log_dbg("MAC %s", mactoa((uint8_t *)&areq.arp_ha.sa_data));
 		  memcpy(rtmon->_routes[i].gwaddr, &areq.arp_ha.sa_data, sizeof(rtmon->_routes[i].gwaddr));
 
-		  if (func(rtmon, &rtmon->_ifaces[j], &rtmon->_routes[i]))
+		  if (rtmon->cb(rtmon, &rtmon->_ifaces[j], &rtmon->_routes[i]))
 		    log_err(errno, "callback failed");
 
 		  break;
@@ -323,11 +439,56 @@ void check_updates(struct rtmon_t *rtmon, rtmon_callback func) {
   }
 }
 
-void discover_ifaces(struct rtmon_t *rtmon) {
+static int rtmon_add_iface(struct rtmon_t *rtmon, struct rtmon_iface *ri) {
+  int sz = rtmon->_iface_sz;
+  struct rtmon_iface *dst = 0;
+  int i;
+
+  ri->has_data = 1 | RTMON_REMOVE;
+
+  for (i=0; i < sz; i++) {
+    log_dbg("i=%d sz=%d",i,sz);
+    if (!memcmp(&rtmon->_ifaces[i], ri, sizeof(struct rtmon_iface))) {
+      rtmon->_ifaces[i].has_data = 1;
+      log_dbg("Already have this iface %s", ri->devname);
+      return 0;
+    }
+    if (!dst && !rtmon->_ifaces[i].has_data) {
+      dst = &rtmon->_ifaces[i];
+    }
+  }
+
+  if (!dst) {
+
+    if (sz) {
+      rtmon->_ifaces = 
+	(struct rtmon_iface *)realloc(rtmon->_ifaces, 
+				      (sz + 1) * sizeof(struct rtmon_iface));
+      dst = &rtmon->_ifaces[sz];
+    } else {
+      dst = rtmon->_ifaces = 
+	(struct rtmon_iface *)malloc(sizeof(struct rtmon_iface));
+    }
+
+    rtmon->_iface_sz++;
+  }
+
+  if (!dst) return -1;
+
+  ri->has_data = 1;
+  memcpy(dst, ri, sizeof(struct rtmon_iface));
+  return 0;
+}
+
+void rtmon_discover_ifaces(struct rtmon_t *rtmon) {
+  struct rtmon_iface ri;
   struct ifconf ic;
   int fd, len, i;
+
+  for (i=0; i < rtmon->_iface_sz; i++)
+    if (rtmon->_ifaces[i].has_data)
+      rtmon->_ifaces[i].has_data |= RTMON_REMOVE;
   
-  memset(&rtmon->_ifaces, 0, sizeof(rtmon->_ifaces));
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     return;
   }
@@ -350,41 +511,38 @@ void discover_ifaces(struct rtmon_t *rtmon) {
   
   for (i=0; i < len; ++i) {
     struct ifreq *ifr = (struct ifreq *)&ic.ifc_req[i];
-    int idx = i;
-    
-    rtmon->_ifaces[idx].has_data = 1;
+
+    memset(&ri, 0, sizeof(ri));
     
     /* device name and address */
-    safe_strncpy(rtmon->_ifaces[idx].devname, ifr->ifr_name, 
-		 sizeof(rtmon->_ifaces[idx].devname));
-    rtmon->_ifaces[idx].address = inaddr(ifr_addr);
+    safe_strncpy(ri.devname, ifr->ifr_name, sizeof(ri.devname));
+    ri.address = inaddr(ifr_addr);
     
     /* index */
     if (-1 < ioctl(fd, SIOCGIFINDEX, (caddr_t) ifr)) {
-      rtmon->_ifaces[idx].index = ifr->ifr_ifindex;
+      ri.index = ifr->ifr_ifindex;
     }
     
     /* netmask */
     if (-1 < ioctl(fd, SIOCGIFNETMASK, (caddr_t)ifr)) {
-      rtmon->_ifaces[idx].netmask = inaddr(ifr_addr);
+      ri.netmask = inaddr(ifr_addr);
     } 
     
-    rtmon->_ifaces[idx].network.s_addr = 
-      rtmon->_ifaces[idx].address.s_addr & 
-      rtmon->_ifaces[idx].netmask.s_addr;
+    ri.network.s_addr = ri.address.s_addr & ri.netmask.s_addr;
     
     /* hardware address */
 #ifdef SIOCGIFHWADDR
     if (-1 < ioctl(fd, SIOCGIFHWADDR, (caddr_t)ifr)) {
       switch (ifr->ifr_hwaddr.sa_family) {
+      case  ARPHRD_PPP:
+	break;
       case  ARPHRD_NETROM:  
       case  ARPHRD_ETHER:  
-      case  ARPHRD_PPP:
       case  ARPHRD_EETHER:  
       case  ARPHRD_IEEE802: 
 	{
 	  unsigned char *u = (unsigned char *)&ifr->ifr_addr.sa_data;
-	  memcpy(rtmon->_ifaces[idx].hwaddr, u, 6);
+	  memcpy(ri.hwaddr, u, 6);
 	}
 	break;
       }
@@ -393,7 +551,7 @@ void discover_ifaces(struct rtmon_t *rtmon) {
 #ifdef SIOCGENADDR
     if (-1 < ioctl(fd, SIOCGENADDR, (caddr_t)ifr)) {
       unsigned char *u = (unsigned char *)&ifr->ifr_enaddr;
-      memcpy(rtmon->_ifaces[idx].hwaddr, u, 6);
+      memcpy(ri.hwaddr, u, 6);
     } 
 #else
 #warning Do not know how to find interface hardware address
@@ -403,38 +561,43 @@ void discover_ifaces(struct rtmon_t *rtmon) {
     
     /* flags */
     if (-1 < ioctl(fd, SIOCGIFFLAGS, (caddr_t)ifr)) {
-      rtmon->_ifaces[i].devflags = ifr->ifr_flags;
+      ri.devflags = ifr->ifr_flags;
     } 
     
     /* point-to-point gateway */
-    if (rtmon->_ifaces[i].devflags & IFF_POINTOPOINT) {
+    if (ri.devflags & IFF_POINTOPOINT) {
       if (-1 < ioctl(fd, SIOCGIFDSTADDR, (caddr_t)ifr)) {
-	rtmon->_ifaces[i].gateway = inaddr(ifr_addr);
+	ri.gateway = inaddr(ifr_addr);
       } 
     }
     
     /* broadcast address */
-    if (rtmon->_ifaces[i].devflags & IFF_BROADCAST) {
+    if (ri.devflags & IFF_BROADCAST) {
       if (-1 < ioctl(fd, SIOCGIFBRDADDR, (caddr_t)ifr)) {
-	rtmon->_ifaces[i].broadcast = inaddr(ifr_addr);
+	ri.broadcast = inaddr(ifr_addr);
       } 
     }
     
     if (-1 < ioctl(fd, SIOCGIFMTU, (caddr_t)ifr)) {
-      rtmon->_ifaces[i].mtu = ifr->ifr_mtu;
+      ri.mtu = ifr->ifr_mtu;
     } 
+
+    rtmon_add_iface(rtmon, &ri);
   }
+
+  for (i=0; i < rtmon->_iface_sz; i++)
+    if (rtmon->_ifaces[i].has_data & RTMON_REMOVE)
+      memset(&rtmon->_ifaces[i], 0, sizeof(struct rtmon_iface));
   
   close(fd);
 }
 
-void discover_routes(struct rtmon_t *rtmon) {
+void rtmon_discover_routes(struct rtmon_t *rtmon) {
   int fd;
   char b[8192];
   int blen;
+  int i;
   
-  memset(&rtmon->_routes, 0, sizeof(rtmon->_routes));
-
   fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
   
   if (fd < 0) {
@@ -445,11 +608,15 @@ void discover_routes(struct rtmon_t *rtmon) {
   netlink_route_request(fd);
   blen = netlink_route_results(fd, b, sizeof(b));
   netlink_parse_routes(rtmon, b, blen);
+
+  for (i=0; i < rtmon->_iface_sz; i++)
+    if (rtmon->_ifaces[i].has_data & RTMON_REMOVE)
+      memset(&rtmon->_ifaces[i], 0, sizeof(struct rtmon_iface));
   
   close(fd);
 }
 
-int rtmon_read_event(struct rtmon_t *rtmon, rtmon_callback func) {
+int rtmon_read_event(struct rtmon_t *rtmon) {
   struct sockaddr_nl nladdr;
   struct msghdr msg;
   struct iovec iov[2];
@@ -473,7 +640,7 @@ int rtmon_read_event(struct rtmon_t *rtmon, rtmon_callback func) {
     return ret;
   }
 
-  log_dbg("Type: %i (%s)\n",(nlh.nlmsg_type),lookup_name(typenames,nlh.nlmsg_type));
+  log_dbg("Type: %i (%s)",(nlh.nlmsg_type),lookup_name(typenames,nlh.nlmsg_type));
 
 #define FLAG(x) if (nlh.nlmsg_flags & x) printf(" %s",#x)
   FLAG(NLM_F_REQUEST);
@@ -488,15 +655,15 @@ int rtmon_read_event(struct rtmon_t *rtmon, rtmon_callback func) {
 
   log_dbg("\nSeq : %i\nPid : %i\n\n",nlh.nlmsg_seq,nlh.nlmsg_pid);
 
-  discover_ifaces(rtmon);
-  discover_routes(rtmon);
+  rtmon_discover_ifaces(rtmon);
+  rtmon_discover_routes(rtmon);
 
   if (_options.debug) {
-    print_ifaces(rtmon);
-    print_routes(rtmon);
+    rtmon_print_ifaces(rtmon, 1);
+    rtmon_print_routes(rtmon, 1);
   }
 
-  check_updates(rtmon, func);
+  rtmon_check_updates(rtmon);
   
   return 0;
 }

@@ -147,7 +147,7 @@ BEGIN {
   else shrt="\"" shrt "\""
 
   if (def != "0") 
-    defs=defs " OPT_generic(args_info,"n","def");"
+    defs=defs " OPT_generic(args_info,"n","def",0);"
 
   print "  { " type ", OPT_" optn "_name, " mult ", OPT_" optn "_set },"
   n = n + 1
@@ -204,7 +204,7 @@ BEGIN {
     } else {
       options=options shrt
     }
-    checks=checks " case " q shrt q ": OPT_generic(args_info, OPT_idx_" shrt ",optarg); break;"
+    checks=checks " case " q shrt q ": OPT_generic(args_info, OPT_idx_" shrt ", optarg, 1); break;"
     shrt=q shrt q
   }
 
@@ -217,8 +217,8 @@ END {
   print "  { 0, 0, 0, 0 }"
   print "};"
   print "#define getopt_OPTIONS \"Vh" options "\""
-  checks=checks " case " q "V" q ": OPT_generic(args_info, OPT_idx_V,optarg); break;"
-  checks=checks " case " q "h" q ": OPT_generic(args_info, OPT_idx_h,optarg); break;"
+  checks=checks " case " q "V" q ": OPT_generic(args_info, OPT_idx_V, optarg, 1); break;"
+  checks=checks " case " q "h" q ": OPT_generic(args_info, OPT_idx_h, optarg, 1); break;"
   print "#define getopt_CHECKS" checks 
 }
 ' $ggo

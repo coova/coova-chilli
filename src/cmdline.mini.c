@@ -44,13 +44,14 @@ struct opt_def_t {
   ssize_t offset_given;
 };
 
-static int OPT_generic(struct gengetopt_args_info *, int, void *);
+static int OPT_generic(struct gengetopt_args_info *, int, void *, char);
 
 #include "cmdline.mini.gen"
 
 static int opts_cnt = sizeof(opts) / sizeof(struct opt_def_t);
 
-static int OPT_generic(struct gengetopt_args_info *args_info, int o, void *d) {
+static int OPT_generic(struct gengetopt_args_info *args_info, int o, 
+		       void *d, char is_cmdline) {
   struct opt_def_t * opt = &opts[o];
 
 #if(_debug_)
@@ -60,6 +61,21 @@ static int OPT_generic(struct gengetopt_args_info *args_info, int o, void *d) {
 #endif
 
   unsigned int * given = (unsigned int *)(((char *)args_info) + opt->offset_given);
+
+  if (opt->offset_orig > 0) {
+    void **p = (void **) (((void *)args_info) + opt->offset_orig);	
+
+    if (is_cmdline) {
+      *p = d;
+    } else {
+      if (*p) {
+#if(_debug_)
+	log_dbg("Skipping option %s defined on command line", opt->opt_name);
+#endif
+	return 0;
+      }
+    }
+  }
 
   switch(opt->opt_type) {
     
@@ -218,7 +234,7 @@ int mini_cmdline_file(char *filename, struct gengetopt_args_info *args_info,
     for (i=0; i < opts_cnt; i++) {
       struct opt_def_t * opt = &opts[i];
       if (!strcmp(opt->opt_name, fopt)) {
-	OPT_generic(args_info,i,farg);
+	OPT_generic(args_info,i,farg,0);
 	break;
       }
     }
@@ -281,7 +297,7 @@ int mini_cmdline_parser2(int argc, char **argv,
       getopt_CHECKS
 
     case 0:
-      OPT_generic(args_info, option_index, optarg);
+      OPT_generic(args_info, option_index, optarg, 1);
       break;
 
     case '?':

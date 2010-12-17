@@ -23,6 +23,9 @@
 #include "system.h"
 #include "pkt.h"
 
+#define RTMON_HAS_DATA  (1<<1)
+#define RTMON_REMOVE    (1<<2)
+
 struct rtmon_iface {
   int index;
   uint16_t protocol;
@@ -42,27 +45,40 @@ struct rtmon_iface {
 
 struct rtmon_route {
   int if_index;
+
   struct in_addr destination;
   struct in_addr netmask;
   struct in_addr gateway;
+
   uint8_t gwaddr[PKT_ETH_ALEN];
+
   char has_data;
 };
 
-#define MAX_IFACES 16
-#define MAX_ROUTES 16
-
-struct rtmon_t {
-  int fd;
-  struct rtmon_iface _ifaces[MAX_IFACES];
-  struct rtmon_route _routes[MAX_ROUTES];
-};
+struct rtmon_t;
 
 typedef int (*rtmon_callback)(struct rtmon_t *rtmon, 
 			      struct rtmon_iface *iface,
 			      struct rtmon_route *route);
 
-int rtmon_open_netlink();
-int rtmon_read_event(struct rtmon_t *rtmon, rtmon_callback func);
+struct rtmon_t {
+  int fd;
+
+  rtmon_callback cb;
+
+  struct rtmon_iface *_ifaces;
+  int _iface_sz;
+
+  struct rtmon_route *_routes;
+  int _route_sz;
+};
+
+int rtmon_init(struct rtmon_t *rtmon, rtmon_callback func);
+int rtmon_read_event(struct rtmon_t *rtmon);
+void rtmon_discover_ifaces(struct rtmon_t *rtmon);
+void rtmon_discover_routes(struct rtmon_t *rtmon);
+void rtmon_check_updates(struct rtmon_t *rtmon);
+void rtmon_print_ifaces(struct rtmon_t *rtmon, int fd);
+void rtmon_print_routes(struct rtmon_t *rtmon, int fd);
 
 #endif

@@ -195,9 +195,10 @@ typedef struct _net_interface {
 
   /* network/address */
   struct in_addr address;
-  struct in_addr gateway;
+  struct in_addr network;
   struct in_addr netmask;
   struct in_addr broadcast;
+  struct in_addr gateway;
 
   /* socket/descriptor */
   int fd;
@@ -244,6 +245,8 @@ typedef struct _net_interface {
 #define NET_PROMISC (1<<0)
 #define NET_USEMAC  (1<<1)
 #define NET_ETHHDR  (1<<2)
+#define NET_PPPHDR  (1<<3)
+
 } net_interface;
 
 typedef int (*net_handler)(void *ctx, void *data, size_t len);
