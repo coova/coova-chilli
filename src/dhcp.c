@@ -105,8 +105,8 @@ void print_peers(bstring s) {
   }
 }
 
-static int
-dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
+static 
+int dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
   EVP_CIPHER_CTX ctx;
 
   uint8_t packet[PKT_BUFFER];
@@ -338,6 +338,20 @@ void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t 
 }
 #endif
 
+void dhcp_authorize_mac(struct dhcp_t *this, uint8_t *hwaddr,
+			struct session_params *params) {
+  struct dhcp_conn_t *conn;
+  if (!dhcp_hashget(this, &conn, hwaddr)) {
+    struct app_conn_t * appconn = (struct app_conn_t*) conn->peer;
+    if (appconn) {
+      memcpy(&appconn->s_params, params, 
+	     sizeof(struct session_params));
+      session_param_defaults(&appconn->s_params);
+      dnprot_accept(appconn);
+    }
+  }
+}
+
 void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause) {
   struct dhcp_conn_t *conn;
   if (!dhcp_hashget(this, &conn, hwaddr)) {
@@ -345,6 +359,19 @@ void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause) {
 	term_cause != RADIUS_TERMINATE_CAUSE_ADMIN_RESET) 
       return;
     dhcp_freeconn(conn, term_cause);
+  }
+}
+
+void dhcp_reset_tcp_mac(struct dhcp_t *this, uint8_t *hwaddr) {
+  struct dhcp_conn_t *conn;
+  if (!dhcp_hashget(this, &conn, hwaddr)) {
+    int n;
+    for (n=0; n<DHCP_DNAT_MAX; n++) {
+      char *ip = (char*)&conn->dnat[n].dst_ip;
+      log_dbg("Resetting dst %d.%d.%d.%d:%d\n", ip[0], ip[1], ip[2], ip[3], conn->dnat[n].dst_port);
+      ip = (char*)&conn->dnat[n].src_ip;
+      log_dbg("Resetting src %d.%d.%d.%d:%d\n", ip[0], ip[1], ip[2], ip[3], conn->dnat[n].src_port);
+    }
   }
 }
 
@@ -712,8 +739,9 @@ int dhcp_checkconn(struct dhcp_t *this) {
 }
 
 #ifdef HAVE_NETFILTER_QUEUE
-static int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
-			 struct nfq_data *nfa, void *cbdata) {
+static 
+int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
+		  struct nfq_data *nfa, void *cbdata) {
   struct nfqnl_msg_packet_hdr *ph;
   struct nfqnl_msg_packet_hw *hw;
   u_int32_t id;
@@ -776,8 +804,9 @@ static int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
   return nfq_set_verdict(qh, id, result, 0, NULL);
 }
 
-static int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
-			 struct nfq_data *nfa, void *cbdata) {
+static 
+int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
+		   struct nfq_data *nfa, void *cbdata) {
   struct nfqnl_msg_packet_hdr *ph;
   u_int32_t id;
   char *data;
@@ -1328,7 +1357,8 @@ int dhcp_nakDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   return 0;
 }
 
-static int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
+static 
+int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
   int r_len = strlen((char *)r);
   int name_len = strlen(name);
   int domain_len = _options.domain ? strlen(_options.domain) : 0;
@@ -1348,8 +1378,8 @@ static int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
   return 0;
 }
 
-static int
-dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
+static 
+int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 
   if (plen < DHCP_DNS_HLEN + sizeofudp(pack)) {
     
@@ -1607,13 +1637,13 @@ dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
   return 1;
 }
 
-static inline int
-dhcp_uam_nat(struct dhcp_conn_t *conn,
-	     struct pkt_ethhdr_t *ethh,
-	     struct pkt_iphdr_t  *iph,
-	     struct pkt_tcphdr_t *tcph,
-	     struct in_addr *addr, 
-	     uint16_t port) {
+static 
+int dhcp_uam_nat(struct dhcp_conn_t *conn,
+		 struct pkt_ethhdr_t *ethh,
+		 struct pkt_iphdr_t  *iph,
+		 struct pkt_tcphdr_t *tcph,
+		 struct in_addr *addr, 
+		 uint16_t port) {
   int n;
   int pos = -1;
   
@@ -1649,11 +1679,11 @@ dhcp_uam_nat(struct dhcp_conn_t *conn,
 }
 
 
-static inline int
-dhcp_uam_unnat(struct dhcp_conn_t *conn,
-	       struct pkt_ethhdr_t *ethh,
-	       struct pkt_iphdr_t  *iph,
-	       struct pkt_tcphdr_t *tcph) {
+static 
+int dhcp_uam_unnat(struct dhcp_conn_t *conn,
+		   struct pkt_ethhdr_t *ethh,
+		   struct pkt_iphdr_t  *iph,
+		   struct pkt_tcphdr_t *tcph) {
   int n;
   for (n=0; n < DHCP_DNAT_MAX; n++) {
     
@@ -1675,11 +1705,11 @@ dhcp_uam_unnat(struct dhcp_conn_t *conn,
   return 0; 
 }
 
-static inline int 
-dhcp_dnsDNAT(struct dhcp_conn_t *conn, 
-	     uint8_t *pack, size_t len, 
-	     char *do_checksum) {
-
+static 
+int dhcp_dnsDNAT(struct dhcp_conn_t *conn, 
+		 uint8_t *pack, size_t len, 
+		 char *do_checksum) {
+  
   struct dhcp_t *this = conn->parent;
   struct pkt_iphdr_t  *iph  = iphdr(pack);
   struct pkt_udphdr_t *udph = udphdr(pack);
@@ -1719,11 +1749,11 @@ dhcp_dnsDNAT(struct dhcp_conn_t *conn,
   return 0; /* Not DNS */
 }
 
-static inline int 
-dhcp_dnsunDNAT(struct dhcp_conn_t *conn, 
-	     uint8_t *pack, size_t len, 
-	     char *do_checksum) {
-
+static 
+int dhcp_dnsunDNAT(struct dhcp_conn_t *conn, 
+		   uint8_t *pack, size_t len, 
+		   char *do_checksum) {
+  
   struct dhcp_t *this = conn->parent;
   struct pkt_iphdr_t *iph = iphdr(pack);
   struct pkt_udphdr_t *udph = udphdr(pack);
@@ -1861,8 +1891,9 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
   return -1; /* Something else */
 }
 
-static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, 
-				    size_t len, char is_return, char *do_checksum) {
+static 
+int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, 
+		      size_t len, char is_return, char *do_checksum) {
   struct dhcp_t *this = conn->parent;
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
@@ -1925,9 +1956,10 @@ static inline int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
  * dhcp_undoDNAT()
  * Change source address back to original server
  **/
-static inline int dhcp_undoDNAT(struct dhcp_conn_t *conn, 
-				uint8_t *pack, size_t *plen,
-				char do_reset, char *do_checksum) {
+static 
+int dhcp_undoDNAT(struct dhcp_conn_t *conn, 
+		  uint8_t *pack, size_t *plen,
+		  char do_reset, char *do_checksum) {
   struct dhcp_t *this = conn->parent;
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
@@ -3116,7 +3148,8 @@ int dhcp_receive_ipv6(struct dhcp_t *this, uint8_t *pack, size_t len) {
 #endif
 
 #ifdef ENABLE_PPPOE
-static int dhcp_pppoes(uint8_t *packet, size_t length) {
+static 
+int dhcp_pppoes(uint8_t *packet, size_t length) {
   uint8_t *p = packet + sizeofeth(packet);
   struct pkt_pppoe_hdr_t *hdr = (struct pkt_pppoe_hdr_t *)p;
   if (hdr->version_type == PKT_PPPoE_VERSION &&
@@ -3219,7 +3252,8 @@ static int dhcp_pppoes(uint8_t *packet, size_t length) {
   return 0;
 }
 
-static int dhcp_pppoed(uint8_t *packet, size_t length) {
+static 
+int dhcp_pppoed(uint8_t *packet, size_t length) {
   uint8_t *p = packet + sizeofeth(packet);
   struct pkt_pppoe_hdr_t *hdr = (struct pkt_pppoe_hdr_t *)p;
   if (hdr->version_type == PKT_PPPoE_VERSION &&
@@ -3367,7 +3401,8 @@ static int dhcp_pppoed(uint8_t *packet, size_t length) {
 #endif
 
 #ifdef ENABLE_CLUSTER
-static void update_peer(struct pkt_chillihdr_t *chillihdr) {
+static 
+void update_peer(struct pkt_chillihdr_t *chillihdr) {
   struct chilli_peer *p = get_chilli_peer(chillihdr->from);
   p->last_update = mainclock_now();
   memcpy(&p->addr, &chillihdr->addr, sizeof(struct in_addr));
@@ -3378,7 +3413,8 @@ static void update_peer(struct pkt_chillihdr_t *chillihdr) {
   }
 }
 
-static int dhcp_chillipkt(uint8_t *packet, size_t length) {
+static 
+int dhcp_chillipkt(uint8_t *packet, size_t length) {
   EVP_CIPHER_CTX ctx;
   
   unsigned char iv[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
@@ -3461,7 +3497,8 @@ static int dhcp_chillipkt(uint8_t *packet, size_t length) {
   return 0;
 }
 
-static char dhcp_ignore(uint16_t prot, uint8_t *packet, size_t length) {
+static 
+char dhcp_ignore(uint16_t prot, uint8_t *packet, size_t length) {
   struct pkt_ethhdr_t *ethh = ethhdr(packet);
   char ignore = 0;
   
@@ -3489,7 +3526,8 @@ void dhcp_peer_update(char force) {
 }
 #endif
 
-static int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
+static 
+int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
   struct dhcp_t *this = (struct dhcp_t *)ctx;
   uint16_t prot;
   char ignore = 0;
@@ -3648,7 +3686,8 @@ int dhcp_decaps(struct dhcp_t *this, int idx) {
   return length;
 }
 
-static inline int dhcp_ethhdr(struct dhcp_conn_t *conn, uint8_t *packet, uint8_t *hismac, uint8_t *nexthop, uint16_t prot) {
+static 
+int dhcp_ethhdr(struct dhcp_conn_t *conn, uint8_t *packet, uint8_t *hismac, uint8_t *nexthop, uint16_t prot) {
 #ifdef ENABLE_IEEE8021Q
   if (conn->tag8021q) {
     struct pkt_ethhdr8021q_t *pack_ethh = ethhdr8021q(packet);
@@ -3932,8 +3971,8 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
  * dhcp_sendARP()
  * Send ARP message to peer
  **/
-static int
-dhcp_sendARP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
+static 
+int dhcp_sendARP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
   uint8_t packet[PKT_BUFFER];
   struct dhcp_t *this = conn->parent;

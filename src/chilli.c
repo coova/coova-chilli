@@ -1590,7 +1590,7 @@ int chilli_assign_snat(struct app_conn_t *appconn, int force) {
  *
  ***********************************************************/
 
-int static dnprot_reject(struct app_conn_t *appconn) {
+int dnprot_reject(struct app_conn_t *appconn) {
   struct dhcp_conn_t* dhcpconn = NULL;
   /*struct ippoolm_t *ipm;*/
 
@@ -1680,7 +1680,7 @@ int static dnprot_challenge(struct app_conn_t *appconn) {
   return 0;
 }
 
-int static dnprot_accept(struct app_conn_t *appconn) {
+int dnprot_accept(struct app_conn_t *appconn) {
   struct dhcp_conn_t* dhcpconn = NULL;
   
   if (appconn->is_adminsession) return 0;

@@ -75,9 +75,6 @@
 /* Define to DNS query on redirect to pick up dynamic walled garden */
 #undef ENABLE_REDIRDNSREQ
 
-/* Define to enable route monitoring deamon */
-#undef ENABLE_RTMON
-
 /* Define to enable Chilli session walled garden */
 #undef ENABLE_SESSGARDEN
 

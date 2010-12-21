@@ -296,6 +296,9 @@ int dhcp_eapol_ind(struct dhcp_t *this);
 void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause);
 void dhcp_block_mac(struct dhcp_t *this, uint8_t *hwaddr);
 
+void dhcp_authorize_mac(struct dhcp_t *this, uint8_t *hwaddr,
+			struct session_params *params);
+
 #define LIST_SHORT_FMT 0
 #define LIST_LONG_FMT  1
 #define LIST_JSON_FMT  2

@@ -27,8 +27,8 @@
 #include "radius.h"
 #include "redir.h"
 #include "syserr.h"
-#include "dhcp.h"
 #include "session.h"
+#include "dhcp.h"
 #include "chilli.h"
 #include "options.h"
 #include "cmdsock.h"
@@ -204,6 +204,10 @@ void config_radius_session(struct session_params *params,
 			   int reconfig);
 
 void session_param_defaults(struct session_params *params);
+
+int dnprot_accept(struct app_conn_t *appconn);
+
+int dnprot_reject(struct app_conn_t *appconn);
 
 int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos);
 

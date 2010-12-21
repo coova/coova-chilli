@@ -2,7 +2,7 @@ AUTOMAKE_OPTIONS=foreign
 
 EXTRA_DIST = cmdline.ggo cmdline.patch \
 linux/Makefile linux/xt_coova.c linux/xt_coova.h \
-linux/ipt_coova.h linux/libxt_coova.c
+linux/ipt_coova.h linux/libxt_coova.c cmdline.mini.sh
 
 chilliincludedir = $(includedir)/chilli
 chilliinclude_HEADERS = \

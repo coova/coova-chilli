@@ -21,8 +21,8 @@
 #ifndef _REDIR_H
 #define _REDIR_H
 
-#include "dhcp.h"
 #include "session.h"
+#include "dhcp.h"
 #include "conn.h"
 #include "bstrlib.h"
 
