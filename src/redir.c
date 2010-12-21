@@ -3803,6 +3803,8 @@ int redir_main(struct redir_t *redir,
     query[query_len++] = 1;
     query[query_len++] = 0;
     query[query_len++] = 1;
+
+    memset(answer, 0, sizeof(answer));
     
     answer_ethh = ethhdr(answer);
     answer_iph = iphdr(answer);

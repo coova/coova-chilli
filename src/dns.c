@@ -40,6 +40,7 @@ dns_fullname(char *data, size_t dlen,
 #endif
   
   while (reslen-- > 0 && (l = *res++) != 0) {
+
     if ((l & 0xC0) == 0xC0) {
       if (reslen == 0) return -1;
       else {
@@ -84,9 +85,12 @@ dns_fullname(char *data, size_t dlen,
     dlen -= 1;
   }
   
-  if (!lvl && data[strlen((char *)data)-1] == '.')
-    data[strlen((char *)data)-1]=0;
-  
+  if (lvl == 0) {
+    int len = strlen((char *)data);
+    if (len && len == (d - data) && data[len-1] == '.')
+      data[len-1]=0;
+  }
+
   return 0;
 }
 

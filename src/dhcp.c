@@ -26,7 +26,7 @@ static int connections = 0;
 
 extern struct ippool_t *ippool;
 
-#define _debug_ 1
+#define _debug_ 0
 
 #ifdef ENABLE_CHILLIQUERY
 char *dhcp_state2name(int authstate) {
