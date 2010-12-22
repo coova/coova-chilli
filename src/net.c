@@ -68,7 +68,6 @@ int safe_recvfrom(int sockfd, void *buf, size_t len, int flags,
   return ret;
 }
 
-
 int safe_write(int s, void *b, size_t blen) {
   int ret;
   do {
@@ -267,7 +266,6 @@ static int net_setsockopt(int s, int l, int op, void *v, socklen_t vl) {
   return 0;
 }
 
-
 int net_reopen(net_interface *netif) {
   int previous_fd = netif->fd;
   int option;
@@ -321,23 +319,30 @@ int net_select_prepare(select_ctx *sctx) {
 #else
   int i;
 #ifdef USING_POLL
-  for (i=0; i < MAX_SELECT && sctx->desc[i].fd; i++) {
-    sctx->pfds[i].fd = sctx->desc[i].fd;
-    sctx->pfds[i].events = 0;
-    if (sctx->desc[i].evts & SELECT_READ)
-      sctx->pfds[i].events |= POLLIN;
-    if (sctx->desc[i].evts & SELECT_WRITE)
-      sctx->pfds[i].events |= POLLOUT;
+  for (i=0; i < MAX_SELECT; i++) {
+    if (sctx->desc[i].fd) {
+      sctx->pfds[i].fd = sctx->desc[i].fd;
+      sctx->pfds[i].events = 0;
+      if (sctx->desc[i].evts & SELECT_READ)
+	sctx->pfds[i].events |= POLLIN;
+      if (sctx->desc[i].evts & SELECT_WRITE)
+	sctx->pfds[i].events |= POLLOUT;
+    }
   }
 #else
   fd_zero(&sctx->rfds);
   fd_zero(&sctx->wfds);
   fd_zero(&sctx->efds);
-  for (i=0; i < MAX_SELECT && sctx->desc[i].fd; i++) {
-    if (sctx->desc[i].evts & SELECT_READ)
-      fd_set(sctx->desc[i].fd, &sctx->rfds);
-    if (sctx->desc[i].evts & SELECT_WRITE)
-      fd_set(sctx->desc[i].fd, &sctx->wfds);
+  for (i=0; i < MAX_SELECT; i++) {
+    if (!sctx->desc[i].fd && sctx->desc[i].evts & SELECT_RESET) {
+      sctx->desc[i].cb(&sctx->desc[i], -1);
+    }
+    if (sctx->desc[i].fd) {
+      if (sctx->desc[i].evts & SELECT_READ)
+	fd_set(sctx->desc[i].fd, &sctx->rfds);
+      if (sctx->desc[i].evts & SELECT_WRITE)
+	fd_set(sctx->desc[i].fd, &sctx->wfds);
+    }
   }
 #endif
 #endif
@@ -401,6 +406,7 @@ int net_select_reg(select_ctx *sctx, int fd, char evts,
   if (fd > sctx->maxfd) sctx->maxfd = fd;
 #endif
   sctx->count++;
+  log_dbg("net select count: %d", sctx->count);
   return 0;
 }
 
@@ -410,13 +416,15 @@ int net_select_zero(select_ctx *sctx) {
 #else
 #ifdef USING_POLL
   memset(&sctx->pfds, 0, sizeof(sctx->pfds));
-  for (i=0; i < MAX_SELECT && sctx->desc[i].fd; i++) {
-    sctx->pfds[i].fd = sctx->desc[i].fd;
-    sctx->pfds[i].events = 0;
-    if (sctx->desc[i].evts & SELECT_READ)
-      sctx->pfds[i].events |= POLLIN;
-    if (sctx->desc[i].evts & SELECT_WRITE)
-      sctx->pfds[i].events |= POLLOUT;
+  for (i=0; i < MAX_SELECT; i++) {
+    if (sctx->desc[i].fd) {
+      sctx->pfds[i].fd = sctx->desc[i].fd;
+      sctx->pfds[i].events = 0;
+      if (sctx->desc[i].evts & SELECT_READ)
+	sctx->pfds[i].events |= POLLIN;
+      if (sctx->desc[i].evts & SELECT_WRITE)
+	sctx->pfds[i].events |= POLLOUT;
+    }
   }
 #else
   fd_zero(&sctx->rfds);
@@ -576,14 +584,16 @@ int net_run_selected(select_ctx *sctx, int status) {
     sfd->cb(sfd->ctx, sfd->idx);
   }
 #else
-  for (i=0; i < MAX_SELECT && sctx->desc[i].fd; i++) {
+  for (i=0; i < MAX_SELECT; i++) {
+    if (sctx->desc[i].fd) {
 #ifdef USING_POLL
-    char has_read = !!(sctx->pfds[i].revents & POLLIN);
+      char has_read = !!(sctx->pfds[i].revents & POLLIN);
 #else
-    char has_read = fd_isset(sctx->desc[i].fd, &sctx->rfds);
+      char has_read = fd_isset(sctx->desc[i].fd, &sctx->rfds);
 #endif
-    if (has_read) {
-      sctx->desc[i].cb(sctx->desc[i].ctx, sctx->desc[i].idx);
+      if (has_read) {
+	sctx->desc[i].cb(sctx->desc[i].ctx, sctx->desc[i].idx);
+      }
     }
   }
 #endif

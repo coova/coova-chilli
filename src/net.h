@@ -153,6 +153,7 @@ struct queue_item
 
 #define SELECT_READ 1
 #define SELECT_WRITE 2
+#define SELECT_RESET 4
 
 typedef void (*select_callback)(void *data, int idx);
 
