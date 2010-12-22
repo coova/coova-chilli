@@ -3688,8 +3688,9 @@ int redir_main(struct redir_t *redir,
 
   case REDIR_PRELOGIN:
     /* Did the challenge expire? */
-    if (_options.challengetimeout &&
-	(conn.s_state.uamtime + _options.challengetimeout) < mainclock_now()) {
+    if (!conn.s_state.uamtime ||
+	(_options.challengetimeout &&
+	 (conn.s_state.uamtime + _options.challengetimeout) < mainclock_now())) {
       redir_memcopy(REDIR_CHALLENGE);
       redir_msg_send(REDIR_MSG_OPT_REDIR);
     }
@@ -3868,9 +3869,10 @@ int redir_main(struct redir_t *redir,
     }
   }
 
-  /* Did the challenge expire? */
-  if (_options.challengetimeout &&
-      (conn.s_state.uamtime + _options.challengetimeout) < mainclock_now()) {
+  /* Did the challenge expire, or never existed? */
+  if (!conn.s_state.uamtime || 
+      (_options.challengetimeout &&
+       (conn.s_state.uamtime + _options.challengetimeout) < mainclock_now())) {
     redir_memcopy(REDIR_CHALLENGE);
     redir_msg_send(REDIR_MSG_OPT_REDIR);
   }

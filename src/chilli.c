@@ -1290,7 +1290,7 @@ int static radius_access_challenge(struct app_conn_t *conn) {
 
   conn->radiuswait = 0;
 
-  if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_CHALLENGE)){
+  if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_CHALLENGE)) {
     log_err(0, "radius_default_pack() failed");
     return -1;
   }
