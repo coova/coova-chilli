@@ -18,6 +18,9 @@
  */
 
 #include "chilli.h"
+#ifdef ENABLE_MODULES
+#include "chilli_module.h"
+#endif
 
 #ifdef USING_MMAP
 #include <sys/mman.h>
@@ -315,9 +318,23 @@ int net_select_init(select_ctx *sctx) {
 }
 
 int net_select_prepare(select_ctx *sctx) {
-#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
-#else
   int i;
+
+#ifdef ENABLE_MODULES
+  for (i=0; i < MAX_MODULES; i++) {
+    if (!_options.modules[i].name[0]) break;
+    if (_options.modules[i].ctx) {
+      struct chilli_module *m = 
+	(struct chilli_module *)_options.modules[i].ctx;
+      if (m->net_select)
+	m->net_select(sctx); 
+    }
+  }
+#endif
+
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+  i = 0; /* for compiler */
+#else
 #ifdef USING_POLL
   for (i=0; i < MAX_SELECT; i++) {
     if (sctx->desc[i].fd) {
@@ -349,9 +366,21 @@ int net_select_prepare(select_ctx *sctx) {
   return 0;
 }
 
+int net_select_dereg(select_ctx *sctx, int oldfd) {
+  int i;
+  for (i=0; i < sctx->count; i++) {
+    if (sctx->desc[i].fd == oldfd) {
+      memset(&sctx->desc[i], 0, sizeof(select_fd));
+      sctx->count--;
+      return 0;
+    }
+  }
+  return -1;
+}
+
 int net_select_rereg(select_ctx *sctx, int oldfd, int newfd) {
   int i;
-  for (i=0; i<sctx->count; i++) {
+  for (i=0; i < sctx->count; i++) {
     if (sctx->desc[i].fd == oldfd) {
       sctx->desc[i].fd = newfd;
 #if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)

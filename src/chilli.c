@@ -5414,18 +5414,6 @@ int chilli_main(int argc, char **argv) {
   net_select_reg(&sctx, cmdsock, SELECT_READ, (select_callback)cmdsock_accept, 0, cmdsock);
 #endif
 
-#ifdef ENABLE_MODULES
-  for (i=0; i < MAX_MODULES; i++) {
-    if (!_options.modules[i].name[0]) break;
-    if (_options.modules[i].ctx) {
-      struct chilli_module *m = 
-	(struct chilli_module *)_options.modules[i].ctx;
-      if (m->net_select)
-	m->net_select(&sctx); 
-    }
-  }
-#endif
-
   mainclock_tick();
   while (keep_going) {
 
