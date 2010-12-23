@@ -367,10 +367,14 @@ void dhcp_reset_tcp_mac(struct dhcp_t *this, uint8_t *hwaddr) {
   if (!dhcp_hashget(this, &conn, hwaddr)) {
     int n;
     for (n=0; n<DHCP_DNAT_MAX; n++) {
-      char *ip = (char*)&conn->dnat[n].dst_ip;
-      log_dbg("Resetting dst %d.%d.%d.%d:%d\n", ip[0], ip[1], ip[2], ip[3], conn->dnat[n].dst_port);
-      ip = (char*)&conn->dnat[n].src_ip;
-      log_dbg("Resetting src %d.%d.%d.%d:%d\n", ip[0], ip[1], ip[2], ip[3], conn->dnat[n].src_port);
+      if (conn->dnat[n].dst_ip) {
+	uint8_t *ip = (uint8_t*)&conn->dnat[n].dst_ip;
+	log_dbg("Resetting dst %d.%d.%d.%d:%d", ip[0], ip[1], ip[2], ip[3], conn->dnat[n].dst_port);
+      }
+      if (conn->dnat[n].src_ip) {
+	uint8_t *ip = (uint8_t*)&conn->dnat[n].src_ip;
+	log_dbg("Resetting src %d.%d.%d.%d:%d", ip[0], ip[1], ip[2], ip[3], conn->dnat[n].src_port);
+      }
     }
   }
 }

@@ -12,6 +12,7 @@
 * Support for a module based approach to adding features to chilli, enabled with ''--enable-modules''
 * A new light-weight configuration sub-system without help text enabled with ''--endable-miniconfig''
 * Support for ''chilli_query'' can be removed at build-time with ''--disable-chilliquery''
+* Added runtime option ''--noradallow'' to authorize sessions when RADIUS is not available
 
 == ChangeLog (CoovaChilli-v1.2.5 svn revision 394) ==
 

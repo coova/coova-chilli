@@ -199,6 +199,8 @@ struct gengetopt_args_info
   const char *coaport_help; /**< @brief Radius disconnect port to listen to help description.  */
   int coanoipcheck_flag;	/**< @brief Allow radius disconnect from any IP (default=off).  */
   const char *coanoipcheck_help; /**< @brief Allow radius disconnect from any IP help description.  */
+  int noradallow_flag;	/**< @brief Allow all sessions when RADIUS is not available (default=off).  */
+  const char *noradallow_help; /**< @brief Allow all sessions when RADIUS is not available help description.  */
   char * proxylisten_arg;	/**< @brief Proxy IP address to listen on.  */
   char * proxylisten_orig;	/**< @brief Proxy IP address to listen on original value given at command line.  */
   const char *proxylisten_help; /**< @brief Proxy IP address to listen on help description.  */
@@ -570,6 +572,7 @@ struct gengetopt_args_info
   unsigned int radiusnasporttype_given ;	/**< @brief Whether radiusnasporttype was given.  */
   unsigned int coaport_given ;	/**< @brief Whether coaport was given.  */
   unsigned int coanoipcheck_given ;	/**< @brief Whether coanoipcheck was given.  */
+  unsigned int noradallow_given ;	/**< @brief Whether noradallow was given.  */
   unsigned int proxylisten_given ;	/**< @brief Whether proxylisten was given.  */
   unsigned int proxyport_given ;	/**< @brief Whether proxyport was given.  */
   unsigned int proxyclient_given ;	/**< @brief Whether proxyclient was given.  */

@@ -306,6 +306,7 @@ int main(int argc, char **argv) {
   _options.framedservice = args_info.framedservice_flag;
   _options.radsec = args_info.radsec_flag;
   _options.proxymacaccept = args_info.proxymacaccept_flag;
+  _options.noradallow = args_info.noradallow_flag;
   _options.peerid = args_info.peerid_arg;
 
 #ifdef ENABLE_LEAKYBUCKET

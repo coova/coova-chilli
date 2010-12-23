@@ -74,6 +74,7 @@ option "locationname"       - "Location Name"                 string no
 option "radiusnasporttype"  - "Radius NAS-Port-Type"          int default="19" no
 option "coaport"            - "Radius disconnect port to listen to" int default="0" no
 option "coanoipcheck"       - "Allow radius disconnect from any IP" flag   off
+option "noradallow"         - "Allow all sessions when RADIUS is not available" flag   off
 
 
 # Radius proxy parameters

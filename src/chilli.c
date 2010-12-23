@@ -3324,7 +3324,12 @@ int cb_radius_auth_conf(struct radius_t *radius,
   appconn->lmntlen  = 0;
   
   if (!pack) { /* Timeout */
-    log_err(0, "RADIUS request timed out");
+    log_err(0, "RADIUS request timed out for session %s",
+	    appconn->s_state.sessionid);
+    if (_options.noradallow) {
+      session_param_defaults(&appconn->s_params);
+      return upprot_getip(appconn, &appconn->reqip, 0);
+    }
     return dnprot_reject(appconn);
   }
 
