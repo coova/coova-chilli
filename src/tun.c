@@ -28,6 +28,10 @@
  */
 
 #include "chilli.h"
+#ifdef ENABLE_MULTIROUTE
+#include "rtmon.h"
+extern struct rtmon_t _rtmon;
+#endif
 
 #define inaddr(x)    (((struct sockaddr_in *)&ifr->x)->sin_addr)
 #define inaddr2(p,x) (((struct sockaddr_in *)&(p)->x)->sin_addr)
@@ -35,6 +39,105 @@
 #define _debug_ 0
 
 #ifdef ENABLE_MULTIROUTE
+net_interface * tun_nextif(struct tun_t *tun) {
+  net_interface *netif;
+  int i;
+
+  if (tun->_interface_count == TUN_MAX_INTERFACES)
+    return 0;
+
+  for (i=0; i<TUN_MAX_INTERFACES; i++) {
+    netif = &tun->_interfaces[i];
+    if (!netif->ifindex && !netif->fd) {
+      if (!netif->idx)
+	netif->idx = tun->_interface_count;
+      tun->_interface_count++;
+      return netif;
+    }
+  }
+
+  return 0;
+}
+
+net_interface * tun_newif(struct tun_t *tun, net_interface *netif) {
+  net_interface *newif = tun_nextif(tun);
+      
+  if (newif) {
+    int idx = newif->idx;
+    memcpy(newif, netif, sizeof(net_interface));
+    newif->idx = idx;
+
+    if (newif->devflags & IFF_POINTOPOINT)
+      newif->flags |= NET_PPPHDR | NET_ETHHDR;
+  }
+
+  return newif;
+}
+
+void tun_delif(struct tun_t *tun, int ifindex) {
+  net_interface *netif;
+  int i;
+
+  for (i=0; i<TUN_MAX_INTERFACES; i++) {
+    netif = &tun->_interfaces[i];
+    if (netif->ifindex == ifindex) {
+      int idx = netif->idx;
+      net_select_dereg(tun->sctx, netif->fd);
+      net_close(netif);
+      memset(netif, 0, sizeof(net_interface));
+      netif->idx = idx;
+      tun->_interface_count--;
+      return;
+    }
+  }
+}
+
+int tun_name2idx(struct tun_t *tun, char *name) {
+  int i;
+
+  for (i=0; i<TUN_MAX_INTERFACES; i++) 
+    if (!strcmp(name, tun->_interfaces[i].devname))
+      return tun->_interfaces[i].idx;
+
+  /* Not found? Check for discovery */
+  {
+    struct rtmon_iface *rti = rtmon_find(&_rtmon, name);
+    if (rti) {
+      net_interface *newif = 0;
+      net_interface netif;
+      log_dbg("Discoving TUN %s", name);
+      memset(&netif, 0, sizeof(netif));
+      safe_strncpy(netif.devname, rti->devname, sizeof(netif.devname));
+      memcpy(netif.hwaddr, rti->hwaddr, sizeof(netif.hwaddr));
+      netif.address = rti->address;
+      netif.netmask = rti->netmask;
+      netif.gateway = rti->gateway;
+      netif.broadcast = rti->broadcast;
+      netif.devflags = rti->devflags;
+      netif.mtu = rti->mtu;
+      netif.ifindex = rti->index;
+      
+      newif = tun_newif(tun, &netif);
+      if (newif) {
+
+	if (net_init(newif, 0, ETH_P_ALL, 1, 0) < 0) {
+	  log_err(errno, "net_init");
+	}
+	else {
+	  net_select_reg(tun->sctx, 
+			 newif->fd,
+			 SELECT_READ, (select_callback) tun_decaps, 
+			 tun, newif->idx);
+	}
+	
+	return newif->idx;
+      }
+    }
+  }
+
+  return 0; /* tun/tap index */
+}
+
 int tun_discover(struct tun_t *this) {
   net_interface netif;
   struct ifconf ic;
@@ -182,12 +285,9 @@ int tun_discover(struct tun_t *this) {
       continue;
 
     {
-      net_interface *newif = tun_nextif(tun);
+      net_interface *newif = tun_newif(tun, &netif);
       
       if (newif) {
-	int idx = newif->idx;
-	memcpy(newif, &netif, sizeof(netif));
-	newif->idx = idx;
 
 	if (net_init(newif, 0, ETH_P_ALL, 1, 0) < 0) {
 	  log_err(errno, "net_init");
@@ -208,34 +308,6 @@ int tun_discover(struct tun_t *this) {
 }
 #endif
 
-net_interface * tun_nextif(struct tun_t *tun) {
-  net_interface *netif;
-
-#ifdef ENABLE_MULTIROUTE
-  if (tun->_interface_count == TUN_MAX_INTERFACES)
-    return 0;
-
-  netif = &tun->_interfaces[tun->_interface_count];
-  netif->idx = tun->_interface_count;
-  tun->_interface_count++;
-#else
-  netif = &tun->_tuntap;
-#endif
-
-  return netif;
-}
-
-#ifdef ENABLE_MULTIROUTE
-int tun_name2idx(struct tun_t *tun, char *name) {
-  int i;
-
-  for (i=0; i<tun->_interface_count; i++) 
-    if (!strcmp(name, tun->_interfaces[i].devname))
-      return i;
-
-  return 0; /* tun/tap index */
-}
-#endif
 
 #if defined(__linux__)
 
@@ -668,12 +740,14 @@ int tun_new(struct tun_t **ptun) {
     return EOF;
   }
 
+#ifdef ENABLE_MULTIROUTE
   tuntap_interface(tun_nextif(tun));
 
-#ifdef ENABLE_MULTIROUTE
   if (_options.routeif) {
     tun_discover(tun);
   }
+#else
+  tuntap_interface(&tun->_tuntap);
 #endif
 
   return 0;
@@ -751,12 +825,25 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
 	return -1;
     }
 #endif
+
+#ifdef ENABLE_MULTIROUTE
+#if(1) /* XXX  ONE2ONE */
+    {
+      iph->daddr = tun(c->this, c->idx).nataddress.s_addr;
+      chksum(iph);
+    }
+#endif
+#endif
+
     if ((iph->daddr & _options.mask.s_addr) != _options.net.s_addr) {
 #if(_debug_)
-      log_dbg("pkt not for our network");
+      struct in_addr addr;
+      addr.s_addr = iph->daddr;
+      log_dbg("pkt not for our network %s",inet_ntoa(addr));
 #endif
       return -1;
     }
+
   } 
   
   if (iph->version_ihl != PKT_IP_VER_HLEN) {
@@ -899,6 +986,16 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
       idx = 0;
     }
   }
+
+#if(1) /* XXX ONE2ONE */
+  if (idx > 0) {
+    struct pkt_iphdr_t *iph = iphdr(pack);
+    if (!tun(tun, idx).nataddress.s_addr)
+      tun(tun, idx).nataddress.s_addr = iph->saddr;
+    iph->saddr = tun(tun, idx).address.s_addr;
+    chksum(iph);
+  }
+#endif
 #endif
 
 #ifdef ENABLE_NETNAT

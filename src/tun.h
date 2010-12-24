@@ -36,6 +36,8 @@ struct tun_t {
   int (*cb_ind) (struct tun_t *tun, void *pack, size_t len, int idx);
 
 #ifdef ENABLE_MULTIROUTE
+  select_ctx *sctx;
+
   int _interface_count;
   struct _net_interface _interfaces[TUN_MAX_INTERFACES];
 
@@ -88,8 +90,12 @@ int tun_setaddr(struct tun_t *this, struct in_addr *addr, struct in_addr *dstadd
 
 int tun_runscript(struct tun_t *tun, char* script, int wait);
 
+#ifdef ENABLE_MULTIROUTE
 net_interface *tun_nextif(struct tun_t *tun);
+net_interface *tun_newif(struct tun_t *tun, net_interface *netif);
 int tun_name2idx(struct tun_t *tun, char *name);
+void tun_delif(struct tun_t *tun, int ifindex);
+#endif
 
 
 #endif	/* !_TUN_H */

@@ -3583,6 +3583,7 @@ int redir_main(struct redir_t *redir,
       }
 
 #ifdef ENABLE_MODULES
+      log_dbg("checking modules...");
       for (i=0; i < MAX_MODULES; i++) {
 	if (!_options.modules[i].name[0]) break;
 	if (_options.modules[i].ctx) {

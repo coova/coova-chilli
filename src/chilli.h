@@ -254,6 +254,10 @@ void GenerateAuthenticatorResponse(u_char *Password, int PasswordLen,
 				   int UserNameLen, u_char *AuthenticatorResponse);
 #endif
 
+#ifdef ENABLE_MULTIROUTE
+int chilli_getconn_byroute(struct app_conn_t **conn, int idx);
+#endif
+
 int chilli_handle_signal(void *ctx, int fd);
 void chilli_freeconn();
 

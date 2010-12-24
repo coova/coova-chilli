@@ -80,5 +80,6 @@ void rtmon_discover_routes(struct rtmon_t *rtmon);
 void rtmon_check_updates(struct rtmon_t *rtmon);
 void rtmon_print_ifaces(struct rtmon_t *rtmon, int fd);
 void rtmon_print_routes(struct rtmon_t *rtmon, int fd);
+struct rtmon_iface *rtmon_find(struct rtmon_t *rtmon, char *name);
 
 #endif

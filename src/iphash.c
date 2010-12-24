@@ -99,7 +99,8 @@ int iphash_get(struct iphash_t *this, struct iphashm_t **member,  struct in_addr
 
   hash = iphash_hash4(addr) & this->hashmask;
   for (p = this->hash[hash]; p; p = p->nexthash) {
-    if ( p->addr.s_addr == addr->s_addr && p->port == port &&
+    if ( p->addr.s_addr == addr->s_addr && 
+	 (p->port == 0 || p->port == port) &&
 	 p->flags & IPHASH_INUSE ) {
       if (member) *member = p;
       return 0;

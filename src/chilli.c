@@ -4908,6 +4908,23 @@ int static redir_msg(struct redir_t *this) {
 #endif
 
 #ifdef ENABLE_MULTIROUTE
+int chilli_getconn_byroute(struct app_conn_t **conn, int idx) {
+
+  struct app_conn_t *appconn = firstusedconn;
+
+  while (appconn) {
+
+    if (appconn->s_params.routeidx == idx) {
+      *conn = appconn;
+      return 0;
+    }
+
+    appconn = appconn->next;
+  }
+
+  return 1;
+}
+
 static int rtmon_proc_route(struct rtmon_t *rtmon, 
 			    struct rtmon_iface *iface,
 			    struct rtmon_route *route) {
@@ -4977,6 +4994,7 @@ int chilli_main(int argc, char **argv) {
   int keep_going = 1;
   int reload_config = 0;
 
+  i = 0;
   /* open a connection to the syslog daemon */
   /*openlog(PACKAGE, LOG_PID, LOG_DAEMON);*/
   openlog(PACKAGE, (LOG_PID | LOG_PERROR), LOG_DAEMON);
@@ -5367,6 +5385,7 @@ int chilli_main(int argc, char **argv) {
     log_err(errno, "select init");
 
 #ifdef ENABLE_MULTIROUTE
+  tun->sctx = &sctx;
   for (i=0; i < tun->_interface_count; i++) 
     net_select_reg(&sctx, 
 		   (tun)->_interfaces[i].fd,

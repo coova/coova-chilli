@@ -63,7 +63,7 @@ static int open_netlink() {
 }
 
 int rtmon_init(struct rtmon_t *rtmon, rtmon_callback func) {
-  memset(rtmon, 0, sizeof(*rtmon));
+  memset(rtmon, 0, sizeof(struct rtmon_t));
 
   rtmon->fd = open_netlink();
   rtmon->cb = func;
@@ -171,7 +171,7 @@ static int rtmon_add_route(struct rtmon_t *rtmon, struct rtmon_route *rt) {
 
   for (i=0; i < sz; i++) {
     if (!memcmp(&rtmon->_routes[i], rt, sizeof(struct rtmon_route))) {
-      log_dbg("Already have this route for &s", inet_ntoa(rt->destination));
+      log_dbg("Already have this route for %s", inet_ntoa(rt->destination));
       return 0;
     }
     if (!dst && !rtmon->_routes[i].has_data) {
@@ -285,6 +285,17 @@ static char * idx2name(struct rtmon_t *rtmon, int idx) {
   return "n/a";
 }
 
+struct rtmon_iface * rtmon_find(struct rtmon_t *rtmon, char *name) {
+  int i;
+
+  for (i=0; i<rtmon->_iface_sz; i++) 
+    if (rtmon->_ifaces[i].has_data) 
+      if (!strcmp(rtmon->_ifaces[i].devname, name))
+	return &rtmon->_ifaces[i];
+
+  return 0;
+}
+
 void rtmon_print_ifaces(struct rtmon_t *rtmon, int fd) {
   char line[512];
   int i;
@@ -395,7 +406,7 @@ void rtmon_check_updates(struct rtmon_t *rtmon) {
 
 	      while (attempt < retries) {
 		struct sockaddr_in addr;
-		char b[1];
+		char b[1]={0};
 		
 		memset(&addr, 0, sizeof(addr));
 		addr.sin_family = AF_INET;
@@ -504,6 +515,7 @@ void rtmon_discover_ifaces(struct rtmon_t *rtmon) {
   ic.ifc_buf = calloc((size_t)ic.ifc_len, 1);
   if (ioctl(fd, SIOCGIFCONF, &ic) < 0) {
     close(fd);
+    free(ic.ifc_buf);
     return;
   }
   
@@ -585,10 +597,14 @@ void rtmon_discover_ifaces(struct rtmon_t *rtmon) {
     rtmon_add_iface(rtmon, &ri);
   }
 
-  for (i=0; i < rtmon->_iface_sz; i++)
-    if (rtmon->_ifaces[i].has_data & RTMON_REMOVE)
-      memset(&rtmon->_ifaces[i], 0, sizeof(struct rtmon_iface));
+  for (i=0; i < rtmon->_iface_sz; i++) {
+    if (rtmon->_ifaces[i].has_data & RTMON_REMOVE) {
+      tun_delif(tun, rtmon->_ifaces[i].index);
+      memset(&rtmon->_ifaces[i], 0, sizeof(struct rtmon_iface)); 
+    }
+  }
   
+  free(ic.ifc_buf);
   close(fd);
 }
 
@@ -635,7 +651,7 @@ int rtmon_read_event(struct rtmon_t *rtmon) {
   msg.msg_iovlen = sizeof(iov)/sizeof(iov[0]);
 
   ret = recvmsg(rtmon->fd, &msg, 0);
-
+  
   if (ret < 0) {
     return ret;
   }
@@ -653,7 +669,7 @@ int rtmon_read_event(struct rtmon_t *rtmon) {
   FLAG(NLM_F_APPEND);
 #undef FLAG
 
-  log_dbg("\nSeq : %i\nPid : %i\n\n",nlh.nlmsg_seq,nlh.nlmsg_pid);
+  log_dbg("Seq : %i Pid : %i",nlh.nlmsg_seq,nlh.nlmsg_pid);
 
   rtmon_discover_ifaces(rtmon);
   rtmon_discover_routes(rtmon);

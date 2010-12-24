@@ -201,6 +201,12 @@ typedef struct _net_interface {
   struct in_addr broadcast;
   struct in_addr gateway;
 
+#ifdef ENABLE_MULTIROUTE
+#if(1) /* XXX  ONE2ONE */
+  struct in_addr nataddress;
+#endif
+#endif
+
   /* socket/descriptor */
   int fd;
 

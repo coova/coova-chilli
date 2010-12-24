@@ -28,9 +28,13 @@ typedef struct iphash_t nat_t;
 typedef struct {
   struct iphashm_t hdr;
   uint32_t dst_ip;
+#ifdef NETNAT_PORTS
   uint16_t dst_port;
+#endif
   uint32_t src_ip;
+#ifdef NETNAT_PORTS
   uint16_t src_port;
+#endif
 } natm_t;
 
 #endif
