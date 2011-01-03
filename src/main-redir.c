@@ -20,7 +20,7 @@
 
 #include "chilli.h"
 
-#define _debug_ 1
+#define _debug_ 0
 
 struct options_t _options;
 
@@ -524,7 +524,7 @@ int main(int argc, char **argv) {
 	  active++;
 	}
 	
-#if(_debug_ || 1)
+#if(_debug_)
 	if (_options.debug) {
 	  struct sockaddr_in address;
 	  socklen_t addrlen = sizeof(address);

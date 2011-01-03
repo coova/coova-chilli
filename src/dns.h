@@ -21,6 +21,9 @@
 
 #include "system.h"
 
+#define DNS_DEFAULT_MODE 0
+#define DNS_MDNS_MODE 1
+
 int dns_getname(uint8_t **pktp, size_t *left,
 		char *name, size_t namesz, size_t *nameln);
 
@@ -33,6 +36,6 @@ int dns_copy_res(struct dhcp_conn_t *conn, int q,
 		 uint8_t **pktp, size_t *left, 
 		 uint8_t *opkt, size_t olen,
 		 uint8_t *question, size_t qsize,
-		 int *qmatch);
+		 int *qmatch, int mode);
 
 #endif

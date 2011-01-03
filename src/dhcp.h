@@ -72,6 +72,7 @@
 #define DHCP_BOOTPS 67
 #define DHCP_BOOTPC 68
 #define DHCP_DNS    53
+#define DHCP_MDNS   5353
 
 /* TCP Ports */
 #define DHCP_HTTP   80

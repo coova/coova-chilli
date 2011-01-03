@@ -67,8 +67,12 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type);
 
 static pid_t chilli_pid = 0;
 
-#if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC)
+#ifdef ENABLE_CHILLIPROXY
 static pid_t proxy_pid = 0;
+#endif
+
+#ifdef ENABLE_CHILLIRADSEC
+static pid_t radsec_pid = 0;
 #endif
 
 #ifdef ENABLE_CHILLIREDIR
@@ -136,6 +140,61 @@ int child_remove_pid(pid_t pid) {
   return -1;
 }
 
+#if defined(ENABLE_CHILLIREDIR) || defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC)
+static pid_t launch_daemon(char *name, char *path) {
+  pid_t cpid = getpid();
+  pid_t p = chilli_fork(CHILLI_PROC_DAEMON, name);
+
+  if (p < 0) {
+
+    log_err(errno, "fork failed");
+
+  } else if (p == 0) {
+
+    char *newargs[16];
+    char file[128];
+    int i=0;
+
+    chilli_binconfig(file, sizeof(file), cpid);
+    
+    newargs[i++] = name;
+    newargs[i++] = "-b";
+    newargs[i++] = file;
+    newargs[i++] = NULL;
+    
+    if (execv(path, newargs) != 0) {
+      log_err(errno, "execl() did not return 0!");
+      exit(0);
+    }
+
+  } else {
+
+    return p;
+
+  }
+
+  return 0;
+}
+#endif
+
+#ifdef ENABLE_CHILLIPROXY
+static void launch_chilliproxy() {
+  proxy_pid = launch_daemon("[chilli_proxy]", SBINDIR "/chilli_proxy");
+}
+#endif
+
+#ifdef ENABLE_CHILLIREDIR
+static void launch_chilliredir() {
+  redir_pid = launch_daemon("[chilli_redir]", SBINDIR "/chilli_redir");
+}
+#endif
+
+#ifdef ENABLE_CHILLIRADSEC
+static void launch_chilliradsec() {
+  radsec_pid = launch_daemon("[chilli_radsec]", SBINDIR "/chilli_radsec");
+}
+#endif
+  
 static int proc_status(char *name, pid_t pid) {
   char buffer[128];
   char * line = 0;
@@ -236,6 +295,24 @@ static void _sigchld(int signum) {
 #if(_debug_)
     log_dbg("child %d terminated", pid);
 #endif
+#ifdef ENABLE_CHILLIRADSEC
+    if (radsec_pid > 0 && radsec_pid == pid) {
+      log_err(0, "Having to re-launch chilli_radsec... PID %d exited", pid);
+      launch_chilliradsec();
+    }
+#endif
+#ifdef ENABLE_CHILLIPROXY
+    if (proxy_pid > 0 && proxy_pid == pid) {
+      log_err(0, "Having to re-launch chilli_proxy... PID %d exited", pid);
+      launch_chilliproxy();
+    }
+#endif
+#ifdef ENABLE_CHILLIREDIR
+    if (redir_pid > 0 && redir_pid == pid) {
+      log_err(0, "Having to re-launch chilli_redir... PID %d exited", pid);
+      launch_chilliredir();
+    }
+#endif
     if (child_remove_pid(pid) == 0) 
       child_count--;
   }
@@ -264,10 +341,16 @@ static void _sigusr1(int signum) {
     kill(redir_pid, SIGUSR1);
 #endif
 
-#if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC)
+#ifdef ENABLE_CHILLIPROXY
   if (proxy_pid) 
     kill(proxy_pid, SIGUSR1);
 #endif
+
+#ifdef ENABLE_CHILLIRADSEC
+  if (radsec_pid) 
+    kill(radsec_pid, SIGUSR1);
+#endif
+
 }
 
 static void _sighup(int signum) {
@@ -946,7 +1029,11 @@ static int checkconn() {
 
   for (conn = firstusedconn; conn; conn=conn->next) {
     if ((conn->inuse != 0) && (conn->s_state.authenticated == 1)) {
-      if (!(dhcpconn = (struct dhcp_conn_t *)conn->dnlink)) {
+      if (
+#ifdef ENABLE_LAYER3
+	  !_options.layer3 &&
+#endif
+	  !(dhcpconn = (struct dhcp_conn_t *)conn->dnlink)) {
 	log_warn(0, "No downlink protocol");
 	continue;
       }
@@ -4037,27 +4124,9 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
   return 0;
 }
 
-/* Callback when a dhcp connection is deleted */
-int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
-  struct app_conn_t *appconn;
-
-  log(LOG_INFO, "DHCP Released MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X IP=%s", 
-      conn->hismac[0], conn->hismac[1], 
-      conn->hismac[2], conn->hismac[3],
-      conn->hismac[4], conn->hismac[5], 
-      inet_ntoa(conn->hisip));
-
-  log_dbg("DHCP connection removed");
-
-  if (!conn->peer) {
-    /* No appconn allocated. Stop here */
-#ifdef ENABLE_BINSTATFILE
-    printstatus();
-#endif
-    return 0;
-  }
-
-  appconn = (struct app_conn_t*) conn->peer;
+static int session_disconnect(struct app_conn_t *appconn,
+			      struct dhcp_conn_t *dhcpconn,
+			      int term_cause) {
 
 #ifdef ENABLE_MODULES
     { int i;
@@ -4067,13 +4136,17 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 	  struct chilli_module *m = 
 	    (struct chilli_module *)_options.modules[i].ctx;
 	  if (m->dhcp_disconnect)
-	    m->dhcp_disconnect(appconn, conn); 
+	    m->dhcp_disconnect(appconn, dhcpconn); 
 	}
       }
     }
 #endif
   
-  if ((appconn->dnprot != DNPROT_DHCP_NONE) &&
+  if (
+#ifdef ENABLE_LAYER3
+      !_options.layer3 &&
+#endif
+      (appconn->dnprot != DNPROT_DHCP_NONE) &&
       (appconn->dnprot != DNPROT_UAM) &&
       (appconn->dnprot != DNPROT_MAC) &&
       (appconn->dnprot != DNPROT_WPA) &&
@@ -4110,7 +4183,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
       }
     }
 
-    if (member->in_use && !conn->is_reserved) {
+    if (member->in_use && (!dhcpconn || !dhcpconn->is_reserved)) {
       if (ippool_freeip(ippool, member)) {
 	log_err(0, "ippool_freeip(%s) failed!", 
 		inet_ntoa(member->addr));
@@ -4136,19 +4209,21 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 	if (ioctl(sockfd, SIOCDARP, &req) < 0) {
 	  perror("ioctrl()");
 	}
+
 	safe_close(sockfd);
       }
     }
   }
   
-  if (_options.macdown && conn->peer) {
+  if (_options.macdown) {
     log_dbg("Calling MAC down script: %s",_options.macdown);
     runscript(appconn, _options.macdown);
   }
 
-  if (!conn->is_reserved) {
+  if (!dhcpconn || !dhcpconn->is_reserved) {
     freeconn(appconn);
-    conn->peer = 0;
+    if (dhcpconn) 
+      dhcpconn->peer = 0;
   }
 
 #ifdef ENABLE_BINSTATFILE
@@ -4156,6 +4231,31 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 #endif
 
   return 0;
+}
+
+/* Callback when a dhcp connection is deleted */
+int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
+  struct app_conn_t *appconn;
+
+  log(LOG_INFO, "DHCP Released MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X IP=%s", 
+      conn->hismac[0], conn->hismac[1], 
+      conn->hismac[2], conn->hismac[3],
+      conn->hismac[4], conn->hismac[5], 
+      inet_ntoa(conn->hisip));
+
+  log_dbg("DHCP connection removed");
+
+  if (!conn->peer) {
+    /* No appconn allocated. Stop here */
+#ifdef ENABLE_BINSTATFILE
+    printstatus();
+#endif
+    return 0;
+  }
+
+  appconn = (struct app_conn_t*) conn->peer;
+
+  return session_disconnect(appconn, conn, term_cause);
 }
 
 /* Callback for receiving messages from dhcp */
@@ -4961,6 +5061,24 @@ static inline void macauth_reserved() {
   }
 }
 
+#ifdef ENABLE_LAYER3
+static int session_timeout() {
+  struct app_conn_t *conn = firstusedconn;
+
+  while (conn) {
+    struct app_conn_t *check_conn = conn;
+    conn = conn->next;
+    if (mainclock_diff(check_conn->s_state.last_sent_time) > 
+	_options.lease + _options.leaseplus) {
+      log_dbg("Session timeout: Removing connection");
+      session_disconnect(check_conn, 0, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
+    }
+  }
+
+  return 0;
+}
+#endif
+
 int chilli_main(int argc, char **argv) {
   select_ctx sctx;
   int status;
@@ -5241,60 +5359,14 @@ int chilli_main(int argc, char **argv) {
   
   if (_options.radsec) {
 #ifdef ENABLE_CHILLIRADSEC
-    char *name = "[chilli_radsec]";
-    pid_t p = chilli_fork(CHILLI_PROC_DAEMON, name);
-    if (p < 0) {
-      perror("fork");
-    } else if (p == 0) {
-      char *newargs[16];
-      char file[128];
-      
-      i=0;
-      chilli_binconfig(file, sizeof(file), cpid);
-      
-      newargs[i++] = name;
-      newargs[i++] = "-b";
-      newargs[i++] = file;
-      newargs[i++] = NULL;
-      
-      if (execv(SBINDIR "/chilli_radsec", newargs) != 0) {
-	log_err(errno, "execl() did not return 0!");
-	exit(0);
-      }
-      
-    } else {
-      proxy_pid = p;
-    }
+    launch_chilliradsec();
 #else
     log_err(0, "Feature is not supported; use --enable-chilliradsec");
     _options.radsec = 0;
 #endif
   } else if (_options.uamaaaurl) {
 #ifdef ENABLE_CHILLIPROXY
-    char *name = "[chilli_proxy]";
-    pid_t p = chilli_fork(CHILLI_PROC_DAEMON, name);
-    if (p < 0) {
-      perror("fork");
-    } else if (p == 0) {
-      char *newargs[16];
-      char file[128];
-
-      i=0;
-      chilli_binconfig(file, sizeof(file), cpid);
-
-      newargs[i++] = name;
-      newargs[i++] = "-b";
-      newargs[i++] = file;
-      newargs[i++] = NULL;
-      
-      if (execv(SBINDIR "/chilli_proxy", newargs) != 0) {
-	log_err(errno, "execl() did not return 0!");
-	exit(0);
-      }
-
-    } else {
-      proxy_pid = p;
-    }
+    launch_chilliproxy();
 #else
     log_err(0, "Feature is not supported; use --enable-chilliproxy");
 #endif
@@ -5302,30 +5374,7 @@ int chilli_main(int argc, char **argv) {
 
   if (_options.redir) { 
 #ifdef ENABLE_CHILLIREDIR
-    char *name = "[chilli_redir]";
-    pid_t p = chilli_fork(CHILLI_PROC_DAEMON, name);
-    if (p < 0) {
-      perror("fork");
-    } else if (p == 0) {
-      char *newargs[16];
-      char file[128];
-
-      i=0;
-      chilli_binconfig(file, sizeof(file), cpid);
-      
-      newargs[i++] = name;
-      newargs[i++] = "-b";
-      newargs[i++] = file;
-      newargs[i++] = NULL;
-      
-      if (execv(SBINDIR "/chilli_redir", newargs) != 0) {
-	log_err(errno, "execl() did not return 0!");
-	exit(0);
-      }
-      
-    } else {
-      redir_pid = p;
-    }
+    launch_chilliredir();
 #else
     log_err(0, "Feature is not supported; use --enable-chilliredir");
     _options.redir = 0;
@@ -5481,6 +5530,11 @@ int chilli_main(int argc, char **argv) {
 
       if (dhcp) 
 	dhcp_timeout(dhcp);
+
+#ifdef ENABLE_LAYER3
+      if (_options.layer3)
+	session_timeout();
+#endif
       
       checkconn();
       lastSecond = mainclock;
@@ -5572,10 +5626,17 @@ int chilli_main(int argc, char **argv) {
   }
 #endif
 
-#if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC)
+#ifdef ENABLE_CHILLIPROXY
   if (proxy_pid > 0) {
     log_dbg("Killing proxy");
     kill(proxy_pid, SIGTERM);
+  }
+#endif
+
+#ifdef ENABLE_CHILLIRADSEC
+  if (radsec_pid > 0) {
+    log_dbg("Killing radsec proxy");
+    kill(radsec_pid, SIGTERM);
   }
 #endif
   

@@ -22,12 +22,14 @@
 
 extern struct dhcp_t *dhcp;
 
-#define _debug_ 1
+#define _debug_ 0
 
 int
-dns_fullname(char *data, size_t dlen, 
-	     uint8_t *res, size_t reslen,
-	     uint8_t *opkt, size_t olen, int lvl) {
+dns_fullname(char *data, size_t dlen,      /* buffer to store name */
+	     uint8_t *res, size_t reslen,  /* current resource */
+	     uint8_t *opkt, size_t olen,   /* original packet */
+	     int lvl) {
+  int ret = 0;
   char *d = data;
   unsigned char l;
 
@@ -39,12 +41,14 @@ dns_fullname(char *data, size_t dlen,
 	  dlen, reslen, olen, lvl);
 #endif
   
-  while (reslen-- > 0 && (l = *res++) != 0) {
+  while (reslen-- > 0 && ++ret && (l = *res++) != 0) {
 
     if ((l & 0xC0) == 0xC0) {
       if (reslen == 0) return -1;
       else {
 	unsigned short offset = ((l & ~0xC0) << 8) + *res;
+
+	ret++;
 	
 	if (offset > olen) {
 	  log_dbg("bad value");
@@ -58,20 +62,20 @@ dns_fullname(char *data, size_t dlen,
 	if (dns_fullname(d, dlen, 
 			 opkt + (size_t) offset, 
 			 olen - (size_t) offset, 
-			 opkt, olen, lvl+1))
+			 opkt, olen, lvl+1) < 0)
 	  return -1;
 	break;
       } 
     }
     
     if (l >= dlen || l >= reslen) {
-      log_dbg("bad value");
+      log_dbg("bad value %d/%d/%d", l, dlen, reslen);
       return -1;
     }
     
 #if(_debug_)
     log_dbg("part[%.*s] reslen=%d l=%d dlen=%d",
-	    l,res,reslen,l,dlen);
+	    l, res, reslen, l, dlen);
 #endif
     
     memcpy(d, res, l);
@@ -79,7 +83,8 @@ dns_fullname(char *data, size_t dlen,
     dlen -= l;
     res += l;
     reslen -= l;
-    
+    ret += l;
+
     *d = '.';
     d += 1; 
     dlen -= 1;
@@ -91,58 +96,7 @@ dns_fullname(char *data, size_t dlen,
       data[len-1]=0;
   }
 
-  return 0;
-}
-
-int dns_getname(uint8_t **pktp, size_t *left, 
-		char *name, size_t namesz, size_t *nameln) {
-  size_t namelen = 0;
-  uint8_t *p_pkt = *pktp;
-  size_t len = *left;
-  uint8_t l;
-  
-  while (len-- > 0) {
-
-    l = *p_pkt++;
-
-    if (name) {
-      name[namelen] = l;
-    }
-
-    namelen++;
-
-    if (l == 0) {
-      break;
-    }
-
-    if ((l & 0xC0) == 0xC0) {
-      if (namesz > 0 && namelen >= namesz) {
-	log_err(0, "name too long in DNS packet");
-	return -1;
-      }
-      if (name) {
-	name[namelen] = *p_pkt;
-      }
-      namelen++;
-      p_pkt++;
-      len--;
-      break;
-    }
-  }
-  
-  *pktp = p_pkt;
-  *left = len;
-
-  if (nameln) {
-    *nameln = namelen;
-  }
-  
-  if (!len) {
-    log_err(0, "failed to parse DNS packet");
-    return -1;
-  }
-  
-  return 0;
+  return ret;
 }
 
 static void 
@@ -165,7 +119,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	     uint8_t **pktp, size_t *left, 
 	     uint8_t *opkt,  size_t olen, 
 	     uint8_t *question, size_t qsize,
-	     int *qmatch) {
+	     int *qmatch, int mode) {
 
 #define return_error { log_dbg("failed parsing DNS packet"); return -1; }
 
@@ -183,15 +137,21 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   uint32_t ul;
   uint16_t us;
 
+  int ret;
+
 #if(_debug_)
-  log_dbg("%s: left=%d olen=%d qsize=%d", __FUNCTION__, *left, olen, qsize);
+  log_dbg("%s: left=%d olen=%d qsize=%d",
+	  __FUNCTION__, *left, olen, qsize);
 #endif
 
-  if (dns_getname(&p_pkt, &len, (char *)name, sizeof(name), &namelen)) 
-    return_error;
+  ret = dns_fullname((char*)name, sizeof(name), p_pkt, len, opkt, olen, 0);
+  if (ret < 0) return -1;
+
+  p_pkt += ret;
+  len -= ret;
 
   if (antidnstunnel && namelen > 128) {
-    log_warn(0,"dropping dns for anti-dnstunnel (namelen: %d)",namelen);
+    log_warn(0,"dropping dns for anti-dnstunnel (namelen: %d)", namelen);
     return -1;
   }
 
@@ -241,7 +201,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   }
   
   if (q) {
-    if (dns_fullname((char *)question, qsize, *pktp, *left, opkt, olen, 0))
+    if (dns_fullname((char *)question, qsize, *pktp, *left, opkt, olen, 0) < 0)
       return_error;
     
     log_dbg("DNS: %s", question);
@@ -277,6 +237,21 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   switch (type) {
     
   case 1:/* A */
+
+#ifdef ENABLE_BONJOUR
+    if (mode == DNS_MDNS_MODE) {
+      size_t offset;
+      for (offset=0; offset < rdlen; offset += 4) {
+	struct in_addr reqaddr;
+	memcpy(&reqaddr.s_addr, p_pkt+offset, 4);
+#if(_debug_)
+	log_dbg("mDNS %s = %s", name, inet_ntoa(reqaddr));
+#endif
+      }
+      break;
+    }
+#endif    
+
 #if(_debug_)
     log_dbg("A record");
 #endif
@@ -331,25 +306,33 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     break;
     
   case 5:/* CNAME */
-    {
-      /*char cname[256];
-	memset(cname,0,sizeof(cname));
-	dns_fullname(cname, sizeof(cname)-1, p_pkt, opkt, olen, 0);
-	log_dbg("CNAME record %s", cname);*/
+    log_dbg("CNAME record %s", name);
+    break;
+
+  case 16:/* TXT */
+    log_dbg("TXT record %d", rdlen);
+    if (_options.debug) {
+      char *txt = (char *)p_pkt;
+      int txtlen = rdlen;
+      while (txtlen-- > 0) {
+	uint8_t l = *txt++;
+	if (l == 0) break;
+	log_dbg("Text: %.*s", (int) l, txt);
+	txt += l;
+	txtlen -= l;
+      }
     }
     break;
 
   default:
 
-#if(_debug_)
     if (_options.debug) switch(type) {
       case 6:  log_dbg("SOA record"); break;
       case 12: log_dbg("PTR record"); break;
       case 15: log_dbg("MX record");  break;
-      case 16: log_dbg("TXT record"); break;
+      case 47: log_dbg("NSEC record"); break;
       default: log_dbg("Record type %d", type); break;
     }
-#endif
 
     if (antidnstunnel) {
       log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, rdlen);

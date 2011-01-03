@@ -3,6 +3,9 @@
 /* Define to enable binary status file */
 #undef ENABLE_BINSTATFILE
 
+/* Define to enable bonjour */
+#undef ENABLE_BONJOUR
+
 /* Define to enable HTTP AAA Proxy */
 #undef ENABLE_CHILLIPROXY
 
@@ -62,6 +65,9 @@
 
 /* Define to enable multiple routes */
 #undef ENABLE_MULTIROUTE
+
+/* Define to enable NetBIOS */
+#undef ENABLE_NETBIOS
 
 /* Define to enable network interface nat */
 #undef ENABLE_NETNAT

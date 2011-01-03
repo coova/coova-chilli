@@ -23,7 +23,7 @@
 #include "chilli_module.h"
 #endif
 
-#define _debug_ 1
+#define _debug_ 0
 
 static int optionsdebug = 0; /* TODO: Should be changed to instance */
 
@@ -3380,11 +3380,15 @@ int redir_main(struct redir_t *redir,
 	    safe_close(ptoc[0]);
 	    safe_close(ctop[1]);
 
+#if(_debug_ > 1)
 	    log_dbg("ssl_wrapper(%d)", getpid());
+#endif
 
 	    while (clen > 0) {
 	      rd = clen > bufsize ? bufsize : clen;
+#if(_debug_ > 1)
 	      log_dbg("reading(%d)", rd);
+#endif
 	      if ((buflen = openssl_read(socket.sslcon, buffer, rd, 0)) > 0) {
 		if (safe_write(ptoc[1], buffer, (size_t) buflen) < 0) {
 		  log_err(errno, "tcp_write() failed!");
@@ -3395,21 +3399,31 @@ int redir_main(struct redir_t *redir,
 	    }
 
 	    while (1) {
+#if(_debug_ > 1)
 	      log_dbg("script_read");
+#endif
 	      if ((buflen = safe_read(ctop[0], buffer, bufsize)) > 0) {
+#if(_debug_ > 1)
 		log_dbg("script_read(%d)",buflen);
+#endif
 		if (tcp_write(&socket, buffer, (size_t) buflen) < 0) {
 		  log_err(errno, "tcp_write() failed!");
 		  break;
 		}
+#if(_debug_ > 1)
 		log_dbg("ssl_write(%d)",buflen);
+#endif
 	      } else {
+#if(_debug_ > 1)
 		log_dbg("done");
+#endif
 		break;
 	      }
 	    }
 
+#if(_debug_ > 1)
 	    log_dbg("ssl_wrapper(%d) done", getpid());
+#endif
 	    
 	    safe_close(ptoc[1]);
  	    safe_close(ctop[0]);
@@ -3422,7 +3436,9 @@ int redir_main(struct redir_t *redir,
 	    safe_close(ptoc[1]);
 	    safe_close(ctop[0]);
 
+#if(_debug_ > 1)
 	    log_dbg("script(%d)", getpid());
+#endif
 	  }
 	}
 #endif

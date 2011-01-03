@@ -369,11 +369,13 @@ void dhcp_reset_tcp_mac(struct dhcp_t *this, uint8_t *hwaddr) {
     for (n=0; n<DHCP_DNAT_MAX; n++) {
       if (conn->dnat[n].dst_ip) {
 	uint8_t *ip = (uint8_t*)&conn->dnat[n].dst_ip;
-	log_dbg("Resetting dst %d.%d.%d.%d:%d", ip[0], ip[1], ip[2], ip[3], conn->dnat[n].dst_port);
+	log_dbg("Resetting dst %d.%d.%d.%d:%d", 
+		ip[0], ip[1], ip[2], ip[3], conn->dnat[n].dst_port);
       }
       if (conn->dnat[n].src_ip) {
 	uint8_t *ip = (uint8_t*)&conn->dnat[n].src_ip;
-	log_dbg("Resetting src %d.%d.%d.%d:%d", ip[0], ip[1], ip[2], ip[3], conn->dnat[n].src_port);
+	log_dbg("Resetting src %d.%d.%d.%d:%d", 
+		ip[0], ip[1], ip[2], ip[3], conn->dnat[n].src_port);
       }
     }
   }
@@ -1406,8 +1408,14 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     uint8_t *dptr = (uint8_t *)dnsp->records;
     uint8_t q[512];
 
+    int mode = 0;
     int qmatch = -1;
     int i;
+
+#ifdef ENABLE_BONJOUR
+    struct pkt_udphdr_t *udph = udphdr(pack);
+    char isMDNS = 0;
+#endif
     
 #if(_debug_)
     uint16_t id      = ntohs(dnsp->id);
@@ -1419,6 +1427,15 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 #else
     int d = 0;
 #endif
+
+#ifdef ENABLE_BONJOUR
+    isMDNS = (udph->dst == udph->src && 
+	      udph->src == htons(DHCP_MDNS));
+
+    if (isMDNS) {
+      mode = DNS_MDNS_MODE;
+    } else {
+#endif
     
     if (!isReq) {
       /* it was a query? shouldn't be */
@@ -1427,6 +1444,10 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
       /* it was a response? shouldn't be */
       if (((flags & 0x8000) >> 15) == 1) return 0;
     }
+
+#ifdef ENABLE_BONJOUR
+    }
+#endif
     
     memset(q, 0, sizeof(q));
     
@@ -1436,7 +1457,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     for (i=0; dlen && i < n ## count; i++)		\
       if (dns_copy_res(conn, isq, &dptr, &dlen,		\
 		       (uint8_t *)dnsp, olen,		\
-		       q, sizeof(q), &qmatch))		\
+		       q, sizeof(q), &qmatch, mode))	\
 	return isReq ? dhcp_nakDNS(conn,pack,plen) : 0;
     
     copyres(1,qd);
@@ -1449,6 +1470,23 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 #endif
     
     if (dlen) return 0;
+
+#ifdef ENABLE_BONJOUR
+    if (isMDNS) {
+      if (flags   == 0x0000 && 
+	  qdcount == 0x0001 &&
+	  ancount == 0x0000 && 
+	  nscount == 0x0000 &&
+	  arcount == 0x0000) {
+	log_dbg("MDNS Query %s", q);
+      }
+      else if (flags == 0x8400 &&
+	       qdcount == 0x0000 &&
+	       ancount > 0) {
+	log_dbg("MDNS Response %s", q);
+      }
+    } else 
+#endif
     
     if (isReq &&
 	flags   == 0x0100 && 
@@ -1464,10 +1502,14 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
       
       uint8_t query[256];
       uint8_t reply[4];
-      
-      int match = dhcp_matchDNS(q, query, sizeof(query), "logout");
-      if (match) {
-	memcpy(reply, &_options.uamlogout.s_addr, 4);
+
+      int match = 0;
+
+      if (!match) {
+	match = dhcp_matchDNS(q, query, sizeof(query), "logout");
+	if (match) {
+	  memcpy(reply, &_options.uamlogout.s_addr, 4);
+	}
       }
       
       if (!match && hostname) {
@@ -1717,6 +1759,20 @@ int dhcp_dnsDNAT(struct dhcp_conn_t *conn,
   struct dhcp_t *this = conn->parent;
   struct pkt_iphdr_t  *iph  = iphdr(pack);
   struct pkt_udphdr_t *udph = udphdr(pack);
+
+#ifdef ENABLE_BONJOUR
+  if (iph->protocol == PKT_IP_PROTO_UDP && 
+      udph->src == htons(DHCP_MDNS) &&
+      udph->dst == htons(DHCP_MDNS)) {
+    log_dbg("mDNS packet");
+    if (!dhcp_dns(conn, pack, len, 1)) {
+#if(_debug_)
+      log_dbg("dhcp_dns()");
+#endif
+    }
+    return -1; /* Drop DNS */
+  }
+#endif
 
   /* Was it a DNS request? */
   if ((this->anydns ||
@@ -2057,13 +2113,6 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   
   return -1; /* Something else */
 }
-
-/**
- * dhcp_localDNS()
- * Check if it was request for known domain name.
- * In case it was a request for a known keyword then
- * redirect to the login/logout page
- **/
 
 /**
  * dhcp_getdefault()
@@ -2849,12 +2898,26 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
    */
   if ((memcmp(pack_ethh->dst, dhcp_nexthop(this), PKT_ETH_ALEN)) && 
       (memcmp(pack_ethh->dst, bmac, PKT_ETH_ALEN))) {
+#ifdef ENABLE_BONJOUR
+    /* http://en.wikipedia.org/wiki/IP_multicast */
+    /* MAC 01:00:5e:xx:xx:xx IP 224.0.0.251 */
+    if (pack_ethh->dst[0] == 0x01 &&
+	pack_ethh->dst[1] == 0x00 &&
+	pack_ethh->dst[2] == 0x5e) {
+      log_dbg("Multicast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	    pack_ethh->dst[0], pack_ethh->dst[1], pack_ethh->dst[2], 
+	    pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
+    } else {
+#endif
 #if(_debug_)
-      log_dbg("Not for our MAC or broadcast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+    log_dbg("Not for our MAC or broadcast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 	    pack_ethh->dst[0], pack_ethh->dst[1], pack_ethh->dst[2], 
 	    pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
 #endif
     return 0;
+#ifdef ENABLE_BONJOUR
+    }
+#endif
   }
   
   ourip.s_addr = this->ourip.s_addr;
@@ -2956,7 +3019,8 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	  }
 	}
       }
-      
+
+      appconn->s_state.last_sent_time = mainclock_now();
       appconn->hisip.s_addr = src.s_addr;
       appconn->dnprot = DNPROT_LAYER3;
       appconn->uplink = ipm;
@@ -3027,7 +3091,19 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     
     if ((pack_iph->daddr & ~_options.mask.s_addr) == 
 	(0xffffffff & ~_options.mask.s_addr)) {
+#ifdef ENABLE_NETBIOS
+      if (pack_udph->dst == htons(137)) {
+	log_dbg("NetBIOS NS to port %d", ntohs(pack_udph->dst));
+	break;
+      }
+      else if (pack_udph->dst == htons(138)) {
+	log_dbg("NetBIOS DGM to port %d", ntohs(pack_udph->dst));
+	break;
+      } 
+#endif
+#if(_debug_)
       log_dbg("Broadcasted UDP to port %d", ntohs(pack_udph->dst));
+#endif
       return 0;
     }
   
