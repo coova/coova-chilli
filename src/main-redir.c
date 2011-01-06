@@ -34,6 +34,10 @@ static int max_requests = 0;
 static redir_request * requests = 0;
 static redir_request * requests_free = 0;
 
+#ifdef ENABLE_REDIRINJECT
+static char *inject = "<script src='/www/com.coova.Cd/com.coova.Cd.nocache.js'></script>\r\n";
+#endif
+
 static bstring string_init_reset(bstring s) {
   if (!s) return bfromcstr("");
   bassigncstr(s, "");
@@ -97,7 +101,9 @@ static redir_request * get_request() {
   
   req->state = 0;
   req->next = req->prev = 0;
-  req->proxy = req->headers = 0;
+  req->html = req->proxy = req->headers = 0;
+  req->chunked = req->gzip = 0;
+  req->clen = -1;
   req->inuse = 1;
   return req;
 }
@@ -183,6 +189,14 @@ static int redir_conn_finish(struct conn_t *conn, void *ctx) {
     conn_close(&req->conn);
   }
   if (req->socket_fd) {
+
+#ifdef ENABLE_REDIRINJECT
+    if (req->html && !req->chunked) {
+      int w = safe_write(req->socket_fd, inject, strlen(inject));
+      log_dbg("--->>> write %d", w);
+    }
+#endif
+    
     if (req->state & REDIR_SOCKET_FD) {
       net_select_rmfd(&sctx, req->socket_fd);
     }
@@ -194,11 +208,14 @@ static int redir_conn_finish(struct conn_t *conn, void *ctx) {
 
 static int redir_conn_read(struct conn_t *conn, void *ctx) {
   redir_request *req = (redir_request *)ctx;
-  char b[PKT_MAX_LEN];
+  char bb[PKT_MAX_LEN];
+  char *b = bb;
 
   int r = safe_read(conn->sock, b, sizeof(b)-1);
 
+#if(_debug_)
   log_dbg("conn_read: %d", r);
+#endif
 
   if (r <= 0) {
 
@@ -206,17 +223,110 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 
   } else if (r > 0) {
 
-    int w = safe_write(req->socket_fd, b, r);
+    b[r]=0;
     req->last_active = mainclock_tick();
 
-    log_dbg("write: %d", w);
-    b[r]=0;
-    /*log_dbg("write: [%s]", b);*/
+#ifdef ENABLE_REDIRINJECT
+    if (!req->headers) {
+      char *newline = "\r\n\r\n";
+      char *eoh;
 
-    if (r != w) {
-      log_err(errno, "problem writing what we read");
-      redir_conn_finish(conn, ctx);
+      bcatblk(req->hbuf, b, r);
+
+      if ((eoh = strstr((char *)req->hbuf->data, newline))) {
+	bstring newhdr = bfromcstr("");
+	char *hdr, *p;
+
+	hdr = (char *)req->hbuf->data;
+	
+	while (hdr && *hdr) {
+	  int l;
+	  int skip = 0;
+
+	  p = strstr(hdr, "\r\n");
+
+	  if (p == hdr) {
+	    break;
+	  } else if (p) {
+	    l = (p - hdr);
+	  } else {
+	    l = (eoh - hdr);
+	  }
+
+	  log_dbg("Header [%d] %.*s", l, l, hdr);
+
+	  if (!strncasecmp(hdr, "content-length:", 15)) {
+	    char tmp[128];
+	    char c = hdr[l];
+	    hdr[l] = 0;
+	    req->clen = atoi(hdr+15);
+	    log_dbg("Detected Content Length %d", req->clen);
+	    req->clen += strlen(inject);
+	    safe_snprintf(tmp, sizeof(tmp), "Content-Length: %d\r\n", req->clen);
+	    bcatcstr(newhdr, tmp);
+	    hdr[l] = c;
+	    skip = 1;
+	  } else if (!strncasecmp(hdr, "accept-ranges:", 14)) {
+	    skip = 1;
+	  } else if (!strncasecmp(hdr, "content-type:", 13)) {
+	    if (strstr(hdr, "text/html")) {
+	      req->html = 1;
+	    }
+	  } else if (strcasestr(hdr, "content-encoding: gzip")) {
+	    req->gzip = 1;
+	  } else if (strcasestr(hdr, "transfer-encoding: chunked")) {
+	    req->chunked = 1;
+	  }
+
+	  if (!skip) {
+	    bcatblk(newhdr, hdr, l + 2);
+	  }
+
+	  hdr += l + 2;
+	  if (!p) break;
+	}
+
+	/* process headers */
+	/* Is HTML */
+	/* Check content-encoding chunked */
+	/* Adjust content-length */
+
+	safe_write(req->socket_fd, newhdr->data, newhdr->slen);
+	safe_write(req->socket_fd, newline, 2);
+
+	if (req->html && req->chunked) {
+	  char tmp[56]; int w;
+	  safe_snprintf(tmp, sizeof(tmp), "%x\r\n", strlen(inject));
+	  safe_write(req->socket_fd, tmp, strlen(tmp));
+	  w = safe_write(req->socket_fd, inject, strlen(inject));
+	  log_dbg("--->>> chunked write %d", w);
+	  safe_write(req->socket_fd, "\r\n", 2);
+	}
+
+	safe_write(req->socket_fd, eoh + 4, req->hbuf->slen - 
+		   (hdr - (char *)req->hbuf->data) - 2);
+
+	req->headers = 1;
+	bdestroy(newhdr);
+      }
     }
+    else {
+#endif
+
+      int w = safe_write(req->socket_fd, b, r);
+
+#if(_debug_)      
+      log_dbg("write: %d", w);
+      /*log_dbg("write: [%s]", b);*/
+#endif
+      
+      if (r != w) {
+	log_err(errno, "problem writing what we read");
+	redir_conn_finish(conn, ctx);
+      }
+#ifdef ENABLE_REDIRINJECT
+    }
+#endif
   }
   return 0;
 }
@@ -228,7 +338,7 @@ check_regex(regex_t *re, char *regex, char *s) {
 #if(_debug_)
   log_dbg("Checking %s =~ %s", s, regex);
 #endif
-  
+
   if (!re->allocated) {
     if ((ret = regcomp(re, regex, REG_EXTENDED | REG_NOSUB)) != 0) {
       char error[512];
@@ -263,10 +373,15 @@ redir_handle_url(struct redir_t *redir,
     
     int matches = 1;
 
+    if ( ! _options.regex_pass_throughs[i].inuse )
+      break;
+
+    /*
     if ( ! _options.regex_pass_throughs[i].regex_host[0] &&
 	 ! _options.regex_pass_throughs[i].regex_path[0] &&
 	 ! _options.regex_pass_throughs[i].regex_qs[0] )
       break;
+    */
 
 #if(_debug_)
     log_dbg("REGEX host=[%s] path=[%s] qs=[%s]",
@@ -311,6 +426,54 @@ redir_handle_url(struct redir_t *redir,
       log_dbg("Matched for Host %s", httpreq->host);
       
       req->proxy = 1;
+
+#ifdef ENABLE_REDIRINJECT
+      /* XXX */
+      /* Check for headers we wish to filter out */
+      {
+	bstring newhdr = bfromcstr("");
+	char *hdr = (char *)req->wbuf->data;
+	
+	while (hdr && *hdr) {
+	  char *p = strstr(hdr, "\r\n");
+	  int skip = 0;
+	  int l;
+	  
+	  if (p) {
+	    l = (p - hdr);
+	  } else {
+	    l = req->wbuf->slen - (hdr - (char*)req->wbuf->data);
+	  }
+	  
+	  if (!strncasecmp(hdr, "accept-encoding:", 16)) {
+	    bcatcstr(newhdr, "Accept-Encoding: identity\r\n");
+	    skip = 1;
+	  } else if (!strncasecmp(hdr, "connection:", 11)) {
+	    bcatcstr(newhdr, "Connection: close\r\n");
+	    skip = 1;
+	  }
+	  
+	  if (!skip)
+	    bcatblk(newhdr, hdr, l);
+	  
+	  if (p) {
+	    if (!skip)
+	      bcatblk(newhdr, p, 2);
+	    hdr = p + 2;
+	  } else { 
+	    hdr = 0;
+	  }
+	}
+	
+	if (req->wbuf->slen != newhdr->slen) {
+	  log_dbg("Changed HTTP Headers");
+	}
+	
+	bassign(req->wbuf, newhdr);
+	bdestroy(newhdr);
+      }
+      /* XXX */
+#endif
 
       if (conn_setup(&req->conn, httpreq->host, port, req->wbuf)) {
 	log_err(errno, "conn_setup()");
@@ -611,7 +774,7 @@ int main(int argc, char **argv) {
 	    
 #ifdef HAVE_SSL
 	    if (requests[idx].sslcon) {
-	      if (openssl_check_accept(requests[idx].sslcon) < 0) {
+	      if (openssl_check_accept(requests[idx].sslcon, 0) < 0) {
 		redir_conn_finish(&requests[idx].conn, &requests[idx]);
 		continue;
 	      }

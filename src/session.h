@@ -44,6 +44,7 @@ struct session_params {
 #define IS_UAM_REAUTH      (1<<3)
 #define NO_ACCOUNTING      (1<<4)
 #define NO_SCRIPT          (1<<5)
+#define ADMIN_LOGIN        (1<<6)
   uint8_t flags;
 
 #ifdef ENABLE_SESSGARDEN
@@ -120,6 +121,5 @@ struct session_state {
 #endif
 
 } __attribute__((packed));
-
 
 #endif

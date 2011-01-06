@@ -26,7 +26,10 @@ config.status: configure
 	--sysconfdir=/etc --localstatedir=/var --enable-largelimits \
 	--enable-proxyvsa --enable-miniportal --enable-chilliredir \
 	--enable-chilliproxy --enable-binstatusfile --enable-chilliscript \
-	--enable-chilliradsec --enable-dnslog --with-openssl --with-poll
+	--enable-chilliradsec --enable-dnslog --enable-layer3 \
+	--enable-uamdomainfile --enable-redirdnsreq --enable-modules \
+	--enable-bonjour --enable-netbios --enable-ewtapi \
+	--enable-multiroute --with-openssl --with-poll
 
 configure:
 	@test -f configure || ./bootstrap2

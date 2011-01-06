@@ -33,8 +33,7 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
   char *d = data;
   unsigned char l;
 
-  if (lvl >= 15) 
-    return -1;
+  if (lvl >= 15) return -1;
 
 #if(_debug_)
   log_dbg("dlen=%d reslen=%d olen=%d lvl=%d", 
@@ -137,18 +136,17 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   uint32_t ul;
   uint16_t us;
 
-  int ret;
-
 #if(_debug_)
   log_dbg("%s: left=%d olen=%d qsize=%d",
 	  __FUNCTION__, *left, olen, qsize);
 #endif
 
-  ret = dns_fullname((char*)name, sizeof(name), p_pkt, len, opkt, olen, 0);
-  if (ret < 0) return -1;
+  memset(name, 0, sizeof(name));
+  namelen = dns_fullname((char*)name, sizeof(name)-1, p_pkt, len, opkt, olen, 0);
+  if (namelen < 0) return -1;
 
-  p_pkt += ret;
-  len -= ret;
+  p_pkt += namelen;
+  len -= namelen;
 
   if (antidnstunnel && namelen > 128) {
     log_warn(0,"dropping dns for anti-dnstunnel (namelen: %d)", namelen);

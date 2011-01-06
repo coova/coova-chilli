@@ -274,6 +274,9 @@ int net_init(net_interface *netif, char *ifname, uint16_t protocol, int promisc,
 int net_route(struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask, int delete);
 int net_set_mtu(net_interface *netif, size_t mtu);
 
+int safe_sendto(int s, const void *b, size_t blen, int flags,
+		const struct sockaddr *dest_addr, socklen_t addrlen);
+
 int net_select_init(select_ctx *sctx);
 int net_select_prepare(select_ctx *sctx);
 int net_select(select_ctx *sctx);

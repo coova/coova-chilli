@@ -21,9 +21,14 @@
 
 static int selfpipe[2] = { -1, -1 };
 
-static void selfpipe_trigger (int s) {
+static void _trigger (int s) {
   char c = (char)s;
+  /*log_dbg("PID %d SIG Trigger %d", getpid(), s);*/
   safe_write(selfpipe[1], &c, 1);
+}
+
+static void _ignore (int s) {
+  /*log_dbg("PID %d SIG Ignore %d", getpid(), s);*/
 }
 
 static void selfpipe_close (void) {
@@ -93,5 +98,9 @@ int set_signal (int signo, void (*func)(int)) {
 }
 
 int selfpipe_trap (int signo) {
-  return set_signal(signo, selfpipe_trigger);
+  return set_signal(signo, _trigger);
+}
+
+int selfpipe_ignore (int signo) {
+  return set_signal(signo, _ignore);
 }

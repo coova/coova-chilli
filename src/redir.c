@@ -22,6 +22,9 @@
 #ifdef ENABLE_MODULES
 #include "chilli_module.h"
 #endif
+#ifdef ENABLE_EWTAPI
+#include "ewt.h"
+#endif
 
 #define _debug_ 0
 
@@ -32,12 +35,11 @@ static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
 char credits[] =
 "<H1>CoovaChilli(ChilliSpot) " VERSION "</H1>"
 "<p>Copyright 2002-2005 Mondru AB</p>"
-"<p>Copyright 2006-2010 Coova Technologies, LLC</p>"
+"<p>Copyright 2006-2011 Coova Technologies, LLC</p>"
 "ChilliSpot is an Open Source captive portal or wireless LAN access point "
 "controller developed by the community at <a href=\"http://www.coova.org\">www.coova.org</a>. "
 "It is licensed under the GNU General Public License (GPL). ";
 
-static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst);
 static uint8_t radius_packet_id = 0;
 extern time_t mainclock;
 
@@ -767,6 +769,8 @@ static void redir_wispr1_reply (struct redir_t *redir, struct redir_conn_t *conn
 				int res, long int timeleft, char* hexchal, 
 				char* reply, char* redirurl, bstring b) {
   bstring bt = bfromcstr("");;
+
+  log_dbg("%s", __FUNCTION__);
   
   bcatcstr(b,
 	   "<!--\r\n"
@@ -975,6 +979,8 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
       bcatcstr(b, "</AuthenticationReply>\r\n");
     }
   }
+
+  log_dbg("%s", __FUNCTION__);
   
   bcatcstr(b,
 	   "<!--\r\n"
@@ -1247,7 +1253,8 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
 
 #ifdef ENABLE_JSON
 static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t *conn,  
-			    char *hexchal, char *userurl, char *redirurl, uint8_t *hismac, 
+			    char *hexchal, char *userurl, char *redirurl, 
+			    uint8_t *hismac, struct in_addr *hisip,
 			    char *reply, char *qs, bstring s) {
   bstring tmp = bfromcstr("");
   bstring json = bfromcstr("");
@@ -1351,7 +1358,7 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
     bassignformat(tmp , "http://%s:%d/logoff", 
 		  inet_ntoa(redir->addr), redir->port);
     
-    session_redir_json_fmt(json, userurl, redirurl, tmp, hismac);
+    session_redir_json_fmt(json, userurl, redirurl, tmp, hismac, hisip);
   }
 
   if (flg & FLG_sess) 
@@ -1432,9 +1439,13 @@ tcp_write_timeout(int timeout, struct redir_socket_t *sock, char *buf, size_t le
 static int timeout = 10;
 
 ssize_t
-tcp_write(struct redir_socket_t *sock, char *buf, size_t len) {
+redir_write(struct redir_socket_t *sock, char *buf, size_t len) {
   ssize_t c;
   size_t r = 0;
+
+#if(_debug_ > 1)
+  log_dbg("redir_write(%d)",len);
+#endif
 
   while (r < len) {
 #ifdef HAVE_SSL
@@ -1461,8 +1472,6 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 
   char *resp = NULL;
   bstring buffer;
-
-  log_dbg("redir_reply()");
 
   switch (res) {
   case REDIR_ALREADY:
@@ -1521,7 +1530,8 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 #ifdef ENABLE_JSON
   if (conn->format == REDIR_FMT_JSON) {
 
-    redir_json_reply(redir, res, conn, hexchal, userurl, redirurl, hismac, reply, qs, buffer);
+    redir_json_reply(redir, res, conn, hexchal, userurl, redirurl, 
+		     hismac, hisip, reply, qs, buffer);
     
   } else 
 #endif
@@ -1567,12 +1577,8 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 #endif
 
     } else {
-      /* WISPr 1 and not WISPr 2 */
 
-      log_dbg("redir_reply(): %d, res %d\n", conn->s_state.redir.uamprotocol, res);
-
-      /* WISPr 2 with or without WISPr 1 */
-      if (conn->s_state.redir.uamprotocol & REDIR_UAMPROT_WISPR2)
+      if (conn->s_state.redir.uamprotocol & REDIR_UAMPROT_WISPR2) 
 	redir_wispr2_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
       else
 	redir_wispr1_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
@@ -1606,8 +1612,8 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
     bcatcstr(buffer, "</BODY></HTML>\r\n");
   }
 
-  if (tcp_write(sock, (char*)buffer->data, buffer->slen) < 0) {
-    log_err(errno, "tcp_write() failed!");
+  if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
+    log_err(errno, "redir_write()");
     bdestroy(buffer);
     return -1;
   }
@@ -1839,24 +1845,27 @@ void redir_set(struct redir_t *redir, uint8_t *hwaddr, int debug) {
 
 /* Get a parameter of an HTTP request. Parameter is url decoded */
 /* TODO: Should be merged with other parsers */
-static int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
+int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
   char *p1;
   char *p2;
   char sstr[255];
   ssize_t len = 0;
 
-  safe_strncpy(sstr, param, sizeof(sstr));
-
-  len = strlen(sstr);
-
-  safe_strncpy(sstr + len, "=", sizeof(sstr) - len);
+  safe_snprintf(sstr, sizeof(sstr), "&%s=", param);
 
 #if(_debug_)    
   log_dbg("getparam(%s)", sstr);
 #endif
 
-  if (!(p1 = strcasestr(src, sstr))) return -1;
-  p1 += strlen(sstr);
+  len = strlen(sstr);
+  if (!strncmp(src, sstr+1, len-1)) {
+    p1 = src;
+    p1 += len-1;
+  }
+  else if ((p1 = strstr(src, sstr))) {
+    p1 += len;
+  }
+  else return -1;
 
   /* The parameter ends with a & or null */
   p2 = strstr(p1, "&");
@@ -2072,16 +2081,16 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 #ifdef ENABLE_JSON
 	if (!strncmp(path, "json/", 5) && strlen(path) > 6) {
 	  int i, last=strlen(path)-5;
-
+	  
 	  conn->format = REDIR_FMT_JSON;
-
+	  
 	  for (i=0; i < last; i++)
 	    path[i] = path[i+5];
-
+	  
 	  path[last]=0;
-
+	  
 	  log_dbg("The (json format) path: %s", path); 
-	}
+	} 
 #endif
 
 	if ((!strcmp(path, "logon")) || (!strcmp(path, "login")))
@@ -2100,6 +2109,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  { conn->type = REDIR_MACREAUTH; return 0; }
 	else if (!strcmp(path, "abort"))
 	  { conn->type = REDIR_ABORT; return 0; }
+#ifdef ENABLE_EWTAPI
+	else if (!strncmp(path, "ewt/json", 8))
+	  conn->type = REDIR_EWTAPI;
+#endif
 
 	if (qs_delim == '?') {
 	  p1 = p2 + 1;
@@ -2185,6 +2198,16 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
   case REDIR_STATUS:
     return 0;
+
+#ifdef ENABLE_EWTAPI
+  case REDIR_EWTAPI:
+#ifdef HAVE_SSL
+    log_dbg("EWT API pre-process");
+    if (sock->sslcon) {
+    }
+#endif
+    return 0;
+#endif
 
   case REDIR_LOGIN:
     {
@@ -2330,7 +2353,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       bstring bt = bfromcstr(path+4);
       bstring bt2 = bfromcstr("");
       redir_urldecode(bt, bt2);
-      bstrtocstr(bt2,conn->wwwfile, sizeof(conn->wwwfile));
+      bstrtocstr(bt2, conn->wwwfile, sizeof(conn->wwwfile));
       log_dbg("Serving file %s", conn->wwwfile);
       bdestroy(bt2);
       bdestroy(bt);
@@ -2879,6 +2902,9 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 
 	  if (!memcmp(user_password, tmp,  REDIR_MD5LEN)) 
 	    match = 1; 
+	  else {
+	    log_dbg("bad password for %s", u);
+	  }
 	}
 	
 	break;
@@ -3115,7 +3141,6 @@ int redir_main(struct redir_t *redir,
   int forked = (rreq == 0);
   int err;
 
-
   int redir_main_exit() {
     /* if (httpreq->data_in) bdestroy(httpreq->data_in); */
     /* if (!forked) return 0; XXXX*/
@@ -3210,9 +3235,9 @@ int redir_main(struct redir_t *redir,
 
   /* get_state returns 0 for unauth'ed and 1 for auth'ed */
   state = redir->cb_getstate(redir, address, baddress, &conn);
-
+  
   if (state == -1) {
-
+    
     redir_reply(redir, &socket, &conn, REDIR_REQERROR, NULL, 
 		0, hexchal, NULL, NULL, NULL, 
 		0, conn.hismac, &conn.hisip, httpreq.qs);
@@ -3234,7 +3259,7 @@ int redir_main(struct redir_t *redir,
     char done = 0, loop = 0;
 
     if (!rreq || !rreq->sslcon) {
-      socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 10);
+      socket.sslcon = openssl_accept_fd(initssl(), socket.fd[0], 10, &conn);
       if (rreq) {
 	/* we were forked */
 	rreq->sslcon = socket.sslcon;
@@ -3247,7 +3272,7 @@ int redir_main(struct redir_t *redir,
     }
 
     while (!done) {
-      switch(openssl_check_accept(socket.sslcon)) {
+      switch(openssl_check_accept(socket.sslcon, &conn)) {
       case -1:
 	return redir_main_exit();
       case 1:
@@ -3287,166 +3312,188 @@ int redir_main(struct redir_t *redir,
   log_dbg("Processing HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
 #endif
   
-  if (conn.type == REDIR_WWW) {
-    pid_t forkpid;
-    int fd = -1;
-
-    if (_options.wwwdir && conn.wwwfile && *conn.wwwfile) {
-      char *ctype = "text/plain";
-      char *filename = conn.wwwfile;
-      size_t namelen = strlen(filename);
-      int parse = 0;
-      
-      /* check filename */
-      { char *p;
-	for (p=filename; *p; p++) {
-	  if (*p >= 'a' && *p <= 'z') continue;
-	  if (*p >= 'A' && *p <= 'Z') continue;
-	  if (*p >= '0' && *p <= '9') continue;
-	  if (*p == '.' || *p == '_'|| *p == '-') continue;
-	  /* invalid file name! */
-	  log_err(0, "invalid www request [%s]!", filename);
-	  return redir_main_exit();
-	}
-      }
-      
-      /* serve the local content */
-      
-      if      (!strcmp(filename + (namelen - 5), ".html")) ctype = "text/html";
-      else if (!strcmp(filename + (namelen - 4), ".gif"))  ctype = "image/gif";
-      else if (!strcmp(filename + (namelen - 3), ".js"))   ctype = "text/javascript";
-      else if (!strcmp(filename + (namelen - 4), ".css"))  ctype = "text/css";
-      else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
-      else if (!strcmp(filename + (namelen - 4), ".dat"))  ctype = "application/x-ns-proxy-autoconfig";
-      else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
-      else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
-      else if (!strcmp(filename + (namelen - 4), ".chi")){ ctype = "text/html"; parse = 1; }
-      else { 
-	/* we do not serve it! */
-	log_err(0, "invalid file extension! [%s]", filename);
-	return redir_main_exit();
-      }
-
-      if (!forked) {
-	/*
-	 *  If not forked off the main process already, fork now
-	 *  before doing the chroot(), chrdir(), and so on..
-	 */
-	forkpid = redir_fork(infd, outfd);
-	if (forkpid) { /* parent or error */
-	  return redir_main_exit();
-	}
-      }
-      
-      if (parse) {
-	
-	if (!_options.wwwbin) {
-	  log_err(0, "the 'wwwbin' setting must be configured for CGI use");
-	  return redir_main_exit();
-	}
-	
-	if (ndelay_off(socket.fd[0])) {
-	  log_err(errno, "fcntl() failed");
-	}
-	
-#ifdef HAVE_SSL
-	if (socket.sslcon) {
-
-	  /*
-	   * If the connection is SSL, we need to fork again. The child will do the exec
-	   * while the parent will provide the SSL wrapping.
-	   */
-	  int ptoc[2];
-	  int ctop[2];
-
-	  if (pipe(ptoc) == -1 || pipe(ctop) == -1) {
-	    log_err(errno, "pipe() failed");
-	    return redir_main_exit();
-	  }
-
-	  forkpid = redir_fork(ptoc[0], ctop[1]);
-
-	  if (forkpid < 0) {
-	    log_err(errno, "fork() failed");
-	    return redir_main_exit();
-	  }
-
-	  forked = 1;
-	  if (forkpid > 0) { 
-	    /* parent */
-
-	    int rd, clen = httpreq.clen;
-
-	    safe_close(ptoc[0]);
-	    safe_close(ctop[1]);
-
-#if(_debug_ > 1)
-	    log_dbg("ssl_wrapper(%d)", getpid());
+  switch (conn.type) {
+#ifdef ENABLE_EWTAPI
+  case REDIR_EWTAPI:
 #endif
-
-	    while (clen > 0) {
-	      rd = clen > bufsize ? bufsize : clen;
-#if(_debug_ > 1)
-	      log_dbg("reading(%d)", rd);
+  case REDIR_WWW: 
+    {
+#ifdef ENABLE_EWTAPI
+      char isEWT = conn.type == REDIR_EWTAPI;
 #endif
-	      if ((buflen = openssl_read(socket.sslcon, buffer, rd, 0)) > 0) {
-		if (safe_write(ptoc[1], buffer, (size_t) buflen) < 0) {
-		  log_err(errno, "tcp_write() failed!");
-		  return redir_main_exit();
-		}
-		clen -= buflen;
-	      }
+      pid_t forkpid;
+      int fd = -1;
+      
+      if (_options.wwwdir && ((conn.wwwfile && *conn.wwwfile)
+#ifdef ENABLE_EWTAPI
+			      || isEWT
+#endif
+			      )) {
+	char *ctype = "text/plain";
+	char *filename = conn.wwwfile;
+	size_t namelen = strlen(filename);
+	int parse = 0;
+	
+	/* check filename */
+#ifdef ENABLE_EWTAPI
+	if (!isEWT)
+#endif
+	{ 
+	  char *p;
+	  int cnt = 0;
+	  for (p=filename; *p; p++) {
+	    if (*p == '.' || *p == '_'|| *p == '-' || *p == '/') {
+	      cnt++;
+	      if (cnt == 1) continue; /*ok*/
+	    } else {
+	      cnt = 0;
 	    }
+	    if (*p >= 'a' && *p <= 'z') continue;
+	    if (*p >= 'A' && *p <= 'Z') continue;
+	    if (*p >= '0' && *p <= '9') continue;
+	    /* invalid file name! */
+	    log_err(0, "invalid www request [%s]!", filename);
+	    return redir_main_exit();
+	  }
+	}
+	
+	/* serve the local content */
+	
+#ifdef ENABLE_EWTAPI
+	if (isEWT) { ctype = "application/json"; parse = 1; } else
+#endif
 
-	    while (1) {
+	if      (!strcmp(filename + (namelen - 5), ".html")) ctype = "text/html";
+	else if (!strcmp(filename + (namelen - 4), ".gif"))  ctype = "image/gif";
+	else if (!strcmp(filename + (namelen - 3), ".js"))   ctype = "text/javascript";
+	else if (!strcmp(filename + (namelen - 4), ".css"))  ctype = "text/css";
+	else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
+	else if (!strcmp(filename + (namelen - 4), ".dat"))  ctype = "application/x-ns-proxy-autoconfig";
+	else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
+	else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
+	else if (!strcmp(filename + (namelen - 4), ".chi")){ ctype = "text/html"; parse = 1; }
+	else { 
+	  /* we do not serve it! */
+	  log_err(0, "invalid file extension! [%s]", filename);
+	  return redir_main_exit();
+	}
+	
+	if (!forked) {
+	  /*
+	   *  If not forked off the main process already, fork now
+	   *  before doing the chroot(), chrdir(), and so on..
+	   */
+	  forkpid = redir_fork(infd, outfd);
+	  if (forkpid) { /* parent or error */
+	    return redir_main_exit();
+	  }
+	}
+	
+	if (parse) {
+	  
+	  if (!_options.wwwbin) {
+	    log_err(0, "the 'wwwbin' setting must be configured for CGI use");
+	    return redir_main_exit();
+	  }
+
+	  if (ndelay_off(socket.fd[0])) {
+	    log_err(errno, "fcntl() failed");
+	  }
+	  
+#ifdef HAVE_SSL
+	  if (socket.sslcon) {
+	    
+	    /*
+	     * If the connection is SSL, we need to fork again. The child will do the exec
+	     * while the parent will provide the SSL wrapping.
+	     */
+	    int ptoc[2];
+	    int ctop[2];
+	    
+	    if (pipe(ptoc) == -1 || pipe(ctop) == -1) {
+	      log_err(errno, "pipe() failed");
+	      return redir_main_exit();
+	    }
+	    
+	    forkpid = redir_fork(ptoc[0], ctop[1]);
+	    
+	    if (forkpid < 0) {
+	      log_err(errno, "fork() failed");
+	      return redir_main_exit();
+	    }
+	    
+	    forked = 1;
+	    if (forkpid > 0) { 
+	      /* parent */
+	      
+	      int rd, clen = httpreq.clen;
+	      
+	      safe_close(ptoc[0]);
+	      safe_close(ctop[1]);
+	      
 #if(_debug_ > 1)
-	      log_dbg("script_read");
+	      log_dbg("ssl_wrapper(%d)", getpid());
 #endif
-	      if ((buflen = safe_read(ctop[0], buffer, bufsize)) > 0) {
+	      
+	      while (clen > 0) {
+		rd = clen > bufsize ? bufsize : clen;
 #if(_debug_ > 1)
-		log_dbg("script_read(%d)",buflen);
+		log_dbg("reading(%d)", rd);
 #endif
-		if (tcp_write(&socket, buffer, (size_t) buflen) < 0) {
-		  log_err(errno, "tcp_write() failed!");
+		if ((buflen = openssl_read(socket.sslcon, buffer, rd, 0)) > 0) {
+		  if (safe_write(ptoc[1], buffer, (size_t) buflen) < 0) {
+		    log_err(errno, "error");
+		    return redir_main_exit();
+		  }
+		  clen -= buflen;
+		}
+	      }
+	      
+	      while (1) {
+#if(_debug_ > 1)
+		log_dbg("script_read");
+#endif
+		if ((buflen = safe_read(ctop[0], buffer, bufsize)) > 0) {
+#if(_debug_ > 1)
+		  log_dbg("script_read(%d)",buflen);
+#endif
+		  if (redir_write(&socket, buffer, (size_t) buflen) < 0) {
+		    log_err(errno, "redir_write() failed!");
+		    break;
+		  }
+#if(_debug_ > 1)
+		  log_dbg("ssl_write(%d)",buflen);
+#endif
+		} else {
+#if(_debug_ > 1)
+		  log_dbg("done");
+#endif
 		  break;
 		}
-#if(_debug_ > 1)
-		log_dbg("ssl_write(%d)",buflen);
-#endif
-	      } else {
-#if(_debug_ > 1)
-		log_dbg("done");
-#endif
-		break;
 	      }
+	      
+#if(_debug_ > 1)
+	      log_dbg("ssl_wrapper(%d) done", getpid());
+#endif
+	      
+	      safe_close(ptoc[1]);
+	      safe_close(ctop[0]);
+	      
+	      return redir_main_exit();
+	      
+	    } else {
+	      /* child */
+	      
+	      safe_close(ptoc[1]);
+	      safe_close(ctop[0]);
+	      
+#if(_debug_ > 1)
+	      log_dbg("script(%d)", getpid());
+#endif
 	    }
-
-#if(_debug_ > 1)
-	    log_dbg("ssl_wrapper(%d) done", getpid());
-#endif
-	    
-	    safe_close(ptoc[1]);
- 	    safe_close(ctop[0]);
-	    
-	    return redir_main_exit();
-
-	  } else {
-	    /* child */
-	    
-	    safe_close(ptoc[1]);
-	    safe_close(ctop[0]);
-
-#if(_debug_ > 1)
-	    log_dbg("script(%d)", getpid());
-#endif
 	  }
-	}
 #endif
 
-	/* XXX: Todo: look for malicious content! */
-	
-	{
-	  char *binqqargs[3] = { _options.wwwbin, buffer, 0 } ;
 
 #ifdef HAVE_SSL
 	  if (socket.sslcon) {
@@ -3454,7 +3501,7 @@ int redir_main(struct redir_t *redir,
 	    sleep(1);
 	  }
 #endif
-
+	  
 	  safe_snprintf(buffer, sizeof(buffer), "%d", httpreq.clen > 0 ? httpreq.clen : 0);
 	  setenv("CONTENT_LENGTH", buffer, 1);
 	  
@@ -3465,13 +3512,13 @@ int redir_main(struct redir_t *redir,
 	  setenv("HTTP_COOKIE", conn.httpcookie, 1);
 	  
 	  safe_snprintf(buffer, sizeof(buffer), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		  conn.hismac[0], conn.hismac[1], conn.hismac[2], 
-		  conn.hismac[3], conn.hismac[4], conn.hismac[5]);
+			conn.hismac[0], conn.hismac[1], conn.hismac[2], 
+			conn.hismac[3], conn.hismac[4], conn.hismac[5]);
 	  setenv("REMOTE_MAC", buffer, 1);
-
+	  
 	  setenv("AUTHENTICATED", conn.s_state.authenticated && 
 		 (conn.s_params.flags&REQUIRE_UAM_SPLASH)==0 ? "1" : "0", 1);
-
+	  
 	  setenv("CHI_SESSION_ID", conn.s_state.sessionid, 1);
 	  setenv("CHI_USERNAME", conn.s_state.redir.username, 1);
 	  setenv("CHI_USERURL", conn.s_state.redir.userurl, 1);
@@ -3484,52 +3531,69 @@ int redir_main(struct redir_t *redir,
 	  
 	  redir_chartohex(conn.s_state.redir.uamchal, buffer, REDIR_MD5LEN);
 	  setenv("CHI_CHALLENGE", buffer, 1);
+
+	  switch (conn.type) {
+#ifdef ENABLE_EWTAPI
+	  case REDIR_EWTAPI:
+	    {
+	      ewtapi(redir, &socket, &conn, &httpreq);
+	    }
+	    break;
+#endif
+	  case REDIR_WWW: 
+	    /* XXX: Todo: look for malicious content! */
+	    {
+	      char *binqqargs[3] = { _options.wwwbin, buffer, 0 } ;
+	      
+	      log_dbg("Running: %s %s/%s",_options.wwwbin, _options.wwwdir, filename);
+	      safe_snprintf(buffer, sizeof(buffer), "%s/%s", _options.wwwdir, filename);
+	      
+	      execv(*binqqargs, binqqargs);
+	    }
+	    break;
+	  }
 	  
-	  log_dbg("Running: %s %s/%s",_options.wwwbin, _options.wwwdir, filename);
-	  safe_snprintf(buffer, sizeof(buffer), "%s/%s", _options.wwwdir, filename);
-	  
-	  execv(*binqqargs, binqqargs);
+	  return redir_main_exit();
 	}
 	
-	return redir_main_exit();
-      }
-
-      if ( (_options.uid == 0 && !chroot(_options.wwwdir) && !chdir("/")) ||
-	   (_options.uid != 0 && !chdir(_options.wwwdir)) ) {
-	
-	fd = open(filename, O_RDONLY);
-	
-	if (fd > 0) {
+	if ( (_options.uid == 0 && !chroot(_options.wwwdir) && !chdir("/")) ||
+	     (_options.uid != 0 && !chdir(_options.wwwdir)) ) {
 	  
-	  if (ndelay_off(socket.fd[0])) {
-	    log_err(errno, "fcntl() failed");
-	  }
+	  fd = open(filename, O_RDONLY);
 	  
-	  safe_snprintf(buffer, bufsize,
-			  "HTTP/1.0 200 OK\r\n"
+	  if (fd > 0) {
+	    
+	    if (ndelay_off(socket.fd[0])) {
+	      log_err(errno, "fcntl() failed");
+	    }
+	    
+	    safe_snprintf(buffer, bufsize,
+			  "HTTP/1.1 200 OK\r\n"
 			  "Connection: close\r\n"
 			  "Content-type: %s\r\n\r\n", ctype);
-	  
-	  if (tcp_write(&socket, buffer, strlen(buffer)) < 0) {
-	    log_err(errno, "tcp_write() failed!");
-	  }
-	  
-	  while ((buflen = safe_read(fd, buffer, bufsize)) > 0)
-	    if (tcp_write(&socket, buffer, (size_t) buflen) < 0)
-	      log_err(errno, "tcp_write() failed!");
-	  
-	  safe_close(fd);
-	} 
-	else log_err(0, "could not open local content file %s!", filename);
+	    
+	    if (redir_write(&socket, buffer, strlen(buffer)) < 0) {
+	      log_err(errno, "redir_write()");
+	    }
+	    
+	    while ((buflen = safe_read(fd, buffer, bufsize)) > 0)
+	      if (redir_write(&socket, buffer, (size_t) buflen) < 0)
+		log_err(errno, "redir_write()");
+	    
+	    safe_close(fd);
+	  } 
+	  else log_err(0, "could not open local content file %s!", filename);
+	}
+	else log_err(0, "chroot/chdir to %s was not successful\n", _options.wwwdir); 
+	
+	return _redir_close_exit(infd, outfd); /* which exits */
       }
-      else log_err(0, "chroot/chdir to %s was not successful\n", _options.wwwdir); 
-
-      return _redir_close_exit(infd, outfd); /* which exits */
+      else log_err(0, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param"); 
+      
+      return redir_main_exit();
     }
-    else log_err(0, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param\n"); 
-    
-    return redir_main_exit();
   }
+
 
   termstate = REDIR_TERM_PROCESS;
 
@@ -3774,7 +3838,7 @@ int redir_main(struct redir_t *redir,
 
   case REDIR_MSDOWNLOAD:
     safe_snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
-    tcp_write(&socket, buffer, strlen(buffer));
+    redir_write(&socket, buffer, strlen(buffer));
     return redir_main_exit();
 
   }

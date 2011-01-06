@@ -34,10 +34,11 @@ typedef struct regex_pass_through_t {
   regex_t re_host;
   regex_t re_path;
   regex_t re_qs;
+  char inuse:1;
   char neg_host:1;
   char neg_path:1;
   char neg_qs:1;
-  char reserved:5;
+  char reserved:4;
 } regex_pass_through;
 
 int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen, uint32_t *ptcnt, char *s);

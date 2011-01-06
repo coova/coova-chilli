@@ -105,6 +105,10 @@ void print_peers(bstring s) {
   }
 }
 
+int dhcp_send_chilli(uint8_t *pkt, size_t len) {
+  return 0;
+}
+
 static 
 int dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
   EVP_CIPHER_CTX ctx;
@@ -392,6 +396,7 @@ void dhcp_block_mac(struct dhcp_t *this, uint8_t *hwaddr) {
 
 int dhcp_send(struct dhcp_t *this, struct _net_interface *netif, 
 	      unsigned char *hismac, uint8_t *packet, size_t length) {
+
   if (_options.tcpwin)
     pkt_shape_tcpwin(packet, &length);
 
@@ -3523,18 +3528,18 @@ int dhcp_chillipkt(uint8_t *packet, size_t length) {
     log_err(errno, "CHILLI: peer %d error in decrypt update",
 	    _options.peerid);
   } else {
-    log_dbg("CHILLI: peer %d decrypted %d byes", 
+    log_dbg("CHILLI: peer %d decrypted %d bytes", 
 	    _options.peerid, olen);
     if (EVP_DecryptFinal(&ctx, out + olen, &tlen) != 1) {
       log_err(errno, "CHILLI: peer %d error in decrypt final",
 	      _options.peerid);
     } else {
-      log_dbg("CHILLI: peer %d decrypted %d byes", 
+      log_dbg("CHILLI: peer %d decrypted %d bytes", 
 	      _options.peerid, tlen);
       
       olen += tlen;
       
-      if (olen == sizeof(struct pkt_chillihdr_t)) {
+      if (olen > sizeof(struct pkt_chillihdr_t)) {
 	
 	struct pkt_chillihdr_t *chilli_hdr =
 	  (struct pkt_chillihdr_t *)out;
@@ -3542,6 +3547,17 @@ int dhcp_chillipkt(uint8_t *packet, size_t length) {
 	char *cmd = "Unknown";
 
 	switch(chilli_hdr->type) {
+	case CHILLI_PEER_CMD:
+	  cmd = "Cmd";
+	  if (olen == sizeof(struct pkt_chillihdr_t) + sizeof(CMDSOCK_REQUEST)) {
+	    CMDSOCK_REQUEST * req = (CMDSOCK_REQUEST *)(out + sizeof(struct pkt_chillihdr_t));
+	    bstring s = bfromcstr("");
+	    chilli_cmd(req, s, 0);
+	    log_dbg("%s", s->data);
+	    bdestroy(s);
+	  }
+	  break;
+
 	case CHILLI_PEER_INIT:
 	  cmd = "Init";
 	  if (chilli_hdr->from == _options.peerid) {

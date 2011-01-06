@@ -5,3 +5,6 @@ EXTRA_DIST = CREDITS
 if WITH_MINIPORTAL
 SUBDIRS += miniportal
 endif
+if WITH_JSONLIB
+SUBDIRS += json
+endif

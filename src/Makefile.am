@@ -32,24 +32,34 @@ AM_CFLAGS = -D_GNU_SOURCE -Wall -Werror -fno-builtin -fno-strict-aliasing \
  -DDEFSTATEDIR='"$(localstatedir)/run"'\
  -DSBINDIR='"$(sbindir)"' 
 
-if WITH_MINICONFIG
-cmdline_sources=cmdline.mini.c
-else
-cmdline_sources=cmdline.c 
-endif
-
 chilli_SOURCES= main.c
 chilli_radconfig_SOURCES = main-radconfig.c 
 chilli_response_SOURCES = main-response.c 
 chilli_query_SOURCES = main-query.c 
-chilli_opt_SOURCES = main-opt.c ${cmdline_sources}
+chilli_opt_SOURCES = main-opt.c 
 #queue_SOURCES = queue_test.c 
 #test_radius_SOURCES = test-radius.c 
 test_dhcp_SOURCES = test-dhcp.c 
 test_randpkt_SOURCES = test-randpkt.c 
 
-LDADD = libchilli.la $(top_builddir)/bstring/libbstring.la ${LIBRT}
 libchilli_la_LIBADD = $(top_builddir)/bstring/libbstring.la 
+LDADD = libchilli.la ${LIBRT}
+
+if WITH_MINICONFIG
+chilli_opt_SOURCES += cmdline.mini.c
+else
+chilli_opt_SOURCES += cmdline.c 
+endif
+
+if WITH_JSONLIB
+AM_CFLAGS += -I$(top_builddir)/json
+libchilli_la_LIBADD += $(top_builddir)/json/libjson.la 
+endif
+
+if WITH_EWTAPI
+libchilli_la_SOURCES += ewt.c
+AM_CFLAGS += -std=gnu99 
+endif
 
 if WITH_SFHASH
 libchilli_la_SOURCES += sfhash.c

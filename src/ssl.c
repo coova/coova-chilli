@@ -19,6 +19,8 @@
 #ifdef HAVE_SSL
 #include "chilli.h"
 
+#define _debug_ 0
+
 static openssl_env * sslenv_svr = 0;
 static openssl_env * sslenv_cli = 0;
 
@@ -252,10 +254,10 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
     return err;
   }
 #else
-  log_dbg("cert: %s",_options.sslcertfile);
-  log_dbg("key: %s",_options.sslkeyfile);
-  log_dbg("pass: %s",_options.sslkeypass?_options.sslkeypass:"null");
-  log_dbg("ca: %s",_options.sslcafile?_options.sslcafile:"null");
+  log_dbg("SSL cert: %s",_options.sslcertfile);
+  log_dbg("SSL key: %s",_options.sslkeyfile);
+  log_dbg("SSL pass: %s",_options.sslkeypass?_options.sslkeypass:"null");
+  log_dbg("SSL ca: %s",_options.sslcafile?_options.sslcafile:"null");
   if ( matrixSslReadKeys( &env->keys,
 			  _options.sslcertfile, 
 			  _options.sslkeyfile, 
@@ -320,7 +322,7 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
 }
 
 int
-openssl_check_accept(openssl_con *c) {
+openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 #ifdef HAVE_OPENSSL  
   X509 *peer_cert;
   int rc;
@@ -360,12 +362,13 @@ openssl_check_accept(openssl_con *c) {
 	X509_NAME_oneline(X509_get_subject_name(peer_cert),subj,sizeof(subj));
 	
 	if (SSL_get_verify_result(c->con) != X509_V_OK) {
-	  log_dbg("auth_failed: %s\n", subj);
+	  log_dbg("auth_failed: %s", subj);
 	  X509_free(peer_cert);
 	  return -1;
 	}
-	
-	log_dbg("auth_success: %s\n", subj);
+		
+	log_dbg("auth_success: %s", subj);
+	if (conn) conn->s_params.flags |= ADMIN_LOGIN;
 	
 	if (_options.debug) {
 	  EVP_PKEY *pktmp = X509_get_pubkey(peer_cert);
@@ -384,6 +387,8 @@ openssl_check_accept(openssl_con *c) {
 	}
 	
 	X509_free(peer_cert);
+      } else {
+	log_dbg("no SSL certificate");
       }
     }
   }
@@ -393,7 +398,7 @@ openssl_check_accept(openssl_con *c) {
 }
 
 openssl_con *
-openssl_accept_fd(openssl_env *env, int fd, int timeout) {
+openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *conn) {
   openssl_con *c = (openssl_con *)calloc(1, sizeof(*c));
   int rc;
 
@@ -423,7 +428,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout) {
 
   SSL_set_verify_result(c->con, X509_V_OK);
 
-  if ((rc = openssl_check_accept(c)) < 0) {
+  if ((rc = openssl_check_accept(c, conn)) < 0) {
     SSL_set_shutdown(c->con, SSL_RECEIVED_SHUTDOWN);
     openssl_free(c);
     return 0;
@@ -451,6 +456,7 @@ openssl_error(openssl_con *con, int ret, char *func) {
   int err = -1;
   if (con->con) {
     err = SSL_get_error(con->con, ret);
+#if(_debug_)
     log_dbg("SSL: (%s()) %s", func,
 	    err == SSL_ERROR_NONE ? "None": 
             err == SSL_ERROR_ZERO_RETURN ? "Return!":
@@ -460,6 +466,7 @@ openssl_error(openssl_con *con, int ret, char *func) {
 	    err == SSL_ERROR_SYSCALL ? "Syscall error, abort!":
 	    err == SSL_ERROR_SSL ? "SSL error, abort!":
 	    "Error");
+#endif
     switch (err) {
     case SSL_ERROR_NONE: return 0;
     case SSL_ERROR_WANT_READ: return 1;
@@ -573,7 +580,9 @@ openssl_write(openssl_con *con, char *b, int l, int t) {
       err = openssl_error(con, wrt, "openssl_write");
       if (err == -1) return err;
       else if (err > 0) {
+#if(_debug_)
 	log_dbg("ssl_repeart_write");
+#endif
 	goto repeat_write;
       }
       break;

@@ -219,6 +219,10 @@ int main(int argc, char **argv) {
   int argidx = 1;
 
   struct itimerval itval;
+
+#ifdef ENABLE_CLUSTER
+  int peerid = -1;
+#endif
   
   set_signal(SIGALRM, timeout_alarm);
   
@@ -247,6 +251,12 @@ int main(int argc, char **argv) {
       argidx++;
       if (argidx >= argc) return usage(argv[0]);
       cmdsock = argv[argidx++];
+#ifdef ENABLE_CLUSTER
+    } else if (!strcmp(argv[argidx], "-p")) {
+      argidx++;
+      if (argidx >= argc) return usage(argv[0]);
+      peerid = atoi(argv[argidx++]);
+#endif
     } else if (!strcmp(argv[argidx], "-json")) {
       request.options |= CMDSOCK_OPT_JSON;
       argidx++;
@@ -440,6 +450,35 @@ int main(int argc, char **argv) {
     exit(1);
   }
   
+#ifdef ENABLE_CLUSTER
+  if (peerid > -1) {
+
+    struct sockaddr_in s;
+    int blen = sizeof(struct pkt_chillihdr_t);
+    uint8_t b[blen];
+    int len;
+
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+    printf("blen %d\n", blen);
+
+    if (fd < 0) {
+      log_err(errno,"socket() failed");
+      exit(1);
+    }
+
+    memset(&s, 0, sizeof(struct sockaddr_in));
+    s.sin_family = AF_INET;
+    s.sin_port = htons(10203);
+    s.sin_addr.s_addr = htonl(INADDR_BROADCAST);
+    
+    len = safe_sendto(fd, b, blen, 0, 
+		      (struct sockaddr *)&s, 
+		      sizeof(struct sockaddr_in));
+
+  } else {
+#endif
+  
 #ifdef HAVE_GLOB
   globbuf.gl_offs = 0;
   glob(cmdsock, GLOB_DOOFFS, NULL, &globbuf);
@@ -505,6 +544,10 @@ int main(int argc, char **argv) {
 #ifdef HAVE_GLOB
   }
   globfree(&globbuf);
+#endif
+
+#ifdef ENABLE_CLUSTER
+  }
 #endif
   
   return 0;

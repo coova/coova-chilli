@@ -215,7 +215,8 @@ int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen,
       }
     }
   }
-  
+
+  pt.inuse = 1;
   memcpy(&ptlist[cnt], &pt, sizeof(pt));
   *ptcnt = cnt + 1;
   return 0;

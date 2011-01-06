@@ -25,7 +25,8 @@
 
 #ifdef ENABLE_JSON
 int session_redir_json_fmt(bstring json, char *userurl, char *redirurl, 
-			   bstring logouturl, uint8_t *hismac) {
+			   bstring logouturl, uint8_t *hismac, 
+			   struct in_addr *hisip) {
   bcatcstr(json,",\"redir\":{\"originalURL\":\"");
   bcatcstr(json, userurl?userurl:"");
   bcatcstr(json,"\",\"redirectionURL\":\"");
@@ -34,6 +35,8 @@ int session_redir_json_fmt(bstring json, char *userurl, char *redirurl,
     bcatcstr(json,"\",\"logoutURL\":\"");
     bconcat(json, logouturl);
   }
+  bcatcstr(json,"\",\"ipAddress\":\"");
+  bcatcstr(json, inet_ntoa(*hisip));
   bcatcstr(json,"\",\"macAddress\":\"");
   if (hismac) {
     char mac[REDIR_MACSTRLEN+1];
@@ -47,22 +50,13 @@ int session_redir_json_fmt(bstring json, char *userurl, char *redirurl,
   return 0;
 }
 
-int session_json_fmt(struct session_state *state, 
-		     struct session_params *params,
-		     bstring json, int init) {
+int session_json_params(struct session_state *state, 
+			struct session_params *params,
+			bstring json, int init) {
   bstring tmp = bfromcstr("");
   time_t starttime = state->start_time;
-  uint32_t inoctets = state->input_octets;
-  uint32_t outoctets = state->output_octets;
-  uint32_t ingigawords = (state->input_octets >> 32);
-  uint32_t outgigawords = (state->output_octets >> 32);
-  uint32_t sessiontime;
-  uint32_t idletime;
   
-  sessiontime = mainclock_diffu(state->start_time);
-  idletime    = mainclock_diffu(state->last_sent_time);
-
-  bcatcstr(json,",\"session\":{\"sessionId\":\"");
+  bcatcstr(json,"\"sessionId\":\"");
   bcatcstr(json,state->sessionid);
   bcatcstr(json,"\",\"userName\":\"");
   bcatcstr(json,state->redir.username);
@@ -97,9 +91,28 @@ int session_json_fmt(struct session_state *state,
     bassignformat(tmp, "%lld", params->maxtotaloctets);
     bconcat(json, tmp);
   }
-  bcatcstr(json,"}");
 
-  bcatcstr(json,",\"accounting\":{\"sessionTime\":");
+  bdestroy(tmp);
+  return 0;
+}
+
+int session_json_acct(struct session_state *state, 
+		     struct session_params *params,
+		     bstring json, int init) {
+  bstring tmp = bfromcstr("");
+  uint32_t inoctets = state->input_octets;
+  uint32_t outoctets = state->output_octets;
+  uint32_t ingigawords = (state->input_octets >> 32);
+  uint32_t outgigawords = (state->output_octets >> 32);
+  uint32_t sessiontime;
+  uint32_t idletime;
+  
+  sessiontime = mainclock_diffu(state->start_time);
+  idletime    = mainclock_diffu(state->last_sent_time);
+
+  init = init || !state->authenticated;
+
+  bcatcstr(json,"\"sessionTime\":");
   bassignformat(tmp, "%ld", init ? 0 : sessiontime);
   bconcat(json, tmp);
   bcatcstr(json,",\"idleTime\":");
@@ -117,9 +130,22 @@ int session_json_fmt(struct session_state *state,
   bcatcstr(json,",\"outputGigawords\":");
   bassignformat(tmp, "%ld", init ? 0 : outgigawords);
   bconcat(json, tmp);
-  bcatcstr(json,"}");
 
   bdestroy(tmp);
+  return 0;
+}
+
+int session_json_fmt(struct session_state *state, 
+		     struct session_params *params,
+		     bstring json, int init) {
+  bcatcstr(json,",\"session\":{");
+  session_json_params(state,params,json,init);
+  bcatcstr(json,"}");
+
+  bcatcstr(json,",\"accounting\":{");
+  session_json_acct(state,params,json,init);
+  bcatcstr(json,"}");
+
   return 0;
 }
 #endif

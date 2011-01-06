@@ -298,9 +298,6 @@ struct tagbstring {
 extern int portable_snprintf(char *str, size_t str_m, const char *fmt, /*args*/ ...);
 extern int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap);
 
-int bstring_fromfd(bstring s, int fd);
-
-
 #ifdef __cplusplus
 }
 #endif

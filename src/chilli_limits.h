@@ -45,7 +45,7 @@
 
 /* redir */
 #define REDIR_MAXLISTEN                   32
-#define REDIR_MAXTIME                    100 /* Seconds */
+#define REDIR_MAXTIME                    120 /* Seconds */
 #define REDIR_HTTP_MAX_TIME               10 /* Seconds */
 #define REDIR_HTTP_SELECT_TIME        2000000/* microseconds = 2.0 seconds */
 #define REDIR_RADIUS_MAX_TIME             60 /* Seconds */

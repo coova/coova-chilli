@@ -38,16 +38,22 @@ int statedir_file(char *dst, int dlen, char *file, char *deffile) {
   return 0;
 }
 
-int bstring_fromfd(bstring s, int fd) {
-  int len = 128;
-  int rd;
+int bblk_fromfd(bstring s, int fd, int len) {
+  int blen = len > 0 ? len : 128;
+  int rd, rlen=0;
   while (1) {
-    ballocmin(s, s->slen + len);
-    rd = safe_read(fd, s->data + s->slen, len);
+    ballocmin(s, s->slen + blen);
+    rd = safe_read(fd, s->data + s->slen, blen);
     if (rd <= 0) break;
     s->slen += rd;
+    rlen += rd;
+    if (len > 0 && rlen == len) break;
   }
-  return s->slen;
+  return rlen;
+}
+
+int bstring_fromfd(bstring s, int fd) {
+  return bblk_fromfd(s, fd, -1);
 }
 
 inline void copy_mac6(uint8_t *dst, uint8_t *src) {

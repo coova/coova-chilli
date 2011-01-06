@@ -46,6 +46,9 @@
 #define REDIR_REQERROR       10  /* Used internally when the HTTP request parsing created an error */
 
 #define REDIR_WWW            20
+#ifdef ENABLE_EWTAPI
+#define REDIR_EWTAPI         21
+#endif
 #define REDIR_MSDOWNLOAD     25
 #define REDIR_ADMIN_CONN     30
 
@@ -174,6 +177,11 @@ typedef struct _redir_request {
   char inuse:1;
   char proxy:1;
   char headers:1;
+  char html:1;
+  char chunked:1;
+  char gzip:1;
+
+  int clen;
   
   bstring url;
   bstring data;
@@ -284,9 +292,12 @@ int redir_main(struct redir_t *redir, int infd, int outfd,
 	       int isui, redir_request *rreq);
 
 int redir_json_fmt_redir(struct redir_conn_t *conn, bstring json, 
-			 char *userurl, char *redirurl, uint8_t *hismac);
+			 char *userurl, char *redirurl, uint8_t *hismac,
+			 struct in_addr *hisip);
 
 int redir_json_fmt_session(struct redir_conn_t *conn, bstring json, int init);
+
+int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst);
 
 int redir_chartohex(unsigned char *src, char *dst, size_t len);
 
@@ -299,17 +310,29 @@ pid_t redir_fork(int in, int out);
 int redir_ipc(struct redir_t *redir);
 
 
+int session_json_params(struct session_state *state,
+			struct session_params *params,
+			bstring json, int init);
+
+int session_json_acct(struct session_state *state,
+		      struct session_params *params,
+		      bstring json, int init);
+
 int session_json_fmt(struct session_state *state,
                      struct session_params *params,
                      bstring json, int init);
 
+
 int session_redir_json_fmt(bstring json, char *userurl, char *redirurl,
-                           bstring logouturl, uint8_t *hismac);
+                           bstring logouturl, uint8_t *hismac, 
+			   struct in_addr *hisip);
 
 int redir_reply(struct redir_t *redir, struct redir_socket_t *sock, 
 		struct redir_conn_t *conn, int res, bstring url,
 		long int timeleft, char* hexchal, char* uid, 
 		char* userurl, char* reply, char* redirurl,
 		uint8_t *hismac, struct in_addr *hisip, char *qs);
+
+ssize_t redir_write(struct redir_socket_t *sock, char *buf, size_t len);
 
 #endif	/* !_REDIR_H */

@@ -79,8 +79,6 @@ int openssl_use_certificate(openssl_env *env, char *file);
 int openssl_use_privatekey(openssl_env *env, char *file);
 int openssl_cacert_location(openssl_env *env, char *file, char *dir);
 int openssl_env_init(openssl_env *env, char *engine, int server);
-openssl_con *openssl_connect_fd(openssl_env *env, int fd, int timeout);
-openssl_con *openssl_accept_fd(openssl_env *env, int fd, int timeout);
 int openssl_error(openssl_con *con, int ret, char *func);
 void openssl_shutdown(openssl_con *con, int state);
 int openssl_read(openssl_con *con, char *b, int l, int t);
@@ -88,7 +86,11 @@ int openssl_write(openssl_con *con, char *b, int l, int t);
 void openssl_free(openssl_con *con);
 void openssl_env_free(openssl_env *env);
 int openssl_pending(openssl_con *con);
-int openssl_check_accept(openssl_con *c);
+
+struct redir_conn_t;
+openssl_con *openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *);
+openssl_con *openssl_connect_fd(openssl_env *env, int fd, int timeout);
+int openssl_check_accept(openssl_con *c, struct redir_conn_t *);
 
 #endif
 #endif

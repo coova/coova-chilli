@@ -258,6 +258,8 @@ void GenerateAuthenticatorResponse(u_char *Password, int PasswordLen,
 int chilli_getconn_byroute(struct app_conn_t **conn, int idx);
 #endif
 
+int chilli_cmd(struct cmdsock_request *req, bstring s, int sock);
+
 int chilli_handle_signal(void *ctx, int fd);
 void chilli_freeconn();
 
@@ -265,6 +267,8 @@ int runscript(struct app_conn_t *appconn, char* script);
 
 /* utils.c */
 int statedir_file(char *dst, int dlen, char *file, char *deffile);
+int bblk_fromfd(bstring s, int fd, int len);
+int bstring_fromfd(bstring s, int fd);
 
 /* sig.c */
 int ndelay_on (int fd);
@@ -276,6 +280,7 @@ int set_signal (int signo, void (*func)(int));
 int selfpipe_init (void);
 int selfpipe_read (void);
 int selfpipe_trap (int signo);
+int selfpipe_ignore (int signo);
 void selfpipe_finish();
 
 #endif /*_CHILLI_H */

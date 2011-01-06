@@ -81,6 +81,9 @@
 /* Define to DNS query on redirect to pick up dynamic walled garden */
 #undef ENABLE_REDIRDNSREQ
 
+/* Define to Redir content-injection support */
+#undef ENABLE_REDIRINJECT
+
 /* Define to enable Chilli session walled garden */
 #undef ENABLE_SESSGARDEN
 

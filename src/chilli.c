@@ -1642,12 +1642,13 @@ int chilli_assign_snat(struct app_conn_t *appconn, int force) {
     return 0;
   }
   
-  if ((appconn->hisip.s_addr & appconn->mask.s_addr) ==
-      (appconn->ourip.s_addr & appconn->mask.s_addr))
+  if ((appconn->hisip.s_addr & _options.mask.s_addr) == _options.net.s_addr)
     return 0;
 
   log_dbg("Request SNAT ip for client ip: %s",
 	  inet_ntoa(appconn->hisip));
+  log_dbg("SNAT mask: %s", inet_ntoa(appconn->mask));
+  log_dbg("SNAT ourip: %s", inet_ntoa(appconn->ourip));
 
   if (ippool_newip(ippool, &newipm, &appconn->natip, 0)) {
     log_err(0, "Failed to allocate SNAT IP address");
@@ -1695,7 +1696,7 @@ int dnprot_reject(struct app_conn_t *appconn) {
     return 0;
 
   case DNPROT_UAM:
-    log_dbg(0, "Rejecting UAM");
+    log_dbg("Rejecting UAM");
     return 0;
 
   case DNPROT_WPA:
@@ -4614,6 +4615,288 @@ int static uam_msg(struct redir_msg_t *msg) {
   return 0;
 }
 
+#if defined(ENABLE_CHILLIQUERY) || defined(ENABLE_CLUSTER)
+int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
+
+#ifdef HAVE_NETFILTER_COOVA
+  kmod_coova_sync();
+#endif
+
+  switch(req->type) {
+
+  case CMDSOCK_DHCP_LIST:
+    if (dhcp) dhcp_list(dhcp, s, 0, 0,
+			req->options & CMDSOCK_OPT_JSON ? 
+			LIST_JSON_FMT : LIST_SHORT_FMT);
+    break;
+    
+  case CMDSOCK_DHCP_DROP:
+    if (dhcp) dhcp_block_mac(dhcp, req->data.mac);
+    break;
+
+  case CMDSOCK_LOGOUT:
+    if (req->data.sess.ip.s_addr || req->data.sess.sessionid[0]) {
+      struct app_conn_t *appconn = firstusedconn;
+
+      log_dbg("looking to logout session %s",
+	      inet_ntoa(req->data.sess.ip));
+
+      while (appconn) {
+	if (appconn->inuse &&
+	    (req->data.sess.ip.s_addr == 0 || appconn->hisip.s_addr == req->data.sess.ip.s_addr) &&
+	    (req->data.sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid, req->data.sess.sessionid))
+	    ){
+	  terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
+	  break;
+	}
+	appconn = appconn->next;
+      }
+      break;
+    }
+    /* else drop through */
+  case CMDSOCK_DHCP_RELEASE:
+    if (dhcp) 
+      dhcp_release_mac(dhcp, req->data.mac, 
+		       RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
+    break;
+
+  case CMDSOCK_LIST:
+#ifdef ENABLE_LAYER3
+    if (_options.layer3) {
+      int listfmt = req->options & CMDSOCK_OPT_JSON ?
+	LIST_JSON_FMT : LIST_LONG_FMT;
+      struct app_conn_t *conn = firstusedconn;
+      if (listfmt == LIST_JSON_FMT) {
+	bcatcstr(s, "{ \"sessions\":[");
+      }
+      while (conn) {
+	/*if (pre) bconcat(s, pre);*/
+	bcatcstr(s, inet_ntoa(conn->hisip));
+	chilli_getinfo(conn, s, listfmt);
+	/*if (post) bconcat(s, post);*/
+	conn = conn->next;
+	bcatcstr(s, "\n");
+      }
+      if (listfmt == LIST_JSON_FMT) {
+	bcatcstr(s, "]}");
+      }
+    } else
+#endif
+    if (dhcp) dhcp_list(dhcp, s, 0, 0,
+			req->options & CMDSOCK_OPT_JSON ?
+			LIST_JSON_FMT : LIST_LONG_FMT);
+    break;
+
+  case CMDSOCK_LIST_IPPOOL:
+    ippool_print(sock, ippool);
+    break;
+
+  case CMDSOCK_LIST_GARDEN:
+    garden_print(sock);
+    break;
+
+  case CMDSOCK_LIST_RADQUEUE:
+    radius_printqueue(sock, radius);
+    break;
+
+  case CMDSOCK_ENTRY_FOR_IP:
+    if (dhcp) dhcp_entry_for_ip(dhcp, s, &req->data.sess.ip,
+			req->options & CMDSOCK_OPT_JSON ?
+			LIST_JSON_FMT : LIST_LONG_FMT);
+    break;
+
+  case CMDSOCK_ENTRY_FOR_MAC:
+    if (dhcp) dhcp_entry_for_mac(dhcp, s, req->data.mac,
+			req->options & CMDSOCK_OPT_JSON ?
+			LIST_JSON_FMT : LIST_LONG_FMT);
+    break;
+
+  case CMDSOCK_SHOW:
+    /*ToDo*/
+    break;
+
+#ifdef ENABLE_MULTIROUTE
+  case CMDSOCK_ROUTE_SET:
+  case CMDSOCK_ROUTE_GW:
+    {
+      if (req->type == CMDSOCK_ROUTE_GW) {
+	log_dbg("setting route for idx %d", req->data.sess.params.routeidx);
+	copy_mac6(tun(tun, req->data.sess.params.routeidx).gwaddr, req->data.mac);
+      } else {
+	struct dhcp_conn_t *conn = dhcp->firstusedconn;
+	log_dbg("looking to alter session %s",inet_ntoa(req->data.sess.ip));
+	while (conn && conn->inuse) {
+	  if (conn->peer) {
+	    struct app_conn_t * appconn = (struct app_conn_t*)conn->peer;
+	    if (!memcmp(appconn->hismac, req->data.mac, 6)) {
+	      log_dbg("routeidx %s %d",appconn->s_state.sessionid, req->data.sess.params.routeidx);
+	      appconn->s_params.routeidx = req->data.sess.params.routeidx;
+	      break;
+	    }
+	  }
+	  conn = conn->next;
+	}
+      }
+    }
+    /* drop through */
+  case CMDSOCK_ROUTE:
+    {
+      int i;
+      bstring b = bfromcstr("routes:\n");
+      int err = 0;
+      if (safe_write(sock, b->data, b->slen) == b->slen) {
+	for (i=0; !err && i<tun->_interface_count; i++) {
+	  char gw[56];
+
+	  safe_strncpy(gw, inet_ntoa(tun->_interfaces[i].gateway), sizeof(gw));
+
+	  bassignformat(b, "idx: %d dev: %s %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X%s\n", 
+			i, tun->_interfaces[i].devname,
+			inet_ntoa(tun->_interfaces[i].address),
+			tun->_interfaces[i].hwaddr[0],
+			tun->_interfaces[i].hwaddr[1],
+			tun->_interfaces[i].hwaddr[2],
+			tun->_interfaces[i].hwaddr[3],
+			tun->_interfaces[i].hwaddr[4],
+			tun->_interfaces[i].hwaddr[5],
+			gw,
+			tun->_interfaces[i].gwaddr[0],
+			tun->_interfaces[i].gwaddr[1],
+			tun->_interfaces[i].gwaddr[2],
+			tun->_interfaces[i].gwaddr[3],
+			tun->_interfaces[i].gwaddr[4],
+			tun->_interfaces[i].gwaddr[5],
+			i == 0 ? " (tun/tap)":"");
+
+	  if (safe_write(sock, b->data, b->slen) < 0)
+	    err = 1;
+	}
+	
+	if (!err) { 
+	  struct dhcp_conn_t *conn = dhcp->firstusedconn;
+	  bassignformat(b, "subscribers:\n");
+	  if (safe_write(sock, b->data, b->slen) == b->slen) {
+	    while (conn) {
+	      struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+	      
+	      bassignformat(b, "mac: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X -> idx: %d\n", 
+			    appconn->hismac[0], appconn->hismac[1],
+			    appconn->hismac[2], appconn->hismac[3],
+			    appconn->hismac[4], appconn->hismac[5],
+			    appconn->s_params.routeidx);
+	      
+	      if (safe_write(sock, b->data, b->slen) < 0)
+		break;
+
+	      conn = conn->next;
+	    }
+	  }
+	}
+      }
+      bdestroy(b);
+    }
+    rtmon_print_ifaces(&_rtmon, sock);
+    rtmon_print_routes(&_rtmon, sock);
+    break;
+#endif
+
+  case CMDSOCK_LOGIN:
+  case CMDSOCK_AUTHORIZE:
+    if (dhcp) {
+#ifdef ENABLE_LAYER3
+      /*
+       *  Redo this to using app firstfreeconn ...
+       */
+      struct app_conn_t *appconn = firstusedconn;
+      log_dbg("looking to authorized session %s",inet_ntoa(req->data.sess.ip));
+      while (appconn) {
+	if (appconn->inuse &&
+	    (req->data.sess.ip.s_addr == 0 || appconn->hisip.s_addr == req->data.sess.ip.s_addr) &&
+	    (req->data.sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid,req->data.sess.sessionid))
+	      ){
+	  char *uname = req->data.sess.username;
+
+	  log_dbg("remotely authorized session %s",appconn->s_state.sessionid);
+	  memcpy(&appconn->s_params, &req->data.sess.params, sizeof(req->data.sess.params));
+
+	  if (uname[0]) safe_strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
+	  session_param_defaults(&appconn->s_params);
+
+	  if (req->type == CMDSOCK_LOGIN) {
+	    auth_radius(appconn, uname, req->data.sess.password, 0, 0);
+	  } else {
+	    dnprot_accept(appconn);
+	  }
+	  break;
+	}
+	appconn = appconn->next;
+      }
+#else /* can likely be removed in favor of above */
+      struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
+      log_dbg("looking to authorized session %s",inet_ntoa(req->data.sess.ip));
+      while (dhcpconn && dhcpconn->inuse) {
+	if (dhcpconn->peer) {
+	  struct app_conn_t * appconn = (struct app_conn_t*) dhcpconn->peer;
+	  if (  (req->data.sess.ip.s_addr == 0    || appconn->hisip.s_addr == req->data.sess.ip.s_addr) &&
+		(req->data.sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid,req->data.sess.sessionid))
+		){
+	    char *uname = req->data.sess.username;
+
+	    log_dbg("remotely authorized session %s",appconn->s_state.sessionid);
+	    memcpy(&appconn->s_params, &req->data.sess.params, sizeof(req->data.sess.params));
+
+	    if (uname[0]) safe_strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
+	    session_param_defaults(&appconn->s_params);
+
+	    if (req->type == CMDSOCK_LOGIN) {
+	      auth_radius(appconn, uname, req->data.sess.password, 0, 0);
+	    } else {
+	      dnprot_accept(appconn);
+	    }
+	    break;
+	  }
+	}
+	dhcpconn = dhcpconn->next;
+      }
+#endif
+    }
+    break;
+
+  case CMDSOCK_RELOAD:
+    _sigusr1(SIGUSR1);
+    break;
+
+#ifdef ENABLE_STATFILE
+  case CMDSOCK_STATUSFILE:
+    printstatus();
+    break;
+#endif
+
+#ifdef ENABLE_CLUSTER
+  case CMDSOCK_PEERS:
+    print_peers(s);
+    break;
+
+  case CMDSOCK_PEER_SET:
+    get_chilli_peer(-1)->state = PEER_STATE_ACTIVE;
+    dhcp_peer_update(1);
+    break;
+#endif
+
+  case CMDSOCK_PROCS:
+    child_print(s);
+    break;
+
+  default:
+    perror("unknown command");
+    safe_close(sock);
+    return -1;
+  }
+
+  return 0;
+}
+#endif
+
 #ifdef ENABLE_CHILLIQUERY
 static int cmdsock_accept(void *nullData, int sock) {
   struct sockaddr_un remote; 
@@ -4640,298 +4923,15 @@ static int cmdsock_accept(void *nullData, int sock) {
     return -1;
   }
 
-#ifdef HAVE_NETFILTER_COOVA
-  kmod_coova_sync();
-#endif
+  s = bfromcstr("");
+  if (!s) return -1;
 
-  switch(req.type) {
+  rval = chilli_cmd(&req, s, csock);
 
-  case CMDSOCK_DHCP_LIST:
-    s = bfromcstr("");
-    if (dhcp) dhcp_list(dhcp, s, 0, 0,
-			req.options & CMDSOCK_OPT_JSON ? 
-			LIST_JSON_FMT : LIST_SHORT_FMT);
-    if (safe_write(csock, s->data, s->slen) < 0)
-      log_err(errno, "write()");
-    break;
-    
-  case CMDSOCK_DHCP_DROP:
-    if (dhcp) dhcp_block_mac(dhcp, req.data.mac);
-    break;
-
-  case CMDSOCK_LOGOUT:
-    if (req.data.sess.ip.s_addr || req.data.sess.sessionid[0]) {
-      struct app_conn_t *appconn = firstusedconn;
-      log_dbg("looking to logout session %s",inet_ntoa(req.data.sess.ip));
-      while (appconn) {
-	if (appconn->inuse &&
-	    (req.data.sess.ip.s_addr == 0 || appconn->hisip.s_addr == req.data.sess.ip.s_addr) &&
-	    (req.data.sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid,req.data.sess.sessionid))
-	    ){
-	  terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
-	  break;
-	}
-	appconn = appconn->next;
-      }
-      break;
-    }
-    /* else drop through */
-  case CMDSOCK_DHCP_RELEASE:
-    if (dhcp) 
-      dhcp_release_mac(dhcp, req.data.mac, 
-		       RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
-    break;
-
-  case CMDSOCK_LIST:
-    s = bfromcstr("");
-#ifdef ENABLE_LAYER3
-    if (_options.layer3) {
-      int listfmt = req.options & CMDSOCK_OPT_JSON ?
-	LIST_JSON_FMT : LIST_LONG_FMT;
-      struct app_conn_t *conn = firstusedconn;
-      if (listfmt == LIST_JSON_FMT) {
-	bcatcstr(s, "{ \"sessions\":[");
-      }
-      while (conn) {
-	/*if (pre) bconcat(s, pre);*/
-	bcatcstr(s, inet_ntoa(conn->hisip));
-	chilli_getinfo(conn, s, listfmt);
-	/*if (post) bconcat(s, post);*/
-	conn = conn->next;
-	bcatcstr(s, "\n");
-      }
-      if (listfmt == LIST_JSON_FMT) {
-	bcatcstr(s, "]}");
-      }
-    } else
-#endif
-    if (dhcp) dhcp_list(dhcp, s, 0, 0,
-			req.options & CMDSOCK_OPT_JSON ?
-			LIST_JSON_FMT : LIST_LONG_FMT);
-
-    if (safe_write(csock, s->data, s->slen) < 0)
-      log_err(errno, "write()");
-    break;
-
-  case CMDSOCK_LIST_IPPOOL:
-    ippool_print(csock, ippool);
-    break;
-
-  case CMDSOCK_LIST_GARDEN:
-    garden_print(csock);
-    break;
-
-  case CMDSOCK_LIST_RADQUEUE:
-    radius_printqueue(csock, radius);
-    break;
-
-  case CMDSOCK_ENTRY_FOR_IP:
-    s = bfromcstr("");
-    if (dhcp) dhcp_entry_for_ip(dhcp, s, &req.data.sess.ip,
-			req.options & CMDSOCK_OPT_JSON ?
-			LIST_JSON_FMT : LIST_LONG_FMT);
-    if (safe_write(csock, s->data, s->slen) < 0)
-      log_err(errno, "write()");
-    break;
-
-  case CMDSOCK_ENTRY_FOR_MAC:
-    s = bfromcstr("");
-    if (dhcp) dhcp_entry_for_mac(dhcp, s, req.data.mac,
-			req.options & CMDSOCK_OPT_JSON ?
-			LIST_JSON_FMT : LIST_LONG_FMT);
-    if (safe_write(csock, s->data, s->slen) < 0)
-      log_err(errno, "write()");
-    break;
-
-  case CMDSOCK_SHOW:
-    /*ToDo*/
-    break;
-
-#ifdef ENABLE_MULTIROUTE
-  case CMDSOCK_ROUTE_SET:
-  case CMDSOCK_ROUTE_GW:
-    {
-      if (req.type == CMDSOCK_ROUTE_GW) {
-	log_dbg("setting route for idx %d", req.data.sess.params.routeidx);
-	copy_mac6(tun(tun, req.data.sess.params.routeidx).gwaddr, req.data.mac);
-      } else {
-	struct dhcp_conn_t *conn = dhcp->firstusedconn;
-	log_dbg("looking to alter session %s",inet_ntoa(req.data.sess.ip));
-	while (conn && conn->inuse) {
-	  if (conn->peer) {
-	    struct app_conn_t * appconn = (struct app_conn_t*)conn->peer;
-	    if (!memcmp(appconn->hismac, req.data.mac, 6)) {
-	      log_dbg("routeidx %s %d",appconn->s_state.sessionid, req.data.sess.params.routeidx);
-	      appconn->s_params.routeidx = req.data.sess.params.routeidx;
-	      break;
-	    }
-	  }
-	  conn = conn->next;
-	}
-      }
-    }
-    /* drop through */
-  case CMDSOCK_ROUTE:
-    {
-      int i;
-      bstring b = bfromcstr("routes:\n");
-      int err = 0;
-      if (safe_write(csock, b->data, b->slen) == b->slen) {
-	for (i=0; !err && i<tun->_interface_count; i++) {
-	  char gw[56];
-
-	  safe_strncpy(gw, inet_ntoa(tun->_interfaces[i].gateway), sizeof(gw));
-
-	  bassignformat(b, "idx: %d dev: %s %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X%s\n", 
-			i, tun->_interfaces[i].devname,
-			inet_ntoa(tun->_interfaces[i].address),
-			tun->_interfaces[i].hwaddr[0],
-			tun->_interfaces[i].hwaddr[1],
-			tun->_interfaces[i].hwaddr[2],
-			tun->_interfaces[i].hwaddr[3],
-			tun->_interfaces[i].hwaddr[4],
-			tun->_interfaces[i].hwaddr[5],
-			gw,
-			tun->_interfaces[i].gwaddr[0],
-			tun->_interfaces[i].gwaddr[1],
-			tun->_interfaces[i].gwaddr[2],
-			tun->_interfaces[i].gwaddr[3],
-			tun->_interfaces[i].gwaddr[4],
-			tun->_interfaces[i].gwaddr[5],
-			i == 0 ? " (tun/tap)":"");
-
-	  if (safe_write(csock, b->data, b->slen) < 0)
-	    err = 1;
-	}
-	
-	if (!err) { 
-	  struct dhcp_conn_t *conn = dhcp->firstusedconn;
-	  bassignformat(b, "subscribers:\n");
-	  if (safe_write(csock, b->data, b->slen) == b->slen) {
-	    while (conn) {
-	      struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-	      
-	      bassignformat(b, "mac: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X -> idx: %d\n", 
-			    appconn->hismac[0], appconn->hismac[1],
-			    appconn->hismac[2], appconn->hismac[3],
-			    appconn->hismac[4], appconn->hismac[5],
-			    appconn->s_params.routeidx);
-	      
-	      if (safe_write(csock, b->data, b->slen) < 0)
-		break;
-
-	      conn = conn->next;
-	    }
-	  }
-	}
-      }
-      bdestroy(b);
-    }
-    rtmon_print_ifaces(&_rtmon, csock);
-    rtmon_print_routes(&_rtmon, csock);
-    break;
-#endif
-
-  case CMDSOCK_LOGIN:
-  case CMDSOCK_AUTHORIZE:
-    if (dhcp) {
-#ifdef ENABLE_LAYER3
-      /*
-       *  Redo this to using app firstfreeconn ...
-       */
-      struct app_conn_t *appconn = firstusedconn;
-      log_dbg("looking to authorized session %s",inet_ntoa(req.data.sess.ip));
-      while (appconn) {
-	if (appconn->inuse &&
-	    (req.data.sess.ip.s_addr == 0 || appconn->hisip.s_addr == req.data.sess.ip.s_addr) &&
-	    (req.data.sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid,req.data.sess.sessionid))
-	      ){
-	  char *uname = req.data.sess.username;
-
-	  log_dbg("remotely authorized session %s",appconn->s_state.sessionid);
-	  memcpy(&appconn->s_params, &req.data.sess.params, sizeof(req.data.sess.params));
-
-	  if (uname[0]) safe_strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
-	  session_param_defaults(&appconn->s_params);
-
-	  if (req.type == CMDSOCK_LOGIN) {
-	    auth_radius(appconn, uname, req.data.sess.password, 0, 0);
-	  } else {
-	    dnprot_accept(appconn);
-	  }
-	  break;
-	}
-	appconn = appconn->next;
-      }
-#else /* can likely be removed in favor of above */
-      struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
-      log_dbg("looking to authorized session %s",inet_ntoa(req.data.sess.ip));
-      while (dhcpconn && dhcpconn->inuse) {
-	if (dhcpconn->peer) {
-	  struct app_conn_t * appconn = (struct app_conn_t*) dhcpconn->peer;
-	  if (  (req.data.sess.ip.s_addr == 0    || appconn->hisip.s_addr == req.data.sess.ip.s_addr) &&
-		(req.data.sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid,req.data.sess.sessionid))
-		){
-	    char *uname = req.data.sess.username;
-
-	    log_dbg("remotely authorized session %s",appconn->s_state.sessionid);
-	    memcpy(&appconn->s_params, &req.data.sess.params, sizeof(req.data.sess.params));
-
-	    if (uname[0]) safe_strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
-	    session_param_defaults(&appconn->s_params);
-
-	    if (req.type == CMDSOCK_LOGIN) {
-	      auth_radius(appconn, uname, req.data.sess.password, 0, 0);
-	    } else {
-	      dnprot_accept(appconn);
-	    }
-	    break;
-	  }
-	}
-	dhcpconn = dhcpconn->next;
-      }
-#endif
-    }
-    break;
-
-  case CMDSOCK_RELOAD:
-    _sigusr1(SIGUSR1);
-    break;
-
-#ifdef ENABLE_STATFILE
-  case CMDSOCK_STATUSFILE:
-    printstatus();
-    break;
-#endif
-
-#ifdef ENABLE_CLUSTER
-  case CMDSOCK_PEERS:
-    s = bfromcstr("");
-    print_peers(s);
-    if (safe_write(csock, s->data, s->slen) < 0)
-      log_err(errno, "write()");
-    break;
-
-  case CMDSOCK_PEER_SET:
-    get_chilli_peer(-1)->state = PEER_STATE_ACTIVE;
-    dhcp_peer_update(1);
-    break;
-#endif
-
-  case CMDSOCK_PROCS:
-    s = bfromcstr("");
-    child_print(s);
-    if (safe_write(csock, s->data, s->slen) < 0)
-      log_err(errno, "write()");
-    break;
-
-  default:
-    perror("unknown command");
-    safe_close(csock);
-    rval = -1;
-  }
-
-  if (s) bdestroy(s);
+  if (safe_write(csock, s->data, s->slen) < 0)
+    log_err(errno, "write()");
+  
+  bdestroy(s);
   shutdown(csock, 2);
   safe_close(csock);
 
