@@ -37,6 +37,9 @@ int session_redir_json_fmt(bstring json, char *userurl, char *redirurl,
   }
   bcatcstr(json,"\",\"ipAddress\":\"");
   bcatcstr(json, inet_ntoa(*hisip));
+#ifdef ENABLE_LAYER3
+  if (!_options.layer3) {
+#endif
   bcatcstr(json,"\",\"macAddress\":\"");
   if (hismac) {
     char mac[REDIR_MACSTRLEN+1];
@@ -46,6 +49,9 @@ int session_redir_json_fmt(bstring json, char *userurl, char *redirurl,
 		  (unsigned int)hismac[4], (unsigned int)hismac[5]);
     bcatcstr(json, mac);
   }
+#ifdef ENABLE_LAYER3
+  }
+#endif
   bcatcstr(json,"\"}");
   return 0;
 }
@@ -61,7 +67,7 @@ int session_json_params(struct session_state *state,
   bcatcstr(json,"\",\"userName\":\"");
   bcatcstr(json,state->redir.username);
   bcatcstr(json, "\",\"startTime\":");
-  bassignformat(tmp, "%ld", init ? mainclock_now() : starttime);
+  bassignformat(tmp, "%ld", mainclock_towall(init ? mainclock_now() : starttime));
   bconcat(json, tmp);
   bcatcstr(json,",\"sessionTimeout\":");
   bassignformat(tmp, "%lld", params->sessiontimeout);
@@ -129,6 +135,9 @@ int session_json_acct(struct session_state *state,
   bconcat(json, tmp);
   bcatcstr(json,",\"outputGigawords\":");
   bassignformat(tmp, "%ld", init ? 0 : outgigawords);
+  bconcat(json, tmp);
+  bassignformat(tmp, ",\"viewPoint\":\"%s\"", 
+		_options.swapoctets ? "nas" : "client");
   bconcat(json, tmp);
 
   bdestroy(tmp);

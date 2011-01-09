@@ -3368,6 +3368,8 @@ int redir_main(struct redir_t *redir,
 	else if (!strcmp(filename + (namelen - 3), ".js"))   ctype = "text/javascript";
 	else if (!strcmp(filename + (namelen - 4), ".css"))  ctype = "text/css";
 	else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
+	else if (!strcmp(filename + (namelen - 4), ".mp4"))  ctype = "video/mp4";
+	else if (!strcmp(filename + (namelen - 4), ".ogv"))  ctype = "video/ogg";
 	else if (!strcmp(filename + (namelen - 4), ".dat"))  ctype = "application/x-ns-proxy-autoconfig";
 	else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
 	else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";

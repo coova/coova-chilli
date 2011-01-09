@@ -217,6 +217,7 @@ time_t mainclock_tick();
 time_t mainclock_now();
 time_t mainclock_rt();
 time_t mainclock_wall();
+time_t mainclock_towall(time_t t);
 int mainclock_diff(time_t past);
 uint32_t mainclock_diffu(time_t past);
 

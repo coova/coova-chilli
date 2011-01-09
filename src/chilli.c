@@ -296,19 +296,19 @@ static void _sigchld(int signum) {
     log_dbg("child %d terminated", pid);
 #endif
 #ifdef ENABLE_CHILLIRADSEC
-    if (radsec_pid > 0 && radsec_pid == pid) {
+    if (!_options.debug && radsec_pid > 0 && radsec_pid == pid) {
       log_err(0, "Having to re-launch chilli_radsec... PID %d exited", pid);
       launch_chilliradsec();
     }
 #endif
 #ifdef ENABLE_CHILLIPROXY
-    if (proxy_pid > 0 && proxy_pid == pid) {
+    if (!_options.debug && proxy_pid > 0 && proxy_pid == pid) {
       log_err(0, "Having to re-launch chilli_proxy... PID %d exited", pid);
       launch_chilliproxy();
     }
 #endif
 #ifdef ENABLE_CHILLIREDIR
-    if (redir_pid > 0 && redir_pid == pid) {
+    if (!_options.debug && redir_pid > 0 && redir_pid == pid) {
       log_err(0, "Having to re-launch chilli_redir... PID %d exited", pid);
       launch_chilliredir();
     }
@@ -416,12 +416,16 @@ static struct timespec startup_mono;
 
 static time_t start_tick = 0;
 
-time_t mainclock_wall() {
+time_t mainclock_towall(time_t t) {
 #ifdef HAVE_LIBRT
   if (startup_real.tv_sec) 
-    return startup_real.tv_sec + (start_tick - mainclock);
+    return startup_real.tv_sec + (t - start_tick);
 #endif
   return mainclock;
+}
+
+time_t mainclock_wall() {
+  return mainclock_towall(mainclock);
 }
 
 time_t mainclock_tick() {
@@ -906,6 +910,9 @@ int static dnprot_terminate(struct app_conn_t *appconn) {
   appconn->s_state.authenticated = 0;
 #ifdef HAVE_NETFILTER_COOVA
   kmod_coova_update(appconn);
+#endif
+#ifdef ENABLE_LAYER3
+  if (!_options.layer3)
 #endif
   switch (appconn->dnprot) {
   case DNPROT_WPA:
@@ -3912,6 +3919,9 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     }
     
     /* if not already authenticated, ensure DNAT authstate */
+#ifdef ENABLE_LAYER3
+    if (!_options.layer3)
+#endif
     conn->authstate = DHCP_AUTH_DNAT;
   }
 
@@ -4580,9 +4590,13 @@ int static uam_msg(struct redir_msg_t *msg) {
       appconn->s_params.idletimeout = 0;
     }
 
-    appconn->s_state.uamtime = mainclock;
-    dhcpconn->authstate = DHCP_AUTH_DNAT;
     appconn->uamabort = 0;
+    appconn->s_state.uamtime = mainclock;
+
+#ifdef ENABLE_LAYER3
+    if (!_options.layer3)
+#endif
+    dhcpconn->authstate = DHCP_AUTH_DNAT;
 
     break;
 
@@ -4592,6 +4606,10 @@ int static uam_msg(struct redir_msg_t *msg) {
 
     appconn->uamabort = 1; /* Next login will be aborted */
     appconn->s_state.uamtime = 0;  /* Force generation of new challenge */
+
+#ifdef ENABLE_LAYER3
+    if (!_options.layer3)
+#endif
     dhcpconn->authstate = DHCP_AUTH_DNAT;
 
     terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);

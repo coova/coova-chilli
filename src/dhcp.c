@@ -3043,6 +3043,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
       has_ip = 1;
     }
     break;
+
   default:
     has_ip = conn->hisip.s_addr != 0;
     authstate = conn->authstate;
@@ -4006,6 +4007,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
       }
     }
     break;
+
   default:
     authstate = conn->authstate;
     break;

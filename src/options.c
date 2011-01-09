@@ -53,7 +53,7 @@ int option_aton(struct in_addr *addr, struct in_addr *mask,
 
   switch (c) {
   case 4:
-    mask->s_addr = 0xffffffff;
+    mask->s_addr = htonl(0xffffff00);
     break;
   case 5:
     if (m1 > 32) {

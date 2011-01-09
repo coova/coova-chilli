@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2010 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2011 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -253,16 +253,15 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	    l = (eoh - hdr);
 	  }
 
-	  log_dbg("Header [%d] %.*s", l, l, hdr);
-
 	  if (!strncasecmp(hdr, "content-length:", 15)) {
 	    char tmp[128];
 	    char c = hdr[l];
+	    int clen;
 	    hdr[l] = 0;
-	    req->clen = atoi(hdr+15);
+	    clen = req->clen = atoi(hdr+15);
 	    log_dbg("Detected Content Length %d", req->clen);
-	    req->clen += strlen(inject);
-	    safe_snprintf(tmp, sizeof(tmp), "Content-Length: %d\r\n", req->clen);
+	    clen += strlen(inject);
+	    safe_snprintf(tmp, sizeof(tmp), "Content-Length: %d\r\n", clen);
 	    bcatcstr(newhdr, tmp);
 	    hdr[l] = c;
 	    skip = 1;
@@ -277,6 +276,8 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	  } else if (strcasestr(hdr, "transfer-encoding: chunked")) {
 	    req->chunked = 1;
 	  }
+
+	  log_dbg("Header [%d] %.*s%s", l, l, hdr, skip ? " [Skipped]" : "");
 
 	  if (!skip) {
 	    bcatblk(newhdr, hdr, l + 2);
@@ -450,6 +451,8 @@ redir_handle_url(struct redir_t *redir,
 	    skip = 1;
 	  } else if (!strncasecmp(hdr, "connection:", 11)) {
 	    bcatcstr(newhdr, "Connection: close\r\n");
+	    skip = 1;
+	  } else if (!strncasecmp(hdr, "keep-alive:", 11)) {
 	    skip = 1;
 	  }
 	  
