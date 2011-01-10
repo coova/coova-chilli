@@ -4132,6 +4132,7 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
     printstatus();
 #endif
   }
+
   return 0;
 }
 
@@ -4153,18 +4154,6 @@ static int session_disconnect(struct app_conn_t *appconn,
     }
 #endif
   
-  if (
-#ifdef ENABLE_LAYER3
-      !_options.layer3 &&
-#endif
-      (appconn->dnprot != DNPROT_DHCP_NONE) &&
-      (appconn->dnprot != DNPROT_UAM) &&
-      (appconn->dnprot != DNPROT_MAC) &&
-      (appconn->dnprot != DNPROT_WPA) &&
-      (appconn->dnprot != DNPROT_EAPOL))  {
-    return 0; /* DNPROT_WPA and DNPROT_EAPOL are unaffected by dhcp release? */
-  }
-
   terminate_appconn(appconn, 
 		    term_cause ? term_cause : 
 		    appconn->s_state.terminate_cause ? 
