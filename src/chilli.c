@@ -4808,6 +4808,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 #endif
 
   case CMDSOCK_LOGIN:
+  case CMDSOCK_UPDATE:
   case CMDSOCK_AUTHORIZE:
     if (dhcp) {
 #ifdef ENABLE_LAYER3
@@ -4829,10 +4830,15 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	  if (uname[0]) safe_strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
 	  session_param_defaults(&appconn->s_params);
 
-	  if (req->type == CMDSOCK_LOGIN) {
+	  switch(req->type) {
+	  case CMDSOCK_LOGIN:
 	    auth_radius(appconn, uname, req->data.sess.password, 0, 0);
-	  } else {
+	    break;
+	  case CMDSOCK_AUTHORIZE:
 	    dnprot_accept(appconn);
+	    break;
+	  case CMDSOCK_UPDATE:
+	    break;
 	  }
 	  break;
 	}
@@ -4855,10 +4861,15 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	    if (uname[0]) safe_strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
 	    session_param_defaults(&appconn->s_params);
 
-	    if (req->type == CMDSOCK_LOGIN) {
+	    switch(req->type) {
+	    case CMDSOCK_LOGIN:
 	      auth_radius(appconn, uname, req->data.sess.password, 0, 0);
-	    } else {
+	      break;
+	    case CMDSOCK_AUTHORIZE:
 	      dnprot_accept(appconn);
+	      break;
+	    case CMDSOCK_UPDATE:
+	      break;
 	    }
 	    break;
 	  }

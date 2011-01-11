@@ -49,6 +49,7 @@ static cmd_info commands[] = {
   { CMDSOCK_DHCP_RELEASE,  "dhcp-release",  NULL },
   { CMDSOCK_AUTHORIZE,     "authorize",     NULL },
   { CMDSOCK_LOGIN,         "login",         NULL },
+  { CMDSOCK_UPDATE,        "update",        NULL },
   { CMDSOCK_LOGOUT,        "logout",        NULL },
   { CMDSOCK_LOGOUT,        "logoff",        NULL },
   { CMDSOCK_DHCP_DROP,     "drop",          NULL },
@@ -150,6 +151,12 @@ static struct cmd_arguments args[] = {
     &request.data.sess.params.url,
     "Set splash page",
     &request.data.sess.params.flags, REQUIRE_UAM_SPLASH },
+  { "url",
+    CMDSOCK_FIELD_STRING, 
+    sizeof(request.data.sess.params.url),
+    &request.data.sess.params.url,
+    "Set redirect url",
+    &request.data.sess.params.flags, REQUIRE_REDIRECT },
   { "routeidx",
     CMDSOCK_FIELD_INTEGER, 
     sizeof(request.data.sess.params.routeidx),
@@ -274,6 +281,7 @@ int main(int argc, char **argv) {
 
       case CMDSOCK_LOGIN:
       case CMDSOCK_LOGOUT:
+      case CMDSOCK_UPDATE:
       case CMDSOCK_AUTHORIZE:
 	{
 	  int c = argc - argidx;

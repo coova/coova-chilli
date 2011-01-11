@@ -32,17 +32,18 @@
 #ifdef ENABLE_STATFILE
 #define  CMDSOCK_STATUSFILE    11
 #endif
-#define  CMDSOCK_LOGIN         12
-#define  CMDSOCK_LOGOUT        13
-#define  CMDSOCK_ROUTE_GW      14
-#define  CMDSOCK_LIST_IPPOOL   15
-#define  CMDSOCK_LIST_RADQUEUE 16
-#define  CMDSOCK_LIST_GARDEN   17
+#define  CMDSOCK_UPDATE        12
+#define  CMDSOCK_LOGIN         13
+#define  CMDSOCK_LOGOUT        14
+#define  CMDSOCK_ROUTE_GW      15
+#define  CMDSOCK_LIST_IPPOOL   16
+#define  CMDSOCK_LIST_RADQUEUE 17
+#define  CMDSOCK_LIST_GARDEN   18
 #ifdef ENABLE_CLUSTER
-#define  CMDSOCK_PEERS         18
-#define  CMDSOCK_PEER_SET      19
+#define  CMDSOCK_PEERS         19
+#define  CMDSOCK_PEER_SET      20
 #endif
-#define  CMDSOCK_PROCS         20
+#define  CMDSOCK_PROCS         21
 #define  CMDSOCK_OPT_JSON      (1)
 
 #include "pkt.h"
