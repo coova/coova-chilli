@@ -149,6 +149,7 @@ struct dhcp_conn_t {
   uint16_t tag8021q;
 #endif
 
+#ifdef ENABLE_DHCPRADIUS
   /* XXX: optional */
   struct {
     uint8_t sname[DHCP_SNAME_LEN];     /* 64 Optional server host name, null terminated string.*/
@@ -156,6 +157,7 @@ struct dhcp_conn_t {
     uint8_t options[DHCP_OPTIONS_LEN]; /* var Optional parameters field. */
     size_t option_length;
   } dhcp_opts;
+#endif
 };
 
 

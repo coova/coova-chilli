@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,8 +31,8 @@
 #define RADIUS_ATTR_CHILLISPOT_VERSION                    8 /* string */
 #define RADIUS_ATTR_CHILLISPOT_ORIGINALURL                9 /* string */
 #define RADIUS_ATTR_CHILLISPOT_ACCT_VIEW_POINT           10 /* integer */
-#define RADIUS_ATTR_CHILLISPOT_REQUIRE_UAM               11 /* integer */
-#define RADIUS_ATTR_CHILLISPOT_REQUIRE_SPLASH            12 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_REQUIRE_UAM               11 /* string */
+#define RADIUS_ATTR_CHILLISPOT_REQUIRE_SPLASH            12 /* string */
 #define RADIUS_ATTR_CHILLISPOT_ROUTE_TO_INTERFACE        13 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS       21 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS      22 /* integer */

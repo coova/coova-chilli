@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
  * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (C) 2003-2005 Mondru AB., 
  * 
@@ -1319,6 +1319,7 @@ int static auth_radius(struct app_conn_t *appconn,
   
   appconn->authtype = PAP_PASSWORD;
   
+#ifdef ENABLE_DHCPRADIUS
   if (_options.dhcpradius && dhcp_pkt) {
     struct dhcp_tag_t *tag = 0;
     struct pkt_udphdr_t *udph = udphdr(dhcp_pkt);
@@ -1338,6 +1339,7 @@ int static auth_radius(struct app_conn_t *appconn,
     maptag( DHCP_OPTION_HOSTNAME,                RADIUS_ATTR_CHILLISPOT_DHCP_HOSTNAME );
 #undef maptag
   }
+#endif
 
   chilli_req_attrs(radius, &radius_pack, 
 		   service_type,
@@ -3068,6 +3070,13 @@ void config_radius_session(struct session_params *params,
 		      RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS, 0))
     params->maxtotaloctets |= ((uint64_t)ntohl(attr->v.i) & 0xffffffff) << 32;
 
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_CHILLISPOT, 
+		      RADIUS_ATTR_CHILLISPOT_REQUIRE_UAM, 0) &&
+      ((int) attr->l) < sizeof(params->url)) {
+    memcpy(params->url, attr->v.t, attr->l-2);
+    params->url[attr->l-2] = 0;
+  }
 
 #ifdef ENABLE_MULTIROUTE
   if (tun) {
@@ -3508,6 +3517,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     return chilliauth_cb(radius, pack, pack_req, cbp);
   }
 
+#ifdef ENABLE_DHCPRADIUS
   if (_options.dhcpradius) {
     struct radius_attr_t *attr = NULL;
     if (dhcpconn) {
@@ -3526,6 +3536,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
       }
     }
   }
+#endif
 
   if (appconn->s_params.sessionterminatetime) {
     if (mainclock_rtdiff(appconn->s_params.sessionterminatetime) > 0) {

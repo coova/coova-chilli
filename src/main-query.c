@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2006 PicoPoint B.V.
- * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -42,8 +42,6 @@ static cmd_info commands[] = {
   { CMDSOCK_LIST_GARDEN,   "listgarden",    NULL },
   { CMDSOCK_ENTRY_FOR_IP,  "listip",        NULL },
   { CMDSOCK_ENTRY_FOR_MAC, "listmac",       NULL },
-  { CMDSOCK_ROUTE,         "route",         NULL },
-  { CMDSOCK_ROUTE_GW,      "routegw",       NULL },
   { CMDSOCK_RELOAD,        "reload",        NULL },
   { CMDSOCK_DHCP_LIST,     "dhcp-list",     NULL },
   { CMDSOCK_DHCP_RELEASE,  "dhcp-release",  NULL },
@@ -54,11 +52,15 @@ static cmd_info commands[] = {
   { CMDSOCK_LOGOUT,        "logoff",        NULL },
   { CMDSOCK_DHCP_DROP,     "drop",          NULL },
   { CMDSOCK_DHCP_DROP,     "block",         NULL },
+  { CMDSOCK_PROCS,         "procs",         NULL },
+#ifdef ENABLE_MULTIROUTE
+  { CMDSOCK_ROUTE,         "route",         NULL },
+  { CMDSOCK_ROUTE_GW,      "routegw",       NULL },
+#endif
 #ifdef ENABLE_CLUSTER
   { CMDSOCK_PEERS,         "peers",         NULL },
   { CMDSOCK_PEER_SET,      "peerset",       NULL },
 #endif
-  { CMDSOCK_PROCS,         "procs",         NULL },
 #ifdef ENABLE_STATFILE
   { CMDSOCK_STATUSFILE,    "statusfile",    NULL },
 #endif
@@ -405,6 +407,7 @@ int main(int argc, char **argv) {
 	  }
 	}
 	break;
+#ifdef ENABLE_MULTIROUTE
       case CMDSOCK_ROUTE:
       case CMDSOCK_ROUTE_GW:
 	{
@@ -448,6 +451,7 @@ int main(int argc, char **argv) {
 	  /* do another switch to pick up param configs for authorize */
 	}
 	break;
+#endif
       }
       break;
     }

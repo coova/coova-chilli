@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2003, 2004, 2005, 2006 Mondru AB.
- * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -2181,8 +2181,10 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
     pack_dhcp->giaddr   = req_dhcp->giaddr;
 
     memcpy(&pack_dhcp->chaddr, &req_dhcp->chaddr, DHCP_CHADDR_LEN);
+#ifdef ENABLE_DHCPRADIUS
     memcpy(&pack_dhcp->sname, conn->dhcp_opts.sname, DHCP_SNAME_LEN);
     memcpy(&pack_dhcp->file, conn->dhcp_opts.file, DHCP_FILE_LEN);
+#endif
 
     log_dbg("!!! dhcp server : %s !!!", pack_dhcp->sname);
   }
@@ -2283,8 +2285,10 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
   pack_dhcp->options[pos++] = 1;
   pack_dhcp->options[pos++] = type;
 
+#ifdef ENABLE_DHCPRADIUS
   memcpy(&pack_dhcp->options[pos], conn->dhcp_opts.options, DHCP_OPTIONS_LEN-pos);
   pos += conn->dhcp_opts.option_length;
+#endif
 
   return pos;
 }

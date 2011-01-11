@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2007-2010 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -24,26 +24,28 @@
 #define  CMDSOCK_SHOW           3
 #define  CMDSOCK_AUTHORIZE      4
 #define  CMDSOCK_DHCP_DROP      5
-#define  CMDSOCK_ROUTE          6
-#define  CMDSOCK_ROUTE_SET      7
-#define  CMDSOCK_ENTRY_FOR_IP   8
-#define  CMDSOCK_ENTRY_FOR_MAC  9
-#define  CMDSOCK_RELOAD        10
+#define  CMDSOCK_ENTRY_FOR_IP   6
+#define  CMDSOCK_ENTRY_FOR_MAC  7
+#define  CMDSOCK_RELOAD         8
+#define  CMDSOCK_PROCS          9
+#define  CMDSOCK_UPDATE        10
+#define  CMDSOCK_LOGIN         11
+#define  CMDSOCK_LOGOUT        12
+#define  CMDSOCK_LIST_IPPOOL   13
+#define  CMDSOCK_LIST_RADQUEUE 14
+#define  CMDSOCK_LIST_GARDEN   15
 #ifdef ENABLE_STATFILE
-#define  CMDSOCK_STATUSFILE    11
+#define  CMDSOCK_STATUSFILE    16
 #endif
-#define  CMDSOCK_UPDATE        12
-#define  CMDSOCK_LOGIN         13
-#define  CMDSOCK_LOGOUT        14
-#define  CMDSOCK_ROUTE_GW      15
-#define  CMDSOCK_LIST_IPPOOL   16
-#define  CMDSOCK_LIST_RADQUEUE 17
-#define  CMDSOCK_LIST_GARDEN   18
 #ifdef ENABLE_CLUSTER
-#define  CMDSOCK_PEERS         19
-#define  CMDSOCK_PEER_SET      20
+#define  CMDSOCK_PEERS         17
+#define  CMDSOCK_PEER_SET      18
 #endif
-#define  CMDSOCK_PROCS         21
+#ifdef ENABLE_MULTIROUTE
+#define  CMDSOCK_ROUTE         19
+#define  CMDSOCK_ROUTE_SET     20
+#define  CMDSOCK_ROUTE_GW      21
+#endif
 #define  CMDSOCK_OPT_JSON      (1)
 
 #include "pkt.h"
