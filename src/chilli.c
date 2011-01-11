@@ -1527,7 +1527,7 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
 		   (uint8_t*) conn->s_state.redir.username, 
 		   strlen(conn->s_state.redir.username));
-    
+
     if (conn->is_adminsession) {
   
       service_type = RADIUS_SERVICE_TYPE_ADMIN_USER;

@@ -57,7 +57,7 @@ libchilli_la_LIBADD += $(top_builddir)/json/libjson.la
 endif
 
 if WITH_EWTAPI
-libchilli_la_SOURCES += ewt.c
+libchilli_la_SOURCES += ewt.c ewt.h
 AM_CFLAGS += -std=gnu99 
 endif
 
