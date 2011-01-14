@@ -3682,7 +3682,9 @@ int redir_main(struct redir_t *redir,
 	  }
 	}
       }
-      if (!(flags & CHILLI_MOD_REDIR_SKIP_RADIUS)) {
+      if (flags & CHILLI_MOD_REDIR_SKIP_RADIUS) {
+	log_dbg("Skipping RADIUS authentication");
+      } else {
 #endif
       
       termstate = REDIR_TERM_RADIUS;

@@ -3701,10 +3701,12 @@ int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
   
   switch (prot) {
 
+#ifdef ENABLE_EAPOL
   case PKT_ETH_PROTO_EAPOL: 
     if (!ignore && _options.eapolenable)
       return dhcp_receive_eapol(this, packet);
     break;
+#endif
 
   case PKT_ETH_PROTO_ARP:  
     if (!ignore)
@@ -4265,12 +4267,7 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
 }
 
 
-/**
- * eapol_sendNAK()
- * Send of a EAPOL negative acknowledge message to a peer.
- * NAK messages are always sent to broadcast IP address (
- * except when using a EAPOL relay server)
- **/
+#ifdef ENABLE_EAPOL
 int dhcp_senddot1x(struct dhcp_conn_t *conn,  uint8_t *pack, size_t len) {
   struct dhcp_t *this = conn->parent;
   return dhcp_send(this, &this->rawif, conn->hismac, pack, len);
@@ -4437,6 +4434,13 @@ int dhcp_eapol_ind(struct dhcp_t *this) {
   return dhcp_receive_eapol(this, packet);
 }
 
+int dhcp_set_cb_eap_ind(struct dhcp_t *this, 
+  int (*cb_eap_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len)) {
+  this->cb_eap_ind = cb_eap_ind;
+  return 0;
+}
+#endif
+
 
 /**
  * dhcp_set_cb_data_ind()
@@ -4447,13 +4451,6 @@ int dhcp_set_cb_data_ind(struct dhcp_t *this,
   this->cb_data_ind = cb_data_ind;
   return 0;
 }
-
-int dhcp_set_cb_eap_ind(struct dhcp_t *this, 
-  int (*cb_eap_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len)) {
-  this->cb_eap_ind = cb_eap_ind;
-  return 0;
-}
-
 
 /**
  * dhcp_set_cb_data_ind()
@@ -4543,10 +4540,12 @@ int dhcp_receive(struct dhcp_t *this) {
     case PKT_ETH_PROTO_ARP:
       dhcp_receive_arp(this, (struct arp_fullpacket_t*) ethhdr, hdrp->bh_caplen);
       break;
+#ifdef ENABLE_EAPOL
     case PKT_ETH_PROTO_EAPOL:
       if (_options.eapolenable)
         dhcp_receive_eapol(this, (struct dot1xpacket_t*) ethhdr);
       break;
+#endif
 
     default:
       break;

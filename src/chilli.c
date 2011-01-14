@@ -914,7 +914,9 @@ int static dnprot_terminate(struct app_conn_t *appconn) {
 #endif
   switch (appconn->dnprot) {
   case DNPROT_WPA:
+#ifdef ENABLE_EAPOL
   case DNPROT_EAPOL:
+#endif
     if (appconn->dnlink)
       ((struct dhcp_conn_t*) appconn->dnlink)->authstate = DHCP_AUTH_NONE;
     break;
@@ -954,14 +956,6 @@ void session_interval(struct app_conn_t *conn) {
   idletime    = mainclock_diffu(conn->s_state.last_sent_time);
   interimtime = mainclock_diffu(conn->s_state.interim_time);
 
-  /* debugging timeout information
-  log_dbg("now:%d  sessiontime:%d  idle=%d  interim=%d  conn:(timeout:%d  idle:%d  interim:%d)", 
-	  (int)mainclock,(int)sessiontime,(int)idletime,(int)interimtime,
-	  (int)conn->s_params.sessiontimeout,
-	  (int)conn->s_params.idletimeout,
-	  (int)conn->s_params.interim_interval);
-  */
-  
   if ((conn->s_params.sessiontimeout) &&
       (sessiontime > conn->s_params.sessiontimeout)) {
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
@@ -1699,6 +1693,7 @@ int dnprot_reject(struct app_conn_t *appconn) {
 
   switch (appconn->dnprot) {
 
+#ifdef ENABLE_EAPOL
   case DNPROT_EAPOL:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
       log_err(0, "No downlink protocol");
@@ -1707,6 +1702,7 @@ int dnprot_reject(struct app_conn_t *appconn) {
 
     dhcp_sendEAPreject(dhcpconn, NULL, 0);
     return 0;
+#endif
 
   case DNPROT_UAM:
     log_dbg("Rejecting UAM");
@@ -1749,18 +1745,22 @@ int dnprot_reject(struct app_conn_t *appconn) {
 }
 
 int static dnprot_challenge(struct app_conn_t *appconn) {
-  struct dhcp_conn_t* dhcpconn = NULL;
 
   switch (appconn->dnprot) {
 
+#ifdef ENABLE_EAPOL
   case DNPROT_EAPOL:
-    if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
-      log_err(0, "No downlink protocol");
-      return 0;
+    {
+      struct dhcp_conn_t* dhcpconn = NULL;
+      if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
+	log_err(0, "No downlink protocol");
+	return 0;
+      }
+      
+      dhcp_sendEAP(dhcpconn, appconn->chal, appconn->challen);
     }
-
-    dhcp_sendEAP(dhcpconn, appconn->chal, appconn->challen);
     break;
+#endif
 
   case DNPROT_NULL:
   case DNPROT_UAM:
@@ -1792,6 +1792,8 @@ int dnprot_accept(struct app_conn_t *appconn) {
   }
 
   switch (appconn->dnprot) {
+
+#ifdef ENABLE_EAPOL
   case DNPROT_EAPOL:
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
       log_err(0, "No downlink protocol");
@@ -1813,6 +1815,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
 
     log_warn(0, "Do not know how to set encryption keys on this platform!");
     break;
+#endif
 
   case DNPROT_UAM:
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
@@ -2301,7 +2304,9 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
   case DNPROT_UAM:
   case DNPROT_WPA:
   case DNPROT_MAC:
+#ifdef ENABLE_EAPOL
   case DNPROT_EAPOL:
+#endif
 #ifdef ENABLE_LAYER3
   case DNPROT_LAYER3:
 #endif
@@ -4247,7 +4252,7 @@ int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
 
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
 
-  if (appconn->s_state.authenticated == 1) { /* Only send accounting if logged in */
+  if (appconn->s_state.authenticated == 1) {
 
     dnprot_terminate(appconn);
 
@@ -4454,7 +4459,9 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   case DNPROT_UAM:
   case DNPROT_WPA:
   case DNPROT_MAC:
+#ifdef ENABLE_EAPOL
   case DNPROT_EAPOL:
+#endif
 #ifdef ENABLE_LAYER3
   case DNPROT_LAYER3:
 #endif
@@ -4569,6 +4576,7 @@ int chilli_acct_tosub(struct app_conn_t *appconn, size_t len) {
   return 0;
 }
 
+#ifdef ENABLE_EAPOL
 /* Callback for receiving messages from eapol */
 int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct eap_packet_t *eap = (struct eap_packet_t *)pack;
@@ -4644,7 +4652,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   
   return radius_req(radius, &radius_pack, appconn);
 }
-
+#endif
 
 /***********************************************************
  *
@@ -5466,8 +5474,9 @@ int chilli_main(int argc, char **argv) {
   dhcp_set_cb_connect(dhcp, cb_dhcp_connect);
   dhcp_set_cb_disconnect(dhcp, cb_dhcp_disconnect);
   dhcp_set_cb_data_ind(dhcp, cb_dhcp_data_ind);
+#ifdef ENABLE_EAPOL
   dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
-
+#endif
 #ifdef ENABLE_CHILLIQUERY
   dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
 #endif

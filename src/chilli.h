@@ -52,7 +52,9 @@
 #define DNPROT_DHCP_NONE  2
 #define DNPROT_UAM        3
 #define DNPROT_WPA        4
+#ifdef ENABLE_EAPOL
 #define DNPROT_EAPOL      5
+#endif
 #define DNPROT_MAC        6
 #ifdef ENABLE_LAYER3
 #define DNPROT_LAYER3     7

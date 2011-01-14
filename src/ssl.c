@@ -455,7 +455,7 @@ openssl_error(openssl_con *con, int ret, char *func) {
   int err = -1;
   if (con->con) {
     err = SSL_get_error(con->con, ret);
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("SSL: (%s()) %s", func,
 	    err == SSL_ERROR_NONE ? "None": 
             err == SSL_ERROR_ZERO_RETURN ? "Return!":
