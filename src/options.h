@@ -176,6 +176,7 @@ struct options_t {
   uint8_t dhcp_broadcast:1;         /* always broadcast DHCP (when not relaying) */
   uint8_t seskeepalive:1;           /* Keep sessions alive during shutdown */
   uint8_t strictmacauth:1;          /* Be strict about DHCP macauth (don't reply DHCP until we get RADIUS) */
+  uint8_t strictdhcp:1;             /* Be strict about DHCP allocating from dyn-pool only */
   uint8_t dhcpmacset:1;             /* Set the dhcpif interface with the dhcpmac */
   uint8_t uamallowpost:1;           /* Set to true if the UAMPORT is allowed to access a POST */
   uint8_t redir:1;                  /* Launch redir sub-process instead of forking */

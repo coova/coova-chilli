@@ -261,6 +261,7 @@ int main(int argc, char **argv) {
   _options.uamuiport = args_info.uamuiport_arg;
   _options.macallowlocal = args_info.macallowlocal_flag;
   _options.strictmacauth = args_info.strictmacauth_flag;
+  _options.strictdhcp = args_info.strictdhcp_flag;
   _options.no_wispr1 = args_info.nowispr1_flag;
   _options.no_wispr2 = args_info.nowispr2_flag;
   _options.wpaguests = args_info.wpaguests_flag;

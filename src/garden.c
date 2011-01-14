@@ -18,8 +18,7 @@
  */
 
 #include "chilli.h"
-
-#define _debug_ 1
+#include "debug.h"
 
 #ifdef ENABLE_CHILLIQUERY
 void garden_print_list(int fd, pass_through *ptlist, int ptcnt) {

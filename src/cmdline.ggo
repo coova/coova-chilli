@@ -148,6 +148,7 @@ option "macsuffix"   - "Suffix to add to the MAC address" string no
 option "macpasswd"   - "Password used when performing MAC authentication" string no
 option "macallowlocal" - "Do not use RADIUS for authenticating the macallowed" flag off
 option "strictmacauth" - "Be strict about MAC Auth (no DHCP reply until we get RADIUS reply)" flag off
+option "strictdhcp"    - "Be strict about only allocating dyn-pool from DHCP" flag off
 
 # "local" content
 option "wwwdir"      - "Local content served by chilli (for splash page, etc)" string no

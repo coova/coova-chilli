@@ -18,8 +18,7 @@
 #include "system.h"
 #ifdef HAVE_SSL
 #include "chilli.h"
-
-#define _debug_ 0
+#include "debug.h"
 
 static openssl_env * sslenv_svr = 0;
 static openssl_env * sslenv_cli = 0;

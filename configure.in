@@ -76,6 +76,27 @@ if test x"$enable_json" = xyes; then
    AC_DEFINE(ENABLE_JSON,1,[Define to enable Chilli JSON])
 fi
 
+AC_ARG_ENABLE(debug, [AC_HELP_STRING([--disable-debug],[Disable debugging messages])], 
+  enable_debug=$enableval, enable_debug=yes)
+
+if test x"$enable_debug" = xyes; then
+   AC_DEFINE(ENABLE_DEBUG,1,[Define to enable debugging])
+fi
+
+AC_ARG_ENABLE(dhcpradius, [AC_HELP_STRING([--disable-dhcpradius],[Disable support DHCP/RADIUS integration])], 
+  enable_dhcpradius=$enableval, enable_dhcpradius=yes)
+
+if test x"$enable_dhcpradius" = xyes; then
+   AC_DEFINE(ENABLE_DHCPRADIUS,1,[Define to enable DHCP/RADIUS integration])
+fi
+
+
+AC_ARG_ENABLE(debug2, [AC_HELP_STRING([--enable-debug2],[Enable verbose debugging])], 
+  enable_debug2=$enableval, enable_debug2=no)
+
+if test x"$enable_debug2" = xyes; then
+   AC_DEFINE(ENABLE_DEBUG2,1,[Define to enable verbose debugging])
+fi
 
 AC_ARG_ENABLE(sessgarden, [AC_HELP_STRING([--enable-sessgarden],[Enable support for session-based walled garden])], 
   enable_sessgarden=$enableval, enable_sessgarden=no)

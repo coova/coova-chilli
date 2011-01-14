@@ -18,6 +18,7 @@
  */
 
 #include "chilli.h"
+#include "debug.h"
 
 const uint32_t DHCP_OPTION_MAGIC = 0x63825363;
 static uint8_t bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -25,8 +26,6 @@ static uint8_t nmac[PKT_ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static int connections = 0;
 
 extern struct ippool_t *ippool;
-
-#define _debug_ 0
 
 #ifdef ENABLE_CHILLIQUERY
 char *dhcp_state2name(int authstate) {
@@ -416,7 +415,9 @@ int dhcp_send(struct dhcp_t *this, struct _net_interface *netif,
     }
 #endif
 
-    /*log_dbg("dhcp_send() len=%d", length);*/
+#if(_debug_)
+    log_dbg("dhcp_send() len=%d", length);
+#endif
 
     return net_write_eth(netif, packet, length, &netif->dest);
   }
@@ -2709,24 +2710,30 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
   if (dhcp_hashget(this, &conn, mac)) {
     
     /* Do we allow dynamic allocation of IP addresses? */
-    if (!this->allowdyn) /* TODO: Should be deleted! */
+    if (!this->allowdyn) 
       return 0; 
 
     /* Allocate new connection */
-    if (dhcp_newconn(this, &conn, mac, pack)) /* TODO: Delete! */
+    if (dhcp_newconn(this, &conn, mac, pack)) 
       return 0; /* Out of connections */
   }
 
   if (conn->authstate == DHCP_AUTH_DROP)
     return 0;
 
+  addr.s_addr = pack_dhcp->ciaddr;
+
+  if (_options.strictdhcp && addr.s_addr &&
+      (addr.s_addr & _options.mask.s_addr) != _options.net.s_addr) {
+    return dhcp_sendNAK(conn, pack, len);
+  }
+
   /* Request an IP address */ 
   if (conn->authstate == DHCP_AUTH_NONE) {
-    addr.s_addr = pack_dhcp->ciaddr;
-    if (this->cb_request)
-      if (this->cb_request(conn, &addr, pack, len)) {
-	return 0; /* Ignore request if IP address was not allocated */
-      }
+    if (this->cb_request && this->cb_request(conn, &addr, pack, len)) {
+      return dhcp_sendNAK(conn, pack, len);
+      /* return 0; Ignore request if IP address was not allocated */
+    }
   }
   
   conn->lasttime = mainclock_now();
@@ -2742,12 +2749,16 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
   
   case DHCPREQUEST:
     if (!conn->hisip.s_addr) {
-      if (this->debug) log_dbg("hisip not set");
+#if(_debug_)
+      log_dbg("hisip not set");
+#endif
       return dhcp_sendNAK(conn, pack, len);
     }
 
     if (!memcmp(&conn->hisip.s_addr, &pack_dhcp->ciaddr, 4)) {
-      if (this->debug) log_dbg("hisip match ciaddr");
+#if(_debug_)
+      log_dbg("hisip match ciaddr");
+#endif
       return dhcp_sendACK(conn, pack, len);
     }
     
@@ -2757,7 +2768,9 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	return dhcp_sendACK(conn, pack, len);
     }
     
-    if (this->debug) log_dbg("Sending NAK to client");
+#if(_debug_)
+    log_dbg("Sending NAK to client");
+#endif
     return dhcp_sendNAK(conn, pack, len);
   }
   
@@ -2864,6 +2877,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   char do_checksum = 0;
   char allowed = 0;
   char has_ip = 0;
+  char is_dhcp = 0;
 
   int authstate = 0;
 
@@ -2934,17 +2948,17 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   /* 
    *  DHCP (BOOTPS) packets for broadcast or us specifically
    */
-  if (((pack_iph->daddr == 0) ||
-       (pack_iph->daddr == 0xffffffff) ||
-       (pack_iph->daddr == ourip.s_addr)) &&
-      ((pack_iph->protocol == PKT_IP_PROTO_UDP) &&
-       (pack_udph->dst == htons(DHCP_BOOTPS)))) {
+  is_dhcp = (((pack_iph->daddr == 0) ||
+	      (pack_iph->daddr == 0xffffffff) ||
+	      (pack_iph->daddr == ourip.s_addr)) &&
+	     ((pack_iph->protocol == PKT_IP_PROTO_UDP) &&
+	      (pack_udph->dst == htons(DHCP_BOOTPS))));
+  
+  if (is_dhcp
 #ifdef ENABLE_LAYER3
-    if (_options.layer3) {
-      log_dbg("ignoring layer2 dhcp/bootps request");
-      return 0;
-    }
+      && !_options.layer3
 #endif
+      ) {
     log_dbg("dhcp/bootps request being processed");
     return dhcp_getreq(this, pack, len);
   }
@@ -2991,6 +3005,14 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   }
 
 #ifdef ENABLE_LAYER3
+  if (is_dhcp && _options.layer3) {
+    log_dbg("forwarding layer2 dhcp/bootps request");
+    this->cb_data_ind(conn, pack, len);
+    return 0;
+  }
+#endif
+
+#ifdef ENABLE_LAYER3
   /*
    *  A bit of a hack to decouple the one-to-one relationship
    *  of "dhcp connections" and "app connections". Look for the 
@@ -3000,41 +3022,17 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   case DHCP_AUTH_ROUTER:
     {
       struct app_conn_t *appconn = 0;
-      struct ippoolm_t *ipm = 0;
       struct in_addr src;
 
       src.s_addr = pack_iph->saddr;
 
-      if (ippool_getip(ippool, &ipm, &src)) {
-	log_dbg("new router %s", inet_ntoa(src));
-	if (ippool_newip(ippool, &ipm, &src, 1)) {
-	  if (ippool_newip(ippool, &ipm, &src, 0)) {
-	    log_err(0, "Failed to allocate either static or dynamic IP address");
-	    return -1;
-	  }
-	}
-      }
+      appconn = chilli_connect_layer3(&src, conn);
 
-      if (!ipm) {
-	log_dbg("unknown ip");
-	return -1;
-      }
-      
-      if ((appconn = (struct app_conn_t *)ipm->peer) == NULL) {
-	if (chilli_getconn(&appconn, src.s_addr, 0, 0)) {
-	  if (chilli_connect(&appconn, conn)) {
-	    log_err(0, "chilli_connect()");
-	    return 0;
-	  }
-	}
-      }
+      if (!appconn) return -1;
 
-      appconn->s_state.last_sent_time = mainclock_now();
-      appconn->hisip.s_addr = src.s_addr;
-      appconn->dnprot = DNPROT_LAYER3;
-      appconn->uplink = ipm;
-      ipm->peer = appconn; 
-      
+      if (!appconn->dnlink)
+	appconn->dnlink = conn;
+
       switch (appconn->s_state.authenticated) {
       case 1:
 	authstate = DHCP_AUTH_PASS;
@@ -3916,7 +3914,6 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
 	    inet_ntoa(addr.sin_addr),
 	    ntohs(fullpack_udph->dst),
 	    length + sizeofudp(fullpack));
-
     addr.sin_addr.s_addr = fullpack_iph->saddr;
     log_dbg("Sending DHCP from %s:%d",
 	    inet_ntoa(addr.sin_addr),
@@ -3981,12 +3978,12 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
       struct in_addr dst;
 
       dst.s_addr = iphdr(pkt)->daddr;
-
+      
       if (ippool_getip(ippool, &ipm, &dst)) {
 	log_dbg("for unknown destination %s", inet_ntoa(dst));
 	return 0;
       }
-
+      
       if (!ipm) {
 	log_dbg("unknown ip");
 	return -1;
@@ -4011,7 +4008,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
       }
     }
     break;
-
+    
   default:
     authstate = conn->authstate;
     break;
@@ -4019,10 +4016,9 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
 #else
   authstate = conn->authstate;
 #endif
-
-
+  
   dhcp_ethhdr(conn, pkt, conn->hismac, dhcp_nexthop(this), PKT_ETH_PROTO_IP);
-
+  
   switch (dhcp_dnsunDNAT(conn, pkt, length, &do_checksum)) {
   case 0:  /* Not DNS */break;
   case 1:  /* Allowed DNS */ allowed = 1; break;
@@ -4030,12 +4026,12 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   }
   
   switch (authstate) {
-
+    
   case DHCP_AUTH_PASS:
   case DHCP_AUTH_AUTH_TOS:
     dhcp_postauthDNAT(conn, pkt, length, 1, &do_checksum);
     break;
-
+    
   case DHCP_AUTH_SPLASH:
   case DHCP_AUTH_UNAUTH_TOS:
     dhcp_undoDNAT(conn, pkt, &length, 0, &do_checksum);

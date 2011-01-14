@@ -32,6 +32,7 @@ ipt_in() {
     }
     
     ipt_in -p udp -d 255.255.255.255 --destination-port 67:68 -j ACCEPT
+    ipt_in -p udp -d $ADDR --destination-port 67:68 -j ACCEPT
     ipt_in -p udp --dst $ADDR --dport 53 -j ACCEPT
     ipt_in -p icmp --dst $ADDR -j ACCEPT
     

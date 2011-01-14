@@ -28,6 +28,7 @@
  */
 
 #include "chilli.h"
+#include "debug.h"
 #ifdef ENABLE_MULTIROUTE
 #include "rtmon.h"
 extern struct rtmon_t _rtmon;
@@ -35,8 +36,6 @@ extern struct rtmon_t _rtmon;
 
 #define inaddr(x)    (((struct sockaddr_in *)&ifr->x)->sin_addr)
 #define inaddr2(p,x) (((struct sockaddr_in *)&(p)->x)->sin_addr)
-
-#define _debug_ 0
 
 #ifdef ENABLE_MULTIROUTE
 net_interface * tun_nextif(struct tun_t *tun) {
@@ -843,21 +842,22 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
 #endif
       return -1;
     }
-
   } 
   
-  if (iph->version_ihl != PKT_IP_VER_HLEN) {
+  if (!_options.usetap) {
+    if (iph->version_ihl != PKT_IP_VER_HLEN) {
 #if(_debug_)
-    log_dbg("dropping non-IPv4");
+      log_dbg("dropping non-IPv4");
 #endif
-    return -1;
-  }
-
-  if ((int)ntohs(iph->tot_len) + ethsize > length) {
-    log_dbg("dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
-	    (int)ntohs(iph->tot_len),
-	    ethsize, (int)length);
-    return -1;
+      return -1;
+    }
+    
+    if ((int)ntohs(iph->tot_len) + ethsize > length) {
+      log_dbg("dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
+	      (int)ntohs(iph->tot_len),
+	      ethsize, (int)length);
+      return -1;
+    }
   }
 
   return c->this->cb_ind(c->this, packet, length, c->idx);

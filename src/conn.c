@@ -17,8 +17,7 @@
  */
 
 #include "chilli.h"
-
-#define _debug_ 0
+#include "debug.h"
 
 #if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC) || defined(ENABLE_CHILLIREDIR)
 

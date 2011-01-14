@@ -105,6 +105,7 @@ writeconfig() {
     [ "$HS_ANYIP" = "on" ] && addconfig1 "uamanyip"
     [ "$HS_NATANYIP" = "on" ] && addconfig1 "uamnatanyip"
     [ "$HS_NOC2C" = "on" ] && addconfig1 "noc2c"
+    [ "$HS_LAYER3" = "on" ] && addconfig1 "layer3"
 
     [ "$HS_USER" != "" -a "$HS_UID" = "" ] && HS_UID=$(id -u $HS_USER)
     [ "$HS_USER" != "" -a "$HS_GID" = "" ] && HS_GID=$(id -g $HS_USER)

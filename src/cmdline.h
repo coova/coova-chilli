@@ -367,6 +367,8 @@ struct gengetopt_args_info
   const char *macallowlocal_help; /**< @brief Do not use RADIUS for authenticating the macallowed help description.  */
   int strictmacauth_flag;	/**< @brief Be strict about MAC Auth (no DHCP reply until we get RADIUS reply) (default=off).  */
   const char *strictmacauth_help; /**< @brief Be strict about MAC Auth (no DHCP reply until we get RADIUS reply) help description.  */
+  int strictdhcp_flag;	/**< @brief Be strict about only allocating dyn-pool from DHCP (default=off).  */
+  const char *strictdhcp_help; /**< @brief Be strict about only allocating dyn-pool from DHCP help description.  */
   char * wwwdir_arg;	/**< @brief Local content served by chilli (for splash page, etc).  */
   char * wwwdir_orig;	/**< @brief Local content served by chilli (for splash page, etc) original value given at command line.  */
   const char *wwwdir_help; /**< @brief Local content served by chilli (for splash page, etc) help description.  */
@@ -631,6 +633,7 @@ struct gengetopt_args_info
   unsigned int macpasswd_given ;	/**< @brief Whether macpasswd was given.  */
   unsigned int macallowlocal_given ;	/**< @brief Whether macallowlocal was given.  */
   unsigned int strictmacauth_given ;	/**< @brief Whether strictmacauth was given.  */
+  unsigned int strictdhcp_given ;	/**< @brief Whether strictdhcp was given.  */
   unsigned int wwwdir_given ;	/**< @brief Whether wwwdir was given.  */
   unsigned int wwwbin_given ;	/**< @brief Whether wwwbin was given.  */
   unsigned int uamui_given ;	/**< @brief Whether uamui was given.  */

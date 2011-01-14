@@ -147,6 +147,7 @@ const char *gengetopt_args_info_help[] = {
   "      --macpasswd=STRING        Password used when performing MAC \n                                  authentication",
   "      --macallowlocal           Do not use RADIUS for authenticating the \n                                  macallowed  (default=off)",
   "      --strictmacauth           Be strict about MAC Auth (no DHCP reply until \n                                  we get RADIUS reply)  (default=off)",
+  "      --strictdhcp              Be strict about only allocating dyn-pool from \n                                  DHCP  (default=off)",
   "      --wwwdir=STRING           Local content served by chilli (for splash \n                                  page, etc)",
   "      --wwwbin=STRING           Script binary (such as haserl) for simple web \n                                  programming",
   "      --uamui=STRING            Program in inetd style to handle all uam \n                                  requests",
@@ -369,6 +370,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->macpasswd_given = 0 ;
   args_info->macallowlocal_given = 0 ;
   args_info->strictmacauth_given = 0 ;
+  args_info->strictdhcp_given = 0 ;
   args_info->wwwdir_given = 0 ;
   args_info->wwwbin_given = 0 ;
   args_info->uamui_given = 0 ;
@@ -631,6 +633,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->macpasswd_orig = NULL;
   args_info->macallowlocal_flag = 0;
   args_info->strictmacauth_flag = 0;
+  args_info->strictdhcp_flag = 0;
   args_info->wwwdir_arg = NULL;
   args_info->wwwdir_orig = NULL;
   args_info->wwwbin_arg = NULL;
@@ -855,61 +858,62 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->macpasswd_help = gengetopt_args_info_help[112] ;
   args_info->macallowlocal_help = gengetopt_args_info_help[113] ;
   args_info->strictmacauth_help = gengetopt_args_info_help[114] ;
-  args_info->wwwdir_help = gengetopt_args_info_help[115] ;
-  args_info->wwwbin_help = gengetopt_args_info_help[116] ;
-  args_info->uamui_help = gengetopt_args_info_help[117] ;
-  args_info->adminuser_help = gengetopt_args_info_help[118] ;
-  args_info->adminpasswd_help = gengetopt_args_info_help[119] ;
-  args_info->adminupdatefile_help = gengetopt_args_info_help[120] ;
-  args_info->rtmonfile_help = gengetopt_args_info_help[121] ;
-  args_info->ethers_help = gengetopt_args_info_help[122] ;
-  args_info->nasmac_help = gengetopt_args_info_help[123] ;
-  args_info->nasip_help = gengetopt_args_info_help[124] ;
-  args_info->ssid_help = gengetopt_args_info_help[125] ;
-  args_info->vlan_help = gengetopt_args_info_help[126] ;
-  args_info->ieee8021q_help = gengetopt_args_info_help[127] ;
-  args_info->cmdsocket_help = gengetopt_args_info_help[128] ;
-  args_info->radiusoriginalurl_help = gengetopt_args_info_help[129] ;
-  args_info->swapoctets_help = gengetopt_args_info_help[130] ;
-  args_info->usestatusfile_help = gengetopt_args_info_help[131] ;
-  args_info->localusers_help = gengetopt_args_info_help[132] ;
-  args_info->postauthproxy_help = gengetopt_args_info_help[133] ;
-  args_info->postauthproxyport_help = gengetopt_args_info_help[134] ;
-  args_info->wpaguests_help = gengetopt_args_info_help[135] ;
-  args_info->openidauth_help = gengetopt_args_info_help[136] ;
-  args_info->papalwaysok_help = gengetopt_args_info_help[137] ;
-  args_info->mschapv2_help = gengetopt_args_info_help[138] ;
-  args_info->chillixml_help = gengetopt_args_info_help[139] ;
-  args_info->acctupdate_help = gengetopt_args_info_help[140] ;
-  args_info->dnsparanoia_help = gengetopt_args_info_help[141] ;
-  args_info->seskeepalive_help = gengetopt_args_info_help[142] ;
-  args_info->usetap_help = gengetopt_args_info_help[143] ;
-  args_info->routeif_help = gengetopt_args_info_help[144] ;
-  args_info->framedservice_help = gengetopt_args_info_help[145] ;
-  args_info->tcpwin_help = gengetopt_args_info_help[146] ;
-  args_info->tcpmss_help = gengetopt_args_info_help[147] ;
-  args_info->maxclients_help = gengetopt_args_info_help[148] ;
-  args_info->challengetimeout_help = gengetopt_args_info_help[149] ;
-  args_info->challengetimeout2_help = gengetopt_args_info_help[150] ;
-  args_info->redir_help = gengetopt_args_info_help[151] ;
-  args_info->sslkeyfile_help = gengetopt_args_info_help[152] ;
-  args_info->sslkeypass_help = gengetopt_args_info_help[153] ;
-  args_info->sslcertfile_help = gengetopt_args_info_help[154] ;
-  args_info->sslcafile_help = gengetopt_args_info_help[155] ;
-  args_info->unixipc_help = gengetopt_args_info_help[156] ;
-  args_info->uamallowpost_help = gengetopt_args_info_help[157] ;
-  args_info->natip_help = gengetopt_args_info_help[158] ;
-  args_info->natport_help = gengetopt_args_info_help[159] ;
-  args_info->redirssl_help = gengetopt_args_info_help[160] ;
-  args_info->uamuissl_help = gengetopt_args_info_help[161] ;
-  args_info->dnslog_help = gengetopt_args_info_help[162] ;
-  args_info->ipwhitelist_help = gengetopt_args_info_help[163] ;
-  args_info->uamdomainfile_help = gengetopt_args_info_help[164] ;
-  args_info->layer3_help = gengetopt_args_info_help[165] ;
-  args_info->redirdnsreq_help = gengetopt_args_info_help[166] ;
-  args_info->kname_help = gengetopt_args_info_help[167] ;
-  args_info->moddir_help = gengetopt_args_info_help[168] ;
-  args_info->module_help = gengetopt_args_info_help[169] ;
+  args_info->strictdhcp_help = gengetopt_args_info_help[115] ;
+  args_info->wwwdir_help = gengetopt_args_info_help[116] ;
+  args_info->wwwbin_help = gengetopt_args_info_help[117] ;
+  args_info->uamui_help = gengetopt_args_info_help[118] ;
+  args_info->adminuser_help = gengetopt_args_info_help[119] ;
+  args_info->adminpasswd_help = gengetopt_args_info_help[120] ;
+  args_info->adminupdatefile_help = gengetopt_args_info_help[121] ;
+  args_info->rtmonfile_help = gengetopt_args_info_help[122] ;
+  args_info->ethers_help = gengetopt_args_info_help[123] ;
+  args_info->nasmac_help = gengetopt_args_info_help[124] ;
+  args_info->nasip_help = gengetopt_args_info_help[125] ;
+  args_info->ssid_help = gengetopt_args_info_help[126] ;
+  args_info->vlan_help = gengetopt_args_info_help[127] ;
+  args_info->ieee8021q_help = gengetopt_args_info_help[128] ;
+  args_info->cmdsocket_help = gengetopt_args_info_help[129] ;
+  args_info->radiusoriginalurl_help = gengetopt_args_info_help[130] ;
+  args_info->swapoctets_help = gengetopt_args_info_help[131] ;
+  args_info->usestatusfile_help = gengetopt_args_info_help[132] ;
+  args_info->localusers_help = gengetopt_args_info_help[133] ;
+  args_info->postauthproxy_help = gengetopt_args_info_help[134] ;
+  args_info->postauthproxyport_help = gengetopt_args_info_help[135] ;
+  args_info->wpaguests_help = gengetopt_args_info_help[136] ;
+  args_info->openidauth_help = gengetopt_args_info_help[137] ;
+  args_info->papalwaysok_help = gengetopt_args_info_help[138] ;
+  args_info->mschapv2_help = gengetopt_args_info_help[139] ;
+  args_info->chillixml_help = gengetopt_args_info_help[140] ;
+  args_info->acctupdate_help = gengetopt_args_info_help[141] ;
+  args_info->dnsparanoia_help = gengetopt_args_info_help[142] ;
+  args_info->seskeepalive_help = gengetopt_args_info_help[143] ;
+  args_info->usetap_help = gengetopt_args_info_help[144] ;
+  args_info->routeif_help = gengetopt_args_info_help[145] ;
+  args_info->framedservice_help = gengetopt_args_info_help[146] ;
+  args_info->tcpwin_help = gengetopt_args_info_help[147] ;
+  args_info->tcpmss_help = gengetopt_args_info_help[148] ;
+  args_info->maxclients_help = gengetopt_args_info_help[149] ;
+  args_info->challengetimeout_help = gengetopt_args_info_help[150] ;
+  args_info->challengetimeout2_help = gengetopt_args_info_help[151] ;
+  args_info->redir_help = gengetopt_args_info_help[152] ;
+  args_info->sslkeyfile_help = gengetopt_args_info_help[153] ;
+  args_info->sslkeypass_help = gengetopt_args_info_help[154] ;
+  args_info->sslcertfile_help = gengetopt_args_info_help[155] ;
+  args_info->sslcafile_help = gengetopt_args_info_help[156] ;
+  args_info->unixipc_help = gengetopt_args_info_help[157] ;
+  args_info->uamallowpost_help = gengetopt_args_info_help[158] ;
+  args_info->natip_help = gengetopt_args_info_help[159] ;
+  args_info->natport_help = gengetopt_args_info_help[160] ;
+  args_info->redirssl_help = gengetopt_args_info_help[161] ;
+  args_info->uamuissl_help = gengetopt_args_info_help[162] ;
+  args_info->dnslog_help = gengetopt_args_info_help[163] ;
+  args_info->ipwhitelist_help = gengetopt_args_info_help[164] ;
+  args_info->uamdomainfile_help = gengetopt_args_info_help[165] ;
+  args_info->layer3_help = gengetopt_args_info_help[166] ;
+  args_info->redirdnsreq_help = gengetopt_args_info_help[167] ;
+  args_info->kname_help = gengetopt_args_info_help[168] ;
+  args_info->moddir_help = gengetopt_args_info_help[169] ;
+  args_info->module_help = gengetopt_args_info_help[170] ;
   args_info->module_min = 0;
   args_info->module_max = 0;
   
@@ -1501,6 +1505,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "macallowlocal", 0, 0 );
   if (args_info->strictmacauth_given)
     write_into_file(outfile, "strictmacauth", 0, 0 );
+  if (args_info->strictdhcp_given)
+    write_into_file(outfile, "strictdhcp", 0, 0 );
   if (args_info->wwwdir_given)
     write_into_file(outfile, "wwwdir", args_info->wwwdir_orig, 0);
   if (args_info->wwwbin_given)
@@ -2304,6 +2310,7 @@ cmdline_parser_internal (
         { "macpasswd",	1, NULL, 0 },
         { "macallowlocal",	0, NULL, 0 },
         { "strictmacauth",	0, NULL, 0 },
+        { "strictdhcp",	0, NULL, 0 },
         { "wwwdir",	1, NULL, 0 },
         { "wwwbin",	1, NULL, 0 },
         { "uamui",	1, NULL, 0 },
@@ -3899,6 +3906,18 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->strictmacauth_flag), 0, &(args_info->strictmacauth_given),
                 &(local_args_info.strictmacauth_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "strictmacauth", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Be strict about only allocating dyn-pool from DHCP.  */
+          else if (strcmp (long_options[option_index].name, "strictdhcp") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->strictdhcp_flag), 0, &(args_info->strictdhcp_given),
+                &(local_args_info.strictdhcp_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "strictdhcp", '-',
                 additional_error))
               goto failure;
           

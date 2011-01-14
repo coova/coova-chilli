@@ -20,14 +20,13 @@
 #define MAIN_FILE
 
 #include "chilli.h"
+#include "debug.h"
 
 #ifdef USING_CURL
 #include <curl/curl.h>
 #include <curl/types.h>
 #include <curl/easy.h>
 #endif
-
-#define _debug_ 0
 
 /*
  * Plans (todo):
@@ -544,7 +543,7 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
     while(CURLM_CALL_MULTI_PERFORM ==
 	  curl_multi_perform(curl_multi, &still_running));
 
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("curl still running %d", still_running);
 #endif
 #endif
@@ -634,7 +633,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
 
   if (http_aaa_setup(0, &req) == 0) {
 
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("==> %s\npost:%s", req.url->data, req.post->data);
 #endif
 
@@ -642,7 +641,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
     curl_easy_perform(req.curl);
 #endif
 
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("<== %s", req.data->data);
 #endif
 
@@ -948,7 +947,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
     if (_options.uamsecret && _options.uamsecret[0])
       redir_md_param(req->url, _options.uamsecret, "&");
     
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("==> %s", req->url->data);
 #endif
     if (http_aaa(radius, req) < 0)
@@ -1140,13 +1139,13 @@ int main(int argc, char **argv) {
       while(CURLM_CALL_MULTI_PERFORM ==
 	    curl_multi_perform(curl_multi, &still_running));
 
-#if(_debug_)
+#if(_debug_ > 1)
       log_dbg("curl still running %d", still_running);
 #endif
       
       while ((msg = curl_multi_info_read(curl_multi, &msgs_left))) {
 
-#if(_debug_)
+#if(_debug_ > 1)
 	log_dbg("curl messages left %d", msgs_left);
 #endif
 

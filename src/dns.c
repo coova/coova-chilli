@@ -17,12 +17,11 @@
  */
 
 #include "chilli.h"
+#include "debug.h"
 
 #define antidnstunnel _options.dnsparanoia
 
 extern struct dhcp_t *dhcp;
-
-#define _debug_ 0
 
 int
 dns_fullname(char *data, size_t dlen,      /* buffer to store name */

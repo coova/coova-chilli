@@ -19,14 +19,13 @@
 
 #include "system.h"
 #include "chilli.h"
+#include "debug.h"
 #ifdef ENABLE_MODULES
 #include "chilli_module.h"
 #endif
 #ifdef ENABLE_EWTAPI
 #include "ewt.h"
 #endif
-
-#define _debug_ 0
 
 static int optionsdebug = 0; /* TODO: Should be changed to instance */
 

@@ -171,6 +171,10 @@ int loadstatus();
 
 int chilli_connect(struct app_conn_t **appconn, struct dhcp_conn_t *conn);
 
+#ifdef ENABLE_LAYER3
+struct app_conn_t * chilli_connect_layer3(struct in_addr *src, struct dhcp_conn_t *conn);
+#endif
+
 int chilli_getconn(struct app_conn_t **conn, uint32_t ip, 
 		   uint32_t nasip, uint32_t nasport);
 

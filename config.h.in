@@ -27,6 +27,12 @@
 /* Define to enable cluster */
 #undef ENABLE_CLUSTER
 
+/* Define to enable debugging */
+#undef ENABLE_DEBUG
+
+/* Define to enable DHCP/RADIUS integration */
+#undef ENABLE_DHCPRADIUS
+
 /* Define to logging of DNS requests */
 #undef ENABLE_DNSLOG
 
