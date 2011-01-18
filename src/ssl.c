@@ -214,11 +214,13 @@ _openssl_env_init(openssl_env *env, char *engine, int server) {
 }
 #endif
 
+#ifdef HAVE_OPENSSL
 static int _openssl_passwd(char *buf, int size, int rwflag, void *ud) {
   safe_strncpy(buf, _options.sslkeypass, size);
   memset(_options.sslkeypass,'x',strlen(_options.sslkeypass));
   return 0;
 }
+#endif
 
 int
 openssl_env_init(openssl_env *env, char *engine, int server) {
@@ -285,7 +287,7 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
   c->env = env;
 #ifdef HAVE_OPENSSL
   c->con = (SSL *)SSL_new(env->ctx); 
-#else
+#elif  HAVE_MATRIXSSL
   c->con = (SSL *)SSL_new(env->keys, 0); 
 #endif
   c->sock = fd;
@@ -309,7 +311,7 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
       return 0;
     }
   }
-#else
+#elif  HAVE_MATRIXSSL
   if (!SSL_connect(c->con, certValidator, c)) {
     log_err(errno, "openssl_connect_fd");
     openssl_free(c);
@@ -391,6 +393,7 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
       }
     }
   }
+#elif  HAVE_MATRIXSSL
 #endif
 
   return 0;
@@ -411,7 +414,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
   c->env = env;
 #ifdef HAVE_OPENSSL
   c->con = (SSL *)SSL_new(env->ctx); 
-#else
+#elif  HAVE_MATRIXSSL
   c->con = (SSL *)SSL_new(env->keys, SSL_FLAGS_SERVER); 
 #endif
   c->sock = fd;
@@ -432,7 +435,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
     openssl_free(c);
     return 0;
   }
-#else
+#elif  HAVE_MATRIXSSL
   
   /* ndelay_off(c->sock); */
 
@@ -443,7 +446,9 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
   }
 
   /* ndelay_on(c->sock);*/
-  
+
+#else
+#error NO SSL SUPPORT
 #endif
 
   return c;

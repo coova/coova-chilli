@@ -23,7 +23,7 @@
 #ifdef HAVE_SSL
 
 #ifdef HAVE_MATRIXSSL
-#include "matrixssl.h"
+#include "mssl.h"
 
 typedef struct {
 

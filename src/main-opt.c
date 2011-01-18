@@ -21,6 +21,7 @@
 
 #include "chilli.h"
 #include "cmdline.h"
+#include "debug.h"
 
 struct options_t _options;
 
@@ -30,7 +31,7 @@ static const char *description =
   "  http://www.coova.org/\n";
 
 static const char *copyright = 
-  "Copyright (c) 2003-2005 Mondru AB., 2006-2010 Coova Technologies LLC.\n"
+  "Copyright (c) 2003-2005 Mondru AB., 2006-2011 Coova Technologies LLC.\n"
   "Licensed under the GNU General Public License (GPL).\n";
 
 static const char *usage =
@@ -63,6 +64,9 @@ static const char *compile_options = "Compiled with "
 #endif
 #ifdef ENABLE_UAMDOMAINFILE
   "ENABLE_UAMDOMAINFILE "
+#endif
+#ifdef ENABLE_EAPOL
+  "ENABLE_EAPOL "
 #endif
 #ifdef ENABLE_EWTAPI
   "ENABLE_EWTAPI "
@@ -240,10 +244,18 @@ int main(int argc, char **argv) {
 
   /** simple configuration parameters **/
   _options.layer3 = args_info.layer3_flag;
+#if(_debug_ && !defined(ENABLE_LAYER3))
+  if (_options.layer3) 
+    log_warn(0, "layer3 not implemented. build with --enable-layer3");
+#endif
   _options.uid = args_info.uid_arg;
   _options.gid = args_info.gid_arg;
   _options.mtu = args_info.mtu_arg;
   _options.usetap = args_info.usetap_flag;
+#if(_debug_ && !defined(ENABLE_TAP))
+  if (_options.usetap) 
+    log_warn(0, "tap not implemented. build with --enable-tap");
+#endif
   _options.foreground = args_info.fg_flag;
   _options.interval = args_info.interval_arg;
   _options.lease = args_info.lease_arg;
@@ -251,6 +263,10 @@ int main(int argc, char **argv) {
   _options.dhcpstart = args_info.dhcpstart_arg;
   _options.dhcpend = args_info.dhcpend_arg;
   _options.eapolenable = args_info.eapolenable_flag;
+#if(_debug_ && !defined(ENABLE_EAPOL))
+  if (_options.eapolenable) 
+    log_warn(0, "EAPOL not implemented. build with --enable-eapol");
+#endif
   _options.swapoctets = args_info.swapoctets_flag;
   _options.logfacility = args_info.logfacility_arg;
   _options.chillixml = args_info.chillixml_flag;
@@ -282,6 +298,10 @@ int main(int argc, char **argv) {
   _options.radiusretry = args_info.radiusretry_arg;
   _options.radiusretrysec = args_info.radiusretrysec_arg;
   _options.proxyport = args_info.proxyport_arg;
+#if(_debug_ && !defined(ENABLE_RADPROXY))
+  if (_options.proxyport)
+    log_err(0,"radproxy not implemented. build with --enable-radproxy");
+#endif
   _options.txqlen = args_info.txqlen_arg;
   _options.ringsize = args_info.ringsize_arg;
   _options.sndbuf = args_info.sndbuf_arg;
@@ -301,23 +321,36 @@ int main(int argc, char **argv) {
   _options.seskeepalive = args_info.seskeepalive_flag;
   _options.uamallowpost = args_info.uamallowpost_flag;
   _options.redir = args_info.redir_flag;
+#if(_debug_ && !defined(ENABLE_CHILLIREDIR))
+  if (_options.redir) 
+    log_err(0, "chilli_redir not implemented. build with --enable-chilliredir");
+#endif
   _options.redirssl = args_info.redirssl_flag;
   _options.uamuissl = args_info.uamuissl_flag;
   _options.domaindnslocal = args_info.domaindnslocal_flag;
   _options.framedservice = args_info.framedservice_flag;
   _options.radsec = args_info.radsec_flag;
+#if(_debug_ && !defined(ENABLE_CHILLIRADSEC))
+  if (_options.radsec) 
+    log_err(0, "chilli_radsec not implemented. build with --enable-chilliradsec");
+#endif
   _options.proxymacaccept = args_info.proxymacaccept_flag;
   _options.noradallow = args_info.noradallow_flag;
   _options.peerid = args_info.peerid_arg;
+#if(_debug_ && !defined(ENABLE_CLUSTER))
+  if (_options.peerid) 
+    log_err(0, "clustering not implemented. build with --enable-cluster");
+#endif
+  _options.redirdnsreq = args_info.redirdnsreq_flag;
+#if(_debug_ && !defined(ENABLE_REDIRDNSREQ))
+  if (_options.redirdnsreq) 
+    log_err(0, "redirdnsreq not implemented. build with --enable-redirdnsreq");
+#endif
 
 #ifdef ENABLE_LEAKYBUCKET
   _options.bwbucketupsize = args_info.bwbucketupsize_arg;
   _options.bwbucketdnsize = args_info.bwbucketdnsize_arg;
   _options.bwbucketminsize = args_info.bwbucketminsize_arg;
-#endif
-
-#ifdef ENABLE_REDIRDNSREQ
-  _options.redirdnsreq = args_info.redirdnsreq_flag;
 #endif
 
 #ifdef ENABLE_PROXYVSA
@@ -793,6 +826,7 @@ int main(int argc, char **argv) {
   /* If no listen option is specified listen to any local port    */
   /* Do hostname lookup to translate hostname to IP address       */
   if (args_info.proxylisten_arg) {
+#ifdef ENABLE_RADPROXY
     if (!(host = gethostbyname(args_info.proxylisten_arg))) {
       log_err(0, "Invalid listening address: %s! [%s]", 
 	      args_info.proxylisten_arg, strerror(errno));
@@ -804,10 +838,14 @@ int main(int argc, char **argv) {
   }
   else {
     _options.proxylisten.s_addr = htonl(INADDR_ANY);
+#elif (_debug_)
+    log_warn(0,"radproxy not implemented. build with --enable-radproxy");
+#endif
   }
   
   /* Store proxyclient as in_addr net and mask                       */
   if (args_info.proxyclient_arg) {
+#ifdef ENABLE_RADPROXY
     if(option_aton(&_options.proxyaddr, &_options.proxymask, 
 		   args_info.proxyclient_arg, 0)) {
       log_err(0,"Invalid proxy client address: %s!", args_info.proxyclient_arg);
@@ -817,6 +855,9 @@ int main(int argc, char **argv) {
   else {
     _options.proxyaddr.s_addr = ~0; /* Let nobody through */
     _options.proxymask.s_addr = 0; 
+#elif (_debug_)
+    log_warn(0,"radproxy not implemented. build with --enable-radproxy");
+#endif
   }
 
   memset(_options.macok, 0, sizeof(_options.macok));

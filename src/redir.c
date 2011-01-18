@@ -2573,8 +2573,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   int n, m;
 
   if (radius_new(&radius,
-		 &redir->radiuslisten, 0, 0,
-		 NULL, 0, NULL, NULL, NULL) ||
+		 &redir->radiuslisten, 0, 0, 0) ||
       radius_init_q(radius, 8)) {
     log_err(0, "Failed to create radius");
     return -1;
@@ -2754,7 +2753,6 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
     FD_ZERO(&fds);
     if (radius->fd != -1) FD_SET(radius->fd, &fds);
-    if (radius->proxyfd != -1) FD_SET(radius->proxyfd, &fds);
     
     idleTime.tv_sec = 0;
     idleTime.tv_usec = REDIR_RADIUS_SELECT_TIME;
@@ -2775,11 +2773,6 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
       if ((radius->fd != -1) && FD_ISSET(radius->fd, &fds) && 
 	  radius_decaps(radius, 0) < 0) {
 	log_err(0, "radius_ind() failed!");
-      }
-      
-      if ((radius->proxyfd != -1) && FD_ISSET(radius->proxyfd, &fds) && 
-	  radius_proxy_ind(radius, 0) < 0) {
-	log_err(0, "radius_proxy_ind() failed!");
       }
     }
     

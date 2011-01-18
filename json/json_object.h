@@ -148,7 +148,7 @@ extern void json_object_object_del(struct json_object* this, char *key);
  * @param val the local name for the json_object* object variable defined in the body
  */
 #define json_object_object_foreach(obj,key,val) \
-char *key; struct json_object *val; \
+char *key=0; struct json_object *val=0; \
 for(struct lh_entry *entry = json_object_get_object(obj)->head; ({ if(entry) { key = (char*)entry->k; val = (struct json_object*)entry->v; } ; entry; }); entry = entry->next )
 
 

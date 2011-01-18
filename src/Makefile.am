@@ -43,7 +43,7 @@ test_dhcp_SOURCES = test-dhcp.c
 test_randpkt_SOURCES = test-randpkt.c 
 
 libchilli_la_LIBADD = $(top_builddir)/bstring/libbstring.la 
-LDADD = libchilli.la ${LIBRT}
+LDADD = libchilli.la ${LIBRT} $(top_builddir)/bstring/libbstring.la 
 
 if WITH_MINICONFIG
 chilli_opt_SOURCES += cmdline.mini.c
@@ -54,6 +54,7 @@ endif
 if WITH_JSONLIB
 AM_CFLAGS += -I$(top_builddir)/json
 libchilli_la_LIBADD += $(top_builddir)/json/libjson.la 
+LDADD += $(top_builddir)/json/libjson.la 
 endif
 
 if WITH_EWTAPI
@@ -74,7 +75,7 @@ LDADD += ${LIBSSL}
 endif
 
 if WITH_MATRIXSSL
-libchilli_la_SOURCES += matrixssl.c matrixssl.h
+libchilli_la_SOURCES += mssl.c mssl.h
 LDADD += -lmatrixssl
 endif
 

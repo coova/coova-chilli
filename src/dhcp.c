@@ -654,9 +654,10 @@ int dhcp_newconn(struct dhcp_t *this,
 }
 
 uint8_t * dhcp_nexthop(struct dhcp_t *this) {
+#ifdef ENABLE_TAP
   if (_options.usetap && _options.has_nexthop) 
     return _options.nexthop;
-
+#endif
   return this->rawif.hwaddr;
 }
 
@@ -1708,9 +1709,11 @@ int dhcp_uam_nat(struct dhcp_conn_t *conn,
   }
   
   if (pos == -1) {
+#ifdef ENABLE_TAP
     if (_options.usetap) {
       memcpy(conn->dnat[conn->nextdnat].mac, ethh->dst, PKT_ETH_ALEN); 
     }
+#endif
     conn->dnat[conn->nextdnat].dst_ip = iph->daddr; 
     conn->dnat[conn->nextdnat].src_ip = iph->saddr; 
     conn->dnat[conn->nextdnat].src_port = tcph->src;
@@ -1718,9 +1721,11 @@ int dhcp_uam_nat(struct dhcp_conn_t *conn,
     conn->nextdnat = (conn->nextdnat + 1) % DHCP_DNAT_MAX;
   }
   
+#ifdef ENABLE_TAP
   if (_options.usetap) {
     memcpy(ethh->dst, tuntap(tun).hwaddr, PKT_ETH_ALEN); 
   }
+#endif
   
   iph->daddr = addr->s_addr;
   tcph->dst = htons(port);
@@ -1742,9 +1747,11 @@ int dhcp_uam_unnat(struct dhcp_conn_t *conn,
     if (iph->daddr == conn->dnat[n].src_ip && 
 	tcph->dst == conn->dnat[n].src_port) {
       
+#ifdef ENABLE_TAP
       if (_options.usetap) {
 	memcpy(ethh->src, conn->dnat[n].mac, PKT_ETH_ALEN);
       }
+#endif
       
       iph->saddr = conn->dnat[n].dst_ip;
       tcph->src = conn->dnat[n].dst_port;
@@ -1850,7 +1857,6 @@ int dhcp_dnsunDNAT(struct dhcp_conn_t *conn,
 
   return 0; /* Not DNS */
 }
-
 
 /**
  * dhcp_doDNAT()
@@ -2042,26 +2048,6 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
     /* Was it an ICMP reply from us? */
     if (iph->saddr == conn->ourip.s_addr)
       return 0;
-    /* Allow for MTU negotiation */
-    if (_options.debug)
-      log_dbg("Received ICMP");
-#if(0)
-    switch((unsigned char)pack->payload[0]) {
-    case 0:  /* echo reply */
-    case 3:  /* destination unreachable */
-    case 5:  /* redirect */
-    case 11: /* time excedded */
-      switch((unsigned char)pack->payload[1]) {
-      case 4: 
-	log(LOG_NOTICE, "Fragmentation needed ICMP");
-      }
-      if (_options.debug)
-	log_dbg("Forwarding ICMP to chilli client");
-      return 0;
-    }
-#endif
-    /* fail all else */
-    return -1;
   }
 
   /* Was it a reply from redir server? */
@@ -2804,6 +2790,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
     conn->domain[0] = 0;
   }
 
+#ifdef ENABLE_TAP
   if (_options.usetap) {
     /*
      *    USETAP ARP
@@ -2834,6 +2821,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
       close(sockfd);
     }
   }
+#endif
 
   if (_options.uamanyip && !_options.uamnatanyip &&
       (hisip->s_addr & ourmask->s_addr) != (ourip->s_addr & ourmask->s_addr)) {
@@ -3208,9 +3196,11 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 
   /*done:*/
 
+#ifdef ENABLE_TAP
   if (_options.usetap) {
     memcpy(pack_ethh->dst, tuntap(tun).hwaddr, PKT_ETH_ALEN);
   }
+#endif
 
   if (do_checksum)
     chksum(pack_iph);
@@ -4421,7 +4411,7 @@ int dhcp_eapol_ind(struct dhcp_t *this) {
   if ((length = net_read_eth(&this->rawif, packet, sizeof(packet))) < 0) 
     return -1;
 
-  /*
+#if(_debug_)
   if (_options.debug) {
     struct pkt_ethhdr_t *ethh = ethhdr(packet);
     log_dbg("eapol_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x",
@@ -4429,7 +4419,7 @@ int dhcp_eapol_ind(struct dhcp_t *this) {
 	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
 	    ntohs(ethh->prot));
   }
-  */
+#endif
 
   return dhcp_receive_eapol(this, packet);
 }

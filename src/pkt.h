@@ -434,6 +434,7 @@ struct pkt_chillihdr_t {
 #define ethhdr(pkt)   ((struct pkt_ethhdr_t *)pkt)
 #define ipphdr(pkt)   ((struct pkt_ipphdr_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))
 #define iphdr(pkt)    ((struct pkt_iphdr_t *)   (((uint8_t*)(pkt)) + sizeofeth(pkt)))
+#define icmphdr(pkt)  ((struct pkt_icmphdr_t *) (((uint8_t*)(pkt)) + sizeofip(pkt)))
 #define udphdr(pkt)   ((struct pkt_udphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))
 #define tcphdr(pkt)   ((struct pkt_tcphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))
 #define dot1xhdr(pkt) ((struct pkt_dot1xhdr_t *)(((uint8_t*)(pkt)) + sizeofeth(pkt)))

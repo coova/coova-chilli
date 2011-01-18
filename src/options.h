@@ -186,9 +186,7 @@ struct options_t {
   uint8_t radsec:1;                 /* Use RadSec tunneling */
   uint8_t proxymacaccept:1;         /* Auto-accept non-EAP requests on proxy port */
   uint8_t noradallow:1;             /* Authorize all sessions when RADIUS is not available */
-#ifdef ENABLE_REDIRDNSREQ
   uint8_t redirdnsreq:1;
-#endif
   /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];

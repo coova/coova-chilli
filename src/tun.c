@@ -560,7 +560,11 @@ int tuntap_interface(struct _net_interface *netif) {
   memset(&ifr, 0, sizeof(ifr));
 
   /* Tun device, no packet info */
-  ifr.ifr_flags = (_options.usetap ? IFF_TAP : IFF_TUN) | IFF_NO_PI; 
+  ifr.ifr_flags = (
+#ifdef ENABLE_TAP
+		   _options.usetap ? IFF_TAP :
+#endif
+		   IFF_TUN) | IFF_NO_PI; 
   
   ifr.ifr_flags = ifr.ifr_flags
 #ifdef IFF_MULTICAST
@@ -613,6 +617,7 @@ int tuntap_interface(struct _net_interface *netif) {
   ioctl(netif->fd, TUNSETNOCSUM, 1); /* Disable checksums */
 
   /* Get the MAC address of our tap interface */
+#ifdef ENABLE_TAP
   if (_options.usetap) {
     int fd;
     netif->flags |= NET_ETHHDR;
@@ -629,6 +634,7 @@ int tuntap_interface(struct _net_interface *netif) {
       close(fd);
     }
   }
+#endif
   
   return 0;
   

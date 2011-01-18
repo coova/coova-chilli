@@ -1344,6 +1344,7 @@ int static auth_radius(struct app_conn_t *appconn,
 }
 
 
+#ifdef ENABLE_RADPROXY
 /*********************************************************
  *
  * radius proxy functions
@@ -1474,7 +1475,7 @@ int static radius_access_accept(struct app_conn_t *conn) {
   radius_resp(radius, &radius_pack, &conn->radiuspeer, conn->authenticator);
   return 0;
 }
-
+#endif
 
 /*********************************************************
  *
@@ -1708,8 +1709,10 @@ int dnprot_reject(struct app_conn_t *appconn) {
     log_dbg("Rejecting UAM");
     return 0;
 
+#ifdef ENABLE_RADPROXY
   case DNPROT_WPA:
     return radius_access_reject(appconn);
+#endif
 
   case DNPROT_MAC:
     /* remove the username since we're not logged in */
@@ -1770,9 +1773,11 @@ int static dnprot_challenge(struct app_conn_t *appconn) {
 #endif
     break;
 
+#ifdef ENABLE_RADPROXY
   case DNPROT_WPA:
     radius_access_challenge(appconn);
     break;
+#endif
 
   default:
     log_err(0, "Unknown downlink protocol");
@@ -1834,6 +1839,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
     appconn->s_params.flags &= ~REQUIRE_UAM_AUTH;
     break;
 
+#ifdef ENABLE_RADPROXY
   case DNPROT_WPA:
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
       log_err(0, "No downlink protocol");
@@ -1859,6 +1865,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
     radius_access_accept(appconn);
 
     break;
+#endif
 
   case DNPROT_MAC:
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
@@ -2011,6 +2018,7 @@ static int fwd_layer3(struct app_conn_t *appconn,
 	}
       }
       
+#ifdef ENABLE_TAP
       if (_options.usetap) {
 	struct pkt_ethhdr_t *ethh = ethhdr(pack);
 	
@@ -2018,7 +2026,9 @@ static int fwd_layer3(struct app_conn_t *appconn,
 	
 	dhcp_send(dhcp, &dhcp->rawif, ethh->dst, pack, len);
 	
-      } else {
+      } else 
+#endif
+      {
 	static uint8_t bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct pkt_ethhdr_t *ethh;
 	uint8_t packet[PKT_MAX_LEN];
@@ -2060,15 +2070,16 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
   struct in_addr dst;
   struct ippoolm_t *ipm;
   struct app_conn_t *appconn = 0;
-  struct pkt_ethhdr_t *ethh = 0;
   struct pkt_udphdr_t *udph = 0;
   struct pkt_ipphdr_t *ipph;
   
   int ethhdr = (tun(tun, idx).flags & NET_ETHHDR) != 0;
 
+#ifdef ENABLE_TAP
   if (idx) ethhdr = 0;
 
   if (ethhdr) {
+    struct pkt_ethhdr_t *ethh = 0;
     /*
      *   Will never be 802.1Q
      */
@@ -2183,7 +2194,9 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
       return 0;
     }
 
-  } else {
+  } else 
+#endif
+  {
     ipph = (struct pkt_ipphdr_t *)pack;
   }
 
@@ -2401,7 +2414,7 @@ int cb_redir_getstate(struct redir_t *redir,
   return conn->s_state.authenticated == 1;
 }
 
-
+#ifdef ENABLE_RADPROXY
 /*********************************************************
  *
  * Functions supporting radius callbacks
@@ -2559,7 +2572,6 @@ int accounting_request(struct radius_packet_t *pack,
 
   return 0;
 }
-
 
 int access_request(struct radius_packet_t *pack,
 		   struct sockaddr_in *peer) {
@@ -2996,6 +3008,7 @@ int cb_radius_ind(struct radius_t *rp, struct radius_packet_t *pack,
     return 0;
   }
 }
+#endif
 
 int upprot_getip(struct app_conn_t *appconn, 
 		 struct in_addr *hisip, int statip) {
@@ -4346,6 +4359,7 @@ static int session_disconnect(struct app_conn_t *appconn,
       }
     }
     
+#ifdef ENABLE_TAP
     if (_options.usetap) {
       /*
        *    USETAP ARP
@@ -4369,6 +4383,7 @@ static int session_disconnect(struct app_conn_t *appconn,
 	safe_close(sockfd);
       }
     }
+#endif
   }
   
   if (_options.macdown) {
@@ -5490,10 +5505,9 @@ int chilli_main(int argc, char **argv) {
   
   /* Create an instance of radius */
   if (radius_new(&radius,
-		 &_options.radiuslisten, _options.coaport, _options.coanoipcheck,
-		 &_options.proxylisten, _options.proxyport,
-		 &_options.proxyaddr, &_options.proxymask,
-		 _options.proxysecret) ||
+		 &_options.radiuslisten, 
+		 _options.coaport, 
+		 _options.coanoipcheck, 1) ||
       radius_init_q(radius, 0)) {
     log_err(0, "Failed to create radius");
     return -1;
@@ -5504,7 +5518,9 @@ int chilli_main(int argc, char **argv) {
 
   radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
   radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
+#ifdef ENABLE_RADPROXY
   radius_set_cb_ind(radius, cb_radius_ind);
+#endif
   
   if (_options.acct_update)
     radius_set_cb_acct_conf(radius, cb_radius_acct_conf);
@@ -5634,7 +5650,9 @@ int chilli_main(int argc, char **argv) {
 		 0, 0);
 
   net_select_reg(&sctx, radius->fd, SELECT_READ, (select_callback)radius_decaps, radius, 0);
+#ifdef ENABLE_RADPROXY
   net_select_reg(&sctx, radius->proxyfd, SELECT_READ, (select_callback)radius_proxy_ind, radius, 0);
+#endif
 
 #if defined(__linux__)
   net_select_reg(&sctx, dhcp->relayfd, SELECT_READ, (select_callback)dhcp_relay_decaps, dhcp, 0);

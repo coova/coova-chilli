@@ -25,7 +25,7 @@ config.status: configure
 	--sysconfdir=/etc --localstatedir=/var --enable-largelimits \
 	--enable-proxyvsa --enable-miniportal --enable-chilliredir \
 	--enable-chilliproxy --enable-binstatusfile --enable-chilliscript \
-	--enable-chilliradsec --enable-dnslog --enable-layer3 \
+	--enable-chilliradsec --enable-dnslog --enable-layer3 --enable-eapol \
 	--enable-uamdomainfile --enable-redirdnsreq --enable-modules \
 	--enable-bonjour --enable-netbios --enable-ewtapi \
 	--enable-multiroute --with-openssl --with-poll

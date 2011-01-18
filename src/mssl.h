@@ -29,7 +29,12 @@
 #ifndef __MATRIXSSL_HELPER_H__
 #define __MATRIXSSL_HELPER_H__
 
+#ifdef HAVE_MATRIXSSL_H
 #include <matrixSsl.h>
+#endif
+#ifdef HAVE_MATRIXSSL_MATRIXSSL_H
+#include <matrixSsl/matrixSsl.h>
+#endif
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0

@@ -1149,10 +1149,9 @@ int radius_pwencode(struct radius_t *this,
  * Allocate a new radius instance.
  */
 int radius_new(struct radius_t **this,
-	       struct in_addr *listen, uint16_t port, int coanocheck,
-	       struct in_addr *proxylisten, uint16_t proxyport,
-	       struct in_addr *proxyaddr, struct in_addr *proxymask,
-	       char* proxysecret) {
+	       struct in_addr *listen, uint16_t port, 
+	       int coanocheck, 
+	       int proxy) {
   struct sockaddr_in addr;
   struct radius_t *new_radius;
 
@@ -1168,25 +1167,32 @@ int radius_new(struct radius_t **this,
   new_radius->ouraddr.s_addr = listen->s_addr;
   new_radius->ourport = port;
 
-  /* Proxy parameters */
-  if (proxylisten && proxyport && proxysecret) {
-    new_radius->proxylisten.s_addr = proxylisten->s_addr;
-    new_radius->proxyport = proxyport;
-    
-    if (proxyaddr)
-      new_radius->proxyaddr.s_addr = proxyaddr->s_addr;
-    else
-      new_radius->proxyaddr.s_addr = ~0;
-    
-    if (proxymask)
-      new_radius->proxymask.s_addr = proxymask->s_addr;
-    else
-      new_radius->proxymask.s_addr = 0;
-    
-    if ((new_radius->proxysecretlen = strlen(proxysecret)) < RADIUS_SECRETSIZE) {
-      memcpy(new_radius->proxysecret, proxysecret, new_radius->proxysecretlen);
+#ifdef ENABLE_RADPROXY
+  if (proxy) {  /* Proxy parameters */
+    if (_options.proxyport && _options.proxysecret) {
+      new_radius->proxylisten.s_addr = _options.proxylisten.s_addr;
+      new_radius->proxyport = _options.proxyport;
+      
+      if (_options.proxyaddr.s_addr || _options.proxymask.s_addr) {
+	new_radius->proxyaddr.s_addr = _options.proxyaddr.s_addr;
+	new_radius->proxymask.s_addr = _options.proxymask.s_addr;
+      } else {
+	new_radius->proxyaddr.s_addr = ~0;
+	new_radius->proxymask.s_addr = 0;
+      }
+      
+      if ((new_radius->proxysecretlen = 
+	   strlen(_options.proxysecret)) < RADIUS_SECRETSIZE) {
+	memcpy(new_radius->proxysecret, _options.proxysecret, 
+	       new_radius->proxysecretlen);
+      } else {
+	new_radius->proxysecretlen = 0;
+      }
+    } else {
+      proxy = 0;
     }
   }
+#endif
 
   /* Initialise queue */
   new_radius->queue = 0;
@@ -1220,8 +1226,9 @@ int radius_new(struct radius_t **this,
     return -1;
   }
 
-  /* Initialise proxy socket */
-  if (proxylisten && proxyport && proxysecret) {
+#ifdef ENABLE_RADPROXY
+  if (proxy) {     /* Initialise proxy socket */
+
     if ((new_radius->proxyfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
       log_err(errno, "socket() failed for proxyfd!");
       fclose(new_radius->urandom_fp);
@@ -1247,6 +1254,7 @@ int radius_new(struct radius_t **this,
   else {
     new_radius->proxyfd = -1; /* Indicate that proxy is not used */
   }
+#endif
 
   *this = new_radius;
   return 0;
@@ -1431,7 +1439,7 @@ int radius_req(struct radius_t *this,
   return 0;
 }
 
-
+#ifdef ENABLE_RADPROXY
 /* 
  * radius_resp()
  * Send of a packet (no retransmit queue)
@@ -1464,6 +1472,7 @@ int radius_resp(struct radius_t *this,
   
   return 0;
 }
+#endif
 
 /* 
  * radius_coaresp()
@@ -1748,6 +1757,7 @@ int radius_decaps(struct radius_t *this, int idx) {
   return -1;
 }
 
+#ifdef ENABLE_RADPROXY
 /* 
  * radius_proxy_ind()
  * Read and process a received radius packet.
@@ -1804,3 +1814,4 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
   return -1;
 }
 
+#endif

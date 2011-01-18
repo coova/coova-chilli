@@ -40,7 +40,8 @@
 #include <string.h>
 #include <errno.h>
 
-#include "matrixssl.h"
+#include "chilli.h"
+#include "ssl.h"
 
 #define SSL_SOCKET_EOF  0x0001
 #define SSL_SOCKET_CLOSE_NOTIFY  0x0002

@@ -192,7 +192,7 @@ static int redir_conn_finish(struct conn_t *conn, void *ctx) {
 #ifdef ENABLE_REDIRINJECT
     if (req->html && !req->chunked) {
       int w = safe_write(req->socket_fd, inject, strlen(inject));
-      log_dbg("--->>> write %d", w);
+      log_dbg("injected %d bytes", w);
     }
 #endif
     
@@ -212,7 +212,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 
   int r = safe_read(conn->sock, b, sizeof(b)-1);
 
-#if(_debug_)
+#if(_debug_ > 1)
   log_dbg("conn_read: %d", r);
 #endif
 
@@ -299,7 +299,9 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	  safe_snprintf(tmp, sizeof(tmp), "%x\r\n", strlen(inject));
 	  safe_write(req->socket_fd, tmp, strlen(tmp));
 	  w = safe_write(req->socket_fd, inject, strlen(inject));
+#if(_debug_ > 1)
 	  log_dbg("--->>> chunked write %d", w);
+#endif
 	  safe_write(req->socket_fd, "\r\n", 2);
 	}
 
@@ -315,7 +317,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 
       int w = safe_write(req->socket_fd, b, r);
 
-#if(_debug_)      
+#if(_debug_ > 1)      
       log_dbg("write: %d", w);
       /*log_dbg("write: [%s]", b);*/
 #endif

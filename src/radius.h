@@ -205,6 +205,7 @@ struct radius_t {
   struct in_addr hisaddr1;       /* Server address */
   char secret[RADIUS_SECRETSIZE];/* Shared secret */
   size_t secretlen;                 /* Length of sharet secret */
+#ifdef ENABLE_RADPROXY
   int proxyfd;                   /* Proxy socket file descriptor */
   struct in_addr proxylisten;    /* Proxy address to listen to */
   uint16_t proxyport;            /* Proxy port to listen to */
@@ -212,6 +213,7 @@ struct radius_t {
   struct in_addr proxymask;      /* Proxy client mask */
   char proxysecret[RADIUS_SECRETSIZE]; /* Proxy secret */
   size_t proxysecretlen;            /* Length of sharet secret */
+#endif
   unsigned char nas_hwaddr[6];   /* Hardware address of NAS */
 
   int debug;                     /* Print debug messages */
@@ -236,10 +238,8 @@ struct radius_t {
 
 /* Create new radius instance */
 int radius_new(struct radius_t **this, 
-	       struct in_addr *listen, uint16_t port, int coanocheck,
-	       struct in_addr *proxylisten, uint16_t proxyport,
-	       struct in_addr *proxyaddr, struct in_addr *proxymask,
-	       char* proxysecret);
+	       struct in_addr *listen, uint16_t port, 
+	       int coanocheck, int proxy);
 
 int radius_printqueue(int fd, struct radius_t *this);
 
