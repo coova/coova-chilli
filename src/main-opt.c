@@ -583,6 +583,7 @@ int main(int argc, char **argv) {
   _options.uamnatanyip = args_info.uamnatanyip_flag;
   _options.dnsparanoia = args_info.dnsparanoia_flag;
   _options.radiusoriginalurl = args_info.radiusoriginalurl_flag;
+  _options.routeonetone = args_info.routeonetone_flag;
 
   /* pass-throughs */
   memset(_options.pass_throughs, 0, sizeof(_options.pass_throughs));

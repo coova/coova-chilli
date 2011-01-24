@@ -2358,6 +2358,7 @@ int cb_redir_getstate(struct redir_t *redir,
 #endif
 
   if (ippool_getip(ippool, &ipm, addr)) {
+    log_dbg("did not find %s", inet_ntoa(*addr));
     return -1;
   }
   
@@ -2387,6 +2388,9 @@ int cb_redir_getstate(struct redir_t *redir,
       if (dhcpconn->dnat[n].src_port == address->sin_port) {
 	if (dhcpconn->dnat[n].dst_port == htons(DHCP_HTTPS) ||
 	    (_options.uamuissl && dhcpconn->dnat[n].dst_port == htons(_options.uamuiport))) {
+#if(_debug_)
+	  log_dbg("redir connection is SSL");
+#endif
 	  flags |= USING_SSL;
 	}
 	break;
@@ -2398,6 +2402,9 @@ int cb_redir_getstate(struct redir_t *redir,
      */
     if (n == DHCP_DNAT_MAX && _options.uamuissl && 
 	ntohs(baddress->sin_port) == _options.uamuiport) {
+#if(_debug_)
+      log_dbg("redir connection is SSL");
+#endif
       flags |= USING_SSL;
     }
   }
@@ -5186,12 +5193,13 @@ int static redir_msg(struct redir_t *this) {
       if (msg.mtype == REDIR_MSG_STATUS_TYPE) {
 	struct redir_conn_t conn;
 	memset(&conn, 0, sizeof(conn));
-	cb_redir_getstate(redir, 
-			  &msg.mdata.address, 
-			  &msg.mdata.baddress, 
-			  &conn);
-	if (safe_write(socket, &conn, sizeof(conn)) < 0) {
-	  log_err(errno, "redir_msg");
+	if (cb_redir_getstate(redir, 
+			      &msg.mdata.address, 
+			      &msg.mdata.baddress, 
+			      &conn) != -1) {
+	  if (safe_write(socket, &conn, sizeof(conn)) < 0) {
+	    log_err(errno, "redir_msg");
+	  }
 	}
       } else {
 	uam_msg(&msg);

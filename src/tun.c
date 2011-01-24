@@ -832,12 +832,10 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
 #endif
 
 #ifdef ENABLE_MULTIROUTE
-#if(1) /* XXX  ONE2ONE */
-    {
+    if (_options.routeonetone) {
       iph->daddr = tun(c->this, c->idx).nataddress.s_addr;
       chksum(iph);
     }
-#endif
 #endif
 
     if ((iph->daddr & _options.mask.s_addr) != _options.net.s_addr) {
@@ -993,15 +991,13 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     }
   }
 
-#if(1) /* XXX ONE2ONE */
-  if (idx > 0) {
+  if (_options.routeonetone && idx > 0) {
     struct pkt_iphdr_t *iph = iphdr(pack);
     if (!tun(tun, idx).nataddress.s_addr)
       tun(tun, idx).nataddress.s_addr = iph->saddr;
     iph->saddr = tun(tun, idx).address.s_addr;
     chksum(iph);
   }
-#endif
 #endif
 
 #ifdef ENABLE_NETNAT

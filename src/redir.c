@@ -3138,6 +3138,9 @@ int redir_main(struct redir_t *redir,
     /* if (!forked) return 0; XXXX*/
 #ifdef HAVE_SSL
     if (socket.sslcon) {
+#if(_debug_)
+      log_dbg("Shutting down SSL");
+#endif
       openssl_shutdown(socket.sslcon, 2);
       openssl_free(socket.sslcon);
       socket.sslcon = 0;
@@ -3229,12 +3232,29 @@ int redir_main(struct redir_t *redir,
   state = redir->cb_getstate(redir, address, baddress, &conn);
   
   if (state == -1) {
+#if(_debug_)
+    log_dbg("getstate() session not found");
+#endif
     
-    redir_reply(redir, &socket, &conn, REDIR_REQERROR, NULL, 
-		0, hexchal, NULL, NULL, NULL, 
-		0, conn.hismac, &conn.hisip, httpreq.qs);
-    
-    return redir_main_exit();
+#ifdef ENABLE_EWTAPI
+    if (_options.uamuissl && isui) {
+      /* 
+       *  Allow external (WAN) access to EWT API if available,
+       *  always under SSL.
+       */
+#if(_debug_)
+      log_dbg("redir connection is SSL");
+#endif
+      conn.flags |= USING_SSL;
+    } else 
+#endif
+    {
+      redir_reply(redir, &socket, &conn, REDIR_REQERROR, NULL, 
+		  0, hexchal, NULL, NULL, NULL, 
+		  0, conn.hismac, &conn.hisip, httpreq.qs);
+      
+      return redir_main_exit();
+    }
   }
 
   splash = (conn.s_params.flags & REQUIRE_UAM_SPLASH) == REQUIRE_UAM_SPLASH;
@@ -3263,15 +3283,23 @@ int redir_main(struct redir_t *redir,
       socket.sslcon = rreq->sslcon;
     }
 
+#if(_debug_)
+    log_dbg("SSL loop %d", loop);
+#endif
+
     while (!done) {
       switch(openssl_check_accept(socket.sslcon, &conn)) {
       case -1:
+#if(_debug_)
+	log_dbg("redir error, redir_main_exit");
+#endif
 	return redir_main_exit();
       case 1:
 	if (!loop) {
 	  log_dbg("Continue... SSL pending");
 	  return 1;
 	}
+	break;
       case 0: done = 1;
       default: break;
       }
@@ -3328,7 +3356,12 @@ int redir_main(struct redir_t *redir,
 	
 	/* check filename */
 #ifdef ENABLE_EWTAPI
-	if (!isEWT)
+	if (isEWT) {
+	  if (!(conn.s_params.flags & ADMIN_LOGIN)) {
+	    log_warn(0, "Permission denied to EWT API");
+	    return redir_main_exit();
+	  }
+	} else 
 #endif
 	{ 
 	  char *p;

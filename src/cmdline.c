@@ -177,7 +177,7 @@ const char *gengetopt_args_info_help[] = {
   "      --dnsparanoia             Inspect DNS packets and drop responses with any \n                                  non- A, CNAME, SOA, or MX records (to prevent \n                                  dns tunnels)  (default=off)",
   "      --seskeepalive            Keep sessions 'alive' after a restart of the \n                                  server  (default=off)",
   "      --usetap                  Use a TAP instead of TUN (linux only)  \n                                  (default=off)",
-  "      --routeif=STRING          Interface to use as default route; turns on \n                                  'manual' routing",
+  "      --routeif=STRING          Turns on 'multi-routing' and defines default \n                                  route",
   "      --framedservice           Use Service-Type = Framed instead of Login  \n                                  (default=off)",
   "      --tcpwin=INT              Change TCP window size to this value to help \n                                  prevent congestion  (default=`0')",
   "      --tcpmss=INT              Change TCP maximum window size (mss) option in \n                                  TCP traffic  (default=`0')",
@@ -185,6 +185,7 @@ const char *gengetopt_args_info_help[] = {
   "      --challengetimeout=INT    Timeout in seconds for the generated challenge  \n                                  (default=`600')",
   "      --challengetimeout2=INT   Timeout in seconds for challenge during login  \n                                  (default=`1200')",
   "      --redir                   Enable redir (redirection) daemon  \n                                  (default=off)",
+  "      --routeonetone            When using routeif, do one-to-one NAT  \n                                  (default=off)",
   "      --sslkeyfile=STRING       SSL private key file in PEM format",
   "      --sslkeypass=STRING       SSL private key password",
   "      --sslcertfile=STRING      SSL certificate file in PEM format",
@@ -408,6 +409,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->challengetimeout_given = 0 ;
   args_info->challengetimeout2_given = 0 ;
   args_info->redir_given = 0 ;
+  args_info->routeonetone_given = 0 ;
   args_info->sslkeyfile_given = 0 ;
   args_info->sslkeypass_given = 0 ;
   args_info->sslcertfile_given = 0 ;
@@ -694,6 +696,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->challengetimeout2_arg = 1200;
   args_info->challengetimeout2_orig = NULL;
   args_info->redir_flag = 0;
+  args_info->routeonetone_flag = 0;
   args_info->sslkeyfile_arg = NULL;
   args_info->sslkeyfile_orig = NULL;
   args_info->sslkeypass_arg = NULL;
@@ -896,24 +899,25 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->challengetimeout_help = gengetopt_args_info_help[150] ;
   args_info->challengetimeout2_help = gengetopt_args_info_help[151] ;
   args_info->redir_help = gengetopt_args_info_help[152] ;
-  args_info->sslkeyfile_help = gengetopt_args_info_help[153] ;
-  args_info->sslkeypass_help = gengetopt_args_info_help[154] ;
-  args_info->sslcertfile_help = gengetopt_args_info_help[155] ;
-  args_info->sslcafile_help = gengetopt_args_info_help[156] ;
-  args_info->unixipc_help = gengetopt_args_info_help[157] ;
-  args_info->uamallowpost_help = gengetopt_args_info_help[158] ;
-  args_info->natip_help = gengetopt_args_info_help[159] ;
-  args_info->natport_help = gengetopt_args_info_help[160] ;
-  args_info->redirssl_help = gengetopt_args_info_help[161] ;
-  args_info->uamuissl_help = gengetopt_args_info_help[162] ;
-  args_info->dnslog_help = gengetopt_args_info_help[163] ;
-  args_info->ipwhitelist_help = gengetopt_args_info_help[164] ;
-  args_info->uamdomainfile_help = gengetopt_args_info_help[165] ;
-  args_info->layer3_help = gengetopt_args_info_help[166] ;
-  args_info->redirdnsreq_help = gengetopt_args_info_help[167] ;
-  args_info->kname_help = gengetopt_args_info_help[168] ;
-  args_info->moddir_help = gengetopt_args_info_help[169] ;
-  args_info->module_help = gengetopt_args_info_help[170] ;
+  args_info->routeonetone_help = gengetopt_args_info_help[153] ;
+  args_info->sslkeyfile_help = gengetopt_args_info_help[154] ;
+  args_info->sslkeypass_help = gengetopt_args_info_help[155] ;
+  args_info->sslcertfile_help = gengetopt_args_info_help[156] ;
+  args_info->sslcafile_help = gengetopt_args_info_help[157] ;
+  args_info->unixipc_help = gengetopt_args_info_help[158] ;
+  args_info->uamallowpost_help = gengetopt_args_info_help[159] ;
+  args_info->natip_help = gengetopt_args_info_help[160] ;
+  args_info->natport_help = gengetopt_args_info_help[161] ;
+  args_info->redirssl_help = gengetopt_args_info_help[162] ;
+  args_info->uamuissl_help = gengetopt_args_info_help[163] ;
+  args_info->dnslog_help = gengetopt_args_info_help[164] ;
+  args_info->ipwhitelist_help = gengetopt_args_info_help[165] ;
+  args_info->uamdomainfile_help = gengetopt_args_info_help[166] ;
+  args_info->layer3_help = gengetopt_args_info_help[167] ;
+  args_info->redirdnsreq_help = gengetopt_args_info_help[168] ;
+  args_info->kname_help = gengetopt_args_info_help[169] ;
+  args_info->moddir_help = gengetopt_args_info_help[170] ;
+  args_info->module_help = gengetopt_args_info_help[171] ;
   args_info->module_min = 0;
   args_info->module_max = 0;
   
@@ -1581,6 +1585,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "challengetimeout2", args_info->challengetimeout2_orig, 0);
   if (args_info->redir_given)
     write_into_file(outfile, "redir", 0, 0 );
+  if (args_info->routeonetone_given)
+    write_into_file(outfile, "routeonetone", 0, 0 );
   if (args_info->sslkeyfile_given)
     write_into_file(outfile, "sslkeyfile", args_info->sslkeyfile_orig, 0);
   if (args_info->sslkeypass_given)
@@ -2348,6 +2354,7 @@ cmdline_parser_internal (
         { "challengetimeout",	1, NULL, 0 },
         { "challengetimeout2",	1, NULL, 0 },
         { "redir",	0, NULL, 0 },
+        { "routeonetone",	0, NULL, 0 },
         { "sslkeyfile",	1, NULL, 0 },
         { "sslkeypass",	1, NULL, 0 },
         { "sslcertfile",	1, NULL, 0 },
@@ -4304,7 +4311,7 @@ cmdline_parser_internal (
               goto failure;
           
           }
-          /* Interface to use as default route; turns on 'manual' routing.  */
+          /* Turns on 'multi-routing' and defines default route.  */
           else if (strcmp (long_options[option_index].name, "routeif") == 0)
           {
           
@@ -4408,6 +4415,18 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->redir_flag), 0, &(args_info->redir_given),
                 &(local_args_info.redir_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "redir", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* When using routeif, do one-to-one NAT.  */
+          else if (strcmp (long_options[option_index].name, "routeonetone") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->routeonetone_flag), 0, &(args_info->routeonetone_given),
+                &(local_args_info.routeonetone_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "routeonetone", '-',
                 additional_error))
               goto failure;
           

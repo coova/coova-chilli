@@ -169,7 +169,7 @@ sock_redir_getstate(struct redir_t *redir,
   }
 
   if (safe_read(s, conn, sizeof(*conn)) != sizeof(*conn)) {
-    log_err(errno, "could not read from %s", remote.sun_path);
+    log_warn(0, "no session available from %s", remote.sun_path);
     close(s);
     return -1;
   }
@@ -512,6 +512,11 @@ int redir_accept2(struct redir_t *redir, int idx) {
     
     return 0;
   }
+
+#if(_debug_)
+  log_dbg("new redir socket %d from %s", new_socket, 
+	  inet_ntoa(address.sin_addr));
+#endif
   
   addrlen = sizeof(struct sockaddr_in);
 

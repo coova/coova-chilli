@@ -376,10 +376,12 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
 
   char *user = 0;
   char *pwd = 0;
+#ifdef HAVE_OPENSSL
   char *ca = 0;
   char *cert = 0;
   char *key = 0;
   char *keypwd = 0;
+#endif
 
   req->radius = radius;
 

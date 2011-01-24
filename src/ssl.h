@@ -27,7 +27,8 @@
 
 typedef struct {
 
-  sslKeys_t* keys;
+  sslKeys_t * keys;
+
   char ready;
 
 } openssl_env;

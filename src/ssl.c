@@ -20,19 +20,24 @@
 #include "chilli.h"
 #include "debug.h"
 
+static int openssl_init = 0;
 static openssl_env * sslenv_svr = 0;
 static openssl_env * sslenv_cli = 0;
 
 openssl_env * initssl() {
   if (sslenv_svr == 0) {
+    if (openssl_init == 0) {
+      openssl_init = 1;
 #ifdef HAVE_OPENSSL
-    SSL_library_init();
-    if (_options.debug) SSL_load_error_strings();
-    SSLeay_add_all_algorithms();
-    SSLeay_add_ssl_algorithms();
+      SSL_library_init();
+      if (_options.debug) SSL_load_error_strings();
+      SSLeay_add_all_algorithms();
+      SSLeay_add_ssl_algorithms();
 #else
-    matrixSslOpen();
+      matrixSslOpen();
+      log_dbg("MatrixSslOpen()");
 #endif
+    }
     openssl_env_init(sslenv_svr = calloc(1, sizeof(openssl_env)), 0, 1);
   }
   return sslenv_svr;
@@ -40,14 +45,18 @@ openssl_env * initssl() {
 
 openssl_env * initssl_cli() {
   if (sslenv_cli == 0) {
+    if (openssl_init == 0) {
+      openssl_init = 1;
 #ifdef HAVE_OPENSSL
-    SSL_library_init();
-    if (_options.debug) SSL_load_error_strings();
-    SSLeay_add_all_algorithms();
-    SSLeay_add_ssl_algorithms();
+      SSL_library_init();
+      if (_options.debug) SSL_load_error_strings();
+      SSLeay_add_all_algorithms();
+      SSLeay_add_ssl_algorithms();
 #else
-    matrixSslOpen();
+      matrixSslOpen();
+      log_dbg("MatrixSslOpen()");
 #endif
+    }
     openssl_env_init(sslenv_cli = calloc(1, sizeof(openssl_env)), 0, 0);
   }
   return sslenv_cli;
@@ -255,6 +264,7 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
     return err;
   }
 #else
+  log_dbg("MatrixSSL Setup:");
   log_dbg("SSL cert: %s",_options.sslcertfile);
   log_dbg("SSL key: %s",_options.sslkeyfile);
   log_dbg("SSL pass: %s",_options.sslkeypass?_options.sslkeypass:"null");
@@ -275,6 +285,7 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
 
 #ifdef HAVE_MATRIXSSL
 static int certValidator(sslCertInfo_t *t, void *arg) {
+  log_dbg("MatrixSSL: certValidator()");
   return 1;
 }
 #endif
@@ -324,6 +335,7 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
 
 int
 openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
+
 #ifdef HAVE_OPENSSL  
   X509 *peer_cert;
   int rc;
@@ -394,6 +406,19 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
     }
   }
 #elif  HAVE_MATRIXSSL
+
+  if (!c || !c->con) return -1;
+
+  if (!SSL_is_init_finished(c->con)) {
+
+    if (SSL_accept2(c->con) < 0) {
+      return -1;
+    }
+
+    if (!SSL_is_init_finished(c->con))
+      return 1;
+  }
+
 #endif
 
   return 0;
@@ -401,7 +426,7 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 
 openssl_con *
 openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *conn) {
-  openssl_con *c = (openssl_con *)calloc(1, sizeof(*c));
+  openssl_con *c = (openssl_con *)calloc(1, sizeof(openssl_con));
   int rc;
 
   if (!c) return 0;
@@ -435,15 +460,20 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
     openssl_free(c);
     return 0;
   }
+
 #elif  HAVE_MATRIXSSL
   
   /* ndelay_off(c->sock); */
 
-  if ((rc = SSL_accept(c->con)) <= 0) {
-    log_err(errno, "SSL accept failure");
+  matrixSslSetCertValidator(c->con->ssl, certValidator, c->con->keys);
+
+  if ((rc = SSL_accept2(c->con)) < 0) {
+    log_err(c->con->status, "SSL accept failure");
     openssl_free(c);
     return 0;
   }
+
+  SSL_is_init_finished(c->con);
 
   /* ndelay_on(c->sock);*/
 
@@ -613,6 +643,9 @@ openssl_free(openssl_con *con) {
 
 void
 openssl_env_free(openssl_env *env) {
+#if(_debug_)
+  log_dbg("Freeing SSL environemnt");
+#endif
 #ifdef HAVE_OPENSSL
   if (env->ctx) SSL_CTX_free(env->ctx);
   if (env->engine) ENGINE_free(env->engine);

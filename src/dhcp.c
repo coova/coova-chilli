@@ -3479,6 +3479,9 @@ int dhcp_pppoed(uint8_t *packet, size_t length) {
 #endif
 
 #ifdef ENABLE_CLUSTER
+#ifndef HAVE_OPENSSL
+#error Clustiner requires OpenSSL support currently
+#endif
 static 
 void update_peer(struct pkt_chillihdr_t *chillihdr) {
   struct chilli_peer *p = get_chilli_peer(chillihdr->from);
@@ -3493,6 +3496,7 @@ void update_peer(struct pkt_chillihdr_t *chillihdr) {
 
 static 
 int dhcp_chillipkt(uint8_t *packet, size_t length) {
+#ifdef HAVE_OPENSSL
   EVP_CIPHER_CTX ctx;
   
   unsigned char iv[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
@@ -3583,6 +3587,7 @@ int dhcp_chillipkt(uint8_t *packet, size_t length) {
 
   EVP_CIPHER_CTX_cleanup(&ctx);
 
+#endif
   return 0;
 }
 

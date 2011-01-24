@@ -444,9 +444,9 @@ struct gengetopt_args_info
   const char *seskeepalive_help; /**< @brief Keep sessions 'alive' after a restart of the server help description.  */
   int usetap_flag;	/**< @brief Use a TAP instead of TUN (linux only) (default=off).  */
   const char *usetap_help; /**< @brief Use a TAP instead of TUN (linux only) help description.  */
-  char * routeif_arg;	/**< @brief Interface to use as default route; turns on 'manual' routing.  */
-  char * routeif_orig;	/**< @brief Interface to use as default route; turns on 'manual' routing original value given at command line.  */
-  const char *routeif_help; /**< @brief Interface to use as default route; turns on 'manual' routing help description.  */
+  char * routeif_arg;	/**< @brief Turns on 'multi-routing' and defines default route.  */
+  char * routeif_orig;	/**< @brief Turns on 'multi-routing' and defines default route original value given at command line.  */
+  const char *routeif_help; /**< @brief Turns on 'multi-routing' and defines default route help description.  */
   int framedservice_flag;	/**< @brief Use Service-Type = Framed instead of Login (default=off).  */
   const char *framedservice_help; /**< @brief Use Service-Type = Framed instead of Login help description.  */
   int tcpwin_arg;	/**< @brief Change TCP window size to this value to help prevent congestion (default='0').  */
@@ -466,6 +466,8 @@ struct gengetopt_args_info
   const char *challengetimeout2_help; /**< @brief Timeout in seconds for challenge during login help description.  */
   int redir_flag;	/**< @brief Enable redir (redirection) daemon (default=off).  */
   const char *redir_help; /**< @brief Enable redir (redirection) daemon help description.  */
+  int routeonetone_flag;	/**< @brief When using routeif, do one-to-one NAT (default=off).  */
+  const char *routeonetone_help; /**< @brief When using routeif, do one-to-one NAT help description.  */
   char * sslkeyfile_arg;	/**< @brief SSL private key file in PEM format.  */
   char * sslkeyfile_orig;	/**< @brief SSL private key file in PEM format original value given at command line.  */
   const char *sslkeyfile_help; /**< @brief SSL private key file in PEM format help description.  */
@@ -671,6 +673,7 @@ struct gengetopt_args_info
   unsigned int challengetimeout_given ;	/**< @brief Whether challengetimeout was given.  */
   unsigned int challengetimeout2_given ;	/**< @brief Whether challengetimeout2 was given.  */
   unsigned int redir_given ;	/**< @brief Whether redir was given.  */
+  unsigned int routeonetone_given ;	/**< @brief Whether routeonetone was given.  */
   unsigned int sslkeyfile_given ;	/**< @brief Whether sslkeyfile was given.  */
   unsigned int sslkeypass_given ;	/**< @brief Whether sslkeypass was given.  */
   unsigned int sslcertfile_given ;	/**< @brief Whether sslcertfile was given.  */
