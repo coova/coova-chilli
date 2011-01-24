@@ -200,21 +200,20 @@ int main(int argc, char **argv) {
 
   if (radius_new(&server.radius_auth, &radiuslisten, 
 		 _options.radiusauthport ? _options.radiusauthport : RADIUS_AUTHPORT, 
-		 0, NULL, 0, NULL, NULL, NULL)) {
+		 0, 0)) {
     log_err(0, "Failed to create radius");
     return -1;
   }
 
   if (radius_new(&server.radius_acct, &radiuslisten, 
 		 _options.radiusacctport ? _options.radiusacctport : RADIUS_ACCTPORT, 
-		 0, NULL, 0, NULL, NULL, NULL)) {
+		 0, 0)) {
     log_err(0, "Failed to create radius");
     return -1;
   }
 
   if (_options.coaport) {
-    if (radius_new(&server.radius_cli, &radiuslisten, 0, 0,
-		   NULL, 0, NULL, NULL, NULL) ||
+    if (radius_new(&server.radius_cli, &radiuslisten, 0, 0, 0) ||
 	radius_init_q(server.radius_cli, 8)) {
       log_err(0, "Failed to create radius");
       return -1;
