@@ -204,6 +204,7 @@ const char *gengetopt_args_info_help[] = {
   "      --kname=STRING            Enable the use of the coova kernel module \n                                  instance of this namem",
   "      --moddir=STRING           Directory for dynamically loaded modules",
   "      --module=STRING           Dynamically loaded module",
+  "      --dhcpopt=STRING          Set a DHCP option using a hex string",
     0
 };
 
@@ -428,6 +429,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->kname_given = 0 ;
   args_info->moddir_given = 0 ;
   args_info->module_given = 0 ;
+  args_info->dhcpopt_given = 0 ;
 }
 
 static
@@ -728,6 +730,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->moddir_orig = NULL;
   args_info->module_arg = NULL;
   args_info->module_orig = NULL;
+  args_info->dhcpopt_arg = NULL;
+  args_info->dhcpopt_orig = NULL;
   
 }
 
@@ -920,6 +924,9 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->module_help = gengetopt_args_info_help[171] ;
   args_info->module_min = 0;
   args_info->module_max = 0;
+  args_info->dhcpopt_help = gengetopt_args_info_help[172] ;
+  args_info->dhcpopt_min = 0;
+  args_info->dhcpopt_max = 0;
   
 }
 
@@ -1246,6 +1253,7 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->moddir_arg));
   free_string_field (&(args_info->moddir_orig));
   free_multiple_string_field (args_info->module_given, &(args_info->module_arg), &(args_info->module_orig));
+  free_multiple_string_field (args_info->dhcpopt_given, &(args_info->dhcpopt_arg), &(args_info->dhcpopt_orig));
   
   
 
@@ -1622,6 +1630,7 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
   if (args_info->moddir_given)
     write_into_file(outfile, "moddir", args_info->moddir_orig, 0);
   write_multiple_into_file(outfile, args_info->module_given, "module", args_info->module_orig, 0);
+  write_multiple_into_file(outfile, args_info->dhcpopt_given, "dhcpopt", args_info->dhcpopt_orig, 0);
   
 
   i = EXIT_SUCCESS;
@@ -1889,6 +1898,9 @@ cmdline_parser_required2 (struct gengetopt_args_info *args_info, const char *pro
      error = 1;
   
   if (check_multiple_option_occurrences(prog_name, args_info->module_given, args_info->module_min, args_info->module_max, "'--module'"))
+     error = 1;
+  
+  if (check_multiple_option_occurrences(prog_name, args_info->dhcpopt_given, args_info->dhcpopt_min, args_info->dhcpopt_max, "'--dhcpopt'"))
      error = 1;
   
   
@@ -2171,6 +2183,7 @@ cmdline_parser_internal (
   struct generic_list * uamregex_list = NULL;
   struct generic_list * macallowed_list = NULL;
   struct generic_list * module_list = NULL;
+  struct generic_list * dhcpopt_list = NULL;
   int error = 0;
   struct gengetopt_args_info local_args_info;
   
@@ -2373,6 +2386,7 @@ cmdline_parser_internal (
         { "kname",	1, NULL, 0 },
         { "moddir",	1, NULL, 0 },
         { "module",	1, NULL, 0 },
+        { "dhcpopt",	1, NULL, 0 },
         { 0,  0, 0, 0 }
       };
 
@@ -4670,6 +4684,17 @@ cmdline_parser_internal (
               goto failure;
           
           }
+          /* Set a DHCP option using a hex string.  */
+          else if (strcmp (long_options[option_index].name, "dhcpopt") == 0)
+          {
+          
+            if (update_multiple_arg_temp(&dhcpopt_list, 
+                &(local_args_info.dhcpopt_given), optarg, 0, 0, ARG_STRING,
+                "dhcpopt", '-',
+                additional_error))
+              goto failure;
+          
+          }
           
           break;
         case '?':	/* Invalid option.  */
@@ -4707,6 +4732,10 @@ cmdline_parser_internal (
     &(args_info->module_orig), args_info->module_given,
     local_args_info.module_given, 0,
     ARG_STRING, module_list);
+  update_multiple_arg((void *)&(args_info->dhcpopt_arg),
+    &(args_info->dhcpopt_orig), args_info->dhcpopt_given,
+    local_args_info.dhcpopt_given, 0,
+    ARG_STRING, dhcpopt_list);
 
   args_info->proxylocattr_given += local_args_info.proxylocattr_given;
   local_args_info.proxylocattr_given = 0;
@@ -4720,6 +4749,8 @@ cmdline_parser_internal (
   local_args_info.macallowed_given = 0;
   args_info->module_given += local_args_info.module_given;
   local_args_info.module_given = 0;
+  args_info->dhcpopt_given += local_args_info.dhcpopt_given;
+  local_args_info.dhcpopt_given = 0;
   
   if (check_required)
     {
@@ -4740,6 +4771,7 @@ failure:
   free_list (uamregex_list, 1 );
   free_list (macallowed_list, 1 );
   free_list (module_list, 1 );
+  free_list (dhcpopt_list, 1 );
   
   cmdline_parser_release (&local_args_info);
   return (EXIT_FAILURE);

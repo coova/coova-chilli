@@ -2273,8 +2273,43 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
   pack_dhcp->options[pos++] = type;
 
 #ifdef ENABLE_DHCPRADIUS
-  memcpy(&pack_dhcp->options[pos], conn->dhcp_opts.options, DHCP_OPTIONS_LEN-pos);
-  pos += conn->dhcp_opts.option_length;
+  if (pos + conn->dhcp_opts.option_length < DHCP_OPTIONS_LEN) {
+    memcpy(&pack_dhcp->options[pos], conn->dhcp_opts.options, 
+	   conn->dhcp_opts.option_length);
+    pos += conn->dhcp_opts.option_length;
+  }
+#endif
+
+#ifdef ENABLE_DHCPOPT
+  if (_options.dhcp_options[0]) {
+    struct dhcp_tag_t *param_list = 0;
+    if (!dhcp_gettag(req_dhcp, ntohs(pack_udph->len) - PKT_UDP_HLEN, 
+		     &param_list, DHCP_OPTION_PARAMETER_REQUEST_LIST)) {
+      uint8_t *lhead = _options.dhcp_options;
+      struct dhcp_tag_t *opt = (struct dhcp_tag_t *)lhead;
+      while (opt && opt->t && opt->l) {
+	int param_count = param_list->l;
+	int i;
+
+	log_dbg("DHCP Type: %d Length: %d", (int)opt->t, (int)opt->l);
+
+	/* for each configured option, iterate the param_list */
+	for (i=0; i < param_count; i++) {
+	  if (param_list->v[i] == opt->t) {
+	    if (pos + opt->l + 2 < DHCP_OPTIONS_LEN) {
+	      memcpy(&pack_dhcp->options[pos], opt,
+		     opt->l + 2);
+	      pos += opt->l + 2;
+	    }
+	    break;
+	  }
+	}
+
+	lhead += opt->l + 2;
+	opt = (struct dhcp_tag_t *)lhead;
+      }
+    }
+  }
 #endif
 
   return pos;

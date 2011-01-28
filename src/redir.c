@@ -73,7 +73,7 @@ static int redir_challenge(unsigned char *dst) {
   return 0;
 }
 
-static int redir_hextochar(unsigned char *src, int slen, unsigned char * dst, int len) {
+int redir_hextochar(unsigned char *src, int slen, unsigned char * dst, int len) {
   char x[3];
   int n;
   int i;

@@ -104,6 +104,13 @@ if test x"$enable_dhcpradius" = xyes; then
    AC_DEFINE(ENABLE_DHCPRADIUS,1,[Define to enable DHCP/RADIUS integration])
 fi
 
+AC_ARG_ENABLE(dhcpopt, [AC_HELP_STRING([--enable-dhcpopt],[Enable support for DHCP option setting])], 
+  enable_dhcpopt=$enableval, enable_dhcpopt=no)
+
+if test x"$enable_dhcpopt" = xyes; then
+   AC_DEFINE(ENABLE_DHCPOPT,1,[Define to enable DHCP option setting])
+fi
+
 
 AC_ARG_ENABLE(debug2, [AC_HELP_STRING([--enable-debug2],[Enable verbose debugging])], 
   enable_debug2=$enableval, enable_debug2=no)

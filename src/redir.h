@@ -299,6 +299,7 @@ int redir_json_fmt_session(struct redir_conn_t *conn, bstring json, int init);
 
 int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst);
 
+int redir_hextochar(unsigned char *src, int slen, unsigned char * dst, int len);
 int redir_chartohex(unsigned char *src, char *dst, size_t len);
 
 int redir_urlencode(bstring src, bstring dst);

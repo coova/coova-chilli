@@ -14,6 +14,7 @@
 * Support for ''chilli_query'' can be removed at build-time with ''--disable-chilliquery''
 * Added runtime option ''--noradallow'' to authorize sessions when RADIUS is not available
 * Disabled session-based walled garden support per default, enable with ''--enable-sessgarden'' 
+* Build time option ''--enable-dhcpopt'' to use the command line option ''--dhcpopt <hex-encoded-binary-dhcp-option>''
 * Fixed bug with json startTime value when system has librt
 
 == ChangeLog (CoovaChilli-v1.2.5 svn revision 394) ==

@@ -10,18 +10,20 @@ case $1 in
 	
         echo "Starting CoovaChilli"
 
-	for mod in tun ip_tables iptable_filter ip_conntrack iptable_nat ipt_MASQUERADE; do
+	for mod in tun ip_tables iptable_filter ip_nat ip_conntrack iptable_nat ipt_MASQUERADE; do
 	    insmod $mod 2>/dev/null
 	done
 
         echo 1 > /proc/sys/net/ipv4/ip_forward
 
-	for dev in br0 eth0; do
+	ath0add=
+	for dev in br0 eth0 eth1; do
 	    ifconfig $dev >/dev/null 2>/dev/null && {
-		brctl delif $dev ath0 2>/dev/null
+		brctl delif $dev ath0 2>/dev/null && ath0add=1
 		iptables -t nat -I POSTROUTING -o $dev -j MASQUERADE 
 	    }
 	done
+	[ "$ath0add" = "1" ] && brctl addif br-chilli ath0
 	
 	[ -e /dev/net/tun ] || {
 	    (cd /dev; 

@@ -223,3 +223,5 @@ option "redirdnsreq" - "Send DNS query on redirect to pick of DNS based walled g
 option "kname" - "Enable the use of the coova kernel module instance of this namem" string no
 option "moddir"   - "Directory for dynamically loaded modules" string no 
 option "module"   - "Dynamically loaded module" string no multiple
+
+option "dhcpopt" - "Set a DHCP option using a hex string" string no multiple

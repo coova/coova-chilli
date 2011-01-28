@@ -519,6 +519,11 @@ struct gengetopt_args_info
   unsigned int module_min; /**< @brief Dynamically loaded module's minimum occurreces */
   unsigned int module_max; /**< @brief Dynamically loaded module's maximum occurreces */
   const char *module_help; /**< @brief Dynamically loaded module help description.  */
+  char ** dhcpopt_arg;	/**< @brief Set a DHCP option using a hex string.  */
+  char ** dhcpopt_orig;	/**< @brief Set a DHCP option using a hex string original value given at command line.  */
+  unsigned int dhcpopt_min; /**< @brief Set a DHCP option using a hex string's minimum occurreces */
+  unsigned int dhcpopt_max; /**< @brief Set a DHCP option using a hex string's maximum occurreces */
+  const char *dhcpopt_help; /**< @brief Set a DHCP option using a hex string help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -692,6 +697,7 @@ struct gengetopt_args_info
   unsigned int kname_given ;	/**< @brief Whether kname was given.  */
   unsigned int moddir_given ;	/**< @brief Whether moddir was given.  */
   unsigned int module_given ;	/**< @brief Whether module was given.  */
+  unsigned int dhcpopt_given ;	/**< @brief Whether dhcpopt was given.  */
 
 } ;
 

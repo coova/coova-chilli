@@ -248,6 +248,11 @@ struct options_t {
   char *nasmac;
   char *nasip;
 
+#ifdef ENABLE_DHCPOPT
+  uint8_t dhcp_options[512];
+  int dhcp_options_len;
+#endif
+
 #ifdef ENABLE_DNSLOG
   char *dnslog;
 #endif

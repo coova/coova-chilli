@@ -59,6 +59,12 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_CLUSTER
   "ENABLE_CLUSTER "
 #endif
+#ifdef ENABLE_DHCPRADIUS
+  "ENABLE_DHCPRADIUS "
+#endif
+#ifdef ENABLE_DHCPOPT
+  "ENABLE_DHCPOPT "
+#endif
 #ifdef ENABLE_DNSLOG
   "ENABLE_DNSLOG "
 #endif
@@ -596,6 +602,34 @@ int main(int argc, char **argv) {
 			      args_info.uamallowed_arg[numargs]);
   }
 
+#ifdef ENABLE_DHCPOPT
+  _options.dhcp_options_len = 0;
+  for (numargs = 0; numargs < args_info.dhcpopt_given; ++numargs) {
+    unsigned char binopt[128];
+    int hex_length = strlen(args_info.dhcpopt_arg[numargs]);
+    int bin_length = hex_length / 2;
+    if (hex_length > 0 && (bin_length * 2) == hex_length &&
+	bin_length < sizeof(binopt)) {
+      log_dbg("DHCP Options %s", args_info.dhcpopt_arg[numargs]);
+      if (redir_hextochar((unsigned char *)args_info.dhcpopt_arg[numargs],
+			  hex_length, binopt, bin_length) == 0) {
+	if (_options.dhcp_options_len + bin_length < 
+	    sizeof(_options.dhcp_options)) {
+	  memcpy(_options.dhcp_options + 
+		 _options.dhcp_options_len, 
+		 binopt, bin_length);
+	  _options.dhcp_options_len += bin_length;
+	} else {
+	  log_dbg("No room for DHCP option %d", (int)binopt[0]);
+	}
+      } else {
+	log_dbg("Bad DHCP option hex encoding");
+      }
+    } else {
+      log_dbg("DHCP options are hex encoded binary");
+    }
+  }
+#endif
 
 #ifdef ENABLE_MODULES
   memset(_options.modules, 0, sizeof(_options.modules));

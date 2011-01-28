@@ -33,6 +33,9 @@
 /* Define to enable verbose debugging */
 #undef ENABLE_DEBUG2
 
+/* Define to enable DHCP option setting */
+#undef ENABLE_DHCPOPT
+
 /* Define to enable DHCP/RADIUS integration */
 #undef ENABLE_DHCPRADIUS
 

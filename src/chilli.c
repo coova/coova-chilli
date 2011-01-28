@@ -731,6 +731,10 @@ int runscript(struct app_conn_t *appconn, char* script) {
   sessiontime = mainclock_diffu(appconn->s_state.last_sent_time);
   set_env("IDLE_TIME", VAL_ULONG, &sessiontime, 0);
 
+  if (appconn->s_state.terminate_cause)
+    set_env("TERMINATE_CAUSE", VAL_ULONG, 
+	    &appconn->s_state.terminate_cause, 0);
+  
   if (execl(
 #ifdef ENABLE_CHILLISCRIPT
 	    SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig, 

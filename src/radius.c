@@ -1173,9 +1173,12 @@ int radius_new(struct radius_t **this,
       new_radius->proxylisten.s_addr = _options.proxylisten.s_addr;
       new_radius->proxyport = _options.proxyport;
       
-      if (_options.proxyaddr.s_addr || _options.proxymask.s_addr) {
+      if (_options.proxyaddr.s_addr) {
 	new_radius->proxyaddr.s_addr = _options.proxyaddr.s_addr;
-	new_radius->proxymask.s_addr = _options.proxymask.s_addr;
+	if (_options.proxymask.s_addr)
+	  new_radius->proxymask.s_addr = _options.proxymask.s_addr;
+	else
+	  new_radius->proxyaddr.s_addr = ~0;
       } else {
 	new_radius->proxyaddr.s_addr = ~0;
 	new_radius->proxymask.s_addr = 0;
@@ -1789,20 +1792,17 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
     return -1;
   }
 
-  /* Is this a known request? */
   if ((this->cb_ind) &&
       ((pack.code == RADIUS_CODE_ACCESS_REQUEST) ||
        (pack.code == RADIUS_CODE_ACCOUNTING_REQUEST) ||
        (pack.code == RADIUS_CODE_DISCONNECT_REQUEST) ||
        (pack.code == RADIUS_CODE_STATUS_REQUEST))) {
 
-    /* Check that request is from a known client */
-    /* Any of the two servers or from one of the clients */
-    if ((addr.sin_addr.s_addr & this->proxymask.s_addr)!= 
-	this->proxyaddr.s_addr) {
+    if ( (addr.sin_addr.s_addr   & this->proxymask.s_addr) != 
+	 (this->proxyaddr.s_addr & this->proxymask.s_addr) ) {
 
-      log_warn(0, "Received radius request from wrong address %.8x!",
-	       addr.sin_addr.s_addr);
+      log_warn(0, "Received radius request from wrong address %s",
+	       inet_ntoa(addr.sin_addr));
 
       return -1;
     }
