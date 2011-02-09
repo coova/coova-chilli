@@ -1,6 +1,8 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+== ChangeLog (CoovaChilli-v1.2.6 svn revision 433) ==
+
 * Added compile time option ''--enable-layer3'' and run-time option ''--layer3'' to enable a Layer3 (IP-Only) style captive portal - no DHCP
 * Change to ''chilli_query logout'' to identify sessions based on options ''sessionid ...'' or ''ip ...'', not just MAC address
 * Added compile time option ''--enable-uamdomainfile'' and run-time option ''--uamdomainfile filename'' to load regex style uamdomains

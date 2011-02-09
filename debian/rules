@@ -27,7 +27,6 @@ config.status: configure
 	--enable-chilliproxy --enable-binstatusfile --enable-chilliscript \
 	--enable-chilliradsec --enable-dnslog --enable-layer3 --enable-eapol \
 	--enable-uamdomainfile --enable-redirdnsreq --enable-modules \
-	--enable-bonjour --enable-netbios --enable-ewtapi \
 	--enable-multiroute --with-openssl --with-poll
 
 configure:
@@ -52,7 +51,7 @@ install: build
 	dh_clean -k
 	dh_prep
 	dh_installdirs
-	$(MAKE) DESTDIR=$(CURDIR)/debian/tmp install
+	$(MAKE) DESTDIR=$(CURDIR)/debian/coova-chilli install
 
 # Build architecture-independent files here.
 binary-indep: build install
