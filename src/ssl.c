@@ -102,7 +102,9 @@ openssl_use_privatekey(openssl_env *env, char *file) {
   log_err(errno, "could not load private key file %s (%d,%d)\n",file,err1,err2);
   bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
   BIO_printf(bio_err,"unable to set private key file\n");
+#if(_debug_)
   ERR_print_errors(bio_err);
+#endif
   return 0;
 }
 
@@ -312,11 +314,13 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
 
   if (SSL_connect(c->con) < 0) {
     char is_error = 0;
+#if(_debug_)
     unsigned long error;
     while ((error = ERR_get_error())) {
       log_dbg("TLS: %s", ERR_error_string(error, NULL));
       is_error = 1;
     }
+#endif
     if (is_error) {
       openssl_free(c);
       return 0;

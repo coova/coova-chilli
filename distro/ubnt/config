@@ -46,12 +46,12 @@ HS_DNS2=${HS_DNS2:-208.67.220.220}
 HS_MACALLOW=$(getcfg hotspot.macallow)
 
 SCHEME=http
-[ -e /etc/persistent/node_key.pem -a \
-  -e /etc/persistent/node_cert.pem ] && \
-    grep 'BEGIN RSA PRIVATE KEY' /etc/persistent/node_key.pem >/dev/null && \
-    grep 'BEGIN CERTIFICATE' /etc/persistent/node_cert.pem >/dev/null && {
-    HS_SSLKEYFILE=/etc/persistent/node_key.pem
-    HS_SSLCERTFILE=/etc/persistent/node_cert.pem
+[ -e /etc/persistent/site_key.pem -a \
+  -e /etc/persistent/site_cert.pem ] && \
+    grep 'BEGIN RSA PRIVATE KEY' /etc/persistent/site_key.pem >/dev/null && \
+    grep 'BEGIN CERTIFICATE' /etc/persistent/site_cert.pem >/dev/null && {
+    HS_SSLKEYFILE=/etc/persistent/site_key.pem
+    HS_SSLCERTFILE=/etc/persistent/site_cert.pem
     HS_UAMUISSL=on
     HS_REDIRSSL=on
     SCHEME=https
@@ -90,19 +90,5 @@ fi
 if [ "$(getcfg hotspot.bridge)" = "enabled" ]; then
    HS_USETAP=on
    HS_BRIDGE=on
-fi
-
-if [ "$(getcfg pptp.status)" = "enabled" ]; then
-    script=/tmp/run.$$
-    PPTP_PID=$(ps|grep pptp|grep manager|grep -v grep|awk '{print $1}')
-    if [ -z "$PPTP_PID" ]; then
-	pptp_server=$(getcfg pptp.server)
-	pptp_username=$(getcfg pptp.username)
-	pptp_password=$(getcfg pptp.password)
-	mkdir -p /etc/ppp
-	echo "$pptp_username pptp $pptp_password" > /etc/ppp/chap-secrets
-	echo "pptp $pptp_server -- require-mppe-128 name $pptp_username remotename pptp ipparam coova; rm -f $script" > $script
-	bkgexec $script
-    fi
 fi
 

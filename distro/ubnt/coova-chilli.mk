@@ -8,7 +8,7 @@ startuplist=$(build_install_directory)/usr/etc/startup.list
 $(coova_chilli_version)/.configured:
 	( cd $(coova_chilli_version) && touch configure && rm -f config.cache && \
 	  LDFLAGS="${coova_chilli_ldflags}" \
-	  CFLAGS="${coova_chilli_cflags}" \
+	  CFLAGS="${coova_chilli_cflags} -DCAPC_SYSCONFDIR='\"/etc/persistent/\"'" \
 	  CC="${build_toolchain_prefix}gcc" \
 	  AR="${build_toolchain_prefix}ar" \
 	  LD="${build_toolchain_prefix}ld" \
@@ -17,17 +17,18 @@ $(coova_chilli_version)/.configured:
 	  PREFIX=${build_install_directory} \
 	  EPREFIX=${build_install_directory} \
 	  ./configure --prefix= \
-	  --with-matrixssl \
 	  --host=mips-linux \
 	  --build=i686-linux \
+	  --disable-debug \
 	  --enable-shared \
 	  --enable-chilliredir \
 	  --enable-chilliproxy \
-	  --enable-miniportal \
 	  --enable-binstatusfile \
+	  --enable-miniportal \
 	  --enable-miniconfig \
-	  --enable-redirinject \
-	  --enable-ewtapi \
+	  --enable-libjson \
+	  --with-matrixssl \
+	  --with-matrixssl-cli \
          && touch .configured)
 
 
@@ -41,9 +42,9 @@ coova-chilli-clean:
 
 coova-chilli-install: coova-chilli
 	$(MAKE) -C $(coova_chilli_version) DESTDIR=$(shell pwd)/$(coova_chilli_version)/install install
-	${build_toolchain_prefix}strip $(coova_chilli_version)/install/sbin/chilli*
-	${build_toolchain_prefix}strip $(coova_chilli_version)/install/lib/lib*.so.0.0.0
-	cp -af $(coova_chilli_version)/install/sbin/chilli* $(build_install_directory)/sbin/
+	${build_toolchain_prefix}strip $(coova_chilli_version)/install/sbin/*
+	${build_toolchain_prefix}strip $(coova_chilli_version)/install/lib/lib*.so.*
+	cp -af $(coova_chilli_version)/install/sbin/c* $(build_install_directory)/sbin/
 	cp -af $(coova_chilli_version)/install/lib/libchilli*.so* $(build_install_directory)/lib/
 	cp -af $(coova_chilli_version)/install/lib/libbstring*.so* $(build_install_directory)/lib/
 	mkdir -p $(build_install_directory)/usr/etc/init.d

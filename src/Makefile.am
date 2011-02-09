@@ -1,5 +1,6 @@
 AUTOMAKE_OPTIONS=foreign
 
+SUBDIRS = 
 EXTRA_DIST = cmdline.ggo cmdline.patch \
 linux/Makefile linux/xt_coova.c linux/xt_coova.h \
 linux/ipt_coova.h linux/libxt_coova.c \
@@ -77,6 +78,9 @@ endif
 if WITH_MATRIXSSL
 libchilli_la_SOURCES += mssl.c mssl.h
 LDADD += -lmatrixssl
+if WITH_MATRIXSSL_CLI
+SUBDIRS = mssl
+endif
 endif
 
 if WITH_SSL
@@ -140,7 +144,7 @@ endif
 endif
 
 if WITH_NETFILTER_COOVA
-SUBDIRS = linux
+SUBDIRS += linux
 libchilli_la_SOURCES += kcoova.c
 endif
 

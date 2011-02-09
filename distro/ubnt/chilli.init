@@ -1,5 +1,16 @@
 #!/bin/sh
 
+checkath0() {
+    ath0add=
+    for dev in br0 eth0 eth1; do
+	ifconfig $dev >/dev/null 2>/dev/null && {
+	    brctl delif $dev ath0 2>/dev/null && ath0add=1
+	    iptables -t nat -I POSTROUTING -o $dev -j MASQUERADE 
+	}
+    done
+    [ "$ath0add" = "1" ] && brctl addif br-chilli ath0
+}
+
 case $1 in
     start)
 	$0 stop
@@ -10,21 +21,12 @@ case $1 in
 	
         echo "Starting CoovaChilli"
 
-	for mod in tun ip_tables iptable_filter ip_nat ip_conntrack iptable_nat ipt_MASQUERADE; do
+	for mod in tun ip_tables iptable_filter ip_conntrack ip_nat iptable_nat ipt_MASQUERADE; do
 	    insmod $mod 2>/dev/null
 	done
 
         echo 1 > /proc/sys/net/ipv4/ip_forward
 
-	ath0add=
-	for dev in br0 eth0 eth1; do
-	    ifconfig $dev >/dev/null 2>/dev/null && {
-		brctl delif $dev ath0 2>/dev/null && ath0add=1
-		iptables -t nat -I POSTROUTING -o $dev -j MASQUERADE 
-	    }
-	done
-	[ "$ath0add" = "1" ] && brctl addif br-chilli ath0
-	
 	[ -e /dev/net/tun ] || {
 	    (cd /dev; 
 		mkdir net; 
@@ -32,6 +34,7 @@ case $1 in
 		mknod tun c 10 200)
 	}
 
+	checkath0
 	writeconfig
         radiusconfig
 
@@ -39,9 +42,7 @@ case $1 in
 	ifconfig $HS_LANIF 0.0.0.0
         chilli --pidfile /tmp/chilli.pid &
 
-        mkdir /etc/crontabs 2>/dev/null
         (crontab -l | grep -v $0; echo "*/5 * * * * sh $0 check") | crontab -
-        [ "$(ps|grep -v grep|grep crond)" = "" ] && crond
 	echo "Done"
 	;;
     
@@ -108,6 +109,8 @@ case $1 in
             [ -e /tmp/chilli.down ] && rm -f /tmp/chilli.down
             running=1
         fi
+
+	checkath0
 
         . /etc/chilli/config
 

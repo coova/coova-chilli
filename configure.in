@@ -218,6 +218,11 @@ AM_CONDITIONAL(WITH_MATRIXSSL, [test x"$with_matrixssl" != xno])
 
 AM_CONDITIONAL(WITH_SSL, [test x"$with_openssl" != xno || test x"$with_matrixssl" != xno])
 
+AC_ARG_WITH([matrixssl-cli],
+ [AS_HELP_STRING([--with-matrixssl-cli], [enable matrixssl client use])],[],[with_matrixssl_cli=no])
+
+AM_CONDITIONAL(WITH_MATRIXSSL_CLI, [test x"$with_matrixssl_cli" != xno])
+
 AC_ARG_WITH([nfqueue],
  [AS_HELP_STRING([--with-nfqueue], [enable support for netfilter_queue])],[],[with_nfqueue=no])
 
@@ -283,7 +288,7 @@ AS_IF([test x"$with_curl" != xno],
               ],
               [AC_MSG_FAILURE(
                  [--with-curl was given, but test for curl failed])],
-              [-lcurl -lz])])
+              [-lcurl -lz -lssl -lcrypto])])
 
 AM_CONDITIONAL(WITH_CURL, [test x"$with_curl" != xno])
 
@@ -497,6 +502,7 @@ AC_SUBST(sysconfdir)
 AC_CONFIG_FILES([Makefile 
 		 bstring/Makefile 
 		 src/Makefile 
+		 src/mssl/Makefile 
 		 www/Makefile 
 		 doc/Makefile
 		 conf/Makefile 

@@ -37,8 +37,8 @@ ipt_in() {
     ipt_in -p icmp --dst $ADDR -j ACCEPT
     
     ipt -A INPUT -i $TUNTAP --dst $ADDR -j DROP
-    ipt -A INPUT -i $TUNTAP -j DROP
-    
+
+    ipt -I INPUT   -i $DHCPIF -j DROP
     ipt -I FORWARD -i $DHCPIF -j DROP
     ipt -I FORWARD -o $DHCPIF -j DROP
 
