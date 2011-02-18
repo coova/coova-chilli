@@ -1640,8 +1640,7 @@ int radius_decaps(struct radius_t *this, int idx) {
   socklen_t fromlen = sizeof(addr);
   int coarequest = 0;
 
-  if (this->debug) 
-    log_dbg("Received radius packet");
+  log_dbg("Received radius packet");
   
   if ((status = recvfrom(this->fd, &pack, sizeof(pack), 0, 
 			 (struct sockaddr *) &addr, &fromlen)) <= 0) {
@@ -1771,8 +1770,7 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
   struct sockaddr_in addr;
   socklen_t fromlen = sizeof(addr);
 
-  if (this->debug) 
-    log_dbg("Received radius packet");
+  log_dbg("Received radius packet");
   
   if ((status = recvfrom(this->proxyfd, &pack, sizeof(pack), 0, 
 			 (struct sockaddr *) &addr, &fromlen)) <= 0) {

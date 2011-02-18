@@ -26,6 +26,7 @@ int chilli_module_load(void **ctx, char *name) {
   void *lib_handle;
   char *error;
   void *sym;
+  int len;
 
   safe_snprintf(path, sizeof(path), "%s/%s.so", 
 		_options.moddir ? _options.moddir : DEFLIBDIR, name);
@@ -38,6 +39,11 @@ int chilli_module_load(void **ctx, char *name) {
   }
 
   safe_snprintf(path, sizeof(path), "%s_module", name);
+
+  len = strlen(path);
+  while(len-- > 0)
+    if (path[len]=='-')
+      path[len] = '_';
   
   sym = dlsym(lib_handle, path);
   if ((error = dlerror()) != NULL) {

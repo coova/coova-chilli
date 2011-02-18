@@ -44,9 +44,33 @@ octets, max total octets, status of option swapoctets, bandwidth
 limitation information, and the original URL.
 
 .TP
+.BI listip " <ip-address>"
+Same as 
+.B list
+but for one IP address.
+
+.TP
+.BI listmac " <mac-address>"
+Same as 
+.B list
+but for one MAC address.
+
+.TP
 .BI authorize " <parameters>"
 To explicity authorize a client, or change the session parameters of an already
 authorized client, by setting a series of session parameters. 
+
+.TP
+.BI listippool
+Show the internal IP pool state.
+
+.TP
+.BI listgarden
+Show the internal walled garden state.
+
+.TP
+.BI listradqueue
+Show the internal RADIUS queue state.
 
 .RS
 .I PARAMETERS

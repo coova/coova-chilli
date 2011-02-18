@@ -614,15 +614,6 @@ static inline int leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint6
 }
 #endif
 
-
-/* Run external script */
-#define VAL_STRING   0
-#define VAL_IN_ADDR  1
-#define VAL_MAC_ADDR 2
-#define VAL_ULONG    3
-#define VAL_ULONG64  4
-#define VAL_USHORT   5
-
 int set_env(char *name, char type, void *value, int len) {
   char *v=0;
   char s[1024];
@@ -4827,20 +4818,20 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
     break;
     
   case CMDSOCK_DHCP_DROP:
-    if (dhcp) dhcp_block_mac(dhcp, req->data.mac);
+    if (dhcp) dhcp_block_mac(dhcp, req->sess.mac);
     break;
 
   case CMDSOCK_LOGOUT:
-    if (req->data.sess.ip.s_addr || req->data.sess.sessionid[0]) {
+    if (req->sess.ip.s_addr || req->sess.sessionid[0]) {
       struct app_conn_t *appconn = firstusedconn;
 
       log_dbg("looking to logout session %s",
-	      inet_ntoa(req->data.sess.ip));
+	      inet_ntoa(req->sess.ip));
 
       while (appconn) {
 	if (appconn->inuse &&
-	    (req->data.sess.ip.s_addr == 0 || appconn->hisip.s_addr == req->data.sess.ip.s_addr) &&
-	    (req->data.sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid, req->data.sess.sessionid))
+	    (req->sess.ip.s_addr == 0 || appconn->hisip.s_addr == req->sess.ip.s_addr) &&
+	    (req->sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid, req->sess.sessionid))
 	    ){
 	  terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
 	  break;
@@ -4852,7 +4843,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
     /* else drop through */
   case CMDSOCK_DHCP_RELEASE:
     if (dhcp) 
-      dhcp_release_mac(dhcp, req->data.mac, 
+      dhcp_release_mac(dhcp, req->sess.mac, 
 		       RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
     break;
 
@@ -4896,13 +4887,13 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
     break;
 
   case CMDSOCK_ENTRY_FOR_IP:
-    if (dhcp) dhcp_entry_for_ip(dhcp, s, &req->data.sess.ip,
+    if (dhcp) dhcp_entry_for_ip(dhcp, s, &req->sess.ip,
 			req->options & CMDSOCK_OPT_JSON ?
 			LIST_JSON_FMT : LIST_LONG_FMT);
     break;
 
   case CMDSOCK_ENTRY_FOR_MAC:
-    if (dhcp) dhcp_entry_for_mac(dhcp, s, req->data.mac,
+    if (dhcp) dhcp_entry_for_mac(dhcp, s, req->sess.mac,
 			req->options & CMDSOCK_OPT_JSON ?
 			LIST_JSON_FMT : LIST_LONG_FMT);
     break;
@@ -4916,17 +4907,17 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
   case CMDSOCK_ROUTE_GW:
     {
       if (req->type == CMDSOCK_ROUTE_GW) {
-	log_dbg("setting route for idx %d", req->data.sess.params.routeidx);
-	copy_mac6(tun(tun, req->data.sess.params.routeidx).gwaddr, req->data.mac);
+	log_dbg("setting route for idx %d", req->sess.params.routeidx);
+	copy_mac6(tun(tun, req->sess.params.routeidx).gwaddr, req->sess.mac);
       } else {
 	struct dhcp_conn_t *conn = dhcp->firstusedconn;
-	log_dbg("looking to alter session %s",inet_ntoa(req->data.sess.ip));
+	log_dbg("looking to alter session %s",inet_ntoa(req->sess.ip));
 	while (conn && conn->inuse) {
 	  if (conn->peer) {
 	    struct app_conn_t * appconn = (struct app_conn_t*)conn->peer;
-	    if (!memcmp(appconn->hismac, req->data.mac, 6)) {
-	      log_dbg("routeidx %s %d",appconn->s_state.sessionid, req->data.sess.params.routeidx);
-	      appconn->s_params.routeidx = req->data.sess.params.routeidx;
+	    if (!memcmp(appconn->hismac, req->sess.mac, 6)) {
+	      log_dbg("routeidx %s %d",appconn->s_state.sessionid, req->sess.params.routeidx);
+	      appconn->s_params.routeidx = req->sess.params.routeidx;
 	      break;
 	    }
 	  }
@@ -5005,23 +4996,23 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
        *  Redo this to using app firstfreeconn ...
        */
       struct app_conn_t *appconn = firstusedconn;
-      log_dbg("looking to authorized session %s",inet_ntoa(req->data.sess.ip));
+      log_dbg("looking to authorized session %s",inet_ntoa(req->sess.ip));
       while (appconn) {
 	if (appconn->inuse &&
-	    (req->data.sess.ip.s_addr == 0 || appconn->hisip.s_addr == req->data.sess.ip.s_addr) &&
-	    (req->data.sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid,req->data.sess.sessionid))
+	    (req->sess.ip.s_addr == 0 || appconn->hisip.s_addr == req->sess.ip.s_addr) &&
+	    (req->sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid,req->sess.sessionid))
 	      ){
-	  char *uname = req->data.sess.username;
+	  char *uname = req->sess.username;
 
 	  log_dbg("remotely authorized session %s",appconn->s_state.sessionid);
-	  memcpy(&appconn->s_params, &req->data.sess.params, sizeof(req->data.sess.params));
+	  memcpy(&appconn->s_params, &req->sess.params, sizeof(req->sess.params));
 
 	  if (uname[0]) safe_strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
 	  session_param_defaults(&appconn->s_params);
 
 	  switch(req->type) {
 	  case CMDSOCK_LOGIN:
-	    auth_radius(appconn, uname, req->data.sess.password, 0, 0);
+	    auth_radius(appconn, uname, req->sess.password, 0, 0);
 	    break;
 	  case CMDSOCK_AUTHORIZE:
 	    dnprot_accept(appconn);
@@ -5035,24 +5026,24 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
       }
 #else /* can likely be removed in favor of above */
       struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
-      log_dbg("looking to authorized session %s",inet_ntoa(req->data.sess.ip));
+      log_dbg("looking to authorized session %s",inet_ntoa(req->sess.ip));
       while (dhcpconn && dhcpconn->inuse) {
 	if (dhcpconn->peer) {
 	  struct app_conn_t * appconn = (struct app_conn_t*) dhcpconn->peer;
-	  if (  (req->data.sess.ip.s_addr == 0    || appconn->hisip.s_addr == req->data.sess.ip.s_addr) &&
-		(req->data.sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid,req->data.sess.sessionid))
+	  if (  (req->sess.ip.s_addr == 0    || appconn->hisip.s_addr == req->sess.ip.s_addr) &&
+		(req->sess.sessionid[0] == 0 || !strcmp(appconn->s_state.sessionid,req->sess.sessionid))
 		){
-	    char *uname = req->data.sess.username;
+	    char *uname = req->sess.username;
 
 	    log_dbg("remotely authorized session %s",appconn->s_state.sessionid);
-	    memcpy(&appconn->s_params, &req->data.sess.params, sizeof(req->data.sess.params));
+	    memcpy(&appconn->s_params, &req->sess.params, sizeof(req->sess.params));
 
 	    if (uname[0]) safe_strncpy(appconn->s_state.redir.username, uname, USERNAMESIZE);
 	    session_param_defaults(&appconn->s_params);
 
 	    switch(req->type) {
 	    case CMDSOCK_LOGIN:
-	      auth_radius(appconn, uname, req->data.sess.password, 0, 0);
+	      auth_radius(appconn, uname, req->sess.password, 0, 0);
 	      break;
 	    case CMDSOCK_AUTHORIZE:
 	      dnprot_accept(appconn);
@@ -5663,7 +5654,8 @@ int chilli_main(int argc, char **argv) {
 
   net_select_reg(&sctx, radius->fd, SELECT_READ, (select_callback)radius_decaps, radius, 0);
 #ifdef ENABLE_RADPROXY
-  net_select_reg(&sctx, radius->proxyfd, SELECT_READ, (select_callback)radius_proxy_ind, radius, 0);
+  if (radius->proxyfd)
+    net_select_reg(&sctx, radius->proxyfd, SELECT_READ, (select_callback)radius_proxy_ind, radius, 0);
 #endif
 
 #if defined(__linux__)

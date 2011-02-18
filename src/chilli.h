@@ -145,6 +145,15 @@ struct app_conn_t {
   char uamexit;
 };
 
+#define VAL_STRING   0
+#define VAL_IN_ADDR  1
+#define VAL_MAC_ADDR 2
+#define VAL_ULONG    3
+#define VAL_ULONG64  4
+#define VAL_USHORT   5
+
+int set_env(char *name, char type, void *value, int len);
+
 extern struct app_conn_t *firstfreeconn; /* First free in linked list */
 extern struct app_conn_t *lastfreeconn;  /* Last free in linked list */
 extern struct app_conn_t *firstusedconn; /* First used in linked list */

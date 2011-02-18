@@ -54,16 +54,14 @@
 struct cmdsock_request { 
   uint16_t type;
   uint16_t options;
-  union {
+  struct cmdsock_session {
     unsigned char mac[PKT_ETH_ALEN];
-    struct cmdsock_session {
-      struct in_addr ip;
-      char username[256];
-      char password[256];
-      char sessionid[17];
-      struct session_params params;
-    } sess;
-  } data;
+    struct in_addr ip;
+    char username[256];
+    char password[256];
+    char sessionid[17];
+    struct session_params params;
+  } sess;
 }  __attribute__((packed));
 
 typedef struct cmdsock_request CMDSOCK_REQUEST;

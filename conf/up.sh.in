@@ -25,7 +25,7 @@ ipt_in() {
     [ -n "$UAMUIPORT" -a "$UAMUIPORT" != "0" ] && \
 	ipt_in -p tcp -m tcp --dport $UAMUIPORT --dst $ADDR -j ACCEPT
     
-    [ -n "HS_TCP_PORTS" ] && {
+    [ -n "$HS_TCP_PORTS" ] && {
 	for port in $HS_TCP_PORTS; do
 	    ipt_in -p tcp -m tcp --dport $port --dst $ADDR -j ACCEPT
 	done

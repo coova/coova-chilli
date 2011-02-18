@@ -72,6 +72,7 @@ typedef enum _cmd_field_type {
   CMDSOCK_FIELD_STRING,
   CMDSOCK_FIELD_INTEGER,
   CMDSOCK_FIELD_IPV4,
+  CMDSOCK_FIELD_MAC,
 } cmd_field_type;
 
 struct cmd_arguments {
@@ -89,97 +90,131 @@ static struct cmdsock_request request;
 static struct cmd_arguments args[] = {
   { "ip", 
     CMDSOCK_FIELD_IPV4, 
-    sizeof(request.data.sess.ip),
-    &request.data.sess.ip,
-    "IP of client to authorize", 0, 0 },
+    sizeof(request.sess.ip),
+    &request.sess.ip,
+    "IP address of session to perform action on", 0, 0 },
+  { "mac",
+    CMDSOCK_FIELD_MAC, 
+    sizeof(request.sess.mac),
+    request.sess.mac,
+    "MAC address of session to perform action on", 0, 0 },
   { "sessionid",
     CMDSOCK_FIELD_STRING, 
-    sizeof(request.data.sess.sessionid),
-    request.data.sess.sessionid,
-    "Session-id to authorize", 0, 0 },
+    sizeof(request.sess.sessionid),
+    request.sess.sessionid,
+    "Session-id of session to perform action on", 0, 0 },
   { "username",
     CMDSOCK_FIELD_STRING, 
-    sizeof(request.data.sess.username),
-    request.data.sess.username,
+    sizeof(request.sess.username),
+    request.sess.username,
     "Username to use in RADIUS 'login' or authorization", 0, 0 },
   { "password",
     CMDSOCK_FIELD_STRING, 
-    sizeof(request.data.sess.password),
-    request.data.sess.password,
+    sizeof(request.sess.password),
+    request.sess.password,
     "Password to be used for 'login' command", 0, 0 },
   { "sessiontimeout",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.data.sess.params.sessiontimeout),
-    &request.data.sess.params.sessiontimeout,
+    sizeof(request.sess.params.sessiontimeout),
+    &request.sess.params.sessiontimeout,
     "Max session time (in seconds)", 0, 0 },
   { "idletimeout",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.data.sess.params.idletimeout),
-    &request.data.sess.params.idletimeout,
+    sizeof(request.sess.params.idletimeout),
+    &request.sess.params.idletimeout,
     "Max idle time (in seconds)", 0, 0 },
   { "interiminterval",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.data.sess.params.interim_interval),
-    &request.data.sess.params.interim_interval,
+    sizeof(request.sess.params.interim_interval),
+    &request.sess.params.interim_interval,
     "Accounting interim interval",  0, 0 },
   { "maxoctets",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.data.sess.params.maxtotaloctets),
-    &request.data.sess.params.maxtotaloctets,
+    sizeof(request.sess.params.maxtotaloctets),
+    &request.sess.params.maxtotaloctets,
     "Max input + output octets (bytes)", 0, 0 },
   { "maxinputoctets",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.data.sess.params.maxinputoctets),
-    &request.data.sess.params.maxinputoctets,
+    sizeof(request.sess.params.maxinputoctets),
+    &request.sess.params.maxinputoctets,
     "Max input octets (bytes)", 0, 0 },
   { "maxoutputoctets",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.data.sess.params.maxoutputoctets),
-    &request.data.sess.params.maxoutputoctets,
+    sizeof(request.sess.params.maxoutputoctets),
+    &request.sess.params.maxoutputoctets,
     "Max output octets (bytes)", 0, 0 },
   { "maxbwup", 
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.data.sess.params.bandwidthmaxup),
-    &request.data.sess.params.bandwidthmaxup,
+    sizeof(request.sess.params.bandwidthmaxup),
+    &request.sess.params.bandwidthmaxup,
     "Max bandwidth up", 0, 0 },
   { "maxbwdown",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.data.sess.params.bandwidthmaxdown),
-    &request.data.sess.params.bandwidthmaxdown,
+    sizeof(request.sess.params.bandwidthmaxdown),
+    &request.sess.params.bandwidthmaxdown,
     "Max bandwidth down", 0, 0 },
   { "splash",
     CMDSOCK_FIELD_STRING, 
-    sizeof(request.data.sess.params.url),
-    &request.data.sess.params.url,
+    sizeof(request.sess.params.url),
+    &request.sess.params.url,
     "Set splash page",
-    &request.data.sess.params.flags, REQUIRE_UAM_SPLASH },
+    &request.sess.params.flags, REQUIRE_UAM_SPLASH },
   { "url",
     CMDSOCK_FIELD_STRING, 
-    sizeof(request.data.sess.params.url),
-    &request.data.sess.params.url,
+    sizeof(request.sess.params.url),
+    &request.sess.params.url,
     "Set redirect url",
-    &request.data.sess.params.flags, REQUIRE_REDIRECT },
+    &request.sess.params.flags, REQUIRE_REDIRECT },
   { "routeidx",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.data.sess.params.routeidx),
-    &request.data.sess.params.routeidx,
+    sizeof(request.sess.params.routeidx),
+    &request.sess.params.routeidx,
     "Route interface index",  0, 0 },
   { "noacct",
     CMDSOCK_FIELD_NONE, 0, 0,
     "No accounting flag",
-    &request.data.sess.params.flags, NO_ACCOUNTING },
+    &request.sess.params.flags, NO_ACCOUNTING },
   /* more... */
 };
 
 static int count = sizeof(args)/sizeof(struct cmd_arguments);
+
+static int parse_mac(uint8_t *mac, char *string) {
+  unsigned int temp[PKT_ETH_ALEN];
+  char macstr[RADIUS_ATTR_VLEN];
+  int macstrlen;
+  int i;
+
+  if ((macstrlen = strlen(string)) >= (RADIUS_ATTR_VLEN-1)) {
+    fprintf(stderr, "%s: bad MAC address\n", string);
+    return -1;
+  }
+	  
+  memcpy(macstr, string, macstrlen);
+  macstr[macstrlen] = 0;
+	  
+  for (i=0; i<macstrlen; i++) 
+    if (!isxdigit(macstr[i])) 
+      macstr[i] = 0x20;
+  
+  if (sscanf(macstr, "%2x %2x %2x %2x %2x %2x", 
+	     &temp[0], &temp[1], &temp[2], 
+	     &temp[3], &temp[4], &temp[5]) != 6) {
+    fprintf(stderr, "%s: bad MAC address\n", string);
+    return -1;
+  }
+  
+  for (i = 0; i < PKT_ETH_ALEN; i++) 
+    mac[i] = temp[i];
+
+  return 0;
+}
 
 static int usage(char *program) {
   int i;
 
   fprintf(stderr, "Usage: %s [ -s <socket> ] <command> [<arguments>]\n", program);
   fprintf(stderr, "  socket = full path to UNIX domain socket (e.g. /var/run/chilli.sock)\n");
-
-  /*  fprintf(stderr, "           TCP socket port, or ip:port, to bind to (e.g. 1999)\n"); */
 
   fprintf(stderr, "  Available Commands:\n    ");
   for (i=0; i < count; i++) {
@@ -194,6 +229,7 @@ static int usage(char *program) {
 	    args[i].name, 
 	    args[i].type == CMDSOCK_FIELD_NONE ? "" :"<value>",
 	    args[i].type == CMDSOCK_FIELD_NONE ? "flag" :
+	    args[i].type == CMDSOCK_FIELD_MAC ? "mac" :
 	    args[i].type == CMDSOCK_FIELD_STRING ? "char" :
 	    args[i].type == CMDSOCK_FIELD_INTEGER ? "int" :
 	    args[i].type == CMDSOCK_FIELD_IPV4 ? "ip" : "!", 
@@ -278,9 +314,9 @@ int main(int argc, char **argv) {
   for (s = 0; commands[s].command; s++) {
     if (!strcmp(cmd, commands[s].command)) {
       request.type = commands[s].type;
-
+      
       switch(request.type) {
-
+	
       case CMDSOCK_LOGIN:
       case CMDSOCK_LOGOUT:
       case CMDSOCK_UPDATE:
@@ -306,6 +342,9 @@ int main(int argc, char **argv) {
 		
 		switch(args[i].type) {
 		case CMDSOCK_FIELD_NONE:
+		  break;
+		case CMDSOCK_FIELD_MAC:
+		  parse_mac(((uint8_t *)args[i].field), argv[argidx+1]);
 		  break;
 		case CMDSOCK_FIELD_STRING:
 		  safe_strncpy(((char *)args[i].field), argv[argidx+1], args[i].length);
@@ -338,6 +377,8 @@ int main(int argc, char **argv) {
 	    }
 
 	    if (i == count) {
+	      if (request.type == CMDSOCK_LOGOUT)
+		break;
 	      fprintf(stderr, "Unknown argument: %s\n", argv[argidx]);
 	      return usage(argv[0]);
 	    }
@@ -358,37 +399,13 @@ int main(int argc, char **argv) {
       case CMDSOCK_DHCP_RELEASE:
       case CMDSOCK_ENTRY_FOR_MAC:
 	{
-	  unsigned int temp[PKT_ETH_ALEN];
-	  char macstr[RADIUS_ATTR_VLEN];
-	  int macstrlen;
-	  int i;
-	  
 	  if (argc < argidx+1) {
 	    fprintf(stderr, "%s requires a MAC address argument\n", cmd);
 	    return usage(argv[0]);
 	  }
-	  
-	  if ((macstrlen = strlen(argv[argidx])) >= (RADIUS_ATTR_VLEN-1)) {
-	    fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
-	    return -1;
-	  }
-	  
-	  memcpy(macstr, argv[argidx], macstrlen);
-	  macstr[macstrlen] = 0;
-	  
-	  for (i=0; i<macstrlen; i++) 
-	    if (!isxdigit(macstr[i])) 
-	      macstr[i] = 0x20;
-	  
-	  if (sscanf(macstr, "%2x %2x %2x %2x %2x %2x", 
-		     &temp[0], &temp[1], &temp[2], 
-		     &temp[3], &temp[4], &temp[5]) != 6) {
-	    fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
-	    return -1;
-	  }
-	  
-	  for (i = 0; i < PKT_ETH_ALEN; i++) 
-	    request.data.mac[i] = temp[i];
+
+	  if (parse_mac(request.sess.mac, argv[argidx]))
+	    return usage(argv[0]);
 	  
 	  /* do another switch to pick up param configs for authorize */
 	}
@@ -401,7 +418,7 @@ int main(int argc, char **argv) {
   	    return usage(argv[0]);
   	  }
 	  
-	  if (!inet_aton(argv[argidx], &request.data.sess.ip)) {
+	  if (!inet_aton(argv[argidx], &request.sess.ip)) {
 	    fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx]);
 	    return usage(argv[0]);
 	  }
@@ -440,10 +457,10 @@ int main(int argc, char **argv) {
 	  }
 
 	  for (i = 0; i < PKT_ETH_ALEN; i++) 
-	    request.data.mac[i] = temp[i];
+	    request.sess.mac[i] = temp[i];
 
 	  argidx++;
-	  request.data.sess.params.routeidx = atoi(argv[argidx]);
+	  request.sess.params.routeidx = atoi(argv[argidx]);
 
 	  if (request.type != CMDSOCK_ROUTE_GW)
 	    request.type = CMDSOCK_ROUTE_SET;
