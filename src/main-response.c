@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
   if (argc == 5) 
     chap_ident = atoi(argv[idx+4]);
 
-  /* challeng - argv 1 */
+  /* challenge - argv 1 */
   memset(buffer, 0, sizeof(buffer));
   strcpy(buffer, argv[idx+1]);
   hextochar(buffer, challenge, MD5LEN);

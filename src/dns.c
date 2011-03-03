@@ -16,6 +16,7 @@
  * 
  */
 
+#define _debug_ 0
 #include "chilli.h"
 #include "debug.h"
 

@@ -4,8 +4,8 @@ TUNTAP=$(basename $DEV)
 
 . @SYSCONFDIR@/chilli/functions
 
-[ -e "@VARRUN@/chilli.$TUNTAP.iptables" ] && sh @VARRUN@/chilli.$TUNTAP.iptables 2>/dev/null
-rm -f @VARRUN@/chilli.$TUNTAP.iptables 2>/dev/null
+[ -e "@VARRUN@/chilli.$TUNTAP.sh" ] && sh @VARRUN@/chilli.$TUNTAP.sh 2>/dev/null
+rm -f @VARRUN@/chilli.$TUNTAP.sh 2>/dev/null
 
 ipt() {
     opt=$1; shift
@@ -17,28 +17,32 @@ ipt_in() {
     ipt -I INPUT -i $TUNTAP $*
 }
 
-[ -n "$TUNTAP" ] && {
-    
-    [ -n "$UAMPORT" -a "$UAMPORT" != "0" ] && \
-	ipt_in -p tcp -m tcp --dport $UAMPORT --dst $ADDR -j ACCEPT
-    
-    [ -n "$UAMUIPORT" -a "$UAMUIPORT" != "0" ] && \
-	ipt_in -p tcp -m tcp --dport $UAMUIPORT --dst $ADDR -j ACCEPT
-    
-    [ -n "$HS_TCP_PORTS" ] && {
-	for port in $HS_TCP_PORTS; do
-	    ipt_in -p tcp -m tcp --dport $port --dst $ADDR -j ACCEPT
-	done
-    }
-    
-    ipt_in -p udp -d 255.255.255.255 --destination-port 67:68 -j ACCEPT
-    ipt_in -p udp -d $ADDR --destination-port 67:68 -j ACCEPT
-    ipt_in -p udp --dst $ADDR --dport 53 -j ACCEPT
-    ipt_in -p icmp --dst $ADDR -j ACCEPT
-    
-    ipt -A INPUT -i $TUNTAP --dst $ADDR -j DROP
+if [ -n "$TUNTAP" ]
+then
+    if [ "$LAYER3" != "1" ]
+    then
+	[ -n "$UAMPORT" -a "$UAMPORT" != "0" ] && \
+	    ipt_in -p tcp -m tcp --dport $UAMPORT --dst $ADDR -j ACCEPT
+	
+	[ -n "$UAMUIPORT" -a "$UAMUIPORT" != "0" ] && \
+	    ipt_in -p tcp -m tcp --dport $UAMUIPORT --dst $ADDR -j ACCEPT
+	
+	[ -n "$HS_TCP_PORTS" ] && {
+	    for port in $HS_TCP_PORTS; do
+		ipt_in -p tcp -m tcp --dport $port --dst $ADDR -j ACCEPT
+	    done
+	}
+	
+	ipt_in -p udp -d 255.255.255.255 --destination-port 67:68 -j ACCEPT
+	ipt_in -p udp -d $ADDR --destination-port 67:68 -j ACCEPT
+	ipt_in -p udp --dst $ADDR --dport 53 -j ACCEPT
+	ipt_in -p icmp --dst $ADDR -j ACCEPT
+	
+	ipt -A INPUT -i $TUNTAP --dst $ADDR -j DROP
+	
+	ipt -I INPUT   -i $DHCPIF -j DROP
+    fi
 
-    ipt -I INPUT   -i $DHCPIF -j DROP
     ipt -I FORWARD -i $DHCPIF -j DROP
     ipt -I FORWARD -o $DHCPIF -j DROP
 
@@ -59,7 +63,7 @@ ipt_in() {
     
     [ "$HS_LOCAL_DNS" = "on" ] && \
 	ipt -I PREROUTING -t nat -i $TUNTAP -p udp --dport 53 -j DNAT --to-destination $ADDR
-}
+fi
 
 # site specific stuff optional
 [ -e @ETCCHILLI@/ipup.sh ] && . @ETCCHILLI@/ipup.sh

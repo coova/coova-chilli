@@ -34,7 +34,7 @@ struct chilli_module {
 # define CHILLI_MOD_CONTINUE  1
 # define CHILLI_MOD_BREAK     2
 
-  int (* initialize)      (char *);
+  int (* initialize)      (char *, char isReload);
   int (* net_select)      (select_ctx *sctx);
 
 # define CHILLI_MOD_REDIR_SKIP_RADIUS (1 << 8)
@@ -51,7 +51,7 @@ struct chilli_module {
   int (* session_start)   (struct app_conn_t *);
   int (* session_update)  (struct app_conn_t *);
   int (* session_stop)    (struct app_conn_t *);
-  int (* destroy)         ();
+  int (* destroy)         (char isReload);
 };
 
 #define chilli_mod_state(x) ((x)&0xff)

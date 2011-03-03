@@ -166,9 +166,7 @@ int options_load(int argc, char **argv, bstring bt) {
       if (done_before) break;
       else {
 	char *offline = getenv("CHILLI_OFFLINE");
-
 	if (offline) {
-
 	  execl(
 #ifdef ENABLE_CHILLISCRIPT
 		SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig, 
@@ -225,6 +223,10 @@ int options_fromfd(int fd, bstring bt) {
   char has_error = 1;
   size_t len;
   int i;
+
+#ifdef ENABLE_MODULES
+  char isReload[MAX_MODULES];
+#endif
   
   int rd = safe_read(fd, &o, sizeof(o));
 
@@ -251,7 +253,8 @@ int options_fromfd(int fd, bstring bt) {
   close(fd);
 
   if (has_error) {
-    log_err(errno, "could not read configuration, some kind of mismatch fd=%d", fd);
+    log_err(errno, "could not read configuration, some kind of mismatch fd=%d %s",
+	    fd, SBINDIR);
     return 0;
   }
   
@@ -353,13 +356,16 @@ int options_fromfd(int fd, bstring bt) {
 
 #ifdef ENABLE_MODULES
   for (i=0; i < MAX_MODULES; i++) {
+    isReload[i]=0;
     if (!_options.modules[i].name[0]) break;
     if (!_options.modules[i].ctx) continue;
     else {
       struct chilli_module *m = 
 	(struct chilli_module *)_options.modules[i].ctx;
+      if (!strcmp(_options.modules[i].name, o.modules[i].name))
+	isReload[i]=1;
       if (m->destroy)
-	m->destroy();
+	m->destroy(isReload[i]);
     }
     log_dbg("Unloading module %s",_options.modules[i].name);
     chilli_module_unload(_options.modules[i].ctx);
@@ -381,7 +387,7 @@ int options_fromfd(int fd, bstring bt) {
       struct chilli_module *m = 
 	(struct chilli_module *)_options.modules[i].ctx;
       if (m->initialize)
-	m->initialize(_options.modules[i].conf); 
+	m->initialize(_options.modules[i].conf, isReload[i]); 
     }
   }
 #endif
@@ -598,6 +604,23 @@ void options_destroy() {
 
 void options_cleanup() {
   char file[128];
+
+#ifdef ENABLE_MODULES
+  int i;
+  for (i=0; i < MAX_MODULES; i++) {
+    if (!_options.modules[i].name[0]) break;
+    if (!_options.modules[i].ctx) continue;
+    else {
+      struct chilli_module *m = 
+	(struct chilli_module *)_options.modules[i].ctx;
+      if (m->destroy)
+	m->destroy(0);
+    }
+    log_dbg("Unloading module %s",_options.modules[i].name);
+    chilli_module_unload(_options.modules[i].ctx);
+  }
+#endif
+
   chilli_binconfig(file, sizeof(file), getpid());
   log_dbg("Removing %s", file);
   if (remove(file)) log_dbg("remove(%s) failed", file);

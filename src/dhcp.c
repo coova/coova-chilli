@@ -415,7 +415,7 @@ int dhcp_send(struct dhcp_t *this, struct _net_interface *netif,
     }
 #endif
 
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("dhcp_send() len=%d", length);
 #endif
 
@@ -1196,7 +1196,8 @@ void dhcp_free(struct dhcp_t *dhcp) {
   if (!dhcp) return;
   if (dhcp->hash) free(dhcp->hash);
   if (dhcp->authip) free(dhcp->authip);
-  dev_set_flags(dhcp->rawif.devname, dhcp->rawif.devflags);
+  if (!_options.uid)
+    dev_set_flags(dhcp->rawif.devname, dhcp->rawif.devflags);
   net_close(&dhcp->rawif);
 
   for (conn = dhcp->firstfreeconn; conn; ) {
@@ -1424,15 +1425,12 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     char isMDNS = 0;
 #endif
     
-#if(_debug_)
+#if(_debug_ > 1)
     uint16_t id      = ntohs(dnsp->id);
 
     log_dbg("dhcp_dns plen=%d dlen=%d olen=%d", plen, dlen, olen);
     log_dbg("DNS ID:    %d", id);
     log_dbg("DNS Flags: %d", flags);
-    int d = 1;
-#else
-    int d = 0;
 #endif
 
 #ifdef ENABLE_BONJOUR
@@ -1460,7 +1458,6 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     
 #undef  copyres
 #define copyres(isq,n)			        \
-    if (d) log_dbg(#n ": %d", n ## count);		\
     for (i=0; dlen && i < n ## count; i++)		\
       if (dns_copy_res(conn, isq, &dptr, &dlen,		\
 		       (uint8_t *)dnsp, olen,		\
@@ -1472,7 +1469,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     copyres(0,ns);
     copyres(0,ar);
 
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("left (should be zero): %d", dlen);
 #endif
     
@@ -2858,8 +2855,10 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
   }
 #endif
 
-  if (_options.uamanyip && !_options.uamnatanyip &&
-      (hisip->s_addr & ourmask->s_addr) != (ourip->s_addr & ourmask->s_addr)) {
+  if (  _options.uamanyip && 
+      ! _options.uamnatanyip &&
+	(hisip->s_addr & ourmask->s_addr) != 
+	(ourip->s_addr & ourmask->s_addr)) {
     /**
      *  We have enabled ''uamanyip'' and the address we are setting does
      *  not fit in ourip's network. In this case, add a route entry. 
@@ -3685,7 +3684,7 @@ int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
     prot = ntohs(ethh->prot);
   }
 
-#if(_debug_)
+#if(_debug_ > 1)
   if (_options.debug) {
     struct pkt_ethhdr_t *ethh = ethhdr(packet);
     log_dbg("dhcp_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
@@ -3725,7 +3724,10 @@ int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
       }
     }
 #endif
-    log_dbg("Layer2 PROT: 0x%.4x dropped", prot); 
+#ifdef ENABLE_LAYER3
+    if (!_options.layer3)
+#endif
+      log_dbg("Layer2 PROT: 0x%.4x dropped", prot); 
     return 0;
   }
   
@@ -3740,7 +3742,10 @@ int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
 
   case PKT_ETH_PROTO_ARP:  
     if (!ignore)
-      return dhcp_receive_arp(this, packet, length);
+#ifdef ENABLE_LAYER3
+      if (!_options.layer3)
+#endif
+	return dhcp_receive_arp(this, packet, length);
     break;
 
   case PKT_ETH_PROTO_IP:  
@@ -3774,7 +3779,10 @@ int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
   case PKT_ETH_PROTO_IPX:
   default: 
     if (!ignore)
-      log_dbg("Layer2 PROT: 0x%.4x dropped", prot); 
+#ifdef ENABLE_LAYER3
+      if (!_options.layer3)
+#endif
+	log_dbg("Layer2 PROT: 0x%.4x dropped", prot); 
     break;
   }
 
@@ -3990,7 +3998,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
     size_t hdrlen = sizeofeth2(tag);
     memcpy(packet + hdrlen, pack, len);
     length += hdrlen;
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("adding %d to IP frame length %d", hdrlen, len);
 #endif
   }
@@ -4451,7 +4459,7 @@ int dhcp_eapol_ind(struct dhcp_t *this) {
   if ((length = net_read_eth(&this->rawif, packet, sizeof(packet))) < 0) 
     return -1;
 
-#if(_debug_)
+#if(_debug_ > 1)
   if (_options.debug) {
     struct pkt_ethhdr_t *ethh = ethhdr(packet);
     log_dbg("eapol_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x",
@@ -4568,7 +4576,10 @@ int dhcp_receive(struct dhcp_t *this) {
       dhcp_receive_ip(this, (struct pkt_ippacket_t*) ethhdr, hdrp->bh_caplen);
       break;
     case PKT_ETH_PROTO_ARP:
-      dhcp_receive_arp(this, (struct arp_fullpacket_t*) ethhdr, hdrp->bh_caplen);
+#ifdef ENABLE_LAYER3
+      if (!_options.layer3)
+#endif
+	dhcp_receive_arp(this, (struct arp_fullpacket_t*) ethhdr, hdrp->bh_caplen);
       break;
 #ifdef ENABLE_EAPOL
     case PKT_ETH_PROTO_EAPOL:

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 2009-2010 Coova Technologies, LLC. <support@coova.com>
+# Copyright (C) 2009-2011 Coova Technologies, LLC. <support@coova.com>
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,38 +18,22 @@
 . ./uam.sh
 . ./wispr.sh
 
-reg_mode=$(getconfig reg_mode)
-[ "$reg_mode" = "self" ] && register=1
-[ "$reg_mode" = "tos"  ] && tos=1
-hs_openidauth=$(getconfig openidauth)
-hs_owner_email=$(getconfig owner_email)
-hs_uamsecret=$(getconfig uamsecret)
-hs_uamsecret=${hs_uamsecret:-coova-free}
-hs_uamlisten=$(getconfig uamlisten)
-hs_uamport=$(getconfig uamport)
-hs_uamservice=$(getconfig uamservice)
-hs_use_map=$(getconfig use_map)
-[ "$hs_use_map" = "on" ] && usemap=1
-hs_latitude=$(getconfig latitude)
-hs_longitude=$(getconfig longitude)
-hs_rad_proto=$(getconfig rad_proto)
-
 USERS=@ETCCHILLI@/localusers
-FORM_userurl=${FORM_userurl:-http://www.coova.org/}
-
 COOVA_USERURL=$COOKIE_COOVA_USERURL
-
 COOVA_SESSIONID=$CHI_SESSION_ID
 COOVA_CHALLENGE=$CHI_CHALLENGE
 PORTAL_SESSIONID=${COOKIE_PORTAL_SESSIONID:-$SESSIONID}
+FORM_userurl=${FORM_userurl:-http://www.coova.org/}
     
 http_redirect2() {
-    echo "HTTP/1.1 302 Redirect"
-    echo "Location: $1"
-    echo "Set-Cookie: PORTAL_SESSIONID=$PORTAL_SESSIONID"
-    echo "Set-Cookie: COOVA_USERURL=$COOVA_USERURL"
-    echo "Connection: close"
-    echo ""
+cat <<EOF
+HTTP/1.1 302 Redirect
+Location: $1
+Set-Cookie: PORTAL_SESSIONID=$PORTAL_SESSIONID
+Set-Cookie: COOVA_USERURL=$COOVA_USERURL
+Connection: close
+
+EOF
     exit
 }
 
@@ -67,17 +51,18 @@ EOF
 }
 
 http_header() {
-    [ "$(getconfig enabled)" = "true" ] || {
+    [ "$HS_MODE" = "hotspot" ] || {
 	http_redirect2 "/www/disabled.chi"
     }
-    
-    echo "HTTP/1.1 200 OK"
-    echo "Content-Type: text/html"
-    echo "Set-Cookie: PORTAL_SESSIONID=$PORTAL_SESSIONID"
-    echo "Set-Cookie: COOVA_USERURL=$COOVA_USERURL"
-    echo "Connection: close"
-    echo "Cache: none"
-    echo ""
+    cat<<EOF    
+HTTP/1.1 200 OK
+Content-Type: text/html
+Set-Cookie: PORTAL_SESSIONID=$PORTAL_SESSIONID
+Set-Cookie: COOVA_USERURL=$COOVA_USERURL
+Connection: close
+Cache: none
+
+EOF
 }
 
 header() {
@@ -131,7 +116,7 @@ loginform() {
 	    ;;
 	
 	*)
-	    [ "$hs_openidauth" = "on" ] && { \
+	    [ "$HS_OPENIDAUTH" = "on" ] && { \
 		echo "<div id=\"login-label\" style=\"display:none;\"><label><a href=\"javascript:toggleAuth('login')\">&lt;&lt; back</a></label></div>"
 		form "login.chi" "$(uamfile openid_form 1)"
 	    }
@@ -155,7 +140,7 @@ local_login_url() {
 	fi
     else
 	user=$REMOTE_MAC
-	pass=$(getconfig admpwd)
+	pass=$HS_ADMPWD
 	echo -n $(chi_login_url "$user" "$pass")
     fi
 }
@@ -195,18 +180,18 @@ runlogin() {
 }
 
 chi_login_url() {
-    case "$hs_rad_proto" in
+    case "$HS_RAD_PROTO" in
 	pap)
-	    response=$($CHILLI_RESPONSE -pap "$CHI_CHALLENGE" "$hs_uamsecret" "$2")
-	    echo -n "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=$1&password=${response}&userurl=${3:-$COOVA_USERURL}"
+	    response=$($CHILLI_RESPONSE -pap "$CHI_CHALLENGE" "$HS_UAMSECRET" "$2")
+	    echo -n "http://$HS_UAMLISTEN:$HS_UAMPORT/login?username=$1&password=${response}&userurl=${3:-$COOVA_USERURL}"
 	    ;;
 	mschapv2)
-	    response=$($CHILLI_RESPONSE -nt "$CHI_CHALLENGE" "$hs_uamsecret" "$1" "$2")
-	    echo -n "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=$1&ntresponse=${response}&userurl=${3:-$COOVA_USERURL}"
+	    response=$($CHILLI_RESPONSE -nt "$CHI_CHALLENGE" "$HS_UAMSECRET" "$1" "$2")
+	    echo -n "http://$HS_UAMLISTEN:$HS_UAMPORT/login?username=$1&ntresponse=${response}&userurl=${3:-$COOVA_USERURL}"
 	    ;;
 	*)
-	    response=$($CHILLI_RESPONSE "$CHI_CHALLENGE" "$hs_uamsecret" "$2")
-	    echo -n "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=$1&response=${response}&userurl=${3:-$COOVA_USERURL}"
+	    response=$($CHILLI_RESPONSE "$CHI_CHALLENGE" "$HS_UAMSECRET" "$2")
+	    echo -n "http://$HS_UAMLISTEN:$HS_UAMPORT/login?username=$1&response=${response}&userurl=${3:-$COOVA_USERURL}"
 	    ;;
     esac
 }
@@ -240,21 +225,19 @@ FORM_password="${FORM_password:-$FORM_Password}"
 [ "$FORM_res" = "wispr" ] && \
     [ "$FORM_WISPrEAPMsg" != "" ] && \
     [ "$FORM_WISPrVersion" = "2.0" ] && {
-    http_redirect2 "http://$(getconfig uamlisten):$(getconfig uamport)/login?username=$FORM_username&WISPrEAPMsg=$FORM_WISPrEAPMsg&WISPrVersion=2.0"
+    http_redirect2 "http://$HS_UAMLISTEN:$HS_UAMPORT/login?username=$FORM_username&WISPrEAPMsg=$FORM_WISPrEAPMsg&WISPrVersion=2.0"
 }
 
-if [ "$FORM_uamip" != "" ]; then
-    if [ "$FORM_res" != "wispr" ]; then
+if [ "$FORM_uamip" != "" ] && [ "$HS_UAMSECRET" != "" ]
+then
+    if [ "$FORM_res" != "wispr" ]
+    then
 	QS=$(echo $QUERY_STRING | sed 's/&md=[^&=]*$//')
 	HTTP="http"
 	[ "$HTTPS" = "on" ] && HTTP="https"
 	URL="$HTTP://$SERVER_NAME/$REQUEST_URI?$QS"
-	CHECK="$URL$hs_uamsecret"
+	CHECK="$URL$HS_UAMSECRET"
 	CHECK_MD5=$(echo -n "$CHECK" |md5sum|cut -d' ' -f1|tr 'a-z' 'A-Z');
-    #echo "$URL" >> /tmp/debug
-    #echo "$CHECK" >> /tmp/debug
-    #echo "$CHECK_MD5" >> /tmp/debug
-    #echo "$FORM_md" >> /tmp/debug
 	if [ "$CHECK_MD5" = "$FORM_md" ]; then
 	    COOVA_USERURL=$FORM_userurl
 	else

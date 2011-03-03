@@ -20,10 +20,11 @@ static int acc(void *nullData, int sock) {
   return CHILLI_MOD_OK;
 }
 
-static int module_initialize(char *conf) {
+static int module_initialize(char *conf, char isReload) {
   struct sockaddr_un local;
   
-  log_dbg("%s", __FUNCTION__);
+  log_dbg("%s('%s', %d)", __FUNCTION__, conf, (int) isReload);
+
   if ((fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
 
     log_err(errno, "could not allocate UNIX Socket!");
@@ -86,7 +87,10 @@ static int module_session_stop(struct app_conn_t *appconn) {
   return CHILLI_MOD_OK;
 }
 
-static int module_destroy() {
+static int module_destroy(char isReload) {
+
+  log_dbg("%s(%d)", __FUNCTION__, (int) isReload);
+
   close(fd);
   return CHILLI_MOD_OK;
 }

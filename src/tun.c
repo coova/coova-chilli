@@ -792,7 +792,7 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
 
   if (c->idx) ethhdr = 0;
 
-#if(_debug_)
+#if(_debug_ > 1)
   log_dbg("tun_decaps(idx=%d, len=%d)", tun(c->this, c->idx).ifindex, length);
 #endif
 
@@ -1060,7 +1060,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     len  -= ethlen;
   }
 
-#if(_debug_)
+#if(_debug_ > 1)
   log_dbg("tun_encaps(%s) len=%d", tun(tun,idx).devname, len);
 #endif
 
@@ -1148,6 +1148,11 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
     log_err(errno, "setenv() did not return 0!");
     exit(0);
   }
+
+#ifdef ENABLE_LAYER3
+  if (_options.layer3)
+    setenv("LAYER3", "1", 1);
+#endif
 
   if (execl(
 #ifdef ENABLE_CHILLISCRIPT

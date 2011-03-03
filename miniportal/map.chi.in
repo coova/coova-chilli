@@ -1,5 +1,5 @@
 <? # -*- mode: shell-script -*-
-# Copyright (C) 2009-2010 Coova Technologies, LLC. <support@coova.com>
+# Copyright (C) 2009-2011 Coova Technologies, LLC. <support@coova.com>
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,9 +18,9 @@
 
 http_header
 
-hs_latitude=${hs_latitude:-0}
-hs_longitude=${hs_longitude:-0}
-hs_address=$(nvram get hs_loc_name)
+HS_LATITUDE=${HS_LATITUDE:-0}
+HS_LONGITUDE=${HS_LONGITUDE:-0}
+HS_ADDRESS=$HS_LOC_NAME
 
 js=$(cat<<EOF
     <link href="http://www.google.com/uds/css/gsearch.css" rel="stylesheet" type="text/css"/>
@@ -95,9 +95,9 @@ table.gsc-search-box {
     //<![CDATA[
     
     var geocoder = new GClientGeocoder();
-    var lat = $hs_latitude;
-    var lng = $hs_longitude;
-    var addr = "$hs_address";
+    var lat = $HS_LATITUDE;
+    var lng = $HS_LONGITUDE;
+    var addr = "$HS_ADDRESS";
     var place = null;
     var locAddr = null;
     var locMarker = null;

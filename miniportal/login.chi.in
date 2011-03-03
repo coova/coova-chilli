@@ -1,5 +1,5 @@
 <? # -*- mode: shell-script -*-
-# Copyright (C) 2009-2010 Coova Technologies, LLC. <support@coova.com>
+# Copyright (C) 2009-2011 Coova Technologies, LLC. <support@coova.com>
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,15 +16,14 @@
 
 . ./config.sh
 
-if [ -n "$FORM_username" -a -n "$COOVA_CHALLENGE" ]; then
-    
+if [ -n "$FORM_username" -a -n "$COOVA_CHALLENGE" ]
+then
     http_header
-    
     dologin
-    
 else
     
-    if [ -e "splash.chi" ]; then
+    if [ -e "splash.chi" ]
+    then
 	http_redirect "/www/splash.chi"
     fi
     
@@ -43,8 +42,10 @@ else
     
     uamfile "login" 1 
     
-    if [ "$FORM_res" =  "failed" ]; then
-	if [ -n "$FORM_reply" ]; then
+    if [ "$FORM_res" =  "failed" ]
+    then
+	if [ -n "$FORM_reply" ]
+	then
 	    error "$FORM_reply"
 	else
 	    error "Username and/or passowrd was not valid"
@@ -54,8 +55,8 @@ else
     loginform 
     
     uamfile "login_footer" 1 
-    [ "$register" = "1" ] && uamfile "login_register" 1 
-    [ "$usemap" = "1" ] && uamfile "login_map" 1 
+    [ "$HS_REG_MODE" = "self" ] && uamfile "login_register" 1 
+    [ "$HS_USE_MAP" = "on" ] && uamfile "login_map" 1 
     
     footer
     

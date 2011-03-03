@@ -191,7 +191,7 @@ static int redir_conn_finish(struct conn_t *conn, void *ctx) {
 
 #ifdef ENABLE_REDIRINJECT
     if (req->html && !req->chunked) {
-      int w = safe_write(req->socket_fd, inject, strlen(inject));
+      int w = net_write(req->socket_fd, inject, strlen(inject));
       log_dbg("injected %d bytes", w);
     }
 #endif
@@ -291,23 +291,23 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	/* Check content-encoding chunked */
 	/* Adjust content-length */
 
-	safe_write(req->socket_fd, newhdr->data, newhdr->slen);
-	safe_write(req->socket_fd, newline, 2);
-
+	net_write(req->socket_fd, newhdr->data, newhdr->slen);
+	net_write(req->socket_fd, newline, 2);
+	
 	if (req->html && req->chunked) {
 	  char tmp[56]; int w;
 	  safe_snprintf(tmp, sizeof(tmp), "%x\r\n", strlen(inject));
-	  safe_write(req->socket_fd, tmp, strlen(tmp));
-	  w = safe_write(req->socket_fd, inject, strlen(inject));
+	  net_write(req->socket_fd, tmp, strlen(tmp));
+	  w = net_write(req->socket_fd, inject, strlen(inject));
 #if(_debug_ > 1)
 	  log_dbg("--->>> chunked write %d", w);
 #endif
-	  safe_write(req->socket_fd, "\r\n", 2);
+	  net_write(req->socket_fd, "\r\n", 2);
 	}
-
-	safe_write(req->socket_fd, eoh + 4, req->hbuf->slen - 
-		   (hdr - (char *)req->hbuf->data) - 2);
-
+	
+	net_write(req->socket_fd, eoh + 4, req->hbuf->slen - 
+		  (hdr - (char *)req->hbuf->data) - 2);
+	
 	req->headers = 1;
 	bdestroy(newhdr);
       }
@@ -315,7 +315,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
     else {
 #endif
 
-      int w = safe_write(req->socket_fd, b, r);
+      int w = net_write(req->socket_fd, b, r);
 
 #if(_debug_ > 1)      
       log_dbg("write: %d", w);

@@ -194,3 +194,7 @@ HS_LOC_NAME="My HotSpot"	   # WISPr Location Name and used in portal
 # HS_LOC_CC=1			   # Phone country code
 # HS_LOC_ISOCC=US		   # ISO Country code
 
+# Embedded miniportal
+# HS_REG_MODE="tos" # or self, other
+# HS_RAD_PROTO="pap" # or mschapv2, chap
+# HS_USE_MAP=on

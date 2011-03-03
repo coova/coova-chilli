@@ -10,7 +10,7 @@ var o = document.getElementById('logonForm');
 if (o != null) {
 EOF
 
-chilliwww="http:\/\/$hs_uamlisten:$hs_uamport"
+chilliwww="http:\/\/$HS_UAMLISTEN:$HS_UAMPORT"
 echo "o.innerHTML='"$(cat json_html.tmpl|tr '\n' ' '|sed -e "s/'/\\'/"|sed -e "s/CHILLIWWW/$chilliwww/g")"';" 
 echo "}"
 

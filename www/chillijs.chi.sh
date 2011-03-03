@@ -1,7 +1,6 @@
 #!/bin/sh
-# copyright (c) David Bird <david@coova.com>
+# copyright (c) 2011 Coova Technologies, LLC
 # this is the pure shell version...
-
 cat <<EOF
 HTTP/1.0 200 OK
 Content-Type: text/javascript
@@ -13,9 +12,9 @@ EOF
 
 cat ChilliLibrary.js
 
-echo "chilliController.host = '$hs_uamlisten';"
-echo "chilliController.port = $hs_uamport;"
-[ -n "$hs_uamservice" ] && echo "chilliController.uamService = '$hs_uamservice';"
-[ "$hs_openidauth" = "on" ] && echo "chilliController.openid = true;"
+echo "chilliController.host = '$HS_UAMLISTEN';"
+echo "chilliController.port = $HS_UAMPORT;"
+[ -n "$HS_UAMSERVICE" ] && echo "chilliController.uamService = '$HS_UAMSERVICE';"
+[ "$HS_OPENIDAUTH" = "on" ] && echo "chilliController.openid = true;"
 
 cat chilliController.js

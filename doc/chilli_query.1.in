@@ -16,13 +16,7 @@ chilli_query \-  Interface into the chilli server
 
 .SH SYNOPSIS
 .B chilli_query
-[ \-s <unix-socket> ] list
-
-.B chilli_query
-[ \-s <unix-socket> ] authorize <parameters>
-
-.B chilli_query
-[ \-s <unix-socket> ] logout <client-mac-address>
+[ \-s <unix-socket> ] <command> [<parameters>...]
 
 .SH DESCRIPTION
 .B chilli_query

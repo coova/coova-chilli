@@ -223,6 +223,7 @@ static int usage(char *program) {
 	    i > 0 ? ", " : "",
 	    commands[i].command);
   }
+
   fprintf(stderr, "\n  Available Arguments:\n");
   for (i=0; i < count; i++) {
     fprintf(stderr, "    %-18s%-7s - type: %-4s [%4d] - %s\n", 

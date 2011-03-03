@@ -758,6 +758,21 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
   return len;
 }
 
+ssize_t net_write(int sock, void *d, size_t dlen) {
+  int left = dlen;
+  int w, off = 0;
+  while (left > 0) {
+    w = safe_write(sock, d + off, left);
+    if (w < 0) {
+      log_err(errno, "write()");
+      return off ? off : -1;
+    }
+    left -= w;
+    off += w;
+  }
+  return off;
+}
+
 ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockaddr_ll *dest) {
   int fd = netif->fd;
   ssize_t len;
@@ -775,7 +790,8 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
     switch (errno) {
     case EWOULDBLOCK:
       log_err(errno, "packet dropped due to congestion");
-      net_reopen(netif);
+      if (!_options.uid)
+	net_reopen(netif);
       break;
       
 #ifdef ENETDOWN
