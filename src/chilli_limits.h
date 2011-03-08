@@ -69,7 +69,6 @@
 #define REDIR_SESSIONID_LEN               17
 
 /* chilli */
-#define MAX_EAP_LEN                     1265 /* Size of buffer to hold EAP message. Can hold 5 EAP attributes, i.e. the max for Radius over UDP */
 #define MACSTRLEN                         17
 #define MS2SUCCSIZE                       40 /* MS-CHAPv2 authenticator response as ASCII */
 #define DATA_LEN                        1500 /* Max we allow */
@@ -104,6 +103,7 @@
 #define TCP_MAX_OPTION_LEN 40
 
 #ifdef ENABLE_LARGELIMITS
+#define MAX_EAP_LEN                     3000 /* Size of buffer to hold EAP message */
 #define SESSION_PASS_THROUGH_MAX          16
 #define MAX_PASS_THROUGHS                512 /* Max number of allowed UAM pass-throughs */
 #define MAX_REGEX_PASS_THROUGHS          512 /* Max number of allowed UAM pass-throughs */
@@ -111,6 +111,7 @@
 #define MACOK_MAX                         56
 #define MAX_SELECT                        56
 #else
+#define MAX_EAP_LEN                     1500 /* Size of buffer to hold EAP message */
 #define SESSION_PASS_THROUGH_MAX           8
 #define MAX_PASS_THROUGHS                128 /* Max number of allowed UAM pass-throughs */
 #define MAX_REGEX_PASS_THROUGHS            8 /* Max number of allowed UAM pass-throughs */

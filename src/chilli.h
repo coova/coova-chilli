@@ -99,6 +99,7 @@ struct app_conn_t {
   /* Radius authentication stuff */
   /* Parameters are initialised whenever a reply to an access request
      is received. */
+#ifdef ENABLE_RADPROXY
   uint8_t chal[MAX_EAP_LEN];     /* EAP challenge */
   size_t challen;                /* Length of EAP challenge */
   uint8_t sendkey[RADIUS_ATTR_VLEN];
@@ -111,6 +112,7 @@ struct app_conn_t {
   uint32_t types;
   uint8_t ms2succ[MS2SUCCSIZE];
   size_t ms2succlen;
+#endif
 
   /* Radius proxy stuff */
   /* Parameters are initialised whenever a radius proxy request is received */

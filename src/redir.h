@@ -89,7 +89,7 @@
 #define REDIR_MSG_NSESSIONID  4
 
 struct eapmsg_t {
-  uint8_t len;
+  uint16_t len;
   uint8_t data[MAX_EAP_LEN];
 };
 

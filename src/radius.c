@@ -28,7 +28,6 @@ radius_authcheck(struct radius_t *this, struct radius_packet_t *pack,
 static int 
 radius_acctcheck(struct radius_t *this, struct radius_packet_t *pack);
 
-
 void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   struct in_addr inaddr;
   struct in_addr *paddr = 0;
@@ -51,7 +50,7 @@ void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pa
   uint8_t *mac= 0;
 
   if (_options.nasmac)
-    mac = (uint8_t *)_options.nasmac;
+    mac = (uint8_t *) _options.nasmac;
   else 
     safe_snprintf((char*)(mac = b), sizeof(b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
 		  radius->nas_hwaddr[0], radius->nas_hwaddr[1], radius->nas_hwaddr[2],
@@ -332,14 +331,16 @@ static int radius_queue_idx(struct radius_t *this, int id) {
  * Remove data from queue.
  */
 static int 
-radius_queue_out(struct radius_t *this, 
+radius_queue_out(struct radius_t *this, int idx,
 		 struct radius_packet_t *pack_in,
 		 struct radius_packet_t *pack_out,
-		 void **cbp, int auth_check) {
+		 void **cbp) {
+  int id = 0;
 
-  int id = pack_in->id;
-
-  int idx = radius_queue_idx(this, id);
+  if (idx < 0 && pack_in) {
+    id = pack_in->id;
+    idx = radius_queue_idx(this, id);
+  }
 
   if (idx < 0) {
     log_err(0, "bad idx (%d)", idx);
@@ -359,7 +360,7 @@ radius_queue_out(struct radius_t *this,
   }
 #endif
 
-  if (auth_check &&
+  if (pack_in &&
       radius_authcheck(this, pack_in, &this->queue[idx].p)) {
     log_warn(0, "Authenticator does not match! req-id=%d res-id=%d", 
 	     this->queue[idx].p.id, pack_in->id);
@@ -653,11 +654,10 @@ int radius_timeout(struct radius_t *this) {
       }
     }
     else { /* Finished retrans */
-      if (radius_queue_out(this, 
-			   &this->queue[this->first].p,
-			   &pack_req, &cbp, 0)) {
-	log_warn(0, "RADIUS id %d was not found in queue!", 
-		 (int) this->queue[this->first].p.id);
+      if (radius_queue_out(this, this->first,
+			   0, &pack_req, &cbp)) {
+	log_warn(0, "RADIUS idx=%d id=%d was not found in queue!", 
+		 this->first, (int) this->queue[this->first].p.id);
 	return -1;
       }
       
@@ -1729,7 +1729,7 @@ int radius_decaps(struct radius_t *this, int idx) {
       return -1;
     }
     
-    if (radius_queue_out(this, &pack, &pack_req, &cbp, 1)) {
+    if (radius_queue_out(this, -1, &pack, &pack_req, &cbp)) {
       log_warn(0, "RADIUS id %d was not found in queue!", 
 	       (int) pack.id);
       return -1;

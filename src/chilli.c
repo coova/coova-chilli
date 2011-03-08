@@ -1738,6 +1738,7 @@ int dnprot_reject(struct app_conn_t *appconn) {
   }
 }
 
+#if defined(ENABLE_RADPROXY) || defined(ENABLE_EAPOL)
 int static dnprot_challenge(struct app_conn_t *appconn) {
 
   switch (appconn->dnprot) {
@@ -1776,6 +1777,7 @@ int static dnprot_challenge(struct app_conn_t *appconn) {
 
   return 0;
 }
+#endif
 
 int dnprot_accept(struct app_conn_t *appconn) {
   struct dhcp_conn_t* dhcpconn = NULL;
@@ -2691,6 +2693,7 @@ int access_request(struct radius_packet_t *pack,
 #ifdef ENABLE_LAYER3
     if (_options.layer3) {
       log_err(0, "Not supported in layer3 mode");
+      return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     } else {
 #endif
       if (dhcp_hashget(dhcp, &dhcpconn, hismac)) {
@@ -2740,7 +2743,7 @@ int access_request(struct radius_packet_t *pack,
     log_dbg("Password is: %s", pwd);
 #endif
   }
-
+  
   /* Get EAP message */
   resplen = 0;
   do {
@@ -2748,7 +2751,7 @@ int access_request(struct radius_packet_t *pack,
     if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
 			instance++)) {
       if ((resplen + (size_t)eapattr->l-2) > MAX_EAP_LEN) {
-	log(LOG_INFO, "EAP message too long");
+	log(LOG_INFO, "EAP message too long %d %d", resplen, (int)eapattr->l-2);
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
       memcpy(resp + resplen, eapattr->v.t, (size_t)eapattr->l-2);
@@ -3507,14 +3510,17 @@ int cb_radius_auth_conf(struct radius_t *radius,
   struct radius_attr_t *sendattr = NULL;
   struct radius_attr_t *recvattr = NULL;
   struct radius_attr_t *succattr = NULL;
-  struct radius_attr_t *policyattr = NULL;
-  struct radius_attr_t *typesattr = NULL;
 
-  struct radius_attr_t *eapattr = NULL;
   struct radius_attr_t *stateattr = NULL;
   struct radius_attr_t *classattr = NULL;
 
+#ifdef ENABLE_RADPROXY
   int instance = 0;
+  struct radius_attr_t *policyattr = NULL;
+  struct radius_attr_t *typesattr = NULL;
+  struct radius_attr_t *eapattr = NULL;
+#endif
+
   struct in_addr *hisip = NULL;
   int statip = 0;
 
@@ -3529,10 +3535,13 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   /* Initialise */
   appconn->s_state.redir.statelen = 0;
+
+#ifdef ENABLE_RADPROXY
   appconn->challen  = 0;
   appconn->sendlen  = 0;
   appconn->recvlen  = 0;
   appconn->lmntlen  = 0;
+#endif
   
   if (!pack) { /* Timeout */
     log_err(0, "RADIUS request id=%d timed out for session %s",
@@ -3562,6 +3571,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     memcpy(appconn->s_state.redir.statebuf, stateattr->v.t, stateattr->l-2);
   }
 
+#ifdef ENABLE_RADPROXY
   /* ACCESS-CHALLENGE */
   if (pack->code == RADIUS_CODE_ACCESS_CHALLENGE) {
     log_dbg("Received RADIUS Access-Challenge");
@@ -3572,7 +3582,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
       eapattr=NULL;
       if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, instance++)) {
 	if ((appconn->challen + eapattr->l-2) > MAX_EAP_LEN) {
-	  log(LOG_INFO, "EAP message too long");
+	  log(LOG_INFO, "EAP message too long %d %d", 
+	      appconn->challen, (int) eapattr->l-2);
 	  return dnprot_reject(appconn);
 	}
 	memcpy(appconn->chal+appconn->challen, eapattr->v.t, eapattr->l-2);
@@ -3587,6 +3598,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     
     return dnprot_challenge(appconn);
   }
+#endif
   
   /* ACCESS-ACCEPT */
   if (pack->code != RADIUS_CODE_ACCESS_ACCEPT) {
@@ -3657,6 +3669,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     }
   }
 
+#ifdef ENABLE_RADPROXY
   /* EAP Message */
   appconn->challen = 0;
   do {
@@ -3664,11 +3677,13 @@ int cb_radius_auth_conf(struct radius_t *radius,
     if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
 			instance++)) {
       if ((appconn->challen + eapattr->l-2) > MAX_EAP_LEN) {
-	log(LOG_INFO, "EAP message too long");
+	log(LOG_INFO, "EAP message too long %d %d", 
+	    appconn->challen, (int) eapattr->l-2);
 	return dnprot_reject(appconn);
       }
-      memcpy(appconn->chal+appconn->challen,
+      memcpy(appconn->chal + appconn->challen,
 	     eapattr->v.t, eapattr->l-2);
+
       appconn->challen += eapattr->l-2;
     }
   } while (eapattr);
@@ -3728,7 +3743,6 @@ int cb_radius_auth_conf(struct radius_t *radius,
     appconn->types = ntohl(typesattr->v.i);
   }
   
-
   /* Get MS_Chap_v2 SUCCESS */
   if (!radius_getattr(pack, &succattr, RADIUS_ATTR_VENDOR_SPECIFIC,
 		      RADIUS_VENDOR_MS,
@@ -3739,22 +3753,23 @@ int cb_radius_auth_conf(struct radius_t *radius,
     }
     memcpy(appconn->ms2succ, ((void*)&succattr->v.t)+3, MS2SUCCSIZE);
   }
+#endif
 
   switch(appconn->authtype) {
 
   case PAP_PASSWORD:
-    appconn->policy = 0; /* TODO */
     break;
 
+#ifdef ENABLE_RADPROXY
   case EAP_MESSAGE:
     if (!appconn->challen) {
       log(LOG_INFO, "No EAP message found");
       return dnprot_reject(appconn);
     }
     break;
+#endif
 
   case CHAP_DIGEST_MD5:
-    appconn->policy = 0; /* TODO */
     break;
 
   case CHAP_MICROSOFT:
@@ -4725,16 +4740,17 @@ int static uam_msg(struct redir_msg_t *msg) {
     /* Initialise */
     appconn->s_params.routeidx = tun->routeidx;
     appconn->s_state.redir.statelen = 0;
+
+#ifdef ENABLE_RADPROXY
     appconn->challen  = 0;
     appconn->sendlen  = 0;
     appconn->recvlen  = 0;
     appconn->lmntlen  = 0;
+#endif
     
     memcpy(appconn->hismac, dhcpconn->hismac, PKT_ETH_ALEN);
     /*memcpy(appconn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);*/
     
-    appconn->policy = 0; /* TODO */
-
 #ifdef ENABLE_LEAKYBUCKET
     leaky_bucket_init(appconn);
 #endif

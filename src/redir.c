@@ -1035,9 +1035,11 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
     bconcat(b, bt);
     
     /* Create an EAP identity message */
-    eapidentityreq(&(conn->authdata.v.eapmsg), ++conn->s_state.redir.eap_identity);
+    eapidentityreq(&(conn->authdata.v.eapmsg),
+		   ++conn->s_state.redir.eap_identity);
     
-    if (!base64encoder(&(conn->authdata.v.eapmsg), eap64str, MAX_EAP_LEN*2)){
+    if (!base64encoder(&(conn->authdata.v.eapmsg), 
+		       eap64str, MAX_EAP_LEN*2)){
       /*	log_dbg("Encoded radius eap msg: %s", eap64str);  */
       bassignformat(bt, "<EAPMsg>%s</EAPMsg>\r\n", eap64str);
       bconcat(b, bt);
@@ -1140,12 +1142,11 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
     
     bcatcstr(b, 
 	     "<EAPAuthenticationReply>\r\n"
-	     "<MessageType>121</MessageType>\r\n"  /* response to authentication notification */
-	     "<ResponseCode>10</ResponseCode>\r\n"); /* challenge */
+	     "<MessageType>121</MessageType>\r\n"
+	     "<ResponseCode>10</ResponseCode>\r\n");
     
-    if (!base64encoder(&(conn->authdata.v.eapmsg), eap64str, MAX_EAP_LEN*2)){
-      /*			if (redir->debug)
-				log_dbg("Encoded radius eap msg: %s", eap64str);  */
+    if (!base64encoder(&(conn->authdata.v.eapmsg), 
+		       eap64str, MAX_EAP_LEN*2)){
       bassignformat(bt, "<EAPMsg>%s</EAPMsg>\r\n", eap64str);
       bconcat(b, bt);
     } else {
@@ -1165,10 +1166,11 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
     write_authentication_msg_header();     
     
     bcatcstr(b, 
-	     "<ResponseCode>50</ResponseCode>\r\n"); /* login succeeded */
+	     "<ResponseCode>50</ResponseCode>\r\n"); 
     
     if (conn->authdata.type == REDIR_AUTH_EAP) {
-      if (!base64encoder(&(conn->authdata.v.eapmsg), eap64str, MAX_EAP_LEN*2)){
+      if (!base64encoder(&(conn->authdata.v.eapmsg), 
+			 eap64str, MAX_EAP_LEN*2)){
 	log_dbg("Encoded radius eap msg: %s", eap64str);
 	bassignformat(bt, "<EAPMsg>%s</EAPMsg>\r\n", eap64str);
 	bconcat(b, bt);
@@ -2294,7 +2296,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    return 0;
 	  }
 
-	  rc = base64decoder((char *)  bt->data, &(conn->authdata.v.eapmsg));
+	  rc = base64decoder((char *)  bt->data, 
+			     &(conn->authdata.v.eapmsg));
 
 	  if (rc == 1) {
 	    log_err(0, "EAP message is too big, max allowed 1265 bytes");
@@ -2469,7 +2472,8 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 	conn->authdata.v.eapmsg.len = 0;
 	return -1;
       }
-      memcpy(conn->authdata.v.eapmsg.data + conn->authdata.v.eapmsg.len, attr->v.t, (size_t)attr->l-2);
+      memcpy(conn->authdata.v.eapmsg.data + conn->authdata.v.eapmsg.len, 
+	     attr->v.t, (size_t)attr->l-2);
       conn->authdata.v.eapmsg.len += (size_t)attr->l-2;
     }
   } while (attr != NULL);
@@ -2484,7 +2488,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     bytetohex(conn->authdata.v.eapmsg.data,conn->authdata.v.eapmsg.len,buffer, conn->authdata.v.eapmsg.len*2+1);
     log_dbg("+attribute EAP msg (%d bytes): %s", conn->authdata.v.eapmsg.len, buffer);
   }
-
+  
   /* Get sendkey */
   if (_options.debug) {
     char hexString[RADIUS_ATTR_VLEN*2+1+64];  /* Make sure there is room for spaces */
@@ -2525,7 +2529,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
       }
     }
   }
-
+  
   if (conn->s_params.sessionterminatetime) {
     time_t timenow = mainclock_now();
     if (timenow > conn->s_params.sessionterminatetime) {
