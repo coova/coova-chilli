@@ -4176,6 +4176,20 @@ struct app_conn_t * chilli_connect_layer3(struct in_addr *src, struct dhcp_conn_
 #endif
 
 #ifdef ENABLE_CHILLIQUERY
+static char *state2name(int authstate) {
+  switch(authstate) {
+  case DHCP_AUTH_NONE:   return "none";
+  case DHCP_AUTH_DROP:   return "drop";
+  case DHCP_AUTH_PASS:   return "pass";
+  case DHCP_AUTH_DNAT:   return "dnat";
+  case DHCP_AUTH_SPLASH: return "splash";
+#ifdef ENABLE_LAYER3
+  case DHCP_AUTH_ROUTER: return "layer2";
+#endif
+  default:               return "unknown";
+  }
+}
+
 int chilli_getinfo(struct app_conn_t *appconn, bstring b, int fmt) {
   uint32_t sessiontime = 0;
   uint32_t idletime = 0;
@@ -4267,14 +4281,109 @@ int chilli_getinfo(struct app_conn_t *appconn, bstring b, int fmt) {
   return 0;
 }
 
-int cb_dhcp_getinfo(struct dhcp_conn_t *conn, bstring b, int fmt) {
-  struct app_conn_t *appconn;
+void chilli_print(bstring s, int listfmt, 
+		  struct app_conn_t *appconn,
+		  struct dhcp_conn_t *conn) {
+  
+  if (!appconn && conn)
+    appconn = (struct app_conn_t *)conn->peer;
 
-  if (!conn->peer) return 2;
-  appconn = (struct app_conn_t*) conn->peer;
-  if (!appconn->inuse) return 2;
+  if (
+#ifdef ENABLE_LAYER3
+      !_options.layer3 &&
+#endif
+      (!appconn || !appconn->inuse)) {
+#if(_debug_)
+    log_dbg("Can not print info about unused chilli connection");
+#endif
+    return;
+  } else if (conn && !conn->inuse) {
+#if(_debug_)
+    log_dbg("Can not print info about unused dhcp connection");
+#endif
+    return;
+  } else {
+    bstring b = bfromcstr("");
+    bstring tmp = bfromcstr("");
+    
+    switch(listfmt) {
+#ifdef ENABLE_JSON
+    case LIST_JSON_FMT:
+      if ((conn && conn != dhcp->firstusedconn) ||
+	  (appconn && appconn != firstusedconn))
+	bcatcstr(b, ",");
+      
+      bcatcstr(b, "{");
+      
+      if (appconn) {
+	bcatcstr(b, "\"nasPort\":");
+	bassignformat(tmp, "%d", appconn->unit);
+	bconcat(b, tmp);
+	bcatcstr(b, ",\"clientState\":");
+	bassignformat(tmp, "%d", appconn->s_state.authenticated);
+	bconcat(b, tmp);
+	bcatcstr(b, ",\"ipAddress\":\"");
+	bcatcstr(b, inet_ntoa(appconn->hisip));
+	bcatcstr(b, "\"");
+      }
+      
+      if (conn) {
+	if (appconn) bcatcstr(b, ",");
+	bcatcstr(b, "\"macAddress\":\"");
+	bassignformat(tmp, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+		      conn->hismac[0], conn->hismac[1], conn->hismac[2],
+		      conn->hismac[3], conn->hismac[4], conn->hismac[5]);
+	bconcat(b, tmp);
+	bcatcstr(b, "\",\"dhcpState\":\"");
+	bcatcstr(b, state2name(conn->authstate));
+	bcatcstr(b, "\"");
+      }
+      
+      if (appconn)
+	chilli_getinfo(appconn, b, listfmt);
 
-  return chilli_getinfo(appconn, b, fmt);
+      bcatcstr(b, "}");
+      break;
+#endif
+
+    default:
+      if (conn && !appconn) 
+	bassignformat(b, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s",
+		      conn->hismac[0], conn->hismac[1], conn->hismac[2],
+		      conn->hismac[3], conn->hismac[4], conn->hismac[5],
+		      state2name(conn->authstate));
+      else if (conn) 
+	bassignformat(b, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %s",
+		      conn->hismac[0], conn->hismac[1], conn->hismac[2],
+		      conn->hismac[3], conn->hismac[4], conn->hismac[5],
+		      inet_ntoa(conn->hisip), state2name(conn->authstate));
+      else
+	bassignformat(b, "%s", inet_ntoa(appconn->hisip));
+      
+      switch(listfmt) {
+      case LIST_LONG_FMT:
+	if (appconn)
+	  chilli_getinfo(appconn, b, listfmt);
+	break;
+      case LIST_SHORT_FMT:
+	if (conn) {
+	  bassignformat(tmp, " %d/%d", 
+			mainclock_diff(conn->lasttime), 
+			dhcp->lease);
+	  bconcat(b, tmp);
+	}
+	break;
+      }
+      
+      bcatcstr(b, "\n");
+      break;
+    }
+    
+    bconcat(s, b);
+  
+    bdestroy(b);
+    bdestroy(tmp);
+  }
 }
 #endif
 
@@ -4848,33 +4957,6 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
     }
     break;
 
-  case CMDSOCK_LIST:
-#ifdef ENABLE_LAYER3
-    if (_options.layer3) {
-      int listfmt = req->options & CMDSOCK_OPT_JSON ?
-	LIST_JSON_FMT : LIST_LONG_FMT;
-      struct app_conn_t *conn = firstusedconn;
-      if (listfmt == LIST_JSON_FMT) {
-	bcatcstr(s, "{ \"sessions\":[");
-      }
-      while (conn) {
-	/*if (pre) bconcat(s, pre);*/
-	bcatcstr(s, inet_ntoa(conn->hisip));
-	chilli_getinfo(conn, s, listfmt);
-	/*if (post) bconcat(s, post);*/
-	conn = conn->next;
-	bcatcstr(s, "\n");
-      }
-      if (listfmt == LIST_JSON_FMT) {
-	bcatcstr(s, "]}");
-      }
-    } else
-#endif
-    if (dhcp) dhcp_list(dhcp, s, 0, 0,
-			req->options & CMDSOCK_OPT_JSON ?
-			LIST_JSON_FMT : LIST_LONG_FMT);
-    break;
-
   case CMDSOCK_LIST_IPPOOL:
     ippool_print(sock, ippool);
     break;
@@ -4887,30 +4969,90 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
     radius_printqueue(sock, radius);
     break;
 
+  case CMDSOCK_LIST:
   case CMDSOCK_ENTRY_FOR_IP:
-    if (dhcp) dhcp_entry_for_ip(dhcp, s, &req->sess.ip,
-			req->options & CMDSOCK_OPT_JSON ?
-			LIST_JSON_FMT : LIST_LONG_FMT);
-    break;
+    {
+      int listfmt = req->options & CMDSOCK_OPT_JSON ?
+	LIST_JSON_FMT : LIST_LONG_FMT;
 
-  case CMDSOCK_ENTRY_FOR_MAC:
-    if (dhcp) dhcp_entry_for_mac(dhcp, s, req->sess.mac,
-			req->options & CMDSOCK_OPT_JSON ?
-			LIST_JSON_FMT : LIST_LONG_FMT);
-    break;
+      char check_ip = req->type == CMDSOCK_ENTRY_FOR_IP;
 
-  case CMDSOCK_SHOW:
-    /*ToDo*/
-    break;
-
-  case CMDSOCK_DHCP_LIST:
-    if (dhcp) dhcp_list(dhcp, s, 0, 0,
-			req->options & CMDSOCK_OPT_JSON ? 
-			LIST_JSON_FMT : LIST_SHORT_FMT);
+#ifdef ENABLE_JSON
+      if (listfmt == LIST_JSON_FMT) {
+	bcatcstr(s, "{ \"sessions\":[");
+      }
+#endif
+      
+#ifdef ENABLE_LAYER3
+      if (_options.layer3) {
+	struct app_conn_t *conn = firstusedconn;
+	while (conn) {
+	  if (!check_ip || 
+	      conn->hisip.s_addr == req->sess.ip.s_addr) {
+	    chilli_print(s, listfmt, conn, 0);
+	    if (check_ip) break;
+	  }
+	  conn = conn->next;
+	}
+      } else
+#endif
+      if (dhcp) {
+	struct dhcp_conn_t *conn = dhcp->firstusedconn;
+	while (conn) {
+	  if (!check_ip ||
+	      conn->hisip.s_addr == req->sess.ip.s_addr) {
+	    chilli_print(s, listfmt, 0, conn);
+	    if (check_ip) break;
+	  }
+	  conn = conn->next;
+	}
+      }
+      
+#ifdef ENABLE_JSON
+      if (listfmt == LIST_JSON_FMT) {
+	bcatcstr(s, "]}");
+      }
+#endif
+    }
     break;
     
+  case CMDSOCK_DHCP_LIST:
+  case CMDSOCK_ENTRY_FOR_MAC:
+    if (dhcp) {
+      char check_mac = req->type == CMDSOCK_ENTRY_FOR_MAC;
+
+      int listfmt = req->options & CMDSOCK_OPT_JSON ?
+	LIST_JSON_FMT : check_mac ? LIST_LONG_FMT : LIST_SHORT_FMT;
+
+      struct dhcp_conn_t *conn;
+
+#ifdef ENABLE_JSON
+      if (listfmt == LIST_JSON_FMT) {
+	bcatcstr(s, "{ \"sessions\":[");
+      }
+#endif
+      if (check_mac) {
+	if (!dhcp_hashget(dhcp, &conn, req->sess.mac)) {
+	  chilli_print(s, listfmt, 0, conn);
+	}
+      } else {
+	struct dhcp_conn_t *conn = dhcp->firstusedconn;
+	while (conn) {
+	  chilli_print(s, listfmt, 0, conn);
+	  conn = conn->next;
+	}
+      }
+#ifdef ENABLE_JSON
+      if (listfmt == LIST_JSON_FMT) {
+	bcatcstr(s, "]}");
+      }
+#endif
+    }
+    break;
+
   case CMDSOCK_DHCP_DROP:
-    if (dhcp) dhcp_block_mac(dhcp, req->sess.mac);
+    if (dhcp) 
+      dhcp_block_mac(dhcp, req->sess.mac);
     break;
     
   case CMDSOCK_DHCP_RELEASE:
@@ -4918,7 +5060,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
       dhcp_release_mac(dhcp, req->sess.mac, 
 		       RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
     break;
-
+    
 #ifdef ENABLE_MULTIROUTE
   case CMDSOCK_ROUTE_SET:
   case CMDSOCK_ROUTE_GW:
@@ -5514,9 +5656,6 @@ int chilli_main(int argc, char **argv) {
   dhcp_set_cb_data_ind(dhcp, cb_dhcp_data_ind);
 #ifdef ENABLE_EAPOL
   dhcp_set_cb_eap_ind(dhcp, cb_dhcp_eap_ind);
-#endif
-#ifdef ENABLE_CHILLIQUERY
-  dhcp_set_cb_getinfo(dhcp, cb_dhcp_getinfo);
 #endif
   
   if (dhcp_set(dhcp, 

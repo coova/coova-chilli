@@ -223,9 +223,6 @@ struct dhcp_t {
   int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr, uint8_t *pack, size_t len);
   int (*cb_connect) (struct dhcp_conn_t *conn);
   int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause);
-#ifdef ENABLE_CHILLIQUERY
-  int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt);
-#endif
 };
 
 
@@ -276,11 +273,6 @@ int dhcp_set_cb_connect(struct dhcp_t *this,
 int dhcp_set_cb_eap_ind(struct dhcp_t *this, 
   int (*cb_eap_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len));
 
-#ifdef ENABLE_CHILLIQUERY
-int dhcp_set_cb_getinfo(struct dhcp_t *this, 
-  int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt));
-#endif
-
 int dhcp_hashget(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr);
 
 int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn);
@@ -307,14 +299,6 @@ void dhcp_reset_tcp_mac(struct dhcp_t *this, uint8_t *hwaddr);
 #define LIST_SHORT_FMT 0
 #define LIST_LONG_FMT  1
 #define LIST_JSON_FMT  2
-
-void dhcp_list(struct dhcp_t *this, bstring s, bstring pre, bstring post, int listfmt);
-
-void dhcp_entry_for_ip(struct dhcp_t *this, bstring s, struct in_addr *ip, int listfmt);
-
-void dhcp_entry_for_mac(struct dhcp_t *this, bstring s, unsigned char * hwaddr, int listfmt);
-
-void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t *conn);
 
 int dhcp_filterDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen);
 

@@ -57,3 +57,4 @@ cmdsock_init() {
 
   return cmdsock;
 }
+

@@ -210,6 +210,10 @@ int chilli_new_conn(struct app_conn_t **conn);
 
 int chilli_assign_snat(struct app_conn_t *appconn, int force);
 
+void chilli_print(bstring s, int listfmt, 
+		  struct app_conn_t *appconn,
+		  struct dhcp_conn_t *conn);
+
 int chilli_acct_fromsub(struct app_conn_t *appconn, size_t len);
 int chilli_acct_tosub(struct app_conn_t *appconn, size_t len);
 

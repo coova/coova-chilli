@@ -27,22 +27,6 @@ static int connections = 0;
 
 extern struct ippool_t *ippool;
 
-#ifdef ENABLE_CHILLIQUERY
-char *dhcp_state2name(int authstate) {
-  switch(authstate) {
-  case DHCP_AUTH_NONE:   return "none";
-  case DHCP_AUTH_DROP:   return "drop";
-  case DHCP_AUTH_PASS:   return "pass";
-  case DHCP_AUTH_DNAT:   return "dnat";
-  case DHCP_AUTH_SPLASH: return "splash";
-#ifdef ENABLE_LAYER3
-  case DHCP_AUTH_ROUTER: return "layer2";
-#endif
-  default:               return "unknown";
-  }
-}
-#endif
-
 #ifdef ENABLE_CLUSTER
 int chilli_peer_count = 0;
 struct chilli_peer * chilli_peers = 0;
@@ -224,122 +208,6 @@ dhcp_sendGARP(struct dhcp_t *this) {
 
   return dhcp_send(this, &this->rawif, bmac, packet, sizeofarp(packet));
 }
-
-#ifdef ENABLE_CHILLIQUERY
-void dhcp_list(struct dhcp_t *this, bstring s, bstring pre, bstring post, int listfmt) {
-  struct dhcp_conn_t *conn = this->firstusedconn;
-  if (listfmt == LIST_JSON_FMT) {
-    bcatcstr(s, "{ \"sessions\":[");
-  }
-  while (conn) {
-    if (pre) bconcat(s, pre);
-    dhcp_print(this, s, listfmt, conn);
-    if (post) bconcat(s, post);
-    conn = conn->next;
-  }
-  if (listfmt == LIST_JSON_FMT) {
-    bcatcstr(s, "]}");
-  }
-}
-
-void dhcp_entry_for_ip(struct dhcp_t *this, bstring s, struct in_addr *ip, int listfmt) {
-  struct dhcp_conn_t *conn = this->firstusedconn;
-  if (listfmt == LIST_JSON_FMT) {
-    bcatcstr(s, "{ \"sessions\":[");
-  }
-  while (conn) {
-    if (conn->hisip.s_addr == ip->s_addr){
-      dhcp_print(this, s, listfmt, conn);
-    }
-    conn = conn->next;
-  }
-  if (listfmt == LIST_JSON_FMT) {
-    bcatcstr(s, "]}");
-  }
-}
-
-void dhcp_entry_for_mac(struct dhcp_t *this, bstring s, unsigned char * hwaddr, int listfmt) {
-  struct dhcp_conn_t *conn;
-  if (listfmt == LIST_JSON_FMT) {
-    bcatcstr(s, "{ \"sessions\":[");
-  }
-  if (!dhcp_hashget(this, &conn, hwaddr)) {
-    dhcp_print(this, s, listfmt, conn);
-  }
-  if (listfmt == LIST_JSON_FMT) {
-    bcatcstr(s, "]}");
-  }
-}
-
-void dhcp_print(struct dhcp_t *this, bstring s, int listfmt, struct dhcp_conn_t *conn) {
-  struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-  bstring b = bfromcstr("");
-  bstring tmp = bfromcstr("");
-
-  if (conn && conn->inuse) {
-
-    switch(listfmt) {
-    case LIST_JSON_FMT:
-      if (conn != this->firstusedconn)
-	bcatcstr(b, ",");
-
-      bcatcstr(b, "{");
-
-      if (appconn) {
-	bcatcstr(b, "\"nasPort\":");
-	bassignformat(tmp, "%d", appconn->unit);
-	bconcat(b, tmp);
-	bcatcstr(b, ",\"clientState\":");
-	bassignformat(tmp, "%d", appconn->s_state.authenticated);
-	bconcat(b, tmp);
-	bcatcstr(b, ",\"macAddress\":\"");
-	bassignformat(tmp, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		      conn->hismac[0], conn->hismac[1], conn->hismac[2],
-		      conn->hismac[3], conn->hismac[4], conn->hismac[5]);
-	bconcat(b, tmp);
-	bcatcstr(b, "\",\"ipAddress\":\"");
-	bcatcstr(b, inet_ntoa(conn->hisip));
-	bcatcstr(b, "\"");
-      }
-
-      if (this->cb_getinfo)
-	this->cb_getinfo(conn, b, listfmt);
-
-      bcatcstr(b, "}");
-      break;
-
-    default:
-      bassignformat(b, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %s",
-		    conn->hismac[0], conn->hismac[1], conn->hismac[2],
-		    conn->hismac[3], conn->hismac[4], conn->hismac[5],
-		    inet_ntoa(conn->hisip), dhcp_state2name(conn->authstate));
-
-      switch(listfmt) {
-      case LIST_LONG_FMT:
-	if (this->cb_getinfo)
-	  this->cb_getinfo(conn, b, listfmt);
-	break;
-      case LIST_SHORT_FMT:
-	{
-	  bassignformat(tmp, " %d/%d", 
-			mainclock_diff(conn->lasttime), 
-			this->lease);
-	  bconcat(b, tmp);
-	}
-	break;
-      }
-      
-      bcatcstr(b, "\n");
-      break;
-    }
-    
-    bconcat(s, b);
-  }
-
-  bdestroy(b);
-  bdestroy(tmp);
-}
-#endif
 
 void dhcp_authorize_mac(struct dhcp_t *this, uint8_t *hwaddr,
 			struct session_params *params) {
@@ -1967,7 +1835,6 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
   struct pkt_tcphdr_t *tcph = tcphdr(pack);
-
 
   if (is_return) {
     /* We check here (we also do this in dhcp_dounDNAT()) for UAM */
@@ -3742,10 +3609,7 @@ int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
 
   case PKT_ETH_PROTO_ARP:  
     if (!ignore)
-#ifdef ENABLE_LAYER3
-      if (!_options.layer3)
-#endif
-	return dhcp_receive_arp(this, packet, length);
+      return dhcp_receive_arp(this, packet, length);
     break;
 
   case PKT_ETH_PROTO_IP:  
@@ -4174,7 +4038,7 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	    sizeofeth(pack) + sizeof(struct arp_packet_t));
     return 0;
   }
-
+  
   if (ntohs(pack_arp->hrd) != 1 ||       /* Ethernet Hardware */
       pack_arp->hln != PKT_ETH_ALEN ||   /* MAC Address Size */
       pack_arp->pln != PKT_IP_ALEN) {    /* IP Address Size */
@@ -4195,12 +4059,29 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
     log_dbg("ARP: Received ARP request for other destination!");
     return 0;
   }
-
+  
   /* get sender IP address */
   memcpy(&reqaddr.s_addr, &pack_arp->spa, PKT_IP_ALEN);
 
   /* get target IP address */
   memcpy(&taraddr.s_addr, &pack_arp->tpa, PKT_IP_ALEN);
+
+
+#ifdef ENABLE_LAYER3
+  if (!_options.layer3) {
+    if (taraddr.s_addr == _options.dhcplisten.s_addr) {
+      if (dhcp_hashget(this, &conn, pack_arp->sha)) {
+	log_dbg("ARP: Address not found: %s", inet_ntoa(reqaddr));
+	if (dhcp_newconn(this, &conn, pack_arp->sha, pack)) {
+	  log_warn(0, "ARP: out of connections");
+	  return 0; /* Out of connections */
+	}
+      }
+      dhcp_sendARP(conn, pack, len);
+    }
+    return 0;
+  }
+#endif
 
   /* Check to see if we know MAC address. */
   if (dhcp_hashget(this, &conn, pack_arp->sha)) {
@@ -4520,15 +4401,6 @@ int dhcp_set_cb_disconnect(struct dhcp_t *this,
   this->cb_disconnect = cb_disconnect;
   return 0;
 }
-
-#ifdef ENABLE_CHILLIQUERY
-int dhcp_set_cb_getinfo(struct dhcp_t *this, 
-  int (*cb_getinfo) (struct dhcp_conn_t *conn, bstring b, int fmt)) {
-  this->cb_getinfo = cb_getinfo;
-  return 0;
-}
-#endif
-
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
 

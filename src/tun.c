@@ -1080,6 +1080,8 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
   struct in_addr net;
   pid_t pid;
 
+  log_dbg("Running %s", script);
+
   net.s_addr = tuntap(tun).address.s_addr & tuntap(tun).netmask.s_addr;
 
   if ((pid = fork()) < 0) {
@@ -1098,16 +1100,6 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
     }
     return 0;
   }
-  
-/*
-#ifdef HAVE_CLEARENV
-  if (clearenv() != 0) {
-    log_err(errno,
-	    "clearenv() did not return 0!");
-    exit(0);
-  }
-#endif
-*/
   
   if (setenv("DEV", tuntap(tun).devname, 1) != 0) {
     log_err(errno, "setenv() did not return 0!");
