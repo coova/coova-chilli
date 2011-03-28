@@ -33,11 +33,12 @@ int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
   if ((sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) > 0) {
 
 #if(_debug_)
-    log_dbg("SETTING non-blocking");
+    /*log_dbg("SETTING non-blocking");*/
 #endif
-    if (ndelay_on(sock) < 0) {
+
+    /*if (ndelay_on(sock) < 0) {
       log_err(errno, "could not set non-blocking");
-    }
+      }*/
 
     if (safe_connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0) {
       if (errno != EINPROGRESS) {
@@ -114,11 +115,11 @@ int conn_update_write(struct conn_t *conn) {
       return -1;
     } else {
 #if(_debug_)
-      log_dbg("RESETTING non-blocking");
+      /*log_dbg("RESETTING non-blocking");*/
 #endif
-      if (ndelay_off(conn->sock) < 0) {
+      /*if (ndelay_off(conn->sock) < 0) {
 	log_err(errno, "could not un-set non-blocking");
-      }
+	}*/
     }
   }
   

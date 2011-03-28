@@ -959,7 +959,7 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
   bstring bt = bfromcstr("");
   char eap64str [MAX_EAP_LEN*2];
   
-  void write_authentication_msg_header (){
+  void write_authentication_msg_header () {
     if (conn->authdata.type == REDIR_AUTH_EAP) {
       bcatcstr(b, 
 	       "<EAPAuthenticationReply>\r\n"
@@ -971,7 +971,7 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
     }
   }
   
-  void write_authentication_msg_footer(){
+  void write_authentication_msg_footer() {
     if (conn->authdata.type == REDIR_AUTH_EAP) {
       bcatcstr(b, "</EAPAuthenticationReply>\r\n");
     } else {
@@ -988,6 +988,7 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
 	   "  xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\r\n"
 	   "  xsi:noNamespaceSchemaLocation=\"http://www.wballiance.net/wispr_2_0.xsd\""
 	   ">\r\n");
+
   switch (res) {
   case REDIR_ALREADY:	 
     /* TO-DO need to verify when this can happen and what to return */
@@ -1062,10 +1063,8 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
     else {
       bcatcstr(b, "<ReplyMessage>Invalid Password</ReplyMessage>\r\n");
     }
-    
-    
+        
     write_authentication_msg_footer();
-    
     break;
     
   case REDIR_FAILED_NOROUTE:
@@ -1247,6 +1246,7 @@ static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn
   default:
     log_err(0, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
   }
+
   bcatcstr(b, "</WISPAccessGatewayParam>\r\n"
 	   "-->\r\n");
   bdestroy(bt);
@@ -3253,14 +3253,10 @@ int redir_main(struct redir_t *redir,
     } else 
 #endif
     {
-      redir_reply(redir, &socket, &conn, REDIR_REQERROR, NULL, 
-		  0, hexchal, NULL, NULL, NULL, 
-		  0, conn.hismac, &conn.hisip, httpreq.qs);
-      
       return redir_main_exit();
     }
   }
-
+  
   splash = (conn.s_params.flags & REQUIRE_UAM_SPLASH) == REQUIRE_UAM_SPLASH;
 
   /*

@@ -590,7 +590,9 @@ int net_select_write_fd(select_ctx *sctx, int fd) {
 #ifdef HAVE_SYS_EPOLL_H
   for (idx=0; idx < MAX_SELECT; idx++)
     if (sctx->events[idx].data.fd == fd) {
+#if(_debug_ > 1)
       log_dbg("write %d", (sctx->events[idx].events & EPOLLOUT) != 0);
+#endif
       return (sctx->events[idx].events & EPOLLOUT) != 0;
     }
   return 0;

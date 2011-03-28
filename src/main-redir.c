@@ -46,7 +46,7 @@ static bstring string_init_reset(bstring s) {
 static redir_request * get_request() {
   redir_request * req = 0;
   int i;
-
+  
   if (!max_requests) {
 
     max_requests = 2048; /* hard maximum! (should be configurable) */
@@ -181,12 +181,14 @@ sock_redir_getstate(struct redir_t *redir,
 
 static int redir_conn_finish(struct conn_t *conn, void *ctx) {
   redir_request *req = (redir_request *)ctx;
+
   if (req->conn.sock) {
     if (req->state & REDIR_CONN_FD) {
       net_select_rmfd(&sctx, req->conn.sock);
     }
     conn_close(&req->conn);
   }
+
   if (req->socket_fd) {
 
 #ifdef ENABLE_REDIRINJECT
@@ -201,6 +203,7 @@ static int redir_conn_finish(struct conn_t *conn, void *ctx) {
     }
     close(req->socket_fd);
   }
+
   close_request(req);
   return 0;
 }
@@ -226,6 +229,9 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
     req->last_active = mainclock_tick();
 
 #ifdef ENABLE_REDIRINJECT
+    /**
+     *
+     */
     if (!req->headers) {
       char *newline = "\r\n\r\n";
       char *eoh;
@@ -696,7 +702,7 @@ int main(int argc, char **argv) {
 	  active++;
 	}
 	
-#if(_debug_)
+#if(_debug_ > 1)
 	if (_options.debug) {
 	  struct sockaddr_in address;
 	  socklen_t addrlen = sizeof(address);
@@ -741,7 +747,7 @@ int main(int argc, char **argv) {
     
     status = net_select(&sctx);
     
-#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+#if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H) && (_debug_ > 1)
     if (_options.debug && status > 0) {
       int i;
       log_dbg("epoll %d", status);

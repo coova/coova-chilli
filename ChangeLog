@@ -1,6 +1,11 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+* Improved RADIUS queue robustness, and will only remove from queue after verifying shared secret
+* Cleanup of printing functions for Layer2/Layer3 modes and chilli_query commands list, dhcp-list, listip, listmac
+* Allow the replying to ARP for the ''uamlisten'' IP address in ''layer3'' mode
+* Increased EAP message size limit
+
 == ChangeLog (CoovaChilli-v1.2.6 svn revision 433) ==
 
 * Added compile time option ''--enable-layer3'' and run-time option ''--layer3'' to enable a Layer3 (IP-Only) style captive portal - no DHCP
