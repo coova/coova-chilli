@@ -2722,6 +2722,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
   }
 #endif
 
+#ifdef ENABLE_UAMANYIP
   if (  _options.uamanyip && 
       ! _options.uamnatanyip &&
 	(hisip->s_addr & ourmask->s_addr) != 
@@ -2742,6 +2743,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
       }
     }
   }
+#endif
 
   return 0;
 }
@@ -2871,7 +2873,10 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     log_dbg("Address not found (%s)", inet_ntoa(reqaddr)); 
     
     /* Do we allow dynamic allocation of IP addresses? */
-    if (!this->allowdyn && !_options.uamanyip
+    if (!this->allowdyn 
+#ifdef ENABLE_UAMANYIP
+	&& !_options.uamanyip
+#endif
 #ifdef ENABLE_LAYER3
 	&& !_options.layer3
 #endif
@@ -2959,7 +2964,10 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
    *  Request an IP address 
    */
   if ((authstate == DHCP_AUTH_NONE) && 
-      (_options.uamanyip || 
+      (
+#ifdef ENABLE_UAMANYIP
+       _options.uamanyip || 
+#endif
        ((pack_iph->daddr != 0) && 
 	(pack_iph->daddr != 0xffffffff)))) {
     addr.s_addr = pack_iph->saddr;
@@ -4066,9 +4074,8 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
   /* get target IP address */
   memcpy(&taraddr.s_addr, &pack_arp->tpa, PKT_IP_ALEN);
 
-
 #ifdef ENABLE_LAYER3
-  if (!_options.layer3) {
+  if (_options.layer3) {
     if (taraddr.s_addr == _options.dhcplisten.s_addr) {
       if (dhcp_hashget(this, &conn, pack_arp->sha)) {
 	log_dbg("ARP: Address not found: %s", inet_ntoa(reqaddr));
@@ -4088,7 +4095,11 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
     log_dbg("ARP: Address not found: %s", inet_ntoa(reqaddr));
     
     /* Do we allow dynamic allocation of IP addresses? */
-    if (!this->allowdyn && !_options.uamanyip) {
+    if (!this->allowdyn
+#ifdef ENABLE_UAMANYIP
+	&& !_options.uamanyip
+#endif
+	) {
       log_dbg("ARP: Unknown client and no dynip: %s", inet_ntoa(taraddr));
       return 0; 
     }
@@ -4128,10 +4139,12 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
   if (!memcmp(&reqaddr.s_addr, &taraddr.s_addr, 4)) { 
 
     /* Request an IP address */
+#ifdef ENABLE_UAMANYIP
     if (_options.uamanyip /*or static ip*/ &&
 	conn->authstate == DHCP_AUTH_NONE) {
       this->cb_request(conn, &reqaddr, 0, 0);
-    } 
+    }
+#endif
 
     log_dbg("ARP: Ignoring gratuitous arp %s", inet_ntoa(taraddr));
     return 0;
@@ -4144,14 +4157,20 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
   }
   
   if (memcmp(&_options.dhcplisten.s_addr, &taraddr.s_addr, 4) &&
-      !conn->hisip.s_addr && !_options.uamanyip) {
+      !conn->hisip.s_addr
+#ifdef ENABLE_UAMANYIP
+      && !_options.uamanyip
+#endif
+      ) {
     /* Only reply if he was allocated an address,
        unless it was a request for the gateway dhcplisten. */
     log_dbg("ARP: request did not come from known client");
     return 0;
   }
-
+  
+#ifdef ENABLE_UAMANYIP
   if (!_options.uamanyip) {
+#endif
     /* If ARP request outside of mask: Ignore 
     if (reqaddr.s_addr &&
 	(conn->hisip.s_addr & conn->hismask.s_addr) !=
@@ -4169,14 +4188,24 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
       }
       return 0; /* Only reply if he asked for his router address */
     }
+#ifdef ENABLE_UAMANYIP
+  }
+  else if (_options.uamanyipex_addr.s_addr &&
+	   (taraddr.s_addr & _options.uamanyipex_mask.s_addr) == 
+	   _options.uamanyipex_addr.s_addr) {
+    log_dbg("ARP: Request for %s in uamanyipex subnet, ignoring", 
+	    inet_ntoa(taraddr));
+    return 0;
   }
   else if ((taraddr.s_addr != _options.dhcplisten.s_addr) &&
 	  ((taraddr.s_addr & _options.mask.s_addr) == _options.net.s_addr)) {
-    /* when uamanyip is on we should ignore arp requests that ARE within our subnet except of course the ones for ourselves */
+    /* when uamanyip is on we should ignore arp requests that ARE within
+       our subnet except of course the ones for ourselves */
     log_dbg("ARP: Request for %s other than us within our subnet(uamanyip on), ignoring", 
 	    inet_ntoa(taraddr));
     return 0;
   }
+#endif
 
   conn->lasttime = mainclock_now();
 

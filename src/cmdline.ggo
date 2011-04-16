@@ -35,7 +35,8 @@ option "dhcpbroadcast" - "Always broadcast DHCP responses" flag off
 option "dynip"       - "Dynamic IP address pool"       string no
 option "nodynip"     - "No Dynamic IP assignment"      flag off
 option "statip"      - "Static IP address pool"        string no
-option "anyipexclude" - "Network to exclude from uamanyip"  string no
+option "uamanyipex"  - "Network to exclude from uamanyip"  string no
+option "uamnatanyipex" - "Network to exclude from uamnatanyip"  string no
 option "dns1"        - "Primary DNS server IP address" string no
 option "dns2"        - "Secondary DNS server IP address" string no
 option "domain"      - "Domain to use for DNS lookups" string default="coova.org" no

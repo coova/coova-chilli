@@ -51,9 +51,9 @@ EOF
 }
 
 http_header() {
-    [ "$HS_MODE" = "hotspot" ] || {
-	http_redirect2 "/www/disabled.chi"
-    }
+#    [ "$HS_MODE" = "hotspot" ] || {
+#	http_redirect2 "/www/disabled.chi"
+#    }
     cat<<EOF    
 HTTP/1.1 200 OK
 Content-Type: text/html

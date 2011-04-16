@@ -47,9 +47,13 @@ struct options_t {
   char * tundev;
   char * dynip;                  /* Dynamic IP address pool */
   char * statip;                 /* Static IP address pool */
+#ifdef ENABLE_UAMANYIP
   int autostatip;                /* Automatically assign "Static" IP addresses */
-  struct in_addr anyipexclude_addr; /* Exclude a given subnet addres from uamanyip */
-  struct in_addr anyipexclude_mask; /* Exclude a given subnet mask from uamanyip */
+  struct in_addr uamnatanyipex_addr; /* Exclude a given subnet addres from uamnatanyip */
+  struct in_addr uamnatanyipex_mask; /* Exclude a given subnet mask from uamnatanyip */
+  struct in_addr uamanyipex_addr; /* Exclude a given subnet addres from uamanyip */
+  struct in_addr uamanyipex_mask; /* Exclude a given subnet mask from uamanyip */
+#endif
   struct in_addr dns1;           /* Primary DNS server IP address */
   struct in_addr dns2;           /* Secondary DNS server IP address */
   char * domain;                 /* Domain to use for DNS lookups */
@@ -157,8 +161,10 @@ struct options_t {
   uint8_t pap_always_ok:1;          /* Obsolete */
   uint8_t mschapv2:1;               /* Use and support MSCHAPv2 */
   uint8_t uamanydns:1;              /* Allow any dns server */
+#ifdef ENABLE_UAMANYIP
   uint8_t uamanyip:1;               /* Allow any ip address */
   uint8_t uamnatanyip:1;            /* Provide NAT for Any IP clients */
+#endif
   uint8_t dnsparanoia:1;            /* Filter DNS for questionable content (dns tunnels) */
   uint8_t no_wispr1:1;              /* Do not offer WISPr 1.0 XML */
   uint8_t no_wispr2:1;              /* Do not offer WISPr 2.0 XML */

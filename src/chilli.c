@@ -52,9 +52,11 @@ static int *p_reload_config = 0;
 /*static int do_timeouts = 1;*/
 static int do_interval = 0;
 
+#ifdef ENABLE_UAMANYIP
 /* some IPv4LL/APIPA(rfc 3927) specific stuff for uamanyip */
 struct in_addr ipv4ll_ip;
 struct in_addr ipv4ll_mask;
+#endif
 #ifdef ENABLE_SSDP
 #define SSDP_MCAST_ADDR ("239.255.255.250")
 #define SSDP_PORT 1900
@@ -751,6 +753,8 @@ int runscript(struct app_conn_t *appconn, char* script) {
  ***********************************************************/
 
 static int newip(struct ippoolm_t **ipm, struct in_addr *hisip, uint8_t *hismac) {
+
+#ifdef ENABLE_UAMANYIP
   struct in_addr tmpip;
 
   if (_options.autostatip && hismac) {
@@ -760,6 +764,7 @@ static int newip(struct ippoolm_t **ipm, struct in_addr *hisip, uint8_t *hismac)
 			  hismac[4] * 0x100 + 
 			  hismac[5]);
   }
+#endif
 
   log_dbg("newip %s", inet_ntoa(*hisip));
 
@@ -1620,6 +1625,7 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
   return 0;
 }
 
+#ifdef ENABLE_UAMANYIP
 /**
  * Assigns an ip from the dynamic pool, for SNAT'ing anyip connections.
  * If anyip is on and the clients address is outside of our network,
@@ -1633,9 +1639,11 @@ int chilli_assign_snat(struct app_conn_t *appconn, int force) {
   if (appconn->natip.s_addr && !force) return 0;
 
   /* check if excluded from anyip */
-  if (_options.anyipexclude_addr.s_addr &&
-      (appconn->hisip.s_addr & _options.anyipexclude_mask.s_addr) == _options.anyipexclude_addr.s_addr) {
-    log_dbg("Excluding ip %s from SNAT becuase it is in anyipexclude", inet_ntoa(appconn->hisip));
+  if (_options.uamnatanyipex_addr.s_addr &&
+      (appconn->hisip.s_addr & _options.uamnatanyipex_mask.s_addr) == 
+      _options.uamnatanyipex_addr.s_addr) {
+    log_dbg("Excluding ip %s from SNAT becuase it is in uamnatanyipex", 
+	    inet_ntoa(appconn->hisip));
     return 0;
   }
   
@@ -1667,7 +1675,7 @@ int chilli_assign_snat(struct app_conn_t *appconn, int force) {
   
   return 0;
 }
-
+#endif
 
 
 /***********************************************************
@@ -2272,6 +2280,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
     return 0;
   }
   
+#ifdef ENABLE_UAMANYIP
   /**
    * connection needs to be NAT'ed, since client is an anyip client
    * outside of our network.
@@ -2290,6 +2299,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
     if (chksum((struct pkt_iphdr_t *) ipph) < 0)
       return 0;
   }
+#endif
   
   /* If the ip src is uamlisten and psrc is uamport we won't call leaky_bucket */
   if ( ! (ipph->saddr  == _options.uamlisten.s_addr && 
@@ -3043,9 +3053,11 @@ int upprot_getip(struct app_conn_t *appconn,
     ipm->peer = appconn; 
   }
 
+#ifdef ENABLE_UAMANYIP
   if (chilli_assign_snat(appconn, 0) != 0) {
     return -1;
   }
+#endif
 
   return dnprot_accept(appconn);
 }
@@ -3913,10 +3925,17 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     return -1;
   }
   
+#ifdef ENABLE_UAMANYIP
   /* if uamanyip is on we have to filter out which ip's are allowed */
   if (_options.uamanyip && addr && addr->s_addr) {
 
     if (addr->s_addr == _options.uamlisten.s_addr) {
+      return -1;
+    }
+
+    if (_options.uamanyipex_addr.s_addr &&
+	(addr->s_addr & _options.uamanyipex_mask.s_addr) == 
+	_options.uamanyipex_addr.s_addr) {
       return -1;
     }
 
@@ -3928,6 +3947,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
       return -1;
     }
   }
+#endif
   
   appconn->reqip.s_addr = addr->s_addr; /* Save for MAC auth later */
   
@@ -4039,9 +4059,11 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     appconn->uplink = ipm;
     ipm->peer = appconn; 
     
+#ifdef ENABLE_UAMANYIP
     if (chilli_assign_snat(appconn, 0) != 0) {
       return -1;
     }
+#endif
   }
   
   if (ipm) {
@@ -4456,6 +4478,7 @@ static int session_disconnect(struct app_conn_t *appconn,
   if (appconn->uplink) {
     struct ippoolm_t *member = (struct ippoolm_t *) appconn->uplink;
 
+#ifdef ENABLE_UAMANYIP
     if (_options.uamanyip) {
       if (!appconn->natip.s_addr) {
 	if (member->in_use && member->is_static) {
@@ -4475,6 +4498,7 @@ static int session_disconnect(struct app_conn_t *appconn,
 	}
       }
     }
+#endif
 
     if (member->in_use && (!dhcpconn || !dhcpconn->is_reserved)) {
       if (ippool_freeip(ippool, member)) {
@@ -4611,6 +4635,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     break;
   }
 
+#ifdef ENABLE_UAMANYIP
   /**
    * packet is coming from an anyip client, therefore SNAT address
    * has been assigned from dynamic pool. So, let's do the SNAT here.
@@ -4621,6 +4646,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     if (chksum((struct pkt_iphdr_t *) ipph) < 0)
       return 0;
   }
+#endif
   
   /* 
    * If the ip dst is uamlisten and pdst is uamport we won't call leaky_bucket,
@@ -5582,9 +5608,11 @@ int chilli_main(int argc, char **argv) {
   /* This has to be done after we have our final pid */
   log_pid((_options.pidfile && *_options.pidfile) ? _options.pidfile : DEFPIDFILE);
 
+#ifdef ENABLE_UAMANYIP
   /* setup IPv4LL/APIPA network ip and mask for uamanyip exception */
   inet_aton("169.254.0.0", &ipv4ll_ip);
   inet_aton("255.255.0.0", &ipv4ll_mask);
+#endif
 #ifdef ENABLE_SSDP
   ssdp.s_addr = inet_addr(SSDP_MCAST_ADDR);
 #endif

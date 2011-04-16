@@ -133,7 +133,9 @@ struct app_conn_t {
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
   struct in_addr reqip;        /* IP requested by client */
+#ifdef ENABLE_UAMANYIP
   struct in_addr natip;
+#endif
   uint16_t mtu;
 
   /* Information for each connection */

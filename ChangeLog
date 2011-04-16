@@ -5,6 +5,8 @@
 * Cleanup of printing functions for Layer2/Layer3 modes and chilli_query commands list, dhcp-list, listip, listmac
 * Allow the replying to ARP for the ''uamlisten'' IP address in ''layer3'' mode
 * Increased EAP message size limit
+* Added ''uamanyipex'' that defines a subnet to exclude from ''uamanyip''
+* Changed the name of ''anyipexclude'' to ''uamnatanyipex'' to be more accurate, see http://lists.coova.org/pipermail/chilli/2011-March/001616.html
 
 == ChangeLog (CoovaChilli-v1.2.6 svn revision 433) ==
 

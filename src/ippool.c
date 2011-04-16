@@ -456,7 +456,9 @@ int ippool_newip(struct ippool_t *this,
 
   /* First, check to see if this type of address is allowed */
   if ((addr) && (addr->s_addr) && statip) { /* IP address given */
+#ifdef ENABLE_UAMANYIP
     if (!_options.uamanyip) {
+#endif
       if (!this->allowstat) {
 	log_dbg("Static IP address not allowed");
 	return -1;
@@ -465,7 +467,9 @@ int ippool_newip(struct ippool_t *this,
 	log_err(0, "Static out of range");
 	return -1;
       }
+#ifdef ENABLE_UAMANYIP
     }
+#endif
   }
   else {
     if (!this->allowdyn) {
@@ -486,6 +490,7 @@ int ippool_newip(struct ippool_t *this,
     }
   }
 
+#ifdef ENABLE_UAMANYIP
   /* if anyip is set and statip return the same ip */
   if (statip && _options.uamanyip && p2 && p2->is_static) {
     log_dbg("Found already allocated static ip %s", 
@@ -493,6 +498,7 @@ int ippool_newip(struct ippool_t *this,
     *member = p2;
     return 0;
   }
+#endif
   
   /* If IP was already allocated we can not use it */
   if ((!statip) && (p2) && (p2->in_use)) {
@@ -551,7 +557,11 @@ int ippool_newip(struct ippool_t *this,
   /* It was not possible to allocate from dynamic address pool */
   /* Try to allocate from static address space */
 
-  if ((addr) && (addr->s_addr) && (statip || _options.uamanyip)) { /* IP address given */
+  if ((addr) && (addr->s_addr) && (statip 
+#ifdef ENABLE_UAMANYIP
+				   || _options.uamanyip
+#endif
+				   )) { /* IP address given */
 
     if (!this->firststat) {
       log_err(0, "No more static addresses available");

@@ -15,7 +15,10 @@ pkt.h conn.h lookup.h chilli_limits.h cmdline.h debug.h \
 radius_pkt.h ../bstring/bstrlib.h ../config.h system.h 
 
 lib_LTLIBRARIES = libchilli.la
-noinst_PROGRAMS = test_dhcp test_randpkt
+noinst_PROGRAMS = test_dhcp test_randpkt 
+if WITH_L2TP_PPP
+noinst_PROGRAMS += test_l2tp
+endif
 sbin_PROGRAMS = \
 chilli chilli_response chilli_radconfig chilli_opt 
 
@@ -42,6 +45,9 @@ chilli_opt_SOURCES = main-opt.c
 #test_radius_SOURCES = test-radius.c 
 test_dhcp_SOURCES = test-dhcp.c 
 test_randpkt_SOURCES = test-randpkt.c 
+if WITH_L2TP_PPP
+test_l2tp_SOURCES = test-l2tp.c 
+endif
 
 libchilli_la_LIBADD = $(top_builddir)/bstring/libbstring.la 
 LDADD = libchilli.la ${LIBRT} $(top_builddir)/bstring/libbstring.la 

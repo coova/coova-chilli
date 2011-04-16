@@ -588,8 +588,10 @@ int main(int argc, char **argv) {
   }
 
   _options.uamanydns = args_info.uamanydns_flag;
+#ifdef ENABLE_UAMANYIP
   _options.uamanyip = args_info.uamanyip_flag;
   _options.uamnatanyip = args_info.uamnatanyip_flag;
+#endif
   _options.dnsparanoia = args_info.dnsparanoia_flag;
   _options.radiusoriginalurl = args_info.radiusoriginalurl_flag;
   _options.routeonetone = args_info.routeonetone_flag;
@@ -695,9 +697,11 @@ int main(int argc, char **argv) {
 
   _options.allowdyn = 1;
   
+#ifdef ENABLE_UAMANYIP
   _options.autostatip = args_info.autostatip_arg;
   if (_options.autostatip)
     _options.uamanyip = 1;
+#endif
   
   if (args_info.nodynip_flag) {
     _options.allowdyn = 0;
@@ -730,15 +734,24 @@ int main(int argc, char **argv) {
     _options.allowstat = 0;
   }
 
-  /* anyipexclude */
-  if (args_info.anyipexclude_arg) {
-    if (option_aton(&_options.anyipexclude_addr, 
-		    &_options.anyipexclude_mask, 
-		    args_info.anyipexclude_arg, 0)) {
-      log_err(0, "Failed to parse anyip exclude network!");
+#ifdef ENABLE_UAMANYIP
+  if (args_info.uamnatanyipex_arg) {
+    if (option_aton(&_options.uamnatanyipex_addr, 
+		    &_options.uamnatanyipex_mask, 
+		    args_info.uamnatanyipex_arg, 0)) {
+      log_err(0, "Failed to parse uamnatanyipex network!");
       return -1;
     }
   }
+  if (args_info.uamanyipex_arg) {
+    if (option_aton(&_options.uamanyipex_addr, 
+		    &_options.uamanyipex_mask, 
+		    args_info.uamanyipex_arg, 0)) {
+      log_err(0, "Failed to parse uamanyipex network!");
+      return -1;
+    }
+  }
+#endif
   
   if (args_info.dns1_arg) {
     if (!inet_aton(args_info.dns1_arg, &_options.dns1)) {

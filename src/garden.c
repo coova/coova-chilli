@@ -22,17 +22,21 @@
 
 #ifdef ENABLE_CHILLIQUERY
 void garden_print_list(int fd, pass_through *ptlist, int ptcnt) {
+  char mask[32];
   char line[512];
   pass_through *pt;
   int i;
 
   for (i = 0; i < ptcnt; i++) {
     pt = &ptlist[i];
-
+    
+    safe_strncpy(mask, inet_ntoa(pt->mask), sizeof(mask));
+    
     safe_snprintf(line, sizeof(line),
-		  "host=%-16s proto=%-3d port=%-3d\n", inet_ntoa(pt->host),
+		  "host=%-16s mask=%-16s proto=%-3d port=%-3d\n", 
+		  inet_ntoa(pt->host), mask,
 		  pt->proto, pt->port);
-
+    
     if (!write(fd, line, strlen(line))) /* error */;
   }
 }

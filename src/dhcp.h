@@ -179,6 +179,7 @@ struct dhcp_t {
 #endif
 
   int numconn;          /* Maximum number of connections */
+
 #if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
   char *rbuf;
   size_t rbuf_max;

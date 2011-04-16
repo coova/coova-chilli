@@ -370,6 +370,7 @@ struct eap_packet_t {
   uint8_t  payload[PKT_EAP_PLEN];
 } __attribute__((packed));
 
+
 #ifdef ENABLE_CLUSTER
 struct pkt_chillihdr_t {
   uint8_t from;

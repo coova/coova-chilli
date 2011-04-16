@@ -60,6 +60,9 @@
 /* Define to enable Chilli JSON */
 #undef ENABLE_JSON
 
+/* Define to enable L2TP/PPP */
+#undef ENABLE_L2TP_PPP
+
 /* Enable larger limits for use with non-embedded systems */
 #undef ENABLE_LARGELIMITS
 
@@ -113,6 +116,9 @@
 
 /* Define to enable Chilli tap support */
 #undef ENABLE_TAP
+
+/* Define to enable uamanyip */
+#undef ENABLE_UAMANYIP
 
 /* Define to support loading of uamdomains (with regex) from file */
 #undef ENABLE_UAMDOMAINFILE

@@ -181,8 +181,10 @@ int loadstatus() {
 	    if (newipm) {
 	      newipm->peer = aconn;
 	      
+#ifdef ENABLE_UAMANYIP
 	      if (appconn.natip.s_addr)
 		chilli_assign_snat(aconn, 1);
+#endif
 	      
 	      dhcp_set_addrs(conn, 
 			     &newipm->addr, &_options.mask, 
@@ -262,8 +264,10 @@ int loadstatus() {
 	      conn->peer = aconn;
 	      newipm->peer = aconn;
 	      
+#ifdef ENABLE_UAMANYIP
 	      if (appconn.natip.s_addr)
 		chilli_assign_snat(aconn, 1);
+#endif
 	      
 	      dhcp_set_addrs(conn, 
 			     &newipm->addr, &_options.mask, 
