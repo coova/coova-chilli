@@ -18,7 +18,7 @@
 
 http_header
 
-if [ "$register" = "1" ]; then
+if [ "$HS_REG_MODE" = "self" ]; then
 
     form=1
     errmsg=

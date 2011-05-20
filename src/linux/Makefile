@@ -21,7 +21,7 @@ lib%.so: lib%.o
 	$(CC) $(CFLAGS) -shared -o $@ $^;
 
 lib%.o: lib%.c
-	$(CC) $(CFLAGS) -O2 -Wall -I${KERNEL_DIR}/include -D_INIT=lib$*_init -c -o $@ $<;
+	$(CC) $(CFLAGS) -fPIC -O2 -Wall -I${KERNEL_DIR}/include -D_INIT=lib$*_init -c -o $@ $<;
 
 install: modules_install libxt_coova.so
 	mkdir -p $(DESTDIR)/lib/xtables/

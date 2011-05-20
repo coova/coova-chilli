@@ -7,6 +7,11 @@
 * Increased EAP message size limit
 * Added ''uamanyipex'' that defines a subnet to exclude from ''uamanyip''
 * Changed the name of ''anyipexclude'' to ''uamnatanyipex'' to be more accurate, see http://lists.coova.org/pipermail/chilli/2011-March/001616.html
+* Support for Framed-IP-Netmask in RADIUS macauth replies
+* Added new attributes for DHCP parameter setting in RADIUS macauth replies, see dictionary.chillispot
+* Added compile time option ''--disable-coa'' to optionally remove CoA support
+* Added compile time option ''--disable-tcpreset'' to optionally disable TCP session resetting
+* Fixups for BSD based systems
 
 == ChangeLog (CoovaChilli-v1.2.6 svn revision 433) ==
 
@@ -24,6 +29,7 @@
 * Added runtime option ''--noradallow'' to authorize sessions when RADIUS is not available
 * Disabled session-based walled garden support per default, enable with ''--enable-sessgarden'' 
 * Build time option ''--enable-dhcpopt'' to use the command line option ''--dhcpopt <hex-encoded-binary-dhcp-option>''
+* Session-based content injection url support
 * Fixed bug with json startTime value when system has librt
 
 == ChangeLog (CoovaChilli-v1.2.5 svn revision 394) ==

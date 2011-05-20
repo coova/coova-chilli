@@ -323,6 +323,9 @@ int options_fromfd(int fd, bstring bt) {
 #ifdef ENABLE_MODULES
   if (!option_s_l(bt, &o.moddir)) return 0;
 #endif
+#ifdef ENABLE_REDIRINJECT
+  if (!option_s_l(bt, &o.inject)) return 0;
+#endif
 
   if (!option_s_l(bt, &o.adminuser)) return 0;
   if (!option_s_l(bt, &o.adminpasswd)) return 0;
@@ -345,12 +348,18 @@ int options_fromfd(int fd, bstring bt) {
 
 #ifdef ENABLE_CHILLIREDIR
   for (i = 0; i < MAX_REGEX_PASS_THROUGHS; i++) {
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
+    regfree(&_options.regex_pass_throughs[i].re_host);
+    regfree(&_options.regex_pass_throughs[i].re_path);
+    regfree(&_options.regex_pass_throughs[i].re_qs);
+#else
     if (_options.regex_pass_throughs[i].re_host.allocated)
       regfree(&_options.regex_pass_throughs[i].re_host);
     if (_options.regex_pass_throughs[i].re_path.allocated)
       regfree(&_options.regex_pass_throughs[i].re_path);
     if (_options.regex_pass_throughs[i].re_qs.allocated)
       regfree(&_options.regex_pass_throughs[i].re_qs);
+#endif
   }
 #endif
 
@@ -485,6 +494,9 @@ int options_save(char *file, bstring bt) {
 #endif
 #ifdef ENABLE_MODULES
   if (!option_s_s(bt, &o.moddir)) return 0;
+#endif
+#ifdef ENABLE_REDIRINJECT
+  if (!option_s_s(bt, &o.inject)) return 0;
 #endif
 
   if (!option_s_s(bt, &o.adminuser)) return 0;

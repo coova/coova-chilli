@@ -45,7 +45,8 @@ struct session_params {
 #define NO_ACCOUNTING      (1<<4)
 #define NO_SCRIPT          (1<<5)
 #define ADMIN_LOGIN        (1<<6)
-  uint8_t flags;
+#define UAM_INJECT_URL     (1<<7)
+  uint16_t flags;
 
 #ifdef ENABLE_SESSGARDEN
   pass_through pass_throughs[SESSION_PASS_THROUGH_MAX];

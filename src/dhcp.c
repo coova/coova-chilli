@@ -1,6 +1,6 @@
 /* 
- * Copyright (C) 2003, 2004, 2005, 2006 Mondru AB.
  * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2003, 2004, 2005, 2006 Mondru AB.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -74,6 +74,12 @@ void print_peers(bstring s) {
       state = "Offline";
       age = 0;
       break;
+    case PEER_STATE_ADMCMD:
+      state = "AdminCmd";
+      break;
+    case PEER_STATE_MODULE:
+      state = "Module";
+      break;
     }
 
     safe_snprintf(line, sizeof(line),
@@ -124,21 +130,21 @@ int dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
 
   chilli_hdr.from = _options.peerid;
   chilli_hdr.type = type;
-
+  
   if (!addr || !mac) {
     struct chilli_peer *p = get_chilli_peer(-1);
     addr = &p->addr;
     mac = p->mac;
     chilli_hdr.state = p->state;
   }
-
+  
   memcpy(&chilli_hdr.addr, addr, sizeof(*addr));
   memcpy(chilli_hdr.mac, mac, PKT_ETH_ALEN);
- 
+  
   EVP_CIPHER_CTX_init(&ctx);
   EVP_EncryptInit(&ctx, EVP_bf_cbc(), 
 		  (const unsigned char *)_options.peerkey, iv);
-
+  
   if (EVP_EncryptUpdate (&ctx, outbuf, &olen, 
 			 (const unsigned char *) &chilli_hdr, 
 			 sizeof(chilli_hdr)) != 1) {
@@ -233,6 +239,7 @@ void dhcp_release_mac(struct dhcp_t *this, uint8_t *hwaddr, int term_cause) {
   }
 }
 
+#if (0) /* ENABLE_TCPRESET */
 void dhcp_reset_tcp_mac(struct dhcp_t *this, uint8_t *hwaddr) {
   struct dhcp_conn_t *conn;
   if (!dhcp_hashget(this, &conn, hwaddr)) {
@@ -251,6 +258,7 @@ void dhcp_reset_tcp_mac(struct dhcp_t *this, uint8_t *hwaddr) {
     }
   }
 }
+#endif
 
 void dhcp_block_mac(struct dhcp_t *this, uint8_t *hwaddr) {
   struct dhcp_conn_t *conn;
@@ -290,7 +298,7 @@ int dhcp_send(struct dhcp_t *this, struct _net_interface *netif,
     return net_write_eth(netif, packet, length, &netif->dest);
   }
 #elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
-  if (safe_write(fd, packet, length) < 0) {
+  if (safe_write(netif->fd, packet, length) < 0) {
     log_err(errno, "write() failed");
     return -1;
   }
@@ -639,9 +647,9 @@ int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
   }
   
   /*
-  mark = nfq_get_nfmark(nfa);
-  ifi = nfq_get_indev(nfa);
-  ifi = nfq_get_outdev(nfa);
+    mark = nfq_get_nfmark(nfa);
+    ifi = nfq_get_indev(nfa);
+    ifi = nfq_get_outdev(nfa);
   */
   
   ret = nfq_get_payload(nfa, &data);
@@ -777,7 +785,12 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
     return -1;
   }
 
-  if (net_init(&dhcp->rawif, interface, ETH_P_ALL, 
+  if (net_init(&dhcp->rawif, interface, 
+#ifdef ETH_P_ALL
+	       ETH_P_ALL, 
+#else
+	       0,
+#endif
 	       promisc, usemac ? mac : 0) < 0) {
     free(dhcp);
     return -1; 
@@ -941,7 +954,7 @@ int dhcp_reserve_str(char *b, size_t blen) {
 	case 0:
 	  {
 	    for (t=bp; *t; t++) 
-	      if (!isxdigit(*t)) 
+	      if (!isxdigit((int) *t)) 
 		*t = 0x20;
 	    
 	    if (sscanf (bp, "%2x %2x %2x %2x %2x %2x", 
@@ -1177,6 +1190,7 @@ size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
   return len;
 }
 
+#ifdef ENABLE_TCPRESET
 static
 void tun_sendRESET(struct tun_t *tun, uint8_t *pack, struct app_conn_t *appconn) {
 #if !defined(HAVE_NETFILTER_QUEUE) && !defined(HAVE_NETFILTER_COOVA)
@@ -1193,6 +1207,7 @@ void dhcp_sendRESET(struct dhcp_conn_t *conn, uint8_t *pack, char reverse) {
   dhcp_send(this, &this->rawif, conn->hismac, tcp_pack, tcprst(tcp_pack, pack, reverse));
 #endif
 }
+#endif
 
 static
 int dhcp_nakDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
@@ -1235,15 +1250,18 @@ int dhcp_nakDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   chksum(answer_iph);
   
   dhcp_send(this, &this->rawif, conn->hismac, answer, len);
-
   return 0;
 }
 
 static 
-int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
+int dhcp_matchDNS(uint8_t *r, char *name) {
   int r_len = strlen((char *)r);
   int name_len = strlen(name);
   int domain_len = _options.domain ? strlen(_options.domain) : 0;
+
+#if(_debug_ > 1)
+  log_dbg("---------  checking dns for %s in %s", name, r);
+#endif
   
   if (r_len == name_len && !memcmp(r, name, name_len)) {
     return 1;
@@ -1260,13 +1278,17 @@ int dhcp_matchDNS(uint8_t *r, uint8_t *b, size_t blen, char *name) {
   return 0;
 }
 
+/*
+ *   dhcp_dns() - Checks DNS for bad packets or locally handled DNS.
+ *   returns: 0 = do not forward, 1 = forward DNS
+ */
 static 
 int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 
   if (plen < DHCP_DNS_HLEN + sizeofudp(pack)) {
     
     log_dbg("bad DNS packet of length %d", plen);
-    return -1;
+    return 0;
     
   } else {
     
@@ -1288,7 +1310,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     int qmatch = -1;
     int i;
 
-#ifdef ENABLE_BONJOUR
+#ifdef ENABLE_MDNS
     struct pkt_udphdr_t *udph = udphdr(pack);
     char isMDNS = 0;
 #endif
@@ -1301,7 +1323,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     log_dbg("DNS Flags: %d", flags);
 #endif
 
-#ifdef ENABLE_BONJOUR
+#ifdef ENABLE_MDNS
     isMDNS = (udph->dst == udph->src && 
 	      udph->src == htons(DHCP_MDNS));
 
@@ -1312,13 +1334,23 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     
     if (!isReq) {
       /* it was a query? shouldn't be */
-      if (((flags & 0x8000) >> 15) == 0) return 0;
+      if (((flags & 0x8000) >> 15) == 0) {
+#if(_debug_)
+	log_dbg("Dropping unexpected DNS query");
+#endif
+	return 0;
+      }
     } else {
       /* it was a response? shouldn't be */
-      if (((flags & 0x8000) >> 15) == 1) return 0;
+      if (((flags & 0x8000) >> 15) == 1) {
+#if(_debug_)
+	log_dbg("Dropping unexpected DNS response");
+#endif
+	return 0;
+      }
     }
 
-#ifdef ENABLE_BONJOUR
+#ifdef ENABLE_MDNS
     }
 #endif
     
@@ -1326,11 +1358,14 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     
 #undef  copyres
 #define copyres(isq,n)			        \
-    for (i=0; dlen && i < n ## count; i++)		\
+    for (i=0; dlen && i < n ## count; i++) {		\
       if (dns_copy_res(conn, isq, &dptr, &dlen,		\
 		       (uint8_t *)dnsp, olen,		\
-		       q, sizeof(q), &qmatch, mode))	\
-	return isReq ? dhcp_nakDNS(conn,pack,plen) : 0;
+		       q, sizeof(q), &qmatch, mode)) {	\
+        log_warn(0, "dropping malformed DNS");		\
+	return isReq ? dhcp_nakDNS(conn,pack,plen) : 0; \
+      } \
+    }
     
     copyres(1,qd);
     copyres(0,an);
@@ -1338,15 +1373,20 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     copyres(0,ar);
 
 #if(_debug_ > 1)
-    log_dbg("left (should be zero): %d", dlen);
+    log_dbg("left (should be zero): %d q=%s", dlen, q);
 #endif
     
-    if (dlen) return 0;
+    if (dlen) {
+#if(_debug_)
+      log_dbg("remaining length not zero dlen=%d", dlen);
+#endif
+      return 0;
+    }
 
-#ifdef ENABLE_BONJOUR
+#ifdef ENABLE_MDNS
     if (isMDNS) {
       if (flags   == 0x0000 && 
-	  qdcount == 0x0001 &&
+	  qdcount >= 0x0001 &&
 	  ancount == 0x0000 && 
 	  nscount == 0x0000 &&
 	  arcount == 0x0000) {
@@ -1357,12 +1397,16 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 	       ancount > 0) {
 	log_dbg("MDNS Response %s", q);
       }
-    } else 
+    }
 #endif
     
-    if (isReq &&
+    if (isReq && 
+#ifdef ENABLE_MDNS
+	(flags  == 0x0100 || flags  == 0x0000) && 
+#else
 	flags   == 0x0100 && 
-	qdcount == 0x0001 &&
+#endif
+	qdcount >= 0x0001 &&
 	ancount == 0x0000 && 
 	nscount == 0x0000 &&
 	arcount == 0x0000) {
@@ -1378,21 +1422,21 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
       int match = 0;
 
       if (!match) {
-	match = dhcp_matchDNS(q, query, sizeof(query), "logout");
+	match = dhcp_matchDNS(q, "logout");
 	if (match) {
 	  memcpy(reply, &_options.uamlogout.s_addr, 4);
 	}
       }
       
       if (!match && hostname) {
-	match = dhcp_matchDNS(q, query, sizeof(query), hostname);
+	match = dhcp_matchDNS(q, hostname);
 	if (match) {
 	  memcpy(reply, &_options.uamlisten.s_addr, 4);
 	}
       }
       
       if (!match && aliasname) {
-	match = dhcp_matchDNS(q, query, sizeof(query), aliasname);
+	match = dhcp_matchDNS(q, aliasname);
 	if (match) {
 	  memcpy(reply, &_options.uamalias.s_addr, 4);
 	}
@@ -1638,7 +1682,7 @@ int dhcp_dnsDNAT(struct dhcp_conn_t *conn,
   struct pkt_iphdr_t  *iph  = iphdr(pack);
   struct pkt_udphdr_t *udph = udphdr(pack);
 
-#ifdef ENABLE_BONJOUR
+#ifdef ENABLE_MDNS
   if (iph->protocol == PKT_IP_PROTO_UDP && 
       udph->src == htons(DHCP_MDNS) &&
       udph->dst == htons(DHCP_MDNS)) {
@@ -1758,8 +1802,11 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
   /* Was it a request for local redirection server? */
   if ( ( iph->protocol == PKT_IP_PROTO_TCP )    &&
        ( iph->daddr == this->uamlisten.s_addr ) &&
-       ( tcph->dst == htons(this->uamport) || 
-	 ( _options.uamuiport && tcph->dst == htons(_options.uamuiport)) ) ) {
+       ( tcph->dst == htons(this->uamport) 
+#ifdef ENABLE_UAMUIPORT
+	 || ( _options.uamuiport && tcph->dst == htons(_options.uamuiport))
+#endif
+	 ) ) {
 
     return 0; /* Destination was local redir server */
   }
@@ -1811,7 +1858,9 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 
       return dhcp_uam_nat(conn, ethh, iph, tcph, &this->uamlisten, this->uamport);
 
-    } else if (do_reset) {
+    } 
+#ifdef ENABLE_TCPRESET
+    else if (do_reset) {
 
       /* otherwise, RESET and drop */
 
@@ -1823,6 +1872,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
       dhcp_sendRESET(conn, pack, 1);
 
     }
+#endif
   }
   
   return -1; /* Something else */
@@ -1840,8 +1890,11 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
     /* We check here (we also do this in dhcp_dounDNAT()) for UAM */
     if ( ( iph->saddr == this->uamlisten.s_addr ) &&
 	 ( iph->protocol == PKT_IP_PROTO_TCP )    &&
-	 ( tcph->src == htons(dhcp->uamport) ||
-	   ( _options.uamuiport && tcph->src == htons(_options.uamuiport))) ) {
+	 ( tcph->src == htons(dhcp->uamport) 
+#ifdef ENABLE_UAMUIPORT
+	   || ( _options.uamuiport && tcph->src == htons(_options.uamuiport))
+#endif
+	   )) {
       
       *do_checksum = 1;
       dhcp_uam_unnat(conn, ethh, iph, tcph);
@@ -1917,8 +1970,11 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   /* Was it a reply from redir server? */
   if ( (iph->saddr == this->uamlisten.s_addr) &&
        (iph->protocol == PKT_IP_PROTO_TCP) &&
-       (tcph->src == htons(this->uamport) || 
-	(_options.uamuiport && tcph->src == htons(_options.uamuiport))) ) {
+       (tcph->src == htons(this->uamport) 
+#ifdef ENABLE_UAMUIPORT
+	|| (_options.uamuiport && tcph->src == htons(_options.uamuiport))
+#endif
+	) ) {
 
     *do_checksum = 1;
     return dhcp_uam_unnat(conn, ethh, iph, tcph);
@@ -1956,6 +2012,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
     return 0;
 #endif
 
+#ifdef ENABLE_TCPRESET
   if (do_reset && iph->protocol == PKT_IP_PROTO_TCP) {
 #if(_debug_)
     log_dbg("Resetting connection on port %d->%d (undo)", 
@@ -1966,6 +2023,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
       tun_sendRESET(tun, pack, (struct app_conn_t *)conn->peer);
     }
   }
+#endif
   
   return -1; /* Something else */
 }
@@ -2671,10 +2729,10 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
  * dhcp_set_addrs()
  * Set various IP addresses of a connection.
  **/
-int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
-		   struct in_addr *hismask, struct in_addr *ourip,
-		   struct in_addr *ourmask, struct in_addr *dns1,
-		   struct in_addr *dns2, char *domain) {
+int dhcp_set_addrs(struct dhcp_conn_t *conn, 
+		   struct in_addr *hisip, struct in_addr *hismask, 
+		   struct in_addr *ourip, struct in_addr *ourmask, 
+		   struct in_addr *dns1,  struct in_addr *dns2) {
 
   conn->hisip.s_addr = hisip->s_addr;
   conn->hismask.s_addr = hismask->s_addr;
@@ -2682,14 +2740,11 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
   conn->dns1.s_addr = dns1->s_addr;
   conn->dns2.s_addr = dns2->s_addr;
 
-  if (domain) {
-    safe_strncpy(conn->domain, domain, DHCP_DOMAIN_LEN);
+  if (!conn->domain[0] && _options.domain) {
+    safe_strncpy(conn->domain, _options.domain, DHCP_DOMAIN_LEN);
   }
-  else {
-    conn->domain[0] = 0;
-  }
-
-#ifdef ENABLE_TAP
+  
+#if defined(ENABLE_TAP) && defined(SIOCSARP)
   if (_options.usetap) {
     /*
      *    USETAP ARP
@@ -2697,23 +2752,23 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd > 0) {
       struct arpreq req;
-
+      
       memset(&req, 0, sizeof(req));
-
+      
       /* SET_SA_FAMILY(req.arp_ha, AF_UNSPEC);*/
       SET_SA_FAMILY(req.arp_pa, AF_INET);
       ((struct sockaddr_in *) &req.arp_pa)->sin_addr.s_addr = conn->hisip.s_addr;
       req.arp_flags = ATF_PERM;
-
+      
       memcpy(req.arp_ha.sa_data, conn->hismac, PKT_ETH_ALEN);
-
+      
       log_dbg("ARP Entry: %s -> %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
 	      inet_ntoa(conn->hisip),
 	      conn->hismac[0], conn->hismac[1], conn->hismac[2],
 	      conn->hismac[3], conn->hismac[4], conn->hismac[5]);
-
+      
       safe_strncpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
-
+      
       if (ioctl(sockfd, SIOCSARP, &req) < 0) {
 	perror("ioctrl()");
       }
@@ -2721,7 +2776,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn, struct in_addr *hisip,
     }
   }
 #endif
-
+  
 #ifdef ENABLE_UAMANYIP
   if (  _options.uamanyip && 
       ! _options.uamnatanyip &&
@@ -2812,7 +2867,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
    */
   if ((memcmp(pack_ethh->dst, dhcp_nexthop(this), PKT_ETH_ALEN)) && 
       (memcmp(pack_ethh->dst, bmac, PKT_ETH_ALEN))) {
-#ifdef ENABLE_BONJOUR
+#ifdef ENABLE_MDNS
     /* http://en.wikipedia.org/wiki/IP_multicast */
     /* MAC 01:00:5e:xx:xx:xx IP 224.0.0.251 */
     if (pack_ethh->dst[0] == 0x01 &&
@@ -2829,7 +2884,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	    pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
 #endif
     return 0;
-#ifdef ENABLE_BONJOUR
+#ifdef ENABLE_MDNS
     }
 #endif
   }
@@ -3037,7 +3092,10 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     
     do_checksum = 1;
     dhcp_uam_nat(conn, pack_ethh, pack_iph, pack_tcph, &this->uamlisten,
-		 _options.uamuiport ? _options.uamuiport : this->uamport);
+#ifdef ENABLE_UAMUIPORT
+		 _options.uamuiport ? _options.uamuiport : 
+#endif
+		 this->uamport);
   }
   
   switch (dhcp_dnsDNAT(conn, pack, len, &do_checksum)) { 
@@ -3463,7 +3521,7 @@ int dhcp_chillipkt(uint8_t *packet, size_t length) {
 	    bdestroy(s);
 	  }
 	  break;
-
+	  
 	case CHILLI_PEER_INIT:
 	  cmd = "Init";
 	  if (chilli_hdr->from == _options.peerid) {
@@ -3496,6 +3554,8 @@ int dhcp_chillipkt(uint8_t *packet, size_t length) {
 
   EVP_CIPHER_CTX_cleanup(&ctx);
 
+#else
+#warning Cluster feature requires OpenSSL
 #endif
   return 0;
 }
@@ -4433,30 +4493,32 @@ int dhcp_set_cb_disconnect(struct dhcp_t *this,
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
 
-int dhcp_receive(struct dhcp_t *this) {
-  ssize_t length = 0;
-  size_t offset = 0;
+int dhcp_receive(struct dhcp_t *this, int idx) {
   struct bpf_hdr *hdrp;
-  struct pkt_ethhdr_t *ethhdr;
-  
-  if (this->rbuf_offset == this->rbuf_len) {
+  ssize_t length = 0;
+
+  if (this->rbuf_offset >= this->rbuf_len) {
     length = net_read_eth(&this->rawif, this->rbuf, this->rbuf_max);
-
-    if (length <= 0)
-      return length;
-
+    if (length <= 0) return length;
+    
     this->rbuf_offset = 0;
     this->rbuf_len = length;
+    log_dbg("dhcp_received: %d", length);
   }
-  
-  while (this->rbuf_offset != this->rbuf_len) {
+
+  while (this->rbuf_offset < this->rbuf_len) {
     
+    log_dbg("dhcp_packet offset: %d", this->rbuf_offset);
+
     if (this->rbuf_len - this->rbuf_offset < sizeof(struct bpf_hdr)) {
       this->rbuf_offset = this->rbuf_len;
       continue;
     }
     
-    hdrp = (struct bpf_hdr *) &this->rbuf[this->rbuf_offset];
+    hdrp = (struct bpf_hdr *) (&this->rbuf[this->rbuf_offset]);
+
+    log_dbg("bpf_hdr  hdrlen %d caplen %d datalen %d", 
+	hdrp->bh_hdrlen, hdrp->bh_caplen, hdrp->bh_datalen);
     
     if (this->rbuf_offset + hdrp->bh_hdrlen + hdrp->bh_caplen > 
 	this->rbuf_len) {
@@ -4465,35 +4527,20 @@ int dhcp_receive(struct dhcp_t *this) {
     }
 
     if (hdrp->bh_caplen != hdrp->bh_datalen) {
+      log_warn(0, "BPF caplen(%d) != datalen(%d)", hdrp->bh_caplen, hdrp->bh_datalen);
       this->rbuf_offset += hdrp->bh_hdrlen + hdrp->bh_caplen;
       continue;
     }
 
-    ethhdr = (struct pkt_ethhdr_t *) 
-      (this->rbuf + this->rbuf_offset + hdrp->bh_hdrlen);
+    dhcp_decaps_cb(this, 
+		   this->rbuf + 
+		   this->rbuf_offset + 
+		   hdrp->bh_hdrlen, 
+		   hdrp->bh_caplen);
 
-    switch (ntohs(ethhdr->prot)) {
-    case PKT_ETH_PROTO_IP:
-      dhcp_receive_ip(this, (struct pkt_ippacket_t*) ethhdr, hdrp->bh_caplen);
-      break;
-    case PKT_ETH_PROTO_ARP:
-#ifdef ENABLE_LAYER3
-      if (!_options.layer3)
-#endif
-	dhcp_receive_arp(this, (struct arp_fullpacket_t*) ethhdr, hdrp->bh_caplen);
-      break;
-#ifdef ENABLE_EAPOL
-    case PKT_ETH_PROTO_EAPOL:
-      if (_options.eapolenable)
-        dhcp_receive_eapol(this, (struct dot1xpacket_t*) ethhdr);
-      break;
-#endif
+    this->rbuf_offset = BPF_WORDALIGN(this->rbuf_offset + hdrp->bh_hdrlen + hdrp->bh_caplen);
+  }
 
-    default:
-      break;
-    }
-    this->rbuf_offset += hdrp->bh_hdrlen + hdrp->bh_caplen;
-  };
-  return (0);
+  return 0;
 }
 #endif

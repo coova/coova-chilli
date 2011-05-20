@@ -34,7 +34,7 @@ if [ -n "$FORM_username" -a -n "$FORM_challenge" -a -n "$FORM_password" ]; then
     
 else
     
-    if [ "$tos" = "1" ]; then
+    if [ "$HS_REG_MODE" = "tos" ]; then
 	
 	if [ "$FORM_button" != "" ]; then
 	    
@@ -45,7 +45,7 @@ else
 		echo "$FORM_username:$FORM_password::" >> $USERS
 	    
 	    dologin
-
+	    
 	else
 	    header
             [ "$usemap" = "1" ] && { 

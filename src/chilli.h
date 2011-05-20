@@ -132,6 +132,7 @@ struct app_conn_t {
   uint8_t hismac[PKT_ETH_ALEN];/* His MAC address */
   struct in_addr ourip;        /* IP address to listen to */
   struct in_addr hisip;        /* Client IP address */
+  struct in_addr hismask;      /* Client IP address mask */
   struct in_addr reqip;        /* IP requested by client */
 #ifdef ENABLE_UAMANYIP
   struct in_addr natip;
@@ -177,6 +178,8 @@ struct chilli_peer {
 #define PEER_STATE_OFFLINE 0
 #define PEER_STATE_ACTIVE  1
 #define PEER_STATE_STANDBY 2
+#define PEER_STATE_ADMCMD  3
+#define PEER_STATE_MODULE  4
 #endif
 
 #ifdef ENABLE_STATFILE
@@ -293,6 +296,9 @@ int runscript(struct app_conn_t *appconn, char* script);
 int statedir_file(char *dst, int dlen, char *file, char *deffile);
 int bblk_fromfd(bstring s, int fd, int len);
 int bstring_fromfd(bstring s, int fd);
+#ifndef HAVE_GETLINE
+ssize_t getline (char** lineptr, size_t* n, FILE* stream);
+#endif
 
 /* sig.c */
 int ndelay_on (int fd);

@@ -200,6 +200,7 @@ option "challengetimeout" - "Timeout in seconds for the generated challenge" int
 option "challengetimeout2" - "Timeout in seconds for challenge during login" int default="1200" no
 
 option "redir"  - "Enable redir (redirection) daemon" flag off
+option "inject"  - "Enable redir injection" string no
 
 option "routeonetone" - "When using routeif, do one-to-one NAT" flag off
 

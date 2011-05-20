@@ -186,6 +186,7 @@ const char *gengetopt_args_info_help[] = {
   "      --challengetimeout=INT    Timeout in seconds for the generated challenge  \n                                  (default=`600')",
   "      --challengetimeout2=INT   Timeout in seconds for challenge during login  \n                                  (default=`1200')",
   "      --redir                   Enable redir (redirection) daemon  \n                                  (default=off)",
+  "      --inject=STRING           Enable redir injection",
   "      --routeonetone            When using routeif, do one-to-one NAT  \n                                  (default=off)",
   "      --sslkeyfile=STRING       SSL private key file in PEM format",
   "      --sslkeypass=STRING       SSL private key password",
@@ -412,6 +413,7 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->challengetimeout_given = 0 ;
   args_info->challengetimeout2_given = 0 ;
   args_info->redir_given = 0 ;
+  args_info->inject_given = 0 ;
   args_info->routeonetone_given = 0 ;
   args_info->sslkeyfile_given = 0 ;
   args_info->sslkeypass_given = 0 ;
@@ -702,6 +704,8 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->challengetimeout2_arg = 1200;
   args_info->challengetimeout2_orig = NULL;
   args_info->redir_flag = 0;
+  args_info->inject_arg = NULL;
+  args_info->inject_orig = NULL;
   args_info->routeonetone_flag = 0;
   args_info->sslkeyfile_arg = NULL;
   args_info->sslkeyfile_orig = NULL;
@@ -908,28 +912,29 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->challengetimeout_help = gengetopt_args_info_help[151] ;
   args_info->challengetimeout2_help = gengetopt_args_info_help[152] ;
   args_info->redir_help = gengetopt_args_info_help[153] ;
-  args_info->routeonetone_help = gengetopt_args_info_help[154] ;
-  args_info->sslkeyfile_help = gengetopt_args_info_help[155] ;
-  args_info->sslkeypass_help = gengetopt_args_info_help[156] ;
-  args_info->sslcertfile_help = gengetopt_args_info_help[157] ;
-  args_info->sslcafile_help = gengetopt_args_info_help[158] ;
-  args_info->unixipc_help = gengetopt_args_info_help[159] ;
-  args_info->uamallowpost_help = gengetopt_args_info_help[160] ;
-  args_info->natip_help = gengetopt_args_info_help[161] ;
-  args_info->natport_help = gengetopt_args_info_help[162] ;
-  args_info->redirssl_help = gengetopt_args_info_help[163] ;
-  args_info->uamuissl_help = gengetopt_args_info_help[164] ;
-  args_info->dnslog_help = gengetopt_args_info_help[165] ;
-  args_info->ipwhitelist_help = gengetopt_args_info_help[166] ;
-  args_info->uamdomainfile_help = gengetopt_args_info_help[167] ;
-  args_info->layer3_help = gengetopt_args_info_help[168] ;
-  args_info->redirdnsreq_help = gengetopt_args_info_help[169] ;
-  args_info->kname_help = gengetopt_args_info_help[170] ;
-  args_info->moddir_help = gengetopt_args_info_help[171] ;
-  args_info->module_help = gengetopt_args_info_help[172] ;
+  args_info->inject_help = gengetopt_args_info_help[154] ;
+  args_info->routeonetone_help = gengetopt_args_info_help[155] ;
+  args_info->sslkeyfile_help = gengetopt_args_info_help[156] ;
+  args_info->sslkeypass_help = gengetopt_args_info_help[157] ;
+  args_info->sslcertfile_help = gengetopt_args_info_help[158] ;
+  args_info->sslcafile_help = gengetopt_args_info_help[159] ;
+  args_info->unixipc_help = gengetopt_args_info_help[160] ;
+  args_info->uamallowpost_help = gengetopt_args_info_help[161] ;
+  args_info->natip_help = gengetopt_args_info_help[162] ;
+  args_info->natport_help = gengetopt_args_info_help[163] ;
+  args_info->redirssl_help = gengetopt_args_info_help[164] ;
+  args_info->uamuissl_help = gengetopt_args_info_help[165] ;
+  args_info->dnslog_help = gengetopt_args_info_help[166] ;
+  args_info->ipwhitelist_help = gengetopt_args_info_help[167] ;
+  args_info->uamdomainfile_help = gengetopt_args_info_help[168] ;
+  args_info->layer3_help = gengetopt_args_info_help[169] ;
+  args_info->redirdnsreq_help = gengetopt_args_info_help[170] ;
+  args_info->kname_help = gengetopt_args_info_help[171] ;
+  args_info->moddir_help = gengetopt_args_info_help[172] ;
+  args_info->module_help = gengetopt_args_info_help[173] ;
   args_info->module_min = 0;
   args_info->module_max = 0;
-  args_info->dhcpopt_help = gengetopt_args_info_help[173] ;
+  args_info->dhcpopt_help = gengetopt_args_info_help[174] ;
   args_info->dhcpopt_min = 0;
   args_info->dhcpopt_max = 0;
   
@@ -1236,6 +1241,8 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->maxclients_orig));
   free_string_field (&(args_info->challengetimeout_orig));
   free_string_field (&(args_info->challengetimeout2_orig));
+  free_string_field (&(args_info->inject_arg));
+  free_string_field (&(args_info->inject_orig));
   free_string_field (&(args_info->sslkeyfile_arg));
   free_string_field (&(args_info->sslkeyfile_orig));
   free_string_field (&(args_info->sslkeypass_arg));
@@ -1602,6 +1609,8 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "challengetimeout2", args_info->challengetimeout2_orig, 0);
   if (args_info->redir_given)
     write_into_file(outfile, "redir", 0, 0 );
+  if (args_info->inject_given)
+    write_into_file(outfile, "inject", args_info->inject_orig, 0);
   if (args_info->routeonetone_given)
     write_into_file(outfile, "routeonetone", 0, 0 );
   if (args_info->sslkeyfile_given)
@@ -2377,6 +2386,7 @@ cmdline_parser_internal (
         { "challengetimeout",	1, NULL, 0 },
         { "challengetimeout2",	1, NULL, 0 },
         { "redir",	0, NULL, 0 },
+        { "inject",	1, NULL, 0 },
         { "routeonetone",	0, NULL, 0 },
         { "sslkeyfile",	1, NULL, 0 },
         { "sslkeypass",	1, NULL, 0 },
@@ -4453,6 +4463,20 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->redir_flag), 0, &(args_info->redir_given),
                 &(local_args_info.redir_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "redir", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* Enable redir injection.  */
+          else if (strcmp (long_options[option_index].name, "inject") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->inject_arg), 
+                 &(args_info->inject_orig), &(args_info->inject_given),
+                &(local_args_info.inject_given), optarg, 0, 0, ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "inject", '-',
                 additional_error))
               goto failure;
           

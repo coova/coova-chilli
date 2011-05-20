@@ -16,7 +16,6 @@
  * 
  */
 
-#define _debug_ 0
 #include "chilli.h"
 #include "debug.h"
 
@@ -24,7 +23,7 @@
 
 extern struct dhcp_t *dhcp;
 
-int
+static ssize_t
 dns_fullname(char *data, size_t dlen,      /* buffer to store name */
 	     uint8_t *res, size_t reslen,  /* current resource */
 	     uint8_t *opkt, size_t olen,   /* original packet */
@@ -35,10 +34,13 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
 
   if (lvl >= 15) return -1;
 
-#if(_debug_)
+#if(_debug_ > 1)
   log_dbg("dlen=%d reslen=%d olen=%d lvl=%d", 
 	  dlen, reslen, olen, lvl);
 #endif
+
+  /* only capture the first name in query */
+  if (d && d[0]) d = 0;
   
   while (reslen-- > 0 && ++ret && (l = *res++) != 0) {
 
@@ -54,8 +56,8 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
 	  return -1;
 	}
 	
-#if(_debug_)
-	log_dbg("skip[%d] dlen=%d", offset, dlen);
+#if(_debug_ > 1)
+	log_dbg("skip[%d] olen=%d", offset, olen);
 #endif
 	
 	if (dns_fullname(d, dlen, 
@@ -67,29 +69,33 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
       } 
     }
     
-    if (l >= dlen || l >= reslen) {
-      log_dbg("bad value %d/%d/%d", l, dlen, reslen);
+    if (l >= dlen || l >= olen) {
+      log_dbg("bad value %d/%d/%d", l, dlen, olen);
       return -1;
     }
     
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("part[%.*s] reslen=%d l=%d dlen=%d",
 	    l, res, reslen, l, dlen);
 #endif
-    
-    memcpy(d, res, l);
-    d += l; 
-    dlen -= l;
+
+    if (d) {
+      memcpy(d, res, l);
+      d += l; 
+      dlen -= l;
+    }
     res += l;
     reslen -= l;
     ret += l;
 
-    *d = '.';
-    d += 1; 
-    dlen -= 1;
+    if (d) {
+      *d = '.';
+      d += 1; 
+      dlen -= 1;
+    }
   }
   
-  if (lvl == 0) {
+  if (lvl == 0 && d) {
     int len = strlen((char *)data);
     if (len && len == (d - data) && data[len-1] == '.')
       data[len-1]=0;
@@ -126,7 +132,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   size_t len = *left;
   
   uint8_t name[PKT_IP_PLEN];
-  size_t namelen = 0;
+  ssize_t namelen = 0;
   
   uint16_t type;
   uint16_t class;
@@ -136,14 +142,14 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   uint32_t ul;
   uint16_t us;
 
-#if(_debug_)
+#if(_debug_ > 1)
   log_dbg("%s: left=%d olen=%d qsize=%d",
 	  __FUNCTION__, *left, olen, qsize);
 #endif
 
   memset(name, 0, sizeof(name));
   namelen = dns_fullname((char*)name, sizeof(name)-1, p_pkt, len, opkt, olen, 0);
-  if (namelen < 0) return -1;
+  if (namelen < 0) return_error;
 
   p_pkt += namelen;
   len -= namelen;
@@ -174,17 +180,17 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   if (antidnstunnel) {
     switch (type) {
     case 1:/* A */ 
-#if(_debug_)
+#if(_debug_ > 1)
       log_dbg("A record");
 #endif
       break;
     case 5:/* CNAME */ 
-#if(_debug_)
+#if(_debug_ > 1)
       log_dbg("CNAME record");
 #endif
       break;
     default:
-#if(_debug_)
+#if(_debug_ > 1)
       if (_options.debug) switch(type) {
 	case 6:  log_dbg("SOA record"); break;
 	case 12: log_dbg("PTR record"); break;
@@ -193,7 +199,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	default: log_dbg("Record type %d", type); break;
 	}
 #endif
-      log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, namelen);
+      log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, (int) namelen);
       return -1;
     }
   }
@@ -201,7 +207,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   if (q) {
     if (dns_fullname((char *)question, qsize, *pktp, *left, opkt, olen, 0) < 0)
       return_error;
-    
+
     log_dbg("DNS: %s", question);
     
     *pktp = p_pkt;
@@ -222,7 +228,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   p_pkt += 2;
   len -= 2;
   
-#if(_debug_)
+#if(_debug_ > 1)
   log_dbg("-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);
 #endif
   
@@ -236,7 +242,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     
   case 1:/* A */
 
-#ifdef ENABLE_BONJOUR
+#ifdef ENABLE_MDNS
     if (mode == DNS_MDNS_MODE) {
       size_t offset;
       for (offset=0; offset < rdlen; offset += 4) {
@@ -250,10 +256,10 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     }
 #endif    
 
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("A record");
 #endif
-    if (*qmatch == -1 &&_options.uamdomains && _options.uamdomains[0]) {
+    if (*qmatch == -1 && _options.uamdomains && _options.uamdomains[0]) {
       int id;
       for (id=0; _options.uamdomains[id] && id < MAX_UAM_DOMAINS; id++) {
 	

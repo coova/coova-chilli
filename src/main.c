@@ -73,7 +73,9 @@ enum {
 int main(int argc, char **argv)
 {
   int ret;
+#if defined(__linux__)
   char *ev;
+#endif
 
 #ifdef MTRACE
   mtrace();  /* Turn on mtrace function */

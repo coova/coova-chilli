@@ -249,15 +249,19 @@ struct timeval * dhcp_timeleft(struct dhcp_t *this, struct timeval *tvp);
 int dhcp_validate(struct dhcp_t *this);
 
 int dhcp_set_addrs(struct dhcp_conn_t *conn, 
-	       struct in_addr *hisip, struct in_addr *hismask,
-	       struct in_addr *ourip, struct in_addr *ourmask,
-	       struct in_addr *dns1, struct in_addr *dns2, char *domain);
+		   struct in_addr *hisip, struct in_addr *hismask,
+		   struct in_addr *ourip, struct in_addr *ourmask,
+		   struct in_addr *dns1, struct in_addr *dns2);
 
 /* Called whenever a packet arrives */
 int dhcp_decaps(struct dhcp_t *this, int idx);
 int dhcp_relay_decaps(struct dhcp_t *this, int idx);
 int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhdr);
 uint8_t * dhcp_nexthop(struct dhcp_t *);
+
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
+int dhcp_receive(struct dhcp_t *this, int idx);
+#endif
 
 int dhcp_set_cb_data_ind(struct dhcp_t *this, 
   int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len));
@@ -295,7 +299,9 @@ void dhcp_block_mac(struct dhcp_t *this, uint8_t *hwaddr);
 void dhcp_authorize_mac(struct dhcp_t *this, uint8_t *hwaddr,
 			struct session_params *params);
 
+#if (0) /* ENABLE_TCPRESET */
 void dhcp_reset_tcp_mac(struct dhcp_t *this, uint8_t *hwaddr);
+#endif
 
 #define LIST_SHORT_FMT 0
 #define LIST_LONG_FMT  1

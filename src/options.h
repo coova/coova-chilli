@@ -139,7 +139,9 @@ struct options_t {
 
   struct in_addr uamlisten;      /* IP address of local authentication */
   int uamport;                   /* TCP port to listen to */
+#ifdef ENABLE_UAMUIPORT
   int uamuiport;                 /* TCP port to listen to */
+#endif
   int max_clients;               /* Max subscriber/clients */
 
   struct in_addr uamlogout;      /* IP address of HTTP auto-logout */
@@ -286,6 +288,10 @@ struct options_t {
 
 #ifdef HAVE_NETFILTER_COOVA
   char *kname;
+#endif
+
+#ifdef ENABLE_REDIRINJECT
+  char *inject;
 #endif
 
 #ifdef ENABLE_MODULES

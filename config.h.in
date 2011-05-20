@@ -1,10 +1,10 @@
 /* config.h.in.  Generated from configure.in by autoheader.  */
 
+/* Define to enable Accounting-On and Accounting-Off */
+#undef ENABLE_ACCOUNTING_ONOFF
+
 /* Define to enable binary status file */
 #undef ENABLE_BINSTATFILE
-
-/* Define to enable bonjour */
-#undef ENABLE_BONJOUR
 
 /* Define to enable HTTP AAA Proxy */
 #undef ENABLE_CHILLIPROXY
@@ -26,6 +26,9 @@
 
 /* Define to enable cluster */
 #undef ENABLE_CLUSTER
+
+/* Define for CoA RADIUS support */
+#undef ENABLE_COA
 
 /* Define to enable debugging */
 #undef ENABLE_DEBUG
@@ -72,6 +75,9 @@
 /* Define to enable Chilli Leaky Bucket shaping */
 #undef ENABLE_LEAKYBUCKET
 
+/* Define to enable mDNS */
+#undef ENABLE_MDNS
+
 /* Define to enable minimal cmdline config */
 #undef ENABLE_MINICONFIG
 
@@ -117,17 +123,26 @@
 /* Define to enable Chilli tap support */
 #undef ENABLE_TAP
 
+/* Define to enable TCP reset support */
+#undef ENABLE_TCPRESET
+
 /* Define to enable uamanyip */
 #undef ENABLE_UAMANYIP
 
 /* Define to support loading of uamdomains (with regex) from file */
 #undef ENABLE_UAMDOMAINFILE
 
+/* Define to enable uamuiport */
+#undef ENABLE_UAMUIPORT
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
 /* Define to 1 if you have the <asm/types.h> header file. */
 #undef HAVE_ASM_TYPES_H
+
+/* Define to 1 if you have the <dirent.h> header file. */
+#undef HAVE_DIRENT_H
 
 /* Define to 1 if you have the `dirname' function. */
 #undef HAVE_DIRNAME
@@ -248,6 +263,9 @@
 
 /* Define to use SuperFastHash */
 #undef HAVE_SFHASH
+
+/* Define to 1 if you have the <signal.h> header file. */
+#undef HAVE_SIGNAL_H
 
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET

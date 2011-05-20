@@ -28,7 +28,7 @@
 
 #include <getopt.h>
 
-#define _debug_ 0
+#define _debug_ 1
 
 #define OPT_string  0
 #define OPT_integer 1
@@ -68,9 +68,10 @@ static int OPT_generic(struct gengetopt_args_info *args_info, int o,
     if (is_cmdline) {
       *p = d;
     } else {
-      if (*p) {
+      if (*p && !opt->multi_opt) {
 #if(_debug_)
-	log_dbg("Skipping option %s defined on command line", opt->opt_name);
+	fprintf(stderr, "Skipping option %s defined on command line\n",
+		opt->opt_name);
 #endif
 	return 0;
       }
@@ -188,6 +189,7 @@ int mini_cmdline_file(char *filename, struct gengetopt_args_info *args_info,
       next_token++;
       next_token += strspn(fopt + next_token, " \t\r\n");
     }
+
     str_index  += next_token;
 
     farg = str_index;
@@ -231,6 +233,7 @@ int mini_cmdline_file(char *filename, struct gengetopt_args_info *args_info,
 #if(_debug_)
     fprintf(stderr,"%s = %s\n", fopt, farg);
 #endif
+
     for (i=0; i < opts_cnt; i++) {
       struct opt_def_t * opt = &opts[i];
       if (!strcmp(opt->opt_name, fopt)) {
@@ -238,9 +241,14 @@ int mini_cmdline_file(char *filename, struct gengetopt_args_info *args_info,
 	break;
       }
     }
+
+    if (i == opts_cnt) {
+      fprintf(stderr,"invalid option %s\n", fopt);
+      result = -1;
+    }
   }
   
-  return 0;
+  return result;
 }
 
 int mini_cmdline_free(struct gengetopt_args_info *args_info) {
@@ -301,13 +309,23 @@ int mini_cmdline_parser2(int argc, char **argv,
       break;
 
     case '?':
+      fprintf(stderr,"invlid option %s\n", argv[optind-1]);
+      ret = -1;
       break;
 
     default:
       break;
     }
   }
-
+  
+  if (optind < argc) {
+    fprintf(stderr, "non-option ARGV-elements: ");
+    while (optind < argc)
+      fprintf(stderr, "%s ", argv[optind++]);
+    fprintf(stderr, "\n");
+    ret = -1;
+  }
+  
   return ret;
 }
 

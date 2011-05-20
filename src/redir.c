@@ -588,6 +588,7 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
     bconcat(str, bt2);
   }
 
+#ifdef ENABLE_UAMUIPORT
   if (_options.uamuissl && _options.uamuiport) {
     /*
      *  When we have uamuissl, a key/cert, and a uamuiport,
@@ -609,6 +610,7 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
     redir_urlencode(bt, bt2);
     bconcat(str, bt2);
   }
+#endif
 
   if (redirurl) {
     bcatcstr(str, amp);
@@ -1634,7 +1636,9 @@ int redir_new(struct redir_t **redir,
 
   (*redir)->addr = *addr;
   (*redir)->port = port;
+#ifdef ENABLE_UAMUIPORT
   (*redir)->uiport = uiport;
+#endif
   (*redir)->starttime = 0;
 
   return 0;
@@ -1650,10 +1654,12 @@ int redir_listen(struct redir_t *redir) {
     return -1;
   }
 
+#ifdef ENABLE_UAMUIPORT
   if (redir->uiport && (redir->fd[1] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     log_err(errno, "socket() failed");
     return -1;
   }
+#endif
 
   /* Set up address */
   address.sin_family = AF_INET;
@@ -1668,11 +1674,13 @@ int redir_listen(struct redir_t *redir) {
     case 0:
       address.sin_port = htons(redir->port);
       break;
+#ifdef ENABLE_UAMUIPORT
     case 1:
       /* XXX: binding to 0.0.0.0:uiport (should be configurable?) */
       /*address.sin_addr.s_addr = INADDR_ANY;*/
       address.sin_port = htons(redir->uiport);
       break;
+#endif
     }
 
     optval = 1;
@@ -1932,8 +1940,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	FD_ZERO(&fds);
 	FD_SET(fd, &fds);
 	
-	idleTime.tv_sec = 0;
-	idleTime.tv_usec = REDIR_HTTP_SELECT_TIME;
+	memset((void *)&idleTime, 0, sizeof(idleTime));
+	idleTime.tv_sec = REDIR_HTTP_SELECT_TIME;
 	
 	status = select(fd + 1, &fds, NULL, NULL, &idleTime);
 	
@@ -1941,7 +1949,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       
       switch(status) {
       case -1:
-	log_err(errno,"select()");
+	log_err(errno,"select(%d)",fd);
 	return -1;
 
       case 0:
@@ -2144,34 +2152,34 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
 	if (!strncasecmp(buffer,"Host:",5)) {
 	  p = buffer + 5;
-	  while (*p && isspace(*p)) p++;
+	  while (*p && isspace((int) *p)) p++;
 	  safe_strncpy(httpreq->host, p, sizeof(httpreq->host));
-#if(_debug_)
+#if(_debug_ > 1)
 	  log_dbg("Host: %s",httpreq->host);
 #endif
 	} 
 	else if (!strncasecmp(buffer,"Content-Length:",15)) {
 	  p = buffer + 15;
-	  while (*p && isspace(*p)) p++;
+	  while (*p && isspace((int) *p)) p++;
 	  len = strlen(p);
 	  if (len > 0) httpreq->clen = atoi(p);
-#if(_debug_)
+#if(_debug_ > 1)
 	  log_dbg("Content-Length: %s",p);
 #endif
 	}
 	else if (!strncasecmp(buffer,"User-Agent:",11)) {
 	  p = buffer + 11;
-	  while (*p && isspace(*p)) p++;
+	  while (*p && isspace((int) *p)) p++;
 	  safe_strncpy(conn->useragent, p, sizeof(conn->useragent));
-#if(_debug_)
+#if(_debug_ > 1)
 	  log_dbg("User-Agent: %s",conn->useragent);
 #endif
 	}
 	else if (!strncasecmp(buffer,"Cookie:",7)) {
 	  p = buffer + 7;
-	  while (*p && isspace(*p)) p++;
+	  while (*p && isspace((int) *p)) p++;
 	  safe_strncpy(conn->httpcookie, p, sizeof(conn->httpcookie));
-#if(_debug_)
+#if(_debug_ > 1)
 	  log_dbg("Cookie: %s",conn->httpcookie);
 #endif
 	}
@@ -2187,7 +2195,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
     }
 
     if (!forked && !eoh && wblock) {
-#if(_debug_)
+#if(_debug_ > 1)
       log_dbg("Didn't see end of headers, continue...");
 #endif
       /*log_dbg("%.*s",httpreq->data_in->slen,httpreq->data_in->data);*/
@@ -3969,7 +3977,8 @@ int redir_main(struct redir_t *redir,
    *  XXX: chilli_redir
    */
   if (redir->cb_handle_url) {
-    switch (redir->cb_handle_url(redir, &conn, &httpreq, &socket, address, rreq)) {
+    switch (redir->cb_handle_url(redir, &conn, &httpreq, 
+				 &socket, address, rreq)) {
     case -1: 
       return -1;
     case 0: 

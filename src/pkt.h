@@ -384,6 +384,7 @@ struct pkt_chillihdr_t {
 #define CHILLI_PEER_GOODBYE 3
 #define CHILLI_PEER_LIST    4
 #define CHILLI_PEER_CMD     5
+#define CHILLI_PEER_CMD_RES 6
 #endif
 
 #ifdef ENABLE_IEEE8021Q

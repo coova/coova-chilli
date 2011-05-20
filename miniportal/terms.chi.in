@@ -24,14 +24,14 @@ header
 
 <div style="float:right;padding-right:20px;">
 <? href "login.chi" "Login" ?>
-<? [ "$register" = "1" ] && href "register.chi" "Signup" ?>
+<? [ "$HS_REG_MODE" = "self" ] && href "register.chi" "Signup" ?>
 </div>
 
 <? uamfile terms 1 ?>
 
 <div style="float:right;padding-right:20px;">
 <? href "login.chi" "Login" ?>
-<? [ "$register" = "1" ] && href "register.chi" "Signup" ?>
+<? [ "$HS_REG_MODE" = "self" ] && href "register.chi" "Signup" ?>
 </div>
 
 <?

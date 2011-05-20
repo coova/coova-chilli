@@ -31,7 +31,7 @@ static const char *description =
   "  http://www.coova.org/\n";
 
 static const char *copyright = 
-  "Copyright (c) 2003-2005 Mondru AB., 2006-2011 Coova Technologies LLC.\n"
+  "2006-2011 Coova Technologies LLC., Copyright (c) 2003-2005 Mondru AB.\n"
   "Licensed under the GNU General Public License (GPL).\n";
 
 static const char *usage =
@@ -46,6 +46,9 @@ static const char *compile_options = "Compiled with "
 #endif
 #ifdef ENABLE_CHILLIPROXY
   "ENABLE_CHILLIPROXY "
+#endif
+#ifdef ENABLE_COA
+  "ENABLE_COA "
 #endif
 #ifdef ENABLE_RADPROXY
   "ENABLE_RADPROXY "
@@ -128,6 +131,12 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_STATFILE
   "ENABLE_STATFILE "
 #endif
+#ifdef ENABLE_UAMANYIP
+  "ENABLE_UAMANYIP "
+#endif
+#ifdef ENABLE_UAMUIPORT
+  "ENABLE_UAMUIPORT "
+#endif
 #ifdef HAVE_MATRIXSSL
   "HAVE_MATRIXSSL "
 #endif
@@ -141,7 +150,7 @@ static const char *compile_options = "Compiled with "
 
 char *STRDUP(char *s) {
   if (!s) return 0;
-  while (isspace(*s)) s++;
+  while (isspace((int) *s)) s++;
   if (!*s) return 0;
   return s;
 }
@@ -283,7 +292,9 @@ int main(int argc, char **argv) {
   _options.macreauth = args_info.macreauth_flag;
   _options.macauthdeny = args_info.macauthdeny_flag;
   _options.uamport = args_info.uamport_arg;
+#ifdef ENABLE_UAMUIPORT
   _options.uamuiport = args_info.uamuiport_arg;
+#endif
   _options.macallowlocal = args_info.macallowlocal_flag;
   _options.strictmacauth = args_info.strictmacauth_flag;
   _options.strictdhcp = args_info.strictdhcp_flag;
@@ -428,7 +439,7 @@ int main(int argc, char **argv) {
 
     /* Replace anything but hex with space */
     for (i=0; i<macstrlen; i++) 
-      if (!isxdigit(macstr[i])) 
+      if (!isxdigit((int) macstr[i])) 
 	macstr[i] = 0x20;
 
     if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x", 
@@ -465,7 +476,8 @@ int main(int argc, char **argv) {
 
     /* Replace anything but hex with space */
     for (i=0; i<macstrlen; i++) 
-      if (!isxdigit(macstr[i])) macstr[i] = 0x20;
+      if (!isxdigit((int) macstr[i])) 
+	macstr[i] = 0x20;
 
     if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x", 
 		&temp[0], &temp[1], &temp[2], 
@@ -938,7 +950,7 @@ int main(int argc, char **argv) {
       else {
 	/* Replace anything but hex and comma with space */
 	for (i=0; i<strlen(p1); i++) 
-	  if (!isxdigit(p1[i])) p1[i] = 0x20;
+	  if (!isxdigit((int) p1[i])) p1[i] = 0x20;
       
 	if (sscanf (p1, "%2x %2x %2x %2x %2x %2x",
 		    &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) != 6) {
@@ -1063,6 +1075,9 @@ int main(int argc, char **argv) {
   _options.uamhostname = STRDUP(args_info.uamhostname_arg);
   _options.binconfig = STRDUP(args_info.bin_arg);
   _options.ethers = STRDUP(args_info.ethers_arg);
+#ifdef ENABLE_REDIRINJECT
+  _options.inject = STRDUP(args_info.inject_arg);
+#endif
 
   ret = 0;
 

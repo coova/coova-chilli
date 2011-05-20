@@ -62,10 +62,6 @@
 #include <fcntl.h>
 #endif
 
-#ifdef HAVE_ARPA_INET_H
-#include <arpa/inet.h>
-#endif
-
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -116,6 +112,10 @@
 
 #ifdef HAVE_SYS_EPOLL_H
 #include <sys/epoll.h>
+#endif
+
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
 #endif
 
 #if defined(__linux__)
@@ -210,8 +210,13 @@
 #include <grp.h>
 #endif
 
-#include <sys/types.h>
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif
+
+#ifdef HAVE_DIRENT_H
 #include <dirent.h>
+#endif
 
 #ifdef HAVE_REGEX_H
 #include <regex.h>

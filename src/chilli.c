@@ -586,10 +586,10 @@ static inline int leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint6
       conn->s_state.bucketup += octetsup;
     }
   }
-
+  
   if (conn->s_params.bandwidthmaxdown) {
     uint64_t bytes = (timediff * conn->s_params.bandwidthmaxdown) / 8;
-
+    
     if (!conn->s_state.bucketdownsize) {
       leaky_bucket_init(conn);
     }
@@ -609,9 +609,9 @@ static inline int leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint6
       conn->s_state.bucketdown += octetsdown;
     }
   }
-
+  
   conn->s_state.last_time = mainclock;
-    
+  
   return result;
 }
 #endif
@@ -1086,7 +1086,9 @@ int static killconn() {
     acct_req(&admin_session, RADIUS_STATUS_TYPE_STOP);
   }
 
+#ifdef ENABLE_ACCOUNTING_ONOFF
   acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_OFF);
+#endif
 
   chilli_freeconn();
   return 0;
@@ -1164,9 +1166,10 @@ int chilli_req_attrs(struct radius_t *radius,
 		   state->redir.statelen);
   }
   
-  if (hisip && hisip->s_addr)
+  if (hisip && hisip->s_addr) {
     radius_addattr(radius, pack, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0,
 		   ntohl(hisip->s_addr), NULL, 0);
+  }
   
   radius_addattr(radius, pack, RADIUS_ATTR_NAS_PORT_TYPE, 0, 0,
 		 _options.radiusnasporttype, NULL, 0);
@@ -1807,10 +1810,9 @@ int dnprot_accept(struct app_conn_t *appconn) {
     }
 
     dhcp_set_addrs(dhcpconn, 
-		   &appconn->hisip, &appconn->mask,
+		   &appconn->hisip, &appconn->hismask,
 		   &appconn->ourip, &appconn->mask,
-		   &appconn->dns1, &appconn->dns2,
-		   _options.domain);
+		   &appconn->dns1, &appconn->dns2);
     
     /* This is the one and only place eapol authentication is accepted */
 
@@ -1830,10 +1832,9 @@ int dnprot_accept(struct app_conn_t *appconn) {
     }
 
     dhcp_set_addrs(dhcpconn, 
-		   &appconn->hisip, &appconn->mask,
+		   &appconn->hisip, &appconn->hismask,
 		   &appconn->ourip, &appconn->mask,
-		   &appconn->dns1, &appconn->dns2,
-		   _options.domain);
+		   &appconn->dns1, &appconn->dns2);
 
     /* This is the one and only place UAM authentication is accepted */
     dhcpconn->authstate = DHCP_AUTH_PASS;
@@ -1848,10 +1849,9 @@ int dnprot_accept(struct app_conn_t *appconn) {
     }
 
     dhcp_set_addrs(dhcpconn, 
-		   &appconn->hisip, &appconn->mask, 
+		   &appconn->hisip, &appconn->hismask, 
 		   &appconn->ourip, &appconn->mask, 
-		   &appconn->dns1, &appconn->dns2,
-		   _options.domain);
+		   &appconn->dns1, &appconn->dns2);
     
     /* This is the one and only place WPA authentication is accepted */
     if (appconn->s_params.flags & REQUIRE_UAM_AUTH) {
@@ -1875,10 +1875,9 @@ int dnprot_accept(struct app_conn_t *appconn) {
     }
 
     dhcp_set_addrs(dhcpconn, 
-		   &appconn->hisip, &appconn->mask, 
+		   &appconn->hisip, &appconn->hismask, 
 		   &appconn->ourip, &appconn->mask, 
-		   &appconn->dns1, &appconn->dns2,
-		   _options.domain);
+		   &appconn->dns1, &appconn->dns2);
     
     dhcpconn->authstate = DHCP_AUTH_PASS;
     break;
@@ -1897,7 +1896,8 @@ int dnprot_accept(struct app_conn_t *appconn) {
     return 0;
   }
 
-  if (dhcpconn && appconn->s_params.flags & REQUIRE_UAM_SPLASH)
+  if ((dhcpconn && appconn->s_params.flags & REQUIRE_UAM_SPLASH) ||
+      (dhcpconn && appconn->s_params.flags & REQUIRE_UAM_AUTH))
     dhcpconn->authstate = DHCP_AUTH_SPLASH;
   
   if (!(appconn->s_params.flags & REQUIRE_UAM_AUTH)) {
@@ -2155,8 +2155,25 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 	/* Source address */
 	/*memcpy(packet_arp->sha, appconn->hismac, PKT_ETH_ALEN);*/
 	memcpy(packet_arp->sha, dhcp->rawif.hwaddr, PKT_ETH_ALEN);
-	memcpy(packet_arp->spa, &appconn->hisip.s_addr, PKT_IP_ALEN);
 
+	/*
+	 * ARP replies need to tell the NATed ip address,
+	 * when client is an anyip client.
+	 */
+	if (_options.uamanyip && appconn->natip.s_addr) {
+	  memcpy(packet_arp->spa, &appconn->natip.s_addr, PKT_IP_ALEN);
+	  if (_options.debug) {
+	    char ip[56];
+	    char snatip[56];
+	    strcpy(ip, inet_ntoa(appconn->hisip));
+	    strcpy(snatip, inet_ntoa(appconn->natip));
+	    log_dbg("SNAT anyip in ARP response from %s to %s",
+		    ip, snatip);
+	  }
+	} else {
+	  memcpy(packet_arp->spa, &appconn->hisip.s_addr, PKT_IP_ALEN);
+	}
+	
 	/* Target address */
 	memcpy(packet_arp->tha, p_arp->sha, PKT_ETH_ALEN);
 	memcpy(packet_arp->tpa, p_arp->spa, PKT_IP_ALEN);
@@ -2292,8 +2309,10 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
       char snatip[56];
       strcpy(ip, inet_ntoa(appconn->hisip));
       strcpy(snatip, inet_ntoa(appconn->natip));
+#if(_debug_ > 1)
       log_dbg("SNAT anyip replace %s back to %s; snat was: %s",
 	      inet_ntoa(dst), ip, snatip);
+#endif
     }
     ipph->daddr = appconn->hisip.s_addr;
     if (chksum((struct pkt_iphdr_t *) ipph) < 0)
@@ -2303,8 +2322,11 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
   
   /* If the ip src is uamlisten and psrc is uamport we won't call leaky_bucket */
   if ( ! (ipph->saddr  == _options.uamlisten.s_addr && 
-	  (ipph->sport == htons(_options.uamport) ||
-	   ipph->sport == htons(_options.uamuiport)))) {
+	  (ipph->sport == htons(_options.uamport) 
+#ifdef ENABLE_UAMUIPORT
+	   || ipph->sport == htons(_options.uamuiport)
+#endif
+	   ))) {
     if (appconn->s_state.authenticated == 1) {
       if (chilli_acct_tosub(appconn, len))
 	return 0;
@@ -2389,8 +2411,11 @@ int cb_redir_getstate(struct redir_t *redir,
        */
       /*log_dbg("%d(%d) == %d",ntohs(dhcpconn->dnat[n].src_port),ntohs(dhcpconn->dnat[n].dst_port),ntohs(address->sin_port));*/
       if (dhcpconn->dnat[n].src_port == address->sin_port) {
-	if (dhcpconn->dnat[n].dst_port == htons(DHCP_HTTPS) ||
-	    (_options.uamuissl && dhcpconn->dnat[n].dst_port == htons(_options.uamuiport))) {
+	if (dhcpconn->dnat[n].dst_port == htons(DHCP_HTTPS) 
+#ifdef ENABLE_UAMUIPORT
+	    || (_options.uamuissl && dhcpconn->dnat[n].dst_port == htons(_options.uamuiport))
+#endif
+	    ) {
 #if(_debug_)
 	  log_dbg("redir connection is SSL");
 #endif
@@ -2399,6 +2424,7 @@ int cb_redir_getstate(struct redir_t *redir,
 	break;
       }
     }
+#ifdef ENABLE_UAMUIPORT
     /*
      *  If not in dnat, if uamuissl is enabled, and this is indeed that 
      *  port, then we also know it is SSL (directly to https://uamlisten:uamuiport). 
@@ -2410,6 +2436,7 @@ int cb_redir_getstate(struct redir_t *redir,
 #endif
       flags |= USING_SSL;
     }
+#endif
   }
 #endif
 
@@ -2505,7 +2532,8 @@ int accounting_request(struct radius_packet_t *pack,
     
     /* Replace anything but hex with space */
     for (i=0; i<macstrlen; i++) 
-      if (!isxdigit(macstr[i])) macstr[i] = 0x20;
+      if (!isxdigit((int) macstr[i])) 
+	macstr[i] = 0x20;
     
     if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x",
 		&temp[0], &temp[1], &temp[2], 
@@ -2658,7 +2686,8 @@ int access_request(struct radius_packet_t *pack,
 
     /* Replace anything but hex with space */
     for (i=0; i<macstrlen; i++) 
-      if (!isxdigit(macstr[i])) macstr[i] = 0x20;
+      if (!isxdigit((int) macstr[i])) 
+	macstr[i] = 0x20;
 
     if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x",
 		&temp[0], &temp[1], &temp[2], 
@@ -3022,32 +3051,140 @@ int cb_radius_ind(struct radius_t *rp, struct radius_packet_t *pack,
 }
 #endif
 
-int upprot_getip(struct app_conn_t *appconn, 
-		 struct in_addr *hisip, int statip) {
-  struct ippoolm_t *ipm;
+static int 
+session_disconnect(struct app_conn_t *appconn,
+		   struct dhcp_conn_t *dhcpconn,
+		   int term_cause) {
 
-#if(_debug_)
+#ifdef ENABLE_MODULES
+    { int i;
+      for (i=0; i < MAX_MODULES; i++) {
+	if (!_options.modules[i].name[0]) break;
+	if (_options.modules[i].ctx) {
+	  struct chilli_module *m = 
+	    (struct chilli_module *)_options.modules[i].ctx;
+	  if (m->dhcp_disconnect)
+	    m->dhcp_disconnect(appconn, dhcpconn); 
+	}
+      }
+    }
+#endif
+  
+  terminate_appconn(appconn, 
+		    term_cause ? term_cause : 
+		    appconn->s_state.terminate_cause ? 
+		    appconn->s_state.terminate_cause :
+		    RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
+
+  if (appconn->uplink) {
+    struct ippoolm_t *member = (struct ippoolm_t *) appconn->uplink;
+
+#ifdef ENABLE_UAMANYIP
+    if (_options.uamanyip) {
+      if (!appconn->natip.s_addr) {
+	if (member->in_use && member->is_static) {
+	  struct in_addr mask;
+	  int res;
+	  mask.s_addr = 0xffffffff;
+	  res = net_del_route(&member->addr, &appconn->ourip, &mask);
+	  log_dbg("Removing route: %s %d", inet_ntoa(member->addr), res);
+	}
+      } else {
+	struct ippoolm_t *natipm;
+	if (ippool_getip(ippool, &natipm, &appconn->natip) == 0) {
+	  if (ippool_freeip(ippool, natipm)) {
+	    log_err(0, "ippool_freeip(%s) failed for nat ip!",
+		    inet_ntoa(appconn->natip));
+	  }
+	}
+      }
+    }
+#endif
+
+    if (member->in_use && (!dhcpconn || !dhcpconn->is_reserved)) {
+      if (ippool_freeip(ippool, member)) {
+	log_err(0, "ippool_freeip(%s) failed!", 
+		inet_ntoa(member->addr));
+      }
+    }
+    
+#if defined(ENABLE_TAP) && defined(SIOCDARP)
+    if (_options.usetap) {
+      /*
+       *    USETAP ARP
+       */
+      int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+      if (sockfd > 0) {
+	struct arpreq req;
+
+	memset(&req, 0, sizeof(req));
+
+	SET_SA_FAMILY(req.arp_pa, AF_INET);
+	((struct sockaddr_in *) &req.arp_pa)->sin_addr.s_addr = appconn->hisip.s_addr;
+	req.arp_flags = ATF_PERM | ATF_PUBL;
+
+	safe_strncpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
+
+	if (ioctl(sockfd, SIOCDARP, &req) < 0) {
+	  perror("ioctrl()");
+	}
+
+	safe_close(sockfd);
+      }
+    }
+#endif
+  }
+  
+  if (_options.macdown) {
+    log_dbg("Calling MAC down script: %s",_options.macdown);
+    runscript(appconn, _options.macdown);
+  }
+
+  if (!dhcpconn || !dhcpconn->is_reserved) {
+    freeconn(appconn);
+    if (dhcpconn) 
+      dhcpconn->peer = 0;
+  }
+
+#ifdef ENABLE_BINSTATFILE
+  printstatus();
+#endif
+
+  return 0;
+}
+
+static int 
+upprot_getip(struct app_conn_t *appconn, 
+	     struct in_addr *hisip, 
+	     struct in_addr *hismask) {
+  struct ippoolm_t *ipm = 0;
+
+  struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
+
+#if(_debug_ > 1)
   log_dbg("UPPROT - GETIP");
 #endif
 
-  /* If IP address is allready allocated: Fill it in */
+  /* If IP address is already allocated: Fill it in */
   /* This should only happen for UAM */
-  /* TODO */
   if (appconn->uplink) {
     ipm = (struct ippoolm_t *)appconn->uplink;
   }
-  else {
-    /* Allocate static or dynamic IP address */
 
-    struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
+  if (ipm == 0) {
+    /* Allocate static or dynamic IP address */
 
     if (newip(&ipm, hisip, dhcpconn ? dhcpconn->hismac : 0))
       return dnprot_reject(appconn);
 
     appconn->hisip.s_addr = ipm->addr.s_addr;
 
+    appconn->hismask.s_addr = 
+      hismask ? hismask->s_addr : _options.mask.s_addr;
+    
     /* TODO: Too many "listen" and "ourip" addresses! */
-    appconn->ourip.s_addr = _options.dhcplisten.s_addr;
+    if (!appconn->ourip.s_addr)
+      appconn->ourip.s_addr = _options.dhcplisten.s_addr;
     
     appconn->uplink = ipm;
     ipm->peer = appconn; 
@@ -3080,10 +3217,11 @@ void session_param_defaults(struct session_params *params) {
     params->interim_interval = _options.definteriminterval;
 }
 
-void config_radius_session(struct session_params *params, 
-			   struct radius_packet_t *pack, 
-			   struct dhcp_conn_t *dhcpconn,
-			   int reconfig) {
+void 
+config_radius_session(struct session_params *params, 
+		      struct radius_packet_t *pack, 
+		      struct dhcp_conn_t *dhcpconn,
+		      int reconfig) {
 
   struct radius_attr_t *attr = NULL;
 
@@ -3204,6 +3342,16 @@ void config_radius_session(struct session_params *params,
     params->url[attr->l-2] = 0;
   }
 
+#ifdef ENABLE_REDIRINJECT
+  if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
+		      RADIUS_VENDOR_CHILLISPOT, 
+		      RADIUS_ATTR_CHILLISPOT_INJECT_URL, 0)) {
+    memcpy(params->url, attr->v.t, attr->l-2);
+    params->url[attr->l-2] = 0;
+    params->flags &= UAM_INJECT_URL | REQUIRE_UAM_AUTH;
+  }
+#endif
+
 #ifdef ENABLE_MULTIROUTE
   if (tun) {
     /* Route Index, look-up by interface name */
@@ -3242,8 +3390,10 @@ void config_radius_session(struct session_params *params,
     params->pass_through_count = 0;
 #endif
 
-    while (!radius_getnextattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-			       RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG, 
+    while (!radius_getnextattr(pack, &attr,
+			       RADIUS_ATTR_VENDOR_SPECIFIC,
+			       RADIUS_VENDOR_CHILLISPOT,
+			       RADIUS_ATTR_CHILLISPOT_CONFIG, 
 			       0, &offset)) { 
       size_t len = (size_t) attr->l - 2;
       char *val = (char *) attr->v.t;
@@ -3355,7 +3505,6 @@ void config_radius_session(struct session_params *params,
   }
   else if (!reconfig)
     params->sessionterminatetime = 0;
-
 
   session_param_defaults(params);
 }
@@ -3503,7 +3652,8 @@ int cb_radius_acct_conf(struct radius_t *radius,
   if (!pack) /* Timeout */
     return 0;
 
-  config_radius_session(&appconn->s_params, pack, (struct dhcp_conn_t *)appconn->dnlink, 1);
+  config_radius_session(&appconn->s_params, pack, 
+			(struct dhcp_conn_t *)appconn->dnlink, 1);
   return 0;
 }
 
@@ -3533,8 +3683,9 @@ int cb_radius_auth_conf(struct radius_t *radius,
   struct radius_attr_t *eapattr = NULL;
 #endif
 
+  int force_ip = 0;
   struct in_addr *hisip = NULL;
-  int statip = 0;
+  struct in_addr *hismask = NULL;
 
   struct app_conn_t *appconn = (struct app_conn_t*) cbp;
 
@@ -3569,6 +3720,148 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #if(_debug_)
   log_dbg("Received RADIUS response id=%d", pack->id);
 #endif
+
+
+  /* Framed IP address (Optional) */
+  if (!radius_getattr(pack, &hisipattr, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0, 0) 
+#ifdef ENABLE_DHCPRADIUS
+      || !radius_getattr(pack, &hisipattr, 
+			 RADIUS_ATTR_VENDOR_SPECIFIC, 
+			 RADIUS_VENDOR_CHILLISPOT, 
+			 RADIUS_ATTR_CHILLISPOT_DHCP_IP_ADDRESS, 0)
+#endif
+      ) {
+    if ((hisipattr->l-2) != sizeof(struct in_addr)) {
+      log_err(0, "Wrong length of framed IP address");
+      return dnprot_reject(appconn);
+    }
+    force_ip = 1;
+    hisip = (struct in_addr*) &(hisipattr->v.i);
+
+    log_dbg("Framed IP address set to: %s", inet_ntoa(*hisip));
+
+    if (!radius_getattr(pack, &hisipattr, RADIUS_ATTR_FRAMED_IP_NETMASK, 0, 0, 0)
+#ifdef ENABLE_DHCPRADIUS
+	|| !radius_getattr(pack, &hisipattr, 
+			   RADIUS_ATTR_VENDOR_SPECIFIC, 
+			   RADIUS_VENDOR_CHILLISPOT, 
+			   RADIUS_ATTR_CHILLISPOT_DHCP_IP_NETMASK, 0)
+#endif
+	) {
+      if ((hisipattr->l-2) != sizeof(struct in_addr)) {
+	log_err(0, "Wrong length of framed IP netmask");
+	return dnprot_reject(appconn);
+      }
+      hismask = (struct in_addr*) &(hisipattr->v.i);
+
+      log_dbg("Framed IP netmask set to: %s", inet_ntoa(*hismask));
+    }
+  }
+  else {
+    hisip = (struct in_addr*) &appconn->reqip.s_addr;
+  }
+
+#ifdef ENABLE_DHCPRADIUS
+  if (force_ip) {
+    if (appconn->uplink) {
+      struct ippoolm_t *ipm = (struct ippoolm_t *)appconn->uplink;
+      
+      if (hisip && hisip->s_addr) {
+	/*
+	 *  Force the assigment of an IP address. 
+	 */
+	if (ipm->addr.s_addr != hisip->s_addr) {
+	  uint8_t hwaddr[sizeof(dhcpconn->hismac)];
+	  memcpy(hwaddr, dhcpconn->hismac, sizeof(hwaddr));
+	  
+	  log_dbg("Old ip address freed %s", inet_ntoa(ipm->addr));
+	  log_dbg("Resetting ip address to %s", inet_ntoa(*hisip));
+	  
+	  dhcp_freeconn(dhcpconn, 0);
+	  dhcp_newconn(dhcp, &dhcpconn, hwaddr, 0);
+	  
+	  appconn->dnprot = DNPROT_MAC;
+	  appconn->authtype = PAP_PASSWORD;
+	  dhcpconn->authstate = DHCP_AUTH_DNAT;
+	  
+	  ipm = 0;
+	}
+      }
+    }
+  }
+
+  if (_options.dhcpradius) {
+    struct radius_attr_t *attr = NULL;
+    if (dhcpconn) {
+      if (!radius_getattr(pack, &attr, 
+			  RADIUS_ATTR_VENDOR_SPECIFIC, 
+			  RADIUS_VENDOR_CHILLISPOT, 
+			  RADIUS_ATTR_CHILLISPOT_DHCP_SERVER_NAME, 0)) {
+	memcpy(dhcpconn->dhcp_opts.sname, attr->v.t, attr->l-2);
+      }
+      
+      if (!radius_getattr(pack, &attr,
+			  RADIUS_ATTR_VENDOR_SPECIFIC, 
+			  RADIUS_VENDOR_CHILLISPOT, 
+			  RADIUS_ATTR_CHILLISPOT_DHCP_FILENAME, 0)) {
+	memcpy(dhcpconn->dhcp_opts.file, attr->v.t, attr->l-2);
+      }
+      
+      if (!radius_getattr(pack, &attr, 
+			  RADIUS_ATTR_VENDOR_SPECIFIC, 
+			  RADIUS_VENDOR_CHILLISPOT, 
+			  RADIUS_ATTR_CHILLISPOT_DHCP_OPTION, 0)) {
+	memcpy(dhcpconn->dhcp_opts.options, attr->v.t, 
+	       dhcpconn->dhcp_opts.option_length = attr->l-2);
+      }
+      
+      if (!radius_getattr(pack, &attr, 
+			  RADIUS_ATTR_VENDOR_SPECIFIC, 
+			  RADIUS_VENDOR_CHILLISPOT, 
+			  RADIUS_ATTR_CHILLISPOT_DHCP_DNS1, 0)) {
+	if ((attr->l-2) == sizeof(struct in_addr)) {
+	  struct in_addr *ipv4 = (struct in_addr *) &(attr->v.i);
+	  appconn->dns1.s_addr = 
+	    dhcpconn->dns1.s_addr = 
+	    ipv4->s_addr;
+	}
+      }
+      
+      if (!radius_getattr(pack, &attr, 
+			  RADIUS_ATTR_VENDOR_SPECIFIC, 
+			  RADIUS_VENDOR_CHILLISPOT, 
+			  RADIUS_ATTR_CHILLISPOT_DHCP_DNS2, 0)) {
+	if ((attr->l-2) == sizeof(struct in_addr)) {
+	  struct in_addr *ipv4 = (struct in_addr *) &(attr->v.i);
+	  appconn->dns2.s_addr = 
+	    dhcpconn->dns2.s_addr =
+	    ipv4->s_addr;
+	}
+      }
+      
+      if (!radius_getattr(pack, &attr, 
+			  RADIUS_ATTR_VENDOR_SPECIFIC, 
+			  RADIUS_VENDOR_CHILLISPOT, 
+			  RADIUS_ATTR_CHILLISPOT_DHCP_GATEWAY, 0)) {
+	if ((attr->l-2) == sizeof(struct in_addr)) {
+	  struct in_addr *ipv4 = (struct in_addr *) &(attr->v.i);
+	  appconn->ourip.s_addr = 
+	    dhcpconn->ourip.s_addr =
+	    ipv4->s_addr;
+	}
+      }
+
+      if (!radius_getattr(pack, &attr, 
+			  RADIUS_ATTR_VENDOR_SPECIFIC, 
+			  RADIUS_VENDOR_CHILLISPOT, 
+			  RADIUS_ATTR_CHILLISPOT_DHCP_DOMAIN, 0)) {
+	if (attr->l-2 < DHCP_DOMAIN_LEN) {
+	  safe_strncpy(dhcpconn->domain, (char *)attr->v.t, attr->l-2);
+	}
+      }
+    }
+  }
+#endif
   
   /* ACCESS-REJECT */
   if (pack->code == RADIUS_CODE_ACCESS_REJECT) {
@@ -3576,18 +3869,18 @@ int cb_radius_auth_conf(struct radius_t *radius,
     config_radius_session(&appconn->s_params, pack, dhcpconn, 0); /*XXX*/
     return dnprot_reject(appconn);
   }
-
+  
   /* Get State */
   if (!radius_getattr(pack, &stateattr, RADIUS_ATTR_STATE, 0, 0, 0)) {
     appconn->s_state.redir.statelen = stateattr->l-2;
     memcpy(appconn->s_state.redir.statebuf, stateattr->v.t, stateattr->l-2);
   }
-
+  
 #ifdef ENABLE_RADPROXY
   /* ACCESS-CHALLENGE */
   if (pack->code == RADIUS_CODE_ACCESS_CHALLENGE) {
     log_dbg("Received RADIUS Access-Challenge");
-
+    
     /* Get EAP message */
     appconn->challen = 0;
     do {
@@ -3617,7 +3910,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     log_err(0, "Unknown RADIUS code");
     return dnprot_reject(appconn);
   }
-
+  
 #if(_debug_)
   log_dbg("Received RADIUS Access-Accept");
 #endif
@@ -3633,46 +3926,12 @@ int cb_radius_auth_conf(struct radius_t *radius,
     appconn->s_state.redir.classlen = 0;
   }
 
-  /* Framed IP address (Optional) */
-  if (!radius_getattr(pack, &hisipattr, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0, 0)) {
-    if ((hisipattr->l-2) != sizeof(struct in_addr)) {
-      log_err(0, "Wrong length of framed IP address");
-      return dnprot_reject(appconn);
-    }
-    hisip = (struct in_addr*) &(hisipattr->v.i);
-    statip = 1;
-  }
-  else {
-    hisip = (struct in_addr*) &appconn->reqip.s_addr;
-  }
-
   config_radius_session(&appconn->s_params, pack, dhcpconn, 0);
 
   if (appconn->is_adminsession) {
     /* for the admin session */
     return chilliauth_cb(radius, pack, pack_req, cbp);
   }
-
-#ifdef ENABLE_DHCPRADIUS
-  if (_options.dhcpradius) {
-    struct radius_attr_t *attr = NULL;
-    if (dhcpconn) {
-      if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-			  RADIUS_ATTR_CHILLISPOT_DHCP_SERVER_NAME, 0)) {
-	memcpy(dhcpconn->dhcp_opts.sname, attr->v.t, attr->l-2);
-      }
-      if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-			  RADIUS_ATTR_CHILLISPOT_DHCP_FILENAME, 0)) {
-	memcpy(dhcpconn->dhcp_opts.file, attr->v.t, attr->l-2);
-      }
-      if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
-			  RADIUS_ATTR_CHILLISPOT_DHCP_OPTION, 0)) {
-	memcpy(dhcpconn->dhcp_opts.options, attr->v.t, 
-	       dhcpconn->dhcp_opts.option_length = attr->l-2);
-      }
-    }
-  }
-#endif
 
   if (appconn->s_params.sessionterminatetime) {
     if (mainclock_rtdiff(appconn->s_params.sessionterminatetime) > 0) {
@@ -3813,10 +4072,10 @@ int cb_radius_auth_conf(struct radius_t *radius,
     return dnprot_reject(appconn);
   }
   
-  return upprot_getip(appconn, hisip, statip);
+  return upprot_getip(appconn, hisip, hismask);
 }
 
-
+#ifdef ENABLE_COA
 /* Radius callback when coa or disconnect request has been received */
 int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 		      struct sockaddr_in *peer) {
@@ -3824,6 +4083,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
   struct radius_attr_t *uattr = NULL;
   struct radius_attr_t *sattr = NULL;
   struct radius_packet_t radius_pack;
+  int authorize = 0;
   int found = 0;
   int iscoa = 0;
 
@@ -3858,7 +4118,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 
     if (!appconn->inuse) { log_err(0, "Connection with inuse == 0!"); }
 
-    if ((appconn->s_state.authenticated) && 
+    if (
 	(strlen(appconn->s_state.redir.username) == uattr->l-2 && 
 	 !memcmp(appconn->s_state.redir.username, uattr->v.t, uattr->l-2)) &&
 	(!sattr || 
@@ -3866,13 +4126,36 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 	  !strncasecmp(appconn->s_state.sessionid, (char*)sattr->v.t, sattr->l-2)))) {
 
 #if(_debug_)
-      log_dbg("Found session");
+      log_dbg("Found session %s", appconn->s_state.sessionid);
 #endif
 
-      if (iscoa)
-	config_radius_session(&appconn->s_params, pack, 0, 0);
-      else
+      if (iscoa) {
+	struct radius_attr_t *attr = NULL;
+
+	/* Session state */
+	if (!radius_getattr(pack, &attr,
+			    RADIUS_ATTR_VENDOR_SPECIFIC,
+			    RADIUS_VENDOR_CHILLISPOT, 
+			    RADIUS_ATTR_CHILLISPOT_SESSION_STATE, 0)) {
+	  uint32_t v = ntohl(attr->v.i);
+	  switch (v) {
+	  case RADIUS_VALUE_CHILLISPOT_SESSION_AUTH:
+	    if (!appconn->s_state.authenticated)
+	      authorize = 1;
+	    break;
+	  case RADIUS_VALUE_CHILLISPOT_SESSION_NOAUTH:
+	    if (appconn->s_state.authenticated)
+	      terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
+	    break;
+	  }
+	}
+      } else
 	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
+
+      config_radius_session(&appconn->s_params, pack, 0, 0);
+
+      if (authorize)
+	dnprot_accept(appconn);
 
       found = 1;
     }
@@ -3898,7 +4181,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 
   return 0;
 }
-
+#endif
 
 /***********************************************************
  *
@@ -4054,7 +4337,8 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 #endif
     
     /* TODO: Too many "listen" and "our" addresses hanging around */
-    appconn->ourip.s_addr = _options.dhcplisten.s_addr;
+    if (!appconn->ourip.s_addr)
+      appconn->ourip.s_addr = _options.dhcplisten.s_addr;
     
     appconn->uplink = ipm;
     ipm->peer = appconn; 
@@ -4070,8 +4354,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     dhcp_set_addrs(conn, 
 		   &ipm->addr, &_options.mask, 
 		   &appconn->ourip, &appconn->mask,
-		   &_options.dns1, &_options.dns2, 
-		   _options.domain);
+		   &_options.dns1, &_options.dns2);
   }
   
   if (!appconn->s_state.authenticated) {
@@ -4256,12 +4539,12 @@ int chilli_getinfo(struct app_conn_t *appconn, bstring b, int fmt) {
       bassignformat(tmp, " %lld/%lld",
 		    appconn->s_state.output_octets, appconn->s_params.maxoutputoctets);
       bconcat(b, tmp);
-
+      
       /* adding: max-total-octets option-swapoctets */
       bassignformat(tmp, " %lld %d", 
 		    appconn->s_params.maxtotaloctets, _options.swapoctets);
       bconcat(b, tmp);
-
+      
 #ifdef ENABLE_LEAKYBUCKET
       /* adding: max-bandwidth-up max-bandwidth-down */
       if (appconn->s_state.bucketupsize) {
@@ -4451,107 +4734,6 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
   return 0;
 }
 
-static int session_disconnect(struct app_conn_t *appconn,
-			      struct dhcp_conn_t *dhcpconn,
-			      int term_cause) {
-
-#ifdef ENABLE_MODULES
-    { int i;
-      for (i=0; i < MAX_MODULES; i++) {
-	if (!_options.modules[i].name[0]) break;
-	if (_options.modules[i].ctx) {
-	  struct chilli_module *m = 
-	    (struct chilli_module *)_options.modules[i].ctx;
-	  if (m->dhcp_disconnect)
-	    m->dhcp_disconnect(appconn, dhcpconn); 
-	}
-      }
-    }
-#endif
-  
-  terminate_appconn(appconn, 
-		    term_cause ? term_cause : 
-		    appconn->s_state.terminate_cause ? 
-		    appconn->s_state.terminate_cause :
-		    RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
-
-  if (appconn->uplink) {
-    struct ippoolm_t *member = (struct ippoolm_t *) appconn->uplink;
-
-#ifdef ENABLE_UAMANYIP
-    if (_options.uamanyip) {
-      if (!appconn->natip.s_addr) {
-	if (member->in_use && member->is_static) {
-	  struct in_addr mask;
-	  int res;
-	  mask.s_addr = 0xffffffff;
-	  res = net_del_route(&member->addr, &appconn->ourip, &mask);
-	  log_dbg("Removing route: %s %d", inet_ntoa(member->addr), res);
-	}
-      } else {
-	struct ippoolm_t *natipm;
-	if (ippool_getip(ippool, &natipm, &appconn->natip) == 0) {
-	  if (ippool_freeip(ippool, natipm)) {
-	    log_err(0, "ippool_freeip(%s) failed for nat ip!",
-		    inet_ntoa(appconn->natip));
-	  }
-	}
-      }
-    }
-#endif
-
-    if (member->in_use && (!dhcpconn || !dhcpconn->is_reserved)) {
-      if (ippool_freeip(ippool, member)) {
-	log_err(0, "ippool_freeip(%s) failed!", 
-		inet_ntoa(member->addr));
-      }
-    }
-    
-#ifdef ENABLE_TAP
-    if (_options.usetap) {
-      /*
-       *    USETAP ARP
-       */
-      int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-      if (sockfd > 0) {
-	struct arpreq req;
-
-	memset(&req, 0, sizeof(req));
-
-	SET_SA_FAMILY(req.arp_pa, AF_INET);
-	((struct sockaddr_in *) &req.arp_pa)->sin_addr.s_addr = appconn->hisip.s_addr;
-	req.arp_flags = ATF_PERM | ATF_PUBL;
-
-	safe_strncpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
-
-	if (ioctl(sockfd, SIOCDARP, &req) < 0) {
-	  perror("ioctrl()");
-	}
-
-	safe_close(sockfd);
-      }
-    }
-#endif
-  }
-  
-  if (_options.macdown) {
-    log_dbg("Calling MAC down script: %s",_options.macdown);
-    runscript(appconn, _options.macdown);
-  }
-
-  if (!dhcpconn || !dhcpconn->is_reserved) {
-    freeconn(appconn);
-    if (dhcpconn) 
-      dhcpconn->peer = 0;
-  }
-
-#ifdef ENABLE_BINSTATFILE
-  printstatus();
-#endif
-
-  return 0;
-}
-
 /* Callback when a dhcp connection is deleted */
 int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
   struct app_conn_t *appconn;
@@ -4641,7 +4823,9 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
    * has been assigned from dynamic pool. So, let's do the SNAT here.
    */
   if (_options.uamanyip && appconn->natip.s_addr) {
+#if(_debug_ > 1)
     log_dbg("SNAT to: %s", inet_ntoa(appconn->natip));
+#endif
     ipph->saddr = appconn->natip.s_addr;
     if (chksum((struct pkt_iphdr_t *) ipph) < 0)
       return 0;
@@ -4653,8 +4837,11 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
    * and we always send these packets through to the tun/tap interface (index 0) 
    */
   if (ipph->daddr  == _options.uamlisten.s_addr && 
-      (ipph->dport == htons(_options.uamport) ||
-       ipph->dport == htons(_options.uamuiport)))
+      (ipph->dport == htons(_options.uamport)
+#ifdef ENABLE_UAMUIPORT
+       || ipph->dport == htons(_options.uamuiport)
+#endif
+       ))
     return tun_encaps(tun, pack, len, 0);
   
   if (appconn->s_state.authenticated == 1) {
@@ -4890,7 +5077,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     leaky_bucket_init(appconn);
 #endif
 
-    return upprot_getip(appconn, NULL, 0);
+    return upprot_getip(appconn, 0, 0);
 
   case REDIR_LOGOUT:
 
@@ -5013,10 +5200,13 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
       if (_options.layer3) {
 	struct app_conn_t *conn = firstusedconn;
 	while (conn) {
-	  if (!check_ip || 
-	      conn->hisip.s_addr == req->sess.ip.s_addr) {
+	  if (check_ip) {
+	    if (conn->hisip.s_addr == req->sess.ip.s_addr) {
+	      chilli_print(s, listfmt, conn, 0);
+	      break;
+	    }
+	  } else {
 	    chilli_print(s, listfmt, conn, 0);
-	    if (check_ip) break;
 	  }
 	  conn = conn->next;
 	}
@@ -5025,10 +5215,13 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
       if (dhcp) {
 	struct dhcp_conn_t *conn = dhcp->firstusedconn;
 	while (conn) {
-	  if (!check_ip ||
-	      conn->hisip.s_addr == req->sess.ip.s_addr) {
+	  if (check_ip) {
+	    if (conn->hisip.s_addr == req->sess.ip.s_addr) {
+	      chilli_print(s, listfmt, 0, conn);
+	      break;
+	    }
+	  } else {
 	    chilli_print(s, listfmt, 0, conn);
-	    if (check_ip) break;
 	  }
 	  conn = conn->next;
 	}
@@ -5518,8 +5711,13 @@ int chilli_main(int argc, char **argv) {
     if (!freopen("/dev/null", "w", stdout)) log_err(errno,"freopen()");
     if (!freopen("/dev/null", "w", stderr)) log_err(errno,"freopen()");
     if (!freopen("/dev/null", "r", stdin))  log_err(errno,"freopen()");
+#if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
+    if (fork() > 0) {
+      exit(0);
+#else
     if (daemon(1, 1)) {
       log_err(errno, "daemon() failed!");
+#endif
     }
     else {
 
@@ -5707,7 +5905,9 @@ int chilli_main(int argc, char **argv) {
 	     (_options.debug & DEBUG_RADIUS));
 
   radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
+#ifdef ENABLE_COA
   radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
+#endif
 #ifdef ENABLE_RADPROXY
   radius_set_cb_ind(radius, cb_radius_ind);
 #endif
@@ -5719,7 +5919,13 @@ int chilli_main(int argc, char **argv) {
   initconn();
   
   /* Create an instance of redir */
-  if (redir_new(&redir, &_options.uamlisten, _options.uamport, _options.uamuiport)) {
+  if (redir_new(&redir, &_options.uamlisten, _options.uamport, 
+#ifdef ENABLE_UAMUIPORT
+		_options.uamuiport
+#else
+		0
+#endif
+		)) {
     log_err(0, "Failed to create redir");
     return -1;
   }
@@ -5784,7 +5990,9 @@ int chilli_main(int argc, char **argv) {
   if (loadstatus() != 0) /* Only indicate a fresh start-up if we didn't load keepalive sessions */
 #endif
   {
+#ifdef ENABLE_ACCOUNTING_ONOFF
     acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
+#endif
 #ifdef HAVE_NETFILTER_COOVA
     kmod_coova_clear();
 #endif

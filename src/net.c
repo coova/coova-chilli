@@ -134,7 +134,7 @@ int dev_get_flags(char const *dev, int *flags) {
   }
 
   if (ioctl(fd, SIOCGIFFLAGS, &ifr)) {
-    log_err(errno, "ioctl(SIOCSIFFLAGS) failed");
+    log_err(errno, "ioctl(SIOCSIFFLAGS) failed on %s",dev);
     close(fd);
     return -1;
   }
@@ -445,6 +445,7 @@ int net_select_zero(select_ctx *sctx) {
   memset(&sctx->events, 0, sizeof(sctx->events));
 #else
 #ifdef USING_POLL
+  int i;
   memset(&sctx->pfds, 0, sizeof(sctx->pfds));
   for (i=0; i < MAX_SELECT; i++) {
     if (sctx->desc[i].fd) {
@@ -738,6 +739,9 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 #endif
 
   if (netif->fd) {
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
+    len = safe_read(netif->fd, d, dlen);
+#else
     int addr_len;
     struct sockaddr_ll s_addr;
     memset (&s_addr, 0, sizeof (struct sockaddr_ll));
@@ -747,8 +751,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 			MSG_DONTWAIT | MSG_TRUNC, 
 			(struct sockaddr *) &s_addr, 
 			(socklen_t *) &addr_len);
-
-    /*len = safe_read(netif->fd, d, dlen);*/
+#endif
 
     if (len < 0) {
       log_err(errno, "net_read_eth(fd=%d, len=%d, mtu=%d) == %d", 
@@ -775,6 +778,7 @@ ssize_t net_write(int sock, void *d, size_t dlen) {
   return off;
 }
 
+#if defined (__linux__)
 ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockaddr_ll *dest) {
   int fd = netif->fd;
   ssize_t len;
@@ -820,6 +824,7 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
 
   return len;
 }
+#endif
 
 int net_set_mtu(net_interface *netif, size_t mtu) {
 #if !defined(USING_PCAP)
@@ -1286,17 +1291,17 @@ int net_open_eth(net_interface *netif) {
   char devname[IFNAMSIZ+5]; /* "/dev/" + ifname */
   int devnum;
   struct ifreq ifr;
-  struct ifaliasreq areq;
-  int local_fd;
+  /*struct ifaliasreq areq;*/
+  /*int local_fd;*/
   struct bpf_version bv;
 
-  u_int32_t ipaddr;
-  struct sockaddr_dl hwaddr;
+  /*u_int32_t ipaddr;*/
+  /*struct sockaddr_dl hwaddr;*/
   unsigned int value;
 
   /* Find suitable device */
   for (devnum = 0; devnum < 255; devnum++) { /* TODO 255 */ 
-    chilli_snprintf(devname, sizeof(devname), "/dev/bpf%d", devnum);
+    safe_snprintf(devname, sizeof(devname), "/dev/bpf%d", devnum);
     devname[sizeof(devname)] = 0;
     if ((netif->fd = open(devname, O_RDWR)) >= 0) break;
     if (errno != EBUSY) break;
@@ -1326,7 +1331,7 @@ int net_open_eth(net_interface *netif) {
   }
 
   /* Get the MAC address of our interface */
-  if (net_getmac(netif->devname, netif->hwaddr)) {
+  if (net_getmac(netif->devname, (char *)netif->hwaddr)) {
     log_err(0,"Did not find MAC address!");
   }
   else {

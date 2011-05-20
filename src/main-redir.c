@@ -34,7 +34,12 @@ static redir_request * requests = 0;
 static redir_request * requests_free = 0;
 
 #ifdef ENABLE_REDIRINJECT
-static char *inject = "<script src='/www/com.coova.Cd/com.coova.Cd.nocache.js'></script>\r\n";
+static char *inject_script = "<script src='%s'></script>\r\n";
+static char * inject_fmt(char *b, size_t blen, char *url) {
+  if (!url || !*url) url = _options.inject;
+  safe_snprintf(b, blen, inject_script, url);
+  return b;
+}
 #endif
 
 static bstring string_init_reset(bstring s) {
@@ -192,7 +197,9 @@ static int redir_conn_finish(struct conn_t *conn, void *ctx) {
   if (req->socket_fd) {
 
 #ifdef ENABLE_REDIRINJECT
-    if (req->html && !req->chunked) {
+    if (*req->inject_url && req->html && !req->chunked) {
+      char b[256];
+      char *inject = inject_fmt(b, sizeof(b), req->inject_url);
       int w = net_write(req->socket_fd, inject, strlen(inject));
       log_dbg("injected %d bytes", w);
     }
@@ -232,7 +239,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
     /**
      *
      */
-    if (!req->headers) {
+    if (*req->inject_url && !req->headers) {
       char *newline = "\r\n\r\n";
       char *eoh;
 
@@ -262,6 +269,10 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	    char tmp[128];
 	    char c = hdr[l];
 	    int clen;
+
+	    char b[256];
+	    char *inject = inject_fmt(b, sizeof(b), req->inject_url);
+
 	    hdr[l] = 0;
 	    clen = req->clen = atoi(hdr+15);
 	    log_dbg("Detected Content Length %d", req->clen);
@@ -302,6 +313,10 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	
 	if (req->html && req->chunked) {
 	  char tmp[56]; int w;
+
+	  char b[256];
+	  char *inject = inject_fmt(b, sizeof(b), req->inject_url);
+	  
 	  safe_snprintf(tmp, sizeof(tmp), "%x\r\n", strlen(inject));
 	  net_write(req->socket_fd, tmp, strlen(tmp));
 	  w = net_write(req->socket_fd, inject, strlen(inject));
@@ -347,7 +362,12 @@ check_regex(regex_t *re, char *regex, char *s) {
   log_dbg("Checking %s =~ %s", s, regex);
 #endif
 
-  if (!re->allocated) {
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
+  if (!re->re_g)
+#else
+  if (!re->allocated) 
+#endif
+  {
     if ((ret = regcomp(re, regex, REG_EXTENDED | REG_NOSUB)) != 0) {
       char error[512];
       regerror(ret, re, error, sizeof(error));
@@ -376,11 +396,25 @@ redir_handle_url(struct redir_t *redir,
 		 redir_request *req) {
   int port = 80;
   int i;
+  int matches = 1;
 
+#ifdef ENABLE_REDIRINJECT
+  char hasInject = 0;
+  if (conn->s_params.flags & UAM_INJECT_URL) {
+    safe_strncpy((char *) req->inject_url,
+		 (char *) conn->s_params.url,
+		 REDIRINJECT_MAX);
+    hasInject = 1;
+  } else if  (_options.inject) { 
+    safe_strncpy((char *) req->inject_url,
+		 (char *) _options.inject,
+		 REDIRINJECT_MAX);
+    hasInject = 1;
+  } else
+#endif
+    
   for (i=0; i < MAX_REGEX_PASS_THROUGHS; i++) {
     
-    int matches = 1;
-
     if ( ! _options.regex_pass_throughs[i].inuse )
       break;
 
@@ -430,71 +464,73 @@ redir_handle_url(struct redir_t *redir,
       }
     }
 
-    if (matches) {
-      log_dbg("Matched for Host %s", httpreq->host);
-      
-      req->proxy = 1;
+    if (matches) break;
+  }
 
+  if (matches) {
+    log_dbg("Matched for Host %s", httpreq->host);
+    
+    req->proxy = 1;
+    
 #ifdef ENABLE_REDIRINJECT
-      /* XXX */
-      /* Check for headers we wish to filter out */
-      {
-	bstring newhdr = bfromcstr("");
-	char *hdr = (char *)req->wbuf->data;
-	
-	while (hdr && *hdr) {
-	  char *p = strstr(hdr, "\r\n");
-	  int skip = 0;
-	  int l;
-	  
-	  if (p) {
-	    l = (p - hdr);
-	  } else {
-	    l = req->wbuf->slen - (hdr - (char*)req->wbuf->data);
-	  }
-	  
-	  if (!strncasecmp(hdr, "accept-encoding:", 16)) {
-	    bcatcstr(newhdr, "Accept-Encoding: identity\r\n");
-	    skip = 1;
-	  } else if (!strncasecmp(hdr, "connection:", 11)) {
-	    bcatcstr(newhdr, "Connection: close\r\n");
-	    skip = 1;
-	  } else if (!strncasecmp(hdr, "keep-alive:", 11)) {
-	    skip = 1;
-	  }
-	  
-	  if (!skip)
-	    bcatblk(newhdr, hdr, l);
-	  
-	  if (p) {
-	    if (!skip)
-	      bcatblk(newhdr, p, 2);
-	    hdr = p + 2;
-	  } else { 
-	    hdr = 0;
-	  }
-	}
-	
-	if (req->wbuf->slen != newhdr->slen) {
-	  log_dbg("Changed HTTP Headers");
-	}
-	
-	bassign(req->wbuf, newhdr);
-	bdestroy(newhdr);
-      }
-      /* XXX */
-#endif
-
-      if (conn_setup(&req->conn, httpreq->host, port, req->wbuf)) {
-	log_err(errno, "conn_setup()");
-	return -1;
-      }
-
-      req->state |= REDIR_CONN_FD;
-      net_select_addfd(&sctx, req->conn.sock, SELECT_READ);
+    /* XXX */
+    /* Check for headers we wish to filter out */
+    if (hasInject) {
+      bstring newhdr = bfromcstr("");
+      char *hdr = (char *)req->wbuf->data;
       
-      return 0;
+      while (hdr && *hdr) {
+	char *p = strstr(hdr, "\r\n");
+	int skip = 0;
+	int l;
+	
+	if (p) {
+	  l = (p - hdr);
+	} else {
+	  l = req->wbuf->slen - (hdr - (char*)req->wbuf->data);
+	}
+	
+	if (!strncasecmp(hdr, "accept-encoding:", 16)) {
+	  bcatcstr(newhdr, "Accept-Encoding: identity\r\n");
+	  skip = 1;
+	} else if (!strncasecmp(hdr, "connection:", 11)) {
+	  bcatcstr(newhdr, "Connection: close\r\n");
+	  skip = 1;
+	} else if (!strncasecmp(hdr, "keep-alive:", 11)) {
+	  skip = 1;
+	}
+	
+	if (!skip)
+	  bcatblk(newhdr, hdr, l);
+	
+	if (p) {
+	  if (!skip)
+	    bcatblk(newhdr, p, 2);
+	  hdr = p + 2;
+	} else { 
+	  hdr = 0;
+	}
+      }
+      
+      if (req->wbuf->slen != newhdr->slen) {
+	log_dbg("Changed HTTP Headers");
+      }
+      
+      bassign(req->wbuf, newhdr);
+      bdestroy(newhdr);
     }
+    /* XXX */
+#endif
+    
+    if (conn_setup(&req->conn, httpreq->host, port, req->wbuf)) {
+      log_err(errno, "conn_setup()");
+      return -1;
+    }
+    
+    req->state |= REDIR_CONN_FD;
+    net_select_addfd(&sctx, req->conn.sock, SELECT_READ);
+    
+    return 0;
   }
   
   return 1;
@@ -620,19 +656,26 @@ int main(int argc, char **argv) {
   process_options(argc, argv, 1);
   
   safe_strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
-  
+
+#ifdef SIOCGIFHWADDR  
   if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
     memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
   } else {
     log_err(errno, "could not get MAC address");
     return -1;
   }
-  
+#endif  
+
   close(fd);
   
   /* create an instance of redir */
   if (redir_new(&redir, &_options.uamlisten, _options.uamport, 
-		_options.uamuiport)) {
+#ifdef ENABLE_UAMUIPORT
+		_options.uamuiport
+#else
+		0
+#endif
+		)) {
     log_err(0, "Failed to create redir");
     return -1;
   }

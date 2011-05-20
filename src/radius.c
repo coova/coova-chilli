@@ -1511,6 +1511,7 @@ int radius_resp(struct radius_t *this,
 }
 #endif
 
+#ifdef ENABLE_COA
 /* 
  * radius_coaresp()
  * Send of a packet (no retransmit queue)
@@ -1543,7 +1544,7 @@ int radius_coaresp(struct radius_t *this,
   
   return 0;
 }
-
+#endif
 
 /* 
  * radius_default_pack()
@@ -1765,6 +1766,7 @@ int radius_decaps(struct radius_t *this, int idx) {
     else
       return 0;
     break;
+#ifdef ENABLE_COA
   case RADIUS_CODE_DISCONNECT_REQUEST:
   case RADIUS_CODE_COA_REQUEST:
     if (this->cb_coa_ind)
@@ -1772,6 +1774,7 @@ int radius_decaps(struct radius_t *this, int idx) {
     else
       return 0;
     break;
+#endif
   default:
     log_warn(0, "Received unknown RADIUS packet %d!", pack.code);
     return -1;

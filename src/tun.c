@@ -641,11 +641,12 @@ int tuntap_interface(struct _net_interface *netif) {
 #elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 
   /* Find suitable device */
-  for (devnum = 0; devnum < 255; devnum++) { /* TODO 255 */ 
+  for (devnum = 0; devnum < 255; devnum++) { 
     safe_snprintf(devname, sizeof(devname), "/dev/tun%d", devnum);
     if ((netif->fd = open(devname, O_RDWR)) >= 0) break;
     if (errno != EBUSY) break;
   } 
+
   if (netif->fd < 0) {
     log_err(errno, "Can't find tunnel device");
     return -1;
@@ -675,33 +676,34 @@ int tuntap_interface(struct _net_interface *netif) {
 
 #elif defined(__sun__)
 
-  if( (ip_fd = open("/dev/udp", O_RDWR, 0)) < 0){
+  if ((ip_fd = open("/dev/udp", O_RDWR, 0)) < 0) {
     log_err(errno, "Can't open /dev/udp");
     return -1;
   }
   
-  if( (netif->fd = open("/dev/tun", O_RDWR, 0)) < 0){
+  if ((netif->fd = open("/dev/tun", O_RDWR, 0)) < 0) {
     log_err(errno, "Can't open /dev/tun");
     return -1;
   }
   
   /* Assign a new PPA and get its unit number. */
-  if( (ppa = ioctl(netif->fd, TUNNEWPPA, -1)) < 0){
+  if ((ppa = ioctl(netif->fd, TUNNEWPPA, -1)) < 0) {
     log_err(errno, "Can't assign new interface");
     return -1;
   }
   
-  if( (if_fd = open("/dev/tun", O_RDWR, 0)) < 0){
+  if ((if_fd = open("/dev/tun", O_RDWR, 0)) < 0) {
     log_err(errno, "Can't open /dev/tun (2)");
     return -1;
   }
-  if(ioctl(if_fd, I_PUSH, "ip") < 0){
+
+  if (ioctl(if_fd, I_PUSH, "ip") < 0){
     log_err(errno, "Can't push IP module");
     return -1;
   }
   
   /* Assign ppa according to the unit number returned by tun device */
-  if(ioctl(if_fd, IF_UNITSEL, (char *)&ppa) < 0){
+  if (ioctl(if_fd, IF_UNITSEL, (char *)&ppa) < 0) {
     log_err(errno, "Can't set PPA %d", ppa);
     return -1;
   }
@@ -887,10 +889,14 @@ int tun_decaps(struct tun_t *this, int idx) {
   return length;
   
 #elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
-  unsigned char buffer[PACKET_MAX];
+  struct tundecap c;
+  uint8_t buffer[PKT_MAX_LEN];
   ssize_t status;
   
-  if ((status = safe_read(&tun(this, idx).fd, buffer, sizeof(buffer))) <= 0) {
+  c.this = this;
+  c.idx = idx;
+  
+  if ((status = safe_read(tun(this, idx).fd, buffer, sizeof(buffer))) <= 0) {
     log_err(errno, "read() failed");
     return -1;
   }
@@ -899,22 +905,23 @@ int tun_decaps(struct tun_t *this, int idx) {
     log_dbg("tun_decaps(%d) %s",status,tun(tun,idx).devname);
   */
 
-   if (this->cb_ind)
+  if (this->cb_ind) {
 #if defined (__OpenBSD__)
     /* tun interface adds 4 bytes to front of packet under OpenBSD */
-     return this->cb_ind(this, buffer+4, status-4, idx);
+     return tun_decaps_cb(&c, buffer+4, status-4);
 #else
-     return this->cb_ind(this, buffer, status, idx);
+     return tun_decaps_cb(&c, buffer, status);
 #endif
+  }
 
   return 0;
 
 #elif defined (__sun__)
-  unsigned char buffer[PACKET_MAX];
+  unsigned char buffer[PKT_MAX_LEN];
   struct strbuf sbuf;
   int f = 0;
   
-  sbuf.maxlen = PACKET_MAX;      
+  sbuf.maxlen = PKT_MAX_LEN;      
   sbuf.buf = buffer;
   if (getmsg(tun(this, idx).fd, NULL, &sbuf, &f) < 0) {
     log_err(errno, "getmsg() failed");
@@ -936,7 +943,7 @@ static uint16_t dnatport[1024];
 int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 #if defined (__OpenBSD__)
 
-  unsigned char buffer[PACKET_MAX+4];
+  unsigned char buffer[PKT_MAX_LEN+4];
 
   /* Can we user writev here to be more efficient??? */
   *((uint32_t *)(&buffer))=htonl(AF_INET);
@@ -1130,11 +1137,13 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
     exit(0);
   }
 
+#ifdef ENABLE_UAMUIPORT
   safe_snprintf(b, sizeof(b), "%d", _options.uamuiport);
   if (setenv("UAMUIPORT", b, 1 ) != 0) {
     log_err(errno, "setenv() did not return 0!");
     exit(0);
   }
+#endif
 
   if (setenv("DHCPIF", _options.dhcpif ? _options.dhcpif : "", 1 ) != 0) {
     log_err(errno, "setenv() did not return 0!");

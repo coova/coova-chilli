@@ -34,7 +34,13 @@ int test_dhcp(int cnt) {
     exit(1);
   }
 
-  if (net_init(&i, _options.dhcpif, ETH_P_ALL, 1, 0) < 0) {
+  if (net_init(&i, _options.dhcpif, 
+#ifdef ETH_P_ALL
+	       ETH_P_ALL,
+#else
+	       0,
+#endif
+	       1, 0) < 0) {
     perror("problem");
     exit(0);
   }

@@ -127,7 +127,7 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
     memset(&pt, 0, sizeof(pass_through));
     
     /* eat whitespace */
-    while (isspace(*p1)) p1++;
+    while (isspace((int) *p1)) p1++;
     
     /* look for specific protocols */
     if ((t = strchr(p1, ':'))) { 
@@ -264,7 +264,7 @@ void garden_load_domainfile() {
     
     while ((read = getline(&line, &len, fp)) != -1) {
       if (read <= 0) continue;
-      else if (!line[0] || line[0] == '#' || isspace(line[0])) continue;
+      else if (!line[0] || line[0] == '#' || isspace((int) line[0])) continue;
       else {
 	
 	uamdomain_regex * uam_re = (uamdomain_regex *)
@@ -272,7 +272,7 @@ void garden_load_domainfile() {
 
 	char * pline = line;
 	
-	while (isspace(pline[read-1]))
+	while (isspace((int) pline[read-1]))
 	  pline[--read] = 0;
 
 	if (pline[0] == '!') {

@@ -34,6 +34,8 @@
 #define RADIUS_ATTR_CHILLISPOT_REQUIRE_UAM               11 /* string */
 #define RADIUS_ATTR_CHILLISPOT_REQUIRE_SPLASH            12 /* string */
 #define RADIUS_ATTR_CHILLISPOT_ROUTE_TO_INTERFACE        13 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_CONFIG_FILE               14 /* string */
+#define RADIUS_ATTR_CHILLISPOT_SESSION_STATE             15 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS       21 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS      22 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS       23 /* integer */
@@ -53,7 +55,19 @@
 #define RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_FQDN          56 /* string */
 #define RADIUS_ATTR_CHILLISPOT_DHCP_PARAMETER_REQUEST_LIST 57 /* string */
 
+#define RADIUS_ATTR_CHILLISPOT_DHCP_IP_ADDRESS           60 /* ipaddr */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_IP_NETMASK           61 /* ipaddr */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_DNS1                 62 /* ipaddr */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_DNS2                 63 /* ipaddr */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_GATEWAY              64 /* ipaddr */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_DOMAIN               65 /* string */
+
+#define RADIUS_ATTR_CHILLISPOT_INJECT_URL                70 /* string */
+
 #define RADIUS_VALUE_CHILLISPOT_NAS_VIEWPOINT             1
 #define RADIUS_VALUE_CHILLISPOT_CLIENT_VIEWPOINT          2
+
+#define RADIUS_VALUE_CHILLISPOT_SESSION_AUTH              1
+#define RADIUS_VALUE_CHILLISPOT_SESSION_NOAUTH            2
 
 #endif	/* !_RADIUS_CHILLISPOT_H */

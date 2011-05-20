@@ -469,6 +469,9 @@ struct gengetopt_args_info
   const char *challengetimeout2_help; /**< @brief Timeout in seconds for challenge during login help description.  */
   int redir_flag;	/**< @brief Enable redir (redirection) daemon (default=off).  */
   const char *redir_help; /**< @brief Enable redir (redirection) daemon help description.  */
+  char * inject_arg;	/**< @brief Enable redir injection.  */
+  char * inject_orig;	/**< @brief Enable redir injection original value given at command line.  */
+  const char *inject_help; /**< @brief Enable redir injection help description.  */
   int routeonetone_flag;	/**< @brief When using routeif, do one-to-one NAT (default=off).  */
   const char *routeonetone_help; /**< @brief When using routeif, do one-to-one NAT help description.  */
   char * sslkeyfile_arg;	/**< @brief SSL private key file in PEM format.  */
@@ -682,6 +685,7 @@ struct gengetopt_args_info
   unsigned int challengetimeout_given ;	/**< @brief Whether challengetimeout was given.  */
   unsigned int challengetimeout2_given ;	/**< @brief Whether challengetimeout2 was given.  */
   unsigned int redir_given ;	/**< @brief Whether redir was given.  */
+  unsigned int inject_given ;	/**< @brief Whether inject was given.  */
   unsigned int routeonetone_given ;	/**< @brief Whether routeonetone was given.  */
   unsigned int sslkeyfile_given ;	/**< @brief Whether sslkeyfile was given.  */
   unsigned int sslkeypass_given ;	/**< @brief Whether sslkeypass was given.  */

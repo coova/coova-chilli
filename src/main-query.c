@@ -1,6 +1,6 @@
 /* 
- * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2006 PicoPoint B.V.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -81,8 +81,8 @@ struct cmd_arguments {
   int length;
   void *field;
   char *desc;
-  uint8_t *flag;
-  uint8_t flagbit;
+  uint16_t *flag;
+  uint16_t flagbit;
 };
 
 static struct cmdsock_request request;
@@ -159,17 +159,27 @@ static struct cmd_arguments args[] = {
     &request.sess.params.url,
     "Set splash page",
     &request.sess.params.flags, REQUIRE_UAM_SPLASH },
+#ifdef ENABLE_REDIRINJECT
+  { "inject",
+    CMDSOCK_FIELD_STRING, 
+    sizeof(request.sess.params.url),
+    &request.sess.params.url,
+    "Inject url flag",
+    &request.sess.params.flags, UAM_INJECT_URL | REQUIRE_UAM_AUTH },
+#endif
   { "url",
     CMDSOCK_FIELD_STRING, 
     sizeof(request.sess.params.url),
     &request.sess.params.url,
     "Set redirect url",
     &request.sess.params.flags, REQUIRE_REDIRECT },
+#ifdef ENABLE_MULTIROUTE
   { "routeidx",
     CMDSOCK_FIELD_INTEGER, 
     sizeof(request.sess.params.routeidx),
     &request.sess.params.routeidx,
     "Route interface index",  0, 0 },
+#endif
   { "noacct",
     CMDSOCK_FIELD_NONE, 0, 0,
     "No accounting flag",
@@ -194,7 +204,7 @@ static int parse_mac(uint8_t *mac, char *string) {
   macstr[macstrlen] = 0;
 	  
   for (i=0; i<macstrlen; i++) 
-    if (!isxdigit(macstr[i])) 
+    if (!isxdigit((int) macstr[i])) 
       macstr[i] = 0x20;
   
   if (sscanf(macstr, "%2x %2x %2x %2x %2x %2x", 
@@ -269,6 +279,12 @@ int main(int argc, char **argv) {
 #ifdef ENABLE_CLUSTER
   int peerid = -1;
 #endif
+
+  int query_timeout = QUERY_TIMEOUT;
+
+  if (getenv("QUERY_TIMEOUT")) {
+    query_timeout = atoi(getenv("QUERY_TIMEOUT"));
+  }
   
   set_signal(SIGALRM, timeout_alarm);
   
@@ -283,7 +299,7 @@ int main(int argc, char **argv) {
   }
   
   if (argc < 2) return usage(argv[0]);
-
+  
   if (*argv[argidx] == '/') {
     /* for backward support, ignore a unix-socket given as first arg */
     if (argc < 3) return usage(argv[0]);
@@ -447,7 +463,7 @@ int main(int argc, char **argv) {
 	  macstr[macstrlen] = 0;
 
 	  for (i=0; i<macstrlen; i++) 
-	    if (!isxdigit(macstr[i])) 
+	    if (!isxdigit((int) macstr[i])) 
 	      macstr[i] = 0x20;
 
 	  if (sscanf(macstr, "%2x %2x %2x %2x %2x %2x", 
@@ -465,7 +481,7 @@ int main(int argc, char **argv) {
 
 	  if (request.type != CMDSOCK_ROUTE_GW)
 	    request.type = CMDSOCK_ROUTE_SET;
-
+	  
 	  /* do another switch to pick up param configs for authorize */
 	}
 	break;
