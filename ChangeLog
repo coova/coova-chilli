@@ -1,6 +1,8 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+== ChangeLog (CoovaChilli-v1.2.7 svn revision 442) ==
+
 * Improved RADIUS queue robustness, and will only remove from queue after verifying shared secret
 * Cleanup of printing functions for Layer2/Layer3 modes and chilli_query commands list, dhcp-list, listip, listmac
 * Allow the replying to ARP for the ''uamlisten'' IP address in ''layer3'' mode
