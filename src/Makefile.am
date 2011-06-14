@@ -16,9 +16,9 @@ radius_pkt.h ../bstring/bstrlib.h ../config.h system.h
 
 lib_LTLIBRARIES = libchilli.la
 noinst_PROGRAMS = test_dhcp test_randpkt 
-if WITH_L2TP_PPP
-noinst_PROGRAMS += test_l2tp
-endif
+#if WITH_L2TP_PPP
+#noinst_PROGRAMS += test_l2tp
+#endif
 sbin_PROGRAMS = \
 chilli chilli_response chilli_radconfig chilli_opt 
 
