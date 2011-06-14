@@ -4856,6 +4856,8 @@ int chilli_acct_fromsub(struct app_conn_t *appconn, size_t len) {
 #ifndef ENABLE_LEAKYBUCKET
   appconn->s_state.last_time = mainclock;
 #endif
+
+  appconn->s_state.last_sent_time = mainclock;
   
 #ifdef ENABLE_LEAKYBUCKET
 #ifndef COUNT_UPLINK_DROP
@@ -4871,11 +4873,9 @@ int chilli_acct_fromsub(struct app_conn_t *appconn, size_t len) {
       admin_session.s_state.input_octets+=len;
     }
   } else {
-    appconn->s_state.last_sent_time = mainclock;
     appconn->s_state.output_packets++;
     appconn->s_state.output_octets +=len;
     if (admin_session.s_state.authenticated) {
-      admin_session.s_state.last_sent_time = mainclock;
       admin_session.s_state.output_packets++;
       admin_session.s_state.output_octets+=len;
     }
@@ -4902,11 +4902,9 @@ int chilli_acct_tosub(struct app_conn_t *appconn, size_t len) {
 #endif
   
   if (_options.swapoctets) {
-    appconn->s_state.last_sent_time = mainclock;
     appconn->s_state.output_packets++;
     appconn->s_state.output_octets += len;
     if (admin_session.s_state.authenticated) {
-      admin_session.s_state.last_sent_time = mainclock;
       admin_session.s_state.output_packets++;
       admin_session.s_state.output_octets+=len;
     }

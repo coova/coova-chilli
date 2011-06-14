@@ -161,6 +161,8 @@ writeconfig() {
     HS_UAMALLOW=$(echo $HS_UAMALLOW|sed 's/ /,/g')
     uamallow=${HS_UAMALLOW:+",$HS_UAMALLOW"}
 
+    [ "$HS_NOWISPR1" = "on" ] || [ "$HS_NOWISPR1" = "true" ] && addconfig1 "nowispr1"
+    [ "$HS_NOWISPR2" = "on" ] || [ "$HS_NOWISPR2" = "true" ] && addconfig1 "nowispr2"
     [ "$HS_WEB_ADMIN" = "http"  ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:80"
     [ "$HS_WEB_ADMIN" = "https" ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:443"
     [ "$HS_MACAUTHMODE" = "local" ] || [ "$HS_MACALLOWLOCAL" = "on" ] && addconfig1 "macallowlocal"

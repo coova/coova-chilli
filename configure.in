@@ -70,7 +70,7 @@ AC_FUNC_MEMCMP
 AC_FUNC_SELECT_ARGTYPES
 AC_CHECK_FUNCS([gethostbyname getprotoent gettimeofday inet_ntoa \
 memset select socket strdup strerror strstr strtol getline dirname \
-glob])
+glob getaddrinfo getnameinfo])
 AC_CHECK_LIB(resolv, res_init)
 
 AC_ARG_ENABLE(chilliquery, [AC_HELP_STRING([--disable-chilliquery],[Disable chilli_query])], 
