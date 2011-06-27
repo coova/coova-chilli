@@ -388,15 +388,56 @@ int dhcp_hashdel(struct dhcp_t *this, struct dhcp_conn_t *conn) {
 
 
 #ifdef ENABLE_IEEE8021Q
+int vlanupdate_script(struct dhcp_conn_t *conn, char* script, 
+		      uint16_t oldtag) {  
+  int status;
+
+  if ((status = chilli_fork(CHILLI_PROC_SCRIPT, script)) < 0) {
+    log_err(errno, "forking %s", script);
+    return 0;
+  }
+
+  if (status > 0) { /* Parent */
+    return 0; 
+  } 
+
+  set_env("DEV", VAL_STRING, tun(tun, 0).devname, 0);
+  set_env("ADDR", VAL_IN_ADDR, &conn->ourip, 0);
+  set_env("FRAMED_IP_ADDRESS", VAL_IN_ADDR, &conn->hisip, 0);
+  set_env("CALLING_STATION_ID", VAL_MAC_ADDR, conn->hismac, 0);
+  set_env("CALLED_STATION_ID", VAL_MAC_ADDR, dhcp_nexthop(dhcp), 0);
+  set_env("NAS_ID", VAL_STRING, _options.radiusnasid, 0);
+  set_env("8021Q_TAG", VAL_USHORT, &conn->tag8021q, 0);
+  set_env("OLD_8021Q_TAG", VAL_USHORT, &oldtag, 0);
+  
+  if (execl(
+#ifdef ENABLE_CHILLISCRIPT
+	    SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig, 
+#else
+	    script,
+#endif
+	    script, (char *) 0) != 0) {
+    log_err(errno, "exec %s failed", script);
+  }
+  
+  exit(0);
+}
+
 void dhcp_checktag(struct dhcp_conn_t *conn, uint8_t *pack) {
   if (_options.ieee8021q && is_8021q(pack)) {
     uint16_t tag = get8021q(pack);
     if (tag != conn->tag8021q) {
+      uint16_t oldtag = conn->tag8021q;
       conn->tag8021q = tag;
+
       log_dbg("IEEE 802.1Q: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x on VLAN %d", 
 	      conn->hismac[0], conn->hismac[1], conn->hismac[2],
 	      conn->hismac[3], conn->hismac[4], conn->hismac[5],
 	      (int)(ntohs(tag) & 0x0FFF));
+
+      if (_options.vlanupdate) {
+	vlanupdate_script(conn, _options.vlanupdate, oldtag);
+      }
     }
     if (conn->peer) {
       ((struct app_conn_t *)conn->peer)->s_state.tag8021q = conn->tag8021q;
@@ -898,6 +939,52 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
 
   dhcp_sendGARP(dhcp);
 
+#ifdef ENABLE_IPV6
+  net_getip6(dhcp->rawif.devname, &dhcp->rawif.address_v6);
+
+  if (_options.debug) {
+    /*
+    struct ifaddrs *ifaddr, *ifa;
+    int family, s;
+    char host[NI_MAXHOST];
+    */
+    char fmt[1024];
+
+    inet_ntop(AF_INET6, &dhcp->rawif.address_v6.s6_addr,
+	      fmt, sizeof(fmt));
+    
+    log_dbg("dhcpif (%s) IPv6 address %s", dhcp->rawif.devname, fmt);
+    
+    /*
+    if (getifaddrs(&ifaddr) == 0) {
+      for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+	if (ifa->ifa_addr) {
+	  family = ifa->ifa_addr->sa_family;
+	  
+	  printf("%s  address family: %d%s\n",
+		 ifa->ifa_name, family,
+		 (family == AF_PACKET) ? " (AF_PACKET)" :
+		 (family == AF_INET) ?   " (AF_INET)" :
+		 (family == AF_INET6) ?  " (AF_INET6)" : "");
+	  
+	  if (family == AF_INET || family == AF_INET6) {
+	    s = getnameinfo(ifa->ifa_addr,
+			    (family == AF_INET) ? sizeof(struct sockaddr_in) :
+			    sizeof(struct sockaddr_in6),
+			    host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+	    if (s != 0) {
+	      printf("getnameinfo() failed: %s\n", gai_strerror(s));
+	    }
+	    printf("\taddress: <%s>\n", host);
+	  }
+	}
+      }
+      freeifaddrs(ifaddr);
+    }
+    */
+  }
+#endif
+
   return 0;
 }
 
@@ -1308,6 +1395,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 
     int mode = 0;
     int qmatch = -1;
+    int mod = -1;
     int i;
 
 #ifdef ENABLE_MDNS
@@ -1361,7 +1449,8 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
     for (i=0; dlen && i < n ## count; i++) {		\
       if (dns_copy_res(conn, isq, &dptr, &dlen,		\
 		       (uint8_t *)dnsp, olen,		\
-		       q, sizeof(q), &qmatch, mode)) {	\
+		       q, sizeof(q), isReq,		\
+		       &qmatch, &mod, mode)) {		\
         log_warn(0, "dropping malformed DNS");		\
 	return isReq ? dhcp_nakDNS(conn,pack,plen) : 0; \
       } \
@@ -1594,6 +1683,10 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
       }
     }
 #endif
+
+    if (mod > 0) {
+      chksum(iphdr(pack));
+    }
   }
 
   return 1;
@@ -1864,7 +1957,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 
       /* otherwise, RESET and drop */
 
-#if(_debug_)
+#if(_debug_ > 1)
       log_dbg("Resetting connection on port %d->%d", 
 	      ntohs(tcph->src), ntohs(tcph->dst));
 #endif
@@ -2014,7 +2107,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 
 #ifdef ENABLE_TCPRESET
   if (do_reset && iph->protocol == PKT_IP_PROTO_TCP) {
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("Resetting connection on port %d->%d (undo)", 
 	    ntohs(tcph->src), ntohs(tcph->dst));
 #endif
@@ -3187,7 +3280,73 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 
 #ifdef ENABLE_IPV6
 int dhcp_receive_ipv6(struct dhcp_t *this, uint8_t *pack, size_t len) {
-  log_dbg("Processing IPv6");
+  struct pkt_ethhdr_t *ethh = ethhdr(pack);
+  struct pkt_ip6hdr_t *iphdr = ip6hdr(pack);
+
+  int datalen = (int) ntohs(iphdr->data_len);
+
+  log_dbg("Processing IPv6 ver=%d class=%d len=%d datalen=%d",
+	  (int) ipv6_version(iphdr),
+	  (int) ipv6_class(iphdr),
+	  (int) len, datalen);
+
+  log_dbg("src "IPv6_ADDR_FMT" dst "IPv6_ADDR_FMT,
+	  ipv6_exlode_addr(iphdr->src_addr),
+	  ipv6_exlode_addr(iphdr->dst_addr));
+
+  if (iphdr->next_header == ICMPv6_NEXT_HEADER) {
+    struct pkt_icmphdr_t * icmphdr = ((void *)iphdr) + sizeof(struct pkt_ip6hdr_t);
+
+    log_dbg("ICMPv6 type=%d", icmphdr->type);
+
+    switch (icmphdr->type) {
+    case 133: /* 133 Router Solicitation (NDP) */
+
+      /*
+	4.2. Router Advertisement Message Format
+
+	Routers send out Router Advertisement messages periodically, or in
+	response to Router Solicitations.
+	
+	0                   1                   2                   3
+	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|     Type      |     Code      |          Checksum             |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	| Cur Hop Limit |M|O|  Reserved |       Router Lifetime         |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|                         Reachable Time                        |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|                          Retrans Timer                        |
+	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	|   Options ...
+	+-+-+-+-+-+-+-+-+-+-+-+-
+      */
+      {
+	int idx = 0;
+	uint8_t packet[PKT_BUFFER];
+	struct pkt_ethhdr_t *packet_ethh;
+	struct pkt_ip6hdr_t *packet_ip6h;
+	uint8_t *payload;
+
+	memset(packet, 0, sizeof(packet));
+	copy_ethproto(pack, packet);
+	
+	packet_ethh = ethhdr(packet);
+	packet_ip6h = ip6hdr(packet);
+
+	payload = ((uint8_t *)packet_ip6h) + sizeof(struct pkt_ip6hdr_t);
+	payload[idx++] = 134;
+	
+	memcpy(packet_ethh->dst, ethh->src, PKT_ETH_ALEN);
+	memcpy(packet_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
+	return dhcp_send(this, &this->rawif, ethh->src, packet, sizeofarp(packet));
+      }
+      break;
+    }
+
+  }
+
   return 0;
 }
 #endif

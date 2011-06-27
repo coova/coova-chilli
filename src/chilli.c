@@ -2108,7 +2108,8 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 	struct pkt_ethhdr_t *p_ethh = ethhdr(pack);
 	struct arp_packet_t *p_arp = arppkt(pack);
 	struct pkt_ethhdr_t *packet_ethh = ethhdr(packet);
-	struct arp_packet_t *packet_arp = ((struct arp_packet_t *)(((uint8_t*)(packet)) + PKT_ETH_HLEN));
+	struct arp_packet_t *packet_arp = 
+	  ((struct arp_packet_t *)(((uint8_t*)(packet)) + PKT_ETH_HLEN));
 	
 	size_t length = PKT_ETH_HLEN + sizeof(struct arp_packet_t);
 	
@@ -2120,11 +2121,14 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 	memcpy(&reqaddr.s_addr, p_arp->tpa, PKT_IP_ALEN);
 	
 	if (_options.debug)
-	  log_dbg("arp: ifidx=%d src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+	  log_dbg("arp: ifidx=%d src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+		  "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
 		  "prot=%.4x (asking for %s)",
 		  tun(tun,idx).ifindex,
-		  ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
-		  ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+		  ethh->src[0],ethh->src[1],ethh->src[2],
+		  ethh->src[3],ethh->src[4],ethh->src[5],
+		  ethh->dst[0],ethh->dst[1],ethh->dst[2],
+		  ethh->dst[3],ethh->dst[4],ethh->dst[5],
 		  ntohs(ethh->prot), inet_ntoa(reqaddr));
 	
 	/*
@@ -2186,7 +2190,8 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 	packet_ethh->prot = htons(PKT_ETH_PROTO_ARP);
 	
 	if (_options.debug) {
-	  log_dbg("arp-reply: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
+	  log_dbg("arp-reply: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+		  "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
 		  packet_ethh->src[0],packet_ethh->src[1],packet_ethh->src[2],
 		  packet_ethh->src[3],packet_ethh->src[4],packet_ethh->src[5],
 		  packet_ethh->dst[0],packet_ethh->dst[1],packet_ethh->dst[2],
@@ -3178,9 +3183,11 @@ upprot_getip(struct app_conn_t *appconn,
       return dnprot_reject(appconn);
 
     appconn->hisip.s_addr = ipm->addr.s_addr;
-
-    appconn->hismask.s_addr = 
-      hismask ? hismask->s_addr : _options.mask.s_addr;
+    
+    if (hismask && hismask->s_addr)
+      appconn->hismask.s_addr = hismask->s_addr;
+    else
+      appconn->hismask.s_addr = _options.mask.s_addr;
     
     /* TODO: Too many "listen" and "ourip" addresses! */
     if (!appconn->ourip.s_addr)
@@ -3420,7 +3427,7 @@ config_radius_session(struct session_params *params,
 	pass_throughs_from_string(params->pass_throughs,
 				  SESSION_PASS_THROUGH_MAX,
 				  &params->pass_through_count,
-				  name);
+				  0, name);
       }
 #endif
       else if (dhcpconn && len >= strlen(logout) && !memcmp(val, logout, strlen(logout))) {
@@ -3684,8 +3691,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #endif
 
   int force_ip = 0;
-  struct in_addr *hisip = NULL;
-  struct in_addr *hismask = NULL;
+  struct in_addr hisip;
+  struct in_addr hismask;
 
   struct app_conn_t *appconn = (struct app_conn_t*) cbp;
 
@@ -3698,6 +3705,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   /* Initialise */
   appconn->s_state.redir.statelen = 0;
+  hisip.s_addr = hismask.s_addr = 0;
 
 #ifdef ENABLE_RADPROXY
   appconn->challen  = 0;
@@ -3736,9 +3744,9 @@ int cb_radius_auth_conf(struct radius_t *radius,
       return dnprot_reject(appconn);
     }
     force_ip = 1;
-    hisip = (struct in_addr*) &(hisipattr->v.i);
+    hisip.s_addr = hisipattr->v.i;
 
-    log_dbg("Framed IP address set to: %s", inet_ntoa(*hisip));
+    log_dbg("Framed IP address set to: %s", inet_ntoa(hisip));
 
     if (!radius_getattr(pack, &hisipattr, RADIUS_ATTR_FRAMED_IP_NETMASK, 0, 0, 0)
 #ifdef ENABLE_DHCPRADIUS
@@ -3752,13 +3760,13 @@ int cb_radius_auth_conf(struct radius_t *radius,
 	log_err(0, "Wrong length of framed IP netmask");
 	return dnprot_reject(appconn);
       }
-      hismask = (struct in_addr*) &(hisipattr->v.i);
+      hismask.s_addr = hisipattr->v.i;
 
-      log_dbg("Framed IP netmask set to: %s", inet_ntoa(*hismask));
+      log_dbg("Framed IP netmask set to: %s", inet_ntoa(hismask));
     }
   }
   else {
-    hisip = (struct in_addr*) &appconn->reqip.s_addr;
+    hisip.s_addr = appconn->reqip.s_addr;
   }
 
 #ifdef ENABLE_DHCPRADIUS
@@ -3766,16 +3774,16 @@ int cb_radius_auth_conf(struct radius_t *radius,
     if (appconn->uplink) {
       struct ippoolm_t *ipm = (struct ippoolm_t *)appconn->uplink;
       
-      if (hisip && hisip->s_addr) {
+      if (hisip.s_addr) {
 	/*
 	 *  Force the assigment of an IP address. 
 	 */
-	if (ipm->addr.s_addr != hisip->s_addr) {
+	if (ipm->addr.s_addr != hisip.s_addr) {
 	  uint8_t hwaddr[sizeof(dhcpconn->hismac)];
 	  memcpy(hwaddr, dhcpconn->hismac, sizeof(hwaddr));
 	  
 	  log_dbg("Old ip address freed %s", inet_ntoa(ipm->addr));
-	  log_dbg("Resetting ip address to %s", inet_ntoa(*hisip));
+	  log_dbg("Resetting ip address to %s", inet_ntoa(hisip));
 	  
 	  dhcp_freeconn(dhcpconn, 0);
 	  dhcp_newconn(dhcp, &dhcpconn, hwaddr, 0);
@@ -3820,10 +3828,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
 			  RADIUS_VENDOR_CHILLISPOT, 
 			  RADIUS_ATTR_CHILLISPOT_DHCP_DNS1, 0)) {
 	if ((attr->l-2) == sizeof(struct in_addr)) {
-	  struct in_addr *ipv4 = (struct in_addr *) &(attr->v.i);
-	  appconn->dns1.s_addr = 
-	    dhcpconn->dns1.s_addr = 
-	    ipv4->s_addr;
+	  appconn->dns1.s_addr = attr->v.i;
+	  dhcpconn->dns1.s_addr = attr->v.i;
 	}
       }
       
@@ -3832,10 +3838,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
 			  RADIUS_VENDOR_CHILLISPOT, 
 			  RADIUS_ATTR_CHILLISPOT_DHCP_DNS2, 0)) {
 	if ((attr->l-2) == sizeof(struct in_addr)) {
-	  struct in_addr *ipv4 = (struct in_addr *) &(attr->v.i);
-	  appconn->dns2.s_addr = 
-	    dhcpconn->dns2.s_addr =
-	    ipv4->s_addr;
+	  appconn->dns2.s_addr = attr->v.i;
+	  dhcpconn->dns2.s_addr = attr->v.i;
 	}
       }
       
@@ -3844,10 +3848,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
 			  RADIUS_VENDOR_CHILLISPOT, 
 			  RADIUS_ATTR_CHILLISPOT_DHCP_GATEWAY, 0)) {
 	if ((attr->l-2) == sizeof(struct in_addr)) {
-	  struct in_addr *ipv4 = (struct in_addr *) &(attr->v.i);
-	  appconn->ourip.s_addr = 
-	    dhcpconn->ourip.s_addr =
-	    ipv4->s_addr;
+	  appconn->ourip.s_addr = attr->v.i;
+	  dhcpconn->ourip.s_addr = attr->v.i;
 	}
       }
 
@@ -4072,7 +4074,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     return dnprot_reject(appconn);
   }
   
-  return upprot_getip(appconn, hisip, hismask);
+  return upprot_getip(appconn, &hisip, &hismask);
 }
 
 #ifdef ENABLE_COA
@@ -4315,7 +4317,8 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     }
     
     appconn->hisip.s_addr = ipm->addr.s_addr;
-    
+    appconn->hismask.s_addr = _options.mask.s_addr;
+
     log(LOG_NOTICE, "Client MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X assigned IP %s" , 
 	conn->hismac[0], conn->hismac[1], 
 	conn->hismac[2], conn->hismac[3],
@@ -4473,6 +4476,7 @@ struct app_conn_t * chilli_connect_layer3(struct in_addr *src, struct dhcp_conn_
   
   appconn->s_state.last_sent_time = mainclock_now();
   appconn->hisip.s_addr = src->s_addr;
+  appconn->hismask.s_addr = _options.mask.s_addr;
   appconn->dnprot = DNPROT_LAYER3;
   appconn->uplink = ipm;
   ipm->peer = appconn; 
@@ -5188,18 +5192,22 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 
       char check_ip = req->type == CMDSOCK_ENTRY_FOR_IP;
 
+      struct in_addr ip;
+
 #ifdef ENABLE_JSON
       if (listfmt == LIST_JSON_FMT) {
 	bcatcstr(s, "{ \"sessions\":[");
       }
 #endif
       
+      ip.s_addr = check_ip ? req->sess.ip.s_addr : 0;
+
 #ifdef ENABLE_LAYER3
       if (_options.layer3) {
 	struct app_conn_t *conn = firstusedconn;
 	while (conn) {
 	  if (check_ip) {
-	    if (conn->hisip.s_addr == req->sess.ip.s_addr) {
+	    if (conn->hisip.s_addr == ip.s_addr) {
 	      chilli_print(s, listfmt, conn, 0);
 	      break;
 	    }
@@ -5214,7 +5222,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	struct dhcp_conn_t *conn = dhcp->firstusedconn;
 	while (conn) {
 	  if (check_ip) {
-	    if (conn->hisip.s_addr == req->sess.ip.s_addr) {
+	    if (conn->hisip.s_addr == ip.s_addr) {
 	      chilli_print(s, listfmt, 0, conn);
 	      break;
 	    }

@@ -338,6 +338,7 @@ int main(int argc, char **argv) {
   _options.tcpwin = args_info.tcpwin_arg;
   _options.tcpmss = args_info.tcpmss_arg;
   _options.max_clients = args_info.maxclients_arg;
+  _options.uamdomain_ttl = args_info.uamdomainttl_arg;
   _options.seskeepalive = args_info.seskeepalive_flag;
   _options.uamallowpost = args_info.uamallowpost_flag;
   _options.redir = args_info.redir_flag;
@@ -615,7 +616,7 @@ int main(int argc, char **argv) {
   for (numargs = 0; numargs < args_info.uamallowed_given; ++numargs) {
     pass_throughs_from_string(_options.pass_throughs,
 			      MAX_PASS_THROUGHS,
-			      &_options.num_pass_throughs,
+			      &_options.num_pass_throughs, 0, 
 			      args_info.uamallowed_arg[numargs]);
   }
 
@@ -691,7 +692,7 @@ int main(int argc, char **argv) {
   for (numargs = 0; numargs < args_info.uamregex_given; ++numargs) {
     regex_pass_throughs_from_string(_options.regex_pass_throughs,
 				    MAX_REGEX_PASS_THROUGHS,
-				    &_options.regex_num_pass_throughs,
+				    &_options.regex_num_pass_throughs, 0, 
 				    args_info.uamregex_arg[numargs]);
   }
 #endif

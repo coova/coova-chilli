@@ -32,6 +32,27 @@
 #define inaddrr(x) (*(struct in_addr *) &ifr->x[sizeof sa.sin_port])
 #define IFRSIZE   ((int)(size * sizeof (struct ifreq)))
 
+char *get_ip_str(const struct sockaddr *sa, char *s, size_t maxlen)
+{
+  switch(sa->sa_family) {
+  case AF_INET:
+    inet_ntop(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr),
+	      s, maxlen);
+    break;
+ 
+  case AF_INET6:
+    inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)sa)->sin6_addr),
+	      s, maxlen);
+    break;
+ 
+  default:
+    strncpy(s, "Unknown AF", maxlen);
+    break;
+  }
+ 
+  return s;
+}
+
 int main(void)
 {
   unsigned char      *u;
@@ -65,6 +86,8 @@ int main(void)
   ifr = ifc.ifc_req;
   for (;(char *) ifr < (char *) ifc.ifc_req + ifc.ifc_len; ++ifr) {
 
+    char ip[INET6_ADDRSTRLEN];
+
     if (ifr->ifr_addr.sa_data == (ifr+1)->ifr_addr.sa_data) {
       continue;  /* duplicate, skip it */
     }
@@ -74,32 +97,11 @@ int main(void)
     }
 
     printf("Interface:  %s\n", ifr->ifr_name);
+    printf("IP Address: %s\n", get_ip_str(&ifr->ifr_addr, ip, sizeof ip));
     printf("IP Address: %s\n", inet_ntoa(inaddrr(ifr_addr.sa_data)));
-
-    /*
-      This won't work on HP-UX 10.20 as there's no SIOCGIFHWADDR ioctl. You'll
-      need to use DLPI or the NETSTAT ioctl on /dev/lan0, etc (and you'll need
-      to be root to use the NETSTAT ioctl. Also this is deprecated and doesn't
-      work on 11.00).
-
-      On Digital Unix you can use the SIOCRPHYSADDR ioctl according to an old
-      utility I have. Also on SGI I think you need to use a raw socket, e.g. s
-      = socket(PF_RAW, SOCK_RAW, RAWPROTO_SNOOP)
-
-      Dave
-
-      From: David Peter <dave.peter@eu.citrix.com>
-     */
 
     if (0 == ioctl(sockfd, SIOCGIFHWADDR, ifr)) {
 
-      /* Select which  hardware types to process.
-       *
-       *    See list in system include file included from
-       *    /usr/include/net/if_arp.h  (For example, on
-       *    Linux see file /usr/include/linux/if_arp.h to
-       *    get the list.)
-       */
       switch (ifr->ifr_hwaddr.sa_family) {
       default:
 	printf("\n");

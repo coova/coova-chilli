@@ -166,6 +166,31 @@ struct pkt_iphdr_t {
   uint32_t daddr;
 } __attribute__((packed));
 
+#ifdef ENABLE_IPV6
+#define PKT_IPv6_ALEN 16
+struct pkt_ip6hdr_t {
+  uint32_t ver_class_label; /* 4bit version, 8bit class, 20bit label */
+  uint16_t data_len;
+  uint8_t next_header;
+  uint8_t hop_limit;
+  uint8_t src_addr[PKT_IPv6_ALEN];
+  uint8_t dst_addr[PKT_IPv6_ALEN];
+} __attribute__((packed));
+
+#define ICMPv6_NEXT_HEADER 58
+#define ipv6_version(x)  /*lazy!*/ \
+((((1<<31)|(1<<30)|(1<<29)|(1<<28))&(ntohl((x)->ver_class_label)))>>28)
+#define ipv6_class(x) \
+((((1<<27)|(1<<26)|(1<<25)|(1<<24)|(1<<23)|(1<<22)|(1<<21)|(1<<20))&(ntohl((x)->ver_class_label)))>>20)
+
+#define IPv6_ADDR_FMT "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x"
+#define ipv6_exlode_addr(x) \
+  (int) x[0], (int) x[1], (int) x[2], (int) x[3], (int) x[4], (int) x[5], \
+  (int) x[6], (int) x[7], (int) x[8], (int) x[9], (int) x[10], (int) x[11],\
+  (int) x[12], (int) x[13], (int) x[14], (int) x[15]
+
+#endif
+
 struct pkt_ipphdr_t {
   /* Convenience structure:
      Same as pkt_iphdr_t, but also
@@ -436,6 +461,9 @@ struct pkt_chillihdr_t {
 #define ethhdr(pkt)   ((struct pkt_ethhdr_t *)pkt)
 #define ipphdr(pkt)   ((struct pkt_ipphdr_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))
 #define iphdr(pkt)    ((struct pkt_iphdr_t *)   (((uint8_t*)(pkt)) + sizeofeth(pkt)))
+#ifdef ENABLE_IPV6
+#define ip6hdr(pkt)   ((struct pkt_ip6hdr_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))
+#endif
 #define icmphdr(pkt)  ((struct pkt_icmphdr_t *) (((uint8_t*)(pkt)) + sizeofip(pkt)))
 #define udphdr(pkt)   ((struct pkt_udphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))
 #define tcphdr(pkt)   ((struct pkt_tcphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))

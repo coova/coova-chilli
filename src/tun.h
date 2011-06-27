@@ -97,5 +97,10 @@ int tun_name2idx(struct tun_t *tun, char *name);
 void tun_delif(struct tun_t *tun, int ifindex);
 #endif
 
+#ifdef ENABLE_NETNAT
+int nat_init(net_interface *iface);
+int nat_do(struct tun_t *this, int idx, uint8_t *pack, size_t len);
+int nat_undo(struct tun_t *this, int idx, uint8_t *pack, size_t len);
+#endif
 
 #endif	/* !_TUN_H */

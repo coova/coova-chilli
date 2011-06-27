@@ -382,12 +382,16 @@ int main(int argc, char **argv) {
 		    break;
 		  }
 		  break;
-		case CMDSOCK_FIELD_IPV4:
-		  if (!inet_aton(argv[argidx+1], ((struct in_addr *)args[i].field))) {
-		    fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx+1]);
-		    return usage(argv[0]);
+		case CMDSOCK_FIELD_IPV4: 
+		  {
+		    struct in_addr ip;
+		    if (!inet_aton(argv[argidx+1], &ip)) {
+		      fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx+1]);
+		      return usage(argv[0]);
+		    }
+		    ((struct in_addr *)args[i].field)->s_addr = ip.s_addr;
+		    break;
 		  }
-		  break;
 		}
 		break;
 	      }
@@ -429,16 +433,20 @@ int main(int argc, char **argv) {
 	break;
       case CMDSOCK_ENTRY_FOR_IP:
 	{
+	  struct in_addr ip;
+
 	  /* Test for a valid ip argument. */
   	  if (argc < argidx+1) {
   	    fprintf(stderr, "%s requires an IP address argument\n", cmd);
   	    return usage(argv[0]);
   	  }
 	  
-	  if (!inet_aton(argv[argidx], &request.sess.ip)) {
+	  if (!inet_aton(argv[argidx], &ip)) {
 	    fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx]);
 	    return usage(argv[0]);
 	  }
+	 
+	  request.sess.ip.s_addr = ip.s_addr;
 	}
 	break;
 #ifdef ENABLE_MULTIROUTE

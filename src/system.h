@@ -222,6 +222,10 @@
 #include <regex.h>
 #endif
 
+#ifdef HAVE_IFADDRS_H
+#include <ifaddrs.h>
+#endif
+
 #undef LITTLE_ENDIAN
 #undef BIG_ENDIAN
 

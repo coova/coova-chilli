@@ -984,6 +984,43 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
 #endif
 }
 
+int net_getip(char *dev, struct in_addr *addr) {
+  struct ifreq ifr;
+  int ret = -1;
+  int fd=socket(AF_INET, SOCK_DGRAM, 0);
+  safe_strncpy(ifr.ifr_name, dev, sizeof(ifr.ifr_name));
+  if (ioctl(fd, SIOCGIFADDR, (caddr_t)&ifr) >= 0) {
+    struct sockaddr *sa = (struct sockaddr *)&(ifr.ifr_addr);
+    memcpy(addr, &((struct sockaddr_in *)sa)->sin_addr, sizeof(struct in_addr));
+    ret = 0;
+  }
+  close(fd);
+  return ret;
+}
+
+#ifdef ENABLE_IPV6
+int net_getip6(char *dev, struct in6_addr *addr) {
+  int ret = -1;
+  struct ifaddrs *ifaddr, *ifa;
+  int family;
+  
+  if (getifaddrs(&ifaddr) == 0) {
+    for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+      if (ifa->ifa_addr) {
+	family = ifa->ifa_addr->sa_family;
+	if (family == AF_INET6 && !strcmp(ifa->ifa_name, dev)) {
+	  struct sockaddr_in6 *sa = (struct sockaddr_in6 *) ifa->ifa_addr;
+	  memcpy(addr, &((struct sockaddr_in6 *)sa)->sin6_addr, sizeof(struct in6_addr));
+	  ret = 0;
+	  break;
+	}
+      }
+    }
+    freeifaddrs(ifaddr);
+  }
+  return ret;
+}
+#endif
 
 #if defined(USING_PCAP)
 
@@ -1137,7 +1174,8 @@ int net_open_eth(net_interface *netif) {
   }
   
   /* Get the current interface address, network, and any destination address */
-  
+  /* Get the IP address of our interface */
+
   /* Verify that MTU = ETH_DATA_LEN */
   safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFMTU, (caddr_t)&ifr) < 0) {

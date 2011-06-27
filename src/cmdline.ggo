@@ -46,6 +46,7 @@ option "conup"       - "Script to run after user logon"  string no
 option "condown"     - "Script to run after user logoff" string no
 option "macup"       - "Script to run after initial DHCP"  string no
 option "macdown"     - "Script to run after DHCP release" string no
+option "vlanupdate"  - "Script to run after 802.1Q/VLAN id assignment" string no
 option "txqlen"      - "TX Queue length for tun interface (linux only)"  int default="100" no
 option "tundev"      - "TUN/TAP Device, as in tun0 or tap1" string no
 option "mtu"         - "MTU given in DHCP" int default="1500" no
@@ -113,6 +114,7 @@ option "uamport"      - "TCP port to bind to for authentication requests" int de
 option "uamuiport"    - "TCP port to bind to for UAM UI requests" int default="3991" no
 option "uamallowed"   - "Domain names exempt from access check " string no multiple
 option "uamdomain"    - "Domain name allowed (active dns filtering; one per line!) " string no multiple
+option "uamdomainttl" - "DNS TTL to use (rewrite) when query matches a uamdomain" int default="60" no
 option "uamregex"     - "Regular expression to match URLs (one per line) " string no multiple
 option "uamanydns"    - "Allow client to use any DNS server" flag   off
 option "uamanyip"     - "Allow client to use any IP Address" flag   off

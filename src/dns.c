@@ -115,6 +115,7 @@ add_A_to_garden(uint8_t *p) {
   if (pass_through_add(dhcp->pass_throughs,
 		       MAX_PASS_THROUGHS,
 		       &dhcp->num_pass_throughs,
+		       &dhcp->next_pass_through,
 		       &pt))
     ;
 }
@@ -124,7 +125,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	     uint8_t **pktp, size_t *left, 
 	     uint8_t *opkt,  size_t olen, 
 	     uint8_t *question, size_t qsize,
-	     int *qmatch, int mode) {
+	     int isReq, int *qmatch, int *modified, int mode) {
 
 #define return_error { log_dbg("failed parsing DNS packet"); return -1; }
 
@@ -138,6 +139,8 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   uint16_t class;
   uint32_t ttl;
   uint16_t rdlen;
+
+  uint8_t *pkt_ttl=0;
 
   uint32_t ul;
   uint16_t us;
@@ -180,14 +183,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   if (antidnstunnel) {
     switch (type) {
     case 1:/* A */ 
-#if(_debug_ > 1)
-      log_dbg("A record");
-#endif
-      break;
     case 5:/* CNAME */ 
-#if(_debug_ > 1)
-      log_dbg("CNAME record");
-#endif
       break;
     default:
 #if(_debug_ > 1)
@@ -212,55 +208,10 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     
     *pktp = p_pkt;
     *left = len;
-    
-    return 0;
-  } 
 
-  if (len < 6) return_error;
-  
-  memcpy(&ul, p_pkt, sizeof(ul));
-  ttl = ntohl(ul);
-  p_pkt += 4;
-  len -= 4;
-  
-  memcpy(&us, p_pkt, sizeof(us));
-  rdlen = ntohs(us);
-  p_pkt += 2;
-  len -= 2;
-  
-#if(_debug_ > 1)
-  log_dbg("-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);
-#endif
-  
-  if (len < rdlen) return_error;
-  
-  /*
-   *  dns records 
-   */  
-  
-  switch (type) {
-    
-  case 1:/* A */
-
-#ifdef ENABLE_MDNS
-    if (mode == DNS_MDNS_MODE) {
-      size_t offset;
-      for (offset=0; offset < rdlen; offset += 4) {
-	struct in_addr reqaddr;
-	memcpy(&reqaddr.s_addr, p_pkt+offset, 4);
-#if(_debug_)
-	log_dbg("mDNS %s = %s", name, inet_ntoa(reqaddr));
-#endif
-      }
-      break;
-    }
-#endif    
-
-#if(_debug_ > 1)
-    log_dbg("A record");
-#endif
-    if (*qmatch == -1 && _options.uamdomains && _options.uamdomains[0]) {
+    if (!isReq && *qmatch == -1 && _options.uamdomains && _options.uamdomains[0]) {
       int id;
+
       for (id=0; _options.uamdomains[id] && id < MAX_UAM_DOMAINS; id++) {
 	
 	size_t qst_len = strlen((char *)question);
@@ -296,11 +247,71 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	}
       }
     }
+
 #ifdef ENABLE_UAMDOMAINFILE
-    if (*qmatch == -1 && _options.uamdomainfile) {
+    if (!isReq && *qmatch == -1 && _options.uamdomainfile) {
       *qmatch = garden_check_domainfile((char *) question);
     }
 #endif
+
+    return 0;
+  } 
+
+  if (len < 6) return_error;
+
+  pkt_ttl = p_pkt;
+  memcpy(&ul, p_pkt, sizeof(ul));
+  ttl = ntohl(ul);
+  p_pkt += 4;
+  len -= 4;
+  
+  memcpy(&us, p_pkt, sizeof(us));
+  rdlen = ntohs(us);
+  p_pkt += 2;
+  len -= 2;
+  
+#if(_debug_ > 1)
+  log_dbg("-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);
+#endif
+
+  if (*qmatch == 1 && ttl > _options.uamdomain_ttl) {
+#if(_debug_)
+    log_dbg("Rewriting DNS ttl from %d to %d", 
+	    (int) ttl, _options.uamdomain_ttl);
+#endif
+    ul = _options.uamdomain_ttl;
+    ul = htonl(ul);
+    memcpy(pkt_ttl, &ul, sizeof(ul));
+    *modified = 1;
+  }
+      
+  if (len < rdlen) return_error;
+  
+  /*
+   *  dns records 
+   */  
+  
+  switch (type) {
+    
+  case 1:  /* A */
+#if(_debug_ > 1)
+    log_dbg("A record");
+#endif
+
+#ifdef ENABLE_MDNS
+    if (mode == DNS_MDNS_MODE) {
+      size_t offset;
+      for (offset=0; offset < rdlen; offset += 4) {
+	struct in_addr reqaddr;
+	memcpy(&reqaddr.s_addr, p_pkt+offset, 4);
+#if(_debug_)
+	log_dbg("mDNS %s = %s", name, inet_ntoa(reqaddr));
+#endif
+      }
+      break;
+    }
+#endif    
+
     if (*qmatch == 1) {
       size_t offset;
       for (offset=0; offset < rdlen; offset += 4) {
@@ -308,11 +319,11 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
       }
     }
     break;
-    
-  case 5:/* CNAME */
+
+  case 5:  /* CNAME */
     log_dbg("CNAME record %s", name);
     break;
-
+    
   case 16:/* TXT */
     log_dbg("TXT record %d", rdlen);
     if (_options.debug) {

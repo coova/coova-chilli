@@ -207,6 +207,7 @@ struct options_t {
 #endif
 
   char* uamdomains[MAX_UAM_DOMAINS];
+  int uamdomain_ttl;
 
   /* MAC Authentication */
   uint8_t macok[MACOK_MAX][PKT_ETH_ALEN]; /* Allowed MACs */
@@ -275,6 +276,10 @@ struct options_t {
 
   /* Command-Socket */
   char *cmdsocket;
+
+#ifdef ENABLE_IEEE8021Q
+  char * vlanupdate;
+#endif
 
 #ifdef ENABLE_LEAKYBUCKET
   uint32_t bwbucketupsize;

@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(coova-chilli, 1.2.7, support@coova.com)
+AC_INIT(coova-chilli, 1.2.8-svn, support@coova.com)
 AC_CONFIG_SRCDIR([src/cmdline.c])
 
 AM_INIT_AUTOMAKE
@@ -29,7 +29,7 @@ AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h dirent.h \
 		  sys/ioctl.h sys/socket.h sys/sysinfo.h \
 		  sys/param.h sys/time.h time.h \
 		  sys/ipc.h sys/msg.h signal.h \
-		  sys/wait.h sys/un.h \
+		  sys/wait.h sys/un.h ifaddrs.h \
 		  sys/stat.h sys/types.h regex.h \
 		  syslog.h poll.h sys/epoll.h \
 		  unistd.h endian.h libgen.h \
@@ -70,7 +70,7 @@ AC_FUNC_MEMCMP
 AC_FUNC_SELECT_ARGTYPES
 AC_CHECK_FUNCS([gethostbyname getprotoent gettimeofday inet_ntoa \
 memset select socket strdup strerror strstr strtol getline dirname \
-glob getaddrinfo getnameinfo])
+glob getaddrinfo getnameinfo getifaddrs])
 AC_CHECK_LIB(resolv, res_init)
 
 AC_ARG_ENABLE(chilliquery, [AC_HELP_STRING([--disable-chilliquery],[Disable chilli_query])], 

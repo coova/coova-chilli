@@ -201,6 +201,10 @@ typedef struct _net_interface {
   struct in_addr broadcast;
   struct in_addr gateway;
 
+#ifdef ENABLE_IPV6
+  struct in6_addr address_v6;
+#endif
+
 #ifdef ENABLE_MULTIROUTE
 #if(1) /* XXX  ONE2ONE */
   struct in_addr nataddress;
@@ -305,6 +309,11 @@ int net_open_nfqueue(net_interface *netif, uint16_t q, int (*cb)());
 int net_select_reg(select_ctx *sctx, int fd, char evts, select_callback cb, void *ctx, int idx);
 int net_select_rereg(select_ctx *sctx, int oldfd, int newfd);
 int net_select_dereg(select_ctx *sctx, int oldfd);
+
+int net_getip(char *dev, struct in_addr *addr);
+#ifdef ENABLE_IPV6
+int net_getip6(char *dev, struct in6_addr *addr);
+#endif
 
 int net_close(net_interface *netif);
 

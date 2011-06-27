@@ -33,6 +33,6 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	     uint8_t **pktp, size_t *left, 
 	     uint8_t *opkt, size_t olen,
 	     uint8_t *question, size_t qsize,
-	     int *qmatch, int mode);
+	     int isReq, int *qmatch, int *modified, int mode);
 
 #endif

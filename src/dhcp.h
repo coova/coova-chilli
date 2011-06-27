@@ -125,7 +125,7 @@ struct dhcp_conn_t {
   uint8_t noc2c:1;             /* Prevent client to client access using /32 subnets */
   uint8_t is_reserved:1;       /* If this is a static/reserved mapping */
   uint8_t padding:5;
-  
+
   time_t lasttime;             /* Last time we heard anything from client */
   uint8_t hismac[PKT_ETH_ALEN];/* Peer's MAC address */
   struct in_addr ourip;        /* IP address to listen to */
@@ -147,6 +147,9 @@ struct dhcp_conn_t {
 
 #ifdef ENABLE_IEEE8021Q
   uint16_t tag8021q;
+#endif
+
+#ifdef ENABLE_IPV6
 #endif
 
 #ifdef ENABLE_DHCPRADIUS
@@ -188,17 +191,27 @@ struct dhcp_t {
 #endif
 
   int debug;            /* Set to print debug messages */
+
   struct in_addr ourip; /* IP address to listen to */
+
   int mtu;              /* Maximum transfer unit */
+
   uint32_t lease;       /* Seconds before reneval */
+
   int usemac;           /* Use given mac address */
+
   int promisc;          /* Set interface in promisc mode */
+
   int allowdyn;         /* Allow allocation of IP address on DHCP request */
+
   struct in_addr uamlisten; /* IP address to redirect HTTP requests to */
   uint16_t uamport;     /* TCP port to redirect HTTP requests to */
+
   struct in_addr *authip; /* IP address of authentication server */
   int authiplen;        /* Number of authentication server IP addresses */
+
   int anydns;           /* Allow any dns server */
+
   int noc2c;            /* Prevent client to client access using /32 subnets */
 
   int relayfd;          /* DHCP relay socket, 0 if not relaying */
@@ -217,6 +230,7 @@ struct dhcp_t {
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
   uint32_t num_pass_throughs;
+  uint32_t next_pass_through;
 
   /* Call back functions */
   int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len);

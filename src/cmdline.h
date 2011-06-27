@@ -128,6 +128,9 @@ struct gengetopt_args_info
   char * macdown_arg;	/**< @brief Script to run after DHCP release.  */
   char * macdown_orig;	/**< @brief Script to run after DHCP release original value given at command line.  */
   const char *macdown_help; /**< @brief Script to run after DHCP release help description.  */
+  char * vlanupdate_arg;	/**< @brief Script to run after 802.1Q/VLAN id assignment.  */
+  char * vlanupdate_orig;	/**< @brief Script to run after 802.1Q/VLAN id assignment original value given at command line.  */
+  const char *vlanupdate_help; /**< @brief Script to run after 802.1Q/VLAN id assignment help description.  */
   int txqlen_arg;	/**< @brief TX Queue length for tun interface (linux only) (default='100').  */
   char * txqlen_orig;	/**< @brief TX Queue length for tun interface (linux only) original value given at command line.  */
   const char *txqlen_help; /**< @brief TX Queue length for tun interface (linux only) help description.  */
@@ -286,6 +289,9 @@ struct gengetopt_args_info
   unsigned int uamdomain_min; /**< @brief Domain name allowed (active dns filtering; one per line!) 's minimum occurreces */
   unsigned int uamdomain_max; /**< @brief Domain name allowed (active dns filtering; one per line!) 's maximum occurreces */
   const char *uamdomain_help; /**< @brief Domain name allowed (active dns filtering; one per line!)  help description.  */
+  int uamdomainttl_arg;	/**< @brief DNS TTL to use (rewrite) when query matches a uamdomain (default='60').  */
+  char * uamdomainttl_orig;	/**< @brief DNS TTL to use (rewrite) when query matches a uamdomain original value given at command line.  */
+  const char *uamdomainttl_help; /**< @brief DNS TTL to use (rewrite) when query matches a uamdomain help description.  */
   char ** uamregex_arg;	/**< @brief Regular expression to match URLs (one per line) .  */
   char ** uamregex_orig;	/**< @brief Regular expression to match URLs (one per line)  original value given at command line.  */
   unsigned int uamregex_min; /**< @brief Regular expression to match URLs (one per line) 's minimum occurreces */
@@ -563,6 +569,7 @@ struct gengetopt_args_info
   unsigned int condown_given ;	/**< @brief Whether condown was given.  */
   unsigned int macup_given ;	/**< @brief Whether macup was given.  */
   unsigned int macdown_given ;	/**< @brief Whether macdown was given.  */
+  unsigned int vlanupdate_given ;	/**< @brief Whether vlanupdate was given.  */
   unsigned int txqlen_given ;	/**< @brief Whether txqlen was given.  */
   unsigned int tundev_given ;	/**< @brief Whether tundev was given.  */
   unsigned int mtu_given ;	/**< @brief Whether mtu was given.  */
@@ -616,6 +623,7 @@ struct gengetopt_args_info
   unsigned int uamuiport_given ;	/**< @brief Whether uamuiport was given.  */
   unsigned int uamallowed_given ;	/**< @brief Whether uamallowed was given.  */
   unsigned int uamdomain_given ;	/**< @brief Whether uamdomain was given.  */
+  unsigned int uamdomainttl_given ;	/**< @brief Whether uamdomainttl was given.  */
   unsigned int uamregex_given ;	/**< @brief Whether uamregex was given.  */
   unsigned int uamanydns_given ;	/**< @brief Whether uamanydns was given.  */
   unsigned int uamanyip_given ;	/**< @brief Whether uamanyip was given.  */
