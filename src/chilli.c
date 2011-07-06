@@ -5321,7 +5321,8 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 
 	  safe_strncpy(gw, inet_ntoa(tun->_interfaces[i].gateway), sizeof(gw));
 
-	  bassignformat(b, "idx: %d dev: %s %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X%s\n", 
+	  bassignformat(b, "idx: %d dev: %s %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X "
+			"%s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X%s\n", 
 			i, tun->_interfaces[i].devname,
 			inet_ntoa(tun->_interfaces[i].address),
 			tun->_interfaces[i].hwaddr[0],

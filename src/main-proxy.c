@@ -61,6 +61,7 @@ typedef struct _proxy_request {
 
 #ifdef USING_CURL
   CURL *curl;
+  char error_buffer[CURL_ERROR_SIZE];
 #endif
 
   struct conn_t conn;
@@ -68,6 +69,8 @@ typedef struct _proxy_request {
   struct radius_t *radius;
 
   struct _proxy_request *prev, *next;
+
+  time_t lasttime;
   
 } proxy_request;
 
@@ -88,7 +91,7 @@ static void print_requests() {
   for (i=0; i < max_requests; i++) {
     req = &requests[i];
     log_info("%.3d. inuse=%d prev=%.3d next=%.3d url=%s fd=%d", 
-	     req->index, req->inuse,
+	     req->index, req->inuse ? 1 : 0,
 	     req->prev ? req->prev->index : -1,
 	     req->next ? req->next->index : -1,
 	     req->url ? (char *)req->url->data : "",
@@ -137,6 +140,8 @@ static proxy_request * get_request() {
     return 0;
   }
 
+  log_dbg("request index %d", req->index);
+  req->lasttime = time(NULL);
   req->next = req->prev = 0;
   req->inuse = 1;
   return req;
@@ -158,6 +163,8 @@ static int radius_reply(struct radius_t *this,
 }
 
 static void close_request(proxy_request *req) {
+
+  log_dbg("%s", __FUNCTION__);
 
   if (req->url)  bdestroy(req->url);
   if (req->data) bdestroy(req->data);
@@ -192,14 +199,19 @@ static int http_aaa_finish(proxy_request *req) {
 #if(_debug_)
   log_dbg("calling curl_easy_cleanup()");
 #endif
-  curl_multi_remove_handle(curl_multi, req->curl);
-  curl_easy_cleanup(req->curl);
-  req->curl = 0;
+  if (req->curl) {
+    if (req->error_buffer[0])
+      log_dbg("curl error %s", req->error_buffer);
+    curl_multi_remove_handle(curl_multi, req->curl);
+    curl_easy_cleanup(req->curl);
+    req->curl = 0;
+    req->error_buffer[0] = 0;
+  }
 #else
   conn_close(&req->conn);
 #endif
 
-  if (req->data->slen) {
+  if (req->data && req->data->slen) {
 #if(_debug_)
     log_dbg("Received: %s\n",req->data->data);
 #endif
@@ -365,9 +377,13 @@ static int http_aaa_finish(proxy_request *req) {
 #ifdef USING_CURL
 static int bstring_data(void *ptr, size_t size, size_t nmemb, void *userdata) {
   bstring s = (bstring) userdata;
-  int rsize = size * nmemb;
-  bcatblk(s,ptr,rsize);
-  return rsize;
+  if (size > 0 && nmemb > 0) {
+    int rsize = size * nmemb;
+    bcatblk(s,ptr,rsize);
+    log_dbg("read %d", rsize);
+    return rsize;
+  }
+  return 0;
 }
 
 static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
@@ -384,21 +400,18 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
 #endif
 
   req->radius = radius;
-
+  
   if ((curl = req->curl = curl_easy_init()) != NULL) {
-    char error_buffer[CURL_ERROR_SIZE];
-
-    memset(error_buffer, 0, sizeof(error_buffer));
-
+    
     if (req->post) {
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, (char *) req->post->data);
     }
-
+    
     if (user && pwd) {
     }
-
+    
 #ifdef HAVE_OPENSSL
-
+    
     if (cert && strlen(cert)) {
 #if(_debug_)
       log_dbg("using cert [%s]",cert);
@@ -430,7 +443,7 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
 #endif
       }
     }
-
+    
     if (ca && strlen(ca)) {
 #ifdef CURLOPT_ISSUERCERT
 #if(_debug_)
@@ -445,13 +458,13 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
     else {
       curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0);
     }
-
+    
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0);
     curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_SSLv3);
 #endif
-
+    
     curl_easy_setopt(curl, CURLOPT_VERBOSE, /*debug ? 1 :*/ 0);
-
+    
     curl_easy_setopt(curl, CURLOPT_URL, req->url->data);
     
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "CoovaChilli " VERSION);
@@ -459,15 +472,15 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
     curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1); 
     curl_easy_setopt(curl, CURLOPT_NETRC, 0);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
-
+    
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, (curl_write_callback) bstring_data);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (char *) req->data);
-
-    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
-
+    
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, req->error_buffer);
+    
     result = 0;
   }
-
+  
   return result;
 }
 #else
@@ -494,6 +507,7 @@ static int http_conn_read(struct conn_t *conn, void *ctx) {
       break;
     }
   }
+  req->lasttime = time(NULL);
   return 0;
 }
 
@@ -823,9 +837,10 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0, 0)) {
       if ((attr->l-2) == sizeof(struct in_addr)) {
-	struct in_addr *ip = (struct in_addr *) &(attr->v.i);
+	struct in_addr ip;
+	ip.s_addr = attr->v.i;
 	bcatcstr(req->url, "&ip=");
-	bcatcstr(req->url, inet_ntoa(*ip));
+	bcatcstr(req->url, inet_ntoa(ip));
       }
     }
 
@@ -989,6 +1004,8 @@ int main(int argc, char **argv) {
 
   int selfpipe;
 
+  int max_conn_time = 60;
+
   options_init();
 
   selfpipe = selfpipe_init();
@@ -1044,6 +1061,8 @@ int main(int argc, char **argv) {
 
   while (keep_going) {
 
+    int expired_time = time(NULL) - max_conn_time;
+
     if (reload_config) {
       reload_options(argc, argv);
       reload_config = 0;
@@ -1056,6 +1075,14 @@ int main(int argc, char **argv) {
     FD_SET(selfpipe, &fdread);
     FD_SET(radius_auth->fd, &fdread);
     FD_SET(radius_acct->fd, &fdread);
+
+    for (idx=0; idx < max_requests; idx++) {
+      if (requests[idx].inuse && 
+	  requests[idx].lasttime < expired_time) {
+	log_dbg("remove expired index %d", idx);
+	http_aaa_finish(&requests[idx]);
+      }
+    }
 
 #ifdef USING_CURL
     curl_multi_fdset(curl_multi, &fdread, &fdwrite, &fdexcep, &maxfd);
@@ -1108,13 +1135,14 @@ int main(int argc, char **argv) {
 	   *    ---> Authentication
 	   */
 	  
-	  if ((status = recvfrom(radius_auth->fd, &radius_pack, sizeof(radius_pack), 0, 
+	  if ((status = recvfrom(radius_auth->fd, 
+				 &radius_pack, sizeof(radius_pack), 0, 
 				 (struct sockaddr *) &addr, &fromlen)) <= 0) {
 	    log_err(errno, "recvfrom() failed");
 	    
 	    return -1;
 	  }
-	  
+
 	  process_radius(radius_auth, &radius_pack, &addr);
 	}
 	
@@ -1127,7 +1155,8 @@ int main(int argc, char **argv) {
 	  log_dbg("received accounting");
 #endif
 	  
-	  if ((status = recvfrom(radius_acct->fd, &radius_pack, sizeof(radius_pack), 0, 
+	  if ((status = recvfrom(radius_acct->fd, 
+				 &radius_pack, sizeof(radius_pack), 0, 
 			       (struct sockaddr *) &addr, &fromlen)) <= 0) {
 	    log_err(errno, "recvfrom() failed");
 	    return -1;
@@ -1136,7 +1165,7 @@ int main(int argc, char **argv) {
 	  process_radius(radius_acct, &radius_pack, &addr);
 	}
       }
-      
+
 #ifdef USING_CURL
       while(CURLM_CALL_MULTI_PERFORM ==
 	    curl_multi_perform(curl_multi, &still_running));

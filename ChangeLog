@@ -3,7 +3,9 @@
 
 * New option ''--uamdomainttl'' to define a rewrite value for the DNS TTL on uamdomain matched responses
 * Made the dynamic garden able to overwrite the oldest entries to make way for the new
-	
+* Increased the max packet size for --enable-largelimits and implemented ICMP fragmentation when packets truncated
+* Bug fix in main-proxy use of error_buffer with cURL
+
 == ChangeLog (CoovaChilli-v1.2.7 svn revision 443) ==
 
 * Improved RADIUS queue robustness, and will only remove from queue after verifying shared secret

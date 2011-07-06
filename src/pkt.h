@@ -75,7 +75,7 @@
 #define DHCP_LEN  (DHCP_MIN_LEN+DHCP_OPTIONS_LEN)
 
 /*#define PKT_BUFFER (PKT_IP_PLEN + PKT_ETH_HLEN + 4)*/
-#define PKT_BUFFER 2048
+#define PKT_BUFFER PKT_MAX_LEN
 
 struct pkt_ethhdr_t {
   uint8_t  dst[PKT_ETH_ALEN];
@@ -158,7 +158,8 @@ struct pkt_iphdr_t {
   uint8_t  tos;
   uint16_t tot_len;
   uint16_t id;
-  uint16_t frag_off;
+  uint8_t opt_off_high;
+  uint8_t off_low;
   uint8_t  ttl;
   uint8_t  protocol;
   uint16_t check;

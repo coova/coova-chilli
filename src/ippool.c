@@ -91,7 +91,8 @@ int ippool_print(int fd, struct ippool_t *this) {
 		    dhcpconn ? dhcpconn->is_reserved ? " reserved" : "" : "",
 		    appconn->hismac[0],appconn->hismac[1],appconn->hismac[2],
 		    appconn->hismac[3],appconn->hismac[4],appconn->hismac[5],
-		    inet_ntoa(appconn->hisip), (int)(now - dhcpconn->lasttime));
+		    inet_ntoa(appconn->hisip), 
+		    dhcpconn ? ((int)(now - dhcpconn->lasttime)) : -1);
     } else {
       peerLine[0]=0;
     }

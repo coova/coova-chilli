@@ -751,6 +751,11 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 			MSG_DONTWAIT | MSG_TRUNC, 
 			(struct sockaddr *) &s_addr, 
 			(socklen_t *) &addr_len);
+    if (len > dlen) {
+      log_warn(0, "data truncated, sending ICMP error %d/%d", 
+	       len, dlen);
+      len = dlen;
+    }
 #endif
 
     if (len < 0) {

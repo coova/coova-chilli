@@ -84,7 +84,8 @@ int test_dhcp(int cnt) {
     packet_iph->tos = 0;
     packet_iph->tot_len = 0; /* Calculate at end of packet */
     packet_iph->id = 0;
-    packet_iph->frag_off = 0;
+    packet_iph->opt_off_high = 0;
+    packet_iph->off_low = 0;
     packet_iph->ttl = 0x10;
     packet_iph->protocol = 0x11;
     packet_iph->check = 0; /* Calculate at end of packet */

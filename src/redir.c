@@ -3951,7 +3951,8 @@ int redir_main(struct redir_t *redir,
     answer_iph->tos = 0;
     answer_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
     answer_iph->id = 0;
-    answer_iph->frag_off = 0;
+    answer_iph->opt_off_high = 0;
+    answer_iph->off_low = 0;
     answer_iph->ttl = 0x10;
     answer_iph->protocol = 0x11;
     answer_iph->check = 0; /* Calculate at end of packet */      

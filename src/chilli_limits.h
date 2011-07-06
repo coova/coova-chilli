@@ -94,7 +94,6 @@
 
 #define UAMSERVER_MAX                      8
 
-#define PKT_MAX_LEN     2048   /* Maximum packet size we receive */
 #define TUN_SCRIPTSIZE   512
 #define TUN_ADDRSIZE     128
 #define TUN_NLBUFSIZE   1024
@@ -103,6 +102,7 @@
 #define TCP_MAX_OPTION_LEN 40
 
 #ifdef ENABLE_LARGELIMITS
+#define PKT_MAX_LEN                    65535 /* Maximum packet size we receive */
 #define MAX_EAP_LEN                     3000 /* Size of buffer to hold EAP message */
 #define SESSION_PASS_THROUGH_MAX          16
 #define MAX_PASS_THROUGHS                512 /* Max number of allowed UAM pass-throughs */
@@ -111,6 +111,7 @@
 #define MACOK_MAX                         56
 #define MAX_SELECT                        56
 #else
+#define PKT_MAX_LEN                     5000 /* Maximum packet size we receive */
 #define MAX_EAP_LEN                     1500 /* Size of buffer to hold EAP message */
 #define SESSION_PASS_THROUGH_MAX           8
 #define MAX_PASS_THROUGHS                128 /* Max number of allowed UAM pass-throughs */

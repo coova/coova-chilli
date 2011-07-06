@@ -59,8 +59,10 @@ int chksum(struct pkt_iphdr_t *iph) {
   if (hlen != PKT_IP_HLEN)
     return -1;
 
+#if(PKT_BUFFER < 65535)
   if (len > PKT_BUFFER) 
     return -1; /* too long? */
+#endif
   if (len < hlen) 
     return -1; /* too short? */
 
@@ -95,7 +97,6 @@ int chksum(struct pkt_iphdr_t *iph) {
     }
     break;
 
-    /* not affected by NAT'ing, so..
   case PKT_IP_PROTO_ICMP:
     {
       struct pkt_icmphdr_t *icmph = (struct pkt_icmphdr_t *)(((void *)iph) + hlen);
@@ -105,7 +106,6 @@ int chksum(struct pkt_iphdr_t *iph) {
       icmph->check = cksum_wrap(sum);
     }
     break;
-    */
   }
   
   iph->check = 0;

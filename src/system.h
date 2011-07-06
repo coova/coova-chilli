@@ -24,15 +24,14 @@
 /*
  *   I do not like this here, but otherwise
  *   __u64 is not defined. Set by -ansi
+#undef __STRICT_ANSI__
  */
 
-#undef __STRICT_ANSI__
-
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
-#include <stdarg.h>
 
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>

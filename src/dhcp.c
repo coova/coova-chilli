@@ -1233,6 +1233,66 @@ int dhcp_ipwhitelist(uint8_t *pack, unsigned char dst) {
   return 0;
 }
 #endif
+
+size_t icmpfrag(uint8_t *pack, size_t plen, uint8_t *orig_pack) {
+  /*
+   0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |     Type      |     Code      |          Checksum             |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                             unused                            |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |      Internet Header + 64 bits of Original Data Datagram      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Used when we recived a truncated (from recvfrom() where our buffer
+   is smaller than IP packet length) IP packet.
+  */
+
+  size_t icmp_req_len = PKT_IP_HLEN + 64;
+
+  size_t icmp_ip_len = PKT_IP_HLEN + sizeof(struct pkt_icmphdr_t) + 
+    4 + icmp_req_len;
+
+  size_t icmp_full_len = icmp_ip_len + sizeofeth(orig_pack);
+
+  struct pkt_iphdr_t  *orig_pack_iph  = iphdr(orig_pack);
+  struct pkt_ethhdr_t *orig_pack_ethh = ethhdr(orig_pack);
+
+  if (icmp_full_len > plen) return 0;
+
+  memset(pack, 0, icmp_full_len);
+  copy_ethproto(orig_pack, pack);
+
+  {
+    struct pkt_ethhdr_t *pack_ethh  = ethhdr(pack);
+    struct pkt_iphdr_t *pack_iph = iphdr(pack);
+    struct pkt_icmphdr_t *pack_icmph = icmphdr(pack);
+
+    /* eth */
+    memcpy(pack_ethh->dst, orig_pack_ethh->src, PKT_ETH_ALEN); 
+    memcpy(pack_ethh->src, orig_pack_ethh->dst, PKT_ETH_ALEN); 
+    
+    /* ip */
+    pack_iph->saddr = orig_pack_iph->daddr;
+    pack_iph->daddr = orig_pack_iph->saddr;
+    pack_iph->protocol = PKT_IP_PROTO_ICMP;
+    pack_iph->version_ihl = PKT_IP_VER_HLEN;
+    pack_iph->ttl = 0x10;
+    pack_iph->tot_len = htons(icmp_ip_len);
+    
+    pack_icmph->type = 3;
+    pack_icmph->code = 4;
+
+    memcpy(pack + (icmp_full_len - icmp_req_len), 
+	   orig_pack + sizeofeth(orig_pack), icmp_req_len);
+    
+    chksum(pack_iph);
+  }
+  
+  return icmp_full_len;
+}
   
 size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
 
@@ -1630,7 +1690,8 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 	answer_iph->tos = 0;
 	answer_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
 	answer_iph->id = 0;
-	answer_iph->frag_off = 0;
+	answer_iph->opt_off_high = 0;
+	answer_iph->off_low = 0;
 	answer_iph->ttl = 0x10;
 	answer_iph->protocol = 0x11;
 	answer_iph->check = 0; /* Calculate at end of packet */      
@@ -2171,7 +2232,8 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
   pack_iph->tos = 0;
   pack_iph->tot_len = 0; /* Calculate at end of packet */
   pack_iph->id = 0;
-  pack_iph->frag_off = 0;
+  pack_iph->opt_off_high = 0;
+  pack_iph->off_low = 0;
   pack_iph->ttl = 0x10;
   pack_iph->protocol = 0x11;
   pack_iph->check = 0; /* Calculate at end of packet */
@@ -2937,13 +2999,21 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
    * Sanity check on IP total length
    */
   if ((int)ntohs(pack_iph->tot_len) + sizeofeth(pack) > len) {
-    /* May have Ethernet trailer/padding added into 'len' */
+    uint8_t icmp_pack[PKT_BUFFER];
+    struct dhcp_t *this = conn->parent;
+
     log_dbg("dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
 	    (int)ntohs(pack_iph->tot_len),
 	    sizeofeth(pack), (int)len);
+
+    if (pack_iph->opt_off_high & 64) { /* Don't Defrag Option */
+      dhcp_send(this, &this->rawif, conn->hismac, icmp_pack, 
+		icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
+    }
+
     return 0;
   }
-  
+
   /*
    * Sanity check on UDP total length
    */
