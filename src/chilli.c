@@ -551,7 +551,9 @@ static inline void leaky_bucket_init(struct app_conn_t *conn) {
 }
 
 /* Perform leaky bucket on up- and downlink traffic */
-static inline int leaky_bucket(struct app_conn_t *conn, uint64_t octetsup, uint64_t octetsdown) {
+static inline int 
+leaky_bucket(struct app_conn_t *conn, 
+	     uint64_t octetsup, uint64_t octetsdown) {
   int result = 0;
   uint64_t timediff; 
 
@@ -910,6 +912,12 @@ int chilli_getconn(struct app_conn_t **conn, uint32_t ip,
 
 int static dnprot_terminate(struct app_conn_t *appconn) {
   appconn->s_state.authenticated = 0;
+#ifdef ENABLE_LEAKYBUCKET
+  appconn->s_state.bucketup = 0;
+  appconn->s_state.bucketdown = 0;
+  appconn->s_state.bucketupsize = 0;
+  appconn->s_state.bucketdownsize = 0;
+#endif
 #ifdef HAVE_NETFILTER_COOVA
   kmod_coova_update(appconn);
 #endif
@@ -2290,6 +2298,14 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 
   appconn = (struct app_conn_t *)ipm->peer;
 
+#ifdef ENABLE_LEAKYBUCKET
+  if (appconn && appconn->s_state.bucketdownsize) {
+    uint16_t win = appconn->s_state.bucketdownsize - 
+      appconn->s_state.bucketdown;
+    pkt_shape_tcpwin((struct pkt_iphdr_t *)ipph, win);
+  }
+#endif
+  
 #ifdef ENABLE_LAYER3
   if (_options.layer3 && appconn && !appconn->dnlink)
     if (fwd_layer3(appconn, &dst, udph, pack, len, ethhdr)) 
@@ -2301,7 +2317,7 @@ int cb_tun_ind(struct tun_t *tun, void *pack, size_t len, int idx) {
 	    appconn ? "dnlink" : "peer", inet_ntoa(dst));
     return 0;
   }
-  
+
 #ifdef ENABLE_UAMANYIP
   /**
    * connection needs to be NAT'ed, since client is an anyip client
@@ -4318,13 +4334,13 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     
     appconn->hisip.s_addr = ipm->addr.s_addr;
     appconn->hismask.s_addr = _options.mask.s_addr;
-
+    
     log(LOG_NOTICE, "Client MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X assigned IP %s" , 
 	conn->hismac[0], conn->hismac[1], 
 	conn->hismac[2], conn->hismac[3],
 	conn->hismac[4], conn->hismac[5], 
 	inet_ntoa(appconn->hisip));
-
+    
 #ifdef ENABLE_MODULES
     { int i;
       for (i=0; i < MAX_MODULES; i++) {
@@ -4765,12 +4781,19 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 
 /* Callback for receiving messages from dhcp */
 int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
-  struct app_conn_t *appconn = conn->peer;
+  struct app_conn_t *appconn = dhcp_get_appconn(conn, pack, 0);
   struct pkt_ipphdr_t *ipph = ipphdr(pack);
 
   /*if (_options.debug)
     log_dbg("cb_dhcp_data_ind. Packet received. DHCP authstate: %d\n", 
     conn->authstate);*/
+
+#ifdef ENABLE_LEAKYBUCKET
+  if (appconn && appconn->s_state.bucketup)
+    pkt_shape_tcpwin((struct pkt_iphdr_t *)ipph,
+		     appconn->s_state.bucketupsize - 
+		     appconn->s_state.bucketup);
+#endif
 
   if (!appconn) {
 #ifdef ENABLE_LAYER3

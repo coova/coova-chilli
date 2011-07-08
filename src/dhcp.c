@@ -18,6 +18,9 @@
  */
 
 #include "chilli.h"
+#ifdef ENABLE_MODULES
+#include "chilli_module.h"
+#endif
 #include "debug.h"
 
 const uint32_t DHCP_OPTION_MAGIC = 0x63825363;
@@ -83,7 +86,8 @@ void print_peers(bstring s) {
     }
 
     safe_snprintf(line, sizeof(line),
-		  "Peer %d %-4s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x / %-16s %-8s %d sec", 
+		  "Peer %d %-4s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+		  "/ %-16s %-8s %d sec", 
 		  i, _options.peerid == i ? "(*)" : "",
 		  peer->mac[0],peer->mac[1],peer->mac[2],
 		  peer->mac[3],peer->mac[4],peer->mac[5],
@@ -96,6 +100,73 @@ void print_peers(bstring s) {
 
 int dhcp_send_chilli(uint8_t *pkt, size_t len) {
   return 0;
+}
+
+#ifdef ENABLE_LAYER3
+static struct app_conn_t *
+dhcp_get_appconn_byip(struct dhcp_conn_t *conn, struct in_addr *dst) {
+  struct app_conn_t *appconn = 0;
+  struct ippoolm_t *ipm = 0;
+
+#if(_debug_ > 1)
+  log_dbg("Looking up appconn for %s", inet_ntoa(*dst));
+#endif
+      
+  if (ippool_getip(ippool, &ipm, dst)) {
+    log_dbg("No ip assigned for %s", inet_ntoa(*dst));
+    return 0;
+  }
+      
+  if (!ipm) {
+    log_dbg("unknown ip");
+    return 0;
+  }
+  
+  if ((appconn = (struct app_conn_t *)ipm->peer) == NULL) {
+    if (chilli_getconn(&appconn, dst->s_addr, 0, 0)) {
+      if (conn && chilli_connect(&appconn, conn)) {
+	log_err(0, "chilli_connect()");
+	return 0;
+      }
+    }
+  }
+
+  return appconn;
+}  
+#endif
+
+struct app_conn_t *
+dhcp_get_appconn(struct dhcp_conn_t *conn, uint8_t *pkt, char is_dst) {
+#ifdef ENABLE_LAYER3
+  switch (conn->authstate) {
+  case DHCP_AUTH_ROUTER:
+    {
+      struct in_addr dst;
+
+      dst.s_addr = ((is_dst) ? 
+		    iphdr(pkt)->daddr : 
+		    iphdr(pkt)->saddr);
+
+      return dhcp_get_appconn_byip(conn, &dst);
+    }
+  }
+#endif
+
+  log_dbg("Layer2 appconn");
+  return (struct app_conn_t *) conn->peer;
+}
+
+static struct app_conn_t *
+dhcp_get_appconn_addr(struct dhcp_conn_t *conn, struct in_addr *dst) {
+#ifdef ENABLE_LAYER3
+  switch (conn->authstate) {
+  case DHCP_AUTH_ROUTER:
+    return dhcp_get_appconn_byip(conn, dst);
+  }
+#endif
+
+  log_dbg("Layer2 appconn");
+  return (struct app_conn_t *) conn->peer;
 }
 
 static 
@@ -273,7 +344,7 @@ int dhcp_send(struct dhcp_t *this, struct _net_interface *netif,
 	      unsigned char *hismac, uint8_t *packet, size_t length) {
 
   if (_options.tcpwin)
-    pkt_shape_tcpwin(packet, &length);
+    pkt_shape_tcpwin(iphdr(packet), _options.tcpwin);
 
   if (_options.tcpmss)
     pkt_shape_tcpmss(packet, &length);
@@ -1430,18 +1501,21 @@ int dhcp_matchDNS(uint8_t *r, char *name) {
  *   returns: 0 = do not forward, 1 = forward DNS
  */
 static 
-int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
+int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen, char isReq) {
 
-  if (plen < DHCP_DNS_HLEN + sizeofudp(pack)) {
+  if (*plen < DHCP_DNS_HLEN + sizeofudp(pack)) {
     
-    log_dbg("bad DNS packet of length %d", plen);
+    log_dbg("bad DNS packet of length %d", *plen);
     return 0;
     
   } else {
     
+#if defined(ENABLE_DNSLOG) || defined(ENABLE_MODULES)
+    struct app_conn_t *appconn = dhcp_get_appconn(conn, pack, !isReq);
+#endif
     struct dns_packet_t *dnsp = dnspkt(pack);
     
-    size_t dlen = plen - DHCP_DNS_HLEN - sizeofudp(pack);
+    size_t dlen = *plen - DHCP_DNS_HLEN - sizeofudp(pack);
     size_t olen = dlen;
     
     uint16_t flags   = ntohs(dnsp->flags);
@@ -1466,9 +1540,35 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 #if(_debug_ > 1)
     uint16_t id      = ntohs(dnsp->id);
 
-    log_dbg("dhcp_dns plen=%d dlen=%d olen=%d", plen, dlen, olen);
+    log_dbg("dhcp_dns plen=%d dlen=%d olen=%d", *plen, dlen, olen);
     log_dbg("DNS ID:    %d", id);
     log_dbg("DNS Flags: %d", flags);
+#endif
+
+
+#ifdef ENABLE_MODULES
+    { int i, res=0;
+      for (i=0; i < MAX_MODULES; i++) {
+	if (!_options.modules[i].name[0]) break;
+	if (_options.modules[i].ctx) {
+	  struct chilli_module *m = 
+	    (struct chilli_module *)_options.modules[i].ctx;
+	  if (m->dns_handler)
+	    res = m->dns_handler(appconn, conn, 
+				 pack, plen, isReq); 
+	  switch (res) {
+	    case CHILLI_DNS_MOD:
+	      mod = 1;
+	      break;
+	  case CHILLI_DNS_NAK:
+	    return dhcp_nakDNS(conn,pack,*plen);
+	  case CHILLI_DNS_ERROR:
+	  case CHILLI_DNS_DROP:
+	    return 0;
+	  }
+	}
+      }
+    }
 #endif
 
 #ifdef ENABLE_MDNS
@@ -1512,7 +1612,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 		       q, sizeof(q), isReq,		\
 		       &qmatch, &mod, mode)) {		\
         log_warn(0, "dropping malformed DNS");		\
-	return isReq ? dhcp_nakDNS(conn,pack,plen) : 0; \
+	return isReq ? dhcp_nakDNS(conn,pack,*plen) : 0; \
       } \
     }
     
@@ -1640,6 +1740,8 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 	do {
 	  if (query_len < 256)
 	    query[query_len++] = *p;
+	  else 
+	    break;
 	}
 	while (*p++ != 0); /* TODO */
 	
@@ -1663,7 +1765,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 	memcpy(query + query_len, reply, 4);
 	query_len += 4;
 	
-	memcpy(answer, pack, plen); /* TODO */
+	memcpy(answer, pack, *plen); /* TODO */
 	
 	answer_ethh = ethhdr(answer);
 	answer_iph = iphdr(answer);
@@ -1721,8 +1823,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen, char isReq) {
 	char *username = 0;
 	int authenticated = 0;
 	
-	if (conn->peer) {
-	  struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+	if (appconn) {
 	  username = appconn->s_state.redir.username;
 	  authenticated = appconn->s_state.authenticated;
 	}
@@ -1829,7 +1930,7 @@ int dhcp_uam_unnat(struct dhcp_conn_t *conn,
 
 static 
 int dhcp_dnsDNAT(struct dhcp_conn_t *conn, 
-		 uint8_t *pack, size_t len, 
+		 uint8_t *pack, size_t *len, 
 		 char *do_checksum) {
   
   struct dhcp_t *this = conn->parent;
@@ -1887,7 +1988,7 @@ int dhcp_dnsDNAT(struct dhcp_conn_t *conn,
 
 static 
 int dhcp_dnsunDNAT(struct dhcp_conn_t *conn, 
-		   uint8_t *pack, size_t len, 
+		   uint8_t *pack, size_t *len, 
 		   char *do_checksum) {
   
   struct dhcp_t *this = conn->parent;
@@ -1985,11 +2086,13 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 
 #ifdef ENABLE_SESSGARDEN
   /* Check appconn session specific pass-throughs */
-  if (conn->peer) {
-    struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-    if (garden_check(appconn->s_params.pass_throughs, 
-		     appconn->s_params.pass_through_count, pack, 1))
-      return 0;
+  {
+    struct app_conn_t *appconn = dhcp_get_appconn(conn, pack, 0);
+    if (appconn) {
+      if (garden_check(appconn->s_params.pass_throughs, 
+		       appconn->s_params.pass_through_count, pack, 1))
+	return 0;
+    }
   }
 #endif
 
@@ -2152,11 +2255,13 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 
 #ifdef ENABLE_SESSGARDEN
   /* Check appconn session specific pass-throughs */
-  if (conn->peer) {
-    struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-    if (garden_check(appconn->s_params.pass_throughs, 
-		     appconn->s_params.pass_through_count, pack, 0))
-      return 0;
+  {
+    struct app_conn_t *appconn = dhcp_get_appconn(conn, pack, 1);
+    if (appconn) {
+      if (garden_check(appconn->s_params.pass_throughs, 
+		       appconn->s_params.pass_through_count, pack, 0))
+	return 0;
+    }
   }
 #endif
 
@@ -2941,7 +3046,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
      *  We have enabled ''uamanyip'' and the address we are setting does
      *  not fit in ourip's network. In this case, add a route entry. 
      */
-    struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+    struct app_conn_t *appconn = dhcp_get_appconn_addr(0, hisip);
     if (appconn) {
       struct ippoolm_t *ipm = (struct ippoolm_t*)appconn->uplink;
       if (ipm && ipm->in_use && ipm->is_static) {
@@ -2981,6 +3086,10 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   char is_dhcp = 0;
 
   int authstate = 0;
+
+#ifdef ENABLE_LAYER3
+  struct app_conn_t *appconn = 0;
+#endif
 
   if (len < PKT_IP_HLEN + PKT_ETH_HLEN + 4)
     return 0;
@@ -3133,7 +3242,6 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   switch (conn->authstate) {
   case DHCP_AUTH_ROUTER:
     {
-      struct app_conn_t *appconn = 0;
       struct in_addr src;
 
       src.s_addr = pack_iph->saddr;
@@ -3177,6 +3285,14 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 #ifdef ENABLE_IEEE8021Q
   dhcp_checktag(conn, pack);
 #endif
+
+
+#ifdef ENABLE_UAMANYIP
+  if (chilli_assign_snat(appconn, 0) != 0) {
+    return -1;
+  }
+#endif
+
 
   /* 
    *  Request an IP address 
@@ -3237,8 +3353,8 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     /* Was it a request for the auto-logout service? */
     if ((pack_iph->daddr == _options.uamlogout.s_addr) &&
 	(pack_tcph->dst == htons(DHCP_HTTP))) {
-      if (conn->peer) {
-	struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+      struct app_conn_t *appconn = dhcp_get_appconn(conn, pack, 0);
+      if (appconn) {
 	if (appconn->s_state.authenticated) {
 	  terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
 	  log_dbg("Dropping session due to request for auto-logout ip");
@@ -3261,7 +3377,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 		 this->uamport);
   }
   
-  switch (dhcp_dnsDNAT(conn, pack, len, &do_checksum)) { 
+  switch (dhcp_dnsDNAT(conn, pack, &len, &do_checksum)) { 
   case 0:  /* Not DNS */ break;
   case 1:  /* Allowed DNS */ allowed = 1; break; 
   default: /* Drop */ return 0; 
@@ -3410,7 +3526,8 @@ int dhcp_receive_ipv6(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	
 	memcpy(packet_ethh->dst, ethh->src, PKT_ETH_ALEN);
 	memcpy(packet_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
-	return dhcp_send(this, &this->rawif, ethh->src, packet, sizeofarp(packet));
+	return dhcp_send(this, &this->rawif, ethh->src, 
+			 packet, sizeofarp(packet));
       }
       break;
     }
@@ -3479,7 +3596,8 @@ int dhcp_pppoes(uint8_t *packet, size_t length) {
 		(answer + sizeofeth(answer));
 	      
 	      nlcp = (struct pkt_ppp_lcp_t *) 
-		(answer + sizeofeth(answer) + sizeof(struct pkt_pppoe_hdr_t) + 2);
+		(answer + sizeofeth(answer) +
+		 sizeof(struct pkt_pppoe_hdr_t) + 2);
 	      
 	      /* Start processing packet...
 	       */
@@ -3773,9 +3891,11 @@ int dhcp_chillipkt(uint8_t *packet, size_t length) {
 	  break;
 	}
 	
-	log_dbg("CHILLI: peer %d received %s from %.2x:%.2x:%.2x:%.2x:%.2x:%.2x peerid %d len=%d",
+	log_dbg("CHILLI: peer %d received %s from "
+		"%.2x:%.2x:%.2x:%.2x:%.2x:%.2x peerid %d len=%d",
 		_options.peerid, cmd,
-		ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
+		ethh->src[0],ethh->src[1],ethh->src[2],
+		ethh->src[3],ethh->src[4],ethh->src[5],
 		chilli_hdr->from, olen);
       }
     }
@@ -3797,9 +3917,12 @@ char dhcp_ignore(uint16_t prot, uint8_t *packet, size_t length) {
   ignore = get_chilli_peer(-1)->state != PEER_STATE_ACTIVE;
   
   if (ignore)
-    log_dbg("ignore: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x %d len=%d",
-	    ethh->src[0],ethh->src[1],ethh->src[2],ethh->src[3],ethh->src[4],ethh->src[5],
-	    ethh->dst[0],ethh->dst[1],ethh->dst[2],ethh->dst[3],ethh->dst[4],ethh->dst[5],
+    log_dbg("ignore: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+	    "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x %d len=%d",
+	    ethh->src[0],ethh->src[1],ethh->src[2],
+	    ethh->src[3],ethh->src[4],ethh->src[5],
+	    ethh->dst[0],ethh->dst[1],ethh->dst[2],
+	    ethh->dst[3],ethh->dst[4],ethh->dst[5],
 	    prot, (int)prot, length);
   
   return ignore;
@@ -4174,29 +4297,10 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   switch (conn->authstate) {
   case DHCP_AUTH_ROUTER:
     {
-      struct app_conn_t *appconn = 0;
-      struct ippoolm_t *ipm = 0;
-      struct in_addr dst;
+      struct app_conn_t *appconn = dhcp_get_appconn(conn, pkt, 1);
 
-      dst.s_addr = iphdr(pkt)->daddr;
-      
-      if (ippool_getip(ippool, &ipm, &dst)) {
-	log_dbg("for unknown destination %s", inet_ntoa(dst));
+      if (!appconn) {
 	return 0;
-      }
-      
-      if (!ipm) {
-	log_dbg("unknown ip");
-	return -1;
-      }
-      
-      if ((appconn = (struct app_conn_t *)ipm->peer) == NULL) {
-	if (chilli_getconn(&appconn, dst.s_addr, 0, 0)) {
-	  if (chilli_connect(&appconn, conn)) {
-	    log_err(0, "chilli_connect()");
-	    return 0;
-	  }
-	}
       }
       
       switch (appconn->s_state.authenticated) {
@@ -4220,7 +4324,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   
   dhcp_ethhdr(conn, pkt, conn->hismac, dhcp_nexthop(this), PKT_ETH_PROTO_IP);
   
-  switch (dhcp_dnsunDNAT(conn, pkt, length, &do_checksum)) {
+  switch (dhcp_dnsunDNAT(conn, pkt, &length, &do_checksum)) {
   case 0:  /* Not DNS */break;
   case 1:  /* Allowed DNS */ allowed = 1; break;
   default: /* Drop */ return 0;

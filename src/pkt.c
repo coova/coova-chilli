@@ -18,13 +18,16 @@
 
 #include "chilli.h"
 
-int pkt_shape_tcpwin(uint8_t *packet, size_t *length) {
-  int optval = _options.tcpwin;
-  struct pkt_iphdr_t *iph = iphdr(packet);
+int pkt_shape_tcpwin(struct pkt_iphdr_t *iph, uint16_t win) {
   if (iph->protocol == PKT_IP_PROTO_TCP) {
-    struct pkt_tcphdr_t *tcph = tcphdr(packet);
-    if (ntohs(tcph->win) > optval) {
-      tcph->win = htons(optval);
+    struct pkt_tcphdr_t *tcph = 
+      (struct pkt_tcphdr_t *)(((uint8_t *)iph) + PKT_IP_HLEN);
+    /*log_dbg("TCP Window %d", ntohs(tcph->win));*/
+    if (ntohs(tcph->win) > win) {
+#if(_debug_ > 1)
+      log_dbg("Rewriting TCP Window %d", win);
+#endif
+      tcph->win = htons(win);
       chksum(iph);
     }
   }

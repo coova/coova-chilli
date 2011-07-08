@@ -983,7 +983,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   int result;
 
   if (_options.tcpwin)
-    pkt_shape_tcpwin(pack, &len);
+    pkt_shape_tcpwin(iphdr(pack), _options.tcpwin);
 
   if (_options.tcpmss)
     pkt_shape_tcpmss(pack, &len);

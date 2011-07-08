@@ -78,11 +78,13 @@ libchilli_la_SOURCES += lookup3.c
 endif
 
 if WITH_OPENSSL
+libchilli_la_LIBADD += ${LIBSSL}
 LDADD += ${LIBSSL}
 endif
 
 if WITH_MATRIXSSL
 libchilli_la_SOURCES += mssl.c mssl.h
+libchilli_la_LIBADD += -lmatrixssl
 LDADD += -lmatrixssl
 if WITH_MATRIXSSL_CLI
 SUBDIRS = mssl

@@ -34,7 +34,7 @@
 /* Time length of leaky bucket in seconds */
 /* Bucket size = BUCKET_TIME * Bandwidth-Max radius attribute */
 /* Not used if BUCKET_SIZE is defined */
-#define BUCKET_TIME                        1/* 1 seconds */
+#define BUCKET_TIME                        1 /* 1 seconds */
 #define BUCKET_SIZE_MIN                 5000 /* Minimum size of leaky bucket (~10 packets) */
 
 #define CHECK_INTERVAL                     3 /* Time between checking connections */

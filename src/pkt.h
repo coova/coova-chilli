@@ -381,7 +381,6 @@ struct dns_packet_t { /* From RFC 1035 */
   uint8_t  records[PKT_IP_PLEN];
 } __attribute__((packed));
 
-
 struct pkt_dot1xhdr_t {
   uint8_t  ver;
   uint8_t  type;
@@ -483,7 +482,7 @@ struct eapol_tag_t {
 } __attribute__((packed));
 
 int chksum(struct pkt_iphdr_t *iph);
-int pkt_shape_tcpwin(uint8_t *packet, size_t *length);
+int pkt_shape_tcpwin(struct pkt_iphdr_t *iph, uint16_t win);
 int pkt_shape_tcpmss(uint8_t *packet, size_t *length);
 
 #endif

@@ -87,6 +87,13 @@ static int module_session_stop(struct app_conn_t *appconn) {
   return CHILLI_MOD_OK;
 }
 
+static int module_dns_handler (struct app_conn_t *appconn, 
+			       struct dhcp_conn_t *dhcpconn,
+			       uint8_t *pack, size_t *plen, int isReq) {
+  log_dbg("%s", __FUNCTION__);
+  return CHILLI_DNS_OK;
+}
+
 static int module_destroy(char isReload) {
 
   log_dbg("%s(%d)", __FUNCTION__, (int) isReload);
@@ -105,6 +112,7 @@ struct chilli_module sample_module = {
   module_session_start,
   module_session_update,
   module_session_stop,
+  module_dns_handler,
   module_destroy,
 };
 

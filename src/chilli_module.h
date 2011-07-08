@@ -51,6 +51,16 @@ struct chilli_module {
   int (* session_start)   (struct app_conn_t *);
   int (* session_update)  (struct app_conn_t *);
   int (* session_stop)    (struct app_conn_t *);
+
+#define CHILLI_DNS_ERROR -1
+#define CHILLI_DNS_DROP   0
+#define CHILLI_DNS_OK     1
+#define CHILLI_DNS_MOD    2
+#define CHILLI_DNS_NAK    3
+  int (* dns_handler)     (struct app_conn_t *, 
+			   struct dhcp_conn_t *,
+			   uint8_t *, size_t *, int);
+
   int (* destroy)         (char isReload);
 };
 
