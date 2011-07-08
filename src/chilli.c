@@ -4781,7 +4781,7 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 
 /* Callback for receiving messages from dhcp */
 int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
-  struct app_conn_t *appconn = dhcp_get_appconn(conn, pack, 0);
+  struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pack, 0);
   struct pkt_ipphdr_t *ipph = ipphdr(pack);
 
   /*if (_options.debug)

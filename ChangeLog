@@ -4,7 +4,7 @@
 * New option ''--uamdomainttl'' to define a rewrite value for the DNS TTL on uamdomain matched responses
 * Made the dynamic garden able to overwrite the oldest entries to make way for the new
 * Increased the max packet size for ''--enable-largelimits'' and implemented ICMP fragmentation when packets truncated
-* Added support for a DNS handler in loadable modules which will be able to mange DNS passing through
+* Added support for a DNS handler in loadable modules which will be able to mangle DNS passing through
 * Added feature to adjust TCP Window based on leaky bucket remaining size
 * Bug fix: in main-proxy use of error_buffer with cURL
 * Bug fix: resetting leaky bucket state during logout

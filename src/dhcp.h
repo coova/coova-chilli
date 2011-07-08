@@ -335,7 +335,7 @@ struct chilli_peer;
 struct chilli_peer * get_chilli_peer(int id);
 #endif
 
-struct app_conn_t * dhcp_get_appconn(
+struct app_conn_t * dhcp_get_appconn_pkt(
      struct dhcp_conn_t *conn, uint8_t *pkt, char is_dst);
 
 #endif	/* !_DHCP_H */

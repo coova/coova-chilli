@@ -102,73 +102,6 @@ int dhcp_send_chilli(uint8_t *pkt, size_t len) {
   return 0;
 }
 
-#ifdef ENABLE_LAYER3
-static struct app_conn_t *
-dhcp_get_appconn_byip(struct dhcp_conn_t *conn, struct in_addr *dst) {
-  struct app_conn_t *appconn = 0;
-  struct ippoolm_t *ipm = 0;
-
-#if(_debug_ > 1)
-  log_dbg("Looking up appconn for %s", inet_ntoa(*dst));
-#endif
-      
-  if (ippool_getip(ippool, &ipm, dst)) {
-    log_dbg("No ip assigned for %s", inet_ntoa(*dst));
-    return 0;
-  }
-      
-  if (!ipm) {
-    log_dbg("unknown ip");
-    return 0;
-  }
-  
-  if ((appconn = (struct app_conn_t *)ipm->peer) == NULL) {
-    if (chilli_getconn(&appconn, dst->s_addr, 0, 0)) {
-      if (conn && chilli_connect(&appconn, conn)) {
-	log_err(0, "chilli_connect()");
-	return 0;
-      }
-    }
-  }
-
-  return appconn;
-}  
-#endif
-
-struct app_conn_t *
-dhcp_get_appconn(struct dhcp_conn_t *conn, uint8_t *pkt, char is_dst) {
-#ifdef ENABLE_LAYER3
-  switch (conn->authstate) {
-  case DHCP_AUTH_ROUTER:
-    {
-      struct in_addr dst;
-
-      dst.s_addr = ((is_dst) ? 
-		    iphdr(pkt)->daddr : 
-		    iphdr(pkt)->saddr);
-
-      return dhcp_get_appconn_byip(conn, &dst);
-    }
-  }
-#endif
-
-  log_dbg("Layer2 appconn");
-  return (struct app_conn_t *) conn->peer;
-}
-
-static struct app_conn_t *
-dhcp_get_appconn_addr(struct dhcp_conn_t *conn, struct in_addr *dst) {
-#ifdef ENABLE_LAYER3
-  switch (conn->authstate) {
-  case DHCP_AUTH_ROUTER:
-    return dhcp_get_appconn_byip(conn, dst);
-  }
-#endif
-
-  log_dbg("Layer2 appconn");
-  return (struct app_conn_t *) conn->peer;
-}
-
 static 
 int dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
   EVP_CIPHER_CTX ctx;
@@ -242,6 +175,81 @@ int dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
   return ret;
 }
 #endif
+
+
+static struct app_conn_t *
+dhcp_get_appconn_ip(struct dhcp_conn_t *conn, struct in_addr *dst) {
+#ifdef ENABLE_LAYER3
+  switch (conn->authstate) {
+  case DHCP_AUTH_ROUTER:
+    {
+      struct app_conn_t *appconn = 0;
+      struct ippoolm_t *ipm = 0;
+      
+#if(_debug_ > 1)
+      log_dbg("Looking up appconn for %s", inet_ntoa(*dst));
+#endif
+      
+      if (ippool_getip(ippool, &ipm, dst)) {
+	log_dbg("No ip assigned for %s", inet_ntoa(*dst));
+	return 0;
+      }
+      
+      if (!ipm) {
+	log_dbg("unknown ip");
+	return 0;
+      }
+      
+      if ((appconn = (struct app_conn_t *)ipm->peer) == NULL) {
+	if (chilli_getconn(&appconn, dst->s_addr, 0, 0)) {
+	  if (conn && chilli_connect(&appconn, conn)) {
+	    log_err(0, "chilli_connect()");
+	    return 0;
+	  }
+	}
+      }
+      return appconn;
+    }
+  }
+#endif
+
+  log_dbg("Layer2 appconn");
+  return (struct app_conn_t *) conn->peer;
+}  
+
+struct app_conn_t *
+dhcp_get_appconn_pkt(struct dhcp_conn_t *conn, uint8_t *pkt, char is_dst) {
+#ifdef ENABLE_LAYER3
+  switch (conn->authstate) {
+  case DHCP_AUTH_ROUTER:
+    {
+      struct in_addr dst;
+
+      dst.s_addr = ((is_dst) ? 
+		    iphdr(pkt)->daddr : 
+		    iphdr(pkt)->saddr);
+
+      return dhcp_get_appconn_ip(conn, &dst);
+    }
+  }
+#endif
+
+  log_dbg("Layer2 appconn");
+  return (struct app_conn_t *) conn->peer;
+}
+
+static struct app_conn_t *
+dhcp_get_appconn_addr(struct dhcp_conn_t *conn, struct in_addr *dst) {
+#ifdef ENABLE_LAYER3
+  switch (conn->authstate) {
+  case DHCP_AUTH_ROUTER:
+    return dhcp_get_appconn_ip(conn, dst);
+  }
+#endif
+
+  log_dbg("Layer2 appconn");
+  return (struct app_conn_t *) conn->peer;
+}
 
 /**
  * dhcp_sendGARP()
@@ -1511,7 +1519,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen, char isReq) 
   } else {
     
 #if defined(ENABLE_DNSLOG) || defined(ENABLE_MODULES)
-    struct app_conn_t *appconn = dhcp_get_appconn(conn, pack, !isReq);
+    struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pack, !isReq);
 #endif
     struct dns_packet_t *dnsp = dnspkt(pack);
     
@@ -2087,7 +2095,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 #ifdef ENABLE_SESSGARDEN
   /* Check appconn session specific pass-throughs */
   {
-    struct app_conn_t *appconn = dhcp_get_appconn(conn, pack, 0);
+    struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pack, 0);
     if (appconn) {
       if (garden_check(appconn->s_params.pass_throughs, 
 		       appconn->s_params.pass_through_count, pack, 1))
@@ -2256,7 +2264,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 #ifdef ENABLE_SESSGARDEN
   /* Check appconn session specific pass-throughs */
   {
-    struct app_conn_t *appconn = dhcp_get_appconn(conn, pack, 1);
+    struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pack, 1);
     if (appconn) {
       if (garden_check(appconn->s_params.pass_throughs, 
 		       appconn->s_params.pass_through_count, pack, 0))
@@ -3353,7 +3361,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     /* Was it a request for the auto-logout service? */
     if ((pack_iph->daddr == _options.uamlogout.s_addr) &&
 	(pack_tcph->dst == htons(DHCP_HTTP))) {
-      struct app_conn_t *appconn = dhcp_get_appconn(conn, pack, 0);
+      struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pack, 0);
       if (appconn) {
 	if (appconn->s_state.authenticated) {
 	  terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
@@ -4297,7 +4305,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   switch (conn->authstate) {
   case DHCP_AUTH_ROUTER:
     {
-      struct app_conn_t *appconn = dhcp_get_appconn(conn, pkt, 1);
+      struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pkt, 1);
 
       if (!appconn) {
 	return 0;
