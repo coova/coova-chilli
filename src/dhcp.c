@@ -177,45 +177,38 @@ int dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
 #endif
 
 
+#ifdef ENABLE_LAYER3
 static struct app_conn_t *
 dhcp_get_appconn_ip(struct dhcp_conn_t *conn, struct in_addr *dst) {
-#ifdef ENABLE_LAYER3
-  switch (conn->authstate) {
-  case DHCP_AUTH_ROUTER:
-    {
-      struct app_conn_t *appconn = 0;
-      struct ippoolm_t *ipm = 0;
-      
+  struct app_conn_t *appconn = 0;
+  struct ippoolm_t *ipm = 0;
+  
 #if(_debug_ > 1)
-      log_dbg("Looking up appconn for %s", inet_ntoa(*dst));
+  log_dbg("Looking up appconn for %s", inet_ntoa(*dst));
 #endif
-      
-      if (ippool_getip(ippool, &ipm, dst)) {
-	log_dbg("No ip assigned for %s", inet_ntoa(*dst));
+  
+  if (ippool_getip(ippool, &ipm, dst)) {
+    log_dbg("No ip assigned for %s", inet_ntoa(*dst));
+    return 0;
+  }
+  
+  if (!ipm) {
+    log_dbg("unknown ip");
+    return 0;
+  }
+  
+  if ((appconn = (struct app_conn_t *)ipm->peer) == NULL) {
+    if (chilli_getconn(&appconn, dst->s_addr, 0, 0)) {
+      if (conn && chilli_connect(&appconn, conn)) {
+	log_err(0, "chilli_connect()");
 	return 0;
       }
-      
-      if (!ipm) {
-	log_dbg("unknown ip");
-	return 0;
-      }
-      
-      if ((appconn = (struct app_conn_t *)ipm->peer) == NULL) {
-	if (chilli_getconn(&appconn, dst->s_addr, 0, 0)) {
-	  if (conn && chilli_connect(&appconn, conn)) {
-	    log_err(0, "chilli_connect()");
-	    return 0;
-	  }
-	}
-      }
-      return appconn;
     }
   }
-#endif
 
-  log_dbg("Layer2 appconn");
-  return (struct app_conn_t *) conn->peer;
+  return appconn;
 }  
+#endif
 
 struct app_conn_t *
 dhcp_get_appconn_pkt(struct dhcp_conn_t *conn, uint8_t *pkt, char is_dst) {
@@ -3270,6 +3263,12 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	break;
       }
 
+#ifdef ENABLE_UAMANYIP
+      if (chilli_assign_snat(appconn, 0) != 0) {
+	return -1;
+      }
+#endif
+
       has_ip = 1;
     }
     break;
@@ -3292,13 +3291,6 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   
 #ifdef ENABLE_IEEE8021Q
   dhcp_checktag(conn, pack);
-#endif
-
-
-#ifdef ENABLE_UAMANYIP
-  if (chilli_assign_snat(appconn, 0) != 0) {
-    return -1;
-  }
 #endif
 
 
