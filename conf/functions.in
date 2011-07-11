@@ -126,6 +126,7 @@ writeconfig() {
     addconfig1 ${HS_VLAN:+"vlan \"$HS_VLAN\""}
     addconfig1 ${HS_NASIP:+"nasip \"$HS_NASIP\""}
     addconfig1 ${HS_NASMAC:+"nasmac \"$HS_NASMAC\""}
+    addconfig1 ${HS_DHCPMAC:+"dhcpmac \"$HS_DHCPMAC\""}
     addconfig1 ${HS_DNS_DOMAIN:+"domain \"$HS_DNS_DOMAIN\""}
     addconfig1 ${HS_DNS1:+"dns1 \"$HS_DNS1\""}
     addconfig1 ${HS_DNS2:+"dns2 \"$HS_DNS2\""}

@@ -387,7 +387,6 @@ uint32_t dhcp_hash(uint8_t *hwaddr) {
   return lookup(hwaddr, PKT_ETH_ALEN, 0);
 }
 
-
 /**
  * dhcp_hashinit()
  * Initialises hash tables

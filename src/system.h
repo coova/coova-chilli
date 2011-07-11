@@ -252,9 +252,6 @@
 #define safe_snprintf portable_snprintf
 char *safe_strncpy(char *dst, const char *src, size_t size);
 
-/* XXX */
-#define ENABLE_IPV6 1
-
 #ifndef TEMP_FAILURE_RETRY
 #define TEMP_FAILURE_RETRY(expression) \
     ({ \
