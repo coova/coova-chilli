@@ -1,6 +1,8 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+== ChangeLog (CoovaChilli-v1.2.8 svn revision 450) ==
+
 * New option ''--uamdomainttl'' to define a rewrite value for the DNS TTL on uamdomain matched responses
 * Made the dynamic garden able to overwrite the oldest entries to make way for the new
 * Increased the max packet size for ''--enable-largelimits'' and implemented ICMP fragmentation when packets truncated
