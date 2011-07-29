@@ -389,6 +389,9 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 	
 	if (_options.debug) {
 	  EVP_PKEY *pktmp = X509_get_pubkey(peer_cert);
+#if OPENSSL_VERSION_NUMBER >= 0x10000000L
+ 	  const
+#endif
 	  SSL_CIPHER *cipher;
 	  char b[512];
 	  log_dbg("Debugging: SSL Information:\n");

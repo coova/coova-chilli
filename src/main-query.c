@@ -289,9 +289,9 @@ int main(int argc, char **argv) {
   set_signal(SIGALRM, timeout_alarm);
   
   memset(&itval, 0, sizeof(itval));
-  itval.it_interval.tv_sec = QUERY_TIMEOUT;
+  itval.it_interval.tv_sec = query_timeout;
   itval.it_interval.tv_usec = 0; 
-  itval.it_value.tv_sec = QUERY_TIMEOUT;
+  itval.it_value.tv_sec = query_timeout;
   itval.it_value.tv_usec = 0; 
   
   if (setitimer(ITIMER_REAL, &itval, NULL)) {
