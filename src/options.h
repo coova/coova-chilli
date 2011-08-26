@@ -196,6 +196,11 @@ struct options_t {
   uint8_t noradallow:1;             /* Authorize all sessions when RADIUS is not available */
   uint8_t redirdnsreq:1;
   uint8_t routeonetone:1;
+#ifdef ENABLE_PROXYVSA
+  uint8_t location_stop_start:1;
+  uint8_t location_copy_called:1;
+  uint8_t location_immediate_update:1;
+#endif
   /* */
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
@@ -230,6 +235,7 @@ struct options_t {
     uint32_t attr_vsa;
     uint8_t attr;
   } proxy_loc[PROXYVSA_ATTR_CNT];
+  char * locationupdate;
 #endif
 
 #ifdef HAVE_SSL

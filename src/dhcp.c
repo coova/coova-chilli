@@ -227,7 +227,7 @@ dhcp_get_appconn_pkt(struct dhcp_conn_t *conn, uint8_t *pkt, char is_dst) {
   }
 #endif
 
-  log_dbg("Layer2 appconn");
+  /* log_dbg("Layer2 appconn"); */
   return (struct app_conn_t *) conn->peer;
 }
 
@@ -240,7 +240,8 @@ dhcp_get_appconn_addr(struct dhcp_conn_t *conn, struct in_addr *dst) {
   }
 #endif
 
-  log_dbg("Layer2 appconn");
+  /*log_dbg("Layer2 appconn");*/
+
   return (struct app_conn_t *) conn->peer;
 }
 
@@ -672,7 +673,9 @@ int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause)
 	  conn->hismac[3], conn->hismac[4], conn->hismac[5]);
 
 #ifdef HAVE_NETFILTER_COOVA
-  kmod_coova_release(conn);
+  if (_options.kname) {
+    kmod_coova_release(conn);
+  }
 #endif
 
   /* Application specific code */

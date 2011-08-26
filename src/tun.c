@@ -1155,6 +1155,11 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
     setenv("LAYER3", "1", 1);
 #endif
 
+#ifdef ENABLE_NETFILTER_COOVA
+  if (_options.kname)
+    setenv("KNAME", _options.kname, 1);
+#endif
+  
   if (execl(
 #ifdef ENABLE_CHILLISCRIPT
 	    SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig, 
@@ -1162,7 +1167,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
 	    script,
 #endif
 	    script, tuntap(tun).devname, saddr, smask, (char *) 0) != 0) {
-      
+    
     log_err(errno, "execl(%s) did not return 0!",script);
     exit(0);
   }

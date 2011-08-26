@@ -1,6 +1,14 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+* New compile time option ''--enable-sessionstate'' to further extend the use of ChilliSpot-Session-State to indicate reasons for disconnect
+* New compile time option ''--enable-sessionid'' to enable the use of a ChilliSpot-Session-Id that does not change during location awareness stop/start
+* Change to RADIUS proxy to allow RADIUS accounting for determining location awareness
+* New runtime option for proxyvsa called ''--locationupdate=/path/script'' to run a script on location change
+* New runtime flag option for proxyvsa called ''--locationstopstart'' to have the RADIUS acct session stopped, session-id updates, and started during location change
+* New runtime flag option for proxyvsa called ''--locationcopycalled'' to copy the Called-Station-Id from proxy RADIUS into that sent by chilli
+* New runtime flag option for proxyvsa called ''--locationimmediateupdate'' to have chilli do RADIUS acct immediately upon location change
+	
 == ChangeLog (CoovaChilli-v1.2.8 svn revision 450) ==
 
 * New option ''--uamdomainttl'' to define a rewrite value for the DNS TTL on uamdomain matched responses

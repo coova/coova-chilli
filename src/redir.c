@@ -415,7 +415,7 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
 
   bassignformat(str, "%s%sres=%s%suamip=%s%suamport=%d", 
 		redir_url, strchr(redir_url, '?') ? amp : "?", resp, amp,
-		inet_ntoa(redir->addr), amp, 
+		inet_ntoa(redir->addr), amp,
 		redir->port);
 
   if (hexchal) {

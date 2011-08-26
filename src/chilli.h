@@ -285,12 +285,15 @@ void GenerateAuthenticatorResponse(u_char *Password, int PasswordLen,
 int chilli_getconn_byroute(struct app_conn_t **conn, int idx);
 #endif
 
+uint8_t* chilli_called_station(struct session_state *state);
+
 int chilli_cmd(struct cmdsock_request *req, bstring s, int sock);
 
 int chilli_handle_signal(void *ctx, int fd);
 void chilli_freeconn();
 
-int runscript(struct app_conn_t *appconn, char* script);
+int runscript(struct app_conn_t *appconn, char* script,
+	      char *loc, char *oloc);
 
 /* utils.c */
 int statedir_file(char *dst, int dlen, char *file, char *deffile);

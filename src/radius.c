@@ -45,9 +45,19 @@ void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   radius_addattr(radius, pack, RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, ntohl(paddr->s_addr), NULL, 0); 
 }
 
-void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pack)  {
+void radius_addcalledstation(struct radius_t *radius, 
+			     struct radius_packet_t *pack,
+			     struct session_state *state)  {
   uint8_t b[32];
-  uint8_t *mac= 0;
+  uint8_t *mac = 0;
+
+#ifdef ENABLE_PROXYVSA
+  if (state->redir.calledlen) {
+    radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, 
+		   state->redir.called, state->redir.calledlen); 
+    return;
+  }
+#endif
 
   if (_options.nasmac)
     mac = (uint8_t *) _options.nasmac;
@@ -1569,7 +1579,8 @@ radius_default_pack(struct radius_t *this,
       pack->id = this->nextid++;
   }
 
-  if (fread(pack->authenticator, 1, RADIUS_AUTHLEN, this->urandom_fp) != RADIUS_AUTHLEN) {
+  if (fread(pack->authenticator, 1, RADIUS_AUTHLEN, 
+	    this->urandom_fp) != RADIUS_AUTHLEN) {
     log_err(errno, "fread() failed");
     return -1;
   }
@@ -1583,7 +1594,8 @@ radius_default_pack(struct radius_t *this,
   case RADIUS_CODE_ACCOUNTING_REQUEST:
 
     radius_addattr(this, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VERSION, 
+		   RADIUS_VENDOR_CHILLISPOT, 
+		   RADIUS_ATTR_CHILLISPOT_VERSION, 
 		   0, (uint8_t*)VERSION, strlen(VERSION));
 
     if (code == RADIUS_CODE_ACCOUNTING_REQUEST) {

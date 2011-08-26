@@ -277,6 +277,9 @@ int options_fromfd(int fd, bstring bt) {
 #ifdef ENABLE_IEEE8021Q
   if (!option_s_l(bt, &o.vlanupdate)) return 0;
 #endif
+#ifdef ENABLE_PROXYVSA
+  if (!option_s_l(bt, &o.locationupdate)) return 0;
+#endif
 
   if (!option_s_l(bt, &o.radiussecret)) return 0;
   if (!option_s_l(bt, &o.radiusnasid)) return 0;
@@ -451,6 +454,9 @@ int options_save(char *file, bstring bt) {
   if (!option_s_s(bt, &o.macdown)) return 0;
 #ifdef ENABLE_IEEE8021Q
   if (!option_s_s(bt, &o.vlanupdate)) return 0;
+#endif
+#ifdef ENABLE_PROXYVSA
+  if (!option_s_s(bt, &o.locationupdate)) return 0;
 #endif
 
   if (!option_s_s(bt, &o.radiussecret)) return 0;

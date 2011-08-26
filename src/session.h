@@ -81,7 +81,9 @@ struct redir_state {
   uint8_t uamprotocol;
 
 #ifdef ENABLE_PROXYVSA
-#define RADIUS_PROXYVSA 128
+#define RADIUS_PROXYVSA 256
+  uint8_t called[RADIUS_ATTR_VLEN];
+  uint8_t calledlen;
   uint8_t vsa[RADIUS_PROXYVSA];
   size_t vsalen;
 #endif
@@ -94,6 +96,9 @@ struct session_state {
   int authenticated;           /* 1 if user was authenticated */  
 
   char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
+#ifdef ENABLE_SESSIONID
+  char chilli_sessionid[REDIR_SESSIONID_LEN]; 
+#endif
 
   time_t start_time;
   time_t interim_time;
@@ -108,6 +113,10 @@ struct session_state {
   uint64_t output_octets;
   uint32_t terminate_cause;
   uint32_t session_id;
+
+#ifdef ENABLE_SESSIONSTATE
+  uint32_t session_state;
+#endif
 
 #ifdef ENABLE_IEEE8021Q
   uint16_t tag8021q;

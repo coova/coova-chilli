@@ -191,6 +191,7 @@ struct radius_queue_t {      /* Holder for queued packets */
 };
 
 typedef struct radius_queue_t * radius_queue;
+struct session_state;
 
 struct radius_t {
   int fd;                        /* Socket file descriptor */
@@ -341,7 +342,10 @@ int radius_timeout(struct radius_t *this);
 int radius_timeleft(struct radius_t *this, struct timeval *timeout);
 
 void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack);
-void radius_addcalledstation(struct radius_t *radius, struct radius_packet_t *pack);
+
+void radius_addcalledstation(struct radius_t *radius, 
+			     struct radius_packet_t *pack,
+			     struct session_state *state);
 
 int radius_authresp_authenticator(struct radius_t *this,
 				  struct radius_packet_t *pack,

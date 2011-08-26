@@ -123,10 +123,10 @@ coova_entry_lookup(const struct coova_table *table,
 	struct coova_entry *e;
 	unsigned int h;
 
-	if (family == AF_INET)
-		h = coova_entry_hash4(addrp);
-	else
+	if (family == AF_INET6)
 		h = coova_entry_hash6(addrp);
+	else
+		h = coova_entry_hash4(addrp);
 
 	list_for_each_entry(e, &table->iphash[h], list)
 		if (e->family == family &&
@@ -174,10 +174,10 @@ coova_entry_init(struct coova_table *t, const union nf_inet_addr *addr,
 
 	coova_entry_reset(e);
 
-	if (family == AF_INET)
-		list_add_tail(&e->list, &t->iphash[coova_entry_hash4(addr)]);
-	else
+	if (family == AF_INET6)
 		list_add_tail(&e->list, &t->iphash[coova_entry_hash6(addr)]);
+	else
+		list_add_tail(&e->list, &t->iphash[coova_entry_hash4(addr)]);
 
 	list_add_tail(&e->lru_list, &t->lru_list);
 	t->entries++;
@@ -210,7 +210,7 @@ static void coova_table_flush(struct coova_table *t)
 }
 
 static bool
-coova_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+coova_mt(const struct sk_buff *skb, struct xt_action_param *par) 
 {
 	const struct xt_coova_mtinfo *info = par->matchinfo;
 	struct coova_table *t;
@@ -230,7 +230,6 @@ coova_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			addr.ip = iph->saddr;
 
 		p_bytes = iph->tot_len;
-
 	} else {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 
@@ -240,7 +239,6 @@ coova_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			memcpy(&addr.in6, &iph->saddr, sizeof(addr.in6));
 
 		p_bytes = iph->payload_len;
-
 	}
 
 	if (info->side != XT_COOVA_DEST) {
@@ -288,7 +286,7 @@ coova_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return ret;
 }
 
-static bool coova_mt_check(const struct xt_mtchk_param *par)
+static int coova_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_coova_mtinfo *info = par->matchinfo;
 	struct coova_table *t;
@@ -409,16 +407,16 @@ static int coova_seq_show(struct seq_file *seq, void *v)
 	unsigned int i;
 
 	i = (e->index - 1) % ip_pkt_list_tot;
-	if (e->family == AF_INET)
-		seq_printf(seq, "mac=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X src=%pI4",
-			   e->hwaddr[0],e->hwaddr[1],e->hwaddr[2],
-			   e->hwaddr[3],e->hwaddr[4],e->hwaddr[5],
-			   &e->addr.ip);
-	else
+	if (e->family == AF_INET6)
 		seq_printf(seq, "mac=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X src=%pI6",
 			   e->hwaddr[0],e->hwaddr[1],e->hwaddr[2],
 			   e->hwaddr[3],e->hwaddr[4],e->hwaddr[5],
 			   &e->addr.in6);
+	else
+		seq_printf(seq, "mac=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X src=%pI4",
+			   e->hwaddr[0],e->hwaddr[1],e->hwaddr[2],
+			   e->hwaddr[3],e->hwaddr[4],e->hwaddr[5],
+			   &e->addr.ip);
 	seq_printf(seq, " state=%u", e->state);
 	seq_printf(seq, " bin=%llu bout=%llu", 
 		   (unsigned long long)e->bytes_in, 
@@ -573,6 +571,7 @@ static struct xt_match coova_mt_reg[] __read_mostly = {
                                   (1 << NF_INET_FORWARD),
                 .me             = THIS_MODULE,
         },
+#if(0)
         {
                 .name           = "coova",
                 .family         = AF_INET6,
@@ -587,6 +586,7 @@ static struct xt_match coova_mt_reg[] __read_mostly = {
                                   (1 << NF_INET_FORWARD),
                 .me             = THIS_MODULE,
         },
+#endif
 };
 
 static int __init coova_mt_init(void)

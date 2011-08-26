@@ -114,6 +114,12 @@
 /* Define to enable Chilli session walled garden */
 #undef ENABLE_SESSGARDEN
 
+/* Define to enable the use of the ChilliSpot-Session-State attribute */
+#undef ENABLE_SESSIONID
+
+/* Define to enable extended use of the ChilliSpot-Session-State attribute */
+#undef ENABLE_SESSIONSTATE
+
 /* Define to enable Simple Service Discovery Protocol */
 #undef ENABLE_SSDP
 

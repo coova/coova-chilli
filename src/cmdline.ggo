@@ -47,6 +47,11 @@ option "condown"     - "Script to run after user logoff" string no
 option "macup"       - "Script to run after initial DHCP"  string no
 option "macdown"     - "Script to run after DHCP release" string no
 option "vlanupdate"  - "Script to run after 802.1Q/VLAN id assignment" string no
+option "locationupdate" - "Script to run after change of location" string no
+option "locationstopstart" - "Restart the RADIUS accounting stream with new session-id" flag off
+option "locationcopycalled" - "Copy Called-Station-Id from proxy RADIUS" flag off
+option "locationimmediateupdate" - "Immediately do an accounting interim update on proxy accounting" flag off
+
 option "txqlen"      - "TX Queue length for tun interface (linux only)"  int default="100" no
 option "tundev"      - "TUN/TAP Device, as in tun0 or tap1" string no
 option "mtu"         - "MTU given in DHCP" int default="1500" no

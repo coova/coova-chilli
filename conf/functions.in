@@ -119,6 +119,7 @@ writeconfig() {
 	addconfig1 "dhcprelayagent \"$HS_DHCPRELAYAGENT\""
     }
 
+    addconfig1 ${HS_KNAME:+"kname \"$HS_KNAME\""}
     addconfig1 ${HS_TUNDEV:+"tundev \"$HS_TUNDEV\""}
     addconfig1 ${HS_DYNIP:+"dynip $HS_DYNIP/${HS_DYNIP_MASK:-255.255.255.0}"}
     addconfig1 ${HS_STATIP:+"statip $HS_STATIP/${HS_STATIP_MASK:-255.255.255.0}"}
@@ -265,9 +266,8 @@ writeconfig() {
 	else
 	    writeconfig2 > $HS_TEMP
 	fi
-
     fi
-
+    
     touch $MAIN_TEMP $HS_TEMP
     update_new_file $MAIN_TEMP $MAIN_CONF
     update_new_file $HS_TEMP $HS_CONF

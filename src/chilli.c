@@ -494,12 +494,37 @@ uint32_t mainclock_diffu(time_t past) {
   return 0;
 }
 
-static void set_sessionid(struct app_conn_t *appconn) {
+uint8_t* chilli_called_station(struct session_state *state) {
+#ifdef ENABLE_PROXYVSA
+  if (_options.location_copy_called && state->redir.calledlen) {
+    return state->redir.called;
+  }
+#endif
+  return dhcp_nexthop(dhcp);
+}
+
+static void set_sessionid(struct app_conn_t *appconn, char full) {
   safe_snprintf(appconn->s_state.sessionid, sizeof(appconn->s_state.sessionid), 
 		"%.8x%.8x", (int) mainclock_rt(), appconn->unit);
   /*log_dbg("!!!! RESET CLASSLEN !!!!");*/
   appconn->s_state.redir.classlen = 0;
   appconn->s_state.redir.statelen = 0;
+  if (full) {
+#ifdef ENABLE_SESSIONID
+    MD5_CTX context;
+    unsigned char md5[16];
+    MD5Init(&context);
+    MD5Update(&context, chilli_called_station(&appconn->s_state), 6);
+    MD5Update(&context, (uint8_t*)&mainclock, sizeof(mainclock));
+    MD5Final(md5, &context);
+    safe_snprintf(appconn->s_state.chilli_sessionid, 
+		  sizeof(appconn->s_state.chilli_sessionid), 
+		  "%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X"
+		  "%.2X%.2X%.2X%.2X%.2X%.2X%.2X%.2X", 
+		  md5[0],md5[1],md5[2],md5[3],md5[4],md5[5],md5[6],md5[7],
+		  md5[8],md5[9],md5[10],md5[11],md5[12],md5[13],md5[14],md5[15]);
+#endif
+  }
 }
 
 /* Used to write process ID to file. Assume someone else will delete */
@@ -678,7 +703,8 @@ int set_env(char *name, char type, void *value, int len) {
   return 0;
 }
 
-int runscript(struct app_conn_t *appconn, char* script) {  
+int runscript(struct app_conn_t *appconn, char* script,
+	      char *loc, char *oloc) {  
   int status;
   uint32_t sessiontime;
 
@@ -710,7 +736,7 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("SESSION_TIMEOUT", VAL_ULONG64, &appconn->s_params.sessiontimeout, 0);
   set_env("IDLE_TIMEOUT", VAL_ULONG, &appconn->s_params.idletimeout, 0);
   set_env("CALLING_STATION_ID", VAL_MAC_ADDR, appconn->hismac, 0);
-  set_env("CALLED_STATION_ID", VAL_MAC_ADDR, /*appconn->ourmac*/dhcp_nexthop(dhcp), 0);
+  set_env("CALLED_STATION_ID", VAL_MAC_ADDR, chilli_called_station(&appconn->s_state), 0);
   set_env("NAS_ID", VAL_STRING, _options.radiusnasid, 0);
   set_env("NAS_PORT_TYPE", VAL_STRING, "19", 0);
   set_env("ACCT_SESSION_ID", VAL_STRING, appconn->s_state.sessionid, 0);
@@ -729,6 +755,13 @@ int runscript(struct app_conn_t *appconn, char* script) {
   set_env("SESSION_TIME", VAL_ULONG, &sessiontime, 0);
   sessiontime = mainclock_diffu(appconn->s_state.last_sent_time);
   set_env("IDLE_TIME", VAL_ULONG, &sessiontime, 0);
+
+  if (loc) {
+    set_env("LOCATION", VAL_STRING, loc, 0);
+  }
+  if (oloc) {
+    set_env("OLD_LOCATION", VAL_STRING, oloc, 0);
+  }
 
   if (appconn->s_state.terminate_cause)
     set_env("TERMINATE_CAUSE", VAL_ULONG, 
@@ -919,7 +952,9 @@ int static dnprot_terminate(struct app_conn_t *appconn) {
   appconn->s_state.bucketdownsize = 0;
 #endif
 #ifdef HAVE_NETFILTER_COOVA
-  kmod_coova_update(appconn);
+  if (_options.kname) {
+    kmod_coova_update(appconn);
+  }
 #endif
 #ifdef ENABLE_LAYER3
   if (!_options.layer3)
@@ -970,27 +1005,51 @@ void session_interval(struct app_conn_t *conn) {
 
   if ((conn->s_params.sessiontimeout) &&
       (sessiontime > conn->s_params.sessiontimeout)) {
+#ifdef ENABLE_SESSIONSTATE
+    conn->s_state.session_state = 
+      RADIUS_VALUE_CHILLISPOT_SESSION_TIMEOUT_REACHED;
+#endif      
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.sessionterminatetime) && 
 	   (mainclock_rtdiff(conn->s_params.sessionterminatetime) > 0)) {
+#ifdef ENABLE_SESSIONSTATE
+    conn->s_state.session_state = 
+      RADIUS_VALUE_CHILLISPOT_SESSION_LOGOUT_TIME_REACHED;
+#endif      
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.idletimeout) && 
 	   (idletime > conn->s_params.idletimeout)) {
+#ifdef ENABLE_SESSIONSTATE
+    conn->s_state.session_state = 
+      RADIUS_VALUE_CHILLISPOT_SESSION_IDLE_TIMEOUT_REACHED;
+#endif      
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_IDLE_TIMEOUT);
   }
   else if ((conn->s_params.maxinputoctets) &&
 	   (conn->s_state.input_octets > conn->s_params.maxinputoctets)) {
+#ifdef ENABLE_SESSIONSTATE
+    conn->s_state.session_state = 
+      RADIUS_VALUE_CHILLISPOT_SESSION_IN_DATALIMIT_REACHED;
+#endif      
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.maxoutputoctets) &&
 	   (conn->s_state.output_octets > conn->s_params.maxoutputoctets)) {
+#ifdef ENABLE_SESSIONSTATE
+    conn->s_state.session_state = 
+      RADIUS_VALUE_CHILLISPOT_SESSION_OUT_DATALIMIT_REACHED;
+#endif      
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.maxtotaloctets) &&
 	   ((conn->s_state.input_octets + conn->s_state.output_octets) > 
 	    conn->s_params.maxtotaloctets)) {
+#ifdef ENABLE_SESSIONSTATE
+    conn->s_state.session_state = 
+      RADIUS_VALUE_CHILLISPOT_SESSION_TOTAL_DATALIMIT_REACHED;
+#endif      
     terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
   }
   else if ((conn->s_params.interim_interval) &&
@@ -1021,7 +1080,8 @@ static int checkconn() {
   uint32_t rereaddiff;
 
 #ifdef HAVE_NETFILTER_COOVA
-  kmod_coova_sync();
+  if (_options.kname) 
+    kmod_coova_sync();
 #endif
 
   checkdiff = mainclock_diffu(checktime);
@@ -1127,7 +1187,8 @@ int chilli_req_attrs(struct radius_t *radius,
 
     if (_options.radiusoriginalurl && state->redir.userurl[0])
       radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC, 
-		     RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_ORIGINALURL, 
+		     RADIUS_VENDOR_CHILLISPOT, 
+		     RADIUS_ATTR_CHILLISPOT_ORIGINALURL, 
 		     0, (uint8_t*) state->redir.userurl, 
 		     strlen(state->redir.userurl));
 
@@ -1152,6 +1213,14 @@ int chilli_req_attrs(struct radius_t *radius,
     radius_addattr(radius, pack, RADIUS_ATTR_ACCT_SESSION_ID, 0, 0, 0,
 		   (uint8_t *) state->sessionid, REDIR_SESSIONID_LEN-1);
   }
+
+#ifdef ENABLE_SESSIONID
+  if (state->chilli_sessionid[0]) {
+    radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC, 
+		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_SESSION_ID, 
+		   0, (uint8_t *) state->chilli_sessionid, strlen(state->chilli_sessionid));
+  }
+#endif
   
   if (state->redir.classlen) {
     log_dbg("RADIUS Request + Class(%d)", state->redir.classlen);
@@ -1204,7 +1273,7 @@ int chilli_req_attrs(struct radius_t *radius,
 		   (uint8_t*) mac, MACSTRLEN);
   }
   
-  radius_addcalledstation(radius, pack);
+  radius_addcalledstation(radius, pack, state);
 
   radius_addnasip(radius, pack);
 
@@ -1585,8 +1654,10 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
 			  the_info.sharedram,
 			  the_info.bufferram);
 	  
-	  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-			 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_SYS_MEMORY, 
+	  radius_addattr(radius, &radius_pack, 
+			 RADIUS_ATTR_VENDOR_SPECIFIC,
+			 RADIUS_VENDOR_CHILLISPOT,
+			 RADIUS_ATTR_CHILLISPOT_SYS_MEMORY, 
 			 0, (uint8_t *) b, strlen(b));
 	}
       }
@@ -1623,7 +1694,16 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
     
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_ACCT_TERMINATE_CAUSE, 
 		   0, 0, conn->s_state.terminate_cause, NULL, 0);
-    
+
+#ifdef ENABLE_SESSIONSTATE
+    if (conn->s_state.session_state) {
+      radius_addattr(radius, &radius_pack, 
+		     RADIUS_ATTR_VENDOR_SPECIFIC,
+		     RADIUS_VENDOR_CHILLISPOT,
+		     RADIUS_ATTR_CHILLISPOT_SESSION_STATE, 
+		     conn->s_state.session_state, 0, 0);
+    }
+#endif    
   }
   
   chilli_req_attrs(radius, &radius_pack, 
@@ -1913,7 +1993,8 @@ int dnprot_accept(struct app_conn_t *appconn) {
     appconn->s_state.authenticated = 1;
 
 #ifdef HAVE_NETFILTER_COOVA
-    kmod_coova_update(appconn);
+    if (_options.kname)
+      kmod_coova_update(appconn);
 #endif
 
 #ifdef ENABLE_MODULES
@@ -1936,7 +2017,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
     /* Run connection up script */
     if (_options.conup && !(appconn->s_params.flags & NO_SCRIPT)) {
       log_dbg("Calling connection up script: %s\n", _options.conup);
-      runscript(appconn, _options.conup);
+      runscript(appconn, _options.conup, 0, 0);
     }
   }
   
@@ -2474,10 +2555,232 @@ int cb_redir_getstate(struct redir_t *redir,
 
 #ifdef ENABLE_RADPROXY
 /*********************************************************
- *
  * Functions supporting radius callbacks
- *
  *********************************************************/
+#ifdef ENABLE_PROXYVSA
+static int 
+chilli_learn_location(struct radius_packet_t *pack, 
+		      struct app_conn_t *appconn) {
+  struct radius_attr_t *attr = NULL;
+  int instance=0;
+
+  char loc[256];
+  char prev_loc[256];
+  uint8_t prev_loc_len=0;
+
+  char has_new_location = 0;
+  char restart_accounting = 0;
+
+  uint8_t vsa[RADIUS_PROXYVSA];
+  size_t vsalen = 0;
+
+  if (_options.proxy_loc[0].attr) {
+    uint16_t len = appconn->s_state.redir.vsalen;
+    uint16_t offset = 0;
+    struct radius_attr_t *t;
+    
+    while (offset < len) {
+      t = (struct radius_attr_t *)(appconn->s_state.redir.vsa + offset);
+      offset += t->l;
+      if (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && 
+	  ntohl(t->v.vv.i) == RADIUS_VENDOR_CHILLISPOT &&
+	  t->v.vv.t ==  RADIUS_ATTR_CHILLISPOT_LOCATION) {
+	if (t->v.vv.l < sizeof(prev_loc)) {
+	  memcpy(prev_loc, (void *) t->v.vv.v.t, t->v.vv.l - 2);
+	  prev_loc_len = t->v.vv.l - 2;
+	}
+	break;
+      }
+    }
+  }
+
+  if (_options.location_copy_called) {
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0)) {
+      if (attr->l - 2 < sizeof(appconn->s_state.redir.called) - 1) {
+	appconn->s_state.redir.calledlen = attr->l - 2;
+	memcpy(appconn->s_state.redir.called, attr->v.t, 
+	       appconn->s_state.redir.calledlen);
+	appconn->s_state.redir.called[appconn->s_state.redir.calledlen]=0;
+      }
+    }
+  }
+  
+  do {
+    attr=NULL;
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, 0, 0, 
+			instance++)) {
+      
+      if ((vsalen + (size_t) attr->l) > RADIUS_PROXYVSA) {
+	log_warn(0, "VSAs too long");
+	return -1;
+      }
+      
+      memcpy(vsa + vsalen, (void *)attr, (size_t) attr->l);
+      vsalen += (size_t)attr->l;
+      
+#if(_debug_)
+      log_dbg("Remembering VSA");
+#endif
+    }
+  } while (attr);
+
+  if (_options.proxy_loc[0].attr) {
+    struct radius_attr_t nattr;
+    int i;
+    
+    memset(&nattr, 0, sizeof(nattr));
+    nattr.t = RADIUS_ATTR_VENDOR_SPECIFIC;
+    nattr.l = 6;
+    nattr.v.vv.i = htonl(RADIUS_VENDOR_CHILLISPOT);
+    nattr.v.vv.t = RADIUS_ATTR_CHILLISPOT_LOCATION;
+    nattr.v.vv.l = 0;
+    attr = 0;
+    
+    for (i=0; i < PROXYVSA_ATTR_CNT; i++) {
+      
+      if (!_options.proxy_loc[i].attr_vsa && 
+	  !_options.proxy_loc[i].attr)
+	break;
+      
+      if (!_options.proxy_loc[i].attr_vsa) {
+	/*
+	 *  We have a loc_attr, but it isn't a VSA (so not included above)
+	 */
+	
+#if(_debug_)
+	log_dbg("looking for attr %d", _options.proxy_loc[i].attr);
+#endif
+	
+	if (radius_getattr(pack, &attr, _options.proxy_loc[i].attr, 
+			   0, 0, 0)) {
+	  log_dbg("didn't find attr %d", _options.proxy_loc[i].attr);
+	  attr = 0;
+	}
+      } else {
+	/*
+	 *  We have a loc_attr and VSA number (so it is included above).
+	 */
+	
+#if(_debug_)
+	log_dbg("looking for attr %d/%d", _options.proxy_loc[i].attr_vsa, 
+		_options.proxy_loc[i].attr);
+#endif
+	
+	if (radius_getattr(pack, &attr, 
+			   RADIUS_ATTR_VENDOR_SPECIFIC, 
+			   _options.proxy_loc[i].attr_vsa, 
+			   _options.proxy_loc[i].attr, 0)) {
+	  log_dbg("didn't find attr %d/%d", _options.proxy_loc[i].attr_vsa, 
+		  _options.proxy_loc[i].attr);
+	  attr = 0;
+	}
+      }
+    }
+    
+    if (attr && attr->l > 2 && 
+	(vsalen + (size_t) attr->l) < RADIUS_PROXYVSA) {
+      memcpy(&nattr.v.vv.v.t, attr->v.t, attr->l - 2);
+      nattr.v.vv.l = attr->l;
+      nattr.l += attr->l;
+      
+      memcpy(vsa + vsalen, (void *)&nattr, (size_t)nattr.l);
+      vsalen += (size_t)nattr.l;
+
+      log_dbg("Learned location : %.*s", 
+	      (int)nattr.v.vv.l-2, nattr.v.vv.v.t);
+
+      if (prev_loc_len == 0 || 
+	  prev_loc_len != nattr.v.vv.l-2 ||
+	  memcmp(prev_loc, nattr.v.vv.v.t, prev_loc_len)) {
+
+	has_new_location = 1;
+
+	log_dbg("Learned new-location : %d %.*s old %d %.*s", 
+		(int)nattr.v.vv.l-2, (int)nattr.v.vv.l-2, nattr.v.vv.v.t, 
+		(int)prev_loc_len, (int)prev_loc_len, prev_loc);
+	
+	if (_options.locationupdate) {
+	  prev_loc[prev_loc_len]=0;
+	  memcpy(loc, (char *)nattr.v.vv.v.t, (int)nattr.v.vv.l-2);
+	  loc[nattr.v.vv.l-2]=0;
+	  runscript(appconn, _options.locationupdate, loc, prev_loc);
+	}
+
+	if (_options.location_stop_start) {
+	  restart_accounting = 1;
+	}
+	else if (_options.location_immediate_update) {
+	  acct_req(appconn, RADIUS_STATUS_TYPE_INTERIM_UPDATE);
+	}
+      }
+    }
+  }
+
+  if (appconn->s_state.authenticated == 1 &&
+      has_new_location && restart_accounting) {
+    /* make sure not already over a limit ... */
+    session_interval(appconn);
+
+#ifdef ENABLE_SESSIONSTATE
+    appconn->s_state.session_state = 
+      RADIUS_VALUE_CHILLISPOT_SESSION_LOCATION_CHANGE;
+#endif      
+
+    if (appconn->s_state.authenticated == 1)
+      acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
+  }
+
+  appconn->s_state.redir.vsalen = vsalen;
+  if (vsalen > 0) {
+    memcpy(appconn->s_state.redir.vsa, vsa, vsalen);
+  }
+
+  if (appconn->s_state.authenticated == 1 &&
+      has_new_location && restart_accounting) {
+
+    /* adjust session parameters to be zeroed out */
+
+    set_sessionid(appconn, 0);
+
+    if (appconn->s_params.sessiontimeout) {
+      uint32_t sessiontime = mainclock_diffu(appconn->s_state.start_time);
+      if (sessiontime > appconn->s_params.sessiontimeout)
+	/* (should be the case, having done the session_interval() above) */
+	appconn->s_params.sessiontimeout -= sessiontime;
+    }
+
+    if (appconn->s_params.maxinputoctets) {
+      if (appconn->s_params.maxinputoctets > appconn->s_state.input_octets)
+	appconn->s_params.maxinputoctets -= appconn->s_state.input_octets;
+    }
+
+    if (appconn->s_params.maxoutputoctets) {
+      if (appconn->s_params.maxoutputoctets > appconn->s_state.output_octets)
+	appconn->s_params.maxoutputoctets -= appconn->s_state.output_octets;
+    }
+
+    if (appconn->s_params.maxtotaloctets) {
+      uint64_t total = appconn->s_state.input_octets + 
+	appconn->s_state.output_octets;
+      if (appconn->s_params.maxtotaloctets > total)
+	appconn->s_params.maxtotaloctets -= total;
+    }
+
+    appconn->s_state.start_time = mainclock;
+    appconn->s_state.interim_time = mainclock;
+    appconn->s_state.last_time = mainclock;
+    appconn->s_state.last_sent_time = mainclock;
+    appconn->s_state.input_packets = 0;
+    appconn->s_state.input_octets = 0;
+    appconn->s_state.output_packets = 0;
+    appconn->s_state.output_octets = 0;
+
+    acct_req(appconn, RADIUS_STATUS_TYPE_START);
+  }
+
+  return 0;
+}
+#endif
 
 /* Handle an accounting request */
 int accounting_request(struct radius_packet_t *pack,
@@ -2509,12 +2812,6 @@ int accounting_request(struct radius_packet_t *pack,
   /* Status type */
   if (radius_getattr(pack, &typeattr, RADIUS_ATTR_ACCT_STATUS_TYPE, 0, 0, 0)) {
     log_err(0, "Status type is missing from radius request");
-    radius_resp(radius, &radius_pack, peer, pack->authenticator);
-    return 0;
-  }
-
-  /* Only interested in the disconnect, if one */
-  if (typeattr->v.i != htonl(RADIUS_STATUS_TYPE_STOP)) {
     radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
   }
@@ -2567,19 +2864,31 @@ int accounting_request(struct radius_packet_t *pack,
       hismac[i] = temp[i];
   }
 
-  if (hismacattr) { /* Look for mac address.*/
-    if (dhcp_hashget(dhcp, &dhcpconn, hismac)) {
-      log_err(0, "Unknown connection");
-      radius_resp(radius, &radius_pack, peer, pack->authenticator);
-      return 0;
-    }
-
-    if (!(dhcpconn->peer) || !((struct app_conn_t *)dhcpconn->peer)->uplink) {
-      log_err(0, "No peer protocol defined");
+  if (hismacattr) { 
+    /* 
+     * Look for mac address. 
+     * If not found allocate new..
+     */
+#ifdef ENABLE_LAYER3
+    if (_options.layer3) {
+      log_err(0, "Not supported in layer3 mode");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
-    }
-    
-    appconn = (struct app_conn_t*) dhcpconn->peer;
+    } else {
+#endif
+      if (dhcp_hashget(dhcp, &dhcpconn, hismac)) {
+	if (dhcp_newconn(dhcp, &dhcpconn, hismac, 0)) {
+	  log_err(0, "Out of connections");
+	  return radius_resp(radius, &radius_pack, peer, pack->authenticator);
+	}
+      }
+      if (!(dhcpconn->peer)) {
+	log_err(0, "No peer protocol defined");
+	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
+      }
+      appconn = (struct app_conn_t *)dhcpconn->peer;
+#ifdef ENABLE_LAYER3
+    } 
+#endif
   }
   else if (nasipattr && nasportattr) { /* Look for NAS IP / Port */
     if (chilli_getconn(&appconn, 0, nasip, nasport)) {
@@ -2591,6 +2900,11 @@ int accounting_request(struct radius_packet_t *pack,
   else {
     log_err(0, "Calling Station ID or NAS IP/Port is missing from radius request");
     radius_resp(radius, &radius_pack, peer, pack->authenticator);
+    return 0;
+  }
+
+  if (!appconn) {
+    log_dbg("No application context for RADIUS proxy");
     return 0;
   }
   
@@ -2606,26 +2920,26 @@ int accounting_request(struct radius_packet_t *pack,
     }
   }
   
-  switch (appconn->dnprot) {
-  case DNPROT_WPA:
-    break;
-  case DNPROT_UAM:
-    /* might error here to indicate wrong type (should be WPA) */
-    break;
-  default:
-    log_err(0,"Unhandled downlink protocol %d", appconn->dnprot);
-    radius_resp(radius, &radius_pack, peer, pack->authenticator);
-    return 0;
-  }
-
+  log_dbg("Handing RADIUS accounting proxy packet");
+  
   dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
 
-  if (!dhcpconn) {
-    log_err(0,"No downlink protocol");
-    return 0;
-  }
+#ifdef ENABLE_PROXYVSA
+  if (chilli_learn_location(pack, appconn))
+    return radius_resp(radius, &radius_pack, peer, pack->authenticator);
+#endif
 
-  dhcp_freeconn(dhcpconn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
+  switch (ntohl(typeattr->v.i)) {
+  case RADIUS_STATUS_TYPE_STOP:
+    /* This needs to be optional 
+    if (!dhcpconn) {
+      log_err(0,"No downlink protocol defined for RADIUS proxy client");
+      return 0;
+    }
+    dhcp_freeconn(dhcpconn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
+    */
+    break;
+  }
 
   radius_resp(radius, &radius_pack, peer, pack->authenticator);
   return 0;
@@ -2698,7 +3012,7 @@ int access_request(struct radius_packet_t *pack,
     log_dbg("Calling Station ID is: %.*x", hismacattr->l-2, hismacattr->v.t);
 
     if ((macstrlen = (size_t)hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
-      log_err(0, "Wrong length of called station ID");
+      log_err(0, "Wrong length of calling station ID");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
 
@@ -2776,7 +3090,7 @@ int access_request(struct radius_packet_t *pack,
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
   
-  /* Silently ignore radius request if allready processing one */
+  /* Silently ignore radius request if already processing one */
   if (appconn->radiuswait) {
     if (appconn->radiuswait == 2) {
       log_dbg("Giving up on previous packet.. not dropping this one");
@@ -2824,95 +3138,8 @@ int access_request(struct radius_packet_t *pack,
   }
 
 #ifdef ENABLE_PROXYVSA
-  {
-    struct radius_attr_t *attr = NULL;
-    instance=0;
-    appconn->s_state.redir.vsalen = 0;
-    do {
-      attr=NULL;
-      if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, 0, 0, 
-			  instance++)) {
-	
-	if ((appconn->s_state.redir.vsalen + (size_t) attr->l) > RADIUS_PROXYVSA) {
-	  log_warn(0, "VSAs too long");
-	  return radius_resp(radius, &radius_pack, peer, pack->authenticator);
-	}
-	
-	memcpy(appconn->s_state.redir.vsa + appconn->s_state.redir.vsalen, 
-	       (void *)attr, (size_t) attr->l);
-	
-	appconn->s_state.redir.vsalen += (size_t)attr->l;
-	
-#if(_debug_)
-	log_dbg("Remembering VSA");
-#endif
-      }
-    } while (attr);
-    if (_options.proxy_loc[0].attr) {
-      struct radius_attr_t nattr;
-      int i;
-
-      memset(&nattr, 0, sizeof(nattr));
-      nattr.t = RADIUS_ATTR_VENDOR_SPECIFIC;
-      nattr.l = 6;
-      nattr.v.vv.i = htonl(RADIUS_VENDOR_CHILLISPOT);
-      nattr.v.vv.t = RADIUS_ATTR_CHILLISPOT_LOCATION;
-      nattr.v.vv.l = 0;
-      attr = 0;
-
-      for (i=0; i < PROXYVSA_ATTR_CNT; i++) {
-
-	if (!_options.proxy_loc[i].attr_vsa && 
-	    !_options.proxy_loc[i].attr)
-	  break;
-
-	if (!_options.proxy_loc[i].attr_vsa) {
-	  /*
-	   *  We have a loc_attr, but it isn't a VSA (so not included above)
-	   */
-	  
-#if(_debug_)
-	  log_dbg("looking for attr %d", _options.proxy_loc[i].attr);
-#endif
-	  
-	  if (radius_getattr(pack, &attr, _options.proxy_loc[i].attr, 
-			     0, 0, 0)) {
-	    log_dbg("didn't find attr %d", _options.proxy_loc[i].attr);
-	    attr = 0;
-	  }
-	} else {
-	  /*
-	   *  We have a loc_attr and VSA number (so it is included above).
-	   */
-	  
-#if(_debug_)
-	  log_dbg("looking for attr %d/%d", _options.proxy_loc[i].attr_vsa, 
-		  _options.proxy_loc[i].attr);
-#endif
-	  
-	  if (radius_getattr(pack, &attr, 
-			     RADIUS_ATTR_VENDOR_SPECIFIC, 
-			     _options.proxy_loc[i].attr_vsa, 
-			     _options.proxy_loc[i].attr, 0)) {
-	    log_dbg("didn't find attr %d/%d", _options.proxy_loc[i].attr_vsa, 
-		    _options.proxy_loc[i].attr);
-	    attr = 0;
-	  }
-	}
-      }
-
-      if (attr) {
-	memcpy(&nattr.v.vv.v.t, attr->v.t, attr->l - 2);
-	nattr.v.vv.l = attr->l;
-	nattr.l += attr->l;
-
-	memcpy(appconn->s_state.redir.vsa + appconn->s_state.redir.vsalen, 
-	       (void *)&nattr, (size_t)nattr.l);
-	
-	appconn->s_state.redir.vsalen += (size_t)nattr.l;
-      }
-    }
-  }
+  if (chilli_learn_location(pack, appconn))
+    return radius_resp(radius, &radius_pack, peer, pack->authenticator);
 #endif
 
   /* Passwd or EAP must be given in request */
@@ -2990,7 +3217,6 @@ int access_request(struct radius_packet_t *pack,
   memcpy(&appconn->radiuspeer, peer, sizeof(*peer));
   memcpy(appconn->authenticator, pack->authenticator, RADIUS_AUTHLEN);
   memcpy(appconn->hismac, dhcpconn->hismac, PKT_ETH_ALEN);
-  /*memcpy(appconn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);*/
 
   /* Build up radius request */
   radius_pack.code = RADIUS_CODE_ACCESS_REQUEST;
@@ -3158,7 +3384,7 @@ session_disconnect(struct app_conn_t *appconn,
   
   if (_options.macdown) {
     log_dbg("Calling MAC down script: %s",_options.macdown);
-    runscript(appconn, _options.macdown);
+    runscript(appconn, _options.macdown, 0, 0);
   }
 
   if (!dhcpconn || !dhcpconn->is_reserved) {
@@ -4421,10 +4647,9 @@ int chilli_connect(struct app_conn_t **appconn, struct dhcp_conn_t *conn) {
 
   if (conn) {
     memcpy(aconn->hismac, conn->hismac, PKT_ETH_ALEN);
-    /*memcpy(appconn->ourmac, conn->ourmac, PKT_ETH_ALEN);*/
   }
   
-  set_sessionid(aconn);
+  set_sessionid(aconn, 1);
 
 #ifdef ENABLE_BINSTATFILE
   printstatus();
@@ -4455,7 +4680,7 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
 
   if (_options.macup) {
     log_dbg("Calling MAC up script: %s",_options.macup);
-    runscript(appconn, _options.macup);
+    runscript(appconn, _options.macup, 0, 0);
   }
 
   return 0;
@@ -4599,6 +4824,33 @@ int chilli_getinfo(struct app_conn_t *appconn, bstring b, int fmt) {
 	bconcat(b, tmp);
       }
 #endif
+
+#ifdef ENABLE_PROXYVSA
+      if (appconn->s_state.redir.vsalen) {
+	uint16_t len = appconn->s_state.redir.vsalen;
+	uint16_t offset = 0;
+	struct radius_attr_t *t;
+	/*
+	  bassignformat(tmp, " vsalen=%d", (int)appconn->s_state.redir.vsalen);
+	  bconcat(b, tmp);
+	*/
+	while (offset < len) {
+	  t = (struct radius_attr_t *)(appconn->s_state.redir.vsa + offset);
+	  offset += t->l;
+	  if (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && 
+	      ntohl(t->v.vv.i) == RADIUS_VENDOR_CHILLISPOT &&
+	      t->v.vv.t ==  RADIUS_ATTR_CHILLISPOT_LOCATION) {
+	    bstring tmp2 = bfromcstr("");
+	    bcatcstr(b, " loc=");
+	    bassignblk(tmp, (void *) t->v.vv.v.t, t->v.vv.l - 2);
+	    redir_urlencode(tmp, tmp2);
+	    bconcat(b, tmp2);
+	    bdestroy(tmp2);
+	    break;
+	  }
+	}
+      }      
+#endif
       
       bdestroy(tmp);
     }
@@ -4736,7 +4988,7 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
 
     if (_options.condown && !(appconn->s_params.flags & NO_SCRIPT)) {
       log_dbg("Calling connection down script: %s\n",_options.condown);
-      runscript(appconn, _options.condown);
+      runscript(appconn, _options.condown, 0, 0);
     }
 
     acct_req(appconn, RADIUS_STATUS_TYPE_STOP);
@@ -4744,7 +4996,7 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
     /* should memory be cleared here?? */
     memset(&appconn->s_params, 0, sizeof(appconn->s_params));
 
-    set_sessionid(appconn);
+    set_sessionid(appconn, 1);
 
 #ifdef ENABLE_STATFILE
     printstatus();
@@ -5068,7 +5320,7 @@ int static uam_msg(struct redir_msg_t *msg) {
       memcpy(&appconn->s_params, &msg->mdata.params, sizeof(msg->mdata.params));
     
     if (msg->mdata.opt & REDIR_MSG_NSESSIONID)
-      set_sessionid(appconn);
+      set_sessionid(appconn, 0);
   }
   
   switch(msg->mtype) {
@@ -5096,7 +5348,6 @@ int static uam_msg(struct redir_msg_t *msg) {
 #endif
     
     memcpy(appconn->hismac, dhcpconn->hismac, PKT_ETH_ALEN);
-    /*memcpy(appconn->ourmac, dhcpconn->ourmac, PKT_ETH_ALEN);*/
     
 #ifdef ENABLE_LEAKYBUCKET
     leaky_bucket_init(appconn);
@@ -5112,6 +5363,10 @@ int static uam_msg(struct redir_msg_t *msg) {
     log_dbg("Received logoff from UAM\n");
 
     if (appconn->s_state.authenticated == 1) {
+#ifdef ENABLE_SESSIONSTATE
+      appconn->s_state.session_state = 
+	RADIUS_VALUE_CHILLISPOT_SESSION_USER_LOGOUT_URL;
+#endif      
       terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
       appconn->s_params.sessiontimeout = 0;
       appconn->s_params.idletimeout = 0;
@@ -5164,7 +5419,8 @@ int static uam_msg(struct redir_msg_t *msg) {
 int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 
 #ifdef HAVE_NETFILTER_COOVA
-  kmod_coova_sync();
+  if (_options.kname)
+    kmod_coova_sync();
 #endif
 
   switch(req->type) {
@@ -6024,7 +6280,8 @@ int chilli_main(int argc, char **argv) {
     acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
 #endif
 #ifdef HAVE_NETFILTER_COOVA
-    kmod_coova_clear();
+    if (_options.kname)
+      kmod_coova_clear();
 #endif
   }
 
@@ -6036,7 +6293,7 @@ int chilli_main(int argc, char **argv) {
     safe_strncpy(admin_session.s_state.redir.username, 
 		 _options.adminuser, 
 		 sizeof(admin_session.s_state.redir.username));
-    set_sessionid(&admin_session);
+    set_sessionid(&admin_session, 0);
     chilli_auth_radius(radius);
   }
   

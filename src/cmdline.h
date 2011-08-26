@@ -131,6 +131,15 @@ struct gengetopt_args_info
   char * vlanupdate_arg;	/**< @brief Script to run after 802.1Q/VLAN id assignment.  */
   char * vlanupdate_orig;	/**< @brief Script to run after 802.1Q/VLAN id assignment original value given at command line.  */
   const char *vlanupdate_help; /**< @brief Script to run after 802.1Q/VLAN id assignment help description.  */
+  char * locationupdate_arg;	/**< @brief Script to run after change of location.  */
+  char * locationupdate_orig;	/**< @brief Script to run after change of location original value given at command line.  */
+  const char *locationupdate_help; /**< @brief Script to run after change of location help description.  */
+  int locationstopstart_flag;	/**< @brief Restart the RADIUS accounting stream with new session-id (default=off).  */
+  const char *locationstopstart_help; /**< @brief Restart the RADIUS accounting stream with new session-id help description.  */
+  int locationcopycalled_flag;	/**< @brief Copy Called-Station-Id from proxy RADIUS (default=off).  */
+  const char *locationcopycalled_help; /**< @brief Copy Called-Station-Id from proxy RADIUS help description.  */
+  int locationimmediateupdate_flag;	/**< @brief Immediately do an accounting interim update on proxy accounting (default=off).  */
+  const char *locationimmediateupdate_help; /**< @brief Immediately do an accounting interim update on proxy accounting help description.  */
   int txqlen_arg;	/**< @brief TX Queue length for tun interface (linux only) (default='100').  */
   char * txqlen_orig;	/**< @brief TX Queue length for tun interface (linux only) original value given at command line.  */
   const char *txqlen_help; /**< @brief TX Queue length for tun interface (linux only) help description.  */
@@ -570,6 +579,10 @@ struct gengetopt_args_info
   unsigned int macup_given ;	/**< @brief Whether macup was given.  */
   unsigned int macdown_given ;	/**< @brief Whether macdown was given.  */
   unsigned int vlanupdate_given ;	/**< @brief Whether vlanupdate was given.  */
+  unsigned int locationupdate_given ;	/**< @brief Whether locationupdate was given.  */
+  unsigned int locationstopstart_given ;	/**< @brief Whether locationstopstart was given.  */
+  unsigned int locationcopycalled_given ;	/**< @brief Whether locationcopycalled was given.  */
+  unsigned int locationimmediateupdate_given ;	/**< @brief Whether locationimmediateupdate was given.  */
   unsigned int txqlen_given ;	/**< @brief Whether txqlen was given.  */
   unsigned int tundev_given ;	/**< @brief Whether tundev was given.  */
   unsigned int mtu_given ;	/**< @brief Whether mtu was given.  */

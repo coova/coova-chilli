@@ -375,6 +375,9 @@ int main(int argc, char **argv) {
 #endif
 
 #ifdef ENABLE_PROXYVSA
+  _options.location_stop_start = args_info.locationstopstart_flag;
+  _options.location_copy_called = args_info.locationcopycalled_flag;
+  _options.location_immediate_update = args_info.locationimmediateupdate_flag;
   if (args_info.proxylocattr_given) {
     for (numargs = 0; numargs < args_info.proxylocattr_given 
 	   && numargs < PROXYVSA_ATTR_CNT; ++numargs)  {
@@ -1078,6 +1081,12 @@ int main(int argc, char **argv) {
   _options.ethers = STRDUP(args_info.ethers_arg);
 #ifdef ENABLE_REDIRINJECT
   _options.inject = STRDUP(args_info.inject_arg);
+#endif
+#ifdef ENABLE_IEEE8021Q
+  _options.vlanupdate = STRDUP(args_info.vlanupdate_arg);
+#endif
+#ifdef ENABLE_PROXYVSA
+  _options.locationupdate = STRDUP(args_info.locationupdate_arg);
 #endif
 
   ret = 0;

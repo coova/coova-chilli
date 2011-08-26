@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.57)
-AC_INIT(coova-chilli, 1.2.8, support@coova.com)
+AC_INIT(coova-chilli, 1.2.9-svn, support@coova.com)
 AC_CONFIG_SRCDIR([src/cmdline.c])
 
 AM_INIT_AUTOMAKE
@@ -294,7 +294,7 @@ AS_IF([test x"$with_nfqueue" != xno],
 AM_CONDITIONAL(WITH_NETFILTER_QUEUE, [test x"$with_nfqueue" != xno])
 
 AC_ARG_WITH([nfcoova],
- [AS_HELP_STRING([--with-nfcoova], [enable support for netfilter_queue])],[],[with_nfcoova=no])
+ [AS_HELP_STRING([--with-nfcoova], [enable support for coova netfilter module])],[],[with_nfcoova=no])
 
 AS_IF([test x"$with_nfcoova" != xno],
   [AC_DEFINE([HAVE_NETFILTER_COOVA], [1], [Define to use coova kernel module])])
@@ -441,6 +441,20 @@ if test x"$enable_cluster" = xyes; then
 fi
 
 AM_CONDITIONAL(WITH_CLUSTER, [test x"$enable_cluster" = xyes])
+
+AC_ARG_ENABLE(sessionstate, [AC_HELP_STRING([--enable-sessionstate],[Enable extended use of the ChilliSpot-Session-State attribute])], 
+  enable_sessionstate=$enableval, enable_sessionstate=no)
+
+if test x"$enable_sessionstate" = xyes; then
+   AC_DEFINE(ENABLE_SESSIONSTATE,1,[Define to enable extended use of the ChilliSpot-Session-State attribute])
+fi
+
+AC_ARG_ENABLE(sessionid, [AC_HELP_STRING([--enable-sessionid],[Enable the use of the ChilliSpot-Session-Id attribute])], 
+  enable_sessionid=$enableval, enable_sessionid=no)
+
+if test x"$enable_sessionid" = xyes; then
+   AC_DEFINE(ENABLE_SESSIONID,1,[Define to enable the use of the ChilliSpot-Session-State attribute])
+fi
 
 AC_ARG_ENABLE(mdns, [AC_HELP_STRING([--enable-mdns],[Enable support for MDNS])], 
   enable_mdns=$enableval, enable_mdns=no)

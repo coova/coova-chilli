@@ -28,8 +28,20 @@ ATTRIBUTE       ChilliSpot-Config-File                 14       string
 
 ATTRIBUTE       ChilliSpot-Session-State       	       15	integer
 
-VALUE	ChilliSpot-Session-State Authorized    1
-VALUE	ChilliSpot-Session-State NotAuthorized 2
+VALUE	ChilliSpot-Session-State Authorized       1
+VALUE	ChilliSpot-Session-State NotAuthorized    2
+VALUE	ChilliSpot-Session-State Started          3
+VALUE	ChilliSpot-Session-State Stopped          4
+VALUE	ChilliSpot-Session-State UserLogoutUrl          10
+VALUE	ChilliSpot-Session-State IdleTimeoutReached     11
+VALUE	ChilliSpot-Session-State TimeoutReached         12
+VALUE	ChilliSpot-Session-State LogoutTimeReached      13
+VALUE	ChilliSpot-Session-State InDataLimitReached     14
+VALUE	ChilliSpot-Session-State OutDataLimitReached    15
+VALUE	ChilliSpot-Session-State TotalDataLimitReached  16
+VALUE	ChilliSpot-Session-State LocationChanged	17
+
+ATTRIBUTE       ChilliSpot-Session-Id       	       16	string
 
 ATTRIBUTE	ChilliSpot-Max-Input-Gigawords	       21	integer
 ATTRIBUTE	ChilliSpot-Max-Output-Gigawords	       22	integer
