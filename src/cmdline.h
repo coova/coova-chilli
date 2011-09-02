@@ -52,6 +52,8 @@ struct gengetopt_args_info
   const char *bin_help; /**< @brief Binary config file help description.  */
   int reload_flag;	/**< @brief Send reload after reconfigure (default=off).  */
   const char *reload_help; /**< @brief Send reload after reconfigure help description.  */
+  int forgiving_flag;	/**< @brief Forgiving of many configuration errors (default=off).  */
+  const char *forgiving_help; /**< @brief Forgiving of many configuration errors help description.  */
   int debugfacility_arg;	/**< @brief Which modules to print debug messages for (default='1').  */
   char * debugfacility_orig;	/**< @brief Which modules to print debug messages for original value given at command line.  */
   const char *debugfacility_help; /**< @brief Which modules to print debug messages for help description.  */
@@ -235,6 +237,11 @@ struct gengetopt_args_info
   unsigned int proxylocattr_min; /**< @brief The attribute in proxy to be used for the loc= query string parameter's minimum occurreces */
   unsigned int proxylocattr_max; /**< @brief The attribute in proxy to be used for the loc= query string parameter's maximum occurreces */
   const char *proxylocattr_help; /**< @brief The attribute in proxy to be used for the loc= query string parameter help description.  */
+  char ** extadmvsa_arg;	/**< @brief Extended administrative-user VSA script support.  */
+  char ** extadmvsa_orig;	/**< @brief Extended administrative-user VSA script support original value given at command line.  */
+  unsigned int extadmvsa_min; /**< @brief Extended administrative-user VSA script support's minimum occurreces */
+  unsigned int extadmvsa_max; /**< @brief Extended administrative-user VSA script support's maximum occurreces */
+  const char *extadmvsa_help; /**< @brief Extended administrative-user VSA script support help description.  */
   char * dhcpif_arg;	/**< @brief Local Ethernet interface.  */
   char * dhcpif_orig;	/**< @brief Local Ethernet interface original value given at command line.  */
   const char *dhcpif_help; /**< @brief Local Ethernet interface help description.  */
@@ -552,6 +559,7 @@ struct gengetopt_args_info
   unsigned int debug_given ;	/**< @brief Whether debug was given.  */
   unsigned int bin_given ;	/**< @brief Whether bin was given.  */
   unsigned int reload_given ;	/**< @brief Whether reload was given.  */
+  unsigned int forgiving_given ;	/**< @brief Whether forgiving was given.  */
   unsigned int debugfacility_given ;	/**< @brief Whether debugfacility was given.  */
   unsigned int logfacility_given ;	/**< @brief Whether logfacility was given.  */
   unsigned int conf_given ;	/**< @brief Whether conf was given.  */
@@ -615,6 +623,7 @@ struct gengetopt_args_info
   unsigned int proxysecret_given ;	/**< @brief Whether proxysecret was given.  */
   unsigned int proxymacaccept_given ;	/**< @brief Whether proxymacaccept was given.  */
   unsigned int proxylocattr_given ;	/**< @brief Whether proxylocattr was given.  */
+  unsigned int extadmvsa_given ;	/**< @brief Whether extadmvsa was given.  */
   unsigned int dhcpif_given ;	/**< @brief Whether dhcpif was given.  */
   unsigned int dhcpmac_given ;	/**< @brief Whether dhcpmac was given.  */
   unsigned int dhcpmacset_given ;	/**< @brief Whether dhcpmacset was given.  */

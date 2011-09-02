@@ -681,33 +681,42 @@ static void redir_xmlchilli_reply (struct redir_t *redir, struct redir_conn_t *c
       
       bcatcstr(b, "<State>1</State>\r\n");
       
-      bassignformat(bt, "<StartTime>%d</StartTime>\r\n" , conn->s_state.start_time);
+      bassignformat(bt, "<StartTime>%d</StartTime>\r\n" ,
+		    conn->s_state.start_time);
       bconcat(b, bt);
       
-      bassignformat(bt, "<SessionTime>%d</SessionTime>\r\n", sessiontime);
+      bassignformat(bt, "<SessionTime>%d</SessionTime>\r\n",
+		    sessiontime);
       bconcat(b, bt);
       
       if (timeleft) {
-	bassignformat(bt, "<TimeLeft>%d</TimeLeft>\r\n", timeleft);
+	bassignformat(bt, "<TimeLeft>%d</TimeLeft>\r\n",
+		      timeleft);
 	bconcat(b, bt);
       }
       
-      bassignformat(bt, "<Timeout>%d</Timeout>\r\n", conn->s_params.sessiontimeout);
+      bassignformat(bt, "<Timeout>%d</Timeout>\r\n",
+		    conn->s_params.sessiontimeout);
       bconcat(b, bt);
       
-      bassignformat(bt, "<InputOctets>%d</InputOctets>\r\n", conn->s_state.input_octets);
+      bassignformat(bt, "<InputOctets>%d</InputOctets>\r\n",
+		    conn->s_state.input_octets);
       bconcat(b, bt);
       
-      bassignformat(bt, "<OutputOctets>%d</OutputOctets>\r\n", conn->s_state.output_octets);
+      bassignformat(bt, "<OutputOctets>%d</OutputOctets>\r\n",
+		    conn->s_state.output_octets);
       bconcat(b, bt);
       
-      bassignformat(bt, "<MaxInputOctets>%d</MaxInputOctets>\r\n", conn->s_params.maxinputoctets);
+      bassignformat(bt, "<MaxInputOctets>%d</MaxInputOctets>\r\n",
+		    conn->s_params.maxinputoctets);
       bconcat(b, bt);
       
-      bassignformat(bt, "<MaxOutputOctets>%d</MaxOutputOctets>\r\n", conn->s_params.maxoutputoctets);
+      bassignformat(bt, "<MaxOutputOctets>%d</MaxOutputOctets>\r\n", 
+		    conn->s_params.maxoutputoctets);
       bconcat(b, bt);
       
-      bassignformat(bt, "<MaxTotalOctets>%d</MaxTotalOctets>\r\n", conn->s_params.maxtotaloctets);
+      bassignformat(bt, "<MaxTotalOctets>%d</MaxTotalOctets>\r\n", 
+		    conn->s_params.maxtotaloctets);
       bconcat(b, bt);
     }
     else {

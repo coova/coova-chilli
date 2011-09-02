@@ -24,20 +24,23 @@ static int
 kmod(char cmd, struct in_addr *addr) {
   char file[128];
   char line[256];
-  int fd;
+  int fd, rd;
 
   if (!_options.kname) return -1;
-  chilli_snprintf(file, sizeof(file), kname_fmt, _options.kname);
+  safe_snprintf(file, sizeof(file), kname_fmt, _options.kname);
   fd = open(file, O_RDWR, 0);
   if (fd > 0) {
     if (addr) 
-      chilli_snprintf(line, sizeof(line), "%c%s\n", cmd, inet_ntoa(*addr));
+      safe_snprintf(line, sizeof(line), "%c%s\n", cmd, inet_ntoa(*addr));
     else
-      chilli_snprintf(line, sizeof(line), "%c\n", cmd);
+      safe_snprintf(line, sizeof(line), "%c\n", cmd);
 
-    int rd = write(fd, line, sizeof(line));
+    rd = write(fd, line, strlen(line));
+    log_dbg("kmod wrote %d %s", rd, line);
     close(fd);
     return rd == strlen(line);
+  } else {
+    log_err(errno, "could not open %s", file);
   }
   return 0;
 }
@@ -77,8 +80,7 @@ kmod_coova_sync() {
 
   if (!_options.kname) return -1;
 
-  log_dbg("Running kmod sync");
-  chilli_snprintf(file, sizeof(file), kname_fmt, _options.kname);
+  safe_snprintf(file, sizeof(file), kname_fmt, _options.kname);
 
   fp = fopen(file, "r");
   if (fp == NULL)

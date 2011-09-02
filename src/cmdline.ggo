@@ -17,6 +17,7 @@ option  "fg"            f "Run in foreground"             flag   off
 option  "debug"         d "Run in debug mode"             flag   off
 option  "bin"           b "Binary config file" string no
 option  "reload"        r "Send reload after reconfigure" flag off
+option  "forgiving"     F "Forgiving of many configuration errors" flag off
 option  "debugfacility" - "Which modules to print debug messages for" int default="1" no
 option  "logfacility"   - "Syslog facility to be used for logging" int default="-1" no
 
@@ -92,6 +93,8 @@ option "proxysecret"   - "Radius proxy shared secret"    string no
 option "proxymacaccept" - "Auto-accept non-EAP requests on proxy port" flag off
 
 option "proxylocattr" - "The attribute in proxy to be used for the loc= query string parameter" string no multiple
+
+option "extadmvsa" - "Extended administrative-user VSA script support" string no multiple
 
 # DHCP parameters
 option "dhcpif"      - "Local Ethernet interface"    string no

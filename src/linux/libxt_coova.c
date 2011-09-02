@@ -11,10 +11,10 @@
 #include "xt_coova.h"
 
 static const struct option coova_opts[] = {
-	{ .name = "name",    .has_arg = 1, .val = 201 },
-	{ .name = "source",  .has_arg = 0, .val = 202 },
-	{ .name = "dest",    .has_arg = 0, .val = 203 },
-	{ .name = NULL }
+	{ .name = "name",    .has_arg = 1, .flag = 0, .val = 201 },
+	{ .name = "source",  .has_arg = 0, .flag = 0, .val = 202 },
+	{ .name = "dest",    .has_arg = 0, .flag = 0, .val = 203 },
+	{ .name = 0, 	     .has_arg = 0, .flag = 0, .val = 0  }
 };
 
 static void coova_help(void)
@@ -36,7 +36,8 @@ static void coova_init(struct xt_entry_match *match)
 }
 
 static int coova_parse(int c, char **argv, int invert, unsigned int *flags,
-                        const void *entry, struct xt_entry_match **match)
+                        const void *entry, 
+			struct xt_entry_match **match)
 {
 	struct xt_coova_mtinfo *info = (void *)(*match)->data;
 
@@ -110,8 +111,8 @@ static struct xtables_match coova_mt_reg = {
 };
 
 static struct xtables_match coova_mt6_reg = {
-	.version       = XTABLES_VERSION,
 	.name          = "coova",
+	.version       = XTABLES_VERSION,
 	.revision      = 0,
 	.family        = NFPROTO_IPV6,
 	.size          = XT_ALIGN(sizeof(struct xt_coova_mtinfo)),

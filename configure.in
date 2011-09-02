@@ -195,6 +195,13 @@ if test x"$enable_proxyvsa" = xyes; then
    AC_DEFINE(ENABLE_PROXYVSA,1,[Define to enable VSA proxy])
 fi
 
+AC_ARG_ENABLE(extadmvsa, [AC_HELP_STRING([--enable-extadmvsa],[Enable admin-user VSA attribute support])], 
+  enable_extadmvsa=$enableval, enable_extadmvsa=no)
+
+if test x"$enable_extadmvsa" = xyes; then
+   AC_DEFINE(ENABLE_EXTADMVSA,1,[Define to enable admin-user VSA support])
+fi
+
 AC_ARG_ENABLE(dnslog, [AC_HELP_STRING([--enable-dnslog],[Enable support to log DNS name queries])], 
   enable_dnslog=$enableval, enable_dnslog=no)
 

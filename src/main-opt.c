@@ -119,11 +119,20 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_PROXYVSA
   "ENABLE_PROXYVSA "
 #endif
+#ifdef ENABLE_EXTADMVSA
+  "ENABLE_EXTADMVSA "
+#endif
 #ifdef ENABLE_REDIRDNSREQ
   "ENABLE_REDIRDNSREQ "
 #endif
 #ifdef ENABLE_SESSGARDEN
   "ENABLE_SESSGARDEN "
+#endif
+#ifdef ENABLE_SESSIONID
+  "ENABLE_SESSIONID "
+#endif
+#ifdef ENABLE_SESSIONSTATE
+  "ENABLE_SESSIONSTATE "
 #endif
 #ifdef ENABLE_SSDP
   "ENABLE_SSDP "
@@ -139,6 +148,9 @@ static const char *compile_options = "Compiled with "
 #endif
 #ifdef HAVE_MATRIXSSL
   "HAVE_MATRIXSSL "
+#endif
+#ifdef HAVE_NETFILTER_COOVA
+  "HAVE_NETFILTER_COOVA "
 #endif
 #ifdef HAVE_OPENSSL
   "HAVE_OPENSSL "
@@ -226,7 +238,7 @@ int main(int argc, char **argv) {
     log_err(0, "Failed to parse command line options");
     goto end_processing;
   }
-
+  
   if (args_info.version_given) {
     options_print_version();
     exit(2);
@@ -243,7 +255,8 @@ int main(int argc, char **argv) {
 				&args_info, 0, 0, 0)) {
     log_err(0, "Failed to parse configuration file: %s!", 
 	    args_info.conf_arg);
-    goto end_processing;
+    if (!args_info.forgiving_flag)
+      goto end_processing;
   }
 
   /* Get the system default DNS entries */
@@ -404,23 +417,72 @@ int main(int argc, char **argv) {
   }
 #endif
 
+#ifdef ENABLE_EXTADMVSA
+  if (args_info.extadmvsa_given) {
+    for (numargs = 0; numargs < args_info.extadmvsa_given 
+	   && numargs < EXTADMVSA_ATTR_CNT; ++numargs)  {
+      int len = strlen(args_info.extadmvsa_arg[numargs]);
+      if (len > 0 && len < 256) {
+	unsigned int i[2];
+	char s[256];
+	
+	if (sscanf(args_info.extadmvsa_arg[numargs], 
+		   "%u,%u:%s", &i[0], &i[1], s) == 3) {
+	  char *idx = strchr(s, ':');
+	  _options.extadmvsa[numargs].attr_vsa = i[0];
+	  _options.extadmvsa[numargs].attr = i[1];
+	  if (idx) *idx = 0;
+	  safe_strncpy(_options.extadmvsa[numargs].script, 
+		       s, sizeof(_options.extadmvsa[numargs].script)-1);
+	  if (idx) {
+	    safe_strncpy(_options.extadmvsa[numargs].data, 
+			 idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
+	  }
+	} else if (sscanf(args_info.extadmvsa_arg[numargs], 
+			  "%u:%s", &i[0], s) == 2) {
+	  char *idx = strchr(s, ':');
+	  _options.extadmvsa[numargs].attr = i[0];
+	  if (idx) *idx = 0;
+	  safe_strncpy(_options.extadmvsa[numargs].script, 
+		       s, sizeof(_options.extadmvsa[numargs].script)-1);
+	  if (idx) {
+	    safe_strncpy(_options.extadmvsa[numargs].data, 
+			 idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
+	  }
+	} else {
+	  log_err(0, "invalid input %s", args_info.extadmvsa_arg[numargs]);
+	}
+      }
+
+      log_dbg("Extended admin-user attr (%d/%d) data=%s script=%s", 
+	      (int)_options.extadmvsa[numargs].attr_vsa, 
+	      (int)_options.extadmvsa[numargs].attr,
+	      (int)_options.extadmvsa[numargs].data,
+	      (int)_options.extadmvsa[numargs].script);
+    }
+  }
+#endif
+
   if (args_info.dhcpgateway_arg &&
       !inet_aton(args_info.dhcpgateway_arg, &_options.dhcpgwip)) {
     log_err(0, "Invalid DHCP gateway IP address: %s!", args_info.dhcpgateway_arg);
-    goto end_processing;
+    if (!args_info.forgiving_flag)
+      goto end_processing;
   }
 
   if (args_info.dhcprelayagent_arg &&
       !inet_aton(args_info.dhcprelayagent_arg, &_options.dhcprelayip)) {
     log_err(0, "Invalid DHCP gateway relay IP address: %s!", args_info.dhcprelayagent_arg);
-    goto end_processing;
+    if (!args_info.forgiving_flag)
+      goto end_processing;
   }
 
   _options.dhcpif = STRDUP(args_info.dhcpif_arg);
 
   if (!args_info.radiussecret_arg) {
     log_err(0, "radiussecret must be specified!");
-    goto end_processing;
+    if (!args_info.forgiving_flag)
+      goto end_processing;
   }
 
   if (!args_info.nexthop_arg) {
@@ -435,7 +497,8 @@ int main(int argc, char **argv) {
 
     if ((macstrlen = strlen(args_info.nexthop_arg)) >= (RADIUS_ATTR_VLEN-1)) {
       log_err(0, "MAC address too long");
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
 
     memcpy(macstr, args_info.nexthop_arg, macstrlen);
@@ -472,7 +535,8 @@ int main(int argc, char **argv) {
 
     if ((macstrlen = strlen(args_info.dhcpmac_arg)) >= (RADIUS_ATTR_VLEN-1)) {
       log_err(0, "MAC address too long");
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
 
     memcpy(macstr, args_info.dhcpmac_arg, macstrlen);
@@ -500,28 +564,31 @@ int main(int argc, char **argv) {
   if (args_info.net_arg) {
     if (option_aton(&_options.net, &_options.mask, args_info.net_arg, 0)) {
       log_err(0, "Invalid network address: %s!", args_info.net_arg);
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
     if (!args_info.uamlisten_arg) {
       _options.uamlisten.s_addr = htonl(ntohl(_options.net.s_addr)+1);
     }
     else if (!inet_aton(args_info.uamlisten_arg, &_options.uamlisten)) {
       log_err(0, "Invalid UAM IP address: %s!", args_info.uamlisten_arg);
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
     if (!args_info.dhcplisten_arg) {
       _options.dhcplisten.s_addr = _options.uamlisten.s_addr;
     }
     else if (!inet_aton(args_info.dhcplisten_arg, &_options.dhcplisten)) {
       log_err(0, "Invalid DHCP IP address: %s!", args_info.dhcplisten_arg);
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
   }
   else {
     log_err(0, "Network address must be specified ('net' parameter)!");
-    goto end_processing;
+    if (!args_info.forgiving_flag)
+      goto end_processing;
   }
-
 
   log_dbg("DHCP Listen: %s", inet_ntoa(_options.dhcplisten));
   log_dbg("UAM Listen: %s", inet_ntoa(_options.uamlisten));
@@ -539,7 +606,8 @@ int main(int argc, char **argv) {
     if (get_urlparts(args_info.uamserver_arg, hostname, USERURLSIZE, 
 		     &_options.uamserverport, 0)) {
       log_err(0, "Failed to parse uamserver: %s!", args_info.uamserver_arg);
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
 
     if (!args_info.uamaliasname_arg ||
@@ -547,7 +615,6 @@ int main(int argc, char **argv) {
       if (!(host = gethostbyname(hostname))) {
 	log_err(0, "Could not resolve IP address of uamserver: %s!", 
 		args_info.uamserver_arg);
-	goto end_processing;
       }
       else {
 	int j = 0;
@@ -560,7 +627,8 @@ int main(int argc, char **argv) {
 	    log_err(0,
 		    "Too many IPs in uamserver %s!",
 		    args_info.uamserver_arg);
-	    goto end_processing;
+	    if (!args_info.forgiving_flag)
+	      goto end_processing;
 	  }
 	  else {
 	    _options.uamserver[_options.uamserverlen++] = 
@@ -576,7 +644,8 @@ int main(int argc, char **argv) {
 		     &_options.uamhomepageport, 0)) {
       log_err(0,"Failed to parse uamhomepage: %s!", 
 	      args_info.uamhomepage_arg);
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
 
     if (!args_info.uamaliasname_arg ||
@@ -584,7 +653,6 @@ int main(int argc, char **argv) {
       if (!(host = gethostbyname(hostname))) {
 	log_err(0,"Could not resolve uamhomepage server IP %s!", 
 		args_info.uamhomepage_arg);
-	/*goto end_processing;*/
       }
       else {
 	int j = 0;
@@ -592,7 +660,8 @@ int main(int argc, char **argv) {
 	  if (_options.uamserverlen>=UAMSERVER_MAX) {
 	    log_err(0,"Too many IPs in uamhomepage %s!",
 		    args_info.uamhomepage_arg);
-	    goto end_processing;
+	    if (!args_info.forgiving_flag)
+	      goto end_processing;
 	  }
 	  else {
 	    _options.uamserver[_options.uamserverlen++] = 
@@ -731,7 +800,8 @@ int main(int argc, char **argv) {
       _options.dynip = STRDUP(args_info.dynip_arg);
       if (option_aton(&addr, &mask, _options.dynip, 0)) {
 	log_err(0, "Failed to parse dynamic IP address pool!");
-	goto end_processing;
+	if (!args_info.forgiving_flag)
+	  goto end_processing;
       }
     }
   }
@@ -773,7 +843,8 @@ int main(int argc, char **argv) {
     if (!inet_aton(args_info.dns1_arg, &_options.dns1)) {
       log_err(0,"Invalid primary DNS address: %s!", 
 	      args_info.dns1_arg);
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
   }
   else if (_res.nscount >= 1) {
@@ -787,7 +858,8 @@ int main(int argc, char **argv) {
     if (!inet_aton(args_info.dns2_arg, &_options.dns2)) {
       log_err(0,"Invalid secondary DNS address: %s!", 
 	      args_info.dns1_arg);
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
   }
   else if (_res.nscount >= 2) {
@@ -804,7 +876,8 @@ int main(int argc, char **argv) {
     if (!(host = gethostbyname(args_info.radiuslisten_arg))) {
       log_err(0, "Invalid listening address: %s! [%s]", 
 	      args_info.radiuslisten_arg, strerror(errno));
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
     else {
       memcpy(&_options.radiuslisten.s_addr, host->h_addr, host->h_length);
@@ -862,7 +935,8 @@ int main(int argc, char **argv) {
     if (!(host = gethostbyname(args_info.radiusserver1_arg))) {
       log_err(0, "Invalid radiusserver1 address: %s! [%s]", 
 	      args_info.radiusserver1_arg, strerror(errno));
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
     else {
       memcpy(&_options.radiusserver1.s_addr, host->h_addr, host->h_length);
@@ -870,7 +944,8 @@ int main(int argc, char **argv) {
   }
   else {
     log_err(0,"No radiusserver1 address given!");
-    goto end_processing;
+    if (!args_info.forgiving_flag)
+      goto end_processing;
   }
 
   /* radiusserver2 */
@@ -880,7 +955,8 @@ int main(int argc, char **argv) {
     if (!(host = gethostbyname(args_info.radiusserver2_arg))) {
       log_err(0, "Invalid radiusserver2 address: %s! [%s]", 
 	      args_info.radiusserver2_arg, strerror(errno));
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
     else {
       memcpy(&_options.radiusserver2.s_addr, host->h_addr, host->h_length);
@@ -897,7 +973,8 @@ int main(int argc, char **argv) {
     if (!(host = gethostbyname(args_info.proxylisten_arg))) {
       log_err(0, "Invalid listening address: %s! [%s]", 
 	      args_info.proxylisten_arg, strerror(errno));
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
     else {
       memcpy(&_options.proxylisten.s_addr, host->h_addr, host->h_length);
@@ -916,7 +993,8 @@ int main(int argc, char **argv) {
     if(option_aton(&_options.proxyaddr, &_options.proxymask, 
 		   args_info.proxyclient_arg, 0)) {
       log_err(0,"Invalid proxy client address: %s!", args_info.proxyclient_arg);
-      goto end_processing;
+      if (!args_info.forgiving_flag)
+	goto end_processing;
     }
   }
   else {

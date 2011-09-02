@@ -341,7 +341,8 @@ int ippool_new(struct ippool_t **this,
   for (i = 0; i < dynsize; i++) {
 
     naddr.s_addr = htonl(ntohl(addr.s_addr) + i + start);
-    if (naddr.s_addr == _options.uamlisten.s_addr) {
+    if (naddr.s_addr == _options.uamlisten.s_addr ||
+	naddr.s_addr == _options.dhcplisten.s_addr) {
       start++; /* skip the uamlisten address! */
       naddr.s_addr = htonl(ntohl(addr.s_addr) + i + start);
     }

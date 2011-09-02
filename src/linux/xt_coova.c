@@ -294,24 +294,29 @@ static int coova_mt_check(const struct xt_mtchk_param *par)
 	struct proc_dir_entry *pde;
 #endif
 	unsigned i;
-	bool ret = false;
+	int ret = 0;
 
 	if (info->name[0] == '\0' ||
 	    strnlen(info->name, XT_COOVA_NAME_LEN) == XT_COOVA_NAME_LEN)
-		return false;
+		return -EINVAL;
+
+	printk(KERN_INFO "xt_coova: looking for %s\n", info->name);
 
 	mutex_lock(&coova_mutex);
 	t = coova_table_lookup(info->name);
 	if (t != NULL) {
 		t->refcnt++;
-		ret = true;
+		printk(KERN_INFO "xt_coova: found %s refcnt=%d\n", 
+		       info->name, t->refcnt);
 		goto out;
 	}
 
 	t = kzalloc(sizeof(*t) + sizeof(t->iphash[0]) * ip_list_hash_size,
 		    GFP_KERNEL);
-	if (t == NULL)
+	if (t == NULL) {
+		ret = -ENOMEM;
 		goto out;
+	}
 	t->refcnt = 1;
 	strcpy(t->name, info->name);
 	INIT_LIST_HEAD(&t->lru_list);
@@ -322,6 +327,7 @@ static int coova_mt_check(const struct xt_mtchk_param *par)
 			       &coova_mt_fops, t);
 	if (pde == NULL) {
 		kfree(t);
+		ret = -ENOMEM;
 		goto out;
 	}
 	pde->uid = ip_list_uid;
@@ -330,9 +336,11 @@ static int coova_mt_check(const struct xt_mtchk_param *par)
 	spin_lock_bh(&coova_lock);
 	list_add_tail(&t->list, &tables);
 	spin_unlock_bh(&coova_lock);
-	ret = true;
+	printk(KERN_INFO "xt_coova: created %s refcnt=%d\n", 
+	       t->name, t->refcnt);
 out:
 	mutex_unlock(&coova_mutex);
+	printk(KERN_INFO "xt_coova: match ret=%d\n", ret); 
 	return ret;
 }
 
@@ -571,7 +579,6 @@ static struct xt_match coova_mt_reg[] __read_mostly = {
                                   (1 << NF_INET_FORWARD),
                 .me             = THIS_MODULE,
         },
-#if(0)
         {
                 .name           = "coova",
                 .family         = AF_INET6,
@@ -586,7 +593,6 @@ static struct xt_match coova_mt_reg[] __read_mostly = {
                                   (1 << NF_INET_FORWARD),
                 .me             = THIS_MODULE,
         },
-#endif
 };
 
 static int __init coova_mt_init(void)
@@ -601,20 +607,27 @@ static int __init coova_mt_init(void)
 	err = xt_register_matches(coova_mt_reg, ARRAY_SIZE(coova_mt_reg));
 
 #ifdef CONFIG_PROC_FS
-	if (err)
+	if (err < 0) {
+		printk(KERN_ERR "xt_coova: could not register match %d\n",err);
 		return err;
+	}
 	coova_proc_dir = proc_mkdir("coova", init_net.proc_net);
 	if (coova_proc_dir == NULL) {
 		xt_unregister_matches(coova_mt_reg, ARRAY_SIZE(coova_mt_reg));
 		err = -ENOMEM;
 	}
 #endif
+
+	printk(KERN_INFO "xt_coova: ready\n");
+
 	return err;
 }
 
 static void __exit coova_mt_exit(void)
 {
-	BUG_ON(!list_empty(&tables));
+	printk(KERN_INFO "xt_coova: exit\n");
+
+	/* BUG_ON(!list_empty(&tables)); */
 
 	xt_unregister_matches(coova_mt_reg, ARRAY_SIZE(coova_mt_reg));
 

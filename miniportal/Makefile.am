@@ -1,7 +1,7 @@
 
 chi_files=\
 contact.chi login.chi map.chi register.chi terms.chi tos.chi payment.chi \
-error.chi
+error.chi status.chi service.chi
 
 tmpl_files=\
 contact_form.tmpl    email_visitor.tmpl  login_map.tmpl       register_form.tmpl \
@@ -62,6 +62,16 @@ terms.chi: Makefile terms.chi.in
 	rm -f terms.chi terms.chi.tmp
 	$(edit) terms.chi.in >terms.chi.tmp
 	mv terms.chi.tmp terms.chi
+
+status.chi: Makefile status.chi.in
+	rm -f status.chi status.chi.tmp
+	$(edit) status.chi.in >status.chi.tmp
+	mv status.chi.tmp status.chi
+
+service.chi: Makefile service.chi.in
+	rm -f service.chi service.chi.tmp
+	$(edit) service.chi.in >service.chi.tmp
+	mv service.chi.tmp service.chi
 
 tos.chi: Makefile tos.chi.in
 	rm -f tos.chi tos.chi.tmp

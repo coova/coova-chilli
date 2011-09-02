@@ -364,7 +364,7 @@ int dhcp_send(struct dhcp_t *this, struct _net_interface *netif,
     }
 #endif
 
-#if(_debug_ > 1)
+#if(_debug_)
     log_dbg("dhcp_send() len=%d", length);
 #endif
 
@@ -2159,7 +2159,6 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
       *do_checksum = 1;
       dhcp_uam_unnat(conn, ethh, iph, tcph);
     }
-
   } 
 
   if (_options.postauth_proxyport > 0) {
@@ -2530,6 +2529,80 @@ int dhcp_gettag(struct dhcp_packet_t *pack, size_t length,
   return -1; /* Not found  */
 }
 
+static int dhcp_accept_opt(struct dhcp_conn_t *conn, uint8_t *o, int pos) {
+  struct dhcp_t *this = conn->parent;
+
+  o[pos++] = DHCP_OPTION_SUBNET_MASK;
+  o[pos++] = 4;
+  if (conn->noc2c)
+    memset(&o[pos], 0xff, 4);
+  else
+    memcpy(&o[pos], &conn->hismask.s_addr, 4);
+  pos += 4;
+
+  if (conn->noc2c) {
+    o[pos++] = DHCP_OPTION_STATIC_ROUTES;
+    o[pos++] = 8;
+    memcpy(&o[pos], &conn->ourip.s_addr, 4);
+    pos += 4;
+    memcpy(&o[pos], &conn->hisip.s_addr, 4);
+    pos += 4;
+  }
+
+  o[pos++] = DHCP_OPTION_ROUTER_OPTION;
+  o[pos++] = 4;
+  memcpy(&o[pos], &conn->ourip.s_addr, 4);
+  pos += 4;
+
+  if (conn->dns1.s_addr && conn->dns2.s_addr) {
+    o[pos++] = DHCP_OPTION_DNS;
+    o[pos++] = 8;
+    memcpy(&o[pos], &conn->dns1.s_addr, 4);
+    pos += 4;
+    memcpy(&o[pos], &conn->dns2.s_addr, 4);
+    pos += 4;
+  }
+  else if (conn->dns1.s_addr) {
+    o[pos++] = DHCP_OPTION_DNS;
+    o[pos++] = 4;
+    memcpy(&o[pos], &conn->dns1.s_addr, 4);
+    pos += 4;
+  }
+  else if (conn->dns2.s_addr) {
+    o[pos++] = DHCP_OPTION_DNS;
+    o[pos++] = 4;
+    memcpy(&o[pos], &conn->dns2.s_addr, 4);
+    pos += 4;
+  }
+
+  if (strlen(conn->domain)) {
+    o[pos++] = DHCP_OPTION_DOMAIN_NAME;
+    o[pos++] = strlen(conn->domain);
+    memcpy(&o[pos], &conn->domain, strlen(conn->domain));
+    pos += strlen(conn->domain);
+  }
+
+  o[pos++] = DHCP_OPTION_LEASE_TIME;
+  o[pos++] = 4;
+  o[pos++] = (this->lease >> 24) & 0xFF;
+  o[pos++] = (this->lease >> 16) & 0xFF;
+  o[pos++] = (this->lease >>  8) & 0xFF;
+  o[pos++] = (this->lease >>  0) & 0xFF;
+
+  o[pos++] = DHCP_OPTION_INTERFACE_MTU;
+  o[pos++] = 2;
+  o[pos++] = (conn->mtu >> 8) & 0xFF;
+  o[pos++] = (conn->mtu >> 0) & 0xFF;
+
+  o[pos++] = DHCP_OPTION_SERVER_ID;
+  o[pos++] = 4;
+  memcpy(&o[pos], &conn->ourip.s_addr, 4);
+  pos += 4;
+
+  o[pos++] = DHCP_OPTION_END;
+
+  return pos;
+}
 
 /**
  * dhcp_sendOFFER()
@@ -2557,88 +2630,14 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   packet_udph = udphdr(packet);
   packet_dhcp = dhcppkt(packet);
   
-  /* DHCP Payload */
+  pos = dhcp_accept_opt(conn, packet_dhcp->options, pos);
 
-  packet_dhcp->options[pos++] = DHCP_OPTION_SUBNET_MASK;
-  packet_dhcp->options[pos++] = 4;
-  if (conn->noc2c)
-    memset(&packet_dhcp->options[pos], 0xff, 4);
-  else
-    memcpy(&packet_dhcp->options[pos], &conn->hismask.s_addr, 4);
-  pos += 4;
-
-  if (conn->noc2c) {
-    packet_dhcp->options[pos++] = DHCP_OPTION_STATIC_ROUTES;
-    packet_dhcp->options[pos++] = 8;
-    memcpy(&packet_dhcp->options[pos], &conn->ourip.s_addr, 4);
-    pos += 4;
-    memcpy(&packet_dhcp->options[pos], &conn->hisip.s_addr, 4);
-    pos += 4;
-  }
-
-  packet_dhcp->options[pos++] = DHCP_OPTION_ROUTER_OPTION;
-  packet_dhcp->options[pos++] = 4;
-  memcpy(&packet_dhcp->options[pos], &conn->ourip.s_addr, 4);
-  pos += 4;
-
-  /* Insert DNS Servers if given */
-  if (conn->dns1.s_addr && conn->dns2.s_addr) {
-    packet_dhcp->options[pos++] = DHCP_OPTION_DNS;
-    packet_dhcp->options[pos++] = 8;
-    memcpy(&packet_dhcp->options[pos], &conn->dns1.s_addr, 4);
-    pos += 4;
-    memcpy(&packet_dhcp->options[pos], &conn->dns2.s_addr, 4);
-    pos += 4;
-  }
-  else if (conn->dns1.s_addr) {
-    packet_dhcp->options[pos++] = DHCP_OPTION_DNS;
-    packet_dhcp->options[pos++] = 4;
-    memcpy(&packet_dhcp->options[pos], &conn->dns1.s_addr, 4);
-    pos += 4;
-  }
-  else if (conn->dns2.s_addr) {
-    packet_dhcp->options[pos++] = DHCP_OPTION_DNS;
-    packet_dhcp->options[pos++] = 4;
-    memcpy(&packet_dhcp->options[pos], &conn->dns2.s_addr, 4);
-    pos += 4;
-  }
-
-  /* Insert Domain Name if present */
-  if (strlen(conn->domain)) {
-    packet_dhcp->options[pos++] = DHCP_OPTION_DOMAIN_NAME;
-    packet_dhcp->options[pos++] = strlen(conn->domain);
-    memcpy(&packet_dhcp->options[pos], &conn->domain, strlen(conn->domain));
-    pos += strlen(conn->domain);
-  }
-
-  packet_dhcp->options[pos++] = DHCP_OPTION_LEASE_TIME;
-  packet_dhcp->options[pos++] = 4;
-  packet_dhcp->options[pos++] = (this->lease >> 24) & 0xFF;
-  packet_dhcp->options[pos++] = (this->lease >> 16) & 0xFF;
-  packet_dhcp->options[pos++] = (this->lease >>  8) & 0xFF;
-  packet_dhcp->options[pos++] = (this->lease >>  0) & 0xFF;
-
-  /* Must be listening address */
-  packet_dhcp->options[pos++] = DHCP_OPTION_SERVER_ID;
-  packet_dhcp->options[pos++] = 4;
-  memcpy(&packet_dhcp->options[pos], &conn->ourip.s_addr, 4);
-  pos += 4;
-
-  packet_dhcp->options[pos++] = DHCP_OPTION_END;
-
-  /* UDP header */
   udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
   packet_udph->len = htons(udp_len);
-
-  /* IP header */
   packet_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
-
-  /* Work out checksums */
   chksum(packet_iph);
 
-  /* Calculate total length */
   length = udp_len + sizeofip(packet);
-
   return dhcp_send(this, &this->rawif, conn->hismac, packet, length);
 }
 
@@ -2667,93 +2666,15 @@ int dhcp_sendACK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   packet_iph = iphdr(packet);
   packet_udph = udphdr(packet);
   packet_dhcp = dhcppkt(packet);
-  
-  /* DHCP Payload */
-  packet_dhcp->options[pos++] = DHCP_OPTION_SUBNET_MASK;
-  packet_dhcp->options[pos++] = 4;
-  if (conn->noc2c)
-    memset(&packet_dhcp->options[pos], 0xff, 4);
-  else
-    memcpy(&packet_dhcp->options[pos], &conn->hismask.s_addr, 4);
-  pos += 4;
 
-  if (conn->noc2c) {
-    packet_dhcp->options[pos++] = DHCP_OPTION_STATIC_ROUTES;
-    packet_dhcp->options[pos++] = 8;
-    memcpy(&packet_dhcp->options[pos], &conn->ourip.s_addr, 4);
-    pos += 4;
-    memcpy(&packet_dhcp->options[pos], &conn->hisip.s_addr, 4);
-    pos += 4;
-  }
+  pos = dhcp_accept_opt(conn, packet_dhcp->options, pos);
 
-  packet_dhcp->options[pos++] = DHCP_OPTION_ROUTER_OPTION;
-  packet_dhcp->options[pos++] = 4;
-  memcpy(&packet_dhcp->options[pos], &conn->ourip.s_addr, 4);
-  pos += 4;
-
-  /* Insert DNS Servers if given */
-  if (conn->dns1.s_addr && conn->dns2.s_addr) {
-    packet_dhcp->options[pos++] = DHCP_OPTION_DNS;
-    packet_dhcp->options[pos++] = 8;
-    memcpy(&packet_dhcp->options[pos], &conn->dns1.s_addr, 4);
-    pos += 4;
-    memcpy(&packet_dhcp->options[pos], &conn->dns2.s_addr, 4);
-    pos += 4;
-  }
-  else if (conn->dns1.s_addr) {
-    packet_dhcp->options[pos++] = DHCP_OPTION_DNS;
-    packet_dhcp->options[pos++] = 4;
-    memcpy(&packet_dhcp->options[pos], &conn->dns1.s_addr, 4);
-    pos += 4;
-  }
-  else if (conn->dns2.s_addr) {
-    packet_dhcp->options[pos++] = DHCP_OPTION_DNS;
-    packet_dhcp->options[pos++] = 4;
-    memcpy(&packet_dhcp->options[pos], &conn->dns2.s_addr, 4);
-    pos += 4;
-  }
-
-  /* Insert Domain Name if present */
-  if (strlen(conn->domain)) {
-    packet_dhcp->options[pos++] = DHCP_OPTION_DOMAIN_NAME;
-    packet_dhcp->options[pos++] = strlen(conn->domain);
-    memcpy(&packet_dhcp->options[pos], &conn->domain, strlen(conn->domain));
-    pos += strlen(conn->domain);
-  }
-
-  packet_dhcp->options[pos++] = DHCP_OPTION_LEASE_TIME;
-  packet_dhcp->options[pos++] = 4;
-  packet_dhcp->options[pos++] = (this->lease >> 24) & 0xFF;
-  packet_dhcp->options[pos++] = (this->lease >> 16) & 0xFF;
-  packet_dhcp->options[pos++] = (this->lease >>  8) & 0xFF;
-  packet_dhcp->options[pos++] = (this->lease >>  0) & 0xFF;
-
-  packet_dhcp->options[pos++] = DHCP_OPTION_INTERFACE_MTU;
-  packet_dhcp->options[pos++] = 2;
-  packet_dhcp->options[pos++] = (conn->mtu >> 8) & 0xFF;
-  packet_dhcp->options[pos++] = (conn->mtu >> 0) & 0xFF;
-
-  /* Must be listening address */
-  packet_dhcp->options[pos++] = DHCP_OPTION_SERVER_ID;
-  packet_dhcp->options[pos++] = 4;
-  memcpy(&packet_dhcp->options[pos], &conn->ourip.s_addr, 4);
-  pos += 4;
-
-  packet_dhcp->options[pos++] = DHCP_OPTION_END;
-
-  /* UDP header */
   udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
   packet_udph->len = htons(udp_len);
-
-  /* IP header */
   packet_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
-
-  /* Work out checksums */
   chksum(packet_iph);
 
-  /* Calculate total length */
   length = udp_len + sizeofip(packet);
-
   return dhcp_send(this, &this->rawif, conn->hismac, packet, length);
 }
 
@@ -2778,9 +2699,6 @@ int dhcp_sendTYPE(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int type)
   packet_udph = udphdr(packet);
   packet_dhcp = dhcppkt(packet);
 
-  /* DHCP Payload */
-
-  /* Must be listening address */
   packet_dhcp->options[pos++] = DHCP_OPTION_SERVER_ID;
   packet_dhcp->options[pos++] = 4;
   memcpy(&packet_dhcp->options[pos], &conn->ourip.s_addr, 4);
@@ -2788,19 +2706,12 @@ int dhcp_sendTYPE(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int type)
 
   packet_dhcp->options[pos++] = DHCP_OPTION_END;
 
-  /* UDP header */
   udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
   packet_udph->len = htons(udp_len);
-
-  /* IP header */
   packet_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
 
-  /* Work out checksums */
   chksum(packet_iph);
-
-  /* Calculate total length */
   length = udp_len + sizeofip(packet);
-
   return dhcp_send(this, &this->rawif, conn->hismac, packet, length);
 }
 
@@ -2883,7 +2794,10 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
     else
       pack_dhcp->giaddr = _options.uamlisten.s_addr;
 
-    { /* rewrite the server-id, to match the upstream server (should be taken from previous replies) */
+    { 
+      /* rewrite the server-id, to match the 
+	 upstream server (should be taken from 
+	 previous replies) */
       struct dhcp_tag_t *tag = 0;
       if (!dhcp_gettag(pack_dhcp, ntohs(pack_udph->len) - PKT_UDP_HLEN, 
 		       &tag, DHCP_OPTION_SERVER_ID)) {
@@ -3094,6 +3008,8 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   struct app_conn_t *appconn = 0;
 #endif
 
+  int totleneth;
+
   if (len < PKT_IP_HLEN + PKT_ETH_HLEN + 4)
     return 0;
 
@@ -3110,20 +3026,30 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   /*
    * Sanity check on IP total length
    */
-  if ((int)ntohs(pack_iph->tot_len) + sizeofeth(pack) > len) {
-    uint8_t icmp_pack[PKT_BUFFER];
+  totleneth = (int)ntohs(pack_iph->tot_len) + sizeofeth(pack);
+  if (totleneth > len) {
     struct dhcp_t *this = conn->parent;
-
+    
     log_dbg("dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
 	    (int)ntohs(pack_iph->tot_len),
 	    sizeofeth(pack), (int)len);
-
+    
     if (pack_iph->opt_off_high & 64) { /* Don't Defrag Option */
+      uint8_t icmp_pack[PKT_BUFFER];
       dhcp_send(this, &this->rawif, conn->hismac, icmp_pack, 
 		icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
     }
-
+    
     return 0;
+  }
+  
+  if (totleneth > _options.mtu) {
+    if (pack_iph->opt_off_high & 64) {
+      uint8_t icmp_pack[PKT_BUFFER];
+      log_dbg("ICMP frag for packet with length %d", totleneth);
+      dhcp_send(this, &this->rawif, conn->hismac, icmp_pack, 
+		icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
+    }
   }
 
   /*
@@ -3149,16 +3075,16 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	pack_ethh->dst[1] == 0x00 &&
 	pack_ethh->dst[2] == 0x5e) {
       log_dbg("Multicast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	    pack_ethh->dst[0], pack_ethh->dst[1], pack_ethh->dst[2], 
-	    pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
+	      pack_ethh->dst[0], pack_ethh->dst[1], pack_ethh->dst[2], 
+	      pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
     } else {
 #endif
 #if(_debug_)
-    log_dbg("Not for our MAC or broadcast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	    pack_ethh->dst[0], pack_ethh->dst[1], pack_ethh->dst[2], 
-	    pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
+      log_dbg("Not for our MAC or broadcast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+	      pack_ethh->dst[0], pack_ethh->dst[1], pack_ethh->dst[2], 
+	      pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
 #endif
-    return 0;
+      return 0;
 #ifdef ENABLE_MDNS
     }
 #endif

@@ -1,6 +1,5 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -236,6 +235,16 @@ struct options_t {
     uint8_t attr;
   } proxy_loc[PROXYVSA_ATTR_CNT];
   char * locationupdate;
+#endif
+
+#ifdef ENABLE_EXTADMVSA
+#define EXTADMVSA_ATTR_CNT 4
+  struct {
+    uint32_t attr_vsa;
+    uint8_t attr;
+    char data[128];
+    char script[128];
+  } extadmvsa[EXTADMVSA_ATTR_CNT];
 #endif
 
 #ifdef HAVE_SSL

@@ -1,6 +1,5 @@
 /* 
  * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
- * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (C) 2003-2005 Mondru AB., 
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -643,7 +642,7 @@ leaky_bucket(struct app_conn_t *conn,
 }
 #endif
 
-int set_env(char *name, char type, void *value, int len) {
+void set_env(char *name, char type, void *value, int len) {
   char *v=0;
   char s[1024];
 
@@ -696,11 +695,8 @@ int set_env(char *name, char type, void *value, int len) {
   if (name != NULL && v != NULL) {
     if (setenv(name, v, 1) != 0) {
       log_err(errno, "setenv(%s, %s, 1) did not return 0!", name, v);
-      return -1;
     }
   }
-
-  return 0;
 }
 
 int runscript(struct app_conn_t *appconn, char* script,
@@ -719,7 +715,7 @@ int runscript(struct app_conn_t *appconn, char* script,
 
 #ifdef ENABLE_LAYER3
   if (_options.layer3)
-    setenv("LAYER3", "1", 1);
+    set_env("LAYER3", VAL_STRING, "1", 0);
 #endif
   set_env("DEV", VAL_STRING, tun(tun, 0).devname, 0);
   set_env("NET", VAL_IN_ADDR, &appconn->net, 0);
@@ -1080,8 +1076,9 @@ static int checkconn() {
   uint32_t rereaddiff;
 
 #ifdef HAVE_NETFILTER_COOVA
-  if (_options.kname) 
+  if (_options.kname) {
     kmod_coova_sync();
+  }
 #endif
 
   checkdiff = mainclock_diffu(checktime);
@@ -1324,6 +1321,60 @@ int chilli_auth_radius(struct radius_t *radius) {
 		   RADIUS_SERVICE_TYPE_ADMIN_USER,
 		   0, 0, 0, 
 		   &admin_session.s_state);
+
+#ifdef ENABLE_EXTADMVSA
+  if (_options.extadmvsa[0].attr) {
+    struct stat statbuf;
+    uint8_t b[256];
+    int i, fd, len;
+    
+    memset(&statbuf, 0, sizeof(statbuf));
+    
+    for (i=0; i < EXTADMVSA_ATTR_CNT; i++) {
+      if (!_options.extadmvsa[i].attr_vsa && 
+	  !_options.extadmvsa[i].attr)
+	break;
+      
+      if (!_options.extadmvsa[i].data[0])
+	continue;
+      
+      if (stat(_options.extadmvsa[i].data, &statbuf)) {
+	log_dbg("Skipping %s, does not exist",
+		_options.extadmvsa[i].data);
+	continue;
+      }
+      
+      if (statbuf.st_size > 127) {
+	log_err(errno, "File %s too big", 
+		_options.extadmvsa[i].data);
+	continue;
+      }
+      
+      if ((fd = open(_options.extadmvsa[i].data, O_RDONLY)) < 0) {
+	log_err(errno, "Failed to open %s", _options.extadmvsa[i].data);
+	continue;
+      }
+      
+      log_dbg("Reading %s", _options.extadmvsa[i].data);
+      
+      len = read(fd, b, sizeof(b));
+      close(fd);
+      
+      if (len > 0 && len < sizeof(b)-1) {
+	while (len > 1 && isspace(b[len-1])) len--;
+	if (!_options.extadmvsa[i].attr_vsa) {
+	  radius_addattr(radius, &radius_pack, _options.extadmvsa[i].attr, 
+			 0, 0, 0, b, len);
+	} else {
+	  radius_addattr(radius, &radius_pack,
+			 RADIUS_ATTR_VENDOR_SPECIFIC, 
+			 _options.extadmvsa[i].attr_vsa, 
+			 _options.extadmvsa[i].attr, 0, b, len);
+	}
+      }
+    }
+  }
+#endif
   
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
@@ -1618,7 +1669,7 @@ static int acct_req(struct app_conn_t *conn, uint8_t status_type)
     if (conn->is_adminsession) {
       
       service_type = RADIUS_SERVICE_TYPE_ADMIN_USER;
-      
+
 #ifdef HAVE_SYS_SYSINFO_H
       {
 	struct sysinfo the_info;
@@ -1993,8 +2044,9 @@ int dnprot_accept(struct app_conn_t *appconn) {
     appconn->s_state.authenticated = 1;
 
 #ifdef HAVE_NETFILTER_COOVA
-    if (_options.kname)
+    if (_options.kname) {
       kmod_coova_update(appconn);
+    }
 #endif
 
 #ifdef ENABLE_MODULES
@@ -3874,6 +3926,69 @@ static int chilliauth_cb(struct radius_t *radius,
     }
   }
 
+#ifdef ENABLE_EXTADMVSA
+  if (_options.extadmvsa[0].attr) {
+    int i;
+    
+    for (i=0; i < EXTADMVSA_ATTR_CNT; i++) {
+
+      if (!_options.extadmvsa[i].attr_vsa && 
+	  !_options.extadmvsa[i].attr)
+	break;
+      
+      if (!_options.extadmvsa[i].attr_vsa) {
+#if(_debug_)
+	log_dbg("looking for attr %d", _options.extadmvsa[i].attr);
+#endif
+	if (radius_getattr(pack, &attr, _options.extadmvsa[i].attr, 
+			   0, 0, 0)) {
+	  log_dbg("didn't find attr %d", _options.extadmvsa[i].attr);
+	  attr = 0;
+	}
+      } else {
+#if(_debug_)
+	log_dbg("looking for attr %d/%d", _options.extadmvsa[i].attr_vsa, 
+		_options.extadmvsa[i].attr);
+#endif
+	if (radius_getattr(pack, &attr, 
+			   RADIUS_ATTR_VENDOR_SPECIFIC, 
+			   _options.extadmvsa[i].attr_vsa, 
+			   _options.extadmvsa[i].attr, 0)) {
+	  log_dbg("didn't find attr %d/%d", _options.extadmvsa[i].attr_vsa, 
+		  _options.extadmvsa[i].attr);
+	  attr = 0;
+	}
+      }
+      if (attr && attr->l - 2 < 255) {
+	char v[256];
+	memset(v, 0, sizeof(v));
+	memcpy(v, attr->v.t, attr->l - 2);
+	log_dbg("Running script %s %d",
+		_options.extadmvsa[i].script, 
+		attr->l - 2);
+	if (chilli_fork(CHILLI_PROC_SCRIPT, 	 
+			_options.extadmvsa[i].script) == 0) {
+	  if (execl(
+#ifdef ENABLE_CHILLISCRIPT
+		    SBINDIR "/chilli_script", SBINDIR "/chilli_script", 
+		    _options.binconfig, 
+#else
+		    _options.extadmvsa[i].script,
+#endif
+		    _options.extadmvsa[i].script, 
+		    v, (char *) 0) != 0) {
+	    log_err(errno, "exec %s failed",
+		    _options.extadmvsa[i].script);
+	  }
+	  exit(0);
+	} else {
+	  log_err(errno, "forking %s", _options.extadmvsa[i].script);
+	}
+      }
+    }
+  }
+#endif
+
   if (!admin_session.s_state.authenticated) {
     admin_session.s_state.authenticated = 1;
     acct_req(&admin_session, RADIUS_STATUS_TYPE_START);
@@ -5360,7 +5475,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     log_info("Received UAM logoff from username=%s IP=%s",
 	     appconn->s_state.redir.username, inet_ntoa(appconn->hisip));
 
-    log_dbg("Received logoff from UAM\n");
+    log_dbg("Received logoff from UAM");
 
     if (appconn->s_state.authenticated == 1) {
 #ifdef ENABLE_SESSIONSTATE
@@ -5419,8 +5534,9 @@ int static uam_msg(struct redir_msg_t *msg) {
 int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 
 #ifdef HAVE_NETFILTER_COOVA
-  if (_options.kname)
+  if (_options.kname) {
     kmod_coova_sync();
+  }
 #endif
 
   switch(req->type) {
@@ -6186,10 +6302,10 @@ int chilli_main(int argc, char **argv) {
     log_err(0, "Failed to create radius");
     return -1;
   }
-
+  
   radius_set(radius, dhcp ? dhcp->rawif.hwaddr : 0,
 	     (_options.debug & DEBUG_RADIUS));
-
+  
   radius_set_cb_auth_conf(radius, cb_radius_auth_conf);
 #ifdef ENABLE_COA
   radius_set_cb_coa_ind(radius, cb_radius_coa_ind);
@@ -6280,8 +6396,9 @@ int chilli_main(int argc, char **argv) {
     acct_req(&admin_session, RADIUS_STATUS_TYPE_ACCOUNTING_ON);
 #endif
 #ifdef HAVE_NETFILTER_COOVA
-    if (_options.kname)
+    if (_options.kname) {
       kmod_coova_clear();
+    }
 #endif
   }
 

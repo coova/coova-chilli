@@ -1,6 +1,6 @@
 /* 
- * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1086,7 +1086,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
   char b[TUN_ADDRSIZE];
   struct in_addr net;
   pid_t pid;
-
+  
   log_dbg("Running %s", script);
 
   net.s_addr = tuntap(tun).address.s_addr & tuntap(tun).netmask.s_addr;
@@ -1108,58 +1108,41 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
     return 0;
   }
   
-  if (setenv("DEV", tuntap(tun).devname, 1) != 0) {
-    log_err(errno, "setenv() did not return 0!");
-    exit(0);
+  set_env("DHCPIF", VAL_STRING, _options.dhcpif ? _options.dhcpif : "", 0);
+  set_env("DEV", VAL_STRING, tun(tun, 0).devname, 0);
+  set_env("ADDR", VAL_IN_ADDR, &tuntap(tun).address, 0);
+  set_env("MASK", VAL_IN_ADDR, &tuntap(tun).netmask, 0);
+  set_env("NET", VAL_IN_ADDR, &net, 0);
+
+  set_env("UAMLISTEN", VAL_IN_ADDR, &_options.uamlisten, 0);
+  if (_options.dhcplisten.s_addr && 
+      _options.dhcplisten.s_addr != _options.uamlisten.s_addr) {
+    set_env("DHCPLISTEN", VAL_IN_ADDR, &_options.dhcplisten, 0);
   }
 
-  safe_strncpy(saddr, inet_ntoa(tuntap(tun).address), sizeof(saddr));
-  if (setenv("ADDR", saddr, 1 ) != 0) {
-    log_err(errno, "setenv() did not return 0!");
-    exit(0);
-  }
+  safe_snprintf(b, sizeof(b), "%d", (int)_options.mtu);
+  set_env("MTU", VAL_STRING, b, 0);
 
-  safe_strncpy(smask, inet_ntoa(tuntap(tun).netmask), sizeof(smask));
-  if (setenv("MASK", smask, 1) != 0) {
-    log_err(errno, "setenv() did not return 0!");
-    exit(0);
-  }
-
-  safe_strncpy(b, inet_ntoa(net), sizeof(b));
-  if (setenv("NET", b, 1 ) != 0) {
-    log_err(errno, "setenv() did not return 0!");
-    exit(0);
-  }
-
-  safe_snprintf(b, sizeof(b), "%d", _options.uamport);
-  if (setenv("UAMPORT", b, 1 ) != 0) {
-    log_err(errno, "setenv() did not return 0!");
-    exit(0);
-  }
+  safe_snprintf(b, sizeof(b), "%d", (int)_options.uamport);
+  set_env("UAMPORT", VAL_STRING, b, 0);
 
 #ifdef ENABLE_UAMUIPORT
-  safe_snprintf(b, sizeof(b), "%d", _options.uamuiport);
-  if (setenv("UAMUIPORT", b, 1 ) != 0) {
-    log_err(errno, "setenv() did not return 0!");
-    exit(0);
-  }
+  safe_snprintf(b, sizeof(b), "%d", (int)_options.uamuiport);
+  set_env("UAMUIPORT", VAL_STRING, b, 0);
 #endif
-
-  if (setenv("DHCPIF", _options.dhcpif ? _options.dhcpif : "", 1 ) != 0) {
-    log_err(errno, "setenv() did not return 0!");
-    exit(0);
-  }
 
 #ifdef ENABLE_LAYER3
-  if (_options.layer3)
-    setenv("LAYER3", "1", 1);
+  if (_options.layer3) {
+    set_env("LAYER3", VAL_STRING, "1", 0);
+  }
 #endif
 
-#ifdef ENABLE_NETFILTER_COOVA
-  if (_options.kname)
-    setenv("KNAME", _options.kname, 1);
+#ifdef HAVE_NETFILTER_COOVA
+  if (_options.kname) {
+    set_env("KNAME", VAL_STRING, _options.kname, 0);
+  }
 #endif
-  
+
   if (execl(
 #ifdef ENABLE_CHILLISCRIPT
 	    SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig, 

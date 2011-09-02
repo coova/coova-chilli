@@ -79,9 +79,10 @@ net		$HS_NETWORK/$HS_NETMASK
 uamlisten	$HS_UAMLISTEN
 uamport         $HS_UAMPORT
 dhcpif		$HS_LANIF
-uamallowed	"www.coova.org,${HS_UAMSERVER:+$HS_UAMSERVER,}$webadmin$uamallow"
+uamallowed	"www.coova.org${HS_UAMSERVER:+,$HS_UAMSERVER}$webadmin$uamallow"
 uamanydns
 $configs1
+$HS_RAW_CONFIG1
 EOF
 }
 
@@ -95,6 +96,7 @@ radiusacctport  ${HS_RADACCT:-1813}
 uamserver	"$(eval echo $HS_UAMFORMAT)"
 radiusnasid	"${HS_NASID:-nas01}"
 $configs2
+$HS_RAW_CONFIG2
 EOF
 }
 
@@ -120,6 +122,7 @@ writeconfig() {
     }
 
     addconfig1 ${HS_KNAME:+"kname \"$HS_KNAME\""}
+    addconfig1 ${HS_DHCPLISTEN:+"dhcplisten \"$HS_DHCPLISTEN\""}
     addconfig1 ${HS_TUNDEV:+"tundev \"$HS_TUNDEV\""}
     addconfig1 ${HS_DYNIP:+"dynip $HS_DYNIP/${HS_DYNIP_MASK:-255.255.255.0}"}
     addconfig1 ${HS_STATIP:+"statip $HS_STATIP/${HS_STATIP_MASK:-255.255.255.0}"}

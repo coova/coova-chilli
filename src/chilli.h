@@ -1,6 +1,6 @@
 /* 
- * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -157,7 +157,7 @@ struct app_conn_t {
 #define VAL_ULONG64  4
 #define VAL_USHORT   5
 
-int set_env(char *name, char type, void *value, int len);
+void set_env(char *name, char type, void *value, int len);
 
 extern struct app_conn_t *firstfreeconn; /* First free in linked list */
 extern struct app_conn_t *lastfreeconn;  /* Last free in linked list */

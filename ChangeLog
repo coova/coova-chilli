@@ -8,7 +8,9 @@
 * New runtime flag option for proxyvsa called ''--locationstopstart'' to have the RADIUS acct session stopped, session-id updates, and started during location change
 * New runtime flag option for proxyvsa called ''--locationcopycalled'' to copy the Called-Station-Id from proxy RADIUS into that sent by chilli
 * New runtime flag option for proxyvsa called ''--locationimmediateupdate'' to have chilli do RADIUS acct immediately upon location change
-	
+* New compile time option ''--enable-extadmvsa'' to enable extended VSA support in Administrative-User session
+* New runtime option ''--extadmvsa=x[,y]:/path/to/script[:/path/to/data]'' (when available) to add/handle vendor specific attributes to administrative-user session
+
 == ChangeLog (CoovaChilli-v1.2.8 svn revision 450) ==
 
 * New option ''--uamdomainttl'' to define a rewrite value for the DNS TTL on uamdomain matched responses

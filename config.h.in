@@ -51,6 +51,9 @@
 /* Define to enable CoovaEWT API */
 #undef ENABLE_EWTAPI
 
+/* Define to enable admin-user VSA support */
+#undef ENABLE_EXTADMVSA
+
 /* Define to enable Chilli IEEE 802.1Q */
 #undef ENABLE_IEEE8021Q
 
