@@ -364,7 +364,7 @@ int dhcp_send(struct dhcp_t *this, struct _net_interface *netif,
     }
 #endif
 
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("dhcp_send() len=%d", length);
 #endif
 
@@ -403,7 +403,8 @@ int dhcp_hashinit(struct dhcp_t *this, int listsize) {
   (this)->hashmask = (this)->hashsize -1;
   
   /* Allocate hash table */
-  if (!((this)->hash = calloc(sizeof(struct dhcp_conn_t), (this)->hashsize))){
+  if (!((this)->hash = 
+	calloc(sizeof(struct dhcp_conn_t), (this)->hashsize))) {
     /* Failed to allocate memory for hash members */
     return -1;
   }
