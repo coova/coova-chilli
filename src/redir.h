@@ -153,7 +153,7 @@ struct redir_conn_t {
    */
   struct session_params s_params;
   struct session_state s_state;
-};
+} __attribute__((packed));
 
 /* HTTP request parsing context */
 struct redir_httpreq_t {
@@ -183,9 +183,10 @@ typedef struct _redir_request {
 
   int clen;
   
-  bstring url;
-  bstring data;
-  bstring post;
+  /*bstring url;*/
+  /*bstring data;*/
+  /*bstring post;*/
+  bstring dbuf;
   bstring wbuf;
   bstring hbuf;
 
@@ -266,12 +267,12 @@ struct redir_msg_data {
   struct sockaddr_in baddress;
   struct redir_state redir;
   struct session_params params;
-};
+} __attribute__((packed));
 
 struct redir_msg_t {
   long mtype;
   struct redir_msg_data mdata;
-};
+} __attribute__((packed));
 
 #define REDIR_MSG_STATUS_TYPE 1000
 

@@ -1,6 +1,5 @@
 /* 
  * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
- * Copyright (C) 2006 PicoPoint B.V.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -90,100 +89,100 @@ static struct cmdsock_request request;
 static struct cmd_arguments args[] = {
   { "ip", 
     CMDSOCK_FIELD_IPV4, 
-    sizeof(request.sess.ip),
-    &request.sess.ip,
+    sizeof(request.ip),
+    &request.ip,
     "IP address of session to perform action on", 0, 0 },
   { "mac",
     CMDSOCK_FIELD_MAC, 
-    sizeof(request.sess.mac),
-    request.sess.mac,
+    sizeof(request.mac),
+    request.mac,
     "MAC address of session to perform action on", 0, 0 },
   { "sessionid",
     CMDSOCK_FIELD_STRING, 
-    sizeof(request.sess.sessionid),
-    request.sess.sessionid,
+    sizeof(request.d.sess.sessionid),
+    request.d.sess.sessionid,
     "Session-id of session to perform action on", 0, 0 },
   { "username",
     CMDSOCK_FIELD_STRING, 
-    sizeof(request.sess.username),
-    request.sess.username,
+    sizeof(request.d.sess.username),
+    request.d.sess.username,
     "Username to use in RADIUS 'login' or authorization", 0, 0 },
   { "password",
     CMDSOCK_FIELD_STRING, 
-    sizeof(request.sess.password),
-    request.sess.password,
+    sizeof(request.d.sess.password),
+    request.d.sess.password,
     "Password to be used for 'login' command", 0, 0 },
   { "sessiontimeout",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.sess.params.sessiontimeout),
-    &request.sess.params.sessiontimeout,
+    sizeof(request.d.sess.params.sessiontimeout),
+    &request.d.sess.params.sessiontimeout,
     "Max session time (in seconds)", 0, 0 },
   { "idletimeout",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.sess.params.idletimeout),
-    &request.sess.params.idletimeout,
+    sizeof(request.d.sess.params.idletimeout),
+    &request.d.sess.params.idletimeout,
     "Max idle time (in seconds)", 0, 0 },
   { "interiminterval",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.sess.params.interim_interval),
-    &request.sess.params.interim_interval,
+    sizeof(request.d.sess.params.interim_interval),
+    &request.d.sess.params.interim_interval,
     "Accounting interim interval",  0, 0 },
   { "maxoctets",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.sess.params.maxtotaloctets),
-    &request.sess.params.maxtotaloctets,
+    sizeof(request.d.sess.params.maxtotaloctets),
+    &request.d.sess.params.maxtotaloctets,
     "Max input + output octets (bytes)", 0, 0 },
   { "maxinputoctets",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.sess.params.maxinputoctets),
-    &request.sess.params.maxinputoctets,
+    sizeof(request.d.sess.params.maxinputoctets),
+    &request.d.sess.params.maxinputoctets,
     "Max input octets (bytes)", 0, 0 },
   { "maxoutputoctets",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.sess.params.maxoutputoctets),
-    &request.sess.params.maxoutputoctets,
+    sizeof(request.d.sess.params.maxoutputoctets),
+    &request.d.sess.params.maxoutputoctets,
     "Max output octets (bytes)", 0, 0 },
   { "maxbwup", 
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.sess.params.bandwidthmaxup),
-    &request.sess.params.bandwidthmaxup,
+    sizeof(request.d.sess.params.bandwidthmaxup),
+    &request.d.sess.params.bandwidthmaxup,
     "Max bandwidth up", 0, 0 },
   { "maxbwdown",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.sess.params.bandwidthmaxdown),
-    &request.sess.params.bandwidthmaxdown,
+    sizeof(request.d.sess.params.bandwidthmaxdown),
+    &request.d.sess.params.bandwidthmaxdown,
     "Max bandwidth down", 0, 0 },
   { "splash",
     CMDSOCK_FIELD_STRING, 
-    sizeof(request.sess.params.url),
-    &request.sess.params.url,
+    sizeof(request.d.sess.params.url),
+    &request.d.sess.params.url,
     "Set splash page",
-    &request.sess.params.flags, REQUIRE_UAM_SPLASH },
+    &request.d.sess.params.flags, REQUIRE_UAM_SPLASH },
 #ifdef ENABLE_REDIRINJECT
   { "inject",
     CMDSOCK_FIELD_STRING, 
-    sizeof(request.sess.params.url),
-    &request.sess.params.url,
+    sizeof(request.d.sess.params.url),
+    &request.d.sess.params.url,
     "Inject url flag",
-    &request.sess.params.flags, UAM_INJECT_URL | REQUIRE_UAM_AUTH },
+    &request.d.sess.params.flags, UAM_INJECT_URL | REQUIRE_UAM_AUTH },
 #endif
   { "url",
     CMDSOCK_FIELD_STRING, 
-    sizeof(request.sess.params.url),
-    &request.sess.params.url,
+    sizeof(request.d.sess.params.url),
+    &request.d.sess.params.url,
     "Set redirect url",
-    &request.sess.params.flags, REQUIRE_REDIRECT },
+    &request.d.sess.params.flags, REQUIRE_REDIRECT },
 #ifdef ENABLE_MULTIROUTE
   { "routeidx",
     CMDSOCK_FIELD_INTEGER, 
-    sizeof(request.sess.params.routeidx),
-    &request.sess.params.routeidx,
+    sizeof(request.d.sess.params.routeidx),
+    &request.d.sess.params.routeidx,
     "Route interface index",  0, 0 },
 #endif
   { "noacct",
     CMDSOCK_FIELD_NONE, 0, 0,
     "No accounting flag",
-    &request.sess.params.flags, NO_ACCOUNTING },
+    &request.d.sess.params.flags, NO_ACCOUNTING },
   /* more... */
 };
 
@@ -227,8 +226,7 @@ static int usage(char *program) {
   fprintf(stderr, "  socket = full path to UNIX domain socket (e.g. /var/run/chilli.sock)\n");
 
   fprintf(stderr, "  Available Commands:\n    ");
-  for (i=0; i < count; i++) {
-    if (!commands[i].command) break;
+  for (i=0; commands[i].command; i++) {
     fprintf(stderr, "%s%s", 
 	    i > 0 ? ", " : "",
 	    commands[i].command);
@@ -425,7 +423,7 @@ int main(int argc, char **argv) {
 	    return usage(argv[0]);
 	  }
 
-	  if (parse_mac(request.sess.mac, argv[argidx]))
+	  if (parse_mac(request.mac, argv[argidx]))
 	    return usage(argv[0]);
 	  
 	  /* do another switch to pick up param configs for authorize */
@@ -446,7 +444,7 @@ int main(int argc, char **argv) {
 	    return usage(argv[0]);
 	  }
 	 
-	  request.sess.ip.s_addr = ip.s_addr;
+	  request.ip.s_addr = ip.s_addr;
 	}
 	break;
 #ifdef ENABLE_MULTIROUTE
@@ -482,10 +480,10 @@ int main(int argc, char **argv) {
 	  }
 
 	  for (i = 0; i < PKT_ETH_ALEN; i++) 
-	    request.sess.mac[i] = temp[i];
+	    request.mac[i] = temp[i];
 
 	  argidx++;
-	  request.sess.params.routeidx = atoi(argv[argidx]);
+	  request.d.sess.params.routeidx = atoi(argv[argidx]);
 
 	  if (request.type != CMDSOCK_ROUTE_GW)
 	    request.type = CMDSOCK_ROUTE_SET;

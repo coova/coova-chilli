@@ -1,6 +1,5 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify

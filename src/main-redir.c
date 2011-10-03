@@ -90,9 +90,6 @@ static redir_request * get_request() {
     return 0;
   }
 
-  req->url  = string_init_reset(req->url);
-  req->data = string_init_reset(req->data);
-  req->post = string_init_reset(req->post);
   req->wbuf = string_init_reset(req->wbuf);
   req->hbuf = string_init_reset(req->hbuf);
 
@@ -522,7 +519,7 @@ redir_handle_url(struct redir_t *redir,
     /* XXX */
 #endif
     
-    if (conn_setup(&req->conn, httpreq->host, port, req->wbuf)) {
+    if (conn_setup(&req->conn, httpreq->host, port, req->wbuf, 0)) {
       log_err(errno, "conn_setup()");
       return -1;
     }

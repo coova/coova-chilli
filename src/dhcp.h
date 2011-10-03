@@ -17,7 +17,6 @@
  * 
  */
 
-
 #ifndef _DHCP_H
 #define _DHCP_H
 
@@ -45,6 +44,7 @@
 #define DHCP_OPTION_VENDOR_CLASS_IDENTIFIER 60
 #define DHCP_OPTION_CLIENT_IDENTIFIER 61
 #define DHCP_OPTION_CLIENT_FQDN    81
+#define DHCP_OPTION_82    82
 
 /* !!highly experimental!! */
 #define DHCP_OPTION_CALLED_STATION_ID  197
@@ -172,10 +172,13 @@ struct dhcp_conn_t {
  * 
  *************************************************************/
 
+#define MAX_RAWIF 1
+
 struct dhcp_t {
 
   /* network interfaces */
-  struct _net_interface rawif; 
+  struct _net_interface rawif[MAX_RAWIF];
+
 #ifdef HAVE_NETFILTER_QUEUE
   struct _net_interface qif_in; 
   struct _net_interface qif_out; 
@@ -184,7 +187,7 @@ struct dhcp_t {
   int numconn;          /* Maximum number of connections */
 
 #if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
-  char *rbuf;
+  char * rbuf;
   size_t rbuf_max;
   size_t rbuf_offset;
   size_t rbuf_len;
@@ -230,7 +233,6 @@ struct dhcp_t {
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
   uint32_t num_pass_throughs;
-  uint32_t next_pass_through;
 
   /* Call back functions */
   int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
@@ -295,7 +297,7 @@ int dhcp_set_cb_eap_ind(struct dhcp_t *this,
 int dhcp_hashget(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr);
 
 int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn);
-int dhcp_newconn(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr, uint8_t *pkt);
+int dhcp_newconn(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr);
 
 int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause);
 

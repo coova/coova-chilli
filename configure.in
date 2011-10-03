@@ -21,6 +21,46 @@ AC_ARG_PROGRAM
 
 # Checks for libraries.
 
+if test -r /dev/bpf -o -h /dev/bpf ; then
+  V_DEV=bpf
+  AC_DEFINE(HAVE_CLONING_BPF,1,[define if you have a cloning BPF device])
+elif test -r /dev/bpf0 ; then
+  V_DEV=bpf
+elif test -r /usr/include/net/pfilt.h ; then
+  V_DEV=pf
+elif test -r /dev/enet ; then
+  V_DEV=enet
+elif test -r /dev/nit ; then
+  V_DEV=snit
+elif test -r /usr/include/sys/net/nit.h ; then
+  V_DEV=nit
+elif test -r /usr/include/linux/socket.h ; then
+  V_DEV=linux
+elif test -r /usr/include/net/raw.h ; then
+  V_DEV=snoop
+elif test -r /usr/include/odmi.h ; then
+  V_DEV=bpf
+elif test -c /dev/bpf0 ; then # check again in case not readable
+  V_DEV=bpf
+elif test -r /usr/include/sys/dlpi.h ; then
+  V_DEV=dlpi
+elif test -c /dev/enet ; then # check again in case not readable
+  V_DEV=enet
+elif test -c /dev/nit ; then # check again in case not readable
+  V_DEV=snit
+else
+  V_DEV=null
+fi
+AC_MSG_RESULT($V_DEV)
+
+# Do capture-mechanism-dependent tests.
+case "$V_DEV" in
+linux)
+	AC_LBL_TPACKET_STATS
+	AC_LBL_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI
+	;;
+esac
+
 # Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h dirent.h \
@@ -33,8 +73,7 @@ AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h dirent.h \
 		  sys/stat.h sys/types.h regex.h \
 		  syslog.h poll.h sys/epoll.h \
 		  unistd.h endian.h libgen.h \
-		  asm/types.h \
-		  pwd.h grp.h ])
+		  asm/types.h pwd.h grp.h ])
 
 AC_CHECK_HEADERS([resolv.h net/route.h net/if.h net/if_arp.h net/if_tun.h net/ethernet.h], [], [],
 [
@@ -193,13 +232,6 @@ AC_ARG_ENABLE(proxyvsa, [AC_HELP_STRING([--enable-proxyvsa],[Enable support for 
 
 if test x"$enable_proxyvsa" = xyes; then
    AC_DEFINE(ENABLE_PROXYVSA,1,[Define to enable VSA proxy])
-fi
-
-AC_ARG_ENABLE(extadmvsa, [AC_HELP_STRING([--enable-extadmvsa],[Enable admin-user VSA attribute support])], 
-  enable_extadmvsa=$enableval, enable_extadmvsa=no)
-
-if test x"$enable_extadmvsa" = xyes; then
-   AC_DEFINE(ENABLE_EXTADMVSA,1,[Define to enable admin-user VSA support])
 fi
 
 AC_ARG_ENABLE(dnslog, [AC_HELP_STRING([--enable-dnslog],[Enable support to log DNS name queries])], 
@@ -422,15 +454,6 @@ fi
 
 AM_CONDITIONAL(WITH_CHILLIREDIR, [test x"$enable_chilliredir" = xyes])
 
-AC_ARG_ENABLE(redirinject, [AC_HELP_STRING([--enable-redirinject],[Enable Redir content-injection support])], 
-  enable_redirinject=$enableval, enable_redirinject=no)
-
-if test x"$enable_redirinject" = xyes; then
-   AC_DEFINE(ENABLE_REDIRINJECT,1,[Define to Redir content-injection support])
-fi
-
-AM_CONDITIONAL(WITH_REDIRINJECT, [test x"$enable_redirinject" = xyes])
-
 AC_ARG_ENABLE(chilliscript, [AC_HELP_STRING([--enable-chilliscript],[Enable support for chilli_script helper])], 
   enable_chilliscript=$enableval, enable_chilliscript=no)
 
@@ -582,6 +605,20 @@ fi
 AM_CONDITIONAL(WITH_NETNAT, [test x"$enable_netnat" = xyes])
 
 AC_CHECK_LIB(rt, clock_gettime)
+
+AC_ARG_ENABLE(config,
+ [  --enable-config=file],
+ [ if  test "x$enableval" != "x" ; then
+      config_file=$enableval
+   else
+      echo "Error! Needs an argument"
+      exit -1
+   fi
+ ])
+
+if test x"$config_file" != x ; then
+   AC_DEFINE_UNQUOTED(ENABLE_CONFIG,"$config_file",[none])
+fi
 
 AC_SUBST(sysconfdir)
 AC_CONFIG_FILES([Makefile 

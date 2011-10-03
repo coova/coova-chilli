@@ -43,16 +43,20 @@ typedef struct regex_pass_through_t {
 
 int regex_pass_throughs_from_string(regex_pass_through *ptlist, 
 				    uint32_t ptlen, uint32_t *ptcnt, 
-				    uint32_t *ptnxt, char *s);
+				    char *s, char is_dyn);
 #endif
 
 int pass_through_add(pass_through *ptlist, 
 		     uint32_t ptlen, uint32_t *ptcnt, 
-		     uint32_t *ptnxt, pass_through *pt);
+		     pass_through *pt, char is_dyn);
+
+int pass_through_rem(pass_through *ptlist, 
+		     uint32_t ptlen, uint32_t *ptcnt, 
+		     pass_through *pt);
 
 int pass_throughs_from_string(pass_through *ptlist, 
 			      uint32_t ptlen, uint32_t *ptcnt, 
-			      uint32_t *ptnxt, char *s);
+			      char *s, char is_dyn, char is_rem);
 
 int garden_check(pass_through *ptlist, int ptcnt, uint8_t *pack, int dst);
 

@@ -17,7 +17,6 @@
  * 
  */
 
-
 #ifndef _RADIUS_PKT_H
 #define _RADIUS_PKT_H
 

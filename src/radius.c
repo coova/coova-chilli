@@ -18,6 +18,9 @@
  */
 
 #include "chilli.h"
+#ifdef ENABLE_MODULES
+#include "chilli_module.h"
+#endif
 
 #define deeplog 0
 
@@ -42,7 +45,8 @@ void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
   if (!paddr)
     paddr = &_options.uamlisten;
     
-  radius_addattr(radius, pack, RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, ntohl(paddr->s_addr), NULL, 0); 
+  radius_addattr(radius, pack, RADIUS_ATTR_NAS_IP_ADDRESS, 
+		 0, 0, ntohl(paddr->s_addr), NULL, 0); 
 }
 
 void radius_addcalledstation(struct radius_t *radius, 
@@ -209,6 +213,61 @@ int radius_authresp_authenticator(struct radius_t *this,
   return 0;
 }
 
+static int radius_queue_next(struct radius_t *this) {
+  int attempt = 0;
+  int qnext;
+  
+ try_again:
+  
+  qnext = this->qnext;
+  
+  if (this->queue[qnext].state == 1) {
+    
+    log_dbg("skipping over active idx %d radius-id=%d", 
+	    qnext, this->queue[qnext].p.id);
+    
+    if (attempt++ < (this->qsize ? this->qsize : 256)) {
+      this->qnext++;
+      
+      if (this->qsize) 
+	this->qnext %= this->qsize;
+      
+      goto try_again;
+    }
+    
+    log_err(0, "radius queue is full! qnext=%d qsize=%d",
+	    qnext, this->qsize);
+    
+    return -1;
+  }
+  
+  return qnext;
+}
+
+static int radius_queue_idx(struct radius_t *this, int id) {
+  int idx = id;
+  int cnt, sz;
+
+  if (id < 0 || id >= RADIUS_QUEUESIZE) {
+    return -1;
+  }
+  
+  if (this->qsize) {
+    sz = cnt = this->qsize;
+  } else {
+    sz = cnt = RADIUS_QUEUESIZE;
+  }
+
+  while (cnt-- > 0) {
+    idx %= sz;
+    log_dbg("idx %d pid %d id %d", idx, this->queue[idx].p.id, id);
+    if (this->queue[idx].p.id == id)
+      return idx;
+    idx++;
+  }
+  
+  return -1;
+}
 
 /* 
  * radius_queue_in()
@@ -220,8 +279,7 @@ int radius_queue_in(struct radius_t *this,
   struct radius_attr_t *ma = NULL; /* Message authenticator */
   struct timeval *tv;
 
-  int qnext = this->qnext;
-  int attempt = 0;
+  int qnext = radius_queue_next(this);
 
 #if(deeplog)
   if (_options.debug) {
@@ -229,30 +287,18 @@ int radius_queue_in(struct radius_t *this,
   }
 #endif
 
- try_again:
-
-  if (this->queue[qnext].state == 1) {
-    
-    log_err(0, "radius queue is full!");
-    
-    if (attempt++ < (this->qsize ? this->qsize : 255)) {
-      
-      this->qnext++;
-      
-      if (this->qsize) 
-	this->qnext %= this->qsize;
-      
-      goto try_again;
-    }
-    
+  if (qnext == -1)
     return -1;
-  }
-
+  
   log_dbg("RADIUS queue-in id=%d idx=%d", pack->id, qnext);
   
   /* If packet contains message authenticator: Calculate it! */
-  if (!radius_getattr(pack, &ma, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 0,0,0)) {
-    radius_hmac_md5(this, pack, this->secret, this->secretlen, ma->v.t);
+  if (!radius_getattr(pack, &ma, 
+		      RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+		      0,0,0)) {
+    radius_hmac_md5(this, pack, 
+		    this->secret, this->secretlen, 
+		    ma->v.t);
   }
   
   /* If accounting request: Calculate authenticator */
@@ -312,30 +358,6 @@ int radius_queue_in(struct radius_t *this,
   return 0;
 }
 
-static int radius_queue_idx(struct radius_t *this, int id) {
-  int idx = id;
-  int cnt, sz;
-
-  if (id < 0 || id >= RADIUS_QUEUESIZE) {
-    return -1;
-  }
-  
-  if (this->qsize) {
-    sz = cnt = this->qsize;
-  } else {
-    sz = cnt = RADIUS_QUEUESIZE;
-  }
-  
-  while (cnt-- > 0) {
-    idx %= sz;
-    if (this->queue[idx].p.id == id)
-      return idx;
-    idx++;
-  }
-  
-  return -1;
-}
-
 /* 
  * radius_queue_out()
  * Remove data from queue.
@@ -351,12 +373,12 @@ radius_queue_out(struct radius_t *this, int idx,
     id = pack_in->id;
     idx = radius_queue_idx(this, id);
   }
-
+  
   if (idx < 0) {
     log_err(0, "bad idx (%d)", idx);
     return -1;
   }
-
+  
   if (this->queue[idx].state != 1) {
     log_err(0, "RADIUS id=%d idx=%d with state != 1", 
 	    id, idx);
@@ -383,7 +405,7 @@ radius_queue_out(struct radius_t *this, int idx,
   log_dbg("RADIUS queue-out id=%d idx=%d", pack_out->id, idx);
   
   this->queue[idx].state = 0;
-  
+
   /* Remove from linked list */
   if (this->queue[idx].next == -1) /* Are we the last in queue? */
     this->last = this->queue[idx].prev;
@@ -1244,11 +1266,6 @@ int radius_new(struct radius_t **this,
   new_radius->first = -1;
   new_radius->last = -1;
   
-  if ((new_radius->urandom_fp = fopen("/dev/urandom", "r")) == 0) {
-    log_err(errno, "fopen(/dev/urandom, r) failed");
-    return -1;
-  }
-  
   /* Initialise radius socket */
   if ((new_radius->fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
     log_err(errno, "socket() failed!");
@@ -1261,6 +1278,10 @@ int radius_new(struct radius_t **this,
   addr.sin_family = AF_INET;
   addr.sin_addr = new_radius->ouraddr;
   addr.sin_port = htons(new_radius->ourport);
+
+  log_dbg("RADIUS client %s:%d",
+	  inet_ntoa(new_radius->ouraddr),
+	  new_radius->ourport);
   
   if (bind(new_radius->fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
     log_err(errno, "bind() failed!");
@@ -1270,6 +1291,11 @@ int radius_new(struct radius_t **this,
     return -1;
   }
 
+  if ((new_radius->urandom_fp = fopen("/dev/urandom", "r")) == 0) {
+    log_err(errno, "fopen(/dev/urandom, r) failed");
+    return -1;
+  }
+  
 #ifdef ENABLE_RADPROXY
   if (proxy) {     /* Initialise proxy socket */
 
@@ -1571,8 +1597,14 @@ radius_default_pack(struct radius_t *this,
   pack->length = htons(RADIUS_HDRSIZE);
 
   if (this->qsize == 0) {
-    /* using the full-queue-size */
-    pack->id = this->qnext;
+
+    int qnext = radius_queue_next(this);
+
+    if (qnext == -1)
+      return -1;
+
+    pack->id = qnext;
+
   } else {
     pack->id = this->nextid++;
     if (pack->id == 0) /* bump based zero */
@@ -1758,7 +1790,30 @@ int radius_decaps(struct radius_t *this, int idx) {
   }
   
   /* TODO: Check consistency of attributes vs packet length */
-  
+
+
+#ifdef ENABLE_MODULES
+  { int i;
+    for (i=0; i < MAX_MODULES; i++) {
+      if (!_options.modules[i].name[0]) break;
+      if (_options.modules[i].ctx) {
+	struct chilli_module *m = 
+	  (struct chilli_module *)_options.modules[i].ctx;
+	if (m->radius_handler) {
+	  int res = m->radius_handler(this, (struct app_conn_t *)cbp,
+				      &pack, &pack_req);
+	  switch (res) {
+	  case CHILLI_RADIUS_OK:
+	    break;
+	  default:
+	    return 0;
+	  }
+	}
+      }
+    }
+  }
+#endif
+
   switch (pack.code) {
   case RADIUS_CODE_ACCESS_ACCEPT:
   case RADIUS_CODE_ACCESS_REJECT:

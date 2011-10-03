@@ -1,6 +1,5 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -115,7 +114,7 @@ static int opt_run(int argc, char **argv, int reload) {
 
   log_dbg("(Re)processing options [%s]", file);
 
-  if ((status = fork()) < 0) {
+  if ((status = safe_fork()) < 0) {
     log_err(errno, "fork() returned -1!");
     return -1;
   }
@@ -282,6 +281,10 @@ int options_fromfd(int fd, bstring bt) {
 #endif
 
   if (!option_s_l(bt, &o.radiussecret)) return 0;
+#ifdef ENABLE_LARGELIMITS
+  if (!option_s_l(bt, &o.radiusacctsecret)) return 0;
+  if (!option_s_l(bt, &o.radiusadmsecret)) return 0;
+#endif
   if (!option_s_l(bt, &o.radiusnasid)) return 0;
   if (!option_s_l(bt, &o.radiuslocationid)) return 0;
   if (!option_s_l(bt, &o.radiuslocationname)) return 0;
@@ -329,9 +332,6 @@ int options_fromfd(int fd, bstring bt) {
 #ifdef ENABLE_MODULES
   if (!option_s_l(bt, &o.moddir)) return 0;
 #endif
-#ifdef ENABLE_REDIRINJECT
-  if (!option_s_l(bt, &o.inject)) return 0;
-#endif
 
   if (!option_s_l(bt, &o.adminuser)) return 0;
   if (!option_s_l(bt, &o.adminpasswd)) return 0;
@@ -351,6 +351,10 @@ int options_fromfd(int fd, bstring bt) {
     if (!option_s_l(bt, &o.uamdomains[i])) 
       return 0;
   }
+
+#ifdef EX_OPTIONS_LOAD
+#include EX_OPTIONS_LOAD
+#endif
 
 #ifdef ENABLE_CHILLIREDIR
   for (i = 0; i < MAX_REGEX_PASS_THROUGHS; i++) {
@@ -460,6 +464,11 @@ int options_save(char *file, bstring bt) {
 #endif
 
   if (!option_s_s(bt, &o.radiussecret)) return 0;
+#ifdef ENABLE_LARGELIMITS
+  if (!option_s_s(bt, &o.radiusacctsecret)) return 0;
+  if (!option_s_s(bt, &o.radiusadmsecret)) return 0;
+#endif
+
   if (!option_s_s(bt, &o.radiusnasid)) return 0;
   if (!option_s_s(bt, &o.radiuslocationid)) return 0;
   if (!option_s_s(bt, &o.radiuslocationname)) return 0;
@@ -507,9 +516,6 @@ int options_save(char *file, bstring bt) {
 #ifdef ENABLE_MODULES
   if (!option_s_s(bt, &o.moddir)) return 0;
 #endif
-#ifdef ENABLE_REDIRINJECT
-  if (!option_s_s(bt, &o.inject)) return 0;
-#endif
 
   if (!option_s_s(bt, &o.adminuser)) return 0;
   if (!option_s_s(bt, &o.adminpasswd)) return 0;
@@ -529,6 +535,10 @@ int options_save(char *file, bstring bt) {
     if (!option_s_s(bt, &o.uamdomains[i])) 
       return 0;
   }
+
+#ifdef EX_OPTIONS_SAVE
+#include EX_OPTIONS_SAVE
+#endif
 
   oldmask = umask(022);
 

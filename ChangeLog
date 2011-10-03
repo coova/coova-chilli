@@ -10,6 +10,8 @@
 * New runtime flag option for proxyvsa called ''--locationimmediateupdate'' to have chilli do RADIUS acct immediately upon location change
 * New compile time option ''--enable-extadmvsa'' to enable extended VSA support in Administrative-User session
 * New runtime option ''--extadmvsa=x[,y]:/path/to/script[:/path/to/data]'' (when available) to add/handle vendor specific attributes to administrative-user session
+* Fixed double RADIUS Accounting on macallowed/macallowlocal granted sessions; also adds MAC username
+* Added runtime option ''--childmax=128'' to define the max number of child processes
 
 == ChangeLog (CoovaChilli-v1.2.8 svn revision 450) ==
 

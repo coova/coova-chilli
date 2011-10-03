@@ -112,7 +112,10 @@ struct chilli_module sample_module = {
   module_session_start,
   module_session_update,
   module_session_stop,
+  0,
   module_dns_handler,
+  0,
+  0,
   module_destroy,
 };
 

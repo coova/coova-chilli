@@ -76,9 +76,9 @@ int session_json_params(struct session_state *state,
   bassignformat(tmp, "%ld", params->idletimeout);
   bconcat(json, tmp);
 #ifdef ENABLE_IEEE8021Q
-  if (state->tag8021q) {
+  if (_options.ieee8021q && state->tag8021q) {
     bcatcstr(json,",\"vlan\":");
-    bassignformat(tmp, "%d", (int)(ntohl(state->tag8021q) & 0x0FFF));
+    bassignformat(tmp, "%d", (int)ntohs(state->tag8021q & PKT_8021Q_MASK_VID));
     bconcat(json, tmp);
   }
 #endif

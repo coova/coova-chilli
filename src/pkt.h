@@ -87,6 +87,9 @@ struct pkt_ethhdr8021q_t {
   uint8_t  dst[PKT_ETH_ALEN];
   uint8_t  src[PKT_ETH_ALEN];
   uint16_t tpid;
+#define PKT_8021Q_MASK_VID htons(0x0FFF)
+#define PKT_8021Q_MASK_PCP htons(0xE000)
+#define PKT_8021Q_MASK_CFI htons(0x1000)
   uint16_t pcp_cfi_vid;
   uint16_t prot;
 } __attribute__((packed));

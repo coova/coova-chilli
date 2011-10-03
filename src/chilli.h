@@ -249,6 +249,8 @@ uint32_t mainclock_diffu(time_t past);
 
 pid_t chilli_fork(uint8_t type, char *name);
 
+void child_killall(int sig);
+
 #define CHILLI_PROC        0
 #define CHILLI_PROC_DAEMON 1
 #define CHILLI_PROC_REDIR  2
@@ -256,6 +258,9 @@ pid_t chilli_fork(uint8_t type, char *name);
 
 #ifdef ENABLE_PROXYVSA
 int radius_addvsa(struct radius_packet_t *pack, struct redir_state *state);
+int chilli_learn_location(uint8_t *vsa, int vsalen, int vsasize, 
+			  uint8_t *loc, int loclen, 
+			  struct app_conn_t *appconn);
 #endif
 
 #ifdef HAVE_NETFILTER_COOVA

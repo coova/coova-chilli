@@ -84,9 +84,29 @@ int garden_check(pass_through *ptlist, int ptcnt, uint8_t *pack, int dst) {
   return 0;
 }
 
+int pass_through_rem(pass_through *ptlist, uint32_t ptlen,
+		     uint32_t *ptcnt, pass_through *pt) {
+  uint32_t cnt = *ptcnt;
+  int i;
+
+  for (i=0; i < cnt; i++) {
+    if (!memcmp(&ptlist[i],pt,sizeof(pass_through))) {
+      log_dbg("Uamallowed removing #%d:%d: proto=%d host=%s port=%d", 
+	      i, ptlen, pt->proto, inet_ntoa(pt->host), pt->port);
+      log_dbg("Shifting uamallowed list %d to %d", i, cnt);
+      for (; i<cnt-1; i++) 
+	memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
+      *ptcnt = *ptcnt - 1;
+      break;
+    }
+  }
+
+  return 0;
+}
+
 int pass_through_add(pass_through *ptlist, uint32_t ptlen,
-		     uint32_t *ptcnt, uint32_t *ptnxt, 
-		     pass_through *pt) {
+		     uint32_t *ptcnt, pass_through *pt,
+		     char is_dyn) {
   uint32_t cnt = *ptcnt;
   int i;
 
@@ -94,7 +114,7 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
     if (!memcmp(&ptlist[i],pt,sizeof(pass_through))) {
       log_dbg("Uamallowed already exists #%d:%d: proto=%d host=%s port=%d", 
 	      i, ptlen, pt->proto, inet_ntoa(pt->host), pt->port);
-      if (ptnxt) { 
+      if (is_dyn) { 
 	log_dbg("Shifting uamallowed list %d to %d", i, cnt);
 	for (; i<cnt-1; i++) 
 	  memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
@@ -108,7 +128,7 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
             
   if (cnt == ptlen) {
 
-    if (!ptnxt) {
+    if (!is_dyn) {
       log_dbg("No more room for walled garden entries");
       return -1;
     }
@@ -117,7 +137,6 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
     for (i=0; i<ptlen-1; i++) 
       memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
     cnt = *ptcnt = *ptcnt - 1;
-
   }
 
   log_dbg("Uamallowed IP address #%d:%d: proto=%d host=%s port=%d", 
@@ -130,7 +149,8 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
 }
 
 int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen, 
-			      uint32_t *ptcnt, uint32_t *ptnxt, char *s) {
+			      uint32_t *ptcnt, char *s,
+			      char is_dyn, char is_rem) {
   struct hostent *host;
   pass_through pt;
   char *t, *p1 = NULL, *p2 = NULL;
@@ -196,8 +216,13 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 	log_err(0, "Invalid uamallowed network address or mask %s!", s);
 	continue;
       } 
-      if (pass_through_add(ptlist, ptlen, ptcnt, ptnxt, &pt))
-	log_err(0, "Too many pass-throughs! skipped %s", s);
+      if (is_rem) {
+	if (pass_through_rem(ptlist, ptlen, ptcnt, &pt))
+	  log_err(0, "Too many pass-throughs! skipped %s", s);
+      } else {
+	if (pass_through_add(ptlist, ptlen, ptcnt, &pt, is_dyn))
+	  log_err(0, "Too many pass-throughs! skipped %s", s);
+      }
     }
     else {	/* otherwise, parse a host ip or hostname */
       int j = 0;
@@ -210,8 +235,13 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 
       while (host->h_addr_list[j] != NULL) {
 	pt.host = *((struct in_addr *) host->h_addr_list[j++]);
-	if (pass_through_add(ptlist, ptlen, ptcnt, ptnxt, &pt))
-	  log_err(0, "Too many pass-throughs! skipped %s", s);
+	if (is_rem) {
+	  if (pass_through_rem(ptlist, ptlen, ptcnt, &pt))
+	    log_err(0, "Too many pass-throughs! skipped %s", s);
+	} else {
+	  if (pass_through_add(ptlist, ptlen, ptcnt, &pt, is_dyn))
+	    log_err(0, "Too many pass-throughs! skipped %s", s);
+	}
       }
     }
   }
@@ -222,7 +252,8 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 
 #ifdef ENABLE_CHILLIREDIR
 int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen, 
-				    uint32_t *ptcnt, uint32_t *ptnxt, char *s) {
+				    uint32_t *ptcnt, char *s,
+				    char is_dyn) {
   uint32_t cnt = *ptcnt;
   regex_pass_through pt;
   char *p, *st;

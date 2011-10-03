@@ -165,7 +165,7 @@ int dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
       log_dbg("CHILLI: peer %d sending %d bytes", 
 	      _options.peerid, datalen);
       
-      ret = dhcp_send(dhcp, &dhcp->rawif, bmac, packet, 
+      ret = dhcp_send(dhcp, &dhcp->rawif[0], bmac, packet, 
 		      sizeofeth(packet) + datalen);
     }
   }
@@ -285,7 +285,7 @@ dhcp_sendGARP(struct dhcp_t *this) {
   memcpy(packet_ethh->src, dhcp_nexthop(this), PKT_ETH_ALEN);
   packet_ethh->prot = htons(PKT_ETH_PROTO_ARP);
 
-  return dhcp_send(this, &this->rawif, bmac, packet, sizeofarp(packet));
+  return dhcp_send(this, &this->rawif[0], bmac, packet, sizeofarp(packet));
 }
 
 void dhcp_authorize_mac(struct dhcp_t *this, uint8_t *hwaddr,
@@ -464,6 +464,7 @@ int dhcp_hashdel(struct dhcp_t *this, struct dhcp_conn_t *conn) {
 int vlanupdate_script(struct dhcp_conn_t *conn, char* script, 
 		      uint16_t oldtag) {  
   int status;
+  uint16_t tag;
 
   if ((status = chilli_fork(CHILLI_PROC_SCRIPT, script)) < 0) {
     log_err(errno, "forking %s", script);
@@ -474,13 +475,16 @@ int vlanupdate_script(struct dhcp_conn_t *conn, char* script,
     return 0; 
   } 
 
+  tag = ntohs(conn->tag8021q & PKT_8021Q_MASK_VID);
+  oldtag = ntohs(oldtag & PKT_8021Q_MASK_VID);
+  
   set_env("DEV", VAL_STRING, tun(tun, 0).devname, 0);
   set_env("ADDR", VAL_IN_ADDR, &conn->ourip, 0);
   set_env("FRAMED_IP_ADDRESS", VAL_IN_ADDR, &conn->hisip, 0);
   set_env("CALLING_STATION_ID", VAL_MAC_ADDR, conn->hismac, 0);
   set_env("CALLED_STATION_ID", VAL_MAC_ADDR, dhcp_nexthop(dhcp), 0);
   set_env("NAS_ID", VAL_STRING, _options.radiusnasid, 0);
-  set_env("8021Q_TAG", VAL_USHORT, &conn->tag8021q, 0);
+  set_env("8021Q_TAG", VAL_USHORT, &tag, 0);
   set_env("OLD_8021Q_TAG", VAL_USHORT, &oldtag, 0);
   
   if (execl(
@@ -492,22 +496,22 @@ int vlanupdate_script(struct dhcp_conn_t *conn, char* script,
 	    script, (char *) 0) != 0) {
     log_err(errno, "exec %s failed", script);
   }
-  
+
   exit(0);
 }
 
 void dhcp_checktag(struct dhcp_conn_t *conn, uint8_t *pack) {
   if (_options.ieee8021q && is_8021q(pack)) {
     uint16_t tag = get8021q(pack);
-    if (tag != conn->tag8021q) {
+    if ((tag & PKT_8021Q_MASK_VID) != (conn->tag8021q & PKT_8021Q_MASK_VID)) {
       uint16_t oldtag = conn->tag8021q;
       conn->tag8021q = tag;
-
+      
       log_dbg("IEEE 802.1Q: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x on VLAN %d", 
 	      conn->hismac[0], conn->hismac[1], conn->hismac[2],
 	      conn->hismac[3], conn->hismac[4], conn->hismac[5],
-	      (int)(ntohs(tag) & 0x0FFF));
-
+	      (int)ntohs(tag & PKT_8021Q_MASK_VID));
+      
       if (_options.vlanupdate) {
 	vlanupdate_script(conn, _options.vlanupdate, oldtag);
       }
@@ -518,7 +522,6 @@ void dhcp_checktag(struct dhcp_conn_t *conn, uint8_t *pack) {
   }
 }
 #endif
-
 
 /**
  * dhcp_hashget()
@@ -594,6 +597,37 @@ int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn) {
   return 0; /* Success */
 }
 
+int dhcp_getconn(struct dhcp_t *this, 
+		 struct dhcp_conn_t **conn, 
+		 uint8_t *mac, uint8_t *pkt,
+		 char do_alloc) {
+
+  if (dhcp_hashget(this, conn, mac)) {
+    
+    if (!do_alloc)
+      return -1; 
+
+    if (dhcp_newconn(this, conn, mac)) 
+      return -1;
+  }
+
+  if (!*conn) 
+    return -1;
+
+#ifdef ENABLE_IEEE8021Q
+  if (_options.ieee8021q) {
+    if (pkt) {
+#if(_debug_ > 1)
+      log_dbg("%s calling dhcp_checktag",__FUNCTION__);
+#endif
+      dhcp_checktag(*conn, pkt);
+    }
+  }
+#endif
+
+  return 0;
+}
+
 /**
  * dhcp_newconn()
  * Allocates a new connection from the pool. 
@@ -601,7 +635,7 @@ int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn) {
  **/
 int dhcp_newconn(struct dhcp_t *this, 
 		 struct dhcp_conn_t **conn, 
-		 uint8_t *hwaddr, uint8_t *pkt)
+		 uint8_t *hwaddr)
 {
   if (_options.debug) 
     log_dbg("DHCP newconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
@@ -610,23 +644,19 @@ int dhcp_newconn(struct dhcp_t *this,
 
   if (dhcp_lnkconn(dhcp, conn) != 0)
     return -1;
-
+  
   (*conn)->inuse = 1;
   (*conn)->parent = this;
   (*conn)->mtu = this->mtu;
   (*conn)->noc2c = this->noc2c;
-
+  
   /* Application specific initialisations */
   memcpy((*conn)->hismac, hwaddr, PKT_ETH_ALEN);
   /*memcpy((*conn)->ourmac, dhcp_nexthop(this), PKT_ETH_ALEN);*/
-
+  
   (*conn)->lasttime = mainclock_now();
   
   dhcp_hashadd(this, *conn);
-
-#ifdef ENABLE_IEEE8021Q
-  if (pkt) dhcp_checktag(*conn, pkt);
-#endif
 
 #ifdef ENABLE_LAYER3
   if (_options.layer3) {
@@ -648,7 +678,7 @@ uint8_t * dhcp_nexthop(struct dhcp_t *this) {
   if (_options.usetap && _options.has_nexthop) 
     return _options.nexthop;
 #endif
-  return this->rawif.hwaddr;
+  return this->rawif[0].hwaddr;
 }
 
 
@@ -901,7 +931,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
     return -1;
   }
 
-  if (net_init(&dhcp->rawif, interface, 
+  if (net_init(&dhcp->rawif[0], interface, 
 #ifdef ETH_P_ALL
 	       ETH_P_ALL, 
 #else
@@ -930,7 +960,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
   { 
     int blen=0;
-    if (ioctl(dhcp->rawif.fd, BIOCGBLEN, &blen) < 0) {
+    if (ioctl(dhcp->rawif[0].fd, BIOCGBLEN, &blen) < 0) {
       log_err(errno,"ioctl() failed!");
     }
     dhcp->rbuf_max = blen;
@@ -952,8 +982,10 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
 
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = AF_INET;
-      /*addr.sin_addr.s_addr = dhcp->uamlisten.s_addr;*/
-      addr.sin_addr.s_addr = INADDR_ANY;
+      if (_options.dhcprelayip.s_addr) 
+	addr.sin_addr.s_addr = _options.dhcprelayip.s_addr;
+      else
+	addr.sin_addr.s_addr = _options.uamlisten.s_addr;
 
       /*
        * ====[http://tools.ietf.org/id/draft-ietf-dhc-implementation-02.txt]====
@@ -988,7 +1020,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
     if (fd > 0) {
       dhcp->relayfd = fd;
     } else {
-      close(dhcp->rawif.fd);
+      close(dhcp->rawif[0].fd);
       free(dhcp);
       return -1;
     }
@@ -1015,7 +1047,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
   dhcp_sendGARP(dhcp);
 
 #ifdef ENABLE_IPV6
-  net_getip6(dhcp->rawif.devname, &dhcp->rawif.address_v6);
+  net_getip6(dhcp->rawif[0].devname, &dhcp->rawif[0].address_v6);
 
   if (_options.debug) {
     /*
@@ -1025,10 +1057,10 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
     */
     char fmt[1024];
 
-    inet_ntop(AF_INET6, &dhcp->rawif.address_v6.s6_addr,
+    inet_ntop(AF_INET6, &dhcp->rawif[0].address_v6.s6_addr,
 	      fmt, sizeof(fmt));
     
-    log_dbg("dhcpif (%s) IPv6 address %s", dhcp->rawif.devname, fmt);
+    log_dbg("dhcpif (%s) IPv6 address %s", dhcp->rawif[0].devname, fmt);
     
     /*
     if (getifaddrs(&ifaddr) == 0) {
@@ -1067,7 +1099,7 @@ int dhcp_reserve_ip(uint8_t *mac, struct in_addr *ip) {
   struct dhcp_conn_t *conn = 0;
 
   if (dhcp_hashget(dhcp, &conn, mac)) {
-    if (dhcp_newconn(dhcp, &conn, mac, 0)) {
+    if (dhcp_newconn(dhcp, &conn, mac)) {
       log_err(0, "could not allocate connection");
       return -1;
     }
@@ -1240,8 +1272,8 @@ void dhcp_free(struct dhcp_t *dhcp) {
   if (dhcp->hash) free(dhcp->hash);
   if (dhcp->authip) free(dhcp->authip);
   if (!_options.uid)
-    dev_set_flags(dhcp->rawif.devname, dhcp->rawif.devflags);
-  net_close(&dhcp->rawif);
+    dev_set_flags(dhcp->rawif[0].devname, dhcp->rawif[0].devflags);
+  net_close(&dhcp->rawif[0]);
 
   for (conn = dhcp->firstfreeconn; conn; ) {
     c = conn;
@@ -1426,7 +1458,7 @@ void dhcp_sendRESET(struct dhcp_conn_t *conn, uint8_t *pack, char reverse) {
 #if !defined(HAVE_NETFILTER_QUEUE) && !defined(HAVE_NETFILTER_COOVA)
   uint8_t tcp_pack[PKT_BUFFER];
   struct dhcp_t *this = conn->parent;
-  dhcp_send(this, &this->rawif, conn->hismac, tcp_pack, tcprst(tcp_pack, pack, reverse));
+  dhcp_send(this, &this->rawif[0], conn->hismac, tcp_pack, tcprst(tcp_pack, pack, reverse));
 #endif
 }
 #endif
@@ -1471,7 +1503,7 @@ int dhcp_nakDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   /* checksums */
   chksum(answer_iph);
   
-  dhcp_send(this, &this->rawif, conn->hismac, answer, len);
+  dhcp_send(this, &this->rawif[0], conn->hismac, answer, len);
   return 0;
 }
 
@@ -1566,7 +1598,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen, char isReq) 
 	      break;
 	  case CHILLI_DNS_NAK:
 	    return dhcp_nakDNS(conn,pack,*plen);
-	  case CHILLI_DNS_ERROR:
+	  case CHILLI_DNS_ERR:
 	  case CHILLI_DNS_DROP:
 	    return 0;
 	  }
@@ -1814,7 +1846,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, size_t *plen, char isReq) 
 	/* Calculate total length */
 	length = udp_len + sizeofip(answer);
 	
-	dhcp_send(dhcp, &dhcp->rawif, conn->hismac, answer, length);
+	dhcp_send(dhcp, &dhcp->rawif[0], conn->hismac, answer, length);
 	return 0;
       }
     }
@@ -2019,7 +2051,7 @@ int dhcp_dnsunDNAT(struct dhcp_conn_t *conn,
 #endif
       return -1; /* Is not allowed DNS */
     }
-
+    
     return 1; /* Is allowed DNS */
   }
 
@@ -2069,25 +2101,25 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 
     return 0; /* Destination was local redir server */
   }
-
+  
   /* shouldn't ever get here
      if ( (iph->protocol == PKT_IP_PROTO_TCP) &&
      (_options.uamalias.s_addr) &&
      (iph->daddr == _options.uamalias.s_addr) )
      return 0; 
   */
-
+  
   /* Was it a request for a pass-through entry? */
   if (garden_check(_options.pass_throughs, 
 		   _options.num_pass_throughs, 
 		   pack, 1))
     return 0;
-
+  
   /* Check uamdomain driven walled garden */
   if (garden_check(this->pass_throughs, 
 		   this->num_pass_throughs, pack, 1))
     return 0;
-
+  
 #ifdef ENABLE_SESSGARDEN
   /* Check appconn session specific pass-throughs */
   {
@@ -2099,7 +2131,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
     }
   }
 #endif
-
+  
 #ifdef ENABLE_IPWHITELIST
   if (_options.ipwhitelist &&
       dhcp_ipwhitelist(pack, 1))
@@ -2310,6 +2342,7 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
 
   struct dhcp_t *this = conn->parent;
 
+  struct pkt_ethhdr_t *req_ethh = ethhdr(req);
   struct dhcp_packet_t *req_dhcp = dhcppkt(req);
 
   struct pkt_ethhdr_t *pack_ethh;
@@ -2358,7 +2391,7 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
     memcpy(&pack_dhcp->file, conn->dhcp_opts.file, DHCP_FILE_LEN);
 #endif
 
-    log_dbg("!!! dhcp server : %s !!!", pack_dhcp->sname);
+    log_dbg("dhcp server: %s", pack_dhcp->sname);
   }
 
   switch(type) {
@@ -2375,7 +2408,7 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
   }
 
   /* Ethernet Header */
-  memcpy(pack_ethh->dst, conn->hismac, PKT_ETH_ALEN);
+  memcpy(pack_ethh->dst, req_ethh->src, PKT_ETH_ALEN);
   memcpy(pack_ethh->src, dhcp_nexthop(this), PKT_ETH_ALEN);
   
   /* UDP and IP Headers */
@@ -2633,13 +2666,31 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   
   pos = dhcp_accept_opt(conn, packet_dhcp->options, pos);
 
+#ifdef ENABLE_MODULES
+  {
+    int i;
+    log_dbg("checking modules...");
+    for (i=0; i < MAX_MODULES; i++) {
+      if (!_options.modules[i].name[0]) break;
+      if (_options.modules[i].ctx) {
+	struct chilli_module *m = 
+	  (struct chilli_module *)_options.modules[i].ctx;
+	if (m->dhcp_handler) {
+	  pos = m->dhcp_handler(CHILLI_DHCP_OFFER,
+				0, conn, pack, len, packet, pos);
+	}
+      }
+    }
+  }
+#endif
+
   udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
   packet_udph->len = htons(udp_len);
   packet_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
   chksum(packet_iph);
 
   length = udp_len + sizeofip(packet);
-  return dhcp_send(this, &this->rawif, conn->hismac, packet, length);
+  return dhcp_send(this, &this->rawif[0], conn->hismac, packet, length);
 }
 
 /**
@@ -2670,16 +2721,40 @@ int dhcp_sendACK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
   pos = dhcp_accept_opt(conn, packet_dhcp->options, pos);
 
+#ifdef ENABLE_MODULES
+  {
+    int i;
+    log_dbg("checking modules...");
+    for (i=0; i < MAX_MODULES; i++) {
+      if (!_options.modules[i].name[0]) break;
+      if (_options.modules[i].ctx) {
+	struct chilli_module *m = 
+	  (struct chilli_module *)_options.modules[i].ctx;
+	if (m->dhcp_handler) {
+	  pos = m->dhcp_handler(CHILLI_DHCP_ACK,
+				0, conn, pack, len, packet, pos);
+	}
+      }
+    }
+  }
+#endif
+
   udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
   packet_udph->len = htons(udp_len);
   packet_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
   chksum(packet_iph);
 
   length = udp_len + sizeofip(packet);
-  return dhcp_send(this, &this->rawif, conn->hismac, packet, length);
+  return dhcp_send(this, &this->rawif[0], conn->hismac, packet, length);
 }
 
-int dhcp_sendTYPE(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int type) {
+/**
+ * dhcp_sendNAK()
+ * Send of a DHCP negative acknowledge message to a peer.
+ * NAK messages are always sent to broadcast IP address (
+ * except when using a DHCP relay server)
+ **/
+int dhcp_sendNAK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
   struct dhcp_t *this = conn->parent;
   uint8_t packet[PKT_BUFFER];
@@ -2694,7 +2769,7 @@ int dhcp_sendTYPE(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int type)
 
   /* Get packet default values */
   memset(packet, 0, sizeof(packet));
-  pos = dhcp_create_pkt(type, packet, pack, conn);
+  pos = dhcp_create_pkt(DHCPNAK, packet, pack, conn);
 
   packet_iph = iphdr(packet);
   packet_udph = udphdr(packet);
@@ -2707,30 +2782,94 @@ int dhcp_sendTYPE(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int type)
 
   packet_dhcp->options[pos++] = DHCP_OPTION_END;
 
+#ifdef ENABLE_MODULES
+  {
+    int i;
+    log_dbg("checking modules...");
+    for (i=0; i < MAX_MODULES; i++) {
+      if (!_options.modules[i].name[0]) break;
+      if (_options.modules[i].ctx) {
+	struct chilli_module *m = 
+	  (struct chilli_module *)_options.modules[i].ctx;
+	if (m->dhcp_handler) {
+	  pos = m->dhcp_handler(CHILLI_DHCP_NAK,
+				0, conn, pack, len, packet, pos);
+	}
+      }
+    }
+  }
+#endif
+
   udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
   packet_udph->len = htons(udp_len);
   packet_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
 
   chksum(packet_iph);
   length = udp_len + sizeofip(packet);
-  return dhcp_send(this, &this->rawif, conn->hismac, packet, length);
+  return dhcp_send(this, &this->rawif[0], conn->hismac, packet, length);
 }
 
-/**
- * dhcp_sendNAK()
- * Send of a DHCP negative acknowledge message to a peer.
- * NAK messages are always sent to broadcast IP address (
- * except when using a DHCP relay server)
- **/
-int dhcp_sendNAK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
-  return dhcp_sendTYPE(conn, pack, len, DHCPNAK);
-}
 
-/* Requires DHCP-AUTH
-int dhcp_sendRENEW(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
-  return dhcp_sendTYPE(conn, pack, len, DHCPFORCERENEW);
+static int dhcp_relay(struct dhcp_t *this, 
+		      uint8_t *pack, size_t len) {
+  struct pkt_udphdr_t *pack_udph = udphdr(pack);
+  struct dhcp_packet_t *pack_dhcp = dhcppkt(pack);
+  struct sockaddr_in addr;
+  
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = _options.dhcpgwip.s_addr;
+  addr.sin_port = htons(_options.dhcpgwport);
+  
+  if (_options.dhcprelayip.s_addr)
+    pack_dhcp->giaddr = _options.dhcprelayip.s_addr;
+  else
+    pack_dhcp->giaddr = _options.uamlisten.s_addr;
+  
+  { 
+    /* rewrite the server-id, to match the 
+       upstream server (should be taken from 
+       previous replies) */
+    struct dhcp_tag_t *tag = 0;
+    if (!dhcp_gettag(pack_dhcp, ntohs(pack_udph->len) - PKT_UDP_HLEN, 
+		     &tag, DHCP_OPTION_SERVER_ID)) {
+      memcpy(tag->v, &_options.dhcpgwip.s_addr, 4);
+    }
+  }
+  
+  pack_dhcp->hops++;
+  
+#ifdef ENABLE_MODULES
+  {
+    int i;
+    log_dbg("checking modules...");
+    for (i=0; i < MAX_MODULES; i++) {
+      if (!_options.modules[i].name[0]) break;
+      if (_options.modules[i].ctx) {
+	struct chilli_module *m = 
+	  (struct chilli_module *)_options.modules[i].ctx;
+	if (m->dhcp_handler) {
+	  (void) m->dhcp_handler(CHILLI_DHCP_RELAY,
+				 0, 0, pack, len, 0, 0);
+	}
+      }
+    }
+  }
+#endif
+  
+  log_dbg("Sending DHCP relay packet to %s",
+	  inet_ntoa(addr.sin_addr));
+  
+  /* if we can't send, lets do dhcp ourselves */
+  if (sendto(this->relayfd, pack_dhcp, 
+	     ntohs(pack_udph->len) - PKT_UDP_HLEN, 0,
+	     (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    log_err(errno, "could not relay DHCP request!");
+    return -1;
+  }
+
+  return 0;
 }
-*/
 
 /**
  *  dhcp_getreq()
@@ -2781,62 +2920,19 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
     return 0; /* Unsupported message type */
   }
 
-  if (this->relayfd > 0) {
-    /** Relay the DHCP request **/
-    struct sockaddr_in addr;
-
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = _options.dhcpgwip.s_addr;
-    addr.sin_port = htons(_options.dhcpgwport);
-
-    if (_options.dhcprelayip.s_addr)
-      pack_dhcp->giaddr = _options.dhcprelayip.s_addr;
-    else
-      pack_dhcp->giaddr = _options.uamlisten.s_addr;
-
-    { 
-      /* rewrite the server-id, to match the 
-	 upstream server (should be taken from 
-	 previous replies) */
-      struct dhcp_tag_t *tag = 0;
-      if (!dhcp_gettag(pack_dhcp, ntohs(pack_udph->len) - PKT_UDP_HLEN, 
-		       &tag, DHCP_OPTION_SERVER_ID)) {
-	memcpy(tag->v, &_options.dhcpgwip.s_addr, 4);
-      }
-    }
-
-    pack_dhcp->hops++;
-
-    log_dbg("Sending DHCP relay packet to %s",
-	    inet_ntoa(addr.sin_addr));
-
-    /* if we can't send, lets do dhcp ourselves */
-    if (sendto(this->relayfd, dhcppkt(pack), 
-	       ntohs(pack_udph->len) - PKT_UDP_HLEN, 0, 
-	       (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-      log_err(errno, "could not relay DHCP request!");
-    }
-    else {
-      return 0;
-    }
-  }
-
   if (message_type->v[0] == DHCPRELEASE) {
     /* No Reply to client is sent */
     return 0;
   }
+  
+  if (dhcp_getconn(this, &conn, mac, pack, this->allowdyn)) {
+    /* Could not allocate address */
+    return 0; 
+  }
 
-  /* Check to see if we know MAC address. If not allocate new conn */
-  if (dhcp_hashget(this, &conn, mac)) {
-    
-    /* Do we allow dynamic allocation of IP addresses? */
-    if (!this->allowdyn) 
-      return 0; 
-
-    /* Allocate new connection */
-    if (dhcp_newconn(this, &conn, mac, pack)) 
-      return 0; /* Out of connections */
+  if (this->relayfd > 0) {
+    /** Relay the DHCP request **/
+    return dhcp_relay(this, pack, len);
   }
 
   if (conn->authstate == DHCP_AUTH_DROP)
@@ -2869,30 +2965,34 @@ int dhcp_getreq(struct dhcp_t *this, uint8_t *pack, size_t len) {
     return 0;
   
   case DHCPREQUEST:
-    if (!conn->hisip.s_addr) {
+    {
+      char send_ack = 0;
+
+      if (!conn->hisip.s_addr) {
 #if(_debug_)
-      log_dbg("hisip not set");
+	log_dbg("hisip not set!");
+#endif
+	return dhcp_sendNAK(conn, pack, len);
+      }
+      
+      if (!memcmp(&conn->hisip.s_addr, &pack_dhcp->ciaddr, 4))
+	send_ack = 1;
+      
+      if (!send_ack)
+	if (!dhcp_gettag(dhcppkt(pack), ntohs(pack_udph->len)-PKT_UDP_HLEN, 
+			 &requested_ip, DHCP_OPTION_REQUESTED_IP))
+	  if (!memcmp(&conn->hisip.s_addr, requested_ip->v, 4))
+	    send_ack = 1;
+      
+      if (send_ack) {
+	return dhcp_sendACK(conn, pack, len);
+      }
+
+#if(_debug_)
+      log_dbg("Sending NAK to client");
 #endif
       return dhcp_sendNAK(conn, pack, len);
     }
-
-    if (!memcmp(&conn->hisip.s_addr, &pack_dhcp->ciaddr, 4)) {
-#if(_debug_)
-      log_dbg("hisip match ciaddr");
-#endif
-      return dhcp_sendACK(conn, pack, len);
-    }
-    
-    if (!dhcp_gettag(dhcppkt(pack), ntohs(pack_udph->len)-PKT_UDP_HLEN, 
-		     &requested_ip, DHCP_OPTION_REQUESTED_IP)) {
-      if (!memcmp(&conn->hisip.s_addr, requested_ip->v, 4))
-	return dhcp_sendACK(conn, pack, len);
-    }
-    
-#if(_debug_)
-    log_dbg("Sending NAK to client");
-#endif
-    return dhcp_sendNAK(conn, pack, len);
   }
   
   /* 
@@ -2994,7 +3094,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   struct pkt_iphdr_t  *pack_iph  = iphdr(pack);
   struct pkt_tcphdr_t *pack_tcph = tcphdr(pack);
   struct pkt_udphdr_t *pack_udph = udphdr(pack);
-  struct dhcp_conn_t *conn;
+  struct dhcp_conn_t *conn = 0;
   struct in_addr ourip;
   struct in_addr addr;
 
@@ -3029,15 +3129,13 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
    */
   totleneth = (int)ntohs(pack_iph->tot_len) + sizeofeth(pack);
   if (totleneth > len) {
-    struct dhcp_t *this = conn->parent;
-    
     log_dbg("dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
 	    (int)ntohs(pack_iph->tot_len),
 	    sizeofeth(pack), (int)len);
     
     if (pack_iph->opt_off_high & 64) { /* Don't Defrag Option */
       uint8_t icmp_pack[PKT_BUFFER];
-      dhcp_send(this, &this->rawif, conn->hismac, icmp_pack, 
+      dhcp_send(this, &this->rawif[0], pack_ethh->src, icmp_pack, 
 		icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
     }
     
@@ -3048,16 +3146,17 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     if (pack_iph->opt_off_high & 64) {
       uint8_t icmp_pack[PKT_BUFFER];
       log_dbg("ICMP frag for packet with length %d", totleneth);
-      dhcp_send(this, &this->rawif, conn->hismac, icmp_pack, 
+      dhcp_send(this, &this->rawif[0], pack_ethh->src, icmp_pack, 
 		icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
     }
   }
-
+  
   /*
    * Sanity check on UDP total length
    */
   if (pack_iph->protocol == PKT_IP_PROTO_UDP &&
-      (int)ntohs(pack_iph->tot_len) != (int)ntohs(pack_udph->len) + PKT_IP_HLEN) {
+      (int)ntohs(pack_iph->tot_len) != 
+      (int)ntohs(pack_udph->len) + PKT_IP_HLEN) {
     log_dbg("dropping udp packet; ip-len=%d != udp-len=%d + ip-hdr=20",
 	    (int)ntohs(pack_iph->tot_len),
 	    (int)ntohs(pack_udph->len));
@@ -3143,7 +3242,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     }
     
     /* Allocate new connection */
-    if (dhcp_newconn(this, &conn, pack_ethh->src, pack)) {
+    if (dhcp_newconn(this, &conn, pack_ethh->src)) {
       log_dbg("dropping packet; out of connections");
       return 0; /* Out of connections */
     }
@@ -3155,9 +3254,42 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
     return 0;
   }
 
+#ifdef ENABLE_IEEE8021Q
+  if (_options.ieee8021q) {
+#if(_debug_ > 1)
+    log_dbg("%s calling dhcp_checktag",__FUNCTION__);
+#endif
+    dhcp_checktag(conn, pack);
+  }
+#endif
+
 #ifdef ENABLE_LAYER3
   if (is_dhcp && _options.layer3) {
     log_dbg("forwarding layer2 dhcp/bootps request");
+
+    if (this->relayfd > 0) {
+      /** Relay the DHCP request **/
+      return dhcp_relay(this, pack, len);
+    }
+
+#ifdef ENABLE_MODULES
+    {
+      int i;
+      log_dbg("checking modules...");
+      for (i=0; i < MAX_MODULES; i++) {
+	if (!_options.modules[i].name[0]) break;
+	if (_options.modules[i].ctx) {
+	  struct chilli_module *m = 
+	    (struct chilli_module *)_options.modules[i].ctx;
+	  if (m->dhcp_handler) {
+	    (void) m->dhcp_handler(CHILLI_DHCP_PROXY,
+				   0, 0, pack, len, 0, 0);
+	  }
+	}
+      }
+    }
+#endif
+      
     this->cb_data_ind(conn, pack, len);
     return 0;
   }
@@ -3219,7 +3351,12 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
   } */
   
 #ifdef ENABLE_IEEE8021Q
-  dhcp_checktag(conn, pack);
+    if (_options.ieee8021q) {
+#if(_debug_ > 1)
+      log_dbg("%s calling dhcp_checktag",__FUNCTION__);
+#endif
+      dhcp_checktag(conn, pack);
+    }
 #endif
 
 
@@ -3330,6 +3467,7 @@ int dhcp_receive_ip(struct dhcp_t *this, uint8_t *pack, size_t len) {
       return 1;
     }
 #endif
+
     /* Check for post-auth proxy, otherwise pass packets unmodified */
     dhcp_postauthDNAT(conn, pack, len, 0, &do_checksum);
     break; 
@@ -3455,7 +3593,7 @@ int dhcp_receive_ipv6(struct dhcp_t *this, uint8_t *pack, size_t len) {
 	
 	memcpy(packet_ethh->dst, ethh->src, PKT_ETH_ALEN);
 	memcpy(packet_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
-	return dhcp_send(this, &this->rawif, ethh->src, 
+	return dhcp_send(this, &this->rawif[0], ethh->src, 
 			 packet, sizeofarp(packet));
       }
       break;
@@ -3509,8 +3647,8 @@ int dhcp_pppoes(uint8_t *packet, size_t length) {
 	       */
 	      
 	      if (dhcp_hashget(dhcp, &conn, ethh->src)) {
-		if (dhcp_newconn(dhcp, &conn, ethh->src, 0))
-		  break; /* Out of connections */
+		if (dhcp_newconn(dhcp, &conn, ethh->src))
+		  return 0; /* Out of connections */
 	      }
 	      
 	      /* Copy over original packet,
@@ -3561,7 +3699,7 @@ int dhcp_pppoes(uint8_t *packet, size_t length) {
 	      memcpy(&answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
 	      memcpy(&answer_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
 	      
-	      dhcp_send(dhcp, &dhcp->rawif, conn->hismac, answer, length);
+	      dhcp_send(dhcp, &dhcp->rawif[0], conn->hismac, answer, length);
 	    }
 	    break;
 	  }
@@ -3650,8 +3788,8 @@ int dhcp_pppoed(uint8_t *packet, size_t length) {
 	 */
 	
 	if (dhcp_hashget(dhcp, &conn, ethh->src)) {
-	  if (dhcp_newconn(dhcp, &conn, ethh->src, 0))
-	    break; /* Out of connections */
+	  if (dhcp_newconn(dhcp, &conn, ethh->src))
+	    return 0; /* Out of connections */
 	}
 	
 	/* Copy over original packet,
@@ -3710,7 +3848,7 @@ int dhcp_pppoed(uint8_t *packet, size_t length) {
 	memcpy(&answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
 	memcpy(&answer_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
 	
-	dhcp_send(dhcp, &dhcp->rawif, conn->hismac, answer, length);
+	dhcp_send(dhcp, &dhcp->rawif[0], conn->hismac, answer, length);
       }
       break;
     default:
@@ -3884,7 +4022,7 @@ int dhcp_decaps_cb(void *ctx, void *packet, size_t length) {
   }
   
 #ifdef ENABLE_IEEE8021Q
-  if (is_8021q(packet)) {
+  if (_options.ieee8021q && is_8021q(packet)) {
     struct pkt_ethhdr8021q_t *ethh;
     min_length = sizeof(struct pkt_ethhdr8021q_t);
     if (length < min_length) {
@@ -4032,7 +4170,7 @@ int dhcp_decaps(struct dhcp_t *this, int idx) {
   }
 #endif
 
-  if ((length = net_read_dispatch_eth(&this->rawif, dhcp_decaps_cb, this)) < 0) 
+  if ((length = net_read_dispatch_eth(&this->rawif[0], dhcp_decaps_cb, this)) < 0) 
     return -1;
 
   return length;
@@ -4041,7 +4179,7 @@ int dhcp_decaps(struct dhcp_t *this, int idx) {
 static 
 int dhcp_ethhdr(struct dhcp_conn_t *conn, uint8_t *packet, uint8_t *hismac, uint8_t *nexthop, uint16_t prot) {
 #ifdef ENABLE_IEEE8021Q
-  if (conn->tag8021q) {
+  if (_options.ieee8021q && conn->tag8021q) {
     struct pkt_ethhdr8021q_t *pack_ethh = ethhdr8021q(packet);
     copy_mac6(pack_ethh->dst, hismac);
     copy_mac6(pack_ethh->src, nexthop);
@@ -4061,7 +4199,7 @@ int dhcp_ethhdr(struct dhcp_conn_t *conn, uint8_t *packet, uint8_t *hismac, uint
 
 int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
   struct dhcp_tag_t *message_type = 0;
-  struct dhcp_conn_t *conn;
+  struct dhcp_conn_t *conn = 0;
   struct dhcp_packet_t packet;
   struct sockaddr_in addr;
   socklen_t fromlen = sizeof(addr);
@@ -4083,7 +4221,9 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
   log_dbg("DHCP relay response from %s of length %d received",
 	  inet_ntoa(addr.sin_addr), length);
 
-  if (addr.sin_addr.s_addr != _options.dhcpgwip.s_addr) {
+  if (addr.sin_addr.s_addr != _options.dhcpgwip.s_addr &&
+      addr.sin_addr.s_addr != _options.dhcprelayip.s_addr && 
+      addr.sin_addr.s_addr != _options.uamlisten.s_addr) {
     log_dbg("Received DHCP response from host (%s) other than our gateway",
 	    inet_ntoa(addr.sin_addr));
     return -1;
@@ -4095,7 +4235,8 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
     return -1;
   }
 
-  if (dhcp_gettag(&packet, length, &message_type, DHCP_OPTION_MESSAGE_TYPE)) {
+  if (dhcp_gettag(&packet, length, &message_type, 
+		  DHCP_OPTION_MESSAGE_TYPE)) {
     log_err(0, "no message type");
     return -1;
   }
@@ -4107,7 +4248,7 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
   
   if (dhcp_hashget(this, &conn, packet.chaddr)) {
     /* Allocate new connection */
-    if (dhcp_newconn(this, &conn, packet.chaddr, 0)) {
+    if (dhcp_newconn(this, &conn, packet.chaddr)) {
       log_err(0, "out of connections");
       return 0; /* Out of connections */
     }
@@ -4121,7 +4262,8 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
 
   memset(&fullpack, 0, sizeof(fullpack));
 
-  dhcp_ethhdr(conn, fullpack, conn->hismac, dhcp_nexthop(this), PKT_ETH_PROTO_IP);
+  dhcp_ethhdr(conn, fullpack, conn->hismac, 
+	      dhcp_nexthop(this), PKT_ETH_PROTO_IP);
 
   {
     struct pkt_iphdr_t *fullpack_iph = iphdr(fullpack);
@@ -4151,28 +4293,37 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
       fullpack_iph->daddr = packet.yiaddr; 
     }
     
+    /*
+     * Copy DHCP packet for forwarding
+     */
     memcpy(dhcppkt(fullpack), &packet, length);
 
-    { /* rewrite the server-id, otherwise will not get subsequent requests */
+    { 
+      /* 
+       * Rewrite the server-id, otherwise will not get 
+       * subsequent requests 
+       */
       struct dhcp_tag_t *tag = 0;
-      if (!dhcp_gettag(dhcppkt(fullpack), length, &tag, DHCP_OPTION_SERVER_ID)) {
+      if (!dhcp_gettag(dhcppkt(fullpack), length, 
+		       &tag, DHCP_OPTION_SERVER_ID)) {
 	memcpy(tag->v, &_options.dhcplisten.s_addr, 4);
       }
     }
     
     chksum(fullpack_iph);
-
+    
     addr.sin_addr.s_addr = fullpack_iph->daddr;
     log_dbg("Sending DHCP relay response %s:%d %d",
 	    inet_ntoa(addr.sin_addr),
 	    ntohs(fullpack_udph->dst),
 	    length + sizeofudp(fullpack));
+
     addr.sin_addr.s_addr = fullpack_iph->saddr;
     log_dbg("Sending DHCP from %s:%d",
 	    inet_ntoa(addr.sin_addr),
 	    ntohs(fullpack_udph->src));
     
-    return dhcp_send(this, &this->rawif, conn->hismac, fullpack, 
+    return dhcp_send(this, &this->rawif[0], conn->hismac, fullpack, 
 		     length + sizeofudp(fullpack));
   }
 }
@@ -4183,7 +4334,8 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
  * Called from the tun_ind function. This method is passed either
  * an Ethernet frame or an IP packet. 
  **/
-int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhdr) {
+int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, 
+		  size_t len, int ethhdr) {
   struct dhcp_t *this = conn->parent;
   uint8_t packet[PKT_MAX_LEN];
   size_t length = len;
@@ -4296,7 +4448,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhd
   if (do_checksum)
     chksum(iphdr(pkt));
 
-  return dhcp_send(this, &this->rawif, conn->hismac, pkt, length);
+  return dhcp_send(this, &this->rawif[0], conn->hismac, pkt, length);
 }
 
 /**
@@ -4351,12 +4503,12 @@ int dhcp_sendARP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   memcpy(packet_ethh->dst, conn->hismac, PKT_ETH_ALEN);
   memcpy(packet_ethh->src, dhcp_nexthop(this), PKT_ETH_ALEN);
 
-  return dhcp_send(this, &this->rawif, conn->hismac, packet, sizeofarp(packet));
+  return dhcp_send(this, &this->rawif[0], conn->hismac, packet, sizeofarp(packet));
 }
 
 int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
   
-  struct dhcp_conn_t *conn;
+  struct dhcp_conn_t *conn = 0;
   struct in_addr reqaddr;
   struct in_addr taraddr;
 
@@ -4401,12 +4553,20 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
     if (taraddr.s_addr == _options.dhcplisten.s_addr) {
       if (dhcp_hashget(this, &conn, pack_arp->sha)) {
 	log_dbg("ARP: Address not found: %s", inet_ntoa(reqaddr));
-	if (dhcp_newconn(this, &conn, pack_arp->sha, pack)) {
+	if (dhcp_newconn(this, &conn, pack_arp->sha)) {
 	  log_warn(0, "ARP: out of connections");
 	  return 0; /* Out of connections */
 	}
       }
       dhcp_sendARP(conn, pack, len);
+#ifdef ENABLE_IEEE8021Q
+      if (_options.ieee8021q) {
+#if(_debug_ > 1)
+	log_dbg("%s calling dhcp_checktag",__FUNCTION__);
+#endif
+	dhcp_checktag(conn, pack);
+      }
+#endif
     }
     return 0;
   }
@@ -4427,14 +4587,19 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
     }
     
     /* Allocate new connection */
-    if (dhcp_newconn(this, &conn, pack_arp->sha, pack)) {
+    if (dhcp_newconn(this, &conn, pack_arp->sha)) {
       log_warn(0, "ARP: out of connections");
       return 0; /* Out of connections */
     }
   }
 
 #ifdef ENABLE_IEEE8021Q
-  dhcp_checktag(conn, pack);
+  if (_options.ieee8021q) {
+#if(_debug_ > 1)
+    log_dbg("%s calling dhcp_checktag",__FUNCTION__);
+#endif
+    dhcp_checktag(conn, pack);
+  }
 #endif
 
   log_dbg("ARP: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X asking about %s", 
@@ -4502,7 +4667,8 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
     }
     */
     
-    if (memcmp(&conn->ourip.s_addr, &taraddr.s_addr, 4)) { 
+    if (memcmp(&conn->ourip.s_addr, &taraddr.s_addr, 4) &&
+	memcmp(&_options.dhcplisten.s_addr, &taraddr.s_addr, 4)) { 
       /* if ourip differs from target ip */
       if (_options.debug) {
 	log_dbg("ARP: Did not ask for router address: %s", inet_ntoa(conn->ourip));
@@ -4540,7 +4706,7 @@ int dhcp_receive_arp(struct dhcp_t *this, uint8_t *pack, size_t len) {
 #ifdef ENABLE_EAPOL
 int dhcp_senddot1x(struct dhcp_conn_t *conn,  uint8_t *pack, size_t len) {
   struct dhcp_t *this = conn->parent;
-  return dhcp_send(this, &this->rawif, conn->hismac, pack, len);
+  return dhcp_send(this, &this->rawif[0], conn->hismac, pack, len);
 }
 
 /**
@@ -4575,7 +4741,7 @@ int dhcp_sendEAP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
   memcpy(eappkt(packet), pack, len);
   
-  return dhcp_send(this, &this->rawif, conn->hismac, packet, (PKT_ETH_HLEN + 4 + len));
+  return dhcp_send(this, &this->rawif[0], conn->hismac, packet, (PKT_ETH_HLEN + 4 + len));
 }
 
 int dhcp_sendEAPreject(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
@@ -4621,7 +4787,7 @@ int dhcp_receive_eapol(struct dhcp_t *this, uint8_t *pack) {
 	    ntohs(pack_dot1x->len));
   
   /* Check that MAC address is our MAC, Broadcast or authentication MAC */
-  if ((memcmp(pack_ethh->dst, this->rawif.hwaddr, PKT_ETH_ALEN)) && 
+  if ((memcmp(pack_ethh->dst, this->rawif[0].hwaddr, PKT_ETH_ALEN)) && 
       (memcmp(pack_ethh->dst, bmac, PKT_ETH_ALEN)) && 
       (memcmp(pack_ethh->dst, amac, PKT_ETH_ALEN)))
     return 0;
@@ -4633,10 +4799,19 @@ int dhcp_receive_eapol(struct dhcp_t *this, uint8_t *pack) {
     
     /* Allocate new connection */
     if (conn == NULL) {
-      if (dhcp_newconn(this, &conn, pack_ethh->src, pack))
+      if (dhcp_newconn(this, &conn, pack_ethh->src))
 	return 0; /* Out of connections */
     }
 
+#ifdef ENABLE_IEEE8021Q
+    if (_options.ieee8021q) {
+#if(_debug_ > 1)
+      log_dbg("%s calling dhcp_checktag",__FUNCTION__);
+#endif
+      dhcp_checktag(conn, pack);
+    }
+#endif
+    
     memset(&p, 0, sizeof(p));
     dhcp_ethhdr(conn, p, pack_ethh->src, dhcp_nexthop(this), PKT_ETH_PROTO_EAPOL);
 
@@ -4688,7 +4863,7 @@ int dhcp_eapol_ind(struct dhcp_t *this) {
   uint8_t packet[PKT_BUFFER];
   ssize_t length;
   
-  if ((length = net_read_eth(&this->rawif, packet, sizeof(packet))) < 0) 
+  if ((length = net_read_eth(&this->rawif[0], packet, sizeof(packet))) < 0) 
     return -1;
 
 #if(_debug_ > 1)
@@ -4760,7 +4935,7 @@ int dhcp_receive(struct dhcp_t *this, int idx) {
   ssize_t length = 0;
 
   if (this->rbuf_offset >= this->rbuf_len) {
-    length = net_read_eth(&this->rawif, this->rbuf, this->rbuf_max);
+    length = net_read_eth(&this->rawif[0], this->rbuf, this->rbuf_max);
     if (length <= 0) return length;
     
     this->rbuf_offset = 0;
@@ -4800,7 +4975,8 @@ int dhcp_receive(struct dhcp_t *this, int idx) {
 		   hdrp->bh_hdrlen, 
 		   hdrp->bh_caplen);
 
-    this->rbuf_offset = BPF_WORDALIGN(this->rbuf_offset + hdrp->bh_hdrlen + hdrp->bh_caplen);
+    this->rbuf_offset = BPF_WORDALIGN(this->rbuf_offset +
+				      hdrp->bh_hdrlen + hdrp->bh_caplen);
   }
 
   return 0;

@@ -15,10 +15,6 @@ pkt.h conn.h lookup.h chilli_limits.h cmdline.h debug.h \
 radius_pkt.h ../bstring/bstrlib.h ../config.h system.h 
 
 lib_LTLIBRARIES = libchilli.la
-noinst_PROGRAMS = test_dhcp test_randpkt 
-#if WITH_L2TP_PPP
-#noinst_PROGRAMS += test_l2tp
-#endif
 sbin_PROGRAMS = \
 chilli chilli_response chilli_radconfig chilli_opt 
 
@@ -27,7 +23,7 @@ suid_programs =
 libchilli_la_SOURCES = \
 chilli.c tun.c ippool.c radius.c md5.c redir.c dhcp.c syserr.c \
 iphash.c lookup.c system.h util.c options.c statusfile.c conn.c sig.c \
-garden.c dns.c session.c pkt.c chksum.c net.c 
+garden.c dns.c session.c pkt.c chksum.c net.c safe.c
 
 AM_CFLAGS = -D_GNU_SOURCE -Wall -Werror -fno-builtin -fno-strict-aliasing \
   -O2 -fomit-frame-pointer -funroll-loops -pipe -I$(top_builddir)/bstring \
@@ -41,13 +37,6 @@ chilli_radconfig_SOURCES = main-radconfig.c
 chilli_response_SOURCES = main-response.c 
 chilli_query_SOURCES = main-query.c 
 chilli_opt_SOURCES = main-opt.c 
-#queue_SOURCES = queue_test.c 
-#test_radius_SOURCES = test-radius.c 
-test_dhcp_SOURCES = test-dhcp.c 
-test_randpkt_SOURCES = test-randpkt.c 
-if WITH_L2TP_PPP
-test_l2tp_SOURCES = test-l2tp.c 
-endif
 
 libchilli_la_LIBADD = $(top_builddir)/bstring/libbstring.la 
 LDADD = libchilli.la ${LIBRT} $(top_builddir)/bstring/libbstring.la 
@@ -168,6 +157,9 @@ chilliinclude_HEADERS += chilli_module.h
 AM_CFLAGS += -DDEFLIBDIR='"$(libdir)/coova-chilli"'
 endif
 
+CMDLINE = cmdline.ggo
+CMDLINE += `[ -e ../../cmdline.ggo ] && echo ../../cmdline.ggo`
+
 install-exec-hook:
 	@for f in $(suid_programs); do \
 		echo "Setting SUID on $(DESTDIR)$(sbindir)/$$f !"; \
@@ -176,7 +168,7 @@ install-exec-hook:
 	done
 
 cmdline.c cmdline.h: cmdline.ggo cmdline.patch
-	gengetopt -C < cmdline.ggo 
+	cat $(CMDLINE) | gengetopt -C 
 	cp cmdline.c cmdline.c.orig
 	patch -p0 < cmdline.patch
 

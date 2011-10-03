@@ -20,6 +20,9 @@
 #define _SYSTEM_H
 
 #include "../config.h"
+#ifdef ENABLE_CONFIG
+#include ENABLE_CONFIG
+#endif
 
 /*
  *   I do not like this here, but otherwise
@@ -251,6 +254,20 @@
 
 #define safe_snprintf portable_snprintf
 char *safe_strncpy(char *dst, const char *src, size_t size);
+
+int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr);
+int safe_connect(int s, struct sockaddr *sock, size_t len);
+int safe_write(int s, void *b, size_t blen);
+int safe_read(int s, void *b, size_t blen);
+int safe_recv(int s, void *b, size_t blen, int flags);
+int safe_send(int s, void *b, size_t blen, int flags);
+int safe_recvmsg(int sockfd, struct msghdr *msg, int flags);
+int safe_recvfrom(int sockfd, void *buf, size_t len, int flags,
+		  struct sockaddr *src_addr, socklen_t *addrlen);
+int safe_sendto(int s, const void *b, size_t blen, int flags,
+		const struct sockaddr *dest_addr, socklen_t addrlen);
+int safe_close (int fd);
+pid_t safe_fork();
 
 #ifndef TEMP_FAILURE_RETRY
 #define TEMP_FAILURE_RETRY(expression) \

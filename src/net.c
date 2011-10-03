@@ -39,64 +39,6 @@ static void setup_filter(net_interface *iface);
 static int default_sndbuf = 0;
 static int default_rcvbuf = 0;
 
-int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr) {
-  int ret;
-  do {
-    ret = accept(fd, sa, lenptr);
-  } while (ret == -1 && errno == EINTR);
-  return ret;
-}
-
-int safe_connect(int s, struct sockaddr *sock, size_t len) {
-  int ret;
-  do {
-    ret = connect(s, sock, len);
-  } while (ret == -1 && errno == EINTR);
-  return ret;
-}
-
-int safe_read(int s, void *b, size_t blen) {
-  int ret;
-  do {
-    ret = read(s, b, blen);
-  } while (ret == -1 && errno == EINTR);
-  return ret;
-}
-
-int safe_recvfrom(int sockfd, void *buf, size_t len, int flags,
-		  struct sockaddr *src_addr, socklen_t *addrlen) {
-  int ret;
-  do {
-    ret = recvfrom(sockfd, buf, len, flags, src_addr, addrlen);
-  } while (ret == -1 && errno == EINTR);
-  return ret;
-}
-
-int safe_write(int s, void *b, size_t blen) {
-  int ret;
-  do {
-    ret = write(s, b, blen);
-  } while (ret == -1 && errno == EINTR);
-  return ret;
-}
-
-int safe_sendto(int s, const void *b, size_t blen, int flags,
-		const struct sockaddr *dest_addr, socklen_t addrlen) {
-  int ret;
-  do {
-    ret = sendto(s, b, blen, flags, dest_addr, addrlen);
-  } while (ret == -1 && errno == EINTR);
-  return ret;
-}
-
-int safe_close (int fd) {
-  int ret;
-  do {
-    ret = close(fd);
-  } while (ret == -1 && errno == EINTR);
-  return ret;
-}
-
 int dev_set_flags(char const *dev, int flags) {
   struct ifreq ifr;
   int fd;
@@ -219,7 +161,8 @@ int dev_set_address(char const *devname, struct in_addr *address,
   return dev_set_flags(devname, IFF_UP | IFF_RUNNING); 
 }
 
-int net_init(net_interface *netif, char *ifname, uint16_t protocol, int promisc, uint8_t *mac) {
+int net_init(net_interface *netif, char *ifname, 
+	     uint16_t protocol, int promisc, uint8_t *mac) {
 
   if (ifname) {
     memset(netif, 0, sizeof(net_interface));
@@ -356,8 +299,10 @@ int net_select_prepare(select_ctx *sctx) {
       sctx->desc[i].cb(&sctx->desc[i], -1);
     }
     if (sctx->desc[i].fd) {
-      if (sctx->desc[i].evts & SELECT_READ)
+      if (sctx->desc[i].evts & SELECT_READ) {
 	fd_set(sctx->desc[i].fd, &sctx->rfds);
+	fd_set(sctx->desc[i].fd, &sctx->efds);
+      }
       if (sctx->desc[i].evts & SELECT_WRITE)
 	fd_set(sctx->desc[i].fd, &sctx->wfds);
     }
@@ -556,6 +501,21 @@ int net_select(select_ctx *sctx) {
 		    &sctx->efds, 
 		    &sctx->idleTime);
 
+#if(0)
+    if (status) log_dbg("select() == %d", status);
+    {int i;
+      for (i=0; i<FD_SETSIZE; i++)
+	if (FD_ISSET(i, &sctx->rfds))
+	  log_dbg("rfds[%d]",i);
+      for (i=0; i<FD_SETSIZE; i++)
+	if (FD_ISSET(i, &sctx->wfds))
+	  log_dbg("wfds[%d]",i);
+      for (i=0; i<FD_SETSIZE; i++)
+	if (FD_ISSET(i, &sctx->efds))
+	  log_dbg("efds[%d]",i);
+    }
+#endif
+
     if (status == -1) net_select_prepare(sctx); /* reset */
 
   } while (status == -1 && errno == EINTR);
@@ -569,20 +529,22 @@ int net_select_read_fd(select_ctx *sctx, int fd) {
 #ifdef HAVE_SYS_EPOLL_H
   for (idx=0; idx < MAX_SELECT; idx++)
     if (sctx->events[idx].data.fd == fd) {
-      return (sctx->events[idx].events & EPOLLIN) != 0;
+      if (sctx->events[idx].events & EPOLLIN)
+	return 1;
     }
-  return 0;
 #else
   for (idx=0; idx < MAX_SELECT; idx++)
     if (sctx->pfds[idx].fd == fd)
-      return (sctx->pfds[idx].events & POLLIN) != 0;
-  return 0;
+      if (sctx->pfds[idx].events & POLLIN)
+	return 1;
 #endif
 #else
   if (FD_ISSET(fd, &sctx->efds))
     return -1;
-  return FD_ISSET(fd, &sctx->rfds);
+  if (FD_ISSET(fd, &sctx->rfds))
+    return 1;
 #endif
+  return 0;
 }
 
 int net_select_write_fd(select_ctx *sctx, int fd) {
@@ -594,19 +556,23 @@ int net_select_write_fd(select_ctx *sctx, int fd) {
 #if(_debug_ > 1)
       log_dbg("write %d", (sctx->events[idx].events & EPOLLOUT) != 0);
 #endif
-      return (sctx->events[idx].events & EPOLLOUT) != 0;
+      if (sctx->events[idx].events & EPOLLOUT)
+	return 1;
     }
-  return 0;
 #else
   for (idx=0; idx < MAX_SELECT; idx++)
     if (sctx->pfds[idx].fd == fd) {
-      return (sctx->pfds[idx].events & POLLOUT) != 0;
+      if (sctx->pfds[idx].events & POLLOUT)
+	return 1;
     }
-  return 0;
 #endif
 #else
-  return FD_ISSET(fd, &sctx->wfds);
+  if (FD_ISSET(fd, &sctx->efds))
+    return -1;
+  if (FD_ISSET(fd, &sctx->wfds))
+    return 1;
 #endif
+  return 0;
 }
 
 int net_run_selected(select_ctx *sctx, int status) {
@@ -651,9 +617,11 @@ struct netpcap {
 };
 
 static void 
-net_pcap_read(u_char *user, const struct pcap_pkthdr *hdr, const u_char *bytes) {
+net_pcap_read(u_char *user, const struct pcap_pkthdr *hdr, 
+	      const u_char *bytes) {
   struct netpcap *np = (struct netpcap *)user;
-  if (!bytes || hdr->caplen < sizeof(struct pkt_ethhdr_t) || hdr->caplen > np->dlen)
+  if (!bytes || hdr->caplen < sizeof(struct pkt_ethhdr_t) ||
+      hdr->caplen > np->dlen)
     np->read = -1;
   else {
     memcpy(np->d, bytes, hdr->caplen);
@@ -662,7 +630,8 @@ net_pcap_read(u_char *user, const struct pcap_pkthdr *hdr, const u_char *bytes) 
 }
 
 static void 
-net_pcap_handler(u_char *user, const struct pcap_pkthdr *hdr, const u_char *bytes) {
+net_pcap_handler(u_char *user, const struct pcap_pkthdr *hdr,
+		 const u_char *bytes) {
   struct netpcap *np = (struct netpcap *)user;
   if (!bytes || hdr->caplen < sizeof(struct pkt_ethhdr_t))
     np->read = -1;
@@ -744,13 +713,47 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 #else
     int addr_len;
     struct sockaddr_ll s_addr;
+
+#if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI)
+    struct iovec iov;
+    struct msghdr msg;
+    struct cmsghdr *cmsg;
+    union {
+      struct cmsghdr cmsg;
+      char buf[CMSG_SPACE(sizeof(struct tpacket_auxdata))];
+    } cmsg_buf;
+#ifdef ENABLE_IEEE8021Q
+    struct vlan_tag {
+      u_int16_t tpid; 
+      u_int16_t tci; 
+    };
+#endif
+    msg.msg_name = &s_addr;
+    msg.msg_namelen = sizeof(s_addr);
+    msg.msg_iov = &iov;
+    msg.msg_iovlen = 1;
+    msg.msg_control = &cmsg_buf;
+    msg.msg_controllen = sizeof(cmsg_buf);
+    msg.msg_flags = 0;
+    
+    iov.iov_len = dlen;
+    iov.iov_base = d;
+#endif
+
     memset (&s_addr, 0, sizeof (struct sockaddr_ll));
     addr_len = sizeof (s_addr);
 
+#if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI) 
+    len = safe_recvmsg(netif->fd, &msg, MSG_TRUNC);
+#else
     len = safe_recvfrom(netif->fd, d, dlen,
 			MSG_DONTWAIT | MSG_TRUNC, 
 			(struct sockaddr *) &s_addr, 
 			(socklen_t *) &addr_len);
+#endif
+    if (len == 0)
+      log_dbg("read zero, enable ieee8021q?");
+
     if (len > dlen) {
       log_warn(0, "data truncated, sending ICMP error %d/%d", 
 	       len, dlen);
@@ -763,6 +766,47 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 	      netif->fd, dlen, netif->mtu, len);
       return -1;
     }
+
+#if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI) && defined(ENABLE_IEEE8021Q)
+    if (_options.ieee8021q) {
+      for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+	struct tpacket_auxdata *aux;
+	struct vlan_tag *tag;
+	unsigned int ulen;
+	
+	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct tpacket_auxdata)) ||
+	    cmsg->cmsg_level != SOL_PACKET ||
+	    cmsg->cmsg_type != PACKET_AUXDATA)
+	  continue;
+	
+	aux = (struct tpacket_auxdata *)CMSG_DATA(cmsg);
+	if (aux->tp_vlan_tci == 0)
+	  continue;
+	
+	ulen = len > iov.iov_len ? iov.iov_len : len;
+	
+	if (ulen < 2 * PKT_ETH_ALEN ||
+	    len >= PKT_MAX_LEN - 4) {
+	  log_err(0, "bad pkt length to add 802.1q header %d/%d",
+		  ulen, len);
+	  break;
+	}
+	
+#if(_debug_ > 1)
+	log_dbg("adding 8021q header from auxdata");
+#endif
+	
+	memmove(d + (2 * PKT_ETH_ALEN) + 4, 
+		d + (2 * PKT_ETH_ALEN), 
+		len - (2 * PKT_ETH_ALEN));
+	
+	tag = (struct vlan_tag *)(d + 2 * PKT_ETH_ALEN);
+	tag->tpid = htons(ETH_P_8021Q);
+	tag->tci = htons(aux->tp_vlan_tci);
+	len += 4;
+      }
+    }
+#endif
   }
   
   return len;
@@ -771,15 +815,23 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 ssize_t net_write(int sock, void *d, size_t dlen) {
   int left = dlen;
   int w, off = 0;
+
   while (left > 0) {
-    w = safe_write(sock, d + off, left);
+    w = safe_send(sock, d + off, left, 
+#ifdef MSG_NOSIGNAL
+		  MSG_NOSIGNAL
+#else
+		  0
+#endif
+		  );
     if (w < 0) {
-      log_err(errno, "write()");
+      log_err(errno, "safe_send(d+%d,%d)", off, left);
       return off ? off : -1;
     }
     left -= w;
     off += w;
   }
+
   return off;
 }
 
@@ -1175,7 +1227,8 @@ int net_open_eth(net_interface *netif) {
   }
   
   if (netif->hwaddr[0] & 0x01) {
-    log_err(0, "Ethernet has broadcast or multicast address: %.16s", netif->devname);
+    log_err(0, "Ethernet has broadcast or multicast address: %.16s",
+	    netif->devname);
   }
   
   /* Get the current interface address, network, and any destination address */
@@ -1188,7 +1241,8 @@ int net_open_eth(net_interface *netif) {
     return -1;
   }
   if (ifr.ifr_mtu > PKT_BUFFER) {
-    log_err(0, "MTU is larger than PKT_BUFFER: %d > %d", ifr.ifr_mtu, PKT_BUFFER);
+    log_err(0, "MTU is larger than PKT_BUFFER: %d > %d", 
+	    ifr.ifr_mtu, PKT_BUFFER);
     return -1;
   }
   netif->mtu = ifr.ifr_mtu;
@@ -1203,7 +1257,6 @@ int net_open_eth(net_interface *netif) {
   log_dbg("device %s ifindex %d", netif->devname, netif->ifindex);
 
 #ifndef USING_MMAP
-
   /* Set interface in promisc mode */
   if (netif->flags & NET_PROMISC) {
 
@@ -1251,6 +1304,14 @@ int net_open_eth(net_interface *netif) {
   netif->dest.sll_family = AF_PACKET;
   netif->dest.sll_protocol = htons(netif->protocol);
   netif->dest.sll_ifindex = netif->ifindex;
+#endif
+
+#if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI) 
+  option = 1;
+  if (setsockopt(netif->fd, SOL_PACKET, PACKET_AUXDATA, &option,
+		 sizeof(option)) == -1 && errno != ENOPROTOOPT) {
+    log_err(errno, "auxdata");
+  }
 #endif
 
 #ifdef USING_MMAP
@@ -1345,7 +1406,6 @@ int net_open_eth(net_interface *netif) {
   /* Find suitable device */
   for (devnum = 0; devnum < 255; devnum++) { /* TODO 255 */ 
     safe_snprintf(devname, sizeof(devname), "/dev/bpf%d", devnum);
-    devname[sizeof(devname)] = 0;
     if ((netif->fd = open(devname, O_RDWR)) >= 0) break;
     if (errno != EBUSY) break;
   } 
@@ -1382,7 +1442,8 @@ int net_open_eth(net_interface *netif) {
   }
   
   if (netif->hwaddr[0] & 0x01) {
-    log_err(0, "Ethernet has broadcast or multicast address: %.16s", netif->devname);
+    log_err(0, "Ethernet has broadcast or multicast address: %.16s", 
+	    netif->devname);
     return -1;
   }
 

@@ -30,6 +30,9 @@
 /* Define for CoA RADIUS support */
 #undef ENABLE_COA
 
+/* none */
+#undef ENABLE_CONFIG
+
 /* Define to enable debugging */
 #undef ENABLE_DEBUG
 
@@ -50,9 +53,6 @@
 
 /* Define to enable CoovaEWT API */
 #undef ENABLE_EWTAPI
-
-/* Define to enable admin-user VSA support */
-#undef ENABLE_EXTADMVSA
 
 /* Define to enable Chilli IEEE 802.1Q */
 #undef ENABLE_IEEE8021Q
@@ -111,9 +111,6 @@
 /* Define to DNS query on redirect to pick up dynamic walled garden */
 #undef ENABLE_REDIRDNSREQ
 
-/* Define to Redir content-injection support */
-#undef ENABLE_REDIRINJECT
-
 /* Define to enable Chilli session walled garden */
 #undef ENABLE_SESSGARDEN
 
@@ -149,6 +146,9 @@
 
 /* Define to 1 if you have the <asm/types.h> header file. */
 #undef HAVE_ASM_TYPES_H
+
+/* define if you have a cloning BPF device */
+#undef HAVE_CLONING_BPF
 
 /* Define to 1 if you have the <dirent.h> header file. */
 #undef HAVE_DIRENT_H
@@ -215,6 +215,9 @@
 
 /* Define to 1 if you have the `rt' library (-lrt). */
 #undef HAVE_LIBRT
+
+/* if tp_vlan_tci exists */
+#undef HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI
 
 /* Define to use Jenkins lookup3 */
 #undef HAVE_LOOKUP3
@@ -362,6 +365,9 @@
 
 /* Define to 1 if you have the <time.h> header file. */
 #undef HAVE_TIME_H
+
+/* if if_packet.h has tpacket_stats defined */
+#undef HAVE_TPACKET_STATS
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H

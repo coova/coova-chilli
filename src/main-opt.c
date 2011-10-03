@@ -19,8 +19,9 @@
 
 #define MAIN_FILE
 
-#include "chilli.h"
 #include "cmdline.h"
+#include "system.h"
+#include "chilli.h"
 #include "debug.h"
 
 struct options_t _options;
@@ -157,6 +158,9 @@ static const char *compile_options = "Compiled with "
 #endif
 #ifdef USING_POLL
   "USING_POLL "
+#endif
+#ifdef EX_OPT_FEATURES
+#include EX_OPT_FEATURES
 #endif
 ;
 
@@ -330,15 +334,20 @@ int main(int argc, char **argv) {
   _options.radiustimeout = args_info.radiustimeout_arg;
   _options.radiusretry = args_info.radiusretry_arg;
   _options.radiusretrysec = args_info.radiusretrysec_arg;
+#ifdef ENABLE_RADPROXY
   _options.proxyport = args_info.proxyport_arg;
+  _options.proxymacaccept = args_info.proxymacaccept_flag;
+  _options.proxyonacct = args_info.proxyonacct_flag;
+#endif
 #if(_debug_ && !defined(ENABLE_RADPROXY))
-  if (_options.proxyport)
+  if (args_info.proxyport_arg)
     log_err(0,"radproxy not implemented. build with --enable-radproxy");
 #endif
   _options.txqlen = args_info.txqlen_arg;
   _options.ringsize = args_info.ringsize_arg;
   _options.sndbuf = args_info.sndbuf_arg;
   _options.rcvbuf = args_info.rcvbuf_arg;
+  _options.childmax = args_info.childmax_arg;
   _options.postauth_proxyport = args_info.postauthproxyport_arg;
   _options.pap_always_ok = args_info.papalwaysok_flag;
   _options.mschapv2 = args_info.mschapv2_flag;
@@ -368,7 +377,6 @@ int main(int argc, char **argv) {
   if (_options.radsec) 
     log_err(0, "chilli_radsec not implemented. build with --enable-chilliradsec");
 #endif
-  _options.proxymacaccept = args_info.proxymacaccept_flag;
   _options.noradallow = args_info.noradallow_flag;
   _options.peerid = args_info.peerid_arg;
 #if(_debug_ && !defined(ENABLE_CLUSTER))
@@ -413,52 +421,6 @@ int main(int argc, char **argv) {
       log_dbg("Proxy location attr %d %d", 
 	      (int)_options.proxy_loc[numargs].attr_vsa, 
 	      (int)_options.proxy_loc[numargs].attr);
-    }
-  }
-#endif
-
-#ifdef ENABLE_EXTADMVSA
-  if (args_info.extadmvsa_given) {
-    for (numargs = 0; numargs < args_info.extadmvsa_given 
-	   && numargs < EXTADMVSA_ATTR_CNT; ++numargs)  {
-      int len = strlen(args_info.extadmvsa_arg[numargs]);
-      if (len > 0 && len < 256) {
-	unsigned int i[2];
-	char s[256];
-	
-	if (sscanf(args_info.extadmvsa_arg[numargs], 
-		   "%u,%u:%s", &i[0], &i[1], s) == 3) {
-	  char *idx = strchr(s, ':');
-	  _options.extadmvsa[numargs].attr_vsa = i[0];
-	  _options.extadmvsa[numargs].attr = i[1];
-	  if (idx) *idx = 0;
-	  safe_strncpy(_options.extadmvsa[numargs].script, 
-		       s, sizeof(_options.extadmvsa[numargs].script)-1);
-	  if (idx) {
-	    safe_strncpy(_options.extadmvsa[numargs].data, 
-			 idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
-	  }
-	} else if (sscanf(args_info.extadmvsa_arg[numargs], 
-			  "%u:%s", &i[0], s) == 2) {
-	  char *idx = strchr(s, ':');
-	  _options.extadmvsa[numargs].attr = i[0];
-	  if (idx) *idx = 0;
-	  safe_strncpy(_options.extadmvsa[numargs].script, 
-		       s, sizeof(_options.extadmvsa[numargs].script)-1);
-	  if (idx) {
-	    safe_strncpy(_options.extadmvsa[numargs].data, 
-			 idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
-	  }
-	} else {
-	  log_err(0, "invalid input %s", args_info.extadmvsa_arg[numargs]);
-	}
-      }
-
-      log_dbg("Extended admin-user attr (%d/%d) data=%s script=%s", 
-	      (int)_options.extadmvsa[numargs].attr_vsa, 
-	      (int)_options.extadmvsa[numargs].attr,
-	      (int)_options.extadmvsa[numargs].data,
-	      (int)_options.extadmvsa[numargs].script);
     }
   }
 #endif
@@ -688,8 +650,8 @@ int main(int argc, char **argv) {
   for (numargs = 0; numargs < args_info.uamallowed_given; ++numargs) {
     pass_throughs_from_string(_options.pass_throughs,
 			      MAX_PASS_THROUGHS,
-			      &_options.num_pass_throughs, 0, 
-			      args_info.uamallowed_arg[numargs]);
+			      &_options.num_pass_throughs,  
+			      args_info.uamallowed_arg[numargs], 0, 0);
   }
 
 #ifdef ENABLE_DHCPOPT
@@ -764,8 +726,8 @@ int main(int argc, char **argv) {
   for (numargs = 0; numargs < args_info.uamregex_given; ++numargs) {
     regex_pass_throughs_from_string(_options.regex_pass_throughs,
 				    MAX_REGEX_PASS_THROUGHS,
-				    &_options.regex_num_pass_throughs, 0, 
-				    args_info.uamregex_arg[numargs]);
+				    &_options.regex_num_pass_throughs,  
+				    args_info.uamregex_arg[numargs], 0);
   }
 #endif
 
@@ -776,7 +738,8 @@ int main(int argc, char **argv) {
   }
 
   if (args_info.uamdomain_given) {
-    for (numargs = 0; numargs < args_info.uamdomain_given && numargs < MAX_UAM_DOMAINS; ++numargs) 
+    for (numargs = 0; numargs < args_info.uamdomain_given && 
+	   numargs < MAX_UAM_DOMAINS; ++numargs) 
       _options.uamdomains[numargs] = STRDUP(args_info.uamdomain_arg[numargs]);
   }
 
@@ -1108,12 +1071,14 @@ int main(int argc, char **argv) {
     log_err(0, "option moddir given when no support built-in");
 #endif
   
+#ifdef ENABLE_RADPROXY
   if (!args_info.proxysecret_arg) {
     _options.proxysecret = STRDUP(args_info.radiussecret_arg);
   }
   else {
     _options.proxysecret = STRDUP(args_info.proxysecret_arg);
   }
+#endif
 
   _options.peerkey = STRDUP(args_info.peerkey_arg);
   _options.routeif = STRDUP(args_info.routeif_arg);
@@ -1142,6 +1107,10 @@ int main(int argc, char **argv) {
   _options.radiuslocationname = STRDUP(args_info.radiuslocationname_arg);
   _options.locationname = STRDUP(args_info.locationname_arg);
   _options.radiussecret = STRDUP(args_info.radiussecret_arg);
+#ifdef ENABLE_LARGELIMITS
+  /*_options.radiusacctsecret = STRDUP(args_info.radiusacctsecret_arg);
+    _options.radiusadmsecret = STRDUP(args_info.radiusadmsecret_arg);*/
+#endif
   _options.cmdsocket = STRDUP(args_info.cmdsocket_arg);
   _options.domain = STRDUP(args_info.domain_arg);
   _options.ipup = STRDUP(args_info.ipup_arg);
@@ -1157,14 +1126,14 @@ int main(int argc, char **argv) {
   _options.uamhostname = STRDUP(args_info.uamhostname_arg);
   _options.binconfig = STRDUP(args_info.bin_arg);
   _options.ethers = STRDUP(args_info.ethers_arg);
-#ifdef ENABLE_REDIRINJECT
-  _options.inject = STRDUP(args_info.inject_arg);
-#endif
 #ifdef ENABLE_IEEE8021Q
   _options.vlanupdate = STRDUP(args_info.vlanupdate_arg);
 #endif
 #ifdef ENABLE_PROXYVSA
   _options.locationupdate = STRDUP(args_info.locationupdate_arg);
+#endif
+#ifdef EX_OPT_MAIN
+#include EX_OPT_MAIN
 #endif
 
   ret = 0;

@@ -1091,7 +1091,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
 
   net.s_addr = tuntap(tun).address.s_addr & tuntap(tun).netmask.s_addr;
 
-  if ((pid = fork()) < 0) {
+  if ((pid = safe_fork()) < 0) {
     log_err(errno, "fork() returned -1!");
     return 0;
   }

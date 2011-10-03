@@ -522,10 +522,12 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
   }
 
 #ifdef ENABLE_IEEE8021Q
-  if (conn->s_state.tag8021q) {
+  if (_options.ieee8021q && conn->s_state.tag8021q) {
     bcatcstr(str, amp);
     bcatcstr(str, "vlan=");
-    bassignformat(bt, "%d", (int)(ntohs(conn->s_state.tag8021q) & 0x0FFF));
+    bassignformat(bt, "%d", 
+		  (int)ntohs(conn->s_state.tag8021q & 
+			     PKT_8021Q_MASK_VID));
     bconcat(str, bt);
   } else 
 #endif
@@ -1694,7 +1696,7 @@ int redir_listen(struct redir_t *redir) {
 
     optval = 1;
     if (setsockopt(redir->fd[n], SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))) {
-      log_err(errno, "setsockopt() failed");
+      log_err(errno, "setsockopt(SO_REUSEADDR)");
       safe_close(redir->fd[n]);
       redir->fd[n]=0;
       break;
@@ -1703,7 +1705,7 @@ int redir_listen(struct redir_t *redir) {
 #ifdef SO_REUSEPORT
     optval = 1;
     if (setsockopt(redir->fd[n], SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))) {
-      log_err(errno, "setsockopt() failed");
+      log_err(errno, "setsockopt(SO_REUSEPORT)");
       safe_close(redir->fd[n]);
       redir->fd[n]=0;
       return -1;
@@ -1998,7 +2000,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 			       0);
       } else
 #endif
-      recvlen = recv(fd, buffer + buflen, httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 0);
+      recvlen = recv(fd, buffer + buflen, 
+		     httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 0);
 
       if (recvlen < 0) {
 	recvlen = 0;
@@ -2020,6 +2023,11 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       if (recvlen == 0) done=1;
       else if (httpreq->data_in) {
 	bcatblk(httpreq->data_in, buffer + buflen, recvlen);
+
+	if (httpreq->allow_post && 
+	    httpreq->data_in->slen > 4 && 
+	    strncmp((char *)httpreq->data_in->data, "POST", 4))
+	  httpreq->allow_post = 0;
       }
 
       buflen += recvlen;

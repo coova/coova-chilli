@@ -52,14 +52,35 @@ struct chilli_module {
   int (* session_update)  (struct app_conn_t *);
   int (* session_stop)    (struct app_conn_t *);
 
-#define CHILLI_DNS_ERROR -1
+#define CHILLI_CMDSOCK_ERR -1
+#define CHILLI_CMDSOCK_OK   0
+  int (* cmdsock_handler) 
+  (struct cmdsock_request *req, bstring s, int sock);
+
+  /* lower level handers */
+#define CHILLI_DNS_ERR   -1
 #define CHILLI_DNS_DROP   0
 #define CHILLI_DNS_OK     1
 #define CHILLI_DNS_MOD    2
 #define CHILLI_DNS_NAK    3
-  int (* dns_handler)     (struct app_conn_t *, 
-			   struct dhcp_conn_t *,
-			   uint8_t *, size_t *, int);
+  int (* dns_handler) 
+  (struct app_conn_t *, struct dhcp_conn_t *, uint8_t *, size_t *, int);
+
+#define CHILLI_RADIUS_ERR  -1
+#define CHILLI_RADIUS_OK    0
+  int (* radius_handler)  
+  (struct radius_t *radius, struct app_conn_t *conn,
+   struct radius_packet_t *req, struct radius_packet_t *resp);
+
+  /* lower level handers */
+#define CHILLI_DHCP_OFFER    1
+#define CHILLI_DHCP_ACK      2
+#define CHILLI_DHCP_NAK      3
+#define CHILLI_DHCP_RELAY    4
+#define CHILLI_DHCP_PROXY    5
+  size_t (* dhcp_handler) 
+  (int, struct app_conn_t *, struct dhcp_conn_t *, 
+   uint8_t *, size_t, uint8_t *, size_t);
 
   int (* destroy)         (char isReload);
 };

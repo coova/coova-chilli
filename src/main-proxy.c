@@ -55,6 +55,7 @@ typedef struct _proxy_request {
   bstring data;
   bstring post;
   bstring wbuf;
+  bstring dbuf;
 
   struct radius_packet_t radius_req;
   struct radius_packet_t radius_res;
@@ -83,6 +84,8 @@ static proxy_request * requests_free = 0;
 static CURLM * curl_multi;
 static int still_running = 0;
 #endif
+
+static char nas_hwaddr[PKT_ETH_ALEN];
 
 static void print_requests() {
   proxy_request * req = 0;
@@ -170,10 +173,12 @@ static void close_request(proxy_request *req) {
   if (req->data) bdestroy(req->data);
   if (req->post) bdestroy(req->post);
   if (req->wbuf) bdestroy(req->wbuf);
+  if (req->dbuf) bdestroy(req->dbuf);
 
   req->url =
     req->data = 
     req->post = 
+    req->dbuf =
     req->wbuf = 0;
   
   req->authorized = 0;
@@ -530,6 +535,9 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
   
   if (!req->wbuf) 
     req->wbuf = bfromcstr("");
+
+  if (!req->dbuf) 
+    req->dbuf = bfromcstr("");
   
   bassignformat(req->wbuf, 
 		"GET %s HTTP/1.1\r\n"
@@ -539,7 +547,7 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
 		"\r\n",
 		req->url->data + uripos, hostname, port);
   
-  if (conn_setup(&req->conn, hostname, port, req->wbuf))
+  if (conn_setup(&req->conn, hostname, port, req->wbuf, req->dbuf))
     return -1;
   
   conn_set_readhandler(&req->conn, http_conn_read, req);
@@ -601,23 +609,11 @@ static void http_aaa_register(int argc, char **argv, int i) {
   if (_options.nasmac) {
     bcatcstr(req.url, _options.nasmac);
   } else {
-    char nas_hwaddr[PKT_ETH_ALEN];
-    struct ifreq ifr;
     char mac[32];
-
-    int fd = socket(AF_INET, SOCK_DGRAM, 0);
-
-    safe_strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
-
-    if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
-      memcpy(nas_hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
-      safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
-		    nas_hwaddr[0],nas_hwaddr[1],nas_hwaddr[2],
-		    nas_hwaddr[3],nas_hwaddr[4],nas_hwaddr[5]);
-      bcatcstr(req.url, mac);
-    }
-      
-    close(fd);
+    safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+		  nas_hwaddr[0],nas_hwaddr[1],nas_hwaddr[2],
+		  nas_hwaddr[3],nas_hwaddr[4],nas_hwaddr[5]);
+    bcatcstr(req.url, mac);
   }
 
   bcatcstr(req.url, "&nasid=");
@@ -681,6 +677,8 @@ static void http_aaa_register(int argc, char **argv, int i) {
 #else
   if (req.wbuf)
     bdestroy(req.wbuf);
+  if (req.dbuf)
+    bdestroy(req.dbuf);
 #endif
   exit(0);
 }
@@ -1012,6 +1010,24 @@ int main(int argc, char **argv) {
 
   chilli_signals(&keep_going, &reload_config);
   selfpipe_trap(SIGUSR2);
+
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
+  net_getmac(_options.dhcpif, nas_hwaddr);
+#else
+  {
+    struct ifreq ifr;
+    
+    int fd = socket(AF_INET, SOCK_DGRAM, 0);
+    
+    safe_strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
+    
+    if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
+      memcpy(nas_hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
+    }
+    
+    close(fd);
+  }
+#endif
 
   /*
    *  Support a --register mode whereby all subsequent arguments are 

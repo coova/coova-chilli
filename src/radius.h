@@ -193,19 +193,43 @@ struct radius_queue_t {      /* Holder for queued packets */
 typedef struct radius_queue_t * radius_queue;
 struct session_state;
 
+struct radius_server_t {
+  struct in_addr addr0;
+  struct in_addr addr1;
+  char secret[RADIUS_SECRETSIZE];
+  size_t secretlen;
+  uint16_t authport;
+  uint16_t acctport;
+};
+
 struct radius_t {
   int fd;                        /* Socket file descriptor */
+
   FILE *urandom_fp;              /* /dev/urandom FILE pointer */
+
   struct in_addr ouraddr;        /* Address to listen to */
   uint16_t ourport;              /* Port to listen to */
   int coanocheck;                /* Accept coa from all IP addresses */
+
+
   int lastreply;                 /* 0 or 1 indicates last server reply */
+
   uint16_t authport;             /* His port for authentication */
   uint16_t acctport;             /* His port for accounting */
+
   struct in_addr hisaddr0;       /* Server address */
   struct in_addr hisaddr1;       /* Server address */
   char secret[RADIUS_SECRETSIZE];/* Shared secret */
-  size_t secretlen;                 /* Length of sharet secret */
+  size_t secretlen;              /* Length of sharet secret */
+
+  uint8_t nextid;                /* Next RADIUS id */
+  radius_queue queue;            /* Outstanding replies */
+  uint8_t qsize;                 /* Queue length */
+  uint8_t qnext;                 /* Next location in queue to use */
+  int first;                     /* First packet in queue (oldest timeout) */
+  int last;                      /* Last packet in queue (youngest timeout) */
+
+
 #ifdef ENABLE_RADPROXY
   int proxyfd;                   /* Proxy socket file descriptor */
   struct in_addr proxylisten;    /* Proxy address to listen to */
@@ -215,16 +239,9 @@ struct radius_t {
   char proxysecret[RADIUS_SECRETSIZE]; /* Proxy secret */
   size_t proxysecretlen;            /* Length of sharet secret */
 #endif
+
   unsigned char nas_hwaddr[6];   /* Hardware address of NAS */
-
   int debug;                     /* Print debug messages */
-
-  uint8_t nextid;                /* Next RADIUS id */
-  radius_queue queue;            /* Outstanding replies */
-  uint8_t qsize;                 /* Queue length */
-  uint8_t qnext;                 /* Next location in queue to use */
-  int first;                     /* First packet in queue (oldest timeout) */
-  int last;                      /* Last packet in queue (youngest timeout) */
 
   int (*cb_ind)       (struct radius_t *radius, struct radius_packet_t *pack,
 		       struct sockaddr_in *peer);

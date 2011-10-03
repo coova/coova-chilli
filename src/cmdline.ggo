@@ -62,6 +62,8 @@ option "ringsize" - "TX/RX Ring Size (in kbytes; linux only)" int default="0" no
 option "sndbuf" - "SNDBUF size (in kb)" int default="0" no
 option "rcvbuf" - "RCVBUF size (in kb)" int default="0" no
 
+option "childmax" - "Maximum number of child processes" int default="128" no
+
 option "peerid" - "Cluster peer ID" int default="0" no
 option "peerkey" - "Cluster Blowfish key" string no
 
@@ -69,9 +71,19 @@ option "peerkey" - "Cluster Blowfish key" string no
 option "radiuslisten"       - "IP address to send from"       string no
 option "radiusserver1"      - "IP address of radius server 1" string no
 option "radiusserver2"      - "IP address of radius server 2" string no
+
+# option "radiusacctserver1"  - "IP address of radius server 1 for accounting" string no
+# option "radiusacctserver2"  - "IP address of radius server 2 for accounting" string no
+# option "radiusadmserver1"   - "IP address of radius server 1 for Administrative-User" string no
+# option "radiusadmserver2"   - "IP address of radius server 2 for Administrative-User" string no
+
 option "radiusauthport"     - "Authentication UDP port of radius server" int default="1812" no
 option "radiusacctport"     - "Accounting UDP port of radius server" int default="1813" no
 option "radiussecret"       - "Radius shared secret"          string default="testing123" no
+
+# option "radiusacctsecret"   - "Radius shared secret for accounting"  string no
+# option "radiusadmsecret"    - "Radius shared secret for Administrative-User"  string no
+
 option "radiustimeout"      - "Retry timeout in seconds" int default="10" no
 option "radiusretry"        - "Total number of retries"        int default="4" no
 option "radiusretrysec"     - "Number of retries before using secondary" int default="2" no
@@ -91,10 +103,10 @@ option "proxyport"     - "Proxy UDP port to listen on (0 is off)" int default="0
 option "proxyclient"   - "IP address of proxy client(s)" string no
 option "proxysecret"   - "Radius proxy shared secret"    string no
 option "proxymacaccept" - "Auto-accept non-EAP requests on proxy port" flag off
+option "proxyonacct"   - "Proxy through to chilli RADIUS accounting packets" flag off
 
 option "proxylocattr" - "The attribute in proxy to be used for the loc= query string parameter" string no multiple
 
-option "extadmvsa" - "Extended administrative-user VSA script support" string no multiple
 
 # DHCP parameters
 option "dhcpif"      - "Local Ethernet interface"    string no

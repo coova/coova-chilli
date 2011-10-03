@@ -35,6 +35,8 @@ struct conn_t {
   int sock;
   bstring write_buf;
   int write_pos;
+  bstring read_buf;
+  int read_pos;
 
   time_t start_time;
 
@@ -57,7 +59,8 @@ void conn_set_readhandler(struct conn_t *conn, conn_handler handler, void *ctx);
 void conn_set_donehandler(struct conn_t *conn, conn_handler handler, void *ctx);
 
 int conn_sock(struct conn_t *conn, struct in_addr *addr, int port);
-int conn_setup(struct conn_t *conn, char *hostname, int port, bstring bwrite);
+int conn_setup(struct conn_t *conn, char *hostname, int port, 
+	       bstring bwrite, bstring bread);
 void conn_finish(struct conn_t *conn);
 
 int conn_fd(struct conn_t *conn, fd_set *r, fd_set *w, fd_set *e, int *m);

@@ -35,8 +35,8 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
   if (lvl >= 15) return -1;
 
 #if(_debug_ > 1)
-  log_dbg("dlen=%d reslen=%d olen=%d lvl=%d", 
-	  dlen, reslen, olen, lvl);
+  log_dbg("%s dlen=%d reslen=%d olen=%d lvl=%d", 
+	  __FUNCTION__, dlen, reslen, olen, lvl);
 #endif
 
   /* only capture the first name in query */
@@ -115,8 +115,7 @@ add_A_to_garden(uint8_t *p) {
   if (pass_through_add(dhcp->pass_throughs,
 		       MAX_PASS_THROUGHS,
 		       &dhcp->num_pass_throughs,
-		       &dhcp->next_pass_through,
-		       &pt))
+		       &pt, 1))
     ;
 }
 
@@ -134,6 +133,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   
   uint8_t name[PKT_IP_PLEN];
   ssize_t namelen = 0;
+  char required = 0;
   
   uint16_t type;
   uint16_t class;
@@ -151,8 +151,10 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 #endif
 
   memset(name, 0, sizeof(name));
-  namelen = dns_fullname((char*)name, sizeof(name)-1, p_pkt, len, opkt, olen, 0);
-  if (namelen < 0) return_error;
+  namelen = dns_fullname((char*)name, sizeof(name)-1, 
+			 p_pkt, len, opkt, olen, 0);
+
+  if (namelen < 0 || namelen > len) return_error;
 
   p_pkt += namelen;
   len -= namelen;
@@ -178,27 +180,6 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   log_dbg("It was a dns record type: %d class: %d", type, class);
 #endif
 
-  /* if dnsparanoia, checks here */
-
-  if (antidnstunnel) {
-    switch (type) {
-    case 1:/* A */ 
-    case 5:/* CNAME */ 
-      break;
-    default:
-#if(_debug_ > 1)
-      if (_options.debug) switch(type) {
-	case 6:  log_dbg("SOA record"); break;
-	case 12: log_dbg("PTR record"); break;
-	case 15: log_dbg("MX record");  break;
-	case 16: log_dbg("TXT record"); break;
-	default: log_dbg("Record type %d", type); break;
-	}
-#endif
-      log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, (int) namelen);
-      return -1;
-    }
-  }
   
   if (q) {
     if (dns_fullname((char *)question, qsize, *pktp, *left, opkt, olen, 0) < 0)
@@ -209,7 +190,8 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     *pktp = p_pkt;
     *left = len;
 
-    if (!isReq && *qmatch == -1 && _options.uamdomains && _options.uamdomains[0]) {
+    if (!isReq && *qmatch == -1 && 
+	_options.uamdomains && _options.uamdomains[0]) {
       int id;
 
       for (id=0; _options.uamdomains[id] && id < MAX_UAM_DOMAINS; id++) {
@@ -292,11 +274,17 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
    */  
   
   switch (type) {
+
+  default: 
+    log_dbg("Record type %d", type);
+    return_error;
+    break;
     
-  case 1:  /* A */
+  case 1:  
 #if(_debug_ > 1)
     log_dbg("A record");
 #endif
+    required = 1;
 
 #ifdef ENABLE_MDNS
     if (mode == DNS_MDNS_MODE) {
@@ -320,10 +308,13 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     }
     break;
 
-  case 5:  /* CNAME */
-    log_dbg("CNAME record %s", name);
-    break;
+  case 2: log_dbg("NS record"); required = 1; break;
+  case 5: log_dbg("CNAME record %s", name); required = 1; break;
+  case 6: log_dbg("SOA record"); break;
     
+  case 12: log_dbg("PTR record"); break;
+  case 15: log_dbg("MX record");  required = 1; break;
+
   case 16:/* TXT */
     log_dbg("TXT record %d", rdlen);
     if (_options.debug) {
@@ -339,22 +330,16 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     }
     break;
 
-  default:
+  case 28: log_dbg("AAAA record"); break;
+  case 29: log_dbg("LOC record"); break;
+  case 33: log_dbg("SRV record"); break;
+  case 47: log_dbg("NSEC record"); break;
+  }
 
-    if (_options.debug) switch(type) {
-      case 6:  log_dbg("SOA record"); break;
-      case 12: log_dbg("PTR record"); break;
-      case 15: log_dbg("MX record");  break;
-      case 47: log_dbg("NSEC record"); break;
-      default: log_dbg("Record type %d", type); break;
-    }
-
-    if (antidnstunnel) {
-      log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", type, rdlen);
-      return -1;
-    }
-
-    break;
+  if (antidnstunnel && !required) {
+    log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", 
+	     type, rdlen);
+    return -1;
   }
   
   p_pkt += rdlen;

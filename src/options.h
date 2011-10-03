@@ -70,11 +70,23 @@ struct options_t {
 
   /* Radius parameters */
   struct in_addr radiuslisten;   /* IP address to listen to */
+
   struct in_addr radiusserver1;  /* IP address of radius server 1 */
   struct in_addr radiusserver2;  /* IP address of radius server 2 */
+
+  char* radiussecret;            /* Radius shared secret */
+
+#ifdef ENABLE_LARGELIMITS
+  struct in_addr radiusacctserver1; 
+  struct in_addr radiusacctserver2; 
+  struct in_addr radiusadmserver1;  
+  struct in_addr radiusadmserver2;  
+  char* radiusacctsecret;
+  char* radiusadmsecret;
+#endif
+
   uint16_t radiusauthport;       /* Authentication UDP port */
   uint16_t radiusacctport;       /* Accounting UDP port */
-  char* radiussecret;            /* Radius shared secret */
   char* radiusnasid;             /* Radius NAS-Identifier */
   char* radiuslocationid;        /* WISPr location ID */
   char* radiuslocationname;      /* WISPr location name */
@@ -87,12 +99,14 @@ struct options_t {
   int radiusretry;               /* Total amount of retries */
   int radiusretrysec;            /* Amount of retries after we switch to secondary */
 
+#ifdef ENABLE_RADPROXY
   /* Radius proxy parameters */
   int proxyport;                 /* UDP port to listen to */
   struct in_addr proxylisten;    /* IP address to listen to */
   struct in_addr proxyaddr;      /* IP address of proxy client(s) */
   struct in_addr proxymask;      /* IP mask of proxy client(s) */
   char* proxysecret;             /* Proxy shared secret */
+#endif
 
   struct in_addr postauth_proxyip;  /* IP address to proxy http to */
   int postauth_proxyport;           /* TCP port to proxy to */
@@ -106,6 +120,8 @@ struct options_t {
   int leaseplus;                 /* DHCP lease grace period */
   int dhcpstart;
   int dhcpend;
+
+  int childmax;
 
   uint8_t peerid;
   char *peerkey;
@@ -179,7 +195,6 @@ struct options_t {
   uint8_t radiusoriginalurl:1;      /* Send ChilliSpot-OriginalURL in AccessRequest */
   uint8_t dhcpradius:1;             /* Send certain DHCP options in RADIUS attributes */
   uint8_t has_nexthop:1;            /* Has a nexthop entry */
-  uint8_t ieee8021q:1;              /* check for VLAN tags */
   uint8_t dhcp_broadcast:1;         /* always broadcast DHCP (when not relaying) */
   uint8_t seskeepalive:1;           /* Keep sessions alive during shutdown */
   uint8_t strictmacauth:1;          /* Be strict about DHCP macauth (don't reply DHCP until we get RADIUS) */
@@ -191,16 +206,25 @@ struct options_t {
   uint8_t uamuissl:1;               /* Enable SSL/HTTPS on uamuiport (requires SSL support) */
   uint8_t domaindnslocal:1;         /* Wildcard option to consider all hostnames *.domain local */
   uint8_t radsec:1;                 /* Use RadSec tunneling */
-  uint8_t proxymacaccept:1;         /* Auto-accept non-EAP requests on proxy port */
   uint8_t noradallow:1;             /* Authorize all sessions when RADIUS is not available */
   uint8_t redirdnsreq:1;
   uint8_t routeonetone:1;
+#ifdef ENABLE_IEEE8021Q
+  uint8_t ieee8021q:1;              /* check for VLAN tags */
+#endif
+#ifdef ENABLE_RADPROXY
+  uint8_t proxymacaccept:1;         /* Auto-accept non-EAP requests on proxy port */
+  uint8_t proxyonacct:1;
+#endif
 #ifdef ENABLE_PROXYVSA
   uint8_t location_stop_start:1;
   uint8_t location_copy_called:1;
   uint8_t location_immediate_update:1;
 #endif
   /* */
+#ifdef EX_OPTIONS
+#include EX_OPTIONS
+#endif
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
   uint32_t num_pass_throughs;
@@ -235,16 +259,6 @@ struct options_t {
     uint8_t attr;
   } proxy_loc[PROXYVSA_ATTR_CNT];
   char * locationupdate;
-#endif
-
-#ifdef ENABLE_EXTADMVSA
-#define EXTADMVSA_ATTR_CNT 4
-  struct {
-    uint32_t attr_vsa;
-    uint8_t attr;
-    char data[128];
-    char script[128];
-  } extadmvsa[EXTADMVSA_ATTR_CNT];
 #endif
 
 #ifdef HAVE_SSL
@@ -308,10 +322,6 @@ struct options_t {
 
 #ifdef HAVE_NETFILTER_COOVA
   char *kname;
-#endif
-
-#ifdef ENABLE_REDIRINJECT
-  char *inject;
 #endif
 
 #ifdef ENABLE_MODULES

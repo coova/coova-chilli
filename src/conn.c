@@ -40,9 +40,12 @@ int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
       log_err(errno, "could not set non-blocking");
       }*/
 
-    if (safe_connect(sock, (struct sockaddr *) &server, sizeof(server)) < 0) {
+    if (safe_connect(sock, 
+		     (struct sockaddr *) &server, 
+		     sizeof(server)) < 0) {
       if (errno != EINPROGRESS) {
-	log_err(errno, "could not connect to %s:%d", inet_ntoa(server.sin_addr), port);
+	log_err(errno, "could not connect to %s:%d", 
+		inet_ntoa(server.sin_addr), port);
 	close(sock);
 	return -1;
       }
@@ -54,11 +57,14 @@ int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
   return 0;
 }
 
-int conn_setup(struct conn_t *conn, char *hostname, int port, bstring bwrite) {
+int conn_setup(struct conn_t *conn, char *hostname, 
+	       int port, bstring bwrite, bstring bread) {
   struct hostent *host;
 
   conn->write_pos = 0;
   conn->write_buf = bwrite;
+  conn->read_pos = 0;
+  conn->read_buf = bread;
 
   if (!(host = gethostbyname(hostname)) || !host->h_addr_list[0]) {
     log_err(0, "Could not resolve IP address of uamserver: %s! [%s]", 
@@ -69,7 +75,8 @@ int conn_setup(struct conn_t *conn, char *hostname, int port, bstring bwrite) {
   return conn_sock(conn, (struct in_addr *)host->h_addr_list[0], port);
 }
 
-int conn_fd(struct conn_t *conn, fd_set *r, fd_set *w, fd_set *e, int *m) {
+int conn_fd(struct conn_t *conn,
+	    fd_set *r, fd_set *w, fd_set *e, int *m) {
   if (conn->sock) {
     FD_SET(conn->sock, r);
     if (conn->write_pos < conn->write_buf->slen) {
@@ -109,7 +116,8 @@ int conn_update_write(struct conn_t *conn) {
   if (conn->write_pos == 0) {
     int err;
     socklen_t errlen = sizeof(err);
-    if (getsockopt(conn->sock, SOL_SOCKET, SO_ERROR, &err, &errlen) || (err != 0)) {
+    if (getsockopt(conn->sock, SOL_SOCKET, SO_ERROR, 
+		   &err, &errlen) || (err != 0)) {
       log_err(errno, "not connected");
       conn_finish(conn);
       return -1;
@@ -124,13 +132,13 @@ int conn_update_write(struct conn_t *conn) {
   }
   
   if (conn->write_pos < conn->write_buf->slen) {
-    int ret = safe_write(conn->sock, 
-			 conn->write_buf->data + conn->write_pos,
-		    conn->write_buf->slen - conn->write_pos);
+    int ret = net_write(conn->sock, 
+			conn->write_buf->data + conn->write_pos,
+			conn->write_buf->slen - conn->write_pos);
     if (ret > 0) {
       /*log_dbg("write: %d bytes", ret);*/
       conn->write_pos += ret;
-    } else if (ret < 0) {
+    } else if (ret < 0 || errno != EWOULDBLOCK) {
 #if(_debug_)
       log_dbg("socket closed!");
 #endif
@@ -139,23 +147,25 @@ int conn_update_write(struct conn_t *conn) {
     }
   } 
   
-  /*if (conn->write_pos == conn->write_buf->slen) {
-    shutdown(conn->sock, SHUT_WR);
-    }*/
   return 0;
 }
 
 int conn_select_update(struct conn_t *conn, select_ctx *sctx) {
   if (conn->sock) {
-    if (net_select_read_fd(sctx, conn->sock)) {
-      if (conn->read_handler) {
+    switch (net_select_read_fd(sctx, conn->sock)) {
+    case -1:
+      log_dbg("exception");
+      conn_finish(conn);
+      return -1;
+      
+    case 1:
+      if (conn->read_handler)
 	conn->read_handler(conn, conn->read_handler_ctx);
-      }
+      break;
     }
     
-    if (net_select_write_fd(sctx, conn->sock)) {
+    if (net_select_write_fd(sctx, conn->sock)==1)
       conn_update_write(conn);
-    }
   }
   
   return 0;
@@ -227,7 +237,8 @@ void conn_set_donehandler(struct conn_t *conn, conn_handler handler, void *ctx) 
 }
 
 int conn_close(struct conn_t *conn) {
-  if (conn->sock) close(conn->sock);
+  if (conn->sock) 
+    close(conn->sock);
 #ifdef HAVE_SSL
   if (conn->sslcon) {
     openssl_shutdown(conn->sslcon, 2);
