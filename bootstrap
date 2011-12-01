@@ -1,28 +1,15 @@
 #! /bin/sh
-
-# bootstrap - Execute relevant autotools scripts 
-
-# After running this script the directory is ready for distribution as
-# a tarball. It should also be executed before checking milestones
-# into subversion.
-
-# After executing this script the project can be build by executing:
+# Run this script to setup the automake environment.
 # ./configure
 # make
 # make install
 
-find . -exec chmod go-w '{}' \;
-
+libtoolize --force --copy
 aclocal
-autoheader
-touch config.h.in
-automake --add-missing
 autoconf
-./configure
-make clean
+automake --add-missing
+automake
 
-rm config.status
-rm libtool
-rm -r autom4te.cache/
-
-
+touch src/cmdline.c
+touch src/cmdline.h
+touch src/cmdline.ggo
