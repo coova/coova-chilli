@@ -40,6 +40,66 @@ in_cksum(uint16_t *addr, int len) {
   return(sum);
 }
 
+#ifdef ENABLE_IPV6
+int chksum6(struct pkt_ip6hdr_t *iph) {
+  struct pkt_ip6pseudo_t hdr;
+  uint32_t sum = 0;
+  switch(iph->next_header) {
+  case ICMPv6_NEXT_HEADER:
+    {
+      struct pkt_icmphdr_t *icmp = 
+	(struct pkt_icmphdr_t *)(((uint8_t *)iph) + 
+				 sizeof(struct pkt_ip6hdr_t));
+      memcpy(hdr.src_addr, iph->src_addr, PKT_IPv6_ALEN);
+      memcpy(hdr.dst_addr, iph->dst_addr, PKT_IPv6_ALEN);
+      hdr.packet_len=htonl((uint32_t)ntohs(iph->data_len));
+      hdr.zero[0]=hdr.zero[1]=hdr.zero[2]=0;
+      hdr.next_header = iph->next_header;
+      icmp->check = 0;
+      sum  = in_cksum((uint16_t *)&hdr, sizeof(hdr));
+      sum += in_cksum((uint16_t *)icmp, ntohs(iph->data_len));
+      icmp->check = cksum_wrap(sum);
+      break;
+    }
+  case PKT_IP_PROTO_UDP:
+    {
+      struct pkt_udphdr_t * udphdr = 
+	(struct pkt_udphdr_t *)
+	(((uint8_t *)iph) + sizeof(struct pkt_ip6hdr_t));
+      uint16_t udplen = ntohs(udphdr->len);
+      memcpy(hdr.src_addr, iph->src_addr, PKT_IPv6_ALEN);
+      memcpy(hdr.dst_addr, iph->dst_addr, PKT_IPv6_ALEN);
+      hdr.packet_len=htonl((uint32_t)ntohs(iph->data_len));
+      hdr.zero[0]=hdr.zero[1]=hdr.zero[2]=0;
+      hdr.next_header = iph->next_header;
+      udphdr->check = 0;
+      sum  = in_cksum((uint16_t *)&hdr, sizeof(hdr));
+      sum += in_cksum((uint16_t *)udphdr, udplen);
+      udphdr->check = cksum_wrap(sum);
+    }
+    break;
+  case PKT_IP_PROTO_TCP:
+    {
+      struct pkt_tcphdr_t * tcphdr = 
+	(struct pkt_tcphdr_t *)
+	(((uint8_t *)iph) + sizeof(struct pkt_ip6hdr_t));
+      uint16_t tcplen = ntohs(iph->data_len);
+      memcpy(hdr.src_addr, iph->src_addr, PKT_IPv6_ALEN);
+      memcpy(hdr.dst_addr, iph->dst_addr, PKT_IPv6_ALEN);
+      hdr.packet_len=htonl((uint32_t)ntohs(iph->data_len));
+      hdr.zero[0]=hdr.zero[1]=hdr.zero[2]=0;
+      hdr.next_header = iph->next_header;
+      tcphdr->check = 0;
+      sum  = in_cksum((uint16_t *)&hdr, sizeof(hdr));
+      sum += in_cksum((uint16_t *)tcphdr, tcplen);
+      tcphdr->check = cksum_wrap(sum);
+    }
+    break;
+  }
+  return 0;
+}
+#endif
+
 int chksum(struct pkt_iphdr_t *iph) {
   uint16_t hlen;
   uint32_t sum;
@@ -69,7 +129,8 @@ int chksum(struct pkt_iphdr_t *iph) {
   switch(iph->protocol) {
   case PKT_IP_PROTO_TCP:
     {
-      struct pkt_tcphdr_t *tcph = (struct pkt_tcphdr_t *)(((void *)iph) + hlen);
+      struct pkt_tcphdr_t *tcph = 
+	(struct pkt_tcphdr_t *)(((void *)iph) + hlen);
       
       len -= hlen; /* length of tcp header + data */
       
@@ -83,7 +144,8 @@ int chksum(struct pkt_iphdr_t *iph) {
     
   case PKT_IP_PROTO_UDP:
     {
-      struct pkt_udphdr_t *udph = (struct pkt_udphdr_t *)(((void *)iph) + hlen);
+      struct pkt_udphdr_t *udph = 
+	(struct pkt_udphdr_t *)(((void *)iph) + hlen);
       uint16_t udplen = ntohs(udph->len);
 
       if (udplen > len)
@@ -99,7 +161,8 @@ int chksum(struct pkt_iphdr_t *iph) {
 
   case PKT_IP_PROTO_ICMP:
     {
-      struct pkt_icmphdr_t *icmph = (struct pkt_icmphdr_t *)(((void *)iph) + hlen);
+      struct pkt_icmphdr_t *icmph = 
+	(struct pkt_icmphdr_t *)(((void *)iph) + hlen);
       len -= hlen; 
       icmph->check = 0;
       sum = in_cksum((uint16_t *)icmph, len);

@@ -47,6 +47,7 @@ typedef struct _proxy_request {
 
   char reserved:4;
   char authorized:1;
+  char challenge:1;
   char inuse:1;
   char past_headers:1;
   char nline:1;
@@ -165,6 +166,26 @@ static int radius_reply(struct radius_t *this,
   return 0;
 }
 
+static void bhex(bstring src, bstring dst) {
+  int i;
+  char b[4];
+  for (i=0; i < src->slen; i++) {
+    snprintf(b, sizeof(b), "%.2X", src->data[i]);
+    bcatcstr(dst, b);
+  }
+}
+
+static void bunhex(bstring src, bstring dst) {
+  int i;
+  unsigned int ir;
+  uint8_t r;
+  for (i=0; i < src->slen; i+=2) {
+    sscanf((char *) &src->data[i], "%2x", &ir);
+    r = (uint8_t) ir;
+    bcatblk(dst, &r, 1);
+  }
+}
+
 static void close_request(proxy_request *req) {
 
   log_dbg("%s", __FUNCTION__);
@@ -182,6 +203,7 @@ static void close_request(proxy_request *req) {
     req->wbuf = 0;
   
   req->authorized = 0;
+  req->challenge = 0;
 
   req->inuse = 0;
   if (requests_free) {
@@ -221,6 +243,7 @@ static int http_aaa_finish(proxy_request *req) {
     log_dbg("Received: %s\n",req->data->data);
 #endif
     req->authorized = !memcmp(req->data->data, "Auth: 1", 7);
+    req->challenge = !memcmp(req->data->data, "Auth: 2", 7);
   }
 
   /* initialize response packet */
@@ -234,10 +257,12 @@ static int http_aaa_finish(proxy_request *req) {
     
   case RADIUS_CODE_ACCESS_REQUEST:
 #if(_debug_)
-    log_dbg("Access-%s", req->authorized ? "Accept" : "Reject");
+    log_dbg("Access-%s", req->authorized ? "Accept" : 
+	    req->challenge ? "Challenge" : "Reject");
 #endif
     radius_default_pack(radius, &req->radius_res, 
 			req->authorized ? RADIUS_CODE_ACCESS_ACCEPT :
+			req->challenge ? RADIUS_CODE_ACCESS_CHALLENGE :
 			RADIUS_CODE_ACCESS_REJECT);
     break;
 
@@ -267,6 +292,7 @@ static int http_aaa_finish(proxy_request *req) {
 	  { "Reply-Message:", RADIUS_ATTR_REPLY_MESSAGE, 0, 0, 1 },
 	  { "Session-Timeout:", RADIUS_ATTR_SESSION_TIMEOUT, 0, 0, 0 },
 	  { "Acct-Interim-Interval:", RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 0, 0, 0 },
+	  { "EAP-Message:", RADIUS_ATTR_EAP_MESSAGE, 0, 0, 2 },
 	  { "ChilliSpot-Version:", 
 	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT, 
 	    RADIUS_ATTR_CHILLISPOT_VERSION, 1 },
@@ -328,6 +354,44 @@ static int http_aaa_finish(proxy_request *req) {
 	      {
 		radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, 0, 
 			       (uint8_t *)ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
+#if(_debug_)
+		log_dbg("Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
+#endif
+	      }
+	      break;
+	    case 2: /*binary*/
+	      {
+		bstring tmp = bfromcstr("");
+		bstring tmp2 = bfromcstr("");
+
+		uint8_t *resp;
+		size_t offset = 0;
+		size_t resplen;
+		size_t eaplen;
+
+		bassignblk(tmp,
+			   (uint8_t *)ptr+strlen(attrs[i].n), 
+			   strlen(ptr)-strlen(attrs[i].n));
+
+		bunhex(tmp, tmp2);
+
+		resp = tmp2->data;
+		resplen = tmp2->slen;
+
+		while (offset < resplen) {
+		  
+		  if ((resplen - offset) > RADIUS_ATTR_VLEN)
+		    eaplen = RADIUS_ATTR_VLEN;
+		  else
+		    eaplen = resplen - offset;
+		  
+		  radius_addattr(radius, &req->radius_res, attrs[i].a, 
+				 attrs[i].v, attrs[i].va, 0, 
+				 resp + offset,
+				 eaplen);
+		  offset += eaplen;
+		} 
+		
 #if(_debug_)
 		log_dbg("Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
 #endif
@@ -862,8 +926,27 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
       bconcat(req->url, tmp);
     }
 
+    if (!radius_getattr(pack, &attr, RADIUS_ATTR_EAP_MESSAGE, 0,0,0)) {
+      int instance = 1;
+      bcatcstr(req->url, "&eap=");
+      bassignblk(tmp, attr->v.t, (size_t)attr->l-2);
+      bassigncstr(tmp2, "");
+
+      do {
+	attr=NULL;
+	if (!radius_getattr(pack, &attr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
+			    instance++) && attr) {
+	  bcatblk(tmp, attr->v.t, (size_t)attr->l-2);
+	}
+      } while (attr);
+
+      bhex(tmp, tmp2);
+      bconcat(req->url, tmp2);
+    }
+    
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID, 0)) {
+			RADIUS_VENDOR_CHILLISPOT, 
+			RADIUS_ATTR_CHILLISPOT_VLAN_ID, 0)) {
       uint32_t val = ntohl(attr->v.i);
       bassignformat(tmp, "&vlan=%ld", (long) val);
       bconcat(req->url, tmp);
@@ -1011,6 +1094,18 @@ int main(int argc, char **argv) {
   chilli_signals(&keep_going, &reload_config);
   selfpipe_trap(SIGUSR2);
 
+  /*
+   *  Support a --register mode whereby all subsequent arguments are 
+   *  used to create a URL for sending to the back-end. 
+   */
+  for (i=0; i < argc; i++) {
+    if (!strcmp(argv[i],"--register")) {
+      http_aaa_register(argc, argv, i);
+    }
+  }
+
+  process_options(argc, argv, 1);
+
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   net_getmac(_options.dhcpif, nas_hwaddr);
 #else
@@ -1029,18 +1124,6 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  /*
-   *  Support a --register mode whereby all subsequent arguments are 
-   *  used to create a URL for sending to the back-end. 
-   */
-  for (i=0; i < argc; i++) {
-    if (!strcmp(argv[i],"--register")) {
-      http_aaa_register(argc, argv, i);
-    }
-  }
-
-  process_options(argc, argv, 1);
-
 #ifdef USING_CURL
   curl_global_init(CURL_GLOBAL_ALL);
   curl_multi = curl_multi_init();
@@ -1049,22 +1132,26 @@ int main(int argc, char **argv) {
   radiuslisten.s_addr = htonl(INADDR_ANY);
 
   if (radius_new(&radius_auth, &radiuslisten, 
-		 _options.radiusauthport ? _options.radiusauthport : RADIUS_AUTHPORT, 
-		 0, 0)) {
+		 _options.radiusauthport ? 
+		 _options.radiusauthport : RADIUS_AUTHPORT, 
+		 0, 0) || 
+      radius_init_q(radius_auth, 0)) {
     log_err(0, "Failed to create radius");
     return -1;
   }
 
   if (radius_new(&radius_acct, &radiuslisten, 
-		 _options.radiusacctport ? _options.radiusacctport : RADIUS_ACCTPORT, 
-		 0, 0)) {
+		 _options.radiusacctport ? 
+		 _options.radiusacctport : RADIUS_ACCTPORT, 
+		 0, 0) || 
+      radius_init_q(radius_acct, 0)) {
     log_err(0, "Failed to create radius");
     return -1;
   }
-
+  
   radius_set(radius_auth, 0, 0);
   radius_set(radius_acct, 0, 0);
-
+  
   if (_options.gid && setgid(_options.gid)) {
     log_err(errno, "setgid(%d) failed while running with gid = %d\n", 
 	    _options.gid, getgid());

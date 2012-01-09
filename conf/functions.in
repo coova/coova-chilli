@@ -62,12 +62,16 @@ check_required() {
     [ -z "$HS_MODE" ]  && bailout "HS_MODE is required"
 }
     
-configs1=
-addconfig1() { [ -n "$*" ] && configs1="$configs1
-$*"; }
-configs2=
-addconfig2() { [ -n "$*" ] && configs2="$configs2
-$*"; }
+configs1=/tmp/configs1.$$
+addconfig1() { [ -n "$*" ] && cat<<EOF>>$configs1
+$*
+EOF
+}
+configs2=/tmp/configs2.$$
+addconfig2() { [ -n "$*" ] && cat<<EOF>>$configs2
+$*
+EOF
+}
 
 writeconfig1() {
     cat <<EOF
@@ -81,7 +85,7 @@ uamport         $HS_UAMPORT
 dhcpif		$HS_LANIF
 uamallowed	"www.coova.org${HS_UAMSERVER:+,$HS_UAMSERVER}$webadmin$uamallow"
 uamanydns
-$configs1
+$(cat $configs1)
 $HS_RAW_CONFIG1
 EOF
 }
@@ -95,7 +99,7 @@ radiusauthport  ${HS_RADAUTH:-1812}
 radiusacctport  ${HS_RADACCT:-1813}
 uamserver	"$(eval echo $HS_UAMFORMAT)"
 radiusnasid	"${HS_NASID:-nas01}"
-$configs2
+$(cat $configs2)
 $HS_RAW_CONFIG2
 EOF
 }
@@ -104,10 +108,14 @@ writeconfig() {
     [ -e $LOCAL_CONF ] || touch $LOCAL_CONF 
     [ -e $HS_CONF ] || touch $HS_CONF 
     [ "$HS_USETAP" = "on" ] && addconfig1 "usetap"
+    [ "$HS_NOARPENTRIES" = "on" ] && addconfig1 "noarpentries"
     [ "$HS_ANYIP" = "on" ] && addconfig1 "uamanyip"
     [ "$HS_NATANYIP" = "on" ] && addconfig1 "uamnatanyip"
     [ "$HS_NOC2C" = "on" ] && addconfig1 "noc2c"
+    [ "$HS_REDIR" = "on" ] && addconfig2 "redir"
+
     [ "$HS_LAYER3" = "on" ] && addconfig1 "layer3"
+    addconfig1 ${HS_LEASE:+"lease \"$HS_LEASE\""}
 
     [ "$HS_USER" != "" -a "$HS_UID" = "" ] && HS_UID=$(id -u $HS_USER)
     [ "$HS_USER" != "" -a "$HS_GID" = "" ] && HS_GID=$(id -g $HS_USER)
@@ -228,6 +236,8 @@ writeconfig() {
 	[ -n "$HS_UAMALIASNAME" ] && addconfig2 "uamaliasname \"$HS_UAMALIASNAME\""
 	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile \"$HS_ADMINUPDATEFILE\""
 	[ -n "$HS_UAMSECRET" ] && addconfig2 "uamsecret \"$HS_UAMSECRET\""
+	[ -n "$HS_INJECT" ] && addconfig2 "inject \"$HS_INJECT\""
+	[ -n "$HS_INJECTEXT" ] && addconfig2 "injectext \"$HS_INJECTEXT\""
 
 	test ${HS_DEFSESSIONTIMEOUT:-0} -gt 0 && addconfig2 "defsessiontimeout $HS_DEFSESSIONTIMEOUT"
 	test ${HS_DEFIDLETIMEOUT:-0} -gt 0 && addconfig2 "defidletimeout $HS_DEFIDLETIMEOUT"
@@ -274,6 +284,7 @@ writeconfig() {
     touch $MAIN_TEMP $HS_TEMP
     update_new_file $MAIN_TEMP $MAIN_CONF
     update_new_file $HS_TEMP $HS_CONF
+    rm -f $configs1 $configs2
 }
 
 files_equal() {    # returns 0 for equal, 1 for not-equal

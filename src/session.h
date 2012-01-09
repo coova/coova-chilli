@@ -80,6 +80,14 @@ struct redir_state {
   /* UAM protocol used */
   uint8_t uamprotocol;
 
+#ifdef ENABLE_USERAGENT
+  char useragent[REDIR_USERAGENTSIZE]; 
+#endif
+
+#ifdef ENABLE_ACCEPTLANGUAGE
+  char acceptlanguage[128];
+#endif
+
 #ifdef ENABLE_PROXYVSA
 #define RADIUS_PROXYVSA 256
   uint8_t called[RADIUS_ATTR_VLEN];
@@ -93,11 +101,14 @@ struct redir_state {
 struct session_state {
   struct redir_state redir;
 
-  int authenticated;           /* 1 if user was authenticated */  
+  int authenticated; /* 1 if user was authenticated */  
 
-  char sessionid[REDIR_SESSIONID_LEN]; /* Accounting session ID */
+  char sessionid[REDIR_SESSIONID_LEN];
 #ifdef ENABLE_SESSIONID
-  char chilli_sessionid[REDIR_SESSIONID_LEN]; 
+  char chilli_sessionid[56]; 
+#endif
+#ifdef ENABLE_APSESSIONID
+  char ap_sessionid[128]; 
 #endif
 
   time_t start_time;
@@ -114,12 +125,38 @@ struct session_state {
   uint32_t terminate_cause;
   uint32_t session_id;
 
+#ifdef ENABLE_GARDENACCOUNTING
+  char garden_sessionid[REDIR_SESSIONID_LEN];
+  time_t garden_start_time;
+  time_t garden_interim_time;
+  uint64_t garden_input_octets;
+  uint64_t garden_output_octets;
+  uint64_t other_input_octets;
+  uint64_t other_output_octets;
+#endif
+
 #ifdef ENABLE_SESSIONSTATE
   uint32_t session_state;
 #endif
 
 #ifdef ENABLE_IEEE8021Q
   uint16_t tag8021q;
+#endif
+
+#ifdef ENABLE_LOCATION
+#define MAX_LOCATION_LENGTH 56
+  char location[MAX_LOCATION_LENGTH];
+  char pending_location[MAX_LOCATION_LENGTH];
+  uint16_t location_changes;
+#endif
+
+#ifdef ENABLE_MULTILAN
+#define app_conn_idx(x)       ((x)->s_state.lanidx)
+#define app_conn_set_idx(x,c) ((x)->s_state.lanidx = (c)->lanidx)
+  int lanidx;
+#else
+#define app_conn_idx(x) 0
+#define app_conn_set_idx(x,c) 
 #endif
 
 #ifdef ENABLE_LEAKYBUCKET

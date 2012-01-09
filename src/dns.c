@@ -23,7 +23,7 @@
 
 extern struct dhcp_t *dhcp;
 
-static ssize_t
+ssize_t
 dns_fullname(char *data, size_t dlen,      /* buffer to store name */
 	     uint8_t *res, size_t reslen,  /* current resource */
 	     uint8_t *opkt, size_t olen,   /* original packet */
@@ -115,7 +115,11 @@ add_A_to_garden(uint8_t *p) {
   if (pass_through_add(dhcp->pass_throughs,
 		       MAX_PASS_THROUGHS,
 		       &dhcp->num_pass_throughs,
-		       &pt, 1))
+		       &pt, 1
+#ifdef HAVE_PATRICIA
+		       , dhcp->ptree_dyn
+#endif
+		       ))
     ;
 }
 
@@ -140,6 +144,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   uint32_t ttl;
   uint16_t rdlen;
 
+  uint8_t *pkt_type=0;
   uint8_t *pkt_ttl=0;
 
   uint32_t ul;
@@ -166,6 +171,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 
   if (len < 4) return_error;
 
+  pkt_type = p_pkt;
   memcpy(&us, p_pkt, sizeof(us));
   type = ntohs(us);
   p_pkt += 2;
@@ -180,7 +186,6 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   log_dbg("It was a dns record type: %d class: %d", type, class);
 #endif
 
-  
   if (q) {
     if (dns_fullname((char *)question, qsize, *pktp, *left, opkt, olen, 0) < 0)
       return_error;
@@ -236,6 +241,24 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     }
 #endif
 
+#ifdef ENABLE_IPV6
+    if (_options.ipv6) {
+      if (isReq && type == 28) {
+	log_dbg("changing AAAA to A request");
+	us = 1;
+	us = htons(us);
+	memcpy(pkt_type, &us, sizeof(us));
+	*modified = 1;
+      } else if (!isReq && type == 1) {
+	log_dbg("changing A to AAAA response");
+	us = 28;
+	us = htons(us);
+	memcpy(pkt_type, &us, sizeof(us));
+	*modified = 1;
+      }
+    }
+#endif
+
     return 0;
   } 
 
@@ -266,7 +289,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     memcpy(pkt_ttl, &ul, sizeof(ul));
     *modified = 1;
   }
-      
+
   if (len < rdlen) return_error;
   
   /*
@@ -313,7 +336,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   case 6: log_dbg("SOA record"); break;
     
   case 12: log_dbg("PTR record"); break;
-  case 15: log_dbg("MX record");  required = 1; break;
+  case 15: log_dbg("MX record"); required = 1; break;
 
   case 16:/* TXT */
     log_dbg("TXT record %d", rdlen);
@@ -330,7 +353,10 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     }
     break;
 
-  case 28: log_dbg("AAAA record"); break;
+  case 28: 
+    log_dbg("AAAA record"); 
+    required = 1; 
+    break;
   case 29: log_dbg("LOC record"); break;
   case 33: log_dbg("SRV record"); break;
   case 47: log_dbg("NSEC record"); break;

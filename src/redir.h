@@ -118,7 +118,6 @@ struct redir_conn_t {
    */
   unsigned short type;                 /* REDIR_LOGOUT, LOGIN, PRELOGIN, CHALLENGE, MSDOWNLOAD */
   unsigned char format;                /* REDIR_FMT_DEFAULT, REDIR_FMT_JSON */
-  char useragent[REDIR_USERAGENTSIZE]; /* Browser User-Agent */
   char httpcookie[REDIR_COOKIESIZE];   /* Browser Cookies */
   char lang[REDIR_LANGSIZE];           /* Query string parameter for language */
   char wwwfile[REDIR_USERNAMESIZE];    /* File request, i.e. PATH_INFO */
@@ -174,12 +173,16 @@ typedef struct _redir_request {
 
   int uiidx;
 
+  struct redir_t *parent;
+
   char inuse:1;
   char proxy:1;
   char headers:1;
   char html:1;
   char chunked:1;
   char gzip:1;
+  char read_closed:1;
+  char write_closed:1;
 
   int clen;
   
@@ -189,6 +192,7 @@ typedef struct _redir_request {
   bstring dbuf;
   bstring wbuf;
   bstring hbuf;
+  bstring ibuf;
 
   time_t last_active;
 
@@ -311,6 +315,7 @@ int redir_hextochar(unsigned char *src, int slen, unsigned char * dst, int len);
 int redir_chartohex(unsigned char *src, char *dst, size_t len);
 
 int redir_urlencode(bstring src, bstring dst);
+int redir_urldecode(bstring src, bstring dst);
 
 int redir_listen(struct redir_t *redir);
 

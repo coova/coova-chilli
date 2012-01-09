@@ -84,6 +84,15 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
 	      chksum(iph);
 	    }
 	    hasmss = 1;
+#ifdef ENABLE_LEAKYBUCKET
+	  } else if (_options.scalewin && type == 3 && len == 3) {
+	    log_dbg("TCP OPTIONS: window scale was %d",
+		    (int) opts[i]);
+	    if (opts[i] > 0) {
+	      opts[i]=0;
+	      chksum(iph);
+	    }
+#endif
 	  } else {
 #if(0)
 	    log_dbg("TCP OPTIONS: type %d len %d", type, len); 

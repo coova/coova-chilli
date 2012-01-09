@@ -255,8 +255,10 @@ int net_close(net_interface *netif) {
 int net_select_init(select_ctx *sctx) {
 #if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
   sctx->efd = epoll_create(MAX_SELECT);
-  if (sctx->efd <=0)
+  if (sctx->efd <= 0) {
+    log_err(errno,"!! could not create epoll !!");
     return -1;
+  }
 #endif  
   return 0;
 }
@@ -280,7 +282,7 @@ int net_select_prepare(select_ctx *sctx) {
   i = 0; /* for compiler */
 #else
 #ifdef USING_POLL
-  for (i=0; i < MAX_SELECT; i++) {
+  for (i=0; i < sctx->count; i++) {
     if (sctx->desc[i].fd) {
       sctx->pfds[i].fd = sctx->desc[i].fd;
       sctx->pfds[i].events = 0;
@@ -294,10 +296,7 @@ int net_select_prepare(select_ctx *sctx) {
   fd_zero(&sctx->rfds);
   fd_zero(&sctx->wfds);
   fd_zero(&sctx->efds);
-  for (i=0; i < MAX_SELECT; i++) {
-    if (!sctx->desc[i].fd && sctx->desc[i].evts & SELECT_RESET) {
-      sctx->desc[i].cb(&sctx->desc[i], -1);
-    }
+  for (i=0; i < sctx->count; i++) {
     if (sctx->desc[i].fd) {
       if (sctx->desc[i].evts & SELECT_READ) {
 	fd_set(sctx->desc[i].fd, &sctx->rfds);
@@ -305,6 +304,8 @@ int net_select_prepare(select_ctx *sctx) {
       }
       if (sctx->desc[i].evts & SELECT_WRITE)
 	fd_set(sctx->desc[i].fd, &sctx->wfds);
+    } else if (sctx->desc[i].evts & SELECT_RESET) {
+      sctx->desc[i].cb(&sctx->desc[i], -1);
     }
   }
 #endif
@@ -316,6 +317,8 @@ int net_select_dereg(select_ctx *sctx, int oldfd) {
   int i;
   for (i=0; i < sctx->count; i++) {
     if (sctx->desc[i].fd == oldfd) {
+      for (; i < sctx->count - 1; i++)
+	memcpy(&sctx->desc[i], &sctx->desc[i+1], sizeof(select_fd));
       memset(&sctx->desc[i], 0, sizeof(select_fd));
       sctx->count--;
       return 0;
@@ -392,7 +395,7 @@ int net_select_zero(select_ctx *sctx) {
 #ifdef USING_POLL
   int i;
   memset(&sctx->pfds, 0, sizeof(sctx->pfds));
-  for (i=0; i < MAX_SELECT; i++) {
+  for (i=0; i < sctx->count; i++) {
     if (sctx->desc[i].fd) {
       sctx->pfds[i].fd = sctx->desc[i].fd;
       sctx->pfds[i].events = 0;
@@ -414,11 +417,15 @@ int net_select_zero(select_ctx *sctx) {
 
 int net_select_rmfd(select_ctx *sctx, int fd) {
 #if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
+  struct epoll_event event;
+  memset(&event, 0, sizeof(event));
+  event.data.fd = fd;
   log_dbg("epoll rm %d", fd);
   /*
    */
-  if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, fd, 0))
-    log_err(errno, "Failed to remove fd %d", fd);
+  if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, fd, &event))
+    log_err(errno, "Failed to remove fd %d (%d)", 
+	    fd, sctx->efd);
 #endif
   return 0;
 }
@@ -430,11 +437,12 @@ int net_select_addfd(select_ctx *sctx, int fd, int evts) {
   event.data.fd = fd;
   if (evts & SELECT_READ) event.events |= EPOLLIN;
   if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
-  log_dbg("epoll add %d", fd);
+  log_dbg("epoll add %d (%d)", fd, sctx->efd);
   /*
    */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_ADD, fd, &event))
-    log_err(errno, "Failed to watch fd");
+    log_err(errno, "Failed to add fd %d (%d)",
+	    fd, sctx->efd);
 #endif
   return 0;
 }
@@ -484,23 +492,25 @@ int net_select_fd(select_ctx *sctx, int fd, char evts) {
 
 int net_select(select_ctx *sctx) {
   int status;
-#ifdef USING_POLL
-#ifdef HAVE_SYS_EPOLL_H
-  status = epoll_wait(sctx->efd, sctx->events, MAX_SELECT, 1000);
-#else
-  status = poll(sctx->pfds, sctx->count, 1000);
-#endif
-#else
-  sctx->idleTime.tv_sec = 1;
-  sctx->idleTime.tv_usec = 0;
+
   do {
 
+#ifdef USING_POLL
+#ifdef HAVE_SYS_EPOLL_H
+    status = epoll_wait(sctx->efd, sctx->events, MAX_SELECT, 1000);
+#else
+    status = poll(sctx->pfds, sctx->count, 1000);
+#endif
+#else
+    sctx->idleTime.tv_sec = 1;
+    sctx->idleTime.tv_usec = 0;
+    
     status = select(sctx->maxfd + 1, 
 		    &sctx->rfds, 
 		    &sctx->wfds, 
 		    &sctx->efds, 
 		    &sctx->idleTime);
-
+    
 #if(0)
     if (status) log_dbg("select() == %d", status);
     {int i;
@@ -515,11 +525,10 @@ int net_select(select_ctx *sctx) {
 	  log_dbg("efds[%d]",i);
     }
 #endif
-
+    
     if (status == -1) net_select_prepare(sctx); /* reset */
-
-  } while (status == -1 && errno == EINTR);
 #endif
+  } while (status == -1 && errno == EINTR);
   return status;
 }
 
@@ -527,13 +536,13 @@ int net_select_read_fd(select_ctx *sctx, int fd) {
 #ifdef USING_POLL
   int idx;
 #ifdef HAVE_SYS_EPOLL_H
-  for (idx=0; idx < MAX_SELECT; idx++)
+  for (idx=0; idx < sctx->count; idx++)
     if (sctx->events[idx].data.fd == fd) {
       if (sctx->events[idx].events & EPOLLIN)
 	return 1;
     }
 #else
-  for (idx=0; idx < MAX_SELECT; idx++)
+  for (idx=0; idx < sctx->count; idx++)
     if (sctx->pfds[idx].fd == fd)
       if (sctx->pfds[idx].events & POLLIN)
 	return 1;
@@ -551,7 +560,7 @@ int net_select_write_fd(select_ctx *sctx, int fd) {
 #ifdef USING_POLL
   int idx;
 #ifdef HAVE_SYS_EPOLL_H
-  for (idx=0; idx < MAX_SELECT; idx++)
+  for (idx=0; idx < sctx->count; idx++)
     if (sctx->events[idx].data.fd == fd) {
 #if(_debug_ > 1)
       log_dbg("write %d", (sctx->events[idx].events & EPOLLOUT) != 0);
@@ -560,7 +569,7 @@ int net_select_write_fd(select_ctx *sctx, int fd) {
 	return 1;
     }
 #else
-  for (idx=0; idx < MAX_SELECT; idx++)
+  for (idx=0; idx < sctx->count; idx++)
     if (sctx->pfds[idx].fd == fd) {
       if (sctx->pfds[idx].events & POLLOUT)
 	return 1;
@@ -583,7 +592,7 @@ int net_run_selected(select_ctx *sctx, int status) {
     sfd->cb(sfd->ctx, sfd->idx);
   }
 #else
-  for (i=0; i < MAX_SELECT; i++) {
+  for (i=0; i < sctx->count; i++) {
     if (sctx->desc[i].fd) {
 #ifdef USING_POLL
       char has_read = !!(sctx->pfds[i].revents & POLLIN);
@@ -652,7 +661,7 @@ net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx) {
     np.d = ctx;
     np.dlen = 0;
     np.read = 0;
-    
+
     cnt = pcap_dispatch(netif->pd, 1, net_pcap_handler, (u_char *)&np);
     
     return cnt ? np.read : -1;
@@ -666,19 +675,31 @@ net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx) {
 #endif
 
   {
+    struct pkt_buffer pb;
     uint8_t packet[PKT_MAX_LEN];
-    ssize_t length = net_read_eth(netif, packet, sizeof(packet));
+    ssize_t length;
+    pkt_buffer_init(&pb, packet, sizeof(packet), PKT_BUFFER_IPOFF);
+    length = net_read_eth(netif, 
+			  pkt_buffer_head(&pb), 
+			  pkt_buffer_size(&pb));
     if (length <= 0) return length;
-    return func(ctx, packet, length);
+    pb.length = length;
+    return func(ctx, &pb);
   }
 }
 
 ssize_t 
 net_read_dispatch(net_interface *netif, net_handler func, void *ctx) {
+  struct pkt_buffer pb;
   uint8_t packet[PKT_MAX_LEN];
-  ssize_t length = safe_read(netif->fd, packet, sizeof(packet));
+  ssize_t length;
+  pkt_buffer_init(&pb, packet, sizeof(packet), PKT_BUFFER_IPOFF);
+  length = safe_read(netif->fd, 
+		     pkt_buffer_head(&pb), 
+		     pkt_buffer_size(&pb));
   if (length <= 0) return length;
-  return func(ctx, packet, length);
+  pb.length = length;
+  return func(ctx, &pb);
 }
 
 ssize_t 
@@ -708,10 +729,8 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 #endif
 
   if (netif->fd) {
-#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
-    len = safe_read(netif->fd, d, dlen);
-#else
-    int addr_len;
+
+#if defined(__linux__)
     struct sockaddr_ll s_addr;
 
 #if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI)
@@ -738,27 +757,45 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
     
     iov.iov_len = dlen;
     iov.iov_base = d;
+#else
+    int addr_len;
 #endif
 
     memset (&s_addr, 0, sizeof (struct sockaddr_ll));
-    addr_len = sizeof (s_addr);
 
 #if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI) 
     len = safe_recvmsg(netif->fd, &msg, MSG_TRUNC);
 #else
+    addr_len = sizeof (s_addr);
     len = safe_recvfrom(netif->fd, d, dlen,
 			MSG_DONTWAIT | MSG_TRUNC, 
 			(struct sockaddr *) &s_addr, 
 			(socklen_t *) &addr_len);
 #endif
-    if (len == 0)
-      log_dbg("read zero, enable ieee8021q?");
+    if (len < 0) {
 
-    if (len > dlen) {
-      log_warn(0, "data truncated, sending ICMP error %d/%d", 
-	       len, dlen);
-      len = dlen;
+      log_err(errno, "could not read packet");
+
+    } else {
+
+      if (len == 0)
+	log_dbg("read zero, enable ieee8021q?");
+      
+      if (len > dlen) {
+	log_warn(0, "data truncated, sending ICMP error %d/%d", 
+		 len, dlen);
+	len = dlen;
+      }
     }
+
+#elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
+
+    len = safe_read(netif->fd, d, dlen);
+
+#else
+
+    len = safe_read(netif->fd, d, dlen);
+
 #endif
 
     if (len < 0) {
@@ -825,8 +862,8 @@ ssize_t net_write(int sock, void *d, size_t dlen) {
 #endif
 		  );
     if (w < 0) {
-      log_err(errno, "safe_send(d+%d,%d)", off, left);
-      return off ? off : -1;
+      log_err(errno, "safe_send(%d, d+%d,%d)", sock, off, left);
+      return (errno == EWOULDBLOCK || errno == EAGAIN) ? off : -1;
     }
     left -= w;
     off += w;
@@ -1211,9 +1248,7 @@ int net_open_eth(net_interface *netif) {
   }
 
   if (ifr.ifr_hwaddr.sa_family == ARPHRD_ETHER) {
-
     netif->flags |= NET_ETHHDR;
-
     if ((netif->flags & NET_USEMAC) == 0) {
       memcpy(netif->hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
     } else if (_options.dhcpmacset) {
@@ -1255,6 +1290,44 @@ int net_open_eth(net_interface *netif) {
   netif->ifindex = ifr.ifr_ifindex;
   
   log_dbg("device %s ifindex %d", netif->devname, netif->ifindex);
+
+#ifdef ENABLE_IPV6
+  {
+    struct ifaddrs *ifaddr, *ifa;
+    char host[NI_MAXHOST];
+    int family, s;
+    if (getifaddrs(&ifaddr) == 0) {
+      for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+	if (!ifa->ifa_addr) continue;
+	family = ifa->ifa_addr->sa_family;
+
+	log_dbg("%s  address family: %d%s",
+		ifa->ifa_name, family,
+		(family == AF_PACKET) ? " (AF_PACKET)" :
+		(family == AF_INET) ?   " (AF_INET)" :
+		(family == AF_INET6) ?  " (AF_INET6)" : "");
+
+	if (/*family == AF_INET || */family == AF_INET6 &&
+	    !strcmp(netif->devname, ifa->ifa_name)) {
+	  struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+	  memcpy(&netif->address_v6, &in6->sin6_addr, 
+		 sizeof(struct in6_addr));
+	  s = getnameinfo(ifa->ifa_addr,
+			  /*(family == AF_INET) ? 
+			    sizeof(struct sockaddr_in) :*/
+			  sizeof(struct sockaddr_in6),
+			  host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
+	  if (s != 0) {
+	    log_dbg("getnameinfo() failed: %s\n", strerror(s));
+	  } else {
+	    log_dbg("address: <%s>\n", host);
+	  }
+	}
+      }
+      freeifaddrs(ifaddr);
+    }
+  }
+#endif
 
 #ifndef USING_MMAP
   /* Set interface in promisc mode */
@@ -1510,6 +1583,7 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
   was_drop = 0;
   for (cnt = 0; cnt < iface->rx_ring.cnt; ++cnt) {
     data = h = iface->rx_ring.frames[iface->rx_ring.idx];
+
     if (!h->tp_status)
       break;
     

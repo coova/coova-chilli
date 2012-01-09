@@ -260,7 +260,7 @@ typedef struct _net_interface {
 
 } net_interface;
 
-typedef int (*net_handler)(void *ctx, void *data, size_t len);
+typedef int (*net_handler)(void *ctx, struct pkt_buffer *pb);
 
 #define net_sflags(n,f) dev_set_flags((n)->devname, (f))
 #define net_gflags(n) dev_get_flags((n)->devname, &(n)->devflags)
@@ -292,7 +292,8 @@ int net_select_write_fd(select_ctx *sctx, int fd);
 ssize_t net_read_eth(net_interface *netif, void *d, size_t slen);
 
 #if defined(__linux__)
-ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockaddr_ll *dest);
+ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, 
+		      struct sockaddr_ll *dest);
 #endif
 
 ssize_t net_read_dispatch(net_interface *netif, net_handler func, void *ctx);
@@ -300,7 +301,8 @@ ssize_t net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx)
 
 int net_open_nfqueue(net_interface *netif, uint16_t q, int (*cb)());
 
-int net_select_reg(select_ctx *sctx, int fd, char evts, select_callback cb, void *ctx, int idx);
+int net_select_reg(select_ctx *sctx, int fd, char evts, 
+		   select_callback cb, void *ctx, int idx);
 int net_select_rereg(select_ctx *sctx, int oldfd, int newfd);
 int net_select_dereg(select_ctx *sctx, int oldfd);
 

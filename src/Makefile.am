@@ -47,6 +47,10 @@ else
 chilli_opt_SOURCES += cmdline.c 
 endif
 
+if WITH_PATRICIA
+libchilli_la_SOURCES += patricia.c patricia.h
+endif
+
 if WITH_JSONLIB
 AM_CFLAGS += -I$(top_builddir)/json
 libchilli_la_LIBADD += $(top_builddir)/json/libjson.la 
@@ -71,6 +75,11 @@ libchilli_la_LIBADD += ${LIBSSL}
 LDADD += ${LIBSSL}
 endif
 
+if WITH_CYASSL
+libchilli_la_LIBADD += ${LIBSSL}
+LDADD += ${LIBSSL}
+endif
+
 if WITH_MATRIXSSL
 libchilli_la_SOURCES += mssl.c mssl.h
 libchilli_la_LIBADD += -lmatrixssl
@@ -78,6 +87,11 @@ LDADD += -lmatrixssl
 if WITH_MATRIXSSL_CLI
 SUBDIRS = mssl
 endif
+endif
+
+if WITH_AVL
+libchilli_la_SOURCES += avl/avl.c avl/avl.h avl/list.h \
+avl/common_types.h avl/container_of.h
 endif
 
 if WITH_SSL
@@ -158,7 +172,9 @@ AM_CFLAGS += -DDEFLIBDIR='"$(libdir)/coova-chilli"'
 endif
 
 CMDLINE = cmdline.ggo
+if WITH_CONFIG
 CMDLINE += `[ -e ../../cmdline.ggo ] && echo ../../cmdline.ggo`
+endif
 
 install-exec-hook:
 	@for f in $(suid_programs); do \

@@ -20,7 +20,7 @@ ipt_in() {
 
 if [ -n "$TUNTAP" ]
 then
-    ifconfig $TUNTAP mtu $MTU
+    # ifconfig $TUNTAP mtu $MTU
     if [ "$KNAME" != "" ]
     then
 	ipt -I FORWARD -i $DHCPIF -m coova --name $KNAME -j ACCEPT 

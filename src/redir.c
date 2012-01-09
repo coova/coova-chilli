@@ -1,6 +1,6 @@
 /* 
- * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -131,7 +131,8 @@ static int bytetohex(uint8_t *src, const size_t IN_LEN, char *dst, const int MAX
   return 0;
 }
 
-static int bytetosphex(uint8_t *src, const size_t IN_LEN, char *dst, const int MAX_OUT_SIZE) {
+static int bytetosphex(uint8_t *src, const size_t IN_LEN, char *dst, 
+		       const int MAX_OUT_SIZE) {
   char x[3];
   int i = 0;
   int o = 0;
@@ -212,7 +213,7 @@ int redir_urlencode(bstring src, bstring dst) {
   int n;
   
   bassigncstr(dst, "");
-  for (n=0; n<src->slen; n++) {
+  for (n=0; n < src->slen; n++) {
     if ((('A' <= src->data[n]) && (src->data[n] <= 'Z')) ||
 	(('a' <= src->data[n]) && (src->data[n] <= 'z')) ||
 	(('0' <= src->data[n]) && (src->data[n] <= '9')) ||
@@ -235,7 +236,7 @@ int redir_urlencode(bstring src, bstring dst) {
 }
 
 /* Decode urlencoded src and place null terminated result in dst */
-static int redir_urldecode(bstring src, bstring dst) {
+int redir_urldecode(bstring src, bstring dst) {
   char x[3];
   int n = 0;
   unsigned int c;
@@ -531,6 +532,17 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
     bconcat(str, bt);
   } else 
 #endif
+#ifdef ENABLE_MULTILAN
+  if (conn->s_state.lanidx > 0) {
+    bcatcstr(str, amp);
+    bcatcstr(str, "vlan=");
+    bassignformat(bt, "%s", 
+		  _options.moreif[conn->s_state.lanidx-1].vlan ?
+		  _options.moreif[conn->s_state.lanidx-1].vlan :
+		  _options.moreif[conn->s_state.lanidx-1].dhcpif);
+    bconcat(str, bt);
+  } else
+#endif
   if (redir->vlan) {
     bcatcstr(str, amp);
     bcatcstr(str, "vlan=");
@@ -539,38 +551,17 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
     bconcat(str, bt2);
   }
 
-#ifdef ENABLE_PROXYVSA
-  if (_options.proxy_loc[0].attr) {
-
-#if(_debug_)    
-    log_dbg("vsalen %d", conn->s_state.redir.vsalen);
-#endif
+#ifdef ENABLE_LOCATION
+  if (conn->s_state.location[0]) {
+    bcatcstr(str, amp);
+    bcatcstr(str, "loc=");
+    bassigncstr(bt, conn->s_state.location);
+    redir_urlencode(bt, bt2);
     
-    if (conn->s_state.redir.vsalen) {
-      uint16_t len = conn->s_state.redir.vsalen;
-      uint16_t offset = 0;
-      struct radius_attr_t *t;
-
-      while (offset < len) {
-	t = (struct radius_attr_t *)(conn->s_state.redir.vsa + offset);
-	offset += t->l;
-	if (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && 
-	    ntohl(t->v.vv.i) == RADIUS_VENDOR_CHILLISPOT &&
-	    t->v.vv.t ==  RADIUS_ATTR_CHILLISPOT_LOCATION) {
-
-	  bcatcstr(str, amp);
-	  bcatcstr(str, "loc=");
-	  bassignblk(bt, (void *) t->v.vv.v.t, t->v.vv.l - 2);
-	  redir_urlencode(bt, bt2);
-
-	  log_dbg("found %.*s",
-		  bt->slen, bt->data);
-	  
-	  bconcat(str, bt2);
-	  break;
-	}
-      }
-    }
+    log_dbg("found %.*s",
+	    bt->slen, bt->data);
+    
+    bconcat(str, bt2);
   }
 #endif
 
@@ -777,9 +768,9 @@ static void redir_xmlchilli_reply (struct redir_t *redir, struct redir_conn_t *c
  * Note: This method must not be called if Coova advertises the support of both 
  * WISPr 1.0 and WISPr 2.0 in the "NOTYET" phase. The method redir_wispr2_reply 
  * must be called instead */
-static void redir_wispr1_reply (struct redir_t *redir, struct redir_conn_t *conn, 
-				int res, long int timeleft, char* hexchal, 
-				char* reply, char* redirurl, bstring b) {
+void redir_wispr1_reply (struct redir_t *redir, struct redir_conn_t *conn, 
+			 int res, long int timeleft, char* hexchal, 
+			 char* reply, char* redirurl, bstring b) {
   bstring bt = bfromcstr("");;
 
   log_dbg("%s", __FUNCTION__);
@@ -966,9 +957,9 @@ static void redir_wispr1_reply (struct redir_t *redir, struct redir_conn_t *conn
 /* Make a WISPr 2.0 XML reply 
  * Note: This method must be called if Coova advertises the support of both 
  * WISPr 1.0 and WISPr 2.0 in the "NOTYET" phase */
-static void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn, 
-				int res, long int timeleft, char* hexchal, 
-				char* reply, char* redirurl, bstring b) {
+void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn, 
+			 int res, long int timeleft, char* hexchal, 
+			 char* reply, char* redirurl, bstring b) {
   bstring bt = bfromcstr("");
   char eap64str [MAX_EAP_LEN*2];
   
@@ -1416,9 +1407,11 @@ static void redir_buildurl(struct redir_conn_t *conn, bstring str,
 			   uint8_t *hismac, struct in_addr *hisip) {
   char *redir_url = redir->url;
   
-  if ((conn->s_params.flags & REQUIRE_UAM_SPLASH) && 
+  if ((conn->s_params.flags & REQUIRE_UAM_SPLASH ||
+       conn->s_params.flags & REQUIRE_REDIRECT) && 
       conn->s_params.url[0]) {
     redir_url = (char *)conn->s_params.url;
+    redirurl = 0;
   }
   
   bstring_buildurl(str, conn, redir, redir_url, resp, timeleft, 
@@ -1560,10 +1553,9 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 
       bconcat(buffer, url);
 
-    } else if (redirurl && *redirurl) {
-
-      bcatcstr(buffer, redirurl);
-
+      /*} else if (redirurl && *redirurl) {
+	bcatcstr(buffer, redirurl);
+      */
     } else {
       bt = bfromcstralloc(1024,"");
       redir_buildurl(conn, bt, redir, resp, timeleft, hexchal, 
@@ -1579,6 +1571,7 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 			   "Browser does not support redirects!</BODY>\r\n");
  
     if (res == REDIR_NOTYET) {
+
       if (!_options.no_wispr1 && _options.no_wispr2)
 	redir_wispr1_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
 
@@ -1665,10 +1658,17 @@ int redir_listen(struct redir_t *redir) {
     return -1;
   }
 
+  ndelay_on(redir->fd[0]);
+
 #ifdef ENABLE_UAMUIPORT
-  if (redir->uiport && (redir->fd[1] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    log_err(errno, "socket() failed");
-    return -1;
+  if (redir->uiport) {
+    if ((redir->fd[1] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+      log_err(errno, "socket() failed");
+      close(redir->fd[0]);
+      return -1;
+    }
+
+    ndelay_on(redir->fd[1]);
   }
 #endif
 
@@ -2184,14 +2184,28 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  log_dbg("Content-Length: %s",p);
 #endif
 	}
+#ifdef ENABLE_USERAGENT
 	else if (!strncasecmp(buffer,"User-Agent:",11)) {
 	  p = buffer + 11;
 	  while (*p && isspace((int) *p)) p++;
-	  safe_strncpy(conn->useragent, p, sizeof(conn->useragent));
+	  safe_strncpy(conn->s_state.redir.useragent, 
+		       p, sizeof(conn->s_state.redir.useragent));
 #if(_debug_ > 1)
-	  log_dbg("User-Agent: %s",conn->useragent);
 #endif
+	  log_dbg("User-Agent: %s",conn->s_state.redir.useragent);
 	}
+#endif
+#ifdef ENABLE_ACCEPTLANGUAGE
+	else if (!strncasecmp(buffer,"Accept-Language:",16)) {
+	  p = buffer + 16;
+	  while (*p && isspace((int) *p)) p++;
+	  safe_strncpy(conn->s_state.redir.acceptlanguage, 
+		       p, sizeof(conn->s_state.redir.acceptlanguage));
+#if(_debug_ > 1)
+#endif
+	  log_dbg("Accept-Language: %s",conn->s_state.redir.acceptlanguage);
+	}
+#endif
 	else if (!strncasecmp(buffer,"Cookie:",7)) {
 	  p = buffer + 7;
 	  while (*p && isspace((int) *p)) p++;
@@ -2510,13 +2524,16 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   
   if (_options.debug) {
     char buffer[conn->authdata.v.eapmsg.len*2+1];
-    bytetohex(conn->authdata.v.eapmsg.data,conn->authdata.v.eapmsg.len,buffer, conn->authdata.v.eapmsg.len*2+1);
-    log_dbg("+attribute EAP msg (%d bytes): %s", conn->authdata.v.eapmsg.len, buffer);
+    bytetohex(conn->authdata.v.eapmsg.data,
+	      conn->authdata.v.eapmsg.len,buffer, 
+	      conn->authdata.v.eapmsg.len*2+1);
+    log_dbg("+attribute EAP msg (%d bytes): %s", 
+	    conn->authdata.v.eapmsg.len, buffer);
   }
   
   /* Get sendkey */
   if (_options.debug) {
-    char hexString[RADIUS_ATTR_VLEN*2+1+64];  /* Make sure there is room for spaces */
+    char hexString[RADIUS_ATTR_VLEN*2+1+64];
     uint8_t dstbuffer[RADIUS_ATTR_VLEN];
     size_t dstlen;
     
@@ -2528,7 +2545,8 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
       /* Now decode the MPPE attribue */
       if (!radius_keydecode(radius, dstbuffer, RADIUS_ATTR_VLEN, &dstlen, 
 			    (uint8_t *)&attr->v.t, attr->l-2, 
-			    pack_req->authenticator, radius->secret, radius->secretlen) != 0) {
+			    pack_req->authenticator, radius->secret, 
+			    radius->secretlen) != 0) {
 	bytetosphex(dstbuffer, dstlen, hexString, sizeof(hexString));
 	log_dbg("plainstring MPPE_SEND_KEY: len %d key %s", dstlen, hexString);
       } else {
@@ -2545,7 +2563,8 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
       /* Now decode the MPPE attribue */
       if (!radius_keydecode(radius, dstbuffer, RADIUS_ATTR_VLEN, &dstlen, 
 			    (uint8_t *)&attr->v.t, attr->l-2, 
-			    pack_req->authenticator, radius->secret, radius->secretlen) != 0) {
+			    pack_req->authenticator, radius->secret, 
+			    radius->secretlen) != 0) {
 	bytetosphex(dstbuffer, dstlen, hexString, sizeof(hexString));
 	log_dbg("plainstring MPPE_RECV_KEY: len %d key %s", dstlen, hexString);
       } else {
@@ -2628,7 +2647,8 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   0, (uint8_t*) conn->lang, strlen(conn->lang));
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
-		 (uint8_t*) conn->s_state.redir.username, strlen(conn->s_state.redir.username));
+		 (uint8_t*) conn->s_state.redir.username, 
+		 strlen(conn->s_state.redir.username));
 
   if (redir->secret && *redir->secret) {
     log_dbg("SECRET: [%s]",redir->secret);
@@ -2649,13 +2669,15 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
     for (m=0; m < RADIUS_PWSIZE;) {
       for (n=0; n < REDIR_MD5LEN; m++, n++) {
-	user_password[m] = conn->authdata.v.papmsg.password[m] ^ chap_challenge[n];
+	user_password[m] =
+	  conn->authdata.v.papmsg.password[m] ^ chap_challenge[n];
       }
     }
 
     user_password[conn->authdata.v.papmsg.len] = 0;
     
-    log_dbg("User password %d [%s]", conn->authdata.v.papmsg.len, user_password);
+    log_dbg("User password %d [%s]", 
+	    conn->authdata.v.papmsg.len, user_password);
 
 #ifdef HAVE_OPENSSL
     if (_options.mschapv2) {
@@ -2728,7 +2750,8 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 	else
 	  eaplen = conn->authdata.v.eapmsg.len - offset;
       
-	if (radius_addattr(radius, &radius_pack, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
+	if (radius_addattr(radius, &radius_pack, 
+			   RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
 			   conn->authdata.v.eapmsg.data + offset, eaplen)) {
 	  log_err(0, "EAP message segmentation in EAP attributes failed");
 	  radius_free(radius);
@@ -2738,22 +2761,28 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
       }
       if (_options.debug) {
 	char buffer[conn->authdata.v.eapmsg.len*2+1];
-	bytetohex(conn->authdata.v.eapmsg.data,conn->authdata.v.eapmsg.len,buffer, conn->authdata.v.eapmsg.len*2+1);
-	log_dbg("+attribute EAP msg (%d bytes): %s", conn->authdata.v.eapmsg.len, buffer);
+	bytetohex(conn->authdata.v.eapmsg.data,
+		  conn->authdata.v.eapmsg.len,buffer, 
+		  conn->authdata.v.eapmsg.len*2+1);
+	log_dbg("+attribute EAP msg (%d bytes): %s", 
+		conn->authdata.v.eapmsg.len, buffer);
       }
     }
     break;
   default:
-    log_err(0, "Invalid authentication type: %d", conn->authdata.type);
+    log_err(0, "Invalid authentication type: %d", 
+	    conn->authdata.type);
     radius_free(radius);
     return -1;
   } 
 
   chilli_req_attrs(radius, &radius_pack, 
+		   ACCT_USER,
 		   _options.framedservice ? RADIUS_SERVICE_TYPE_FRAMED : 
-		   RADIUS_SERVICE_TYPE_LOGIN,
+		   RADIUS_SERVICE_TYPE_LOGIN, 0,
 		   conn->nasport, conn->hismac,
-		   &conn->hisip, &conn->s_state);
+		   &conn->hisip, 
+		   &conn->s_state);
 
   safe_snprintf(url, sizeof(url), "http://%s:%d/logoff", 
 		  inet_ntoa(redir->addr), redir->port);
@@ -2865,14 +2894,16 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
       int n, m;
       for (m=0; m < RADIUS_PWSIZE;)
 	for (n=0; n < REDIR_MD5LEN; m++, n++)
-	  user_password[m] = conn->authdata.v.papmsg.password[m] ^ chap_challenge[n];
+	  user_password[m] =
+	    conn->authdata.v.papmsg.password[m] ^ chap_challenge[n];
     }
     break;
   case REDIR_AUTH_CHAP:
     memcpy(user_password, conn->authdata.v.chapmsg.password, REDIR_MD5LEN);
     break;
   default:
-    log_err(0, "Authentication method not supported for locally authenticated users: %d", conn->authdata.type);
+    log_err(0, "Authentication method not supported for locally authenticated users: %d", 
+	    conn->authdata.type);
     return 0;
   }
   
@@ -2972,7 +3003,8 @@ int redir_accept(struct redir_t *redir, int idx) {
 
   addrlen = sizeof(struct sockaddr_in);
 
-  if ((new_socket = safe_accept(redir->fd[idx], (struct sockaddr *)&address, &addrlen)) < 0) {
+  if ((new_socket = safe_accept(redir->fd[idx], 
+				(struct sockaddr *)&address, &addrlen)) < 0) {
     if (errno != ECONNABORTED)
       log_err(errno, "accept() failed!");
     return 0;
@@ -3394,7 +3426,8 @@ int redir_main(struct redir_t *redir,
 	  for (p=filename; *p; p++) {
 	    if (*p == '.' || *p == '_'|| *p == '-' || *p == '/') {
 	      cnt++;
-	      if (cnt == 1) continue; /*ok*/
+	      if (cnt == 1) 
+		continue; /*ok*/
 	    } else {
 	      cnt = 0;
 	    }
@@ -3424,6 +3457,7 @@ int redir_main(struct redir_t *redir,
 	else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
 	else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
 	else if (!strcmp(filename + (namelen - 4), ".chi")){ ctype = "text/html"; parse = 1; }
+	else if (!strcmp(filename + (namelen - 4), ".cjs")){ ctype = "text/javascript"; parse = 1; }
 	else { 
 	  /* we do not serve it! */
 	  log_err(0, "invalid file extension! [%s]", filename);
@@ -3546,7 +3580,6 @@ int redir_main(struct redir_t *redir,
 	  }
 #endif
 
-
 #ifdef HAVE_SSL
 	  if (socket.sslcon) {
 	    setenv("HTTPS", "on", 1);
@@ -3610,8 +3643,17 @@ int redir_main(struct redir_t *redir,
 	
 	if ( (_options.uid == 0 && !chroot(_options.wwwdir) && !chdir("/")) ||
 	     (_options.uid != 0 && !chdir(_options.wwwdir)) ) {
-	  
-	  fd = open(filename, O_RDONLY);
+	  int gzip = 1;
+	  char filebuff[1024];
+
+	  safe_snprintf(filebuff, sizeof(filebuff), "%s.gz", filename);
+
+	  fd = open(filebuff, O_RDONLY);
+
+	  if (fd < 0) {
+	    gzip = 0;
+	    fd = open(filename, O_RDONLY);
+	  }
 	  
 	  if (fd > 0) {
 	    
@@ -3620,9 +3662,11 @@ int redir_main(struct redir_t *redir,
 	    }
 	    
 	    safe_snprintf(buffer, bufsize,
-			  "HTTP/1.1 200 OK\r\n"
+			  "HTTP/1.1 200 OK\r\n%s"
 			  "Connection: close\r\n"
-			  "Content-type: %s\r\n\r\n", ctype);
+			  "Content-type: %s\r\n\r\n", 
+			  gzip ? "Content-Encoding: gzip\r\n" : "",
+			  ctype);
 	    
 	    if (redir_write(&socket, buffer, strlen(buffer)) < 0) {
 	      log_err(errno, "redir_write()");
@@ -3663,15 +3707,20 @@ int redir_main(struct redir_t *redir,
     
     /* Was client was already logged on? */
     if (state == 1) {
+
       if (splash) {
+
 	log_dbg("redir_accept: SPLASH reauth");
 	reauth = 1;
+
       } else {
+
 	log_dbg("redir_accept: already logged on");
 
 	redir_reply(redir, &socket, &conn, REDIR_ALREADY, NULL, 0, 
 		    NULL, NULL, conn.s_state.redir.userurl, NULL,
-		    (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
+		    (char *)conn.s_params.url, conn.hismac, 
+		    &conn.hisip, httpreq.qs);
 	
 	return redir_main_exit();
       }
@@ -3679,8 +3728,10 @@ int redir_main(struct redir_t *redir,
 
     /* Did the challenge expire? */
     if (_options.challengetimeout2 && 
-	(conn.s_state.uamtime + _options.challengetimeout2) < mainclock_now()) {
-      log_dbg("redir_accept: challenge expired: %d : %d", conn.s_state.uamtime, mainclock_now());
+	(conn.s_state.uamtime + _options.challengetimeout2) < 
+	mainclock_now()) {
+      log_dbg("redir_accept: challenge expired: %d : %d", 
+	      conn.s_state.uamtime, mainclock_now());
 
       redir_memcopy(REDIR_CHALLENGE);      
       redir_msg_send(REDIR_MSG_OPT_REDIR);
@@ -3765,17 +3816,19 @@ int redir_main(struct redir_t *redir,
 
       msg.mtype = REDIR_LOGIN;
       
-      redir_reply(redir, &socket, &conn, REDIR_SUCCESS, NULL, conn.s_params.sessiontimeout,
-		  NULL, conn.s_state.redir.username, conn.s_state.redir.userurl, conn.reply, 
-		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
+      redir_reply(redir, &socket, &conn, REDIR_SUCCESS, NULL, 
+		  conn.s_params.sessiontimeout, NULL, 
+		  conn.s_state.redir.username, 
+		  conn.s_state.redir.userurl, conn.reply, 
+		  (char *)conn.s_params.url, 
+		  conn.hismac, &conn.hisip, httpreq.qs);
       
       /* set params and redir data */
       redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS);
 
     } else { /* Access-Reject */
 
-      bstring besturl = bfromcstr((char *)conn.s_params.url);
-      int hasnexturl = (besturl && besturl->slen > 5);
+      int hasnexturl = (strlen((char *)conn.s_params.url) > 5);
 
       if (!hasnexturl) {
 	if (_options.challengetimeout)
@@ -3785,15 +3838,14 @@ int redir_main(struct redir_t *redir,
       }
 
       redir_reply(redir, &socket, &conn, conn.response, 
-		  hasnexturl ? besturl : NULL,
+		  NULL,
 		  0, hexchal, NULL, conn.s_state.redir.userurl, conn.reply,
-		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
-
-      bdestroy(besturl);
+		  (char *)conn.s_params.url, conn.hismac, 
+		  &conn.hisip, httpreq.qs);
 
       /* set params, redir data, and reset session-id */
       redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS | 
-		     (conn.response == REDIR_CHALLENGE ? 0 : REDIR_MSG_NSESSIONID));
+	     (conn.response == REDIR_CHALLENGE ? 0 : REDIR_MSG_NSESSIONID));
     }    
 
     log_dbg("-->> Msg userurl=[%s]\n",conn.s_state.redir.userurl);
@@ -3825,7 +3877,8 @@ int redir_main(struct redir_t *redir,
     /* Did the challenge expire? */
     if (!conn.s_state.uamtime ||
 	(_options.challengetimeout &&
-	 (conn.s_state.uamtime + _options.challengetimeout) < mainclock_now())) {
+	 (conn.s_state.uamtime + _options.challengetimeout) < 
+	 mainclock_now())) {
       redir_memcopy(REDIR_CHALLENGE);
       redir_msg_send(REDIR_MSG_OPT_REDIR);
     }
@@ -3833,7 +3886,8 @@ int redir_main(struct redir_t *redir,
     if (state == 1) {
       redir_reply(redir, &socket, &conn, REDIR_ALREADY, 
 		  NULL, 0, NULL, NULL, conn.s_state.redir.userurl, NULL,
-		  (char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
+		  (char *)conn.s_params.url, conn.hismac, 
+		  &conn.hisip, httpreq.qs);
     }
     else {
       redir_reply(redir, &socket, &conn, REDIR_NOTYET, 
@@ -3884,7 +3938,8 @@ int redir_main(struct redir_t *redir,
 	timeleft = 0;
 
       redir_reply(redir, &socket, &conn, REDIR_STATUS, NULL, timeleft,
-		  hexchal, conn.s_state.redir.username, conn.s_state.redir.userurl, conn.reply, 
+		  hexchal, conn.s_state.redir.username, 
+		  conn.s_state.redir.userurl, conn.reply, 
 		  0, conn.hismac, &conn.hisip, httpreq.qs);
       
       return redir_main_exit();
@@ -3907,7 +3962,7 @@ int redir_main(struct redir_t *redir,
   if (_options.redirdnsreq) {
     uint8_t answer[PKT_BUFFER];
     
-    struct pkt_ethhdr_t *answer_ethh;
+    /*struct pkt_ethhdr_t *answer_ethh;*/
     struct pkt_iphdr_t  *answer_iph;
     struct pkt_udphdr_t *answer_udph;
     struct dns_packet_t *answer_dns;
@@ -3942,7 +3997,7 @@ int redir_main(struct redir_t *redir,
 
     memset(answer, 0, sizeof(answer));
     
-    answer_ethh = ethhdr(answer);
+    /*answer_ethh = ethhdr(answer);*/
     answer_iph = iphdr(answer);
     answer_udph = udphdr(answer);
     answer_dns = dnspkt(answer);
@@ -4028,11 +4083,12 @@ int redir_main(struct redir_t *redir,
     redir_msg_send(0);
   }
   
-  if (redir->homepage ||
-      ((conn.s_params.flags & REQUIRE_REDIRECT) && conn.s_params.url[0])) {
+  if (redir->homepage) { /* ||
+			    ((conn.s_params.flags & REQUIRE_REDIRECT) && conn.s_params.url[0])) {*/
     
-    char * base_url = (conn.s_params.flags & REQUIRE_REDIRECT && 
-		       conn.s_params.url[0]) ? (char *)conn.s_params.url : redir->homepage;
+    char * base_url = /*(conn.s_params.flags & REQUIRE_REDIRECT && 
+		       conn.s_params.url[0]) ? 
+		       (char *)conn.s_params.url : */ redir->homepage;
 
     bstring url = bfromcstralloc(1024,"");
     bstring urlenc = bfromcstralloc(1024,"");
@@ -4040,7 +4096,8 @@ int redir_main(struct redir_t *redir,
     char *resp = splash ? "splash" : "notyet";
 
     redir_buildurl(&conn, url, redir, resp, 0, hexchal, NULL,
-		   conn.s_state.redir.userurl, NULL, NULL, conn.hismac, &conn.hisip);
+		   conn.s_state.redir.userurl, NULL, NULL, 
+		   conn.hismac, &conn.hisip);
     redir_urlencode(url, urlenc);
 
     bassignformat(url, "%s%cloginurl=", base_url,
@@ -4048,7 +4105,8 @@ int redir_main(struct redir_t *redir,
 
     bconcat(url, urlenc);
 
-    redir_reply(redir, &socket, &conn, splash ? REDIR_SPLASH : REDIR_NOTYET, url, 
+    redir_reply(redir, &socket, &conn, 
+		splash ? REDIR_SPLASH : REDIR_NOTYET, url, 
 		0, hexchal, NULL, conn.s_state.redir.userurl, NULL, 
 		NULL, conn.hismac, &conn.hisip, httpreq.qs);
 
@@ -4056,12 +4114,14 @@ int redir_main(struct redir_t *redir,
     bdestroy(urlenc);
   }
   else if (state == 1) {
-    redir_reply(redir, &socket, &conn, splash ? REDIR_SPLASH : REDIR_ALREADY, NULL, 0, 
+    redir_reply(redir, &socket, &conn, 
+		splash ? REDIR_SPLASH : REDIR_ALREADY, NULL, 0, 
 		splash ? hexchal : NULL, NULL, conn.s_state.redir.userurl, NULL,
 		(char *)conn.s_params.url, conn.hismac, &conn.hisip, httpreq.qs);
   }
   else {
-    redir_reply(redir, &socket, &conn, splash ? REDIR_SPLASH : REDIR_NOTYET, NULL, 
+    redir_reply(redir, &socket, &conn, 
+		splash ? REDIR_SPLASH : REDIR_NOTYET, NULL, 
 		0, hexchal, NULL, conn.s_state.redir.userurl, NULL, 
 		NULL, conn.hismac, &conn.hisip, httpreq.qs);
   }

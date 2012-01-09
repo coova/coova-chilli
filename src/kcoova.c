@@ -35,7 +35,7 @@ kmod(char cmd, struct in_addr *addr) {
     else
       safe_snprintf(line, sizeof(line), "%c\n", cmd);
 
-    rd = write(fd, line, strlen(line));
+    rd = safe_write(fd, line, strlen(line));
     log_dbg("kmod wrote %d %s", rd, line);
     close(fd);
     return rd == strlen(line);

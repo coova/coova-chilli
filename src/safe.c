@@ -31,6 +31,36 @@ int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr) {
   return ret;
 }
 
+int safe_select(int nfds, fd_set *readfds, fd_set *writefds,
+		fd_set *exceptfds, struct timeval *timeout) {
+  int ret;
+  do {
+    ret = select(nfds, readfds, writefds, exceptfds, timeout);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+#ifdef USING_POLL
+#ifdef HAVE_SYS_EPOLL_H
+int safe_epoll_wait(int epfd, struct epoll_event *events,
+		    int maxevents, int timeout) {
+  int ret;
+  do {
+    ret = epoll_wait(epfd, events, maxevents, timeout);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+#else
+int safe_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
+  int ret;
+  do {
+    ret = poll(fds, nfds, timeout);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+#endif
+#endif
+
 int safe_connect(int s, struct sockaddr *sock, size_t len) {
   int ret;
   do {

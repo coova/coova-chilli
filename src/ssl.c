@@ -24,6 +24,12 @@ static int openssl_init = 0;
 static openssl_env * sslenv_svr = 0;
 static openssl_env * sslenv_cli = 0;
 
+#ifdef HAVE_CYASSL
+#define HAVE_OPENSSL 1
+#else
+#define HAVE_OPENSSL_ENGINE 1
+#endif
+
 openssl_env * initssl() {
   if (sslenv_svr == 0) {
     if (openssl_init == 0) {
@@ -93,18 +99,22 @@ openssl_use_certificate(openssl_env *env, char *file) {
 int
 openssl_use_privatekey(openssl_env *env, char *file) {
   int err1=-1, err2=-1;
-  BIO *bio_err = NULL;
   if (file) {
     if ((err1 = SSL_CTX_use_PrivateKey_file(env->ctx, file, SSL_FILETYPE_PEM)) > 0 &&
         (err2 = SSL_CTX_check_private_key(env->ctx)))
       return 1;
   }
   log_err(errno, "could not load private key file %s (%d,%d)\n",file,err1,err2);
-  bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
-  BIO_printf(bio_err,"unable to set private key file\n");
-#if(_debug_)
-  ERR_print_errors(bio_err);
-#endif
+  /*
+    {
+    BIO *bio_err = NULL;
+    bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
+    BIO_printf(bio_err,"unable to set private key file\n");
+    #if(_debug_)
+    ERR_print_errors(bio_err);
+    #endif
+    }
+  */
   return 0;
 }
 
@@ -198,6 +208,7 @@ _openssl_env_init(openssl_env *env, char *engine, int server) {
   }
   env->ctx = SSL_CTX_new(env->meth);
   SSL_CTX_set_options(env->ctx, SSL_OP_ALL);
+#ifdef HAVE_OPENSSL_ENGINE
   if (engine) {
   retry:
     if ((env->engine = ENGINE_by_id(engine)) == NULL) {
@@ -213,8 +224,11 @@ _openssl_env_init(openssl_env *env, char *engine, int server) {
       goto retry;
     }
   }
+#endif
 
+#ifdef HAVE_OPENSSL_ENGINE
   SSL_CTX_set_app_data(env->ctx, env);
+#endif
 
   if (server) {
     SSL_CTX_set_options(env->ctx, SSL_OP_SINGLE_DH_USE);
@@ -309,7 +323,9 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
   SSL_set_fd(c->con, c->sock);
 
 #ifdef HAVE_OPENSSL  
+#ifdef HAVE_OPENSSL_ENGINE
   SSL_set_app_data(c->con, c);
+#endif
   SSL_set_connect_state(c->con);
 
   if (SSL_connect(c->con) < 0) {
@@ -341,7 +357,6 @@ int
 openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 
 #ifdef HAVE_OPENSSL  
-  X509 *peer_cert;
   int rc;
 
   if (!c || !c->con) return -1;
@@ -371,7 +386,8 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
       
     } else {
       
-      peer_cert = SSL_get_peer_certificate(c->con);
+#ifdef HAVE_OPENSSL_ENGINE
+      X509 *peer_cert = SSL_get_peer_certificate(c->con);
       
       if (peer_cert) {
 	char subj[1024];
@@ -386,7 +402,7 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 		
 	log_dbg("auth_success: %s", subj);
 	if (conn) conn->s_params.flags |= ADMIN_LOGIN;
-	
+
 	if (_options.debug) {
 	  EVP_PKEY *pktmp = X509_get_pubkey(peer_cert);
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
@@ -410,6 +426,7 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
       } else {
 	log_dbg("no SSL certificate");
       }
+#endif
     }
   }
 #elif  HAVE_MATRIXSSL
@@ -455,12 +472,18 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
   SSL_set_fd(c->con, c->sock);
 
 #ifdef HAVE_OPENSSL  
+#ifdef HAVE_OPENSSL_ENGINE
   SSL_clear(c->con);
+#endif
 
+#ifdef HAVE_OPENSSL_ENGINE
   SSL_set_app_data(c->con, c);
+#endif
   SSL_set_accept_state(c->con);
 
+#ifdef HAVE_OPENSSL_ENGINE
   SSL_set_verify_result(c->con, X509_V_OK);
+#endif
 
   if ((rc = openssl_check_accept(c, conn)) < 0) {
     SSL_set_shutdown(c->con, SSL_RECEIVED_SHUTDOWN);
@@ -655,7 +678,9 @@ openssl_env_free(openssl_env *env) {
 #endif
 #ifdef HAVE_OPENSSL
   if (env->ctx) SSL_CTX_free(env->ctx);
+#ifdef HAVE_OPENSSL_ENGINE
   if (env->engine) ENGINE_free(env->engine);
+#endif
 #endif
   free(env);
 }

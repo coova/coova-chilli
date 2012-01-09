@@ -76,10 +76,12 @@ struct app_conn_t {
   void *uplink;                  /* Uplink network interface (Internet) */
   void *dnlink;                  /* Downlink network interface (Wireless) */
 
-  char is_adminsession;
+  uint8_t inuse:1;
+  uint8_t is_adminsession:1;
+  uint8_t uamabort:1;
+  uint8_t uamexit:1;
 
   /* Management of connections */
-  int inuse;
   int unit;
   int dnprot;                    /* Downlink protocol */
 
@@ -95,6 +97,10 @@ struct app_conn_t {
 
   struct session_params s_params;         /* Session parameters */
   struct session_state  s_state;          /* Session state */
+
+#ifdef HAVE_PATRICIA
+  patricia_tree_t *ptree;
+#endif
 
   /* Radius authentication stuff */
   /* Parameters are initialised whenever a reply to an access request
@@ -144,10 +150,6 @@ struct app_conn_t {
   struct in_addr mask;
   struct in_addr dns1;
   struct in_addr dns2;
-
-  /* UAM information */
-  char uamabort; /* should be bit options */
-  char uamexit;
 };
 
 #define VAL_STRING   0
@@ -156,6 +158,13 @@ struct app_conn_t {
 #define VAL_ULONG    3
 #define VAL_ULONG64  4
 #define VAL_USHORT   5
+
+typedef enum {
+  ACCT_USER,
+#ifdef ENABLE_GARDENACCOUNTING
+  ACCT_GARDEN,
+#endif
+} acct_type;
 
 void set_env(char *name, char type, void *value, int len);
 
@@ -196,9 +205,13 @@ struct app_conn_t * chilli_connect_layer3(struct in_addr *src, struct dhcp_conn_
 int chilli_getconn(struct app_conn_t **conn, uint32_t ip, 
 		   uint32_t nasip, uint32_t nasport);
 
+int chilli_appconn_run(int (*cb)(struct app_conn_t *, void *), void *d);
+
 int chilli_req_attrs(struct radius_t *radius, 
 		     struct radius_packet_t *pack,
+		     acct_type type,
 		     uint32_t service_type,
+		     uint8_t status_type,
 		     uint32_t port,
 		     uint8_t *hismac,
 		     struct in_addr *hisip,
@@ -219,14 +232,16 @@ void chilli_print(bstring s, int listfmt,
 		  struct app_conn_t *appconn,
 		  struct dhcp_conn_t *conn);
 
-int chilli_acct_fromsub(struct app_conn_t *appconn, size_t len);
-int chilli_acct_tosub(struct app_conn_t *appconn, size_t len);
+int chilli_acct_fromsub(struct app_conn_t *appconn, 
+			struct pkt_ipphdr_t *ipph);
+int chilli_acct_tosub(struct app_conn_t *appconn, 
+		      struct pkt_ipphdr_t *ipph);
 
 int terminate_appconn(struct app_conn_t *appconn, int terminate_cause);
 
 void config_radius_session(struct session_params *params, 
 			   struct radius_packet_t *pack, 
-			   struct dhcp_conn_t *dhcpconn,
+			   struct app_conn_t *appconn,
 			   int reconfig);
 
 void session_param_defaults(struct session_params *params);
@@ -258,9 +273,8 @@ void child_killall(int sig);
 
 #ifdef ENABLE_PROXYVSA
 int radius_addvsa(struct radius_packet_t *pack, struct redir_state *state);
-int chilli_learn_location(uint8_t *vsa, int vsalen, int vsasize, 
-			  uint8_t *loc, int loclen, 
-			  struct app_conn_t *appconn);
+int chilli_learn_location(uint8_t *loc, int loclen, 
+			  struct app_conn_t *appconn, char force);
 #endif
 
 #ifdef HAVE_NETFILTER_COOVA

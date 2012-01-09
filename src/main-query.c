@@ -63,6 +63,11 @@ static cmd_info commands[] = {
 #ifdef ENABLE_STATFILE
   { CMDSOCK_STATUSFILE,    "statusfile",    NULL },
 #endif
+  { CMDSOCK_ADD_GARDEN,  "addgarden", NULL },
+  { CMDSOCK_REM_GARDEN,  "remgarden", NULL },
+#ifdef ENABLE_INSPECT
+  { CMDSOCK_INSPECT,  "inspect", NULL },
+#endif
   { 0, NULL, NULL }
 };
 
@@ -183,6 +188,12 @@ static struct cmd_arguments args[] = {
     CMDSOCK_FIELD_NONE, 0, 0,
     "No accounting flag",
     &request.d.sess.params.flags, NO_ACCOUNTING },
+  { "data",
+    CMDSOCK_FIELD_STRING, 
+    sizeof(request.d.data),
+    &request.d.data,
+    "Text configuration line",
+    0, 1 },
   /* more... */
 };
 
@@ -252,6 +263,100 @@ static int usage(char *program) {
 static void timeout_alarm(int signum) {
   fprintf(stderr, "Timeout\n");
   exit(1);
+}
+
+static int process_args(int argc, char *argv[], int argidx) {
+  int c = argc - argidx;
+  char is_data = 0;
+  
+  while(c > 0) {
+    int i;
+    
+    for (i=0; i < count; i++) {
+      
+      if (!strcmp(argv[argidx], args[i].name)) {
+	
+	if (args[i].flag) {
+	  *(args[i].flag) |= args[i].flagbit;
+	} else if (args[i].flagbit == 1) {
+	  if (is_data == 0) 
+	    is_data = 1;
+	  else {
+	    fprintf(stderr, "data can only be once and by itself\n");
+	    return argidx;
+	  }
+	} else {
+	  if (i > 1) {
+	    if (is_data == 1) {
+	      fprintf(stderr, "data can only be once and by itself\n");
+	      return argidx;
+	    }
+	    is_data = -1;
+	  }
+	}
+	
+	if (c == 1 && args[i].length) {
+	  fprintf(stderr, "Argument %s requires a value\n", argv[argidx]);
+	  return usage(argv[0]);
+	}
+	
+	switch(args[i].type) {
+	case CMDSOCK_FIELD_NONE:
+	  break;
+	case CMDSOCK_FIELD_MAC:
+	  parse_mac(((uint8_t *)args[i].field), argv[argidx+1]);
+	  break;
+	case CMDSOCK_FIELD_STRING:
+	  safe_strncpy(((char *)args[i].field), argv[argidx+1], args[i].length);
+	  break;
+	case CMDSOCK_FIELD_INTEGER:
+	  switch(args[i].length) {
+	  case 1:
+	    *((uint8_t *)args[i].field) |= (uint8_t)atoi(argv[argidx+1]);
+	    break;
+	  case 2:
+	    *((uint16_t *)args[i].field) |= (uint16_t)atoi(argv[argidx+1]);
+	    break;
+	  case 4:
+	    *((uint32_t *)args[i].field) |= (uint32_t)atol(argv[argidx+1]);
+	    break;
+	  case 8:
+	    *((uint64_t *)args[i].field) |= (uint64_t)atol(argv[argidx+1]);
+	    break;
+	  }
+	  break;
+	case CMDSOCK_FIELD_IPV4: 
+	  {
+	    struct in_addr ip;
+	    if (!inet_aton(argv[argidx+1], &ip)) {
+	      fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx+1]);
+	      return usage(argv[0]);
+	    }
+	    ((struct in_addr *)args[i].field)->s_addr = ip.s_addr;
+	    break;
+	  }
+	}
+	break;
+      }
+    }
+    
+    if (i == count) {
+      if (request.type == CMDSOCK_LOGOUT)
+	break;
+      fprintf(stderr, "Unknown argument: %s\n", argv[argidx]);
+      return usage(argv[0]);
+    }
+    
+    if (args[i].length) {
+      c -= 2;
+      argidx += 2;
+    } else {
+      c --;
+      argidx ++;
+    }
+  }
+
+  return argidx;
 }
 
 int main(int argc, char **argv) {
@@ -331,86 +436,17 @@ int main(int argc, char **argv) {
       request.type = commands[s].type;
       
       switch(request.type) {
-	
+
+#ifdef ENABLE_INSPECT
+      case CMDSOCK_INSPECT:
+#endif
       case CMDSOCK_LOGIN:
       case CMDSOCK_LOGOUT:
       case CMDSOCK_UPDATE:
       case CMDSOCK_AUTHORIZE:
-	{
-	  int c = argc - argidx;
-	  
-	  while(c > 0) {
-	    int i;
-	    
-	    for (i=0; i<count; i++) {
-	      
-	      if (!strcmp(argv[argidx],args[i].name)) {
-		
-		if (args[i].flag) {
-		  *(args[i].flag) |= args[i].flagbit;
-		}
-		
-		if (c == 1 && args[i].length) {
-		  fprintf(stderr, "Argument %s requires a value\n", argv[argidx]);
-		  return usage(argv[0]);
-		}
-		
-		switch(args[i].type) {
-		case CMDSOCK_FIELD_NONE:
-		  break;
-		case CMDSOCK_FIELD_MAC:
-		  parse_mac(((uint8_t *)args[i].field), argv[argidx+1]);
-		  break;
-		case CMDSOCK_FIELD_STRING:
-		  safe_strncpy(((char *)args[i].field), argv[argidx+1], args[i].length);
-		  break;
-		case CMDSOCK_FIELD_INTEGER:
-		  switch(args[i].length) {
-		  case 1:
-		    *((uint8_t *)args[i].field) |= (uint8_t)atoi(argv[argidx+1]);
-		    break;
-		  case 2:
-		    *((uint16_t *)args[i].field) |= (uint16_t)atoi(argv[argidx+1]);
-		    break;
-		  case 4:
-		    *((uint32_t *)args[i].field) |= (uint32_t)atol(argv[argidx+1]);
-		    break;
-		  case 8:
-		    *((uint64_t *)args[i].field) |= (uint64_t)atol(argv[argidx+1]);
-		    break;
-		  }
-		  break;
-		case CMDSOCK_FIELD_IPV4: 
-		  {
-		    struct in_addr ip;
-		    if (!inet_aton(argv[argidx+1], &ip)) {
-		      fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx+1]);
-		      return usage(argv[0]);
-		    }
-		    ((struct in_addr *)args[i].field)->s_addr = ip.s_addr;
-		    break;
-		  }
-		}
-		break;
-	      }
-	    }
-
-	    if (i == count) {
-	      if (request.type == CMDSOCK_LOGOUT)
-		break;
-	      fprintf(stderr, "Unknown argument: %s\n", argv[argidx]);
-	      return usage(argv[0]);
-	    }
-
-	    if (args[i].length) {
-	      c -= 2;
-	      argidx += 2;
-	    } else {
-	      c --;
-	      argidx ++;
-	    }
-	  }
-	}
+      case CMDSOCK_ADD_GARDEN:
+      case CMDSOCK_REM_GARDEN:
+	argidx = process_args(argc, argv, argidx);
 	if (request.type != CMDSOCK_LOGOUT || argidx >= argc)
 	  break;
 	/* else, drop through */
@@ -508,7 +544,6 @@ int main(int argc, char **argv) {
     struct sockaddr_in s;
     int blen = sizeof(struct pkt_chillihdr_t);
     uint8_t b[blen];
-    int len;
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -524,9 +559,9 @@ int main(int argc, char **argv) {
     s.sin_port = htons(10203);
     s.sin_addr.s_addr = htonl(INADDR_BROADCAST);
     
-    len = safe_sendto(fd, b, blen, 0, 
-		      (struct sockaddr *)&s, 
-		      sizeof(struct sockaddr_in));
+    (void) safe_sendto(fd, b, blen, 0, 
+		       (struct sockaddr *)&s, 
+		       sizeof(struct sockaddr_in));
 
   } else {
 #endif

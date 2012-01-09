@@ -37,11 +37,17 @@
 #define RADIUS_ATTR_CHILLISPOT_CONFIG_FILE               14 /* string */
 #define RADIUS_ATTR_CHILLISPOT_SESSION_STATE             15 /* integer */
 #define RADIUS_ATTR_CHILLISPOT_SESSION_ID                16 /* string */
+#define RADIUS_ATTR_CHILLISPOT_AP_SESSION_ID             17 /* string */
+#define RADIUS_ATTR_CHILLISPOT_USER_AGENT                18 /* string */
+#define RADIUS_ATTR_CHILLISPOT_ACCEPT_LANGUAGE           19 /* string */
+
 #define	RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS       21 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS      22 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS       23 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_VLAN_ID                   24 /* integer */
 #define	RADIUS_ATTR_CHILLISPOT_LOCATION                  25 /* string */
+#define	RADIUS_ATTR_CHILLISPOT_OLD_LOCATION              26 /* string */
+#define	RADIUS_ATTR_CHILLISPOT_LOCATION_CHANGE_COUNT     27 /* integer */
 
 #define RADIUS_ATTR_CHILLISPOT_SYS_UPTIME                40 /* integer */
 #define RADIUS_ATTR_CHILLISPOT_SYS_LOADAVG               41 /* string */
@@ -64,6 +70,15 @@
 #define RADIUS_ATTR_CHILLISPOT_DHCP_DOMAIN               65 /* string */
 
 #define RADIUS_ATTR_CHILLISPOT_INJECT_URL                70 /* string */
+
+#define RADIUS_ATTR_CHILLISPOT_GARDEN_INPUT_OCTETS       80 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_GARDEN_OUTPUT_OCTETS      81 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_GARDEN_INPUT_GIGAWORDS    82 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_GARDEN_OUTPUT_GIGAWORDS   83 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_OTHER_INPUT_OCTETS        84 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_OTHER_OUTPUT_OCTETS       85 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_OTHER_INPUT_GIGAWORDS     86 /* integer */
+#define RADIUS_ATTR_CHILLISPOT_OTHER_OUTPUT_GIGAWORDS    87 /* integer */
 
 #define RADIUS_VALUE_CHILLISPOT_NAS_VIEWPOINT             1
 #define RADIUS_VALUE_CHILLISPOT_CLIENT_VIEWPOINT          2

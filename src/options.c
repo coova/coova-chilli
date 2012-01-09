@@ -49,7 +49,7 @@ int option_aton(struct in_addr *addr, struct in_addr *mask,
   c = sscanf(pool, "%u.%u.%u.%u/%u.%u.%u.%u",
 	     &a1, &a2, &a3, &a4,
 	     &m1, &m2, &m3, &m4);
-
+  
   switch (c) {
   case 4:
     mask->s_addr = htonl(0xffffff00);
@@ -59,7 +59,7 @@ int option_aton(struct in_addr *addr, struct in_addr *mask,
       log_err(0, "Invalid mask");
       return -1; /* Invalid mask */
     }
-    mask->s_addr = htonl(0xffffffff << (32 - m1));
+    mask->s_addr = m1 > 0 ? htonl(0xffffffff << (32 - m1)) : 0;
     break;
   case 8:
     if (m1 >= 256 ||  m2 >= 256 || m3 >= 256 || m4 >= 256) {
@@ -292,6 +292,12 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.proxysecret)) return 0;
   
   if (!option_s_l(bt, &o.dhcpif)) return 0;
+#ifdef ENABLE_MULTILAN
+  for (i=0; i < MAX_MOREIF; i++) {
+    if (!option_s_l(bt, &o.moreif[i].dhcpif)) return 0;
+    if (!option_s_l(bt, &o.moreif[i].vlan)) return 0;
+  }
+#endif
   if (!option_s_l(bt, &o.routeif)) return 0;
   if (!option_s_l(bt, &o.peerkey)) return 0;
 
@@ -346,7 +352,12 @@ int options_fromfd(int fd, bstring bt) {
 
   if (!option_s_l(bt, &o.uamaliasname)) return 0;
   if (!option_s_l(bt, &o.uamhostname)) return 0;
-  
+
+#ifdef ENABLE_REDIRINJECT
+  if (!option_s_l(bt, &o.inject)) return 0;
+  if (!option_s_l(bt, &o.inject_ext)) return 0;
+#endif
+
   for (i=0; i < MAX_UAM_DOMAINS; i++) {
     if (!option_s_l(bt, &o.uamdomains[i])) 
       return 0;
@@ -476,6 +487,12 @@ int options_save(char *file, bstring bt) {
   if (!option_s_s(bt, &o.proxysecret)) return 0;
 
   if (!option_s_s(bt, &o.dhcpif)) return 0;
+#ifdef ENABLE_MULTILAN
+  for (i=0; i < MAX_MOREIF; i++) {
+    if (!option_s_s(bt, &o.moreif[i].dhcpif)) return 0;
+    if (!option_s_s(bt, &o.moreif[i].vlan)) return 0;
+  }
+#endif
   if (!option_s_s(bt, &o.routeif)) return 0;
   if (!option_s_s(bt, &o.peerkey)) return 0;
 
@@ -530,6 +547,11 @@ int options_save(char *file, bstring bt) {
 
   if (!option_s_s(bt, &o.uamaliasname)) return 0;
   if (!option_s_s(bt, &o.uamhostname)) return 0;
+
+#ifdef ENABLE_REDIRINJECT
+  if (!option_s_s(bt, &o.inject)) return 0;
+  if (!option_s_s(bt, &o.inject_ext)) return 0;
+#endif
 
   for (i = 0; i < MAX_UAM_DOMAINS; i++) {
     if (!option_s_s(bt, &o.uamdomains[i])) 

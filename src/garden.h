@@ -19,12 +19,23 @@
 #ifndef _GARDEN_H_
 #define _GARDEN_H_
 
+#include "pkt.h"
+
 typedef struct pass_through_t {
   struct in_addr host;              /* IP or Network */
   struct in_addr mask;              /* Netmask */
   uint8_t proto;                    /* TCP, UDP, or ICMP */
   uint16_t port;                    /* TCP or UDP Port */
+#ifdef ENABLE_GARDENEXT
+  time_t expiry;
+#endif
 } pass_through;
+
+#define pt_equal(a,b) (\
+  (a)->host.s_addr == (b)->host.s_addr && \
+  (a)->mask.s_addr == (b)->mask.s_addr && \
+  (a)->proto       == (b)->proto       && \
+  (a)->port        == (b)->port)
 
 #ifdef ENABLE_CHILLIREDIR
 typedef struct regex_pass_through_t {
@@ -48,20 +59,49 @@ int regex_pass_throughs_from_string(regex_pass_through *ptlist,
 
 int pass_through_add(pass_through *ptlist, 
 		     uint32_t ptlen, uint32_t *ptcnt, 
-		     pass_through *pt, char is_dyn);
+		     pass_through *pt, char is_dyn
+#ifdef HAVE_PATRICIA
+		     , patricia_tree_t *ptree
+#endif
+		     );
 
 int pass_through_rem(pass_through *ptlist, 
-		     uint32_t ptlen, uint32_t *ptcnt, 
-		     pass_through *pt);
+		     uint32_t *ptcnt, 
+		     pass_through *pt
+#ifdef HAVE_PATRICIA
+		     , patricia_tree_t *ptree
+#endif
+		     );
 
 int pass_throughs_from_string(pass_through *ptlist, 
 			      uint32_t ptlen, uint32_t *ptcnt, 
-			      char *s, char is_dyn, char is_rem);
+			      char *s, char is_dyn, char is_rem
+#ifdef HAVE_PATRICIA
+			      , patricia_tree_t *ptree
+#endif
+			      );
 
-int garden_check(pass_through *ptlist, int ptcnt, uint8_t *pack, int dst);
+int garden_check(pass_through *ptlist, uint32_t *ptcnt, 
+		 pass_through **pt_match,
+		 struct pkt_ipphdr_t *ipph, int dst
+#ifdef HAVE_PATRICIA
+		 , patricia_tree_t *ptree
+#endif
+		 );
 
 #ifdef ENABLE_CHILLIQUERY
 void garden_print(int fd);
+#endif
+
+#ifdef HAVE_PATRICIA
+int garden_patricia_print(int fd, patricia_tree_t *ptree);
+int garden_patricia_check(patricia_tree_t *ptree, 
+			  pass_through *ptlist, uint32_t *ptcnt,
+			  struct pkt_ipphdr_t *ipph, int dst);
+void garden_patricia_load_list(patricia_tree_t **pptree,
+			       pass_through *ptlist,
+			       uint32_t ptcnt);
+void garden_patricia_reload();
 #endif
 
 #ifdef ENABLE_UAMDOMAINFILE

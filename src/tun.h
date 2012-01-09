@@ -33,7 +33,7 @@ struct tun_t {
   int addrs;   /* Number of allocated IP addresses */
   int routes;  /* One if we allocated an automatic route */
   int routeidx; /* default route interface index */
-  int (*cb_ind) (struct tun_t *tun, void *pack, size_t len, int idx);
+  int (*cb_ind) (struct tun_t *tun, struct pkt_buffer *pb, int idx);
 
 #ifdef ENABLE_MULTIROUTE
   select_ctx *sctx;
@@ -84,7 +84,7 @@ int tun_setaddr(struct tun_t *this, struct in_addr *our_adr, struct in_addr *his
 int tun_addroute(struct tun_t *this, struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask);
 int tun_delroute(struct tun_t *this, struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask);*/
 
-int tun_set_cb_ind(struct tun_t *this, int (*cb_ind) (struct tun_t *tun, void *pack, size_t len, int idx));
+int tun_set_cb_ind(struct tun_t *this, int (*cb_ind) (struct tun_t *tun, struct pkt_buffer *pb, int idx));
 
 int tun_setaddr(struct tun_t *this, struct in_addr *addr, struct in_addr *dstaddr, struct in_addr *netmask);
 

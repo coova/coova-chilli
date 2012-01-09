@@ -73,11 +73,6 @@ struct chilli_module {
    struct radius_packet_t *req, struct radius_packet_t *resp);
 
   /* lower level handers */
-#define CHILLI_DHCP_OFFER    1
-#define CHILLI_DHCP_ACK      2
-#define CHILLI_DHCP_NAK      3
-#define CHILLI_DHCP_RELAY    4
-#define CHILLI_DHCP_PROXY    5
   size_t (* dhcp_handler) 
   (int, struct app_conn_t *, struct dhcp_conn_t *, 
    uint8_t *, size_t, uint8_t *, size_t);

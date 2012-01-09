@@ -44,7 +44,7 @@ ChilliSpot-Bandwidth-Max-Up:14559, 4:Integer:-:X:-:X: X : Maximum bandwidth up
 ChilliSpot-Bandwidth-Max-Down:14559, 5:Integer:-:X:-:X: X : Maximum bandwidth down
 ChilliSpot-Config:14559, 6:String:X:X:-:X:X:Configurations passed between chilli and back-end as name value pairs
 ChilliSpot-Lang:14559, 7:String:X:-:-:-:-:Language selected in user interface
-ChilliSpot-Version:14559, 8:String:X:-:-:-:-:Version of Chilli sending this AccessRequest
+ChilliSpot-Version:14559, 8:String:X:-:-:-:-:Contains the version of the running CoovaChilli
 ChilliSpot-DHCP-Netmask:14559, 61 : IPaddr  : - : X : - : - : - : DHCP IP netmask of the user, which is configurable during MAC authentication in the Access-Accept.
 ChilliSpot-DHCP-DNS1:14559, 62 : IPaddr  : - : X : - : - : - : DHCP DNS1 of the user, which is configurable during MAC authentication in the Access-Accept.
 ChilliSpot-DHCP-DNS2:14559, 63 : IPaddr  : - : X : - : - : - : DHCP DNS2 of the user, which is configurable during MAC authentication in the Access-Accept.

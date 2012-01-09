@@ -48,10 +48,12 @@ option "condown"     - "Script to run after user logoff" string no
 option "macup"       - "Script to run after initial DHCP"  string no
 option "macdown"     - "Script to run after DHCP release" string no
 option "vlanupdate"  - "Script to run after 802.1Q/VLAN id assignment" string no
+option "vlanlocation" - "VLAN is to be used as location" flag off
 option "locationupdate" - "Script to run after change of location" string no
 option "locationstopstart" - "Restart the RADIUS accounting stream with new session-id" flag off
 option "locationcopycalled" - "Copy Called-Station-Id from proxy RADIUS" flag off
 option "locationimmediateupdate" - "Immediately do an accounting interim update on proxy accounting" flag off
+option "locationopt82" - "Use DHCP Option 82 for location" flag off
 
 option "txqlen"      - "TX Queue length for tun interface (linux only)"  int default="100" no
 option "tundev"      - "TUN/TAP Device, as in tun0 or tap1" string no
@@ -110,6 +112,7 @@ option "proxylocattr" - "The attribute in proxy to be used for the loc= query st
 
 # DHCP parameters
 option "dhcpif"      - "Local Ethernet interface"    string no
+option "moreif"      - "Multi-LAN more interfaces"   string no multiple
 option "dhcpmac"     - "DHCP Interface MAC Address"       string no
 option "dhcpmacset"  - "Option to have dhcpif configured with dhcpmac" flag off
 option "nexthop"     - "Next Hop MAC address"       string no
@@ -199,6 +202,7 @@ option "cmdsocket"   - "path to the command unix socket" string no
 option "radiusoriginalurl" - "Turn on the sending of ChilliSpot-OriginalURL in Access-Request" flag off
 option "swapoctets"    - "Swap the meaning of input/output octets/packets" flag   off
 option "usestatusfile" - "Use the status file to keep track of sessions" string no
+option "statusfilesave" - "Aggressively save the status of sessions to status file" flag off
 option "localusers"    - "File keep 'Local' usernames and passwords" string no
 option "postauthproxy" - "IP of an upstream transparent proxy" string no
 option "postauthproxyport" - "Port of an upstream transparent proxy" int default="0" no
@@ -212,9 +216,11 @@ option "dnsparanoia"   - "Inspect DNS packets and drop responses with any non- A
 option "seskeepalive"  - "Keep sessions 'alive' after a restart of the server" flag off
 
 option "usetap"        - "Use a TAP instead of TUN (linux only)" flag   off
+option "noarpentries"  - "Do not create arp table entries in when using TAP." flag off
 option "routeif"       - "Turns on 'multi-routing' and defines default route" string no
 option "framedservice" - "Use Service-Type = Framed instead of Login" flag  off
 option "tcpwin"	       - "Change TCP window size to this value to help prevent congestion" int default="0" no
+option "scalewin"      - "Scale the TCP window when bandwidth shaping" flag off
 option "tcpmss"	       - "Change TCP maximum window size (mss) option in TCP traffic" int default="0" no
 option "maxclients"    - "Maximum number of clients/subscribers" int default="512" no
 
@@ -223,8 +229,14 @@ option "challengetimeout2" - "Timeout in seconds for challenge during login" int
 
 option "redir"  - "Enable redir (redirection) daemon" flag off
 option "inject"  - "Enable redir injection" string no
+option "injectext"  - "Enable redir injection extended script" string no
+option "injectwispr"  - "Enable redir injection of WISPr" flag off
 
 option "routeonetone" - "When using routeif, do one-to-one NAT" flag off
+
+option "nousergardendata" - "Do not consider walled garden for authorized session accounting" flag off
+option "uamgardendata" - "Enable a RADIUS accounting session for walled garden data based on IP lease life-cycle" flag off
+option "uamotherdata" - "Enable accounting for dropped 'Other' of IP session" flag off
 
 option "sslkeyfile"  - "SSL private key file in PEM format" string no
 option "sslkeypass"  - "SSL private key password" string no
@@ -242,6 +254,7 @@ option "ipwhitelist" - "Binary IP White List file" string no
 option "uamdomainfile" - "Load uamdomains (regex) from file" string no
 
 option "layer3" - "Layer3 only" flag off
+option "patricia" - "Use patricia tries for walled garden lookup" flag off
 option "redirdnsreq" - "Send DNS query on redirect to pick of DNS based walled garden" flag off
 
 option "kname" - "Enable the use of the coova kernel module instance of this namem" string no
@@ -249,3 +262,11 @@ option "moddir"   - "Directory for dynamically loaded modules" string no
 option "module"   - "Dynamically loaded module" string no multiple
 
 option "dhcpopt" - "Set a DHCP option using a hex string" string no multiple
+
+option "extadmvsa" - "Extended administrative-user VSA script support" string no multiple
+
+option "dhcpnotidle" - "DHCP counted for preventing idle-timeout" flag off
+
+option "ipv6" - "Enable IPv6 support" flag off
+option "ipv6only" - "Enable IPv6-Only" flag off
+

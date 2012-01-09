@@ -26,16 +26,16 @@ void sys_err(int pri, char *fn, int ln, int en, const char *fmt, ...) {
     int sz;
     
     bvformata(sz, bt, fmt, fmt);
-    
-    if (_options.foreground && _options.debug) {
-      fprintf(stderr, "%s: %d: %d (%s) %s\n", fn, ln, en, en ? strerror(en) : "Debug", bt->data);
-    } else {
-      if (en)
-	syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
-      else
-	syslog(pri, "%s: %d: %s", fn, ln, bt->data);
+    if (sz == BSTR_OK) {
+      if (_options.foreground && _options.debug) {
+	fprintf(stderr, "%s: %d: %d (%s) %s\n", fn, ln, en, en ? strerror(en) : "Debug", bt->data);
+      } else {
+	if (en)
+	  syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
+	else
+	  syslog(pri, "%s: %d: %s", fn, ln, bt->data);
+      }
     }
-    
     bdestroy(bt);
   }
 }
@@ -48,26 +48,28 @@ void sys_errpack(int pri, char *fn, int ln, int en, struct sockaddr_in *peer,
   int n;
   
   bvformata(sz, bt, fmt, fmt);
+  if (sz == BSTR_OK) {
 
-  bassignformat(bt2, ". Packet from %s:%u, length: %d, content:",
-		inet_ntoa(peer->sin_addr),
-		ntohs(peer->sin_port),
-		len);
-
-  bconcat(bt, bt2);
-
-  for(n=0; n < len; n++) {
-    bassignformat(bt, " %02hhx", ((unsigned char*)pack)[n]);
+    bassignformat(bt2, ". Packet from %s:%u, length: %d, content:",
+		  inet_ntoa(peer->sin_addr),
+		  ntohs(peer->sin_port),
+		  len);
+    
     bconcat(bt, bt2);
-  }
+    
+    for(n=0; n < len; n++) {
+      bassignformat(bt, " %02hhx", ((unsigned char*)pack)[n]);
+      bconcat(bt, bt2);
+    }
   
-  if (_options.foreground && _options.debug) {
-    fprintf(stderr, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
-  } else {
-    if (en)
-      syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
-    else
-      syslog(pri, "%s: %d: %s", fn, ln, bt->data);
+    if (_options.foreground && _options.debug) {
+      fprintf(stderr, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
+    } else {
+      if (en)
+	syslog(pri, "%s: %d: %d (%s) %s", fn, ln, en, strerror(en), bt->data);
+      else
+	syslog(pri, "%s: %d: %s", fn, ln, bt->data);
+    }
   }
 
   bdestroy(bt);

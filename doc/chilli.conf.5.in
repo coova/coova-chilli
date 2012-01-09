@@ -504,6 +504,10 @@ option must be specified.
 Use the TAP interface instead of TUN (Linux only).
 
 .TP
+.B noarpentries
+Do not create arp table entries in when using TAP. (Linux only).
+
+.TP
 .BI nexthop " mac-address"
 Specify a MAC address which is the layer 2 next hop to route
 packets to (used with

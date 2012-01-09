@@ -359,7 +359,6 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   struct sockaddr_nl local;
   size_t addr_len;
   int fd;
-  int status;
   
   struct sockaddr_nl nladdr;
   struct iovec iov;
@@ -442,7 +441,8 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   req.n.nlmsg_seq = 0;
   req.n.nlmsg_flags |= NLM_F_ACK;
 
-  status = sendmsg(fd, &msg, 0); 
+  if (sendmsg(fd, &msg, 0) < 0)
+    log_err(errno, "sendmsg()");
 
   dev_set_flags(tuntap(this).devname, IFF_UP | IFF_RUNNING); 
 
@@ -775,7 +775,7 @@ int tun_free(struct tun_t *tun) {
 }
 
 int tun_set_cb_ind(struct tun_t *this, 
-		   int (*cb_ind) (struct tun_t *tun, void *pack, size_t len, int idx)) {
+		   int (*cb_ind) (struct tun_t *tun, struct pkt_buffer *pb, int idx)) {
   this->cb_ind = cb_ind;
   return 0;
 }
@@ -785,12 +785,15 @@ struct tundecap {
   int idx;
 };
 
-static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
+static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
   struct tundecap *c = (struct tundecap *)ctx;
   struct pkt_iphdr_t *iph;
   int ethsize = 0;
 
   char ethhdr = (tun(c->this, c->idx).flags & NET_ETHHDR) != 0;
+
+  size_t length = pkt_buffer_length(pb);
+  uint8_t *packet = pkt_buffer_head(pb);
 
   if (c->idx) ethhdr = 0;
 
@@ -866,7 +869,7 @@ static int tun_decaps_cb(void *ctx, void *packet, size_t length) {
     }
   }
 
-  return c->this->cb_ind(c->this, packet, length, c->idx);
+  return c->this->cb_ind(c->this, pb, c->idx);
 }
 
 int tun_decaps(struct tun_t *this, int idx) {
@@ -890,46 +893,60 @@ int tun_decaps(struct tun_t *this, int idx) {
   
 #elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   struct tundecap c;
-  uint8_t buffer[PKT_MAX_LEN];
-  ssize_t status;
+  struct pkt_buffer pb;
+  uint8_t packet[PKT_MAX_LEN];
+  ssize_t length;
+
+  pkt_buffer_init(&pb, packet, sizeof(packet), PKT_BUFFER_IPOFF);
   
   c.this = this;
   c.idx = idx;
   
-  if ((status = safe_read(tun(this, idx).fd, buffer, sizeof(buffer))) <= 0) {
+  if ((length = safe_read(tun(this, idx).fd, 
+			  pkt_buffer_head(&pb), 
+			  pkt_buffer_size(&pb))) <= 0) {
     log_err(errno, "read() failed");
     return -1;
   }
+
+  pb.length = length;
   
   /*
-    log_dbg("tun_decaps(%d) %s",status,tun(tun,idx).devname);
+    log_dbg("tun_decaps(%d) %s",length,tun(tun,idx).devname);
   */
 
   if (this->cb_ind) {
 #if defined (__OpenBSD__)
     /* tun interface adds 4 bytes to front of packet under OpenBSD */
-     return tun_decaps_cb(&c, buffer+4, status-4);
+    pb.length -= 4;
+    pb.offset += 4;
 #else
-     return tun_decaps_cb(&c, buffer, status);
+    return tun_decaps_cb(&c, &pb);
 #endif
   }
 
   return 0;
 
 #elif defined (__sun__)
-  unsigned char buffer[PKT_MAX_LEN];
+  struct pkt_buffer pb;
+  uint8_t packet[PKT_MAX_LEN+4];
+  ssize_t length;
   struct strbuf sbuf;
   int f = 0;
+
+  pkt_buffer_init(&pb, packet, sizeof(packet), 4);
   
-  sbuf.maxlen = PKT_MAX_LEN;      
-  sbuf.buf = buffer;
+  sbuf.maxlen = pkt_buffer_size(&pb);
+  sbuf.buf = pkt_buffer_head(&pb);
   if (getmsg(tun(this, idx).fd, NULL, &sbuf, &f) < 0) {
     log_err(errno, "getmsg() failed");
     return -1;
   }
 
+  pb.length = sbuf.len;
+
   if (this->cb_ind)
-    return this->cb_ind(this, &packet, sbuf.len);
+    return this->cb_ind(this, &pb);
   return 0;
   
 #endif
@@ -1067,7 +1084,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     len  -= ethlen;
   }
 
-#if(_debug_ > 1)
+#if(_debug_ > 0)
   log_dbg("tun_encaps(%s) len=%d", tun(tun,idx).devname, len);
 #endif
 

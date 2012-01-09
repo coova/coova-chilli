@@ -52,7 +52,11 @@ int loadstatus() {
   if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
 
   while ((c = fgetc(file)) != MARK_START) {
-    if (c == EOF) { fclose(file); return -1; }
+    if (c == EOF) { 
+      log_err(errno, "end of file");
+      fclose(file); 
+      return -1; 
+    }
   }
 
   time(&wall);
@@ -89,6 +93,7 @@ int loadstatus() {
     /* todo: read a md5 checksum or magic token */
 
     if ((c = fgetc(file)) != MARK_NEXT) {
+      log_err(errno, "bad binary file");
       fclose(file); 
       return -1;
     }
@@ -132,11 +137,14 @@ int loadstatus() {
 	memset(conn->dnat[n].mac, 0, PKT_ETH_ALEN); 
       }
       
+      log_dbg("checking IP %s", inet_ntoa(dhcpconn.hisip));
+
       /* add into ippool */
       if (ippool_getip(ippool, &newipm, &dhcpconn.hisip)) {
 	if (ippool_newip(ippool, &newipm, &dhcpconn.hisip, 1)) {
 	  if (ippool_newip(ippool, &newipm, &dhcpconn.hisip, 0)) {
 	    log_err(0, "Failed to allocate either static or dynamic IP address");
+	    conn->hisip.s_addr = 0;
 	  }
 	}
       }
@@ -150,6 +158,7 @@ int loadstatus() {
 	  struct app_conn_t *aconn = 0;
 	  
 	  if ((c = fgetc(file)) != MARK_NEXT) {
+	    log_err(errno, "bad binary file");
 	    fclose(file); 
 	    return -1;
 	  }
@@ -162,10 +171,6 @@ int loadstatus() {
 	    appconn.uplink = newipm;
 	    appconn.dnlink = conn;
 	    
-	    /* initialize app_conn_t */
-	    memcpy(aconn, &appconn, sizeof(struct app_conn_t));
-	    conn->peer = aconn;
-
 	    /*
 	     * Fix time_t values:
 	     *  start_time, interim_time,
@@ -177,12 +182,16 @@ int loadstatus() {
 	    localizetime(appconn.s_state.last_sent_time);
 	    localizetime(appconn.s_state.last_time);
 	    localizetime(appconn.s_state.uamtime);
-	    
+
+	    /* initialize app_conn_t */
+	    memcpy(aconn, &appconn, sizeof(struct app_conn_t));
+	    conn->peer = aconn;
+
 	    if (newipm) {
 	      newipm->peer = aconn;
 	      
 #ifdef ENABLE_UAMANYIP
-	      if (appconn.natip.s_addr)
+	      if (aconn->natip.s_addr)
 		chilli_assign_snat(aconn, 1);
 #endif
 	      
@@ -191,6 +200,14 @@ int loadstatus() {
 			     &aconn->ourip, &aconn->mask,
 			     &_options.dns1, &_options.dns2);
 	    }
+
+#if defined(ENABLE_SESSGARDEN) && defined(HAVE_PATRICIA)
+	    if (aconn->s_params.pass_through_count) {
+	      garden_patricia_load_list(&aconn->ptree,
+					aconn->s_params.pass_throughs, 
+					aconn->s_params.pass_through_count);
+	    }
+#endif
 	  }
 	  
 	  /* todo: read a md5 checksum or magic token */
@@ -217,6 +234,7 @@ int loadstatus() {
 	if (fread(&appconn, sizeof(struct app_conn_t), 1, file) == 1) {
 
 	  if ((c = fgetc(file)) != MARK_NEXT) {
+	    log_err(errno, "bad binary file");
 	    fclose(file); 
 	    return -1;
 	  }
@@ -320,18 +338,28 @@ int printstatus() {
 
   while (dhcpconn) {
 
-    log_dbg("Saving dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	    dhcpconn->hismac[0], dhcpconn->hismac[1],
-	    dhcpconn->hismac[2], dhcpconn->hismac[3],
-	    dhcpconn->hismac[4], dhcpconn->hismac[5]);
-
-    fwrite(dhcpconn, sizeof(struct dhcp_conn_t), 1, file);
-    fputc(MARK_NEXT, file);
-    appconn = (struct app_conn_t *)dhcpconn->peer;
-    if (appconn) {
-      fwrite(appconn, sizeof(struct app_conn_t), 1, file);
+    switch(dhcpconn->authstate) {
+    case DHCP_AUTH_DROP:
+    case DHCP_AUTH_PASS:
+    case DHCP_AUTH_DNAT:
+    case DHCP_AUTH_SPLASH:
+    case DHCP_AUTH_ROUTER:
+      log_dbg("Saving dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s",
+	      dhcpconn->hismac[0], dhcpconn->hismac[1],
+	      dhcpconn->hismac[2], dhcpconn->hismac[3],
+	      dhcpconn->hismac[4], dhcpconn->hismac[5],
+	      inet_ntoa(dhcpconn->hisip));
+      
+      fwrite(dhcpconn, sizeof(struct dhcp_conn_t), 1, file);
       fputc(MARK_NEXT, file);
+      appconn = (struct app_conn_t *)dhcpconn->peer;
+      if (appconn) {
+	fwrite(appconn, sizeof(struct app_conn_t), 1, file);
+	fputc(MARK_NEXT, file);
+      }
+      break;
     }
+
     dhcpconn = dhcpconn->next;
   }
 
@@ -380,6 +408,7 @@ int printstatus() {
 	      appconn->s_params.sessiontimeout,
 	      appconn->s_params.sessionterminatetime);
     }
+
     dhcpconn = dhcpconn->next;
   }
   

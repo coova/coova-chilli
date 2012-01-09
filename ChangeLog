@@ -1,17 +1,33 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+* New compile time option ''--enable-useragent'' to turn on the recording of User-Agent in RADIUS
 * New compile time option ''--enable-sessionstate'' to further extend the use of ChilliSpot-Session-State to indicate reasons for disconnect
 * New compile time option ''--enable-sessionid'' to enable the use of a ChilliSpot-Session-Id that does not change during location awareness stop/start
 * Change to RADIUS proxy to allow RADIUS accounting for determining location awareness
 * New runtime option for proxyvsa called ''--locationupdate=/path/script'' to run a script on location change
-* New runtime flag option for proxyvsa called ''--locationstopstart'' to have the RADIUS acct session stopped, session-id updates, and started during location change
-* New runtime flag option for proxyvsa called ''--locationcopycalled'' to copy the Called-Station-Id from proxy RADIUS into that sent by chilli
-* New runtime flag option for proxyvsa called ''--locationimmediateupdate'' to have chilli do RADIUS acct immediately upon location change
-* New compile time option ''--enable-extadmvsa'' to enable extended VSA support in Administrative-User session
-* New runtime option ''--extadmvsa=x[,y]:/path/to/script[:/path/to/data]'' (when available) to add/handle vendor specific attributes to administrative-user session
+* New runtime flag option for proxyvsa ''--locationstopstart'' to have the RADIUS acct session stopped, session-id updates, and started during location change
+* New runtime flag option for proxyvsa ''--locationcopycalled'' to copy the Called-Station-Id from proxy RADIUS into that sent by chilli
+* New runtime flag option for proxyvsa ''--locationimmediateupdate'' to have chilli do RADIUS acct immediately upon location change
 * Fixed double RADIUS Accounting on macallowed/macallowlocal granted sessions; also adds MAC username
 * Added runtime option ''--childmax=128'' to define the max number of child processes
+* Added compile time option ''--enable-gardenaccounting'' to enable the splitting of garden vs. non-garden traffic
+** Added runtime option ''--uamgardendata'' to enable walled garden accounting using RADIUS accounting only
+** Added runtime option ''--uamotherdata'' to be used with above to also provide accounting for "other" traffic (DHCP, ARP, dropped, etc)
+** Added runtime option ''--nousergardendata'' that will have walled garden traffic counted separately from other user traffic post-authentication
+* Added option ''--vlanlocation'' to use VLAN as the ChilliSpot-Location
+* Added option ''--locationopt82'' whereby DHCP option 82 is used as Location
+* Added option ''--moreif'' to add additional LAN interfaces besides just dhcpif
+* Changed to be less aggressive in saving status file, unless you use ''--statusfilesave''
+* Added option ''--noarpentries'', do not create arp table entries in when using TAP.
+* Added option ''--injectext''  to enable redir injection extended script
+* Added option ''--injectwispr'' to enable redir injection of WISPr
+* Added option ''--patricia'' to use patricia tries for walled garden lookup
+* Added option ''--extadmvsa'' extended administrative-user VSA script support
+* Added option ''--dhcpnotidle'' DHCP counted for preventing idle-timeout
+* Added option ''--ipv6'' to Enable IPv6 support (experimental)
+* Added option ''--ipv6only'' to enable IPv6-Only (experimental)
+
 
 == ChangeLog (CoovaChilli-v1.2.8 svn revision 450) ==
 
@@ -166,7 +182,8 @@
 * Added ''sessionid'' (Acct-Session-Id in RADIUS) to initial redirect URL
 * Bug fixed thanks to Wichert Akkerman (idle-timeout, '&' encoding, long passwords)
 * Bug fix for when setting bandwidth limitations using chilli_query
-* Changes default uamlogoutip from 1.1.1.1 to 1.0.0.0 because of reports it disconnects VPN connections. 
+* Changes default uamlogoutip from 1.1.1.1 to 1.0.0.0 because of reports it disc
+onnects VPN connections. 
 * Added some compile time options to remove certain features (see configure script).
 * Changed ''--usestatusfile'' option from flag to an argument that takes a string (filename)
 * Compile-time option ''--enable-binstatusfile'' to enable the writing/reading of a binary status file

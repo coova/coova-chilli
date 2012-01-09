@@ -84,6 +84,9 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_EWTAPI
   "ENABLE_EWTAPI "
 #endif
+#ifdef ENABLE_GARDENACCOUNTING
+  "ENABLE_GARDENACCOUNTING "
+#endif
 #ifdef ENABLE_IEEE8021Q
   "ENABLE_IEEE8021Q "
 #endif
@@ -105,8 +108,14 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_LEAKYBUCKET
   "ENABLE_LEAKYBUCKET "
 #endif
+#ifdef ENABLE_LOCATION
+  "ENABLE_LOCATION "
+#endif
 #ifdef ENABLE_MINIPORTAL
   "ENABLE_MINIPORTAL "
+#endif
+#ifdef ENABLE_MULTILAN
+  "ENABLE_MULTILAN "
 #endif
 #ifdef ENABLE_MULTIROUTE
   "ENABLE_MULTIROUTE "
@@ -277,6 +286,10 @@ int main(int argc, char **argv) {
   else 
     _options.debug = 0;
 
+  /* pass-throughs */
+  memset(_options.pass_throughs, 0, sizeof(_options.pass_throughs));
+  _options.num_pass_throughs = 0;
+
   /** simple configuration parameters **/
   _options.layer3 = args_info.layer3_flag;
 #if(_debug_ && !defined(ENABLE_LAYER3))
@@ -287,6 +300,11 @@ int main(int argc, char **argv) {
   _options.gid = args_info.gid_arg;
   _options.mtu = args_info.mtu_arg;
   _options.usetap = args_info.usetap_flag;
+  _options.noarpentries = args_info.noarpentries_flag;
+#if(_debug_ && !defined(ENABLE_TAP))
+  if (_options.noarpentries) 
+    log_warn(0, "tap not implemented. build with --enable-tap");
+#endif
 #if(_debug_ && !defined(ENABLE_TAP))
   if (_options.usetap) 
     log_warn(0, "tap not implemented. build with --enable-tap");
@@ -364,6 +382,8 @@ int main(int argc, char **argv) {
   _options.seskeepalive = args_info.seskeepalive_flag;
   _options.uamallowpost = args_info.uamallowpost_flag;
   _options.redir = args_info.redir_flag;
+  _options.statusfilesave = args_info.statusfilesave_flag;
+  _options.dhcpnotidle = args_info.dhcpnotidle_flag;
 #if(_debug_ && !defined(ENABLE_CHILLIREDIR))
   if (_options.redir) 
     log_err(0, "chilli_redir not implemented. build with --enable-chilliredir");
@@ -389,16 +409,24 @@ int main(int argc, char **argv) {
     log_err(0, "redirdnsreq not implemented. build with --enable-redirdnsreq");
 #endif
 
+#ifdef ENABLE_IPV6
+  _options.ipv6 = args_info.ipv6_flag;
+  _options.ipv6only = args_info.ipv6only_flag;
+#endif
+
 #ifdef ENABLE_LEAKYBUCKET
+  _options.scalewin = args_info.scalewin_flag;
   _options.bwbucketupsize = args_info.bwbucketupsize_arg;
   _options.bwbucketdnsize = args_info.bwbucketdnsize_arg;
   _options.bwbucketminsize = args_info.bwbucketminsize_arg;
 #endif
 
 #ifdef ENABLE_PROXYVSA
+  _options.vlanlocation = args_info.vlanlocation_flag;
   _options.location_stop_start = args_info.locationstopstart_flag;
   _options.location_copy_called = args_info.locationcopycalled_flag;
   _options.location_immediate_update = args_info.locationimmediateupdate_flag;
+  _options.location_option_82 = args_info.locationopt82_flag;
   if (args_info.proxylocattr_given) {
     for (numargs = 0; numargs < args_info.proxylocattr_given 
 	   && numargs < PROXYVSA_ATTR_CNT; ++numargs)  {
@@ -440,6 +468,24 @@ int main(int argc, char **argv) {
   }
 
   _options.dhcpif = STRDUP(args_info.dhcpif_arg);
+
+#ifdef ENABLE_MULTILAN
+  for (numargs = 0; numargs < args_info.moreif_given &&
+	 numargs < MAX_MOREIF; ++numargs) {
+    char *nif = STRDUP(args_info.moreif_arg[numargs]);
+    char *vln = strchr(nif, '/');
+    _options.moreif[numargs].dhcpif = nif;
+    if (vln) {
+      if (strlen(vln) > 1) 
+	_options.moreif[numargs].vlan = vln + 1;
+      *vln = 0;
+    } else {
+      vln = strchr(nif, '.');
+      if (vln && strlen(vln) > 1) 
+	_options.moreif[numargs].vlan = vln + 1;
+    }
+  }
+#endif
 
   if (!args_info.radiussecret_arg) {
     log_err(0, "radiussecret must be specified!");
@@ -560,75 +606,51 @@ int main(int argc, char **argv) {
   }
 
   if (args_info.uamserver_arg) {
+    int uamserverport=80;
+
     if (_options.debug & DEBUG_CONF) {
       log_dbg("Uamserver: %s\n", args_info.uamserver_arg);
     }
-    memset(_options.uamserver, 0, sizeof(_options.uamserver));
-    _options.uamserverlen = 0;
+
     if (get_urlparts(args_info.uamserver_arg, hostname, USERURLSIZE, 
-		     &_options.uamserverport, 0)) {
+		     &uamserverport, 0)) {
       log_err(0, "Failed to parse uamserver: %s!", args_info.uamserver_arg);
       if (!args_info.forgiving_flag)
 	goto end_processing;
     }
 
     if (!args_info.uamaliasname_arg ||
-	strncmp(args_info.uamaliasname_arg, hostname, strlen(args_info.uamaliasname_arg))) {
+	strncmp(args_info.uamaliasname_arg, hostname, 
+		strlen(args_info.uamaliasname_arg))) {
       if (!(host = gethostbyname(hostname))) {
 	log_err(0, "Could not resolve IP address of uamserver: %s!", 
 		args_info.uamserver_arg);
       }
       else {
 	int j = 0;
+	pass_through pt;
+
+	memset(&pt, 0, sizeof(pt));
+	pt.port = uamserverport;
+	pt.mask.s_addr = ~0;
+
 	while (host->h_addr_list[j] != NULL) {
 	  if (_options.debug & DEBUG_CONF) {
 	    log_dbg("Uamserver IP address #%d: %s\n", j,
 		    inet_ntoa(*(struct in_addr*) host->h_addr_list[j]));
 	  }
-	  if (_options.uamserverlen>=UAMSERVER_MAX) {
-	    log_err(0,
-		    "Too many IPs in uamserver %s!",
-		    args_info.uamserver_arg);
-	    if (!args_info.forgiving_flag)
-	      goto end_processing;
-	  }
-	  else {
-	    _options.uamserver[_options.uamserverlen++] = 
-	      *((struct in_addr*) host->h_addr_list[j++]);
-	  }
-	}
-      }
-    }
-  }
 
-  if (args_info.uamhomepage_arg && *args_info.uamhomepage_arg) {
-    if (get_urlparts(args_info.uamhomepage_arg, hostname, USERURLSIZE, 
-		     &_options.uamhomepageport, 0)) {
-      log_err(0,"Failed to parse uamhomepage: %s!", 
-	      args_info.uamhomepage_arg);
-      if (!args_info.forgiving_flag)
-	goto end_processing;
-    }
+	  pt.host.s_addr = ((struct in_addr*) host->h_addr_list[j++])->s_addr;
 
-    if (!args_info.uamaliasname_arg ||
-	strncmp(args_info.uamaliasname_arg, hostname, strlen(args_info.uamaliasname_arg))) {
-      if (!(host = gethostbyname(hostname))) {
-	log_err(0,"Could not resolve uamhomepage server IP %s!", 
-		args_info.uamhomepage_arg);
-      }
-      else {
-	int j = 0;
-	while (host->h_addr_list[j] != NULL) {
-	  if (_options.uamserverlen>=UAMSERVER_MAX) {
-	    log_err(0,"Too many IPs in uamhomepage %s!",
-		    args_info.uamhomepage_arg);
-	    if (!args_info.forgiving_flag)
-	      goto end_processing;
-	  }
-	  else {
-	    _options.uamserver[_options.uamserverlen++] = 
-	      *((struct in_addr*) host->h_addr_list[j++]);
-	  }
+	  if (pass_through_add(_options.pass_throughs,
+			       MAX_PASS_THROUGHS,
+			       &_options.num_pass_throughs, &pt, 0
+#ifdef HAVE_PATRICIA
+			       , 0
+#endif
+			       ))
+	    log_err(0, "Too many pass-throughs! skipped %s:%d",
+		    inet_ntoa(pt.host), pt.port);
 	}
       }
     }
@@ -643,15 +665,25 @@ int main(int argc, char **argv) {
   _options.radiusoriginalurl = args_info.radiusoriginalurl_flag;
   _options.routeonetone = args_info.routeonetone_flag;
 
-  /* pass-throughs */
-  memset(_options.pass_throughs, 0, sizeof(_options.pass_throughs));
-  _options.num_pass_throughs = 0;
+#ifdef HAVE_PATRICIA
+  _options.patricia = args_info.patricia_flag;
+#endif
+
+#ifdef ENABLE_GARDENACCOUNTING
+  _options.nousergardendata = args_info.nousergardendata_flag;
+  _options.uamgardendata = args_info.uamgardendata_flag;
+  _options.uamotherdata = args_info.uamotherdata_flag;
+#endif
 
   for (numargs = 0; numargs < args_info.uamallowed_given; ++numargs) {
     pass_throughs_from_string(_options.pass_throughs,
 			      MAX_PASS_THROUGHS,
 			      &_options.num_pass_throughs,  
-			      args_info.uamallowed_arg[numargs], 0, 0);
+			      args_info.uamallowed_arg[numargs], 0, 0
+#ifdef HAVE_PATRICIA
+			      , 0
+#endif
+);
   }
 
 #ifdef ENABLE_DHCPOPT
@@ -1077,6 +1109,58 @@ int main(int argc, char **argv) {
   }
   else {
     _options.proxysecret = STRDUP(args_info.proxysecret_arg);
+  }
+#endif
+
+#ifdef ENABLE_REDIRINJECT
+  _options.inject = STRDUP(args_info.inject_arg);
+  _options.inject_ext = STRDUP(args_info.injectext_arg);
+  _options.inject_wispr = args_info.injectwispr_flag;
+#endif
+
+#ifdef ENABLE_EXTADMVSA
+  if (args_info.extadmvsa_given) {
+    for (numargs = 0; numargs < args_info.extadmvsa_given 
+	   && numargs < EXTADMVSA_ATTR_CNT; ++numargs)  {
+      int len = strlen(args_info.extadmvsa_arg[numargs]);
+      if (len > 0 && len < 256) {
+	unsigned int i[2];
+	char s[256];
+	
+	if (sscanf(args_info.extadmvsa_arg[numargs], 
+		   "%u,%u:%s", &i[0], &i[1], s) == 3) {
+	  char *idx = strchr(s, ':');
+	  _options.extadmvsa[numargs].attr_vsa = i[0];
+	  _options.extadmvsa[numargs].attr = i[1];
+	  if (idx) *idx = 0;
+	  safe_strncpy(_options.extadmvsa[numargs].script, 
+		       s, sizeof(_options.extadmvsa[numargs].script)-1);
+	  if (idx) {
+	    safe_strncpy(_options.extadmvsa[numargs].data, 
+			 idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
+	  }
+	} else if (sscanf(args_info.extadmvsa_arg[numargs], 
+			  "%u:%s", &i[0], s) == 2) {
+	  char *idx = strchr(s, ':');
+	  _options.extadmvsa[numargs].attr = i[0];
+	  if (idx) *idx = 0;
+	  safe_strncpy(_options.extadmvsa[numargs].script, 
+		       s, sizeof(_options.extadmvsa[numargs].script)-1);
+	  if (idx) {
+	    safe_strncpy(_options.extadmvsa[numargs].data, 
+			 idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
+	  }
+	} else {
+	  log_err(0, "invalid input %s", args_info.extadmvsa_arg[numargs]);
+	}
+      }
+
+      log_dbg("Extended admin-user attr (%d/%d) data=%s script=%s", 
+	      (int)_options.extadmvsa[numargs].attr_vsa, 
+	      (int)_options.extadmvsa[numargs].attr,
+	      _options.extadmvsa[numargs].data,
+	      _options.extadmvsa[numargs].script);
+    }
   }
 #endif
 

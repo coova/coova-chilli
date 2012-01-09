@@ -16,24 +16,21 @@
  * 
  */
 
-#ifndef _SSL_H_
-#define _SSL_H_
+#ifndef _CHILLI_SSL_H_
+#define _CHILLI_SSL_H_
 #include "system.h"
 
 #ifdef HAVE_SSL
 
 #ifdef HAVE_MATRIXSSL
 #include "mssl.h"
-
 typedef struct {
-
   sslKeys_t * keys;
-
   char ready;
-
 } openssl_env;
-
 #endif
+
+#if defined(HAVE_OPENSSL) || defined(HAVE_CYASSL)
 
 #ifdef HAVE_OPENSSL
 #include <openssl/buffer.h>
@@ -43,6 +40,19 @@ typedef struct {
 #include <openssl/ssl.h>
 #include <openssl/pem.h>
 #include <openssl/engine.h>
+#elif HAVE_CYASSL
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <string.h>
+
+#include <cyassl/ssl.h>
+#include <cyassl/openssl/bio.h>
+#include <cyassl/openssl/crypto.h>
+#include <cyassl/openssl/x509.h>
+#include <cyassl/openssl/ssl.h>
+#include <cyassl/openssl/pem.h>
+#endif
 
 #define OPENSSL_TMPKEY_RSA512   0
 #define OPENSSL_TMPKEY_RSA1024  1
@@ -62,7 +72,9 @@ typedef struct {
 #endif
   SSL_METHOD *meth;
   SSL_CTX *ctx;
+#ifdef HAVE_OPENSSL
   ENGINE *engine;
+#endif
   void *tmpKeys[OPENSSL_TMPKEY_MAX];
   char ready;
 } openssl_env;

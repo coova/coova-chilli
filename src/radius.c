@@ -220,7 +220,8 @@ static int radius_queue_next(struct radius_t *this) {
  try_again:
   
   qnext = this->qnext;
-  
+
+  log_dbg("qnext=%d",qnext);
   if (this->queue[qnext].state == 1) {
     
     log_dbg("skipping over active idx %d radius-id=%d", 

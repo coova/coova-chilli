@@ -207,10 +207,10 @@ int ippool_new(struct ippool_t **this,
   struct in_addr stataddr;
   struct in_addr statmask;
   struct in_addr naddr;
-  unsigned int m;
-  unsigned int listsize;
-  unsigned int dynsize;
-  unsigned int statsize;
+  uint32_t m;
+  uint32_t listsize;
+  uint32_t dynsize;
+  uint32_t statsize;
 
   if (!allowdyn) {
     dynsize = 0;
@@ -221,15 +221,24 @@ int ippool_new(struct ippool_t **this,
       return -1;
     }
 
+    /* auto-dhcpstart if not already set */
+    if (!start) 
+      start = ntohl(addr.s_addr & ~(mask.s_addr));
+
+    /* ensure we have the true network space */
+    addr.s_addr = addr.s_addr & mask.s_addr;
+
     m = ntohl(mask.s_addr);
     dynsize = ((~m)+1); 
 
-    if ( ((ntohl(addr.s_addr) + start)&m) != (ntohl(addr.s_addr)&m) ) {
-      log_err(0, "Invalid dhcpstart (outside of subnet)!");
+    if ( ((ntohl(addr.s_addr) + start) & m) != (ntohl(addr.s_addr) & m) ) {
+      addr.s_addr = htonl(ntohl(addr.s_addr) + start);
+      log_err(0, "Invalid dhcpstart=%d (%s) (outside of subnet)!",
+	      start, inet_ntoa(addr));
       return -1;
     }
 
-    if ( ((ntohl(addr.s_addr) + end)&m) != (ntohl(addr.s_addr)&m) ) {
+    if ( ((ntohl(addr.s_addr) + end) & m) != (ntohl(addr.s_addr) & m) ) {
       log_err(0, "Invalid dhcpend (outside of subnet)!");
       return -1;
     }
@@ -242,7 +251,8 @@ int ippool_new(struct ippool_t **this,
       }
 
       if ((end - start) > dynsize) {
-	log_err(0, "Too many IPs between dhcpstart=%d and dhcpend=%d for network", start, end);
+	log_err(0, "Too many IPs between dhcpstart=%d and dhcpend=%d",
+		start, end);
 	return -1;
       }
 
@@ -288,6 +298,9 @@ int ippool_new(struct ippool_t **this,
       return -1;
     }
 
+    /* ensure we have the true network space */
+    stataddr.s_addr = stataddr.s_addr & statmask.s_addr;
+
     m = ntohl(statmask.s_addr);
     statsize = ((~m)+1);
 
@@ -320,7 +333,8 @@ int ippool_new(struct ippool_t **this,
        ((1 << (*this)->hashlog) < listsize);
        (*this)->hashlog++);
 
-  log_dbg("Hashlog %d %d %d\n", (*this)->hashlog, listsize, (1 << (*this)->hashlog));
+  log_dbg("Hashlog %d %d %d", (*this)->hashlog, listsize, 
+	  (1 << (*this)->hashlog));
 
   /* Determine hashsize */
   (*this)->hashsize = 1 << (*this)->hashlog; /* Fails if mask=0: All Internet*/
@@ -393,7 +407,6 @@ int ippool_new(struct ippool_t **this,
 }
 
 
-
 /* Delete existing address pool */
 int ippool_free(struct ippool_t *this) {
   free(this->hash);
@@ -437,7 +450,8 @@ int ippool_newip(struct ippool_t *this,
   struct ippoolm_t *p2 = NULL;
   uint32_t hash;
   
-  log_dbg("Requesting new %s ip: %s", statip ? "static" : "dynamic", inet_ntoa(*addr));
+  log_dbg("Requesting new %s ip: %s", 
+	  statip ? "static" : "dynamic", inet_ntoa(*addr));
 
   /* If static:
    *   Look in dynaddr. 
@@ -632,7 +646,7 @@ int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
   }
 
   if (member->is_static) {
-
+    
     if (ippool_hashdel(this, member))
       return -1;
 
@@ -644,7 +658,7 @@ int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
     else {
       this->firststat = member;
     }
-
+    
     this->laststat = member;
     
     member->in_use = 0;

@@ -36,9 +36,9 @@ int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
     /*log_dbg("SETTING non-blocking");*/
 #endif
 
-    /*if (ndelay_on(sock) < 0) {
+    if (ndelay_on(sock) < 0) {
       log_err(errno, "could not set non-blocking");
-      }*/
+    }
 
     if (safe_connect(sock, 
 		     (struct sockaddr *) &server, 

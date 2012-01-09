@@ -35,13 +35,12 @@ and a short description:
 See
 .I http://www.coova.org/
 for further documentation and community support.
-The original ChilliSpot project homepage is/was at www.chillispot.org.
 
 .SH AUTHORS
 
 David Bird <david@coova.com>
 
-Copyright (C) 2006-2010 Coova Techcnologies, LLC <support@coova.com>,
+Copyright (C) 2006-2011 Coova Techcnologies, LLC <support@coova.com>,
 
 CoovaChilli is licensed under the GNU General Public License.
 

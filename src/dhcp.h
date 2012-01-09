@@ -149,6 +149,15 @@ struct dhcp_conn_t {
   uint16_t tag8021q;
 #endif
 
+#ifdef ENABLE_MULTILAN
+#define dhcp_conn_idx(x)       ((x)->lanidx)
+#define dhcp_conn_set_idx(x,c) ((x)->lanidx = (c)->idx)
+  int lanidx;
+#else
+#define dhcp_conn_idx(x) 0
+#define dhcp_conn_set_idx(x,c) 
+#endif
+
 #ifdef ENABLE_IPV6
 #endif
 
@@ -172,8 +181,6 @@ struct dhcp_conn_t {
  * 
  *************************************************************/
 
-#define MAX_RAWIF 1
-
 struct dhcp_t {
 
   /* network interfaces */
@@ -186,11 +193,8 @@ struct dhcp_t {
 
   int numconn;          /* Maximum number of connections */
 
-#if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
-  char * rbuf;
-  size_t rbuf_max;
-  size_t rbuf_offset;
-  size_t rbuf_len;
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
+  struct pkt_buffer pb;
 #endif
 
   int debug;            /* Set to print debug messages */
@@ -210,8 +214,8 @@ struct dhcp_t {
   struct in_addr uamlisten; /* IP address to redirect HTTP requests to */
   uint16_t uamport;     /* TCP port to redirect HTTP requests to */
 
-  struct in_addr *authip; /* IP address of authentication server */
-  int authiplen;        /* Number of authentication server IP addresses */
+  //struct in_addr *authip; /* IP address of authentication server */
+  //int authiplen;        /* Number of authentication server IP addresses */
 
   int anydns;           /* Allow any dns server */
 
@@ -233,6 +237,11 @@ struct dhcp_t {
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
   uint32_t num_pass_throughs;
+
+#ifdef HAVE_PATRICIA
+  patricia_tree_t *ptree;
+  patricia_tree_t *ptree_dyn;
+#endif
 
   /* Call back functions */
   int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
@@ -257,8 +266,10 @@ void dhcp_free(struct dhcp_t *dhcp);
 
 int dhcp_timeout(struct dhcp_t *this);
 
-int dhcp_send(struct dhcp_t *this, struct _net_interface *netif, 
+int dhcp_send(struct dhcp_t *this, int idx,
 	      unsigned char *hismac, uint8_t *packet, size_t length);
+int dhcp_net_send(struct _net_interface *netif, unsigned char *hismac, 
+		  uint8_t *packet, size_t length);
 
 struct timeval * dhcp_timeleft(struct dhcp_t *this, struct timeval *tvp);
 
@@ -272,7 +283,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
 /* Called whenever a packet arrives */
 int dhcp_decaps(struct dhcp_t *this, int idx);
 int dhcp_relay_decaps(struct dhcp_t *this, int idx);
-int dhcp_data_req(struct dhcp_conn_t *conn, uint8_t *pack, size_t len, int ethhdr);
+int dhcp_data_req(struct dhcp_conn_t *conn, struct pkt_buffer *pb, int ethhdr);
 uint8_t * dhcp_nexthop(struct dhcp_t *);
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
@@ -337,7 +348,21 @@ struct chilli_peer;
 struct chilli_peer * get_chilli_peer(int id);
 #endif
 
-struct app_conn_t * dhcp_get_appconn_pkt(
-     struct dhcp_conn_t *conn, uint8_t *pkt, char is_dst);
+struct app_conn_t * dhcp_get_appconn_ip
+(struct dhcp_conn_t *conn, struct in_addr *dst);
+
+struct app_conn_t * dhcp_get_appconn_pkt
+(struct dhcp_conn_t *conn, struct pkt_iphdr_t *iph, char is_dst);
+
+int dhcp_garden_check(struct dhcp_t *this,
+		      struct dhcp_conn_t *conn,
+		      struct app_conn_t *appconn,
+		      struct pkt_ipphdr_t *ipph, int dst);
+
+#define CHILLI_DHCP_OFFER    1
+#define CHILLI_DHCP_ACK      2
+#define CHILLI_DHCP_NAK      3
+#define CHILLI_DHCP_RELAY    4
+#define CHILLI_DHCP_PROXY    5
 
 #endif	/* !_DHCP_H */

@@ -109,7 +109,7 @@ AC_FUNC_MEMCMP
 AC_FUNC_SELECT_ARGTYPES
 AC_CHECK_FUNCS([gethostbyname getprotoent gettimeofday inet_ntoa \
 memset select socket strdup strerror strstr strtol getline dirname \
-glob getaddrinfo getnameinfo getifaddrs])
+glob getaddrinfo getnameinfo getifaddrs sysinfo])
 AC_CHECK_LIB(resolv, res_init)
 
 AC_ARG_ENABLE(chilliquery, [AC_HELP_STRING([--disable-chilliquery],[Disable chilli_query])], 
@@ -189,6 +189,27 @@ AC_ARG_ENABLE(dhcpradius, [AC_HELP_STRING([--disable-dhcpradius],[Disable suppor
 
 if test x"$enable_dhcpradius" = xyes; then
    AC_DEFINE(ENABLE_DHCPRADIUS,1,[Define to enable DHCP/RADIUS integration])
+fi
+
+AC_ARG_ENABLE(gardenaccounting, [AC_HELP_STRING([--enable-gardenaccounting],[Enable walled garden accounting])], 
+  enable_gardenaccounting=$enableval, enable_gardenaccounting=no)
+
+if test x"$enable_gardenaccounting" = xyes; then
+   AC_DEFINE(ENABLE_GARDENACCOUNTING,1,[Define to enable walled garden accounting])
+fi
+
+AC_ARG_ENABLE(gardenext, [AC_HELP_STRING([--enable-gardenext],[Enable extended walled garden features])], 
+  enable_gardenext=$enableval, enable_gardenext=no)
+
+if test x"$enable_gardenext" = xyes; then
+   AC_DEFINE(ENABLE_GARDENEXT,1,[Define to enable extended walled garden features])
+fi
+
+AC_ARG_ENABLE(inspect, [AC_HELP_STRING([--enable-inspect],[Enable inspect feature in cmdsock])], 
+  enable_inspect=$enableval, enable_inspect=no)
+
+if test x"$enable_inspect" = xyes; then
+   AC_DEFINE(ENABLE_INSPECT,1,[Define to enable inspect feature in cmdsock])
 fi
 
 AC_ARG_ENABLE(coa, [AC_HELP_STRING([--disable-coa],[Disable CoA RADIUS support])], 
@@ -310,7 +331,25 @@ AS_IF([test x"$with_matrixssl" != xno],
 
 AM_CONDITIONAL(WITH_MATRIXSSL, [test x"$with_matrixssl" != xno])
 
-AM_CONDITIONAL(WITH_SSL, [test x"$with_openssl" != xno || test x"$with_matrixssl" != xno])
+AC_ARG_WITH([cyassl],
+ [AS_HELP_STRING([--with-cyassl], [enable support for cyassl])],[],[with_cyassl=no])
+
+AS_IF([test x"$with_cyassl" != xno],
+  [AC_CHECK_LIB([cyassl], [CyaSSL_Init],
+              [AC_SUBST([LIBSSL], ["-lcyassl"])
+               AC_DEFINE([HAVE_CYASSL], [1],
+                         [Define if you have cyassl])
+              ],
+              [AC_MSG_FAILURE(
+                 [--with-cyassl was given, but test for cyassl failed])],
+              [-lcyassl])])
+
+AS_IF([test x"$with_cyassl" != xno],
+  [AC_CHECK_HEADERS([cyassl/ssl.h ssh.h])])
+
+AM_CONDITIONAL(WITH_CYASSL, [test x"$with_cyassl" != xno])
+
+AM_CONDITIONAL(WITH_SSL, [test x"$with_openssl" != xno || test x"$with_matrixssl" != xno || test x"$with_cyassl" != xno])
 
 AC_ARG_WITH([matrixssl-cli],
  [AS_HELP_STRING([--with-matrixssl-cli], [enable matrixssl client use])],[],[with_matrixssl_cli=no])
@@ -331,6 +370,14 @@ AS_IF([test x"$with_nfqueue" != xno],
               [-lnetfilter_queue -lnfnetlink])])
 
 AM_CONDITIONAL(WITH_NETFILTER_QUEUE, [test x"$with_nfqueue" != xno])
+
+AC_ARG_WITH([avl],
+ [AS_HELP_STRING([--with-avl], [enable support for avl library])],[],[with_avl=no])
+
+AS_IF([test x"$with_avl" != xno],
+  [AC_DEFINE([WITH_AVL], [1], [Define to use avl library])])
+
+AM_CONDITIONAL(WITH_AVL, [test x"$with_avl" != xno])
 
 AC_ARG_WITH([nfcoova],
  [AS_HELP_STRING([--with-nfcoova], [enable support for coova netfilter module])],[],[with_nfcoova=no])
@@ -355,6 +402,22 @@ AS_IF([test x"$with_lookup3" != xno],
   [AC_DEFINE([HAVE_LOOKUP3], [1], [Define to use Jenkins lookup3])])
 
 AM_CONDITIONAL(WITH_LOOKUP3, [test x"$with_lookup3" != xno])
+
+AC_ARG_WITH([patricia],
+ [AS_HELP_STRING([--with-patricia], [enable Patricia use])],[],[with_patricia=no])
+
+AS_IF([test x"$with_patricia" != xno],
+  [AC_DEFINE([HAVE_PATRICIA], [1], [Define to include Patricia])])
+
+AM_CONDITIONAL(WITH_PATRICIA, [test x"$with_patricia" != xno])
+
+AC_ARG_WITH([ipv6],
+ [AS_HELP_STRING([--without-ipv6], [enable IPv6])],[],[with_ipv6=yes])
+
+AS_IF([test x"$with_ipv6" != xno],
+  [AC_DEFINE([ENABLE_IPV6], [1], [Define to use IPv6])])
+
+AM_CONDITIONAL(WITH_IPV6, [test x"$with_ipv6" != xno])
 
 AC_ARG_WITH([pcap],
  [AS_HELP_STRING([--with-pcap], [enable support for pcap])],[],[with_pcap=no])
@@ -436,6 +499,15 @@ fi
 
 AM_CONDITIONAL(WITH_MULTIROUTE, [test x"$enable_multiroute" = xyes])
 
+AC_ARG_ENABLE(multilan, [AC_HELP_STRING([--enable-multilan],[Enable support for multiple LANs])], 
+  enable_multilan=$enableval, enable_multilan=no)
+
+if test x"$enable_multilan" = xyes; then
+   AC_DEFINE(ENABLE_MULTILAN,1,[Define to enable multiple LANs])
+fi
+
+AM_CONDITIONAL(WITH_MULTILAN, [test x"$enable_multilan" = xyes])
+
 AC_ARG_ENABLE(chilliradsec, [AC_HELP_STRING([--enable-chilliradsec],[Enable support for RadSec AAA Proxy])], 
   enable_chilliradsec=$enableval, enable_chilliradsec=no)
 
@@ -483,7 +555,21 @@ AC_ARG_ENABLE(sessionid, [AC_HELP_STRING([--enable-sessionid],[Enable the use of
   enable_sessionid=$enableval, enable_sessionid=no)
 
 if test x"$enable_sessionid" = xyes; then
-   AC_DEFINE(ENABLE_SESSIONID,1,[Define to enable the use of the ChilliSpot-Session-State attribute])
+   AC_DEFINE(ENABLE_SESSIONID,1,[Define to enable the use of the ChilliSpot-Session-Id attribute])
+fi
+
+AC_ARG_ENABLE(apsessionid, [AC_HELP_STRING([--enable-apsessionid],[Enable the use of the ChilliSpot-AP-Session-Id attribute])], 
+  enable_apsessionid=$enableval, enable_apsessionid=no)
+
+if test x"$enable_apsessionid" = xyes; then
+   AC_DEFINE(ENABLE_APSESSIONID,1,[Define to enable the use of the ChilliSpot-AP-Session-Id attribute])
+fi
+
+AC_ARG_ENABLE(chillispotconfig, [AC_HELP_STRING([--disable-chillispotconfig],[Disable the use of the ChilliSpot-Config attribute])], 
+  enable_chillispotconfig=$enableval, enable_chillispotconfig=yes)
+
+if test x"$enable_chillispotconfig" = xyes; then
+   AC_DEFINE(ENABLE_CHILLISPOTCONFIG,1,[Define to enable the use of the ChilliSpot-Config attribute])
 fi
 
 AC_ARG_ENABLE(mdns, [AC_HELP_STRING([--enable-mdns],[Enable support for MDNS])], 
@@ -594,6 +680,21 @@ fi
 
 AM_CONDITIONAL(WITH_MODULES, [test x"$enable_modules" = xyes])
 
+AC_ARG_ENABLE(extadmvsa, [AC_HELP_STRING([--enable-extadmvsa],[Enable admin-user VSA attribute support])], 
+  enable_extadmvsa=$enableval, enable_extadmvsa=no)
+
+if test x"$enable_extadmvsa" = xyes; then
+   AC_DEFINE(ENABLE_EXTADMVSA,1,[Define to enable admin-user VSA support])
+fi
+
+AC_ARG_ENABLE(redirinject, [AC_HELP_STRING([--enable-redirinject],[Enable Redir content-injection support])], 
+  enable_redirinject=$enableval, enable_redirinject=no)
+
+if test x"$enable_redirinject" = xyes; then
+   AC_DEFINE(ENABLE_REDIRINJECT,1,[Define to Redir content-injection support])
+fi
+
+AM_CONDITIONAL(WITH_REDIRINJECT, [test x"$enable_redirinject" = xyes])
 
 AC_ARG_ENABLE(netnat, [AC_HELP_STRING([--enable-netnat],[Enable net interface nat (experimental)])], 
   enable_netnat=$enableval, enable_netnat=no)
@@ -603,6 +704,27 @@ if test x"$enable_netnat" = xyes ; then
 fi
 
 AM_CONDITIONAL(WITH_NETNAT, [test x"$enable_netnat" = xyes])
+
+AC_ARG_ENABLE(useragent, [AC_HELP_STRING([--enable-useragent],[Enable recording user-agent])], 
+  enable_useragent=$enableval, enable_useragent=no)
+
+if test x"$enable_useragent" = xyes ; then
+   AC_DEFINE(ENABLE_USERAGENT,1,[Define enable the recording of user-agent])
+fi
+
+AC_ARG_ENABLE(acceptlanguage, [AC_HELP_STRING([--enable-acceptlanguage],[Enable recording Accept-Language])], 
+  enable_acceptlanguage=$enableval, enable_acceptlanguage=no)
+
+if test x"$enable_acceptlanguage" = xyes ; then
+   AC_DEFINE(ENABLE_ACCEPTLANGUAGE,1,[Define enable the recording of accept-language])
+fi
+
+AC_ARG_ENABLE(location, [AC_HELP_STRING([--enable-location],[Enable Location Awareness])], 
+  enable_location=$enableval, enable_location=no)
+
+if test x"$enable_location" = xyes ; then
+   AC_DEFINE(ENABLE_LOCATION,1,[Define enable Location Awareness])
+fi
 
 AC_CHECK_LIB(rt, clock_gettime)
 
@@ -619,6 +741,8 @@ AC_ARG_ENABLE(config,
 if test x"$config_file" != x ; then
    AC_DEFINE_UNQUOTED(ENABLE_CONFIG,"$config_file",[none])
 fi
+
+AM_CONDITIONAL(WITH_CONFIG, [test x"$enable_config" = xyes])
 
 AC_SUBST(sysconfdir)
 AC_CONFIG_FILES([Makefile 

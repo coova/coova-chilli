@@ -1,7 +1,13 @@
 /* config.h.in.  Generated from configure.in by autoheader.  */
 
+/* Define enable the recording of accept-language */
+#undef ENABLE_ACCEPTLANGUAGE
+
 /* Define to enable Accounting-On and Accounting-Off */
 #undef ENABLE_ACCOUNTING_ONOFF
+
+/* Define to enable the use of the ChilliSpot-AP-Session-Id attribute */
+#undef ENABLE_APSESSIONID
 
 /* Define to enable binary status file */
 #undef ENABLE_BINSTATFILE
@@ -20,6 +26,9 @@
 
 /* Define to enable chilli_script helper */
 #undef ENABLE_CHILLISCRIPT
+
+/* Define to enable the use of the ChilliSpot-Config attribute */
+#undef ENABLE_CHILLISPOTCONFIG
 
 /* Define to enable Chilli XML */
 #undef ENABLE_CHILLIXML
@@ -54,11 +63,26 @@
 /* Define to enable CoovaEWT API */
 #undef ENABLE_EWTAPI
 
+/* Define to enable admin-user VSA support */
+#undef ENABLE_EXTADMVSA
+
+/* Define to enable walled garden accounting */
+#undef ENABLE_GARDENACCOUNTING
+
+/* Define to enable extended walled garden features */
+#undef ENABLE_GARDENEXT
+
 /* Define to enable Chilli IEEE 802.1Q */
 #undef ENABLE_IEEE8021Q
 
 /* Define to enable IEEE 802.3 */
 #undef ENABLE_IEEE8023
+
+/* Define to enable inspect feature in cmdsock */
+#undef ENABLE_INSPECT
+
+/* Define to use IPv6 */
+#undef ENABLE_IPV6
 
 /* Define to support file based whitelists */
 #undef ENABLE_IPWHITELIST
@@ -78,6 +102,9 @@
 /* Define to enable Chilli Leaky Bucket shaping */
 #undef ENABLE_LEAKYBUCKET
 
+/* Define enable Location Awareness */
+#undef ENABLE_LOCATION
+
 /* Define to enable mDNS */
 #undef ENABLE_MDNS
 
@@ -89,6 +116,9 @@
 
 /* Define to enable dynamically loadable modules */
 #undef ENABLE_MODULES
+
+/* Define to enable multiple LANs */
+#undef ENABLE_MULTILAN
 
 /* Define to enable multiple routes */
 #undef ENABLE_MULTIROUTE
@@ -111,10 +141,13 @@
 /* Define to DNS query on redirect to pick up dynamic walled garden */
 #undef ENABLE_REDIRDNSREQ
 
+/* Define to Redir content-injection support */
+#undef ENABLE_REDIRINJECT
+
 /* Define to enable Chilli session walled garden */
 #undef ENABLE_SESSGARDEN
 
-/* Define to enable the use of the ChilliSpot-Session-State attribute */
+/* Define to enable the use of the ChilliSpot-Session-Id attribute */
 #undef ENABLE_SESSIONID
 
 /* Define to enable extended use of the ChilliSpot-Session-State attribute */
@@ -141,6 +174,9 @@
 /* Define to enable uamuiport */
 #undef ENABLE_UAMUIPORT
 
+/* Define enable the recording of user-agent */
+#undef ENABLE_USERAGENT
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
@@ -149,6 +185,12 @@
 
 /* define if you have a cloning BPF device */
 #undef HAVE_CLONING_BPF
+
+/* Define if you have cyassl */
+#undef HAVE_CYASSL
+
+/* Define to 1 if you have the <cyassl/ssl.h> header file. */
+#undef HAVE_CYASSL_SSL_H
 
 /* Define to 1 if you have the <dirent.h> header file. */
 #undef HAVE_DIRENT_H
@@ -270,6 +312,9 @@
 /* Define if you have openssl */
 #undef HAVE_OPENSSL
 
+/* Define to include Patricia */
+#undef HAVE_PATRICIA
+
 /* Define to 1 if you have the <poll.h> header file. */
 #undef HAVE_POLL_H
 
@@ -293,6 +338,9 @@
 
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
+
+/* Define to 1 if you have the <ssh.h> header file. */
+#undef HAVE_SSH_H
 
 /* Define to 1 if you have the <stddef.h> header file. */
 #undef HAVE_STDDEF_H
@@ -320,6 +368,9 @@
 
 /* Define to 1 if you have the `strtol' function. */
 #undef HAVE_STRTOL
+
+/* Define to 1 if you have the `sysinfo' function. */
+#undef HAVE_SYSINFO
 
 /* Define to 1 if you have the <syslog.h> header file. */
 #undef HAVE_SYSLOG_H
@@ -441,6 +492,9 @@
 
 /* Version number of package */
 #undef VERSION
+
+/* Define to use avl library */
+#undef WITH_AVL
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const

@@ -46,6 +46,11 @@
 #define  CMDSOCK_ROUTE_SET     20
 #define  CMDSOCK_ROUTE_GW      21
 #endif
+#define  CMDSOCK_ADD_GARDEN    22
+#define  CMDSOCK_REM_GARDEN    23
+#ifdef ENABLE_INSPECT
+#define  CMDSOCK_INSPECT       24
+#endif
 #define  CMDSOCK_OPT_JSON      (1)
 
 #include "pkt.h"

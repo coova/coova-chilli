@@ -66,7 +66,7 @@
 #define REDIR_MAXCONN                     16
 
 #define REDIR_URL_LEN                   2048
-#define REDIR_SESSIONID_LEN               17
+#define REDIR_SESSIONID_LEN               33
 
 /* chilli */
 #define MACSTRLEN                         17
@@ -101,13 +101,23 @@
 
 #define TCP_MAX_OPTION_LEN 40
 
+#ifdef ENABLE_MULTILAN
+#ifdef ENABLE_LARGELIMITS
+#define MAX_RAWIF 8
+#else
+#define MAX_RAWIF 4
+#endif
+#else
+#define MAX_RAWIF 1
+#endif
+
 #ifdef ENABLE_LARGELIMITS
 #define PKT_MAX_LEN                    65535 /* Maximum packet size we receive */
 #define MAX_EAP_LEN                     3000 /* Size of buffer to hold EAP message */
 #define SESSION_PASS_THROUGH_MAX          16
-#define MAX_PASS_THROUGHS                512 /* Max number of allowed UAM pass-throughs */
+#define MAX_PASS_THROUGHS               1024 /* Max number of allowed UAM pass-throughs */
 #define MAX_REGEX_PASS_THROUGHS          512 /* Max number of allowed UAM pass-throughs */
-#define MAX_UAM_DOMAINS                   56 /* Max number of allowed UAM domains */
+#define MAX_UAM_DOMAINS                  128 /* Max number of allowed UAM domains */
 #define MACOK_MAX                         56
 #define MAX_SELECT                        56
 #else

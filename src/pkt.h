@@ -44,6 +44,7 @@
 #define PKT_IP_VER_HLEN        0x45 
 #define PKT_IP_ALEN               4
 #define PKT_IP_HLEN              20
+#define PKT_IPv6_HLEN            40
 
 #define PKT_IP_PROTO_ICMP         1 /* ICMP Protocol number */
 #define PKT_IP_PROTO_IGMP         2 /* IGMP Protocol number */
@@ -61,7 +62,7 @@
 #define PKT_TCP_HLEN             20
 #define PKT_DOT1X_HLEN            4
 
-#define PKT_EAP_PLEN           1500 /* Dot1x Payload length */
+#define PKT_EAP_PLEN          10240 /* Dot1x Payload length */
 
 #define DHCP_TAG_VLEN           255 /* Tag value always shorter than this */
 #define EAPOL_TAG_VLEN          255 /* Tag value always shorter than this */
@@ -74,7 +75,6 @@
 #define DHCP_MIN_LEN   28+16+64+128 /* Length of packet excluding options */
 #define DHCP_LEN  (DHCP_MIN_LEN+DHCP_OPTIONS_LEN)
 
-/*#define PKT_BUFFER (PKT_IP_PLEN + PKT_ETH_HLEN + 4)*/
 #define PKT_BUFFER PKT_MAX_LEN
 
 struct pkt_ethhdr_t {
@@ -181,6 +181,21 @@ struct pkt_ip6hdr_t {
   uint8_t dst_addr[PKT_IPv6_ALEN];
 } __attribute__((packed));
 
+struct pkt_ip6pseudo_t {
+  uint8_t src_addr[PKT_IPv6_ALEN];
+  uint8_t dst_addr[PKT_IPv6_ALEN];
+  uint32_t packet_len;
+  uint8_t zero[3];
+  uint8_t next_header;
+} __attribute__((packed));
+
+int chksum6(struct pkt_ip6hdr_t *iph);
+
+struct pkt_dhcp6hdr_t {
+  uint8_t type;
+  uint8_t id[3];
+} __attribute__((packed));
+
 #define ICMPv6_NEXT_HEADER 58
 #define ipv6_version(x)  /*lazy!*/ \
 ((((1<<31)|(1<<30)|(1<<29)|(1<<28))&(ntohl((x)->ver_class_label)))>>28)
@@ -192,6 +207,30 @@ struct pkt_ip6hdr_t {
   (int) x[0], (int) x[1], (int) x[2], (int) x[3], (int) x[4], (int) x[5], \
   (int) x[6], (int) x[7], (int) x[8], (int) x[9], (int) x[10], (int) x[11],\
   (int) x[12], (int) x[13], (int) x[14], (int) x[15]
+
+#define ipv6_nat64_pack(d, p) \
+  *(d)++ = 0x11; *(d)++ = 0x12; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = (p)[0]; *(d)++ = (p)[1]; *(d)++ = (p)[2] ;*(d)++ = (p)[3]
+
+#define ipv6_nat64_prefix(d) \
+  *(d)++ = 0x11; *(d)++ = 0x12; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0
+
+#define ipv6_eui64_pack(d, p) \
+  *(d)++ = 0x11; *(d)++ = 0x11; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = (p)[0]; *(d)++ = (p)[1]; *(d)++ = (p)[2] ;*(d)++ = 0xff; \
+  *(d)++ = 0xfe; *(d)++ = (p)[3]; *(d)++ = (p)[4] ;*(d)++ = (p)[5]
+
+#define ipv6_eui64_prefix(d) \
+  *(d)++ = 0x11; *(d)++ = 0x11; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0
 
 #endif
 
@@ -291,6 +330,8 @@ struct pkt_tcphdr_t {
 #define tcphdr_fin(hdr) (((hdr)->flags & TCPHDR_FLAG_FIN)==TCPHDR_FLAG_FIN)
 #define tcphdr_syn(hdr) (((hdr)->flags & TCPHDR_FLAG_SYN)==TCPHDR_FLAG_SYN)
 #define tcphdr_rst(hdr) (((hdr)->flags & TCPHDR_FLAG_RST)==TCPHDR_FLAG_RST)
+#define tcphdr_ack(hdr) (((hdr)->flags & TCPHDR_FLAG_ACK)==TCPHDR_FLAG_ACK)
+#define tcphdr_psh(hdr) (((hdr)->flags & TCPHDR_FLAG_PSH)==TCPHDR_FLAG_PSH)
 
 /*
   0                   1                   2                   3
@@ -398,7 +439,6 @@ struct eap_packet_t {
   uint8_t  payload[PKT_EAP_PLEN];
 } __attribute__((packed));
 
-
 #ifdef ENABLE_CLUSTER
 struct pkt_chillihdr_t {
   uint8_t from;
@@ -424,6 +464,11 @@ struct pkt_chillihdr_t {
 #define sizeofdot1x2(is8021q) (sizeofeth2(is8021q)+PKT_DOT1X_HLEN)
 #define sizeofudp2(is8021q)   (sizeofip2(is8021q)+PKT_UDP_HLEN)
 #define sizeoftcp2(is8021q)   (sizeofip2(is8021q)+PKT_TCP_HLEN)
+#ifdef ENABLE_IPV6
+#define sizeofip62(is8021q)   (sizeofeth2(is8021q)+PKT_IPv6_HLEN)
+#define sizeofudp62(is8021q)  (sizeofip62(is8021q)+PKT_UDP_HLEN)
+#define sizeoftcp62(is8021q)  (sizeofip62(is8021q)+PKT_TCP_HLEN)
+#endif
 
 #define sizeofeth(pkt)   sizeofeth2(is_8021q(pkt))
 #define sizeofip(pkt)    sizeofip2(is_8021q(pkt))
@@ -432,6 +477,11 @@ struct pkt_chillihdr_t {
 #define sizeoftcp(pkt)   sizeoftcp2(is_8021q(pkt))
 #define sizeofarp(pkt)   (sizeofeth(pkt)+sizeof(struct arp_packet_t))
 #define ethhdr8021q(pkt) ((struct pkt_ethhdr8021q_t *)pkt)
+#ifdef ENABLE_IPV6
+#define sizeofip6(pkt)   sizeofip62(is_8021q(pkt))
+#define sizeofudp6(pkt)  sizeofudp62(is_8021q(pkt))
+#define sizeoftcp6(pkt)  sizeoftcp62(is_8021q(pkt))
+#endif
 
 #define copy_ethproto(o,n)  \
   if (is_8021q(o)) { \
@@ -464,9 +514,6 @@ struct pkt_chillihdr_t {
 #define ethhdr(pkt)   ((struct pkt_ethhdr_t *)pkt)
 #define ipphdr(pkt)   ((struct pkt_ipphdr_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))
 #define iphdr(pkt)    ((struct pkt_iphdr_t *)   (((uint8_t*)(pkt)) + sizeofeth(pkt)))
-#ifdef ENABLE_IPV6
-#define ip6hdr(pkt)   ((struct pkt_ip6hdr_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))
-#endif
 #define icmphdr(pkt)  ((struct pkt_icmphdr_t *) (((uint8_t*)(pkt)) + sizeofip(pkt)))
 #define udphdr(pkt)   ((struct pkt_udphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))
 #define tcphdr(pkt)   ((struct pkt_tcphdr_t *)  (((uint8_t*)(pkt)) + sizeofip(pkt)))
@@ -475,6 +522,11 @@ struct pkt_chillihdr_t {
 #define arppkt(pkt)   ((struct arp_packet_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))
 #define dnspkt(pkt)   ((struct dns_packet_t *)  (((uint8_t*)(pkt)) + sizeofudp(pkt)))
 #define eappkt(pkt)   ((struct eap_packet_t *)  (((uint8_t*)(pkt)) + sizeofdot1x(pkt)))
+#ifdef ENABLE_IPV6
+#define ip6hdr(pkt)   ((struct pkt_ip6hdr_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))
+#define udp6hdr(pkt)   ((struct pkt_udphdr_t *)  (((uint8_t*)(pkt)) + sizeofip6(pkt)))
+#define tcp6hdr(pkt)   ((struct pkt_tcphdr_t *)  (((uint8_t*)(pkt)) + sizeofip6(pk)))
+#endif
 
 #define chilli_ethhdr(pkt)((struct pkt_chillihdr_t *)(((uint8_t*)(pkt)) + sizeofeth(pkt)))
 
@@ -487,5 +539,38 @@ struct eapol_tag_t {
 int chksum(struct pkt_iphdr_t *iph);
 int pkt_shape_tcpwin(struct pkt_iphdr_t *iph, uint16_t win);
 int pkt_shape_tcpmss(uint8_t *packet, size_t *length);
+
+#if defined(ENABLE_IPV6)
+#define PKT_BUFFER_IPOFF  (sizeof(struct pkt_ethhdr8021q_t)+20)
+#else
+#define PKT_BUFFER_IPOFF  (sizeof(struct pkt_ethhdr8021q_t))
+#endif
+
+struct pkt_buffer {
+  uint8_t *   buf;
+  size_t      buflen;
+  size_t      offset;
+  size_t      length;
+};
+
+#define pkt_buffer_init(pb, b, blen, off)	\
+      (pb)->buf = (b);				\
+      (pb)->buflen = (blen);			\
+      (pb)->offset = (off);			\
+      (pb)->length = 0
+
+#define pkt_buffer_init2(pb, b, blen, off, len)	\
+      (pb)->buf = (b);				\
+      (pb)->buflen = (blen);			\
+      (pb)->offset = (off);			\
+      (pb)->length = (len)
+
+#define pkt_buffer_head(pb)    ((pb)->buf + (pb)->offset)
+#define pkt_buffer_length(pb)  ((pb)->length)
+#define pkt_buffer_size(pb)    ((pb)->buflen - (pb)->offset)
+#define pkt_buffer_grow(pb,l)  (pb)->offset -= (l); (pb)->length += (l)
+#define pkt_buffer_is_ip(pb)   ((pb)->offset == PKT_BUFFER_IPOFF)
+#define pkt_buffer_is_eth(pb)  ((pb)->offset == PKT_BUFFER_ETHOFF)
+#define pkt_buffer_is_vlan(pb) ((pb)->offset == PKT_BUFFER_VLANOFF)
 
 #endif

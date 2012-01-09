@@ -1,6 +1,6 @@
 /* 
- * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -121,6 +121,14 @@ struct options_t {
   int dhcpstart;
   int dhcpend;
 
+#ifdef ENABLE_MULTILAN
+#define MAX_MOREIF (MAX_RAWIF-1)
+  struct {
+    char *dhcpif;
+    char *vlan;
+  } moreif[MAX_MOREIF];
+#endif
+
   int childmax;
 
   uint8_t peerid;
@@ -141,16 +149,12 @@ struct options_t {
   uint16_t tcpmss;               /* TCP Maximum Segment Size (zero to leave unchanged) */
 
   /* UAM parameters */
-  struct in_addr uamserver[UAMSERVER_MAX]; /* IP address of UAM server */
-  int uamserverlen;              /* Number of UAM servers */
-  int uamserverport;             /* Port of UAM server */
   char* uamsecret;               /* Shared secret */
   char* uamurl;                  /* URL of authentication server */
   char* uamaaaurl;               /* URL to use for HTTP based AAA */
   char* uamhomepage;             /* URL of redirection homepage */
   char* wisprlogin;              /* Specific WISPr login url */
   char* usestatusfile;           /* Specific status file to use */
-  int uamhomepageport;		 /* Port of redirection homepage */
 
   struct in_addr uamlisten;      /* IP address of local authentication */
   int uamport;                   /* TCP port to listen to */
@@ -172,6 +176,7 @@ struct options_t {
   uint8_t noc2c:1;
   uint8_t framedservice:1;
   uint8_t usetap:1;
+  uint8_t noarpentries:1;
   uint8_t eapolenable:1;            /* Use eapol */
   uint8_t swapoctets:1;
   uint8_t chillixml:1;
@@ -209,6 +214,28 @@ struct options_t {
   uint8_t noradallow:1;             /* Authorize all sessions when RADIUS is not available */
   uint8_t redirdnsreq:1;
   uint8_t routeonetone:1;
+  uint8_t statusfilesave:1;
+  uint8_t dhcpnotidle:1;
+
+#ifdef ENABLE_IPV6
+  uint8_t ipv6:1;
+  uint8_t ipv6only:1;
+#endif
+
+#ifdef ENABLE_LEAKYBUCKET
+  uint8_t scalewin:1;
+#endif
+
+#ifdef HAVE_PATRICIA
+  uint8_t patricia:1;
+#endif
+
+#ifdef ENABLE_GARDENACCOUNTING
+  uint8_t nousergardendata:1;
+  uint8_t uamgardendata:1;
+  uint8_t uamotherdata:1;
+#endif
+
 #ifdef ENABLE_IEEE8021Q
   uint8_t ieee8021q:1;              /* check for VLAN tags */
 #endif
@@ -217,13 +244,33 @@ struct options_t {
   uint8_t proxyonacct:1;
 #endif
 #ifdef ENABLE_PROXYVSA
+  uint8_t vlanlocation:1;
   uint8_t location_stop_start:1;
   uint8_t location_copy_called:1;
   uint8_t location_immediate_update:1;
+  uint8_t location_option_82:1;
+#endif
+#ifdef ENABLE_REDIRINJECT
+  uint8_t inject_wispr:1;
 #endif
   /* */
 #ifdef EX_OPTIONS
 #include EX_OPTIONS
+#endif
+
+#ifdef ENABLE_REDIRINJECT
+  char *inject;
+  char *inject_ext;
+#endif
+
+#ifdef ENABLE_EXTADMVSA
+#define EXTADMVSA_ATTR_CNT 4
+  struct {
+    uint32_t attr_vsa;
+    uint8_t attr;
+    char data[128];
+    char script[128];
+  } extadmvsa[EXTADMVSA_ATTR_CNT];
 #endif
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];

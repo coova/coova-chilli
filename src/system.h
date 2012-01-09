@@ -128,6 +128,9 @@
 #include <linux/if_tun.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#ifndef HAVE_SYS_UN_H
+#include <linux/un.h>
+#endif
 
 #elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__) 
 #include <net/if.h>
@@ -256,6 +259,16 @@
 char *safe_strncpy(char *dst, const char *src, size_t size);
 
 int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr);
+int safe_select(int nfds, fd_set *readfds, fd_set *writefds,
+		fd_set *exceptfds, struct timeval *timeout);
+#ifdef USING_POLL
+#ifdef HAVE_SYS_EPOLL_H
+int safe_epoll_wait(int epfd, struct epoll_event *events,
+		    int maxevents, int timeout);
+#else
+int safe_poll(struct pollfd *fds, nfds_t nfds, int timeout);
+#endif
+#endif
 int safe_connect(int s, struct sockaddr *sock, size_t len);
 int safe_write(int s, void *b, size_t blen);
 int safe_read(int s, void *b, size_t blen);
@@ -289,8 +302,12 @@ void copy_mac6(uint8_t *, uint8_t *);
 #define USING_IPC_UNIX
 #endif
 
-#if defined(HAVE_OPENSSL) || defined(HAVE_MATRIXSSL)
+#if defined(HAVE_OPENSSL) || defined(HAVE_MATRIXSSL) || defined(HAVE_CYASSL)
 #define HAVE_SSL 1
+#endif
+
+#ifdef HAVE_PATRICIA
+#include "patricia.h"
 #endif
 
 #endif
