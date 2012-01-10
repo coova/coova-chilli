@@ -1,6 +1,8 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+== ChangeLog (CoovaChilli-v1.2.9 svn revision 460) ==
+
 * New compile time option ''--enable-useragent'' to turn on the recording of User-Agent in RADIUS
 * New compile time option ''--enable-sessionstate'' to further extend the use of ChilliSpot-Session-State to indicate reasons for disconnect
 * New compile time option ''--enable-sessionid'' to enable the use of a ChilliSpot-Session-Id that does not change during location awareness stop/start
@@ -27,7 +29,6 @@
 * Added option ''--dhcpnotidle'' DHCP counted for preventing idle-timeout
 * Added option ''--ipv6'' to Enable IPv6 support (experimental)
 * Added option ''--ipv6only'' to enable IPv6-Only (experimental)
-
 
 == ChangeLog (CoovaChilli-v1.2.8 svn revision 450) ==
 
