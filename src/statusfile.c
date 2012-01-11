@@ -343,7 +343,9 @@ int printstatus() {
     case DHCP_AUTH_PASS:
     case DHCP_AUTH_DNAT:
     case DHCP_AUTH_SPLASH:
+#ifdef ENABLE_LAYER3
     case DHCP_AUTH_ROUTER:
+#endif
       log_dbg("Saving dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s",
 	      dhcpconn->hismac[0], dhcpconn->hismac[1],
 	      dhcpconn->hismac[2], dhcpconn->hismac[3],
