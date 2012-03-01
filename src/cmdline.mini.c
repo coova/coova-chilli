@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2012 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -151,7 +151,7 @@ int mini_cmdline_file(char *filename, struct gengetopt_args_info *args_info,
   char linebuf[2048];
   int line_num = 0;
   char *str_index;
-  size_t len, next_token;
+  size_t next_token;
   char delimiter;
   char *fopt, *farg;
 
@@ -166,7 +166,6 @@ int mini_cmdline_file(char *filename, struct gengetopt_args_info *args_info,
 
   while ((fgets(linebuf, sizeof(linebuf), file)) != 0) {
     ++line_num;
-    len = strlen(linebuf);
 
     next_token = strspn(linebuf, " \t\r\n");
     str_index  = linebuf + next_token;

@@ -183,6 +183,9 @@
 /* Define to 1 if you have the <asm/types.h> header file. */
 #undef HAVE_ASM_TYPES_H
 
+/* Define to use avl library */
+#undef HAVE_AVL
+
 /* define if you have a cloning BPF device */
 #undef HAVE_CLONING_BPF
 
@@ -492,9 +495,6 @@
 
 /* Version number of package */
 #undef VERSION
-
-/* Define to use avl library */
-#undef WITH_AVL
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const

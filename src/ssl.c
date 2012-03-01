@@ -604,6 +604,8 @@ openssl_read(openssl_con *con, char *b, int l, int t) {
 
   rbytes = SSL_read(con->con, b, l);
 
+  log_dbg("--- SSL_read() = %d", rbytes);
+
   if (rbytes <= 0) {
     err = openssl_error(con, rbytes, "openssl_read");
   }

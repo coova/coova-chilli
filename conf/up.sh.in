@@ -50,11 +50,17 @@ then
 	    
 	    ipt -A INPUT -i $TUNTAP --dst $ADDR -j DROP
 	    
-	    ipt -I INPUT   -i $DHCPIF -j DROP
+	    if [ "$ONLY8021Q" != "1" ]
+	    then
+		ipt -I INPUT -i $DHCPIF -j DROP
+	    fi
 	fi
 	
-	ipt -I FORWARD -i $DHCPIF -j DROP
-	ipt -I FORWARD -o $DHCPIF -j DROP
+	if [ "$ONLY8021Q" != "1" ]
+	then
+	    ipt -I FORWARD -i $DHCPIF -j DROP
+	    ipt -I FORWARD -o $DHCPIF -j DROP
+	fi
 	
 	ipt -I FORWARD -i $TUNTAP -j ACCEPT
 	ipt -I FORWARD -o $TUNTAP -j ACCEPT

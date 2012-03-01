@@ -91,7 +91,7 @@ int radius_printqueue(int fd, struct radius_t *this) {
       safe_snprintf(line, sizeof(line), 
 		    "n=%3d id=%3d state=%3d next=%3d prev=%3d %8d %8d %d\n",
 		    n, 
-		    this->queue[n].p.id,
+		    RADIUS_QUEUE_PKT(this->queue[n].p,id),
 		    this->queue[n].state,
 		    this->queue[n].next,
 		    this->queue[n].prev,
@@ -225,7 +225,7 @@ static int radius_queue_next(struct radius_t *this) {
   if (this->queue[qnext].state == 1) {
     
     log_dbg("skipping over active idx %d radius-id=%d", 
-	    qnext, this->queue[qnext].p.id);
+	    qnext, RADIUS_QUEUE_PKT(this->queue[qnext].p,id));
     
     if (attempt++ < (this->qsize ? this->qsize : 256)) {
       this->qnext++;
@@ -261,9 +261,12 @@ static int radius_queue_idx(struct radius_t *this, int id) {
 
   while (cnt-- > 0) {
     idx %= sz;
-    log_dbg("idx %d pid %d id %d", idx, this->queue[idx].p.id, id);
-    if (this->queue[idx].p.id == id)
-      return idx;
+    if (RADIUS_QUEUE_HASPKT(this->queue[idx].p)) {
+      log_dbg("idx %d pid %d id %d", idx, 
+	      RADIUS_QUEUE_PKT(this->queue[idx].p,id), id);
+      if (RADIUS_QUEUE_PKT(this->queue[idx].p,id) == id)
+	return idx;
+    }
     idx++;
   }
   
@@ -307,7 +310,9 @@ int radius_queue_in(struct radius_t *this,
     radius_acctreq_authenticator(this, pack);
   }
 
-  memcpy(&this->queue[qnext].p, pack, RADIUS_PACKSIZE);
+  RADIUS_QUEUE_PKTALLOC(this->queue[qnext].p);
+  if (!RADIUS_QUEUE_HASPKT(this->queue[qnext].p)) return -1;
+  memcpy(RADIUS_QUEUE_PKTPTR(this->queue[qnext].p), pack, RADIUS_PACKSIZE);
 
   this->queue[qnext].state = 1;
   this->queue[qnext].cbp = cbp;
@@ -393,18 +398,25 @@ radius_queue_out(struct radius_t *this, int idx,
   }
 #endif
 
-  if (pack_in &&
-      radius_authcheck(this, pack_in, &this->queue[idx].p)) {
-    log_warn(0, "Authenticator does not match! req-id=%d res-id=%d", 
-	     this->queue[idx].p.id, pack_in->id);
-    return -1;
+  if (RADIUS_QUEUE_HASPKT(this->queue[idx].p)) {
+    if (pack_in &&
+	radius_authcheck(this, pack_in, 
+			 RADIUS_QUEUE_PKTPTR(this->queue[idx].p))) {
+      log_warn(0, "Authenticator does not match! req-id=%d res-id=%d", 
+	       RADIUS_QUEUE_PKT(this->queue[idx].p,id), pack_in->id);
+      return -1;
+    }
+    
+    memcpy(pack_out, 
+	   RADIUS_QUEUE_PKTPTR(this->queue[idx].p), RADIUS_PACKSIZE);
+
+    RADIUS_QUEUE_PKTFREE(this->queue[idx].p);
   }
-  
-  memcpy(pack_out, &this->queue[idx].p, RADIUS_PACKSIZE);
+
   *cbp = this->queue[idx].cbp;
   
   log_dbg("RADIUS queue-out id=%d idx=%d", pack_out->id, idx);
-  
+
   this->queue[idx].state = 0;
 
   /* Remove from linked list */
@@ -435,14 +447,14 @@ radius_queue_out(struct radius_t *this, int idx,
 static int radius_queue_reschedule(struct radius_t *this, int idx) {
   struct timeval *tv;
 
-  log_dbg("Rescheduling RADIUS request id=%d idx=%d",
-	  this->queue[idx].p.id, idx);
-
   if (this->queue[idx].state != 1) {
     log_err(0, "No such id in radius queue: id=%d!", idx);
     return -1;
   }
-  
+
+  log_dbg("Rescheduling RADIUS request id=%d idx=%d",
+	  RADIUS_QUEUE_PKT(this->queue[idx].p,id), idx);
+
 #if(deeplog)
   if (_options.debug) {
     log_dbg("radius_reschedule");
@@ -642,6 +654,7 @@ int radius_timeout(struct radius_t *this) {
       radius_cmptv(&now, &this->queue[this->first].timeout) >= 0) {
     
     if (this->queue[this->first].retrans < _options.radiusretry) {
+
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = AF_INET;
       
@@ -666,21 +679,26 @@ int radius_timeout(struct radius_t *this) {
 	}
       }
       
-      /* Use the correct port for accounting and authentication */
-      if (this->queue[this->first].p.code == RADIUS_CODE_ACCOUNTING_REQUEST)
-	addr.sin_port = htons(this->acctport);
-      else
-	addr.sin_port = htons(this->authport);
-      
-      if (sendto(this->fd, &this->queue[this->first].p,
-		 ntohs(this->queue[this->first].p.length), 0,
-		 (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+      if (RADIUS_QUEUE_HASPKT(this->queue[this->first].p)) {
+
+	/* Use the correct port for accounting and authentication */
+	if (RADIUS_QUEUE_PKT(this->queue[this->first].p,code)
+	    == RADIUS_CODE_ACCOUNTING_REQUEST)
+	  addr.sin_port = htons(this->acctport);
+	else
+	  addr.sin_port = htons(this->authport);
 	
-	log_err(errno, "sendto() failed!");
-	radius_queue_reschedule(this, this->first);
-	return -1;
+	if (sendto(this->fd, 
+		   RADIUS_QUEUE_PKTPTR(this->queue[this->first].p),
+		   ntohs(RADIUS_QUEUE_PKT(this->queue[this->first].p, length)),
+		   0, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+	  
+	  log_err(errno, "sendto() failed!");
+	  radius_queue_reschedule(this, this->first);
+	  return -1;
+	}
       }
-      
+
       if (radius_queue_reschedule(this, this->first)) {
 	log_warn(0, "Matching request was not found in queue: %d!", this->first);
 	return -1;
@@ -689,8 +707,8 @@ int radius_timeout(struct radius_t *this) {
     else { /* Finished retrans */
       if (radius_queue_out(this, this->first,
 			   0, &pack_req, &cbp)) {
-	log_warn(0, "RADIUS idx=%d id=%d was not found in queue!", 
-		 this->first, (int) this->queue[this->first].p.id);
+	log_warn(0, "RADIUS idx=%d was not found in queue!", 
+		 this->first);
 	return -1;
       }
       
@@ -1350,8 +1368,7 @@ int radius_init_q(struct radius_t *this, int size) {
  * Free a radius instance. (Undo radius_new() 
  */
 int 
-radius_free(struct radius_t *this)
-{
+radius_free(struct radius_t *this) {
   if (this->queue) {
     free(this->queue);
   }
@@ -1706,6 +1723,134 @@ radius_acctcheck(struct radius_t *this, struct radius_packet_t *pack)
   return memcmp(pack->authenticator, auth, RADIUS_AUTHLEN);
 }
 
+#ifdef ENABLE_EXTADMVSA
+static void chilli_extadmvsa(struct radius_t *radius,
+			     struct app_conn_t *appconn, 
+			     struct radius_packet_t *req,
+			     struct radius_packet_t *resp) {
+  uint32_t service_type = 0;
+  struct radius_attr_t *attr = 0;
+  
+  if (!radius_getattr(req, &attr, RADIUS_ATTR_SERVICE_TYPE, 
+		      0, 0, 0)) {
+    service_type = ntohl(attr->v.i);
+  }
+  
+  if (_options.extadmvsa[0].attr && 
+      service_type == RADIUS_SERVICE_TYPE_ADMIN_USER) {
+    
+    if (req && !resp) {
+      struct stat statbuf;
+      uint8_t b[256];
+      int i, fd, len;
+      
+      memset(&statbuf, 0, sizeof(statbuf));
+      
+      for (i=0; i < EXTADMVSA_ATTR_CNT; i++) {
+	if (!_options.extadmvsa[i].attr_vsa && 
+	    !_options.extadmvsa[i].attr)
+	  break;
+	
+	if (!_options.extadmvsa[i].data[0])
+	  continue;
+	
+	if (stat(_options.extadmvsa[i].data, &statbuf)) {
+	  log_dbg("Skipping %s, does not exist",
+		  _options.extadmvsa[i].data);
+	  continue;
+	}
+	
+	if (statbuf.st_size > 127) {
+	  log_err(errno, "File %s too big", 
+		  _options.extadmvsa[i].data);
+	  continue;
+	}
+	
+	if ((fd = open(_options.extadmvsa[i].data, O_RDONLY)) < 0) {
+	  log_err(errno, "Failed to open %s", _options.extadmvsa[i].data);
+	  continue;
+	}
+	
+	log_dbg("Reading %s", _options.extadmvsa[i].data);
+	
+	len = read(fd, b, sizeof(b));
+	close(fd);
+	
+	if (len > 0 && len < sizeof(b)-1) {
+	  while (len > 1 && isspace(b[len-1])) len--;
+	  if (!_options.extadmvsa[i].attr_vsa) {
+	    radius_addattr(radius, req, _options.extadmvsa[i].attr, 
+			   0, 0, 0, b, len);
+	  } else {
+	    radius_addattr(radius, req,
+			   RADIUS_ATTR_VENDOR_SPECIFIC, 
+			   _options.extadmvsa[i].attr_vsa, 
+			   _options.extadmvsa[i].attr, 0, b, len);
+	  }
+	}
+      }
+    } else if (req && resp) {
+      int i;
+      for (i=0; i < EXTADMVSA_ATTR_CNT; i++) {
+	
+	if (!_options.extadmvsa[i].attr_vsa && 
+	    !_options.extadmvsa[i].attr)
+	  break;
+	
+	if (!_options.extadmvsa[i].attr_vsa) {
+#if(_debug_)
+	  log_dbg("looking for attr %d", _options.extadmvsa[i].attr);
+#endif
+	  if (radius_getattr(resp, &attr, _options.extadmvsa[i].attr, 
+			     0, 0, 0)) {
+	    log_dbg("didn't find attr %d", _options.extadmvsa[i].attr);
+	    attr = 0;
+	  }
+	} else {
+#if(_debug_)
+	  log_dbg("looking for attr %d/%d", _options.extadmvsa[i].attr_vsa, 
+		  _options.extadmvsa[i].attr);
+#endif
+	  if (radius_getattr(resp, &attr, 
+			     RADIUS_ATTR_VENDOR_SPECIFIC, 
+			     _options.extadmvsa[i].attr_vsa, 
+			     _options.extadmvsa[i].attr, 0)) {
+	    log_dbg("didn't find attr %d/%d", _options.extadmvsa[i].attr_vsa, 
+		    _options.extadmvsa[i].attr);
+	    attr = 0;
+	  }
+	}
+	if (attr && attr->l - 2 < 255) {
+	  char v[256];
+	  memset(v, 0, sizeof(v));
+	  memcpy(v, attr->v.t, attr->l - 2);
+	  log_dbg("Running script %s %d",
+		  _options.extadmvsa[i].script, 
+		  attr->l - 2);
+	  if (chilli_fork(CHILLI_PROC_SCRIPT, 	 
+			  _options.extadmvsa[i].script) == 0) {
+	    if (execl(
+#ifdef ENABLE_CHILLISCRIPT
+		      SBINDIR "/chilli_script", SBINDIR "/chilli_script", 
+		      _options.binconfig, 
+#else
+		      _options.extadmvsa[i].script,
+#endif
+		      _options.extadmvsa[i].script, 
+		      v, (char *) 0) != 0) {
+	      log_err(errno, "exec %s failed",
+		      _options.extadmvsa[i].script);
+	    }
+	    exit(0);
+	  } else {
+	    log_err(errno, "forking %s", _options.extadmvsa[i].script);
+	  }
+	}
+      }
+    }
+  }
+}
+#endif
 
 /* 
  * radius_decaps()
@@ -1792,6 +1937,10 @@ int radius_decaps(struct radius_t *this, int idx) {
   
   /* TODO: Check consistency of attributes vs packet length */
 
+#ifdef ENABLE_EXTADMVSA
+  chilli_extadmvsa(this, (struct app_conn_t *)cbp,
+		   &pack, &pack_req);
+#endif
 
 #ifdef ENABLE_MODULES
   { int i;

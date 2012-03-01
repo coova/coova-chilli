@@ -113,6 +113,7 @@ writeconfig() {
     [ "$HS_NATANYIP" = "on" ] && addconfig1 "uamnatanyip"
     [ "$HS_NOC2C" = "on" ] && addconfig1 "noc2c"
     [ "$HS_REDIR" = "on" ] && addconfig2 "redir"
+    [ "$HS_REDIRDNSREQ" = "on" ] && addconfig2 "redirdnsreq"
 
     [ "$HS_LAYER3" = "on" ] && addconfig1 "layer3"
     addconfig1 ${HS_LEASE:+"lease \"$HS_LEASE\""}
@@ -174,6 +175,10 @@ writeconfig() {
     HS_UAMALLOW=$(echo $HS_UAMALLOW|sed 's/ /,/g')
     uamallow=${HS_UAMALLOW:+",$HS_UAMALLOW"}
 
+    addconfig1 ${HS_MAXCLIENTS:+"maxclients $HS_MAXCLIENTS"}
+    addconfig1 ${HS_RADIUSQSIZE:+"radiusqsize $HS_RADIUSQSIZE"}
+    addconfig1 ${HS_DHCPHASHSIZE:+"dhcphashsize $HS_DHCPHASHSIZE"}
+
     [ "$HS_NOWISPR1" = "on" ] || [ "$HS_NOWISPR1" = "true" ] && addconfig1 "nowispr1"
     [ "$HS_NOWISPR2" = "on" ] || [ "$HS_NOWISPR2" = "true" ] && addconfig1 "nowispr2"
     [ "$HS_WEB_ADMIN" = "http"  ] || [ "$HS_WEB_ADMIN" = "both" ] && webadmin="$webadmin,$HS_UAMLISTEN:80"
@@ -233,6 +238,8 @@ writeconfig() {
 	[ "$HS_SESKEEPALIVE" = "on" ] && addconfig2 "seskeepalive"
 	[ -n "$HS_DNSLOG" ] && addconfig2 "dnslog \"$HS_DNSLOG\""
 	[ -n "$HS_USESTATUSFILE" ] && addconfig2 "usestatusfile \"$HS_USESTATUSFILE\""
+	[ -n "$HS_UAMLOGOUTIP" ] && addconfig2 "uamlogoutip \"$HS_UAMLOGOUTIP\""
+	[ -n "$HS_UAMALIASIP" ] && addconfig2 "uamaliasip \"$HS_UAMALIASIP\""
 	[ -n "$HS_UAMALIASNAME" ] && addconfig2 "uamaliasname \"$HS_UAMALIASNAME\""
 	[ -n "$HS_ADMINUPDATEFILE" ] && addconfig2 "adminupdatefile \"$HS_ADMINUPDATEFILE\""
 	[ -n "$HS_UAMSECRET" ] && addconfig2 "uamsecret \"$HS_UAMSECRET\""

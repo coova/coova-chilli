@@ -135,6 +135,17 @@ struct session_state {
   uint64_t other_output_octets;
 #endif
 
+#if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
+  uint64_t input_octets_old;
+  uint64_t output_octets_old;
+#ifdef ENABLE_GARDENACCOUNTING
+  uint64_t garden_input_octets_old;
+  uint64_t garden_output_octets_old;
+  uint64_t other_input_octets_old;
+  uint64_t other_output_octets_old;
+#endif
+#endif
+
 #ifdef ENABLE_SESSIONSTATE
   uint32_t session_state;
 #endif

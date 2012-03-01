@@ -341,7 +341,8 @@ int ippool_new(struct ippool_t **this,
   (*this)->hashmask = (*this)->hashsize -1;
   
   /* Allocate hash table */
-  if (!((*this)->hash = calloc(sizeof(struct ippoolm_t *), (*this)->hashsize))){
+  if (!((*this)->hash = 
+	calloc(sizeof(struct ippoolm_t *), (*this)->hashsize))){
     log_err(0, "Failed to allocate memory for hash members in ippool");
     return -1;
   }
@@ -474,6 +475,7 @@ int ippool_newip(struct ippool_t *this,
   if ((addr) && (addr->s_addr) && statip) { /* IP address given */
 #ifdef ENABLE_UAMANYIP
     if (!_options.uamanyip) {
+      log_dbg("HERE!!! -> %d", _options.uamanyip);
 #endif
       if (!this->allowstat) {
 	log_dbg("Static IP address not allowed");

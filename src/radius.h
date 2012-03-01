@@ -185,7 +185,11 @@ struct radius_queue_t {      /* Holder for queued packets */
   int retrans;               /* How many times did we retransmit this? */
   int lastsent;              /* 0 or 1 indicates last server used */
   struct sockaddr_in peer;   /* Address packet was sent to / received from */
-  struct radius_packet_t p;  /* The packet stored */
+  struct radius_packet_t 
+#ifdef RADIUS_QUEUE_PACKET_PTR
+  *
+#endif
+                         p;  /* The packet stored */
   int next;                  /* Pointer to the next in queue. -1: Last */
   int prev;                  /* Pointer to the previous in queue. -1: First */
 };
@@ -273,21 +277,25 @@ void radius_set(struct radius_t *this,
 
 /* Callback function for received request */
 int radius_set_cb_ind(struct radius_t *this,
-		      int (*cb_ind) (struct radius_t *radius, struct radius_packet_t *pack,
+		      int (*cb_ind) (struct radius_t *radius,
+				     struct radius_packet_t *pack,
 				     struct sockaddr_in *peer));
 
 /* Callback function for response to access request */
 int radius_set_cb_auth_conf(struct radius_t *this,
-			    int (*cb_auth_conf) (struct radius_t *radius, struct radius_packet_t *pack,
+			    int (*cb_auth_conf) (struct radius_t *radius, 
+						 struct radius_packet_t *pack,
 						 struct radius_packet_t *pack_req, void *cbp));
 
 /* Callback function for response to accounting request */
 int radius_set_cb_acct_conf(struct radius_t *this,
-			    int (*cb_acct_conf) (struct radius_t *radius, struct radius_packet_t *pack,
+			    int (*cb_acct_conf) (struct radius_t *radius, 
+						 struct radius_packet_t *pack,
 						 struct radius_packet_t *pack_req, void *cbp));
 
 int radius_set_cb_coa_ind(struct radius_t *this,
-			  int (*cb_coa_ind) (struct radius_t *radius, struct radius_packet_t *pack,
+			  int (*cb_coa_ind) (struct radius_t *radius, 
+					     struct radius_packet_t *pack,
 					     struct sockaddr_in *peer));
 
 /* Send of a request */
@@ -322,7 +330,8 @@ int radius_default_pack(struct radius_t *this,
 			int code);
 
 /* Extract an attribute from a packet */
-int radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
+int radius_getnextattr(struct radius_packet_t *pack, 
+		       struct radius_attr_t **attr,
 		       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
 		       int instance, size_t *roffset);
 
@@ -372,5 +381,19 @@ int radius_authresp_authenticator(struct radius_t *this,
 
 int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack, 
 		    char *secret, int secretlen, uint8_t *dst);
+
+#ifdef RADIUS_QUEUE_PACKET_PTR
+#define RADIUS_QUEUE_PKT(p, field) (p)->field
+#define RADIUS_QUEUE_PKTPTR(p) (p)
+#define RADIUS_QUEUE_PKTFREE(p) if((p))free((p));(p)=NULL;log_dbg("Freeing RADIUS packet")
+#define RADIUS_QUEUE_PKTALLOC(p) if((p))free((p));(p)=calloc(sizeof(struct radius_packet_t),1);log_dbg("Allocating RADIUS packet")
+#define RADIUS_QUEUE_HASPKT(p) ((p) != NULL)
+#else
+#define RADIUS_QUEUE_PKT(p, field) (p).field
+#define RADIUS_QUEUE_PKTPTR(p) &(p)
+#define RADIUS_QUEUE_PKTFREE(p) 
+#define RADIUS_QUEUE_PKTALLOC(p) 
+#define RADIUS_QUEUE_HASPKT(p) (1)
+#endif
 
 #endif	/* !_RADIUS_H */

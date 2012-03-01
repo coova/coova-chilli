@@ -46,7 +46,7 @@ typedef struct __SSL {
   sslKeys_t *keys;
   sslBuf_t insock, outsock, inbuf;
   int outBufferCount;
-  int partial;
+  int pending;
   int status;
 } SSL;
 

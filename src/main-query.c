@@ -39,8 +39,6 @@ static cmd_info commands[] = {
   { CMDSOCK_LIST_IPPOOL,   "listippool",    NULL },
   { CMDSOCK_LIST_RADQUEUE, "listradqueue",  NULL },
   { CMDSOCK_LIST_GARDEN,   "listgarden",    NULL },
-  { CMDSOCK_ENTRY_FOR_IP,  "listip",        NULL },
-  { CMDSOCK_ENTRY_FOR_MAC, "listmac",       NULL },
   { CMDSOCK_RELOAD,        "reload",        NULL },
   { CMDSOCK_DHCP_LIST,     "dhcp-list",     NULL },
   { CMDSOCK_DHCP_RELEASE,  "dhcp-release",  NULL },
@@ -67,6 +65,10 @@ static cmd_info commands[] = {
   { CMDSOCK_REM_GARDEN,  "remgarden", NULL },
 #ifdef ENABLE_INSPECT
   { CMDSOCK_INSPECT,  "inspect", NULL },
+#endif
+#if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
+  { CMDSOCK_LISTLOC,       "listloc",       NULL },
+  { CMDSOCK_LISTLOCSUM,    "listlocsum",    NULL },
 #endif
   { 0, NULL, NULL }
 };
@@ -183,6 +185,13 @@ static struct cmd_arguments args[] = {
     sizeof(request.d.sess.params.routeidx),
     &request.d.sess.params.routeidx,
     "Route interface index",  0, 0 },
+#endif
+#ifdef ENABLE_LOCATION
+  { "location",
+    CMDSOCK_FIELD_STRING, 
+    sizeof(request.d.sess.location),
+    request.d.sess.location,
+    "Location of session to perform action on", 0, 0 },
 #endif
   { "noacct",
     CMDSOCK_FIELD_NONE, 0, 0,
@@ -440,6 +449,11 @@ int main(int argc, char **argv) {
 #ifdef ENABLE_INSPECT
       case CMDSOCK_INSPECT:
 #endif
+#if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
+      case CMDSOCK_LISTLOC:
+      case CMDSOCK_LISTLOCSUM:
+#endif
+      case CMDSOCK_LIST:
       case CMDSOCK_LOGIN:
       case CMDSOCK_LOGOUT:
       case CMDSOCK_UPDATE:
@@ -452,7 +466,6 @@ int main(int argc, char **argv) {
 	/* else, drop through */
       case CMDSOCK_DHCP_DROP:
       case CMDSOCK_DHCP_RELEASE:
-      case CMDSOCK_ENTRY_FOR_MAC:
 	{
 	  if (argc < argidx+1) {
 	    fprintf(stderr, "%s requires a MAC address argument\n", cmd);
@@ -463,24 +476,6 @@ int main(int argc, char **argv) {
 	    return usage(argv[0]);
 	  
 	  /* do another switch to pick up param configs for authorize */
-	}
-	break;
-      case CMDSOCK_ENTRY_FOR_IP:
-	{
-	  struct in_addr ip;
-
-	  /* Test for a valid ip argument. */
-  	  if (argc < argidx+1) {
-  	    fprintf(stderr, "%s requires an IP address argument\n", cmd);
-  	    return usage(argv[0]);
-  	  }
-	  
-	  if (!inet_aton(argv[argidx], &ip)) {
-	    fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx]);
-	    return usage(argv[0]);
-	  }
-	 
-	  request.ip.s_addr = ip.s_addr;
 	}
 	break;
 #ifdef ENABLE_MULTIROUTE

@@ -1,6 +1,15 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
+* Removed chilli query command ''listip'', use ''list up'' instead
+* Removed chilli query command ''listmac'', use ''list mac'' instead
+* Added option ''only8021q'' to only handle VLAN traffic on an interface
+* When not using enable-largelimits, the RADIUS queue will allocate packet storage dynamically
+* Added AVL support for indexing locations and maintaining statistics
+* Fixed memory usage issue and added options ''dhcphashsize'' and ''radiusqsize''
+* Chomp off Ethernet trailer which would result in DNS parsing to fail
+* Several compile-time bugs fixed
+
 == ChangeLog (CoovaChilli-v1.2.9 svn revision 460) ==
 
 * New compile time option ''--enable-useragent'' to turn on the recording of User-Agent in RADIUS

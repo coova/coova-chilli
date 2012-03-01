@@ -308,6 +308,12 @@ void copy_mac6(uint8_t *, uint8_t *);
 
 #ifdef HAVE_PATRICIA
 #include "patricia.h"
+#define HAVE_SEARCH 1
+#endif
+
+#ifdef HAVE_AVL
+#include "avl/avl.h"
+#define HAVE_SEARCH 1
 #endif
 
 #endif

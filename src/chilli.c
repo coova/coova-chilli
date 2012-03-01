@@ -526,11 +526,11 @@ uint8_t* chilli_called_station(struct session_state *state) {
 }
 
 static void set_sessionid(struct app_conn_t *appconn, char full) {
-  int rt = (int) mainclock_rt();
+  appconn->rt = (int) mainclock_rt();
 
   safe_snprintf(appconn->s_state.sessionid, 
 		sizeof(appconn->s_state.sessionid), 
-		"%.8x%.8x", rt, appconn->unit);
+		"%.8x%.8x", appconn->rt, appconn->unit);
 
   appconn->s_state.redir.classlen = 0;
   appconn->s_state.redir.statelen = 0;
@@ -547,7 +547,7 @@ static void set_sessionid(struct app_conn_t *appconn, char full) {
 		  "%.8x%.8x", 
 		  his[0],his[1],his[2],his[3],his[4],his[5],
 		  called[0],called[1],called[2],called[3],called[4],called[5],
-		  rt, appconn->unit);
+		  appconn->rt, appconn->unit);
   }
 #endif
 }
@@ -859,7 +859,8 @@ int chilli_new_conn(struct app_conn_t **conn) {
   if (!firstfreeconn) {
 
     if (connections == _options.max_clients) {
-      log_err(0, "reached max connections!");
+      log_err(0, "reached max connections %d!",
+	      _options.max_clients);
       return -1;
     }
 
@@ -919,6 +920,11 @@ int static freeconn(struct app_conn_t *conn) {
 #ifdef WITH_PATRICIA
   if (conn->ptree)
     patricia_destroy (conn->ptree, free);
+#endif
+
+#if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
+  /*remove from location list (if we have a location/are in list) !!??*/
+  if (conn->loc_search_node!=NULL) location_close_conn(conn,1);
 #endif
 
   /* Remove from link of used */
@@ -2881,6 +2887,10 @@ chilli_learn_location(uint8_t *loc, int loclen,
       log_dbg("Learned new-location : %d %.*s old %d %s", 
 	      loclen, loclen, loc, 
 	      prev_loc_len, prev_loc_buff);
+
+#if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
+      location_add_conn(appconn, loc_buff);
+#endif
       
       if (_options.locationupdate) {
 	runscript(appconn, _options.locationupdate,
@@ -4315,11 +4325,8 @@ int cb_radius_acct_conf(struct radius_t *radius,
 }
 
 /*********************************************************
- *
  * radius callback functions (response from radius server)
- *
  *********************************************************/
-
 /* Radius callback when access accept/reject/challenge has been received */
 int cb_radius_auth_conf(struct radius_t *radius, 
 			struct radius_packet_t *pack,
@@ -5802,7 +5809,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
 /***********************************************************
  *
- * uam message handling functions
+ *   uam message handling functions
  *
  ***********************************************************/
 
@@ -5936,6 +5943,55 @@ int static uam_msg(struct redir_msg_t *msg) {
 }
 
 #if defined(ENABLE_CHILLIQUERY) || defined(ENABLE_CLUSTER)
+static struct app_conn_t * find_app_conn(struct cmdsock_request *req, 
+				  int *has_criteria) {
+  struct app_conn_t *appconn = 0;
+  struct dhcp_conn_t *dhcpconn = 0;
+
+  if (req->ip.s_addr) {
+    appconn = dhcp_get_appconn_ip(0, &req->ip);
+    if (has_criteria)
+      *has_criteria = 1;
+  } else {
+#ifdef ENABLE_LAYER3
+    if (!_options.layer3)
+#endif
+      if (req->mac[0]||req->mac[1]||req->mac[2]||
+	  req->mac[3]||req->mac[4]||req->mac[5]) {
+	dhcp_hashget(dhcp, &dhcpconn, req->mac);
+	if (has_criteria)
+	  *has_criteria = 1;
+      }
+  }
+  
+  if (!appconn && dhcpconn
+#ifdef ENABLE_LAYER3
+      && !_options.layer3
+#endif
+      ) 
+    appconn = (struct app_conn_t *) dhcpconn->peer;
+
+  if (!appconn && req->d.sess.sessionid[0] != 0) {
+    struct app_conn_t *aconn = firstusedconn;
+    if (has_criteria)
+      *has_criteria = 1;
+    while (aconn) {
+      if (!strcmp(aconn->s_state.sessionid, req->d.sess.sessionid)) {
+	appconn = aconn;
+	break;
+      }
+      aconn = aconn->next;
+    }
+  }
+  
+  if (appconn && !appconn->inuse) {
+    log_dbg("appconn not in use!");
+    return 0;
+  }
+
+  return appconn;
+}
+
 int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 
 #ifdef HAVE_NETFILTER_COOVA
@@ -6056,13 +6112,13 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	bconcat(s, tmp);
 	
 	{
-	  char buffer[64];
+	  char buffer[128];
 	  redir_chartohex(appconn->s_state.redir.uamchal, 
 			  buffer, REDIR_MD5LEN);
 	  bassignformat(tmp, 
 			"%20s: %s\n", 
 			"challenge",
-			    buffer);
+			buffer);
 	  bconcat(s, tmp);
 	}
 	
@@ -6405,27 +6461,17 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
     
   case CMDSOCK_LOGOUT:
     {
-      struct app_conn_t *appconn = firstusedconn;
-
+      struct app_conn_t *appconn = find_app_conn(req, 0);
+      
       log_dbg("looking to logout session %s",
 	      inet_ntoa(req->ip));
-
-      while (appconn) {
-	if (appconn->inuse &&
-	    ( (req->ip.s_addr != 0 && appconn->hisip.s_addr == req->ip.s_addr) ||
-	      (req->d.sess.sessionid[0] != 0 && !strcmp(appconn->s_state.sessionid, req->d.sess.sessionid)) 
-	      || (!memcmp(appconn->hismac, req->mac, PKT_ETH_ALEN)) 
-	      ) ) {
-
-	  log_dbg("found %s %s",
-		  inet_ntoa(appconn->hisip), appconn->s_state.sessionid);
-
-	  terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
-	  break;
-	}
-	appconn = appconn->next;
+      
+      if (appconn) {
+	log_dbg("found %s %s",
+		inet_ntoa(appconn->hisip), appconn->s_state.sessionid);
+	
+	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
       }
-      break;
     }
     break;
 
@@ -6442,52 +6488,46 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
     break;
 
   case CMDSOCK_LIST:
-  case CMDSOCK_ENTRY_FOR_IP:
     {
       int listfmt = req->options & CMDSOCK_OPT_JSON ?
 	LIST_JSON_FMT : LIST_LONG_FMT;
 
-      char check_ip = req->type == CMDSOCK_ENTRY_FOR_IP;
+      struct app_conn_t *appconn=0;
+      struct dhcp_conn_t *dhcpconn=0;
 
-      struct in_addr ip;
-
+      int crt = 0;
+      
 #ifdef ENABLE_JSON
       if (listfmt == LIST_JSON_FMT) {
 	bcatcstr(s, "{ \"sessions\":[");
       }
 #endif
       
-      ip.s_addr = check_ip ? req->ip.s_addr : 0;
-
+      appconn = find_app_conn(req, &crt);
+      if (appconn) {
 #ifdef ENABLE_LAYER3
-      if (_options.layer3) {
-	struct app_conn_t *conn = firstusedconn;
-	while (conn) {
-	  if (check_ip) {
-	    if (conn->hisip.s_addr == ip.s_addr) {
-	      chilli_print(s, listfmt, conn, 0);
-	      break;
-	    }
-	  } else {
-	    chilli_print(s, listfmt, conn, 0);
-	  }
-	  conn = conn->next;
-	}
-      } else
+	if (!_options.layer3)
 #endif
-      if (dhcp) {
-	struct dhcp_conn_t *conn = dhcp->firstusedconn;
-	while (conn) {
-	  if (check_ip) {
-	    if (conn->hisip.s_addr == ip.s_addr) {
-	      chilli_print(s, listfmt, 0, conn);
-	      break;
-	    }
-	  } else {
-	    chilli_print(s, listfmt, 0, conn);
+	  dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
+	
+	chilli_print(s, listfmt, appconn, dhcpconn);
+	
+      } else if (!crt) {
+#ifdef ENABLE_LAYER3
+	if (_options.layer3) {
+	  for (appconn = firstusedconn; appconn; 
+	       appconn = appconn->next) {
+	    chilli_print(s, listfmt, appconn, 0);
 	  }
-	  conn = conn->next;
-	}
+	} else 
+#endif
+	  if (dhcp) {
+	    dhcpconn = dhcp->firstusedconn;
+	    while (dhcpconn) {
+	      chilli_print(s, listfmt, 0, dhcpconn);
+	      dhcpconn = dhcpconn->next;
+	    }
+	  }
       }
       
 #ifdef ENABLE_JSON
@@ -6499,30 +6539,21 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
     break;
     
   case CMDSOCK_DHCP_LIST:
-  case CMDSOCK_ENTRY_FOR_MAC:
     if (dhcp) {
-      char check_mac = req->type == CMDSOCK_ENTRY_FOR_MAC;
-
       int listfmt = req->options & CMDSOCK_OPT_JSON ?
-	LIST_JSON_FMT : check_mac ? LIST_LONG_FMT : LIST_SHORT_FMT;
-
+	LIST_JSON_FMT : LIST_SHORT_FMT;
+      
       struct dhcp_conn_t *conn;
-
+      
 #ifdef ENABLE_JSON
       if (listfmt == LIST_JSON_FMT) {
 	bcatcstr(s, "{ \"sessions\":[");
       }
 #endif
-      if (check_mac) {
-	if (!dhcp_hashget(dhcp, &conn, req->mac)) {
-	  chilli_print(s, listfmt, 0, conn);
-	}
-      } else {
-	struct dhcp_conn_t *conn = dhcp->firstusedconn;
-	while (conn) {
-	  chilli_print(s, listfmt, 0, conn);
-	  conn = conn->next;
-	}
+      conn = dhcp->firstusedconn;
+      while (conn) {
+	chilli_print(s, listfmt, 0, conn);
+	conn = conn->next;
       }
 #ifdef ENABLE_JSON
       if (listfmt == LIST_JSON_FMT) {
@@ -6557,7 +6588,9 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	  if (conn->peer) {
 	    struct app_conn_t * appconn = (struct app_conn_t*)conn->peer;
 	    if (!memcmp(appconn->hismac, req->mac, 6)) {
-	      log_dbg("routeidx %s %d",appconn->s_state.sessionid, req->d.sess.params.routeidx);
+	      log_dbg("routeidx %s %d",
+		      appconn->s_state.sessionid, 
+		      req->d.sess.params.routeidx);
 	      appconn->s_params.routeidx = req->d.sess.params.routeidx;
 	      break;
 	    }
@@ -6608,7 +6641,8 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	    while (conn) {
 	      struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
 	      
-	      bassignformat(b, "mac: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X -> idx: %d\n", 
+	      bassignformat(b, "mac: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X"
+			    " -> idx: %d\n", 
 			    appconn->hismac[0], appconn->hismac[1],
 			    appconn->hismac[2], appconn->hismac[3],
 			    appconn->hismac[4], appconn->hismac[5],
@@ -6633,101 +6667,49 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
   case CMDSOCK_UPDATE:
   case CMDSOCK_AUTHORIZE:
     if (dhcp) {
-#ifdef ENABLE_LAYER3
-      /*
-       *  Redo this to using app firstfreeconn ...
-       */
-      struct app_conn_t *appconn = firstusedconn;
-      log_dbg("looking to authorized session %s",inet_ntoa(req->ip));
-
-      while (appconn) {
-	if (appconn->inuse &&
-	    ( (req->ip.s_addr != 0 && 
-	       appconn->hisip.s_addr == req->ip.s_addr) ||
-	      (req->d.sess.sessionid[0] != 0 && 
-	       !strcmp(appconn->s_state.sessionid, req->d.sess.sessionid)) 
-	      ) ) {
-	  char *uname = req->d.sess.username;
-
-	  log_dbg("remotely authorized session %s",
-		  appconn->s_state.sessionid);
-
-	  memcpy(&appconn->s_params, &req->d.sess.params,
-		 sizeof(req->d.sess.params));
-
-	  if (uname[0]) 
-	    safe_strncpy(appconn->s_state.redir.username, 
-			 uname, USERNAMESIZE);
-
-	  session_param_defaults(&appconn->s_params);
-
+      struct app_conn_t *appconn = find_app_conn(req, 0);
+      if (appconn) {
+	char *uname = req->d.sess.username;
+	
+	log_dbg("remotely authorized session %s",
+		appconn->s_state.sessionid);
+	
+	memcpy(&appconn->s_params, &req->d.sess.params, 
+	       sizeof(req->d.sess.params));
+	
+	if (uname[0]) 
+	  safe_strncpy(appconn->s_state.redir.username, 
+		       uname, USERNAMESIZE);
+	
+	session_param_defaults(&appconn->s_params);
+	
 #ifdef ENABLE_LEAKYBUCKET
-	  leaky_bucket_init(appconn);
+	leaky_bucket_init(appconn);
 #endif
-	  switch(req->type) {
-	  case CMDSOCK_LOGIN:
-	    auth_radius(appconn, uname, req->d.sess.password, 0, 0);
-	    break;
-	  case CMDSOCK_AUTHORIZE:
-	    dnprot_accept(appconn);
-	    break;
-	  case CMDSOCK_UPDATE:
-	    break;
-	  }
+	
+	switch(req->type) {
+	case CMDSOCK_LOGIN:
+	  auth_radius(appconn, uname, req->d.sess.password, 0, 0);
+	  break;
+	case CMDSOCK_AUTHORIZE:
+	  dnprot_accept(appconn);
+	  break;
+	case CMDSOCK_UPDATE:
 	  break;
 	}
-	appconn = appconn->next;
       }
-#else /* can likely be removed in favor of above */
-      struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
-      log_dbg("looking to authorized session %s",inet_ntoa(req->ip));
-
-      while (dhcpconn && dhcpconn->inuse) {
-	if (dhcpconn->peer) {
-	  struct app_conn_t * appconn = (struct app_conn_t*) dhcpconn->peer;
-	  
-	  if ( (req->ip.s_addr != 0 && appconn->hisip.s_addr == req->ip.s_addr) ||
-	       (!memcmp(appconn->hismac, req->mac, PKT_ETH_ALEN)) ||
-	       (req->d.sess.sessionid[0] != 0 && 
-		!strcmp(appconn->s_state.sessionid, req->d.sess.sessionid)) 
-	       ) {
-	  
-	    char *uname = req->d.sess.username;
-
-	    log_dbg("remotely authorized session %s",
-		    appconn->s_state.sessionid);
-
-	    memcpy(&appconn->s_params, &req->d.sess.params, 
-		   sizeof(req->d.sess.params));
-
-	    if (uname[0]) 
-	      safe_strncpy(appconn->s_state.redir.username, 
-			   uname, USERNAMESIZE);
-
-	    session_param_defaults(&appconn->s_params);
-
-#ifdef ENABLE_LEAKYBUCKET
-	    leaky_bucket_init(appconn);
-#endif
-
-	    switch(req->type) {
-	    case CMDSOCK_LOGIN:
-	      auth_radius(appconn, uname, req->d.sess.password, 0, 0);
-	      break;
-	    case CMDSOCK_AUTHORIZE:
-	      dnprot_accept(appconn);
-	      break;
-	    case CMDSOCK_UPDATE:
-	      break;
-	    }
-	    break;
-	  }
-	}
-	dhcpconn = dhcpconn->next;
-      }
-#endif
     }
     break;
+
+
+#if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
+    case CMDSOCK_LISTLOC:
+    case CMDSOCK_LISTLOCSUM:
+      location_printlist(s, req->d.sess.location,
+			 (req->options & CMDSOCK_OPT_JSON),
+			 (req->type == CMDSOCK_LISTLOC));
+      break;
+#endif
 
   case CMDSOCK_RELOAD:
     _sigusr1(SIGUSR1);
@@ -7132,7 +7114,7 @@ int chilli_main(int argc, char **argv) {
 
   syslog(LOG_INFO, "CoovaChilli(ChilliSpot) %s. "
 	 "Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006-2011 Coova Technologies, LLC <support@coova.com>. "
+	 "Copyright 2006-2012 Coova Technologies, LLC <support@coova.com>. "
 	 "Licensed under GPL. "
 	 "See http://www.coova.org/ for details.", VERSION);
 
@@ -7184,8 +7166,12 @@ int chilli_main(int argc, char **argv) {
   }
   
   /* Create an instance of dhcp */
-  if (dhcp_new(&dhcp, _options.max_clients, _options.dhcpif,
-	       _options.dhcpusemac, _options.dhcpmac, 1, 
+  if (dhcp_new(&dhcp, 
+	       _options.max_clients, 
+	       _options.dhcphashsize,
+	       _options.dhcpif,
+	       _options.dhcpusemac, 
+	       _options.dhcpmac, 1, 
 	       &_options.dhcplisten, _options.lease, 1, 
 	       &_options.uamlisten, _options.uamport, 
 	       _options.noc2c)) {
@@ -7213,7 +7199,7 @@ int chilli_main(int argc, char **argv) {
 		 &_options.radiuslisten, 
 		 _options.coaport, 
 		 _options.coanoipcheck, 1) ||
-      radius_init_q(radius, 0)) {
+      radius_init_q(radius, _options.radiusqsize)) {
     log_err(0, "Failed to create radius");
     return -1;
   }
@@ -7333,6 +7319,10 @@ int chilli_main(int argc, char **argv) {
 
 #ifdef HAVE_PATRICIA
   garden_patricia_reload();
+#endif
+
+#ifdef ENABLE_LOCATION
+  location_init();
 #endif
 
   /******************************************************************/

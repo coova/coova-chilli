@@ -1963,10 +1963,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	log_err(errno,"select(%d)",fd);
 	return -1;
 
+	/*
       case 0:
 	log_dbg("HTTP request timeout!");
 	done = 1;
 	break;
+	*/
 
       default:
 	break;
@@ -3959,7 +3961,7 @@ int redir_main(struct redir_t *redir,
   log_dbg("redir_accept: Original request host=%s", httpreq.host);
 
 #ifdef ENABLE_REDIRDNSREQ
-  if (_options.redirdnsreq) {
+  if (_options.redirdnsreq && tun) {
     uint8_t answer[PKT_BUFFER];
     
     /*struct pkt_ethhdr_t *answer_ethh;*/

@@ -62,6 +62,10 @@ libchilli_la_SOURCES += ewt.c ewt.h
 AM_CFLAGS += -std=gnu99 
 endif
 
+if WITH_LOCATION
+libchilli_la_SOURCES += location.c 
+endif
+
 if WITH_SFHASH
 libchilli_la_SOURCES += sfhash.c
 endif

@@ -195,6 +195,7 @@ option "nasip"	     - "Unique IP address of the NAS (nas-ip-address)" string no
 option "ssid"	     - "SSID of the session" string no
 option "vlan"	     - "VLAN of the session" string no
 option "ieee8021q"   - "Support 802.1Q VLAN tagging" flag off
+option "only8021q"   - "Support 802.1Q VLAN tagged traffic only" flag off
 
 # Command Socket Support
 option "cmdsocket"   - "path to the command unix socket" string no
@@ -223,6 +224,8 @@ option "tcpwin"	       - "Change TCP window size to this value to help prevent c
 option "scalewin"      - "Scale the TCP window when bandwidth shaping" flag off
 option "tcpmss"	       - "Change TCP maximum window size (mss) option in TCP traffic" int default="0" no
 option "maxclients"    - "Maximum number of clients/subscribers" int default="512" no
+option "dhcphashsize"  - "Size of DHCP/MAC hash table" int default="56" no
+option "radiusqsize"  - "Size of RADIUS queue table" int default="0" no
 
 option "challengetimeout" - "Timeout in seconds for the generated challenge" int default="600" no
 option "challengetimeout2" - "Timeout in seconds for challenge during login" int default="1200" no

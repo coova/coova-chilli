@@ -15,42 +15,46 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  * 
  */
-#ifndef CMDSOCK
-#define CMDSOCK
+#ifndef CMDSOCK_H
+#define CMDSOCK_H
 
-#define  CMDSOCK_DHCP_LIST      0
-#define  CMDSOCK_DHCP_RELEASE   1
-#define  CMDSOCK_LIST           2
-#define  CMDSOCK_SHOW           3
-#define  CMDSOCK_AUTHORIZE      4
-#define  CMDSOCK_DHCP_DROP      5
-#define  CMDSOCK_ENTRY_FOR_IP   6
-#define  CMDSOCK_ENTRY_FOR_MAC  7
-#define  CMDSOCK_RELOAD         8
-#define  CMDSOCK_PROCS          9
-#define  CMDSOCK_UPDATE        10
-#define  CMDSOCK_LOGIN         11
-#define  CMDSOCK_LOGOUT        12
-#define  CMDSOCK_LIST_IPPOOL   13
-#define  CMDSOCK_LIST_RADQUEUE 14
-#define  CMDSOCK_LIST_GARDEN   15
+typedef enum {
+  CMDSOCK_DHCP_LIST=0,
+  CMDSOCK_DHCP_RELEASE,
+  CMDSOCK_LIST,
+  CMDSOCK_SHOW,
+  CMDSOCK_AUTHORIZE,
+  CMDSOCK_DHCP_DROP,
+  CMDSOCK_RELOAD,
+  CMDSOCK_PROCS,
+  CMDSOCK_UPDATE,
+  CMDSOCK_LOGIN,
+  CMDSOCK_LOGOUT,
+  CMDSOCK_LIST_IPPOOL,
+  CMDSOCK_LIST_RADQUEUE,
+  CMDSOCK_LIST_GARDEN,
 #ifdef ENABLE_STATFILE
-#define  CMDSOCK_STATUSFILE    16
+  CMDSOCK_STATUSFILE,
 #endif
 #ifdef ENABLE_CLUSTER
-#define  CMDSOCK_PEERS         17
-#define  CMDSOCK_PEER_SET      18
+  CMDSOCK_PEERS,
+  CMDSOCK_PEER_SET,
 #endif
 #ifdef ENABLE_MULTIROUTE
-#define  CMDSOCK_ROUTE         19
-#define  CMDSOCK_ROUTE_SET     20
-#define  CMDSOCK_ROUTE_GW      21
+  CMDSOCK_ROUTE,
+  CMDSOCK_ROUTE_SET,
+  CMDSOCK_ROUTE_GW,
 #endif
-#define  CMDSOCK_ADD_GARDEN    22
-#define  CMDSOCK_REM_GARDEN    23
+  CMDSOCK_ADD_GARDEN,
+  CMDSOCK_REM_GARDEN,
 #ifdef ENABLE_INSPECT
-#define  CMDSOCK_INSPECT       24
+  CMDSOCK_INSPECT,
 #endif
+#if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
+ CMDSOCK_LISTLOC,
+ CMDSOCK_LISTLOCSUM,
+#endif
+} chilli_cmdtype;
 #define  CMDSOCK_OPT_JSON      (1)
 
 #include "pkt.h"
@@ -66,6 +70,9 @@ struct cmdsock_request {
       char username[256];
       char password[256];
       char sessionid[17];
+#ifdef ENABLE_LOCATION
+      char location[MAX_LOCATION_LENGTH];
+#endif
       struct session_params params;
     } sess;
     char data[1024];

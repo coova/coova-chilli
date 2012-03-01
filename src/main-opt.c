@@ -371,13 +371,14 @@ int main(int argc, char **argv) {
   _options.mschapv2 = args_info.mschapv2_flag;
   _options.acct_update = args_info.acctupdate_flag;
   _options.dhcpradius = args_info.dhcpradius_flag;
-  _options.ieee8021q = args_info.ieee8021q_flag;
   _options.dhcp_broadcast = args_info.dhcpbroadcast_flag;
   _options.dhcpgwport = args_info.dhcpgatewayport_arg;
   _options.noc2c = args_info.noc2c_flag;
   _options.tcpwin = args_info.tcpwin_arg;
   _options.tcpmss = args_info.tcpmss_arg;
   _options.max_clients = args_info.maxclients_arg;
+  _options.radiusqsize = args_info.radiusqsize_arg;
+  _options.dhcphashsize = args_info.dhcphashsize_arg;
   _options.uamdomain_ttl = args_info.uamdomainttl_arg;
   _options.seskeepalive = args_info.seskeepalive_flag;
   _options.uamallowpost = args_info.uamallowpost_flag;
@@ -658,6 +659,7 @@ int main(int argc, char **argv) {
 
   _options.uamanydns = args_info.uamanydns_flag;
 #ifdef ENABLE_UAMANYIP
+  log_dbg("HERE --- %d", args_info.uamanyip_flag);
   _options.uamanyip = args_info.uamanyip_flag;
   _options.uamnatanyip = args_info.uamnatanyip_flag;
 #endif
@@ -1211,6 +1213,8 @@ int main(int argc, char **argv) {
   _options.binconfig = STRDUP(args_info.bin_arg);
   _options.ethers = STRDUP(args_info.ethers_arg);
 #ifdef ENABLE_IEEE8021Q
+  _options.ieee8021q = args_info.ieee8021q_flag;
+  _options.ieee8021q_only = args_info.only8021q_flag;
   _options.vlanupdate = STRDUP(args_info.vlanupdate_arg);
 #endif
 #ifdef ENABLE_PROXYVSA

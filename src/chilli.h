@@ -29,7 +29,6 @@
 #include "syserr.h"
 #include "session.h"
 #include "dhcp.h"
-#include "chilli.h"
 #include "options.h"
 #include "cmdsock.h"
 #include "net.h"
@@ -84,6 +83,7 @@ struct app_conn_t {
   /* Management of connections */
   int unit;
   int dnprot;                    /* Downlink protocol */
+  time_t rt;
 
 #if(0)
 #define s_params  params[0]
@@ -150,6 +150,11 @@ struct app_conn_t {
   struct in_addr mask;
   struct in_addr dns1;
   struct in_addr dns2;
+
+#if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
+  struct list_entity loc_sess;
+  struct loc_search_t *loc_search_node;
+#endif
 };
 
 #define VAL_STRING   0
@@ -334,5 +339,44 @@ int selfpipe_read (void);
 int selfpipe_trap (int signo);
 int selfpipe_ignore (int signo);
 void selfpipe_finish();
+
+#ifdef ENABLE_LOCATION
+void location_init();
+#ifdef HAVE_AVL
+
+struct loc_search_t {
+  struct avl_node node;
+
+  char value[MAX_LOCATION_LENGTH];
+
+  uint64_t total_sess_count,
+    closed_sess_count,
+    new_sess_count,
+    roamed_in_sess_count,
+    roamed_out_sess_count;
+
+  time_t last_queried; 
+
+  struct list_entity loc_sess_head;
+
+  uint64_t closed_bytes_up,
+    closed_bytes_down; 
+
+#ifdef ENABLE_GARDENACCOUNTING
+  uint64_t garden_closed_bytes_up,
+    garden_closed_bytes_down; 
+
+  uint64_t other_closed_bytes_up,
+    other_closed_bytes_down; 
+#endif
+};
+
+void location_close_conn(struct app_conn_t *conn, int close);
+struct loc_search_t *location_find(char *loc);
+void location_add_conn(struct app_conn_t *appconn, char *loc);
+void location_printlist(bstring s, char *loc, int json, int list);
+
+#endif
+#endif
 
 #endif /*_CHILLI_H */

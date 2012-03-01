@@ -89,7 +89,7 @@ SSL * SSL_new(sslKeys_t *keys, int flags) {
   ssl->fd = -1;
   ssl->outBufferCount = 0;
   ssl->status = 0;
-  ssl->partial = 0;
+  ssl->pending = 1;
   
   return ssl;
 }
@@ -165,13 +165,14 @@ void SSL_set_fd(SSL *ssl, int fd) {
   ssl->fd = fd;
 }
 
-
 int SSL_read(SSL *ssl, char *buf, int len) {
   int rc;
  readMore:
   rc = _ssl_read(ssl, buf, len);
+  log_dbg("SSL_read(%d) = %d", len, rc);
   if (rc <= 0) {
-    if (rc < 0 || ssl->status == SSL_SOCKET_EOF || ssl->status == SSL_SOCKET_CLOSE_NOTIFY) {
+    if (rc < 0 || ssl->status == SSL_SOCKET_EOF || 
+	ssl->status == SSL_SOCKET_CLOSE_NOTIFY) {
       _ssl_closeSocket(ssl->fd);
       return rc;
     }
@@ -181,67 +182,33 @@ int SSL_read(SSL *ssl, char *buf, int len) {
 }
 
 int SSL_write(SSL *ssl, char *buf, int len) {
-  int rc = 0;
-  int rcSum = 0;
-  int offset = 0;
-  int maxWrite = SSL_MAX_BUF_SIZE;
-  maxWrite = maxWrite/2;
-  
-  if(len > maxWrite){
-    while(offset < len && rc >= 0) {
-      rc = 0;
-      while(rc == 0) {
-	if(len - offset < maxWrite) {
-	  //printf("calling low-level write with len-offset = %d\n",len-offset);
-	  rc = _ssl_write(ssl, (char*)(buf+offset), len-offset);
-	} else {
-	  //printf("calling low-level write with maxWrite = %d\n", maxWrite);
-	  rc = _ssl_write(ssl, (char*)(buf+offset), maxWrite);
-	  
-	}
-      }
-      //printf("multiple write : rc = %d\n", rc);
-      rcSum = rcSum + rc;
-      offset = offset + maxWrite;
+  int rc;
+ writeMore:
+  rc = _ssl_write(ssl, buf, len);
+  if (rc <= 0) {
+    if (rc < 0) {
+      return rc;
     }
-    if(rc < 0) {
-      rcSum = rc;
-    }
-  } else {
-    while (rc == 0) {
-      rc = _ssl_write(ssl, buf, len);
-      //printf("single write : rc = %d\n", rc);
-    }
-    rcSum = rc;
+    goto writeMore;
   }
-  return rcSum;
-}
-
-int SSL_peek(SSL *ssl, char *buf, int bufsize) {
-  int read_bytes;
-  unsigned long available = (unsigned long)(ssl->inbuf.end) - (unsigned long)(ssl->inbuf.start);
-  if(available > 0) {
-    read_bytes = available >= bufsize ? bufsize : (int)available;
-    memcpy(buf, ssl->inbuf.start, read_bytes);
-  }
-  else {	
-    char* newBuf = (char *)malloc(bufsize);
-    read_bytes = SSL_read(ssl, newBuf, bufsize);
-    if(read_bytes > 0) {
-      memcpy(buf, newBuf, read_bytes);
-      ssl->inbuf.start -= read_bytes;
-    }
-    free(newBuf);
-  }
-  return read_bytes;	
+  return rc;
 }
 
 int SSL_pending(SSL *ssl) {
-  unsigned long available = (unsigned long)(ssl->inbuf.end) - (unsigned long)(ssl->inbuf.start);
-  if (available > 0) {
-    return (int) available;
+  unsigned long available = 
+    ssl->inbuf.buf ? 
+    ((unsigned long)(ssl->inbuf.end) - 
+     (unsigned long)(ssl->inbuf.start)) : 
+    ssl->insock.buf ? 
+    ((unsigned long)(ssl->insock.end) - 
+     (unsigned long)(ssl->insock.start)) :
+    0;
+  if (ssl->pending && !available) {
+    available = 1;
+    ssl->pending=0;
   }
-  return 0;
+  log_dbg("SSL_pending() = %d", available);
+  return (int) available;
 }
 
 void SSL_free(SSL * ssl) {
@@ -263,7 +230,6 @@ void SSL_free(SSL * ssl) {
   }
   free(ssl);
 }
-
 
 
 /******************************************************************************/
@@ -362,7 +328,7 @@ int _ssl_doHandshake(SSL *ssl) {
 int _psSocketWrite(int sock, sslBuf_t *out)
 {
   unsigned char	*s;
-  int				bytes;
+  int  bytes;
   
   s = out->start;
   while (out->start < out->end) {
@@ -475,6 +441,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
   /*
     Define a temporary sslBuf
   */
+  log_dbg("SSL buffer sized %d", len);
   ssl->inbuf.start = ssl->inbuf.end = ssl->inbuf.buf = (unsigned char *)malloc(len);
   ssl->inbuf.size = len;
   /*
@@ -492,11 +459,13 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
       Successfully decoded a record that did not return data or require a response.
     */
   case SSL_SUCCESS:
+log_dbg("SSL_SUCCESS");
 		return 0;
 		/*
 		  Successfully decoded an application data record, and placed in tmp buf
 		*/
   case SSL_PROCESS_DATA:
+log_dbg("SSL_PROCESS_DATA");
     /*
       Copy as much as we can from the temp buffer into the caller's buffer
       and leave the remainder in conn->inbuf until the next call to read
@@ -515,6 +484,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
       to the outgoing data buffer and flush it out.
     */
   case SSL_SEND_RESPONSE:
+log_dbg("SSL_SEND_RESPONSE");
     bytes = send(ssl->fd, (char *)ssl->inbuf.start, 
 		 (int)(ssl->inbuf.end - ssl->inbuf.start), MSG_NOSIGNAL);
     if (bytes == -1) {
@@ -554,6 +524,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
       Since we're closing on error, we don't worry too much about a clean flush.
     */
   case SSL_ERROR:
+log_dbg("SSL_ERROR");
     log_dbg("ssl error");
     if (ssl->inbuf.start < ssl->inbuf.end) {
       _ssl_setSocketNonblock(ssl->fd);
@@ -566,6 +537,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
       matrixSslDecode are filled in with the specifics.
     */
   case SSL_ALERT:
+log_dbg("SSL_ALERT");
     log_dbg("ssl alert");
     if (alertDescription == SSL_ALERT_CLOSE_NOTIFY) {
       ssl->status = SSL_SOCKET_CLOSE_NOTIFY;
@@ -578,6 +550,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
       here so that we CAN read more data when called the next time.
     */
   case SSL_PARTIAL:
+log_dbg("SSL_PARTIAL");
     if (ssl->insock.start == ssl->insock.buf && ssl->insock.end == 
 	(ssl->insock.buf + ssl->insock.size)) {
       if (ssl->insock.size > SSL_MAX_BUF_SIZE) {
@@ -601,6 +574,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
       data.  Increase the size of the buffer and call decode again
     */
   case SSL_FULL:
+log_dbg("SSL_FULL");
     ssl->inbuf.size *= 2;
     if (ssl->inbuf.buf != (unsigned char*)buf) {
       free(ssl->inbuf.buf);
@@ -630,7 +604,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
 
 int _ssl_write(SSL *ssl, char *buf, int len)
 {
-  int		rc;
+  int rc;
   
   ssl->status = 0;
   /*

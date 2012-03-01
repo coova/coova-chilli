@@ -235,13 +235,12 @@ struct dhcp_t {
   int hashmask;                 /* Bitmask for calculating hash */
   struct dhcp_conn_t **hash;    /* Hashsize array of pointer to member */
 
-  pass_through pass_throughs[MAX_PASS_THROUGHS];
-  uint32_t num_pass_throughs;
-
 #ifdef HAVE_PATRICIA
   patricia_tree_t *ptree;
   patricia_tree_t *ptree_dyn;
 #endif
+  pass_through pass_throughs[MAX_PASS_THROUGHS];
+  uint32_t num_pass_throughs;
 
   /* Call back functions */
   int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
@@ -254,11 +253,11 @@ struct dhcp_t {
 
 const char* dhcp_version();
 
-int dhcp_new(struct dhcp_t **dhcp, int numconn, char *interface,
-	 int usemac, uint8_t *mac, int promisc, 
-	 struct in_addr *listen, int lease, int allowdyn,
-	 struct in_addr *uamlisten, uint16_t uamport, 
-	 int noc2c);
+int dhcp_new(struct dhcp_t **dhcp, int numconn, int hashsize,
+	     char *interface, int usemac, uint8_t *mac, int promisc, 
+	     struct in_addr *listen, int lease, int allowdyn,
+	     struct in_addr *uamlisten, uint16_t uamport, 
+	     int noc2c);
 
 int dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug);
 
@@ -294,7 +293,8 @@ int dhcp_set_cb_data_ind(struct dhcp_t *this,
   int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len));
 
 int dhcp_set_cb_request(struct dhcp_t *this, 
-  int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr, uint8_t *pack, size_t len));
+  int (*cb_request) (struct dhcp_conn_t *conn, 
+		     struct in_addr *addr, uint8_t *pack, size_t len));
 
 int dhcp_set_cb_disconnect(struct dhcp_t *this, 
   int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause));

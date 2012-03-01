@@ -1,6 +1,6 @@
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2012 Coova Technologies, LLC. <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -219,7 +219,7 @@ int garden_patricia_add(pass_through *pt, patricia_tree_t *ptree) {
 	memcpy(&nd->ptlist[nd->ptcnt-1], pt, sizeof(*pt));
       }
     }
-
+    
     PATRICIA_DATA_SET(pfx, nd);
   }
 
@@ -573,9 +573,18 @@ int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen,
       int is_negate = (*p == '!');
       if (is_negate) p++;
       switch (stage) {
-      case 0: safe_strncpy(pt.regex_host, p, sizeof(pt.regex_host)); pt.neg_host = is_negate; break;
-      case 1: safe_strncpy(pt.regex_path, p, sizeof(pt.regex_path)); pt.neg_path = is_negate; break;
-      case 2: safe_strncpy(pt.regex_qs,   p, sizeof(pt.regex_qs));   pt.neg_qs   = is_negate; break;
+      case 0: 
+	safe_strncpy(pt.regex_host, p, sizeof(pt.regex_host)); 
+	pt.neg_host = is_negate; 
+	break;
+      case 1:
+	safe_strncpy(pt.regex_path, p, sizeof(pt.regex_path)); 
+	pt.neg_path = is_negate; 
+	break;
+      case 2: 
+	safe_strncpy(pt.regex_qs, p, sizeof(pt.regex_qs));   
+	pt.neg_qs   = is_negate; 
+	break;
       }
     }
   }
@@ -619,13 +628,15 @@ void garden_load_domainfile() {
 
     fp = fopen(_options.uamdomainfile, "r");
     if (!fp) { 
-      log_err(errno, "could not open file %s", _options.uamdomainfile); 
+      log_err(errno, "could not open file %s", 
+	      _options.uamdomainfile); 
       return; 
     }
     
     while ((read = getline(&line, &len, fp)) != -1) {
       if (read <= 0) continue;
-      else if (!line[0] || line[0] == '#' || isspace((int) line[0])) continue;
+      else if (!line[0] || line[0] == '#' || 
+	       isspace((int) line[0])) continue;
       else {
 	
 	uamdomain_regex * uam_re = (uamdomain_regex *)

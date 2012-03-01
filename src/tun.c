@@ -1084,7 +1084,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     len  -= ethlen;
   }
 
-#if(_debug_ > 0)
+#if(_debug_ > 1)
   log_dbg("tun_encaps(%s) len=%d", tun(tun,idx).devname, len);
 #endif
 
@@ -1152,6 +1152,13 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
   if (_options.layer3) {
     set_env("LAYER3", VAL_STRING, "1", 0);
   }
+#endif
+
+#ifdef ENABLE_IEEE8021Q
+  if (_options.ieee8021q)
+    set_env("IEEE8021Q", VAL_STRING, "1" , 0);
+  if (_options.ieee8021q_only)
+    set_env("ONLY8021Q", VAL_STRING, "1" , 0);
 #endif
 
 #ifdef HAVE_NETFILTER_COOVA

@@ -162,6 +162,8 @@ struct options_t {
   int uamuiport;                 /* TCP port to listen to */
 #endif
   int max_clients;               /* Max subscriber/clients */
+  int dhcphashsize;              /* DHCP MAC Hash table size */
+  int radiusqsize;               /* Size of RADIUS queue, 0 for default */
 
   struct in_addr uamlogout;      /* IP address of HTTP auto-logout */
   struct in_addr uamalias;       /* IP address of UAM Alias */
@@ -238,6 +240,7 @@ struct options_t {
 
 #ifdef ENABLE_IEEE8021Q
   uint8_t ieee8021q:1;              /* check for VLAN tags */
+  uint8_t ieee8021q_only:1;              /* check for VLAN tags */
 #endif
 #ifdef ENABLE_RADPROXY
   uint8_t proxymacaccept:1;         /* Auto-accept non-EAP requests on proxy port */

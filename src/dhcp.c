@@ -472,11 +472,11 @@ int dhcp_hashinit(struct dhcp_t *this, int listsize) {
   
   /* Allocate hash table */
   if (!((this)->hash = 
-	calloc(sizeof(struct dhcp_conn_t), (this)->hashsize))) {
+	calloc(sizeof(struct dhcp_conn_t *), (this)->hashsize))) {
     /* Failed to allocate memory for hash members */
     return -1;
   }
-
+  
   log_dbg("hash table size %d (%d)", this->hashsize, listsize);
   return 0;
 }
@@ -639,12 +639,13 @@ int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn) {
   if (!this->firstfreeconn) {
 
     if (connections == _options.max_clients) {
-      log_err(0, "reached max connections!");
-      return -1;
-    }
+      log_err(0, "reached max connections %d!",
+	      _options.max_clients);
+       return -1;
+     }
 
     ++connections;
-
+    
     if (!(*conn = calloc(1, sizeof(struct dhcp_conn_t)))) {
       log_err(0, "Out of memory!");
       return -1;
@@ -1004,8 +1005,8 @@ int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
  * dhcp_new()
  * Allocates a new instance of the library
  **/
-int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
-	     int usemac, uint8_t *mac, int promisc, 
+int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
+	     char *interface, int usemac, uint8_t *mac, int promisc, 
 	     struct in_addr *listen, int lease, int allowdyn,
 	     struct in_addr *uamlisten, uint16_t uamport, 
 	     int noc2c) {
@@ -1133,7 +1134,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, char *interface,
     }
   }
 
-  if (dhcp_hashinit(dhcp, numconn))
+  if (dhcp_hashinit(dhcp, hashsize))
     return -1; /* Failed to allocate hash tables */
 
   /* Initialise various variables */
@@ -3003,7 +3004,7 @@ dhcp_handler(int type,
 	     struct dhcp_conn_t *dhcpconn,
 	     uint8_t *pack, size_t len,
 	     uint8_t *packet, size_t pos) {
-#if defined(ENABLE_PROXYVSA) || defined(ENABLE_MODULES)
+#if defined(ENABLE_LOCATION) || defined(ENABLE_MODULES)
   struct app_conn_t *appconn = 0;
 #endif
 
@@ -3488,18 +3489,17 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   int ip_len;
   int tot_len;
 
+#if(_debug_ > 1)
   log_dbg("function %s()", __FUNCTION__);
+#endif
 
   if (len < PKT_IP_HLEN + PKT_ETH_HLEN + 4) {
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("too short");
 #endif
     return 0;
   }
 
-  /*
-   *  Only supports IPv4 currently.
-   */
   if (pack_iph->version_ihl != PKT_IP_VER_HLEN) {
 #if(_debug_)
     log_dbg("dropping non-IPv4");
@@ -3510,7 +3510,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   /*
    * Sanity check on IP total length
    */
-  ip_len = (int)ntohs(pack_iph->tot_len);
+  ip_len = (int) ntohs(pack_iph->tot_len);
   tot_len = ip_len + sizeofeth(pack);
 
   if (tot_len > len) {
@@ -3532,16 +3532,24 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     return 0;
   }
   
-  if (ip_len > _options.mtu) {
-    if (pack_iph->opt_off_high & 64) {
-      uint8_t icmp_pack[1500];
-      log_dbg("ICMP frag for IP packet with length %d", ip_len);
-      dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack, 
-		icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
-      OTHER_SENDING(conn, iphdr(icmp_pack));
-      OTHER_RECEIVED(conn, pack_iph);
-      return 0;
-    }
+  if (ip_len > _options.mtu ||
+      iphdr_more_frag(pack_iph) ||
+      iphdr_offset(pack_iph)) {
+    uint8_t icmp_pack[1500];
+    log_dbg("ICMP frag for IP packet with length %d", ip_len);
+    dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack, 
+	      icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
+    OTHER_SENDING(conn, iphdr(icmp_pack));
+    OTHER_RECEIVED(conn, pack_iph);
+    return 0;
+  }
+
+  /*
+   *  Chop off any trailer length
+   */
+  if (len > tot_len) {
+    log_dbg("chopping off trailer length %d", len - tot_len);
+    len = tot_len;
   }
   
   /*
@@ -3695,9 +3703,9 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
       appconn = chilli_connect_layer3(&src, conn);
 
-      app_conn_set_idx(appconn, conn);
-
       if (!appconn) return -1;
+
+      app_conn_set_idx(appconn, conn);
 
       if (!appconn->dnlink)
 	appconn->dnlink = conn;
@@ -3922,7 +3930,6 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   if (has_ip && (this->cb_data_ind)) {
 
-    log_dbg("forwarding...");
     this->cb_data_ind(conn, pack, len);
 
   } else {
@@ -4905,7 +4912,7 @@ void dhcp_peer_update(char force) {
 static 
 int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
   struct dhcp_ctx *ctx = (struct dhcp_ctx *)pctx;
-  uint16_t prot;
+  uint16_t prot = 0;
   char ignore = 0;
 
   uint8_t *packet = pkt_buffer_head(pb);
@@ -4919,18 +4926,23 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
   }
   
 #ifdef ENABLE_IEEE8021Q
-  if (_options.ieee8021q && is_8021q(packet)) {
-    struct pkt_ethhdr8021q_t *ethh;
-    min_length = sizeof(struct pkt_ethhdr8021q_t);
-    if (length < min_length) {
-      log_dbg("bad packet length %d", length);
+  if (_options.ieee8021q) {
+    if (is_8021q(packet)) {
+      struct pkt_ethhdr8021q_t *ethh;
+      min_length = sizeof(struct pkt_ethhdr8021q_t);
+      if (length < min_length) {
+	log_dbg("bad packet length %d", length);
+	return 0;
+      }
+      ethh = ethhdr8021q(packet);
+      prot = ntohs(ethh->prot);
+    } else if (_options.ieee8021q_only) {
       return 0;
     }
-    ethh = ethhdr8021q(packet);
-    prot = ntohs(ethh->prot);
-  } else 
+  }
 #endif
-  {
+
+  if (!prot) {
     struct pkt_ethhdr_t *ethh = ethhdr(packet);
     prot = ntohs(ethh->prot);
   }
@@ -5290,7 +5302,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
     pkt_buffer_grow(pb, hdrlen);
     packet = pkt_buffer_head(pb);
     length = pkt_buffer_length(pb);
-#if(_debug_ > 0)
+#if(_debug_ > 1)
     log_dbg("adding %d to IP frame length %d", hdrlen, length);
 #endif
   }
@@ -5391,7 +5403,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
 
     pb->length = length;
 
-#if(_debug_ > 0)
+#if(_debug_ > 1)
     log_dbg("adding 20 to frame length %d", length);
 #endif
 

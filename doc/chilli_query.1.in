@@ -10,7 +10,7 @@
 .\" IP indented paragraph
 .\" TP hanging label
 
-.TH chilli_query 1 "November 2008"
+.TH chilli_query 1 "February 2012"
 .SH NAME
 chilli_query \-  Interface into the chilli server
 
@@ -65,6 +65,18 @@ Show the internal walled garden state.
 .TP
 .BI listradqueue
 Show the internal RADIUS queue state.
+
+.TP
+.BI addgarden " [ ip <ip> | mac <mac> ] data <uamallow-resource>"
+Add to the dynamic walled garden. When used without the 'ip' or 'mac'
+option, the entry applies to the global garden. Otherwise, it is
+session specific only if configured with --enable-sessgarden.
+
+.TP
+.BI remgarden " [ ip <ip> | mac <mac> ] data <uamallow-resource>"
+Remove from the dynamic walled garden. When used without the 'ip'
+or 'mac' option, the entry applies to the global garden. Otherwise, it
+is session specific only if configured with --enable-sessgarden.
 
 .RS
 .I PARAMETERS

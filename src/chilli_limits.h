@@ -46,8 +46,8 @@
 /* redir */
 #define REDIR_MAXLISTEN                   32
 #define REDIR_MAXTIME                    120 /* Seconds */
-#define REDIR_HTTP_MAX_TIME               10 /* Seconds */
-#define REDIR_HTTP_SELECT_TIME             2 /* Seconds */
+#define REDIR_HTTP_MAX_TIME               20 /* Seconds */
+#define REDIR_HTTP_SELECT_TIME             3 /* Seconds */
 #define REDIR_RADIUS_MAX_TIME             60 /* Seconds */
 #define REDIR_RADIUS_SELECT_TIME      500000 /* microseconds = 0.5 seconds */
 #define REDIR_CHALLEN                     16
@@ -88,7 +88,6 @@
 #define RADIUS_CHAPSIZE                   24 
 #define RADIUS_QUEUESIZE                 256 /* Same size as id address space */
 #define RADIUS_ATTR_VLEN                 253
-#define RADIUS_PACKSIZE                 4096
 #define RADIUS_HDRSIZE                    20
 #define RADIUS_MPPEKEYSSIZE               32 /* Length of MS_CHAP_MPPE_KEYS attribute */ 
 
@@ -120,6 +119,7 @@
 #define MAX_UAM_DOMAINS                  128 /* Max number of allowed UAM domains */
 #define MACOK_MAX                         56
 #define MAX_SELECT                        56
+#define RADIUS_PACKSIZE                 4096
 #else
 #define PKT_MAX_LEN                     5000 /* Maximum packet size we receive */
 #define MAX_EAP_LEN                     1500 /* Size of buffer to hold EAP message */
@@ -129,6 +129,8 @@
 #define MAX_UAM_DOMAINS                   32 /* Max number of allowed UAM domains */
 #define MACOK_MAX                         16
 #define MAX_SELECT                        16
+#define RADIUS_PACKSIZE                 1600
+#define RADIUS_QUEUE_PACKET_PTR 1
 #endif
 
 #endif
