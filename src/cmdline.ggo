@@ -199,6 +199,7 @@ option "only8021q"   - "Support 802.1Q VLAN tagged traffic only" flag off
 
 # Command Socket Support
 option "cmdsocket"   - "path to the command unix socket" string no
+option "cmdsocketport" - "Port of command socket. Only used if cmdsocket is not defined." int default="42424" no
 
 option "radiusoriginalurl" - "Turn on the sending of ChilliSpot-OriginalURL in Access-Request" flag off
 option "swapoctets"    - "Swap the meaning of input/output octets/packets" flag   off

@@ -132,6 +132,13 @@ see
 for default.
 
 .TP
+.BI cmdsocketport " port"
+UNIX port used for communication with
+.BR chilli_query(1)
+Only used when cmdsocket is not defined.
+Default port is 42424
+
+.TP
 .BI net " net"
 Network address of the uplink interface (default = 192.168.182.0/24). The
 network address is set during initialisation when

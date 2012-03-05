@@ -58,3 +58,54 @@ cmdsock_init() {
   return cmdsock;
 }
 
+
+int
+cmdsock_port_init() {
+  struct sockaddr_in local;
+  int cmdsock;
+  int rc;
+  
+  if ((cmdsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+
+    log_err(errno, "could not allocate commands socket!");
+
+  } else {
+
+    memset(&local, 0, sizeof(local));
+    local.sin_family = AF_INET;
+    local.sin_addr.s_addr = INADDR_ANY;
+    local.sin_port = htons(_options.cmdsocketport);
+
+    rc = 1;
+    setsockopt(cmdsock,
+	       SOL_SOCKET,
+	       SO_REUSEADDR,
+	       (char *)&rc,
+	       sizeof(rc));
+
+    if (bind(cmdsock, (struct sockaddr *)&local, 
+	     sizeof(struct sockaddr_in)) == -1) {
+      log_err(errno, "could not bind commands socket!");
+      close(cmdsock);
+      cmdsock = -1;
+    } else {
+      if (listen(cmdsock, 5) == -1) {
+	log_err(errno, "could not listen from commands socket!");
+	close(cmdsock);
+	cmdsock = -1;
+      }
+    }
+  }
+
+  return cmdsock;
+}
+
+
+void cmdsock_shutdown(int s) {
+  if (s < 0) {
+    return;
+  }
+  log_dbg("Shutting down cmdsocket");
+  shutdown(s, 2);
+  close(s);
+}

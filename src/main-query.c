@@ -242,8 +242,9 @@ static int parse_mac(uint8_t *mac, char *string) {
 static int usage(char *program) {
   int i;
 
-  fprintf(stderr, "Usage: %s [ -s <socket> ] <command> [<arguments>]\n", program);
+  fprintf(stderr, "Usage: %s [ -s <socket> ] [ -P <port> ] <command> [<arguments>]\n", program);
   fprintf(stderr, "  socket = full path to UNIX domain socket (e.g. /var/run/chilli.sock)\n");
+  fprintf(stderr, "  port = TCP socket port to connect to. Default is 42424\n");
 
   fprintf(stderr, "  Available Commands:\n    ");
   for (i=0; commands[i].command; i++) {
@@ -368,6 +369,32 @@ static int process_args(int argc, char *argv[], int argidx) {
   return argidx;
 }
 
+static int chilli_communicate(int s,
+			       struct cmdsock_request *buffer,
+			       size_t blen) {
+  char line[1024];
+  int len;
+
+  if (safe_write(s, buffer, blen) != blen) {
+    perror("write");
+    return -1;
+  }
+  
+  while((len = safe_read(s, line, sizeof(line)-1)) > 0) {
+    if (write(1, line, len) != len) {
+      perror("write");
+      return -1;
+    }
+  }
+  
+  if (len < 0) {
+    perror("read");
+    return -1;
+  }
+
+  return 0;
+}
+
 int main(int argc, char **argv) {
   /*
    *   chilli_query [ -s <unix-socket> ] <command> [<argument>]
@@ -381,10 +408,13 @@ int main(int argc, char **argv) {
 #else
   char *cmdsock = DEFSTATEDIR"/chilli.sock";
 #endif
-  int s, len;
+  int s;
+  int unixsocket = 0;
+  int cmdsockport = 0;
   struct sockaddr_un remote;
-  char line[1024], *cmd;
+  char *cmd;
   int argidx = 1;
+  int len;
 
   struct itimerval itval;
 
@@ -416,6 +446,7 @@ int main(int argc, char **argv) {
     /* for backward support, ignore a unix-socket given as first arg */
     if (argc < 3) return usage(argv[0]);
     cmdsock = argv[argidx++];
+    unixsocket = 1;
   } 
   
   memset(&request,0,sizeof(request));
@@ -425,6 +456,7 @@ int main(int argc, char **argv) {
       argidx++;
       if (argidx >= argc) return usage(argv[0]);
       cmdsock = argv[argidx++];
+      unixsocket = 1;
 #ifdef ENABLE_CLUSTER
     } else if (!strcmp(argv[argidx], "-p")) {
       argidx++;
@@ -434,6 +466,10 @@ int main(int argc, char **argv) {
     } else if (!strcmp(argv[argidx], "-json")) {
       request.options |= CMDSOCK_OPT_JSON;
       argidx++;
+    } else if (!strcmp(argv[argidx], "-P")) {
+      argidx++;
+      if (argidx >= argc) return usage(argv[0]);
+      cmdsockport = atoi(argv[argidx++]);
     }
   }
   
@@ -558,8 +594,45 @@ int main(int argc, char **argv) {
 		       (struct sockaddr *)&s, 
 		       sizeof(struct sockaddr_in));
 
-  } else {
+    return 0;
+  }
 #endif
+
+  if (! unixsocket) {
+    struct sockaddr_in remote_port;
+    struct in_addr addr;
+
+    /* If no socket file is defined, use port */
+    if (cmdsockport == 0) {
+      cmdsockport = 42424;
+    }
+
+    if ((s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+      perror("socket");
+      exit(1);
+    }
+
+    inet_aton("127.0.0.1", &addr);
+    memset(&remote_port, 0, sizeof(struct sockaddr_in));
+    remote_port.sin_family = AF_INET;
+    remote_port.sin_port = htons(cmdsockport);
+    remote_port.sin_addr.s_addr = addr.s_addr;
+
+    if (connect(s, (struct sockaddr *)&remote_port, sizeof(remote_port)) == -1) {
+      perror("connect");
+      exit(1);
+    }
+
+    if (chilli_communicate(s, &request, sizeof(request)) != 0) {
+      perror("write");
+      exit(1);
+    }
+
+    shutdown(s, 2);
+    close(s);
+
+    return 0;
+  }
   
 #ifdef HAVE_GLOB
   globbuf.gl_offs = 0;
@@ -602,21 +675,9 @@ int main(int argc, char **argv) {
     perror("connect");
     exit(1);
   }
-  
-  if (safe_write(s, &request, sizeof(request)) != sizeof(request)) {
+
+  if (chilli_communicate(s, &request, sizeof(request)) != 0) {
     perror("write");
-    exit(1);
-  }
-
-  while((len = safe_read(s, line, sizeof(line)-1)) > 0) {
-    if (write(1, line, len) != len) {
-      perror("write");
-      exit(1);
-    }
-  }
-
-  if (len < 0) {
-    perror("read");
     exit(1);
   }
 
@@ -626,10 +687,6 @@ int main(int argc, char **argv) {
 #ifdef HAVE_GLOB
   }
   globfree(&globbuf);
-#endif
-
-#ifdef ENABLE_CLUSTER
-  }
 #endif
   
   return 0;

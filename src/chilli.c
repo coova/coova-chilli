@@ -7251,6 +7251,13 @@ int chilli_main(int argc, char **argv) {
 #ifdef ENABLE_CHILLIQUERY
   if (_options.cmdsocket) {
     cmdsock = cmdsock_init();
+  } else {
+    cmdsock = cmdsock_port_init();
+  }
+  if (cmdsock < 0) {
+    log_err(errno,
+	    "Failed to initialize chilli query socket");
+    return -1;
   }
 #endif
   
@@ -7562,6 +7569,10 @@ int chilli_main(int argc, char **argv) {
   /*
    *  Terminate not-so-nicely
    */
+
+#ifdef ENABLE_CHILLIQUERY
+  cmdsock_shutdown();
+#endif
 
 #ifdef ENABLE_CHILLIREDIR
   if (redir_pid > 0) {

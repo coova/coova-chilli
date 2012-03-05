@@ -355,6 +355,7 @@ struct options_t {
 
   /* Command-Socket */
   char *cmdsocket;
+  uint16_t cmdsocketport;
 
 #ifdef ENABLE_IEEE8021Q
   char * vlanupdate;

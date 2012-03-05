@@ -259,6 +259,10 @@ int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos);
 
 int cmdsock_init();
 
+int cmdsock_port_init();
+
+void cmdsock_shutdown();
+
 time_t mainclock_tick();
 time_t mainclock_now();
 time_t mainclock_rt();
