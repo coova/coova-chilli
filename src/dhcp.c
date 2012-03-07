@@ -2721,7 +2721,7 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
   copy_ethproto(req, pack);
 
   pack_ethh = ethhdr(pack);
-  pack_iph = iphdr(pack);
+  pack_iph  = iphdr(pack);
   pack_udph = udphdr(pack);
   pack_dhcp = dhcppkt(pack);
 
@@ -2862,8 +2862,14 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
 #ifdef ENABLE_DHCPOPT
   if (_options.dhcp_options[0]) {
     struct dhcp_tag_t *param_list = 0;
-    if (!dhcp_gettag(req_dhcp, ntohs(pack_udph->len) - PKT_UDP_HLEN, 
+    struct pkt_udphdr_t *req_udph = udphdr(req);
+    uint16_t udph_len = ntohs(req_udph->len);
+
+    log_dbg("UDP length %d", udph_len);
+
+    if (!dhcp_gettag(req_dhcp, udph_len - PKT_UDP_HLEN, 
 		     &param_list, DHCP_OPTION_PARAMETER_REQUEST_LIST)) {
+
       uint8_t *lhead = _options.dhcp_options;
       struct dhcp_tag_t *opt = (struct dhcp_tag_t *)lhead;
       while (opt && opt->t && opt->l) {
@@ -3486,8 +3492,8 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   struct app_conn_t *appconn = 0;
 
-  int ip_len;
-  int tot_len;
+  uint16_t iph_tot_len;
+  uint16_t eth_tot_len;
 
 #if(_debug_ > 1)
   log_dbg("function %s()", __FUNCTION__);
@@ -3510,12 +3516,12 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   /*
    * Sanity check on IP total length
    */
-  ip_len = (int) ntohs(pack_iph->tot_len);
-  tot_len = ip_len + sizeofeth(pack);
+  iph_tot_len = ntohs(pack_iph->tot_len);
+  eth_tot_len = iph_tot_len + sizeofeth(pack);
 
-  if (tot_len > len) {
+  if (eth_tot_len > (uint16_t) len) {
     log_dbg("dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
-	    (int)ntohs(pack_iph->tot_len),
+	    iph_tot_len,
 	    sizeofeth(pack), (int)len);
     
     if (pack_iph->opt_off_high & 64) { /* Don't Defrag Option */
@@ -3532,11 +3538,11 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     return 0;
   }
   
-  if (ip_len > _options.mtu ||
+  if (iph_tot_len > _options.mtu ||
       iphdr_more_frag(pack_iph) ||
       iphdr_offset(pack_iph)) {
     uint8_t icmp_pack[1500];
-    log_dbg("ICMP frag for IP packet with length %d", ip_len);
+    log_dbg("ICMP frag for IP packet with length %d", iph_tot_len);
     dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack, 
 	      icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
     OTHER_SENDING(conn, iphdr(icmp_pack));
@@ -3547,22 +3553,24 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   /*
    *  Chop off any trailer length
    */
-  if (len > tot_len) {
-    log_dbg("chopping off trailer length %d", len - tot_len);
-    len = tot_len;
+  if (len > (size_t) eth_tot_len) {
+    log_dbg("chopping off trailer length %d", len - eth_tot_len);
+    len = eth_tot_len;
   }
   
   /*
    * Sanity check on UDP total length
    */
-  if (pack_iph->protocol == PKT_IP_PROTO_UDP &&
-      (int)ntohs(pack_iph->tot_len) != 
-      (int)ntohs(pack_udph->len) + PKT_IP_HLEN) {
-    log_dbg("dropping udp packet; ip-len=%d != udp-len=%d + ip-hdr=20",
-	    (int)ntohs(pack_iph->tot_len),
-	    (int)ntohs(pack_udph->len));
-    OTHER_RECEIVED(conn, pack_iph);
-    return 0;
+  if (pack_iph->protocol == PKT_IP_PROTO_UDP) {
+    uint16_t udph_len = ntohs(pack_udph->len);
+    if (udph_len < PKT_UDP_HLEN ||
+	iph_tot_len != udph_len + PKT_IP_HLEN) {
+      log_dbg("dropping udp packet; ip-len=%d != udp-len=%d + ip-hdr=20",
+	      (int) iph_tot_len,
+	      (int) udph_len);
+      OTHER_RECEIVED(conn, pack_iph);
+      return 0;
+    }
   }
   
   /* 
@@ -5134,6 +5142,11 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
   if ((length = recvfrom(this->relayfd, &packet, sizeof(packet), 0,
                          (struct sockaddr *) &addr, &fromlen)) <= 0) {
     log_err(errno, "recvfrom() failed");
+    return -1;
+  }
+
+  if (length < 44) {
+    log_dbg("DHCP packet too short");
     return -1;
   }
 
