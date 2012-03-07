@@ -409,7 +409,6 @@ int main(int argc, char **argv) {
   char *cmdsock = DEFSTATEDIR"/chilli.sock";
 #endif
   int s;
-  int unixsocket = 0;
   int cmdsockport = 0;
   struct sockaddr_un remote;
   char *cmd;
@@ -446,7 +445,6 @@ int main(int argc, char **argv) {
     /* for backward support, ignore a unix-socket given as first arg */
     if (argc < 3) return usage(argv[0]);
     cmdsock = argv[argidx++];
-    unixsocket = 1;
   } 
   
   memset(&request,0,sizeof(request));
@@ -456,7 +454,6 @@ int main(int argc, char **argv) {
       argidx++;
       if (argidx >= argc) return usage(argv[0]);
       cmdsock = argv[argidx++];
-      unixsocket = 1;
 #ifdef ENABLE_CLUSTER
     } else if (!strcmp(argv[argidx], "-p")) {
       argidx++;
@@ -598,14 +595,9 @@ int main(int argc, char **argv) {
   }
 #endif
 
-  if (! unixsocket) {
+  if (cmdsockport) {
     struct sockaddr_in remote_port;
     struct in_addr addr;
-
-    /* If no socket file is defined, use port */
-    if (cmdsockport == 0) {
-      cmdsockport = 42424;
-    }
 
     if ((s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
       perror("socket");

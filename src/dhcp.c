@@ -2865,8 +2865,6 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
     struct pkt_udphdr_t *req_udph = udphdr(req);
     uint16_t udph_len = ntohs(req_udph->len);
 
-    log_dbg("UDP length %d", udph_len);
-
     if (!dhcp_gettag(req_dhcp, udph_len - PKT_UDP_HLEN, 
 		     &param_list, DHCP_OPTION_PARAMETER_REQUEST_LIST)) {
 
