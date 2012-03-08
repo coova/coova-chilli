@@ -221,7 +221,10 @@ static int radius_queue_next(struct radius_t *this) {
   
   qnext = this->qnext;
 
+#if(_debug_ > 1)
   log_dbg("qnext=%d",qnext);
+#endif
+
   if (this->queue[qnext].state == 1) {
     
     log_dbg("skipping over active idx %d radius-id=%d", 
@@ -262,8 +265,10 @@ static int radius_queue_idx(struct radius_t *this, int id) {
   while (cnt-- > 0) {
     idx %= sz;
     if (RADIUS_QUEUE_HASPKT(this->queue[idx].p)) {
+#if(_debug_ > 1)
       log_dbg("idx %d pid %d id %d", idx, 
 	      RADIUS_QUEUE_PKT(this->queue[idx].p,id), id);
+#endif
       if (RADIUS_QUEUE_PKT(this->queue[idx].p,id) == id)
 	return idx;
     }
@@ -294,7 +299,9 @@ int radius_queue_in(struct radius_t *this,
   if (qnext == -1)
     return -1;
   
+#if(_debug_ > 1)
   log_dbg("RADIUS queue-in id=%d idx=%d", pack->id, qnext);
+#endif
   
   /* If packet contains message authenticator: Calculate it! */
   if (!radius_getattr(pack, &ma, 
@@ -352,7 +359,7 @@ int radius_queue_in(struct radius_t *this,
     this->qnext %= this->qsize;
   }
   
-#if(deeplog)
+#if(_debug_ > 1)
   if (_options.debug) {
     log_dbg("sending radius packet (code=%d, id=%d, len=%d)\n",
 	    pack->code, pack->id, ntohs(pack->length));
@@ -391,7 +398,7 @@ radius_queue_out(struct radius_t *this, int idx,
     return -1;
   }
   
-#if(deeplog)
+#if(_debug_ > 1)
   if (_options.debug) {
     log_dbg("radius_queue_out");
     radius_printqueue(0, this);
@@ -430,7 +437,7 @@ radius_queue_out(struct radius_t *this, int idx,
   else
     this->queue[this->queue[idx].prev].next = this->queue[idx].next;
   
-#if(deeplog)
+#if(_debug_ > 1)
   if (_options.debug) {
     log_dbg("radius_queue_out end");
     radius_printqueue(0, this);
@@ -455,7 +462,7 @@ static int radius_queue_reschedule(struct radius_t *this, int idx) {
   log_dbg("Rescheduling RADIUS request id=%d idx=%d",
 	  RADIUS_QUEUE_PKT(this->queue[idx].p,id), idx);
 
-#if(deeplog)
+#if(_debug_ > 1)
   if (_options.debug) {
     log_dbg("radius_reschedule");
     radius_printqueue(0, this);
@@ -642,7 +649,7 @@ int radius_timeout(struct radius_t *this) {
 
   gettimeofday(&now, NULL);
 
-#if(deeplog)
+#if(_debug_ > 1)
   if (_options.debug) {
     log_dbg("radius_timeout(%d) %8d %8d", this->first, 
 	    (int)now.tv_sec, (int)now.tv_usec);
@@ -722,7 +729,7 @@ int radius_timeout(struct radius_t *this) {
     }    
   }
   
-#if(deeplog)
+#if(_debug_ > 1)
   if (_options.debug) {
     log_dbg("radius_timeout");
     if (this->first > 0) {
@@ -851,7 +858,7 @@ radius_addvsa(struct radius_packet_t *pack, struct redir_state *state) {
     memcpy(m, state->vsa, state->vsalen);
     length += state->vsalen;
     pack->length = htons(length);
-    log_dbg("Recalled VSA");
+    log_dbg("Recalled VSA with length %d",length);
   }
   return 0;
 }
@@ -1095,7 +1102,9 @@ int radius_pwdecode(struct radius_t *this,
   MD5_CTX context;
   unsigned char output[RADIUS_MD5LEN];
 
+#if(_debug_ > 1)
   log_dbg("pw decode secret=%s", secret);
+#endif
 
   if (srclen > dstsize) {
     log_err(0, "radius_pwdecode srclen larger than dstsize");
@@ -1180,7 +1189,9 @@ int radius_pwencode(struct radius_t *this,
   MD5_CTX context;
   size_t i, n;
 
+#if(_debug_ > 1)
   log_dbg("pw encode secret=%s", secret);
+#endif
 
   memset(dst, 0, dstsize);
 
@@ -1515,11 +1526,12 @@ int radius_req(struct radius_t *this,
   else
     addr.sin_port = htons(this->authport);
   
-  if (_options.debug)
+#if(_debug_ > 1)
     log_dbg("RADIUS id=%d sent to %s:%d", 
 	    pack->id,
 	    inet_ntoa(addr.sin_addr), 
 	    ntohs(addr.sin_port));
+#endif
   
   if (sendto(this->fd, pack, len, 0,
 	     (struct sockaddr *) &addr, sizeof(addr)) < 0) {

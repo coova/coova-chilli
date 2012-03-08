@@ -3861,7 +3861,7 @@ config_radius_session(struct session_params *params,
 		      int reconfig) {
   struct radius_attr_t *attr = NULL;
   size_t offset = 0;
-  int is_splash = 0;
+  /*int is_splash = 0;*/
   int seen;
 
   /* Session timeout */
@@ -4043,7 +4043,7 @@ config_radius_session(struct session_params *params,
       else if (len == strlen(splash) && !memcmp(val, splash, len)) {
 	log_dbg("received splash response");
 	params->flags |= REQUIRE_UAM_SPLASH;
-	is_splash = 1;
+	/*is_splash = 1;*/
       }
 #ifdef ENABLE_SESSGARDEN
       else if (len > uamallowed_len && len < 255 && 
@@ -4116,9 +4116,9 @@ config_radius_session(struct session_params *params,
       params->url[clen + nlen] = 0;
     }
     
-    if (!is_splash) {
+    /*if (!is_splash) {
       params->flags |= REQUIRE_REDIRECT;
-    }
+      }*/
   }
 
   /* Session-Terminate-Time */

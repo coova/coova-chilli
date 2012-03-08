@@ -236,6 +236,8 @@ option "inject"  - "Enable redir injection" string no
 option "injectext"  - "Enable redir injection extended script" string no
 option "injectwispr"  - "Enable redir injection of WISPr" flag off
 
+option "redirurl"  - "Send redirection URL in UAM parameters instead of HTTP redirect" flag off
+
 option "routeonetone" - "When using routeif, do one-to-one NAT" flag off
 
 option "nousergardendata" - "Do not consider walled garden for authorized session accounting" flag off

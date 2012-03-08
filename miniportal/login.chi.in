@@ -31,7 +31,9 @@ else
     
     case "$FORM_res" in
 	success|already)
-	    header "<meta http-equiv=\"refresh\" content=\"5;url=${FORM_userurl}\"/>"
+	    url=$FORM_redirurl
+	    url=${url:-$FORM_userurl}
+	    header "<meta http-equiv=\"refresh\" content=\"5;url=${url}\"/>"
 	    uamfile "login_success" 1
 	    footer
 	    exit

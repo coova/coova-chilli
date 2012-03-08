@@ -34,7 +34,7 @@ static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
 char credits[] =
 "<H1>CoovaChilli(ChilliSpot) " VERSION "</H1>"
 "<p>Copyright 2002-2005 Mondru AB</p>"
-"<p>Copyright 2006-2011 Coova Technologies, LLC</p>"
+"<p>Copyright 2006-2012 Coova Technologies, LLC</p>"
 "ChilliSpot is an Open Source captive portal or wireless LAN access point "
 "controller developed by the community at <a href=\"http://www.coova.org\">www.coova.org</a>. "
 "It is licensed under the GNU General Public License (GPL). ";
@@ -605,7 +605,7 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
   }
 #endif
 
-  if (redirurl) {
+  if (_options.redirurl && redirurl) {
     bcatcstr(str, amp);
     bcatcstr(str, "redirurl=");
     bassigncstr(bt, redirurl);
@@ -1389,7 +1389,7 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   bcatcstr(s, "\r\n\r\n");
   bconcat(s, json);
 
-#if(_debug_)    
+#if(_debug_ > 1)    
   log_dbg("sending json: %s\n", json->data);
 #endif
 
@@ -1552,10 +1552,9 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
     if (url) {
 
       bconcat(buffer, url);
-
-      /*} else if (redirurl && *redirurl) {
+      
+    } else if (!_options.redirurl && redirurl && *redirurl) {
 	bcatcstr(buffer, redirurl);
-      */
     } else {
       bt = bfromcstralloc(1024,"");
       redir_buildurl(conn, bt, redir, resp, timeleft, hexchal, 
@@ -1873,7 +1872,7 @@ int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
 
   safe_snprintf(sstr, sizeof(sstr), "&%s=", param);
 
-#if(_debug_)    
+#if(_debug_ > 1)    
   log_dbg("getparam(%s)", sstr);
 #endif
 
@@ -2008,7 +2007,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       if (recvlen < 0) {
 	recvlen = 0;
 	if (errno == EWOULDBLOCK && !forked) {
-#if(_debug_)
+#if(_debug_ > 1)
 	  log_dbg("Continue... (would block)");
 #endif
 	  wblock = 1;
@@ -2100,9 +2099,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
 	safe_strncpy(path, p1, sizeof(httpreq->path));
 
-#if(_debug_)
 	log_dbg("The path: %s", path); 
-#endif
 
 	/* TODO: Should also check the Host: to make sure we are talking directly to uamlisten */
 
@@ -2151,14 +2148,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
 	    safe_strncpy(httpreq->qs, p1, sizeof(httpreq->qs));
 
-#if(_debug_)
+#if(_debug_ > 1)
 	    log_dbg("Query string: %s", httpreq->qs); 
 #endif
 	  }
 	}
       } else if (linelen == 0) { 
 	/* end of headers */
-#if(_debug_)    
+#if(_debug_ > 1)    
 	log_dbg("end of http-request");
 #endif
 	done = 1;
@@ -2193,8 +2190,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  safe_strncpy(conn->s_state.redir.useragent, 
 		       p, sizeof(conn->s_state.redir.useragent));
 #if(_debug_ > 1)
-#endif
 	  log_dbg("User-Agent: %s",conn->s_state.redir.useragent);
+#endif
 	}
 #endif
 #ifdef ENABLE_ACCEPTLANGUAGE
@@ -2204,8 +2201,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  safe_strncpy(conn->s_state.redir.acceptlanguage, 
 		       p, sizeof(conn->s_state.redir.acceptlanguage));
 #if(_debug_ > 1)
-#endif
 	  log_dbg("Accept-Language: %s",conn->s_state.redir.acceptlanguage);
+#endif
 	}
 #endif
 	else if (!strncasecmp(buffer,"Cookie:",7)) {
@@ -3075,7 +3072,7 @@ static int _redir_close(int infd, int outfd) {
 }
 
 static int _redir_close_exit(int infd, int outfd) {
-#if(_debug_)    
+#if(_debug_ > 1)    
   log_dbg("close_exit");
 #endif
   _redir_close(infd,outfd);
@@ -3201,7 +3198,7 @@ int redir_main(struct redir_t *redir,
     /* if (!forked) return 0; XXXX*/
 #ifdef HAVE_SSL
     if (socket.sslcon) {
-#if(_debug_)
+#if(_debug_ > 1)
       log_dbg("Shutting down SSL");
 #endif
       openssl_shutdown(socket.sslcon, 2);
@@ -3276,7 +3273,7 @@ int redir_main(struct redir_t *redir,
   }
   */
 
-#if(_debug_)
+#if(_debug_ > 1)
   log_dbg("Calling redir_getstate()");
 #endif
 
@@ -3295,7 +3292,7 @@ int redir_main(struct redir_t *redir,
   state = redir->cb_getstate(redir, address, baddress, &conn);
   
   if (state == -1) {
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("getstate() session not found");
 #endif
     
@@ -3305,7 +3302,7 @@ int redir_main(struct redir_t *redir,
        *  Allow external (WAN) access to EWT API if available,
        *  always under SSL.
        */
-#if(_debug_)
+#if(_debug_ > 1)
       log_dbg("redir connection is SSL");
 #endif
       conn.flags |= USING_SSL;
@@ -3321,7 +3318,7 @@ int redir_main(struct redir_t *redir,
   /*
    *  Parse the request, updating the status
    */
-#if(_debug_)
+#if(_debug_ > 1)
   log_dbg("Receiving HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
 #endif
 
@@ -3342,14 +3339,14 @@ int redir_main(struct redir_t *redir,
       socket.sslcon = rreq->sslcon;
     }
 
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("SSL loop %d", loop);
 #endif
 
     while (!done) {
       switch(openssl_check_accept(socket.sslcon, &conn)) {
       case -1:
-#if(_debug_)
+#if(_debug_ > 1)
 	log_dbg("redir error, redir_main_exit");
 #endif
 	return redir_main_exit();
@@ -3365,7 +3362,7 @@ int redir_main(struct redir_t *redir,
       if (!loop) done = 1;
     }
 
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("HTTPS Accepted");
 #endif
   }
@@ -3377,7 +3374,7 @@ int redir_main(struct redir_t *redir,
   case 0: 
     break;
   case 1: 
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("Continue...");
 #endif
     return 1;
@@ -3386,8 +3383,7 @@ int redir_main(struct redir_t *redir,
     return redir_main_exit();
   }
 
-
-#if(_debug_)
+#if(_debug_ > 1)
   log_dbg("Processing HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
 #endif
   
@@ -3695,7 +3691,7 @@ int redir_main(struct redir_t *redir,
 
   termstate = REDIR_TERM_PROCESS;
 
-#if(_debug_)
+#if(_debug_ > 1)
   log_dbg("Processing received request");
 #endif
 
@@ -3803,7 +3799,7 @@ int redir_main(struct redir_t *redir,
       }
 #endif
       
-#if(_debug_)
+#if(_debug_ > 1)
       log_dbg("Received RADIUS reply");
 #endif
     }
@@ -3817,6 +3813,8 @@ int redir_main(struct redir_t *redir,
       }
 
       msg.mtype = REDIR_LOGIN;
+
+      log_dbg("%s handling Access-Accept",__FUNCTION__);
       
       redir_reply(redir, &socket, &conn, REDIR_SUCCESS, NULL, 
 		  conn.s_params.sessiontimeout, NULL, 
@@ -3831,6 +3829,8 @@ int redir_main(struct redir_t *redir,
     } else { /* Access-Reject */
 
       int hasnexturl = (strlen((char *)conn.s_params.url) > 5);
+
+      log_dbg("%s handling Access-Reject",__FUNCTION__);
 
       if (!hasnexturl) {
 	if (_options.challengetimeout)
@@ -4076,7 +4076,7 @@ int redir_main(struct redir_t *redir,
     redir_msg_send(REDIR_MSG_OPT_REDIR);
   }
 
-#if(_debug_)
+#if(_debug_ > 1)
   log_dbg("---->>> challenge: %s", hexchal);
 #endif
 

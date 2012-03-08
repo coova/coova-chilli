@@ -7,6 +7,7 @@
 * When not using enable-largelimits, the RADIUS queue will allocate packet storage dynamically
 * Added AVL support for indexing locations and maintaining statistics
 * Fixed memory usage issue and added options ''dhcphashsize'' and ''radiusqsize''
+* Added runtime option ''redirurl'' to have a redirection URL put into the UAM query string parameters instead of a HTTP redirect
 * Chomp off Ethernet trailer which would result in DNS parsing to fail
 * Several compile-time bugs fixed
 

@@ -383,6 +383,7 @@ int main(int argc, char **argv) {
   _options.seskeepalive = args_info.seskeepalive_flag;
   _options.uamallowpost = args_info.uamallowpost_flag;
   _options.redir = args_info.redir_flag;
+  _options.redirurl = args_info.redirurl_flag;
   _options.statusfilesave = args_info.statusfilesave_flag;
   _options.dhcpnotidle = args_info.dhcpnotidle_flag;
 #if(_debug_ && !defined(ENABLE_CHILLIREDIR))

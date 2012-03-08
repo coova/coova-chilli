@@ -209,6 +209,7 @@ struct options_t {
   uint8_t dhcpmacset:1;             /* Set the dhcpif interface with the dhcpmac */
   uint8_t uamallowpost:1;           /* Set to true if the UAMPORT is allowed to access a POST */
   uint8_t redir:1;                  /* Launch redir sub-process instead of forking */
+  uint8_t redirurl:1;               /* Send redirection URL in UAM query string instead of HTTP redirect */
   uint8_t redirssl:1;               /* Enable redirection of SSL/HTTPS port (requires SSL support) */
   uint8_t uamuissl:1;               /* Enable SSL/HTTPS on uamuiport (requires SSL support) */
   uint8_t domaindnslocal:1;         /* Wildcard option to consider all hostnames *.domain local */
