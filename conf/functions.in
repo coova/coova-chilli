@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2006-2011 Coova Technologies, LLC.
+# Copyright (c) 2006-2012 Coova Technologies, LLC.
 # Licensed under Gnu General Public License. 
 # http://www.coova.org/
 #
@@ -153,6 +153,10 @@ writeconfig() {
     addconfig1 ${HS_UAMUIPORT:+"uamuiport $HS_UAMUIPORT"}
     addconfig1 ${HS_ADMUSR:+"adminuser \"$HS_ADMUSR\""}
     addconfig1 ${HS_ADMPWD:+"adminpasswd \"$HS_ADMPWD\""}
+    addconfig1 ${HS_CONUP:+"conup \"$HS_CONUP\""}
+    addconfig1 ${HS_CONDOWN:+"condown \"$HS_CONDOWN\""}
+    addconfig1 ${HS_MACUP:+"macup \"$HS_MACUP\""}
+    addconfig1 ${HS_MACDOWN:+"macdown \"$HS_MACDOWN\""}
 
     [ -n "$HS_UAMDOMAINS" ] && {
 	HS_UAMDOMAINS=$(echo $HS_UAMDOMAINS|sed 's/,/ /g')
