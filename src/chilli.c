@@ -996,6 +996,11 @@ static int dnprot_terminate(struct app_conn_t *appconn) {
 #ifdef ENABLE_SESSIONSTATE
   appconn->s_state.session_state = 0;
 #endif      
+  if (appconn->s_params.url[0] &&
+      appconn->s_params.flags & UAM_CLEAR_URL) {
+    appconn->s_params.flags &= ~UAM_CLEAR_URL;
+    appconn->s_params.url[0] = 0;
+  }
 #ifdef ENABLE_LEAKYBUCKET
   appconn->s_state.bucketup = 0;
   appconn->s_state.bucketdown = 0;
@@ -3987,7 +3992,7 @@ config_radius_session(struct session_params *params,
 		      RADIUS_ATTR_CHILLISPOT_INJECT_URL, 0)) {
     memcpy(params->url, attr->v.t, attr->l-2);
     params->url[attr->l-2] = 0;
-    params->flags &= UAM_INJECT_URL | REQUIRE_UAM_AUTH;
+    params->flags |= UAM_INJECT_URL | REQUIRE_UAM_AUTH;
   }
 #endif
 
@@ -4114,6 +4119,7 @@ config_radius_session(struct session_params *params,
     if (nlen > 0) {
       memcpy(params->url + clen, url, nlen);
       params->url[clen + nlen] = 0;
+      params->flags |= UAM_CLEAR_URL;
     }
     
     /*if (!is_splash) {
@@ -4858,6 +4864,8 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
   struct ippoolm_t *ipm = 0;
   char domacauth = (char) _options.macauth;
   char allocate = 1;
+
+  log_dbg("----> %s <----",__FUNCTION__);
   
 #if(_debug_)
   log_dbg("DHCP request for IP address %s",
@@ -6353,6 +6361,8 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	  bcatcstr(tmp, " no-script");
 	if (appconn->s_params.flags & UAM_INJECT_URL) 
 	  bcatcstr(tmp, " inject");
+	if (appconn->s_params.flags & UAM_CLEAR_URL) 
+	  bcatcstr(tmp, " clear-url");
 	bcatcstr(tmp, "\n");
 	bconcat(s, tmp);
 	

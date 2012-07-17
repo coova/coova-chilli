@@ -4993,10 +4993,14 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
       }
     }
 #endif
+
+#if(0)
 #ifdef ENABLE_LAYER3
     if (!_options.layer3)
 #endif
-      log_dbg("Layer2 PROT: 0x%.4x dropped", prot); 
+	log_dbg("Layer2 PROT: 0x%.4x dropped", prot); 
+#endif
+
     return 0;
   }
   

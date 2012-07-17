@@ -46,6 +46,7 @@ struct session_params {
 #define NO_SCRIPT          (1<<5)
 #define ADMIN_LOGIN        (1<<6)
 #define UAM_INJECT_URL     (1<<7)
+#define UAM_CLEAR_URL      (1<<8)
   uint16_t flags;
 
 #ifdef ENABLE_SESSGARDEN

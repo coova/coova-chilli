@@ -47,8 +47,6 @@ else
 chilli_opt_SOURCES += cmdline.c 
 endif
 
-chilli_opt: cmdline.h
-
 if WITH_PATRICIA
 libchilli_la_SOURCES += patricia.c patricia.h
 endif
