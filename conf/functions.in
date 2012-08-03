@@ -252,6 +252,8 @@ writeconfig() {
 
 	test ${HS_DEFSESSIONTIMEOUT:-0} -gt 0 && addconfig2 "defsessiontimeout $HS_DEFSESSIONTIMEOUT"
 	test ${HS_DEFIDLETIMEOUT:-0} -gt 0 && addconfig2 "defidletimeout $HS_DEFIDLETIMEOUT"
+	test ${HS_CHALLENGETIMEOUT:-0} -gt 0 && addconfig2 "challengetimeout $HS_CHALLENGETIMEOUT"
+	test ${HS_CHALLENGETIMEOUT2:-0} -gt 0 && addconfig2 "challengetimeout2 $HS_CHALLENGETIMEOUT2"
 	test ${HS_DEFBANDWIDTHMAXDOWN:-0} -gt 0 && addconfig2 "defbandwidthmaxdown $HS_DEFBANDWIDTHMAXDOWN"
 	test ${HS_DEFBANDWIDTHMAXUP:-0} -gt 0 && addconfig2 "defbandwidthmaxup $HS_DEFBANDWIDTHMAXUP"
 	test ${HS_DEFINTERIMINTERVAL:-0} -gt 0 && addconfig2 "definteriminterval $HS_DEFINTERIMINTERVAL"
