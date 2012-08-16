@@ -30,7 +30,7 @@ config.status: configure
 	--enable-multiroute --enable-extadmvsa --with-openssl --with-poll
 
 configure:
-	@test -f configure || ./bootstrap2
+	@test -f configure || ./bootstrap
 
 build: config.status
 	dh_testdir
