@@ -9,7 +9,3 @@ aclocal
 autoconf
 automake --add-missing
 automake
-
-touch src/cmdline.c
-touch src/cmdline.h
-touch src/cmdline.ggo

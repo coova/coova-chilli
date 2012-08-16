@@ -187,6 +187,8 @@ install-exec-hook:
 		chmod u+s $(DESTDIR)$(sbindir)/$$f; \
 	done
 
+main-opt.c: cmdline.c cmdline.h
+
 cmdline.c cmdline.h: cmdline.ggo cmdline.patch
 	cat $(CMDLINE) | gengetopt -C 
 	cp cmdline.c cmdline.c.orig
