@@ -2632,9 +2632,6 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
   struct pkt_ethhdr_t *ethh = ethhdr(pack);
   struct pkt_iphdr_t  *iph  = iphdr(pack);
   struct pkt_tcphdr_t *tcph = tcphdr(pack);
-  /*struct pkt_udphdr_t *udph = udphdr(pack);*/
-  /*size_t len = *plen;*/
-  //int i;
 
   /* Allow localhost through network... */
   if (iph->saddr == INADDR_LOOPBACK)
@@ -2661,12 +2658,11 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
     OTHER_SENDING(conn, iph);
     return dhcp_uam_unnat(conn, ethh, iph, tcph);
   }
-
-
+  
   if (dhcp_garden_check(this, conn, 0,
 			(struct pkt_ipphdr_t *)iph, 0))
     return 0;
-  
+
 #ifdef ENABLE_TCPRESET
   if (do_reset && iph->protocol == PKT_IP_PROTO_TCP) {
 #if(_debug_ > 1)
