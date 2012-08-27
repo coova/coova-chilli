@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# chilli - ChilliSpot.org. A Wireless LAN Access Point Controller
+# chilli - coova.org. A Wireless LAN Access Point Controller
 # Copyright (C) 2003, 2004 Mondru AB.
 # Copyright (C) 2006-2008 David Bird <david@coova.com>
 #
@@ -12,11 +12,11 @@
 # This code is horrible -- it came that way, and remains that way. A
 # real captive portal is demonstrated here: http://drupal.org/project/hotspot
 
-# Redirects from ChilliSpot daemon:
+# Redirects from CoovaChilli daemon:
 #
 # Redirection when not yet or already authenticated
-#   notyet:  ChilliSpot daemon redirects to login page.
-#   already: ChilliSpot daemon redirects to success status page.
+#   notyet:  CoovaChilli daemon redirects to login page.
+#   already: CoovaChilli daemon redirects to success status page.
 #
 # Response to login:
 #   already: Attempt to login when already logged in.
@@ -27,7 +27,6 @@
 
 # Shared secret used to encrypt challenge with. Prevents dictionary attacks.
 # You should change this to your own shared secret.
-$uamsecret = "ht2eb8ej6s4et3rg1ulp";
 $uamsecret = "uamsecret";
 
 # Uncomment the following line if you want to use ordinary user-password (PAP)
@@ -65,12 +64,12 @@ if (!$debug && !($ENV{HTTPS} =~ /^on$/)) {
 <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
 <html>
 <head>
-  <title>ChilliSpot Login Failed</title>
+  <title>CoovaChilli Login Failed</title>
   <meta http-equiv=\"Cache-control\" content=\"no-cache\">
   <meta http-equiv=\"Pragma\" content=\"no-cache\">
 </head>
 <body bgColor = '#c0d8f4'>
-  <h1 style=\"text-align: center;\">ChilliSpot Login Failed</h1>
+  <h1 style=\"text-align: center;\">CoovaChilli Login Failed</h1>
   <center>
     Login must use encrypted connection.
   </center>
@@ -192,13 +191,13 @@ if ($button =~ /^Login$/) {
 print "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
 <html>
 <head>
-  <title>ChilliSpot Login</title>
+  <title>CoovaChilli Login</title>
   <meta http-equiv=\"Cache-control\" content=\"no-cache\">
   <meta http-equiv=\"Pragma\" content=\"no-cache\">
   <meta http-equiv=\"refresh\" content=\"0;url=$logonUrl\">
 </head>
 <body bgColor = '#c0d8f4'>
-<h1 style=\"text-align: center;\">Logging in to ChilliSpot</h1>
+<h1 style=\"text-align: center;\">Logging in to CoovaChilli</h1>
   <center>
     Please wait......
   </center>
@@ -277,14 +276,14 @@ if ($result == 0) {
 <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
 <html>
 <head>
-  <title>ChilliSpot Login Failed</title>
+  <title>CoovaChilli Login Failed</title>
   <meta http-equiv=\"Cache-control\" content=\"no-cache\">
   <meta http-equiv=\"Pragma\" content=\"no-cache\">
 </head>
 <body bgColor = '#c0d8f4'>
-  <h1 style=\"text-align: center;\">ChilliSpot Login Failed</h1>
+  <h1 style=\"text-align: center;\">CoovaChilli Login Failed</h1>
   <center>
-    Login must be performed through ChilliSpot daemon.
+    Login must be performed through CoovaChilli daemon.
   </center>
 </body>
 </html>
@@ -297,7 +296,7 @@ print "Content-type: text/html\n\n
 <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
 <html>
 <head>
-  <title>ChilliSpot Login</title>
+  <title>CoovaChilli Login</title>
   <meta http-equiv=\"Cache-control\" content=\"no-cache\">
   <meta http-equiv=\"Pragma\" content=\"no-cache\">
   <SCRIPT LANGUAGE=\"JavaScript\">
@@ -403,7 +402,7 @@ print "Content-type: text/html\n\n
 
 if ($result == 2) {
     print "
-  <h1 style=\"text-align: center;\">ChilliSpot Login Failed</h1>";
+  <h1 style=\"text-align: center;\">CoovaChilli Login Failed</h1>";
     if ($reply) {
 	print "<center> $reply </BR></BR></center>";
     }
@@ -411,7 +410,7 @@ if ($result == 2) {
 
 if ($result == 5) {
     print "
-  <h1 style=\"text-align: center;\">ChilliSpot Login</h1>";
+  <h1 style=\"text-align: center;\">CoovaChilli Login</h1>";
 }
 
 if ($result == 2 || $result == 5) {
@@ -445,7 +444,7 @@ if ($result == 2 || $result == 5) {
 
 if ($result == 1) {
   print "
-  <h1 style=\"text-align: center;\">Logged in to ChilliSpot</h1>";
+  <h1 style=\"text-align: center;\">Logged in to CoovaChilli</h1>";
 
   if ($reply) { 
       print "<center> $reply </BR></BR></center>";
@@ -461,7 +460,7 @@ if ($result == 1) {
 
 if (($result == 4) || ($result == 12)) {
   print "
-  <h1 style=\"text-align: center;\">Logged in to ChilliSpot</h1>
+  <h1 style=\"text-align: center;\">Logged in to CoovaChilli</h1>
   <center>
     <a href=\"http://$uamip:$uamport/logoff\">Logout</a>
   </center>
@@ -471,7 +470,7 @@ if (($result == 4) || ($result == 12)) {
 
 
 if ($result == 11) {
-  print "<h1 style=\"text-align: center;\">Logging in to ChilliSpot</h1>";
+  print "<h1 style=\"text-align: center;\">Logging in to CoovaChilli</h1>";
   print "
   <center>
     Please wait......
@@ -483,7 +482,7 @@ if ($result == 11) {
 
 if (($result == 3) || ($result == 13)) {
     print "
-  <h1 style=\"text-align: center;\">Logged out from ChilliSpot</h1>
+  <h1 style=\"text-align: center;\">Logged out from CoovaChilli</h1>
   <center>
     <a href=\"http://$uamip:$uamport/prelogin\">Login</a>
   </center>
