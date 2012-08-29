@@ -1559,8 +1559,8 @@ int static auth_radius(struct app_conn_t *appconn,
 #ifdef ENABLE_DHCPRADIUS
   if (_options.dhcpradius && dhcp_pkt) {
     struct dhcp_tag_t *tag = 0;
-    struct pkt_udphdr_t *udph = udphdr(dhcp_pkt);
-    struct dhcp_packet_t *dhcppkt = dhcppkt(dhcp_pkt);
+    struct pkt_udphdr_t *udph = pkt_udphdr(dhcp_pkt);
+    struct dhcp_packet_t *dhcppkt = pkt_dhcppkt(dhcp_pkt);
 
 #define maptag(OPT,VSA) tag=0; \
 if (!dhcp_gettag(dhcppkt, ntohs(udph->len)-PKT_UDP_HLEN, &tag, OPT)) { \
@@ -2328,7 +2328,7 @@ static int fwd_ssdp(struct in_addr *dst,
 		    struct pkt_udphdr_t *udph, 
 		    struct pkt_buffer *pb,
 		    int ethhdr) {
-  struct pkt_ethhdr_t *ethh = ethhdr(pkt_buffer_head(pb));
+  struct pkt_ethhdr_t *ethh = pkt_ethhdr(pkt_buffer_head(pb));
   
   if (udph && dst->s_addr == ssdp.s_addr) {
     
@@ -2403,7 +2403,7 @@ static int fwd_layer3(struct app_conn_t *appconn,
 
 #ifdef ENABLE_TAP
       if (_options.usetap) {
-	struct pkt_ethhdr_t *ethh = ethhdr(pkt_buffer_head(pb));
+	struct pkt_ethhdr_t *ethh = pkt_ethhdr(pkt_buffer_head(pb));
 	
 	log_dbg("forwarding layer3 dhcp-broadcast: %s", inet_ntoa(*dst));
 	
@@ -2424,7 +2424,7 @@ static int fwd_layer3(struct app_conn_t *appconn,
 	
 	memset(packet, 0, hdrlen);
 	
-	ethh = ethhdr(packet);
+	ethh = pkt_ethhdr(packet);
 	
 	dstmac = pdhcp->chaddr;
 	
@@ -2476,7 +2476,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
      */
     uint16_t prot;
 
-    ethh = ethhdr(pack);
+    ethh = pkt_ethhdr(pack);
     prot = ntohs(ethh->prot);
 
     ipph = (struct pkt_ipphdr_t *)((char *)pack + PKT_ETH_HLEN);
@@ -2495,9 +2495,9 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
 	 */
 	uint8_t packet[PKT_BUFFER];
 	
-	struct pkt_ethhdr_t *p_ethh = ethhdr(pack);
-	struct arp_packet_t *p_arp = arppkt(pack);
-	struct pkt_ethhdr_t *packet_ethh = ethhdr(packet);
+	struct pkt_ethhdr_t *p_ethh = pkt_ethhdr(pack);
+	struct arp_packet_t *p_arp = pkt_arppkt(pack);
+	struct pkt_ethhdr_t *packet_ethh = pkt_ethhdr(packet);
 	struct arp_packet_t *packet_arp = 
 	  ((struct arp_packet_t *)(((uint8_t*)(packet)) + PKT_ETH_HLEN));
 	
@@ -5527,8 +5527,8 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 
 /* Callback for receiving messages from dhcp */
 int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
-  struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, iphdr(pack), 0);
-  struct pkt_ipphdr_t *ipph = ipphdr(pack);
+  struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pkt_iphdr(pack), 0);
+  struct pkt_ipphdr_t *ipph = pkt_ipphdr(pack);
 
   /*if (_options.debug)
     log_dbg("cb_dhcp_data_ind. Packet received. DHCP authstate: %d\n", 

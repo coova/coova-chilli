@@ -130,7 +130,7 @@ int dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
   
   /* Get packet default values */
   memset(packet, 0, sizeof(packet));
-  packet_ethh = ethhdr(packet);
+  packet_ethh = pkt_ethhdr(packet);
   outbuf = (unsigned char *)chilli_ethhdr(packet);
 	 
   packet_ethh->prot = htons(PKT_ETH_PROTO_CHILLI);
@@ -311,8 +311,8 @@ dhcp_sendGARP(struct dhcp_t *this, int idx) {
 
   memset(packet, 0, sizeof(packet));
 
-  packet_ethh = ethhdr(packet);
-  packet_arp = arppkt(packet);
+  packet_ethh = pkt_ethhdr(packet);
+  packet_arp = pkt_arppkt(packet);
 	 
   /* ARP Payload */
   packet_arp->hrd = htons(DHCP_HTYPE_ETH);
@@ -427,7 +427,7 @@ int dhcp_send(struct dhcp_t *this, int idx,
   net_interface *iface = 0;
 
   if (_options.tcpwin)
-    pkt_shape_tcpwin(iphdr(packet), _options.tcpwin);
+    pkt_shape_tcpwin(pkt_iphdr(packet), _options.tcpwin);
 
   if (_options.tcpmss)
     pkt_shape_tcpmss(packet, &length);
@@ -865,7 +865,7 @@ int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 		  struct nfq_data *nfa, void *cbdata) {
   struct nfqnl_msg_packet_hdr *ph;
   struct nfqnl_msg_packet_hw *hw;
-  u_int32_t id;
+  u_int32_t id = 0;
   char *data;
   int ret;
 
@@ -887,7 +887,7 @@ int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
   ret = nfq_get_payload(nfa, &data);
 
   if (hw && ret > 0) {
-    struct pkt_iphdr_t  *pack_iph  = (struct pkt_ipphdr_t *)data;
+    struct pkt_ipphdr_t *pack_iph  = (struct pkt_ipphdr_t *)data;
     struct pkt_tcphdr_t *pack_tcph = (struct pkt_tcphdr_t *)(data + PKT_IP_HLEN);
     struct pkt_udphdr_t *pack_udph = (struct pkt_udphdr_t *)(data + PKT_IP_HLEN);
     struct dhcp_conn_t *conn;
@@ -896,7 +896,7 @@ int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
     if (!dhcp_hashget(dhcp, &conn, hw->hw_addr)) {
       struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
       if (appconn->s_state.authenticated) {
-	if (chilli_acct_fromsub(appconn, (size_t) ret))
+	if (chilli_acct_fromsub(appconn, pack_iph))
 	  result = NF_DROP;
 	else
 	  result = NF_ACCEPT;
@@ -929,7 +929,7 @@ static
 int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 		   struct nfq_data *nfa, void *cbdata) {
   struct nfqnl_msg_packet_hdr *ph;
-  u_int32_t id;
+  u_int32_t id = 0;
   char *data;
   int ret;
 
@@ -944,10 +944,9 @@ int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
   ret = nfq_get_payload(nfa, &data);
 
   if (ret > 0) {
-    struct pkt_iphdr_t  *pack_iph  = (struct pkt_ipphdr_t *)data;
+    struct pkt_ipphdr_t *pack_iph  = (struct pkt_ipphdr_t *)data;
     struct pkt_tcphdr_t *pack_tcph = (struct pkt_tcphdr_t *)(data + PKT_IP_HLEN);
     struct pkt_udphdr_t *pack_udph = (struct pkt_udphdr_t *)(data + PKT_IP_HLEN);
-    struct dhcp_conn_t *conn;
     struct in_addr addr;
 
     struct ippoolm_t *ipm;
@@ -972,7 +971,7 @@ int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
       else {
 	
 	if (appconn->s_state.authenticated == 1) {
-	  if (chilli_acct_tosub(appconn, ret))
+	  if (chilli_acct_tosub(appconn, pack_iph))
 	    result = NF_DROP;
 	  else
 	    result = NF_ACCEPT;
@@ -1056,8 +1055,8 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
   if (getenv("NFQUEUE_IN") && getenv("NFQUEUE_OUT")) {
     int q1 = 0, q2 = 1;
     char *e;
-    if (e = getenv("NFQUEUE_IN")) q1 = atoi(e);
-    if (e = getenv("NFQUEUE_OUT")) q2 = atoi(e);
+    if ((e = getenv("NFQUEUE_IN"))) q1 = atoi(e);
+    if ((e = getenv("NFQUEUE_OUT"))) q2 = atoi(e);
     if (net_open_nfqueue(&dhcp->qif_in, q1, nfqueue_cb_in) == -1) {
       return -1;
     }
@@ -1478,8 +1477,8 @@ size_t icmpfrag(uint8_t *pack, size_t plen, uint8_t *orig_pack) {
 
   size_t icmp_full_len = icmp_ip_len + sizeofeth(orig_pack);
 
-  struct pkt_iphdr_t  *orig_pack_iph  = iphdr(orig_pack);
-  struct pkt_ethhdr_t *orig_pack_ethh = ethhdr(orig_pack);
+  struct pkt_iphdr_t  *orig_pack_iph  = pkt_iphdr(orig_pack);
+  struct pkt_ethhdr_t *orig_pack_ethh = pkt_ethhdr(orig_pack);
 
   if (icmp_full_len > plen) return 0;
 
@@ -1487,9 +1486,9 @@ size_t icmpfrag(uint8_t *pack, size_t plen, uint8_t *orig_pack) {
   copy_ethproto(orig_pack, pack);
 
   {
-    struct pkt_ethhdr_t *pack_ethh  = ethhdr(pack);
-    struct pkt_iphdr_t *pack_iph = iphdr(pack);
-    struct pkt_icmphdr_t *pack_icmph = icmphdr(pack);
+    struct pkt_ethhdr_t *pack_ethh  = pkt_ethhdr(pack);
+    struct pkt_iphdr_t *pack_iph = pkt_iphdr(pack);
+    struct pkt_icmphdr_t *pack_icmph = pkt_icmphdr(pack);
 
     /* eth */
     memcpy(pack_ethh->dst, orig_pack_ethh->src, PKT_ETH_ALEN); 
@@ -1519,20 +1518,20 @@ size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
 
   size_t len = sizeofeth(orig_pack) + PKT_IP_HLEN + PKT_TCP_HLEN;
 
-  struct pkt_iphdr_t  *orig_pack_iph  = iphdr(orig_pack);
-  struct pkt_tcphdr_t *orig_pack_tcph = tcphdr(orig_pack);
+  struct pkt_iphdr_t  *orig_pack_iph  = pkt_iphdr(orig_pack);
+  struct pkt_tcphdr_t *orig_pack_tcph = pkt_tcphdr(orig_pack);
 
   struct pkt_iphdr_t *tcp_pack_iph;
   struct pkt_tcphdr_t *tcp_pack_tcph;
 
   memcpy(tcp_pack, orig_pack, len); 
 
-  tcp_pack_iph = iphdr(tcp_pack);
-  tcp_pack_tcph = tcphdr(tcp_pack);
+  tcp_pack_iph = pkt_iphdr(tcp_pack);
+  tcp_pack_tcph = pkt_tcphdr(tcp_pack);
   
   if (reverse) {
-    struct pkt_ethhdr_t *tcp_pack_ethh  = ethhdr(tcp_pack);
-    struct pkt_ethhdr_t *orig_pack_ethh = ethhdr(orig_pack);
+    struct pkt_ethhdr_t *tcp_pack_ethh  = pkt_ethhdr(tcp_pack);
+    struct pkt_ethhdr_t *orig_pack_ethh = pkt_ethhdr(orig_pack);
 
     /* eth */
     memcpy(tcp_pack_ethh->dst, orig_pack_ethh->src, PKT_ETH_ALEN); 
@@ -1580,9 +1579,9 @@ void dhcp_sendRESET(struct dhcp_conn_t *conn, uint8_t *pack, char reverse) {
 static
 int dhcp_nakDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct dhcp_t *this = conn->parent;
-  struct pkt_ethhdr_t *ethh = ethhdr(pack);
-  struct pkt_iphdr_t *iph = iphdr(pack);
-  struct pkt_udphdr_t *udph = udphdr(pack);
+  struct pkt_ethhdr_t *ethh = pkt_ethhdr(pack);
+  struct pkt_iphdr_t *iph = pkt_iphdr(pack);
+  struct pkt_udphdr_t *udph = pkt_udphdr(pack);
 
   uint8_t answer[1500];
 
@@ -1593,10 +1592,10 @@ int dhcp_nakDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
   memcpy(answer, pack, len); 
 
-  answer_ethh = ethhdr(answer);
-  answer_iph  = iphdr(answer);
-  answer_udph = udphdr(answer);
-  answer_dns  = dnspkt(answer);
+  answer_ethh = pkt_ethhdr(answer);
+  answer_iph  = pkt_iphdr(answer);
+  answer_udph = pkt_udphdr(answer);
+  answer_dns  = pkt_dnspkt(answer);
 
   /* DNS response, with no host error code */
   answer_dns->flags = htons(0x8583); 
@@ -1663,9 +1662,9 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
   } else {
     
 #if defined(ENABLE_DNSLOG) || defined(ENABLE_MODULES)
-    struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, iphdr(pack), !isReq);
+    struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pkt_iphdr(pack), !isReq);
 #endif
-    struct dns_packet_t *dnsp = dnspkt(pack);
+    struct dns_packet_t *dnsp = pkt_dnspkt(pack);
     
     size_t dlen = *plen - DHCP_DNS_HLEN - sizeofudp(pack);
     size_t olen = dlen;
@@ -1689,7 +1688,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
     int i;
 
 #ifdef ENABLE_MDNS
-    struct pkt_udphdr_t *udph = udphdr(pack);
+    struct pkt_udphdr_t *udph = pkt_udphdr(pack);
     char isMDNS = 0;
 #endif
     
@@ -1874,9 +1873,9 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	
 	uint8_t answer[1500];
 	
-	struct pkt_ethhdr_t *ethh = ethhdr(pack);
-	struct pkt_iphdr_t  *iph  = iphdr(pack);
-	struct pkt_udphdr_t *udph = udphdr(pack);
+	struct pkt_ethhdr_t *ethh = pkt_ethhdr(pack);
+	struct pkt_iphdr_t  *iph  = pkt_iphdr(pack);
+	struct pkt_udphdr_t *udph = pkt_udphdr(pack);
 	
 	struct pkt_ethhdr_t *answer_ethh;
 	struct pkt_iphdr_t  *answer_iph;
@@ -1925,10 +1924,10 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	
 	memcpy(answer, pack, *plen); /* TODO */
 	
-	answer_ethh = ethhdr(answer);
-	answer_iph = iphdr(answer);
-	answer_udph = udphdr(answer);
-	answer_dns = dnspkt(answer);
+	answer_ethh = pkt_ethhdr(answer);
+	answer_iph = pkt_iphdr(answer);
+	answer_udph = pkt_udphdr(answer);
+	answer_dns = pkt_dnspkt(answer);
 	
 	/* DNS Header */
 	answer_dns->id      = dnsp->id;
@@ -2115,8 +2114,8 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 		  *plen, newlen, (an_mark - pack), bdiff);
 	} else {
 	  uint16_t data_len = bdiff + (uint16_t) (an_mark - ((uint8_t *)dnsp));
-	  struct pkt_iphdr_t  *iph  = iphdr(pack);
-	  struct pkt_udphdr_t *udph = udphdr(pack);
+	  struct pkt_iphdr_t  *iph  = pkt_iphdr(pack);
+	  struct pkt_udphdr_t *udph = pkt_udphdr(pack);
 	  log_dbg("Growing DNS packet from %d to %d (%d %d) dt=%d",
 		  *plen, newlen, (an_mark - pack), bdiff, data_len);
 	  data_len += PKT_UDP_HLEN;
@@ -2132,7 +2131,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 #endif
 
     if (mod > 0) {
-      chksum(iphdr(pack));
+      chksum(pkt_iphdr(pack));
     }
   }
 
@@ -2228,8 +2227,8 @@ int dhcp_dnsDNAT(struct dhcp_conn_t *conn,
 		 char *do_checksum) {
   
   struct dhcp_t *this = conn->parent;
-  struct pkt_iphdr_t  *iph  = iphdr(pack);
-  struct pkt_udphdr_t *udph = udphdr(pack);
+  struct pkt_iphdr_t  *iph  = pkt_iphdr(pack);
+  struct pkt_udphdr_t *udph = pkt_udphdr(pack);
 
 #ifdef ENABLE_MDNS
   if (iph->protocol == PKT_IP_PROTO_UDP && 
@@ -2286,8 +2285,8 @@ int dhcp_dnsunDNAT(struct dhcp_conn_t *conn,
 		   char *do_checksum) {
   
   struct dhcp_t *this = conn->parent;
-  struct pkt_iphdr_t *iph = iphdr(pack);
-  struct pkt_udphdr_t *udph = udphdr(pack);
+  struct pkt_iphdr_t *iph = pkt_iphdr(pack);
+  struct pkt_udphdr_t *udph = pkt_udphdr(pack);
 
   /* Was it a DNS reply? */
   if ((this->anydns ||
@@ -2497,9 +2496,9 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 		size_t len, char do_reset,
 		char *do_checksum) {
   struct dhcp_t *this = conn->parent;
-  struct pkt_ethhdr_t *ethh = ethhdr(pack);
-  struct pkt_iphdr_t  *iph  = iphdr(pack);
-  struct pkt_tcphdr_t *tcph = tcphdr(pack);
+  struct pkt_ethhdr_t *ethh = pkt_ethhdr(pack);
+  struct pkt_iphdr_t  *iph  = pkt_iphdr(pack);
+  struct pkt_tcphdr_t *tcph = pkt_tcphdr(pack);
 
   /* Allow localhost through network... */
   if (iph->daddr == INADDR_LOOPBACK)
@@ -2566,9 +2565,9 @@ static
 int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack, 
 		      size_t len, char is_return, char *do_checksum) {
   struct dhcp_t *this = conn->parent;
-  struct pkt_ethhdr_t *ethh = ethhdr(pack);
-  struct pkt_iphdr_t  *iph  = iphdr(pack);
-  struct pkt_tcphdr_t *tcph = tcphdr(pack);
+  struct pkt_ethhdr_t *ethh = pkt_ethhdr(pack);
+  struct pkt_iphdr_t  *iph  = pkt_iphdr(pack);
+  struct pkt_tcphdr_t *tcph = pkt_tcphdr(pack);
 
   if (is_return) {
     /* We check here (we also do this in dhcp_dounDNAT()) for UAM */
@@ -2629,9 +2628,9 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 		  uint8_t *pack, size_t *plen,
 		  char do_reset, char *do_checksum) {
   struct dhcp_t *this = conn->parent;
-  struct pkt_ethhdr_t *ethh = ethhdr(pack);
-  struct pkt_iphdr_t  *iph  = iphdr(pack);
-  struct pkt_tcphdr_t *tcph = tcphdr(pack);
+  struct pkt_ethhdr_t *ethh = pkt_ethhdr(pack);
+  struct pkt_iphdr_t  *iph  = pkt_iphdr(pack);
+  struct pkt_tcphdr_t *tcph = pkt_tcphdr(pack);
 
   /* Allow localhost through network... */
   if (iph->saddr == INADDR_LOOPBACK)
@@ -2699,8 +2698,8 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
 
   struct dhcp_t *this = conn->parent;
 
-  struct pkt_ethhdr_t *req_ethh = ethhdr(req);
-  struct dhcp_packet_t *req_dhcp = dhcppkt(req);
+  struct pkt_ethhdr_t *req_ethh = pkt_ethhdr(req);
+  struct dhcp_packet_t *req_dhcp = pkt_dhcppkt(req);
 
   struct pkt_ethhdr_t *pack_ethh;
   struct pkt_iphdr_t *pack_iph;
@@ -2716,10 +2715,10 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
 
   copy_ethproto(req, pack);
 
-  pack_ethh = ethhdr(pack);
-  pack_iph  = iphdr(pack);
-  pack_udph = udphdr(pack);
-  pack_dhcp = dhcppkt(pack);
+  pack_ethh = pkt_ethhdr(pack);
+  pack_iph  = pkt_iphdr(pack);
+  pack_udph = pkt_udphdr(pack);
+  pack_dhcp = pkt_dhcppkt(pack);
 
   pack_dhcp->op     = DHCP_BOOTREPLY;
   pack_dhcp->htype  = DHCP_HTYPE_ETH;
@@ -2832,7 +2831,7 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
       pack_udph->dst = htons(DHCP_BOOTPC);
     }
   } else {
-    struct pkt_iphdr_t *iph = iphdr(req);
+    struct pkt_iphdr_t *iph = pkt_iphdr(req);
     pack_iph->daddr = iph->saddr;
     pack_udph->dst = htons(DHCP_BOOTPC);
   }
@@ -2858,7 +2857,7 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
 #ifdef ENABLE_DHCPOPT
   if (_options.dhcp_options[0]) {
     struct dhcp_tag_t *param_list = 0;
-    struct pkt_udphdr_t *req_udph = udphdr(req);
+    struct pkt_udphdr_t *req_udph = pkt_udphdr(req);
     uint16_t udph_len = ntohs(req_udph->len);
 
     if (!dhcp_gettag(req_dhcp, udph_len - PKT_UDP_HLEN, 
@@ -3016,8 +3015,8 @@ dhcp_handler(int type,
     case CHILLI_DHCP_ACK: 
       {
 	struct dhcp_tag_t * opt82 = 0;
-	struct dhcp_packet_t * dhcpp = dhcppkt(pack);
-	if (!dhcp_gettag(dhcpp, ntohs(udphdr(pack)->len)-PKT_UDP_HLEN, 
+	struct dhcp_packet_t * dhcpp = pkt_dhcppkt(pack);
+	if (!dhcp_gettag(dhcpp, ntohs(pkt_udphdr(pack)->len)-PKT_UDP_HLEN, 
 			 &opt82, DHCP_OPTION_82)) {
 
 	  if (!appconn && dhcpconn)
@@ -3083,9 +3082,9 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   memset(packet, 0, sizeof(packet));
   pos = dhcp_create_pkt(DHCPOFFER, packet, pack, conn);
 
-  packet_iph = iphdr(packet);
-  packet_udph = udphdr(packet);
-  packet_dhcp = dhcppkt(packet);
+  packet_iph  = pkt_iphdr(packet);
+  packet_udph = pkt_udphdr(packet);
+  packet_dhcp = pkt_dhcppkt(packet);
   
   pos = dhcp_accept_opt(conn, packet_dhcp->options, pos);
 
@@ -3125,9 +3124,9 @@ int dhcp_sendACK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   memset(packet, 0, sizeof(packet));
   pos = dhcp_create_pkt(DHCPACK, packet, pack, conn);
 
-  packet_iph = iphdr(packet);
-  packet_udph = udphdr(packet);
-  packet_dhcp = dhcppkt(packet);
+  packet_iph  = pkt_iphdr(packet);
+  packet_udph = pkt_udphdr(packet);
+  packet_dhcp = pkt_dhcppkt(packet);
 
   pos = dhcp_accept_opt(conn, packet_dhcp->options, pos);
 
@@ -3168,9 +3167,9 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   memset(packet, 0, sizeof(packet));
   pos = dhcp_create_pkt(DHCPNAK, packet, pack, conn);
 
-  packet_iph = iphdr(packet);
-  packet_udph = udphdr(packet);
-  packet_dhcp = dhcppkt(packet);
+  packet_iph  = pkt_iphdr(packet);
+  packet_udph = pkt_udphdr(packet);
+  packet_dhcp = pkt_dhcppkt(packet);
 
   packet_dhcp->options[pos++] = DHCP_OPTION_SERVER_ID;
   packet_dhcp->options[pos++] = 4;
@@ -3196,8 +3195,8 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
 static int dhcp_relay(struct dhcp_t *this, 
 		      uint8_t *pack, size_t len) {
-  struct pkt_udphdr_t *pack_udph = udphdr(pack);
-  struct dhcp_packet_t *pack_dhcp = dhcppkt(pack);
+  struct pkt_udphdr_t *pack_udph = pkt_udphdr(pack);
+  struct dhcp_packet_t *pack_dhcp = pkt_dhcppkt(pack);
   struct sockaddr_in addr;
   
   memset(&addr, 0, sizeof(addr));
@@ -3252,16 +3251,16 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   struct dhcp_conn_t *conn;
   struct in_addr addr;
 
-  struct pkt_ethhdr_t *pack_ethh = ethhdr(pack);
-  struct pkt_udphdr_t *pack_udph = udphdr(pack);
-  struct dhcp_packet_t *pack_dhcp = dhcppkt(pack);
+  struct pkt_ethhdr_t *pack_ethh = pkt_ethhdr(pack);
+  struct pkt_udphdr_t *pack_udph = pkt_udphdr(pack);
+  struct dhcp_packet_t *pack_dhcp = pkt_dhcppkt(pack);
 
   log_dbg("function %s()", __FUNCTION__);
 
   if (pack_udph->dst != htons(DHCP_BOOTPS)) 
     return 0; /* Not a DHCP packet */
 
-  if (dhcp_gettag(dhcppkt(pack), ntohs(pack_udph->len)-PKT_UDP_HLEN, 
+  if (dhcp_gettag(pkt_dhcppkt(pack), ntohs(pack_udph->len)-PKT_UDP_HLEN, 
 		  &message_type, DHCP_OPTION_MESSAGE_TYPE)) {
     return -1;
   }
@@ -3314,7 +3313,7 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   addr.s_addr = pack_dhcp->ciaddr;
 
-  if (!dhcp_gettag(dhcppkt(pack), ntohs(pack_udph->len)-PKT_UDP_HLEN, 
+  if (!dhcp_gettag(pkt_dhcppkt(pack), ntohs(pack_udph->len)-PKT_UDP_HLEN, 
 		   &requested_ip, DHCP_OPTION_REQUESTED_IP))
     memcpy(&addr.s_addr, requested_ip->v, 4);
   
@@ -3469,10 +3468,10 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len);
  */
 int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   struct dhcp_t *this = ctx->parent;
-  struct pkt_ethhdr_t *pack_ethh = ethhdr(pack);
-  struct pkt_iphdr_t  *pack_iph  = iphdr(pack);
-  struct pkt_tcphdr_t *pack_tcph = tcphdr(pack);
-  struct pkt_udphdr_t *pack_udph = udphdr(pack);
+  struct pkt_ethhdr_t *pack_ethh = pkt_ethhdr(pack);
+  struct pkt_iphdr_t  *pack_iph  = pkt_iphdr(pack);
+  struct pkt_tcphdr_t *pack_tcph = pkt_tcphdr(pack);
+  struct pkt_udphdr_t *pack_udph = pkt_udphdr(pack);
   struct dhcp_conn_t *conn = 0;
   struct in_addr ourip;
   struct in_addr addr;
@@ -3525,7 +3524,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
       dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack, 
 		icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
 
-      OTHER_SENDING(conn, iphdr(icmp_pack));
+      OTHER_SENDING(conn, pkt_iphdr(icmp_pack));
     }
     
     OTHER_RECEIVED(conn, pack_iph);
@@ -3539,7 +3538,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     log_dbg("ICMP frag for IP packet with length %d", iph_tot_len);
     dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack, 
 	      icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
-    OTHER_SENDING(conn, iphdr(icmp_pack));
+    OTHER_SENDING(conn, pkt_iphdr(icmp_pack));
     OTHER_RECEIVED(conn, pack_iph);
     return 0;
   }
@@ -3946,8 +3945,8 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #ifdef ENABLE_IPV6
 int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   struct dhcp_t *this = ctx->parent;
-  struct pkt_ethhdr_t *ethh = ethhdr(pack);
-  struct pkt_ip6hdr_t *iphdr = ip6hdr(pack);
+  struct pkt_ethhdr_t *ethh = pkt_ethhdr(pack);
+  struct pkt_ip6hdr_t *iphdr = pkt_ip6hdr(pack);
 
   int ip_datalen = (int) ntohs(iphdr->data_len);
 
@@ -4078,8 +4077,8 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  memset(packet, 0, sizeof(packet));
 	  copy_ethproto(pack, packet);
 	  
-	  packet_ethh = ethhdr(packet);
-	  packet_ip6h = ip6hdr(packet);
+	  packet_ethh = pkt_ethhdr(packet);
+	  packet_ip6h = pkt_ip6hdr(packet);
 	  
 	  payload = ((uint8_t *)packet_ip6h) + sizeof(struct pkt_ip6hdr_t);
 	  packet_icmp = (struct pkt_icmphdr_t *) payload;
@@ -4202,8 +4201,8 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  memset(packet, 0, sizeof(packet));
 	  copy_ethproto(pack, packet);
 	  
-	  packet_ethh = ethhdr(packet);
-	  packet_ip6h = ip6hdr(packet);
+	  packet_ethh = pkt_ethhdr(packet);
+	  packet_ip6h = pkt_ip6hdr(packet);
 	  
 	  payload = ((uint8_t *)packet_ip6h) + sizeof(struct pkt_ip6hdr_t);
 	  packet_icmp = (struct pkt_icmphdr_t *) payload;
@@ -4331,8 +4330,8 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  
 	      copy_ethproto(pack, packet);
 	  
-	      packet_ethh = ethhdr(packet);
-	      packet_ip6h = ip6hdr(packet);
+	      packet_ethh = pkt_ethhdr(packet);
+	      packet_ip6h = pkt_ip6hdr(packet);
 
 	      payload = ((uint8_t *)packet_ip6h) + sizeof(struct pkt_ip6hdr_t);
 
@@ -4478,7 +4477,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
       
       memcpy(&ip,&iphdr->dst_addr[12],4);
       memcpy(pack + 20, pack, sizeofeth(pack));
-      ethh = ethhdr(pack + 20);
+      ethh = pkt_ethhdr(pack + 20);
       ethh->prot = htons(PKT_ETH_PROTO_IP);
       ip4hdr = (struct pkt_iphdr_t *) (pack + 20 + sizeofeth(pack));
       ip4hdr->version_ihl = PKT_IP_VER_HLEN;
@@ -4526,7 +4525,7 @@ int dhcp_pppoes(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 	    {
 	      uint8_t answer[1500];
 	      
-	      struct pkt_ethhdr_t *ethh = ethhdr(packet);
+	      struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
 	      
 	      struct pkt_ethhdr_t *answer_ethh;
 	      
@@ -4556,7 +4555,7 @@ int dhcp_pppoes(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 	      
 	      memcpy(answer, packet, length); 
 	      
-	      answer_ethh = ethhdr(answer);
+	      answer_ethh = pkt_ethhdr(answer);
 	      
 	      pppoe = (struct pkt_pppoe_hdr_t *) 
 		(answer + sizeofeth(answer));
@@ -4671,7 +4670,7 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
       {
 	uint8_t answer[1500];
 	
-	struct pkt_ethhdr_t *ethh = ethhdr(packet);
+	struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
 	
 	struct pkt_ethhdr_t *answer_ethh;
 	
@@ -4699,7 +4698,7 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 	
 	memcpy(answer, packet, length); 
 	
-	answer_ethh = ethhdr(answer);
+	answer_ethh = pkt_ethhdr(answer);
 	
 	pppoe = (struct pkt_pppoe_hdr_t *) 
 	  (answer + sizeofeth(answer));
@@ -4783,7 +4782,7 @@ int dhcp_chillipkt(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
   
   unsigned char iv[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
   
-  struct pkt_ethhdr_t *ethh = ethhdr(packet);
+  struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
   
   unsigned char *in = (unsigned char *)chilli_ethhdr(packet);
   unsigned char out[1500];
@@ -4881,7 +4880,7 @@ int dhcp_chillipkt(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 
 static 
 char dhcp_ignore(uint16_t prot, uint8_t *packet, size_t length) {
-  struct pkt_ethhdr_t *ethh = ethhdr(packet);
+  struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
   char ignore = 0;
   
   ignore = get_chilli_peer(-1)->state != PEER_STATE_ACTIVE;
@@ -4945,13 +4944,13 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
 #endif
 
   if (!prot) {
-    struct pkt_ethhdr_t *ethh = ethhdr(packet);
+    struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
     prot = ntohs(ethh->prot);
   }
 
 #if(_debug_ > 1)
   if (_options.debug) {
-    struct pkt_ethhdr_t *ethh = ethhdr(packet);
+    struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
     log_dbg("dhcp_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
 	    "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x %d len=%d",
 	    ethh->src[0],ethh->src[1],ethh->src[2],
@@ -5084,7 +5083,7 @@ int dhcp_decaps(struct dhcp_t *this, int idx) {
     if (iface) {
       length = recv(iface->fd, buf, sizeof(buf), MSG_DONTWAIT);
       if (length > 0) {
-	nfq_handle_packet(iface->h, buf, length);
+	nfq_handle_packet(iface->h, (char *)buf, length);
       }
       return length;
     }
@@ -5119,7 +5118,7 @@ int dhcp_ethhdr(struct dhcp_conn_t *conn, uint8_t *packet, uint8_t *hismac, uint
   } else 
 #endif
   {
-    struct pkt_ethhdr_t *pack_ethh = ethhdr(packet);
+    struct pkt_ethhdr_t *pack_ethh = pkt_ethhdr(packet);
     copy_mac6(pack_ethh->dst, hismac);
     copy_mac6(pack_ethh->src, nexthop);
     pack_ethh->prot = htons(prot);
@@ -5201,8 +5200,8 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
 	      dhcp_nexthop(this), PKT_ETH_PROTO_IP);
 
   {
-    struct pkt_iphdr_t *fullpack_iph = iphdr(fullpack);
-    struct pkt_udphdr_t *fullpack_udph = udphdr(fullpack);
+    struct pkt_iphdr_t *fullpack_iph = pkt_iphdr(fullpack);
+    struct pkt_udphdr_t *fullpack_udph = pkt_udphdr(fullpack);
     
     fullpack_iph->version_ihl = PKT_IP_VER_HLEN;
     fullpack_iph->tot_len = htons(length + PKT_UDP_HLEN + PKT_IP_HLEN);
@@ -5231,7 +5230,7 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
     /*
      * Copy DHCP packet for forwarding
      */
-    memcpy(dhcppkt(fullpack), &packet, length);
+    memcpy(pkt_dhcppkt(fullpack), &packet, length);
 
     { 
       /* 
@@ -5239,7 +5238,7 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
        * subsequent requests 
        */
       struct dhcp_tag_t *tag = 0;
-      if (!dhcp_gettag(dhcppkt(fullpack), length, 
+      if (!dhcp_gettag(pkt_dhcppkt(fullpack), length, 
 		       &tag, DHCP_OPTION_SERVER_ID)) {
 	memcpy(tag->v, &_options.dhcplisten.s_addr, 4);
       }
@@ -5328,7 +5327,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
   case DHCP_AUTH_ROUTER:
     {
       struct app_conn_t *appconn = 
-	dhcp_get_appconn_pkt(conn, iphdr(packet), 1);
+	dhcp_get_appconn_pkt(conn, pkt_iphdr(packet), 1);
 
       if (!appconn) {
 	return 0;
@@ -5423,7 +5422,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
     length = pkt_buffer_length(pb);
 
     memcpy(packet, p, sizeofeth2(tag));
-    ethh = ethhdr(packet);
+    ethh = pkt_ethhdr(packet);
     ethh->prot = htons(PKT_ETH_PROTO_IPv6);
 
     ip6hdr = (struct pkt_ip6hdr_t *) (packet + sizeofeth2(tag));
@@ -5444,7 +5443,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
   } else
 #endif
   if (do_checksum)
-    chksum(iphdr(packet));
+    chksum(pkt_iphdr(packet));
 
   return dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, packet, length);
 }
@@ -5459,7 +5458,7 @@ int dhcp_sendARP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct dhcp_t *this = conn->parent;
   struct in_addr reqaddr;
 
-  struct arp_packet_t *pack_arp = arppkt(pack);
+  struct arp_packet_t *pack_arp = pkt_arppkt(pack);
 
   struct pkt_ethhdr_t *packet_ethh;
   struct arp_packet_t *packet_arp;
@@ -5473,8 +5472,8 @@ int dhcp_sendARP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   memset(packet, 0, sizeof(packet));
   copy_ethproto(pack, packet);
 
-  packet_ethh = ethhdr(packet);
-  packet_arp = arppkt(packet);
+  packet_ethh = pkt_ethhdr(packet);
+  packet_arp = pkt_arppkt(packet);
 	 
   /* ARP Payload */
   packet_arp->hrd = htons(DHCP_HTYPE_ETH);
@@ -5512,8 +5511,8 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   struct in_addr reqaddr;
   struct in_addr taraddr;
 
-  struct pkt_ethhdr_t *pack_ethh = ethhdr(pack);
-  struct arp_packet_t *pack_arp = arppkt(pack);
+  struct pkt_ethhdr_t *pack_ethh = pkt_ethhdr(pack);
+  struct arp_packet_t *pack_arp = pkt_arppkt(pack);
 
   if (len < sizeofeth(pack) + sizeof(struct arp_packet_t)) {
     log_err(0, "ARP too short %d < %d", len, 
@@ -5731,8 +5730,8 @@ int dhcp_sendEAP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
   copy_ethproto(pack, packet);
 
-  packet_ethh = ethhdr(packet);
-  packet_dot1x = dot1xhdr(packet);
+  packet_ethh = pkt_ethhdr(packet);
+  packet_dot1x = pkt_dot1xhdr(packet);
 
   /* Ethernet header */
   memcpy(packet_ethh->dst, conn->hismac, PKT_ETH_ALEN);
@@ -5745,7 +5744,7 @@ int dhcp_sendEAP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   packet_dot1x->type = 0; /* EAP */
   packet_dot1x->len =  htons((uint16_t)len);
 
-  memcpy(eappkt(packet), pack, len);
+  memcpy(pkt_eappkt(packet), pack, len);
   
   OTHER_SENDING_LEN(conn,len);
   return dhcp_send(this, dhcp_conn_idx(conn), conn->hismac,
@@ -5780,8 +5779,8 @@ int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack) {
   unsigned char const amac[PKT_ETH_ALEN] =
     {0x01, 0x80, 0xc2, 0x00, 0x00, 0x03};
 
-  struct pkt_ethhdr_t *pack_ethh = ethhdr(pack);
-  struct pkt_dot1xhdr_t *pack_dot1x = dot1xhdr(pack);
+  struct pkt_ethhdr_t *pack_ethh = pkt_ethhdr(pack);
+  struct pkt_dot1xhdr_t *pack_dot1x = pkt_dot1xhdr(pack);
 
   /* Check to see if we know MAC address. */
   if (!dhcp_hashget(this, &conn, pack_ethh->src)) {
@@ -5827,8 +5826,8 @@ int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack) {
     dhcp_ethhdr(conn, p, pack_ethh->src, 
 		dhcp_nexthop(this), PKT_ETH_PROTO_EAPOL);
 
-    p_dot1x = dot1xhdr(p);
-    p_eap = eappkt(p);
+    p_dot1x = pkt_dot1xhdr(p);
+    p_eap = pkt_eappkt(p);
 
     /* Ethernet header */
 
@@ -5857,8 +5856,8 @@ int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack) {
     conn->lasttime = mainclock_now();
     
     if (this->cb_eap_ind)
-      this->cb_eap_ind(conn, (uint8_t *)eappkt(pack), 
-		       ntohs(eappkt(pack)->length));
+      this->cb_eap_ind(conn, (uint8_t *)pkt_eappkt(pack), 
+		       ntohs(pkt_eappkt(pack)->length));
 
     return 0;
   }
@@ -5885,7 +5884,7 @@ int dhcp_eapol_ind(struct dhcp_t *this) {
 
 #if(_debug_ > 1)
   if (_options.debug) {
-    struct pkt_ethhdr_t *ethh = ethhdr(packet);
+    struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
     log_dbg("eapol_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x",
 	    ethh->src[0],ethh->src[1],ethh->src[2],
 	    ethh->src[3],ethh->src[4],ethh->src[5],

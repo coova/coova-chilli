@@ -23,6 +23,7 @@
 #include "chilli.h"
 
 static int callback(int a, struct iphash_t *h, struct iphashm_t *m) {
+    return 0;
 }
 
 int nat_init(net_interface *iface) {

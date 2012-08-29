@@ -36,10 +36,10 @@ int pkt_shape_tcpwin(struct pkt_iphdr_t *iph, uint16_t win) {
 
 int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
   int optval = _options.tcpmss;
-  struct pkt_iphdr_t *iph = iphdr(packet);
+  struct pkt_iphdr_t *iph = pkt_iphdr(packet);
   if (iph->protocol == PKT_IP_PROTO_TCP) {
     
-    struct pkt_tcphdr_t *tcph = tcphdr(packet);
+    struct pkt_tcphdr_t *tcph = pkt_tcphdr(packet);
     int off = tcph->offres >> 4;
     int hasmss = 0;
     
@@ -108,8 +108,8 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
       uint8_t p[PKT_BUFFER];
       memcpy(p, packet, *length);
       {
-	struct pkt_iphdr_t *p_iph = iphdr(p);
-	struct pkt_tcphdr_t *p_tcph = tcphdr(p);
+	struct pkt_iphdr_t *p_iph = pkt_iphdr(p);
+	struct pkt_tcphdr_t *p_tcph = pkt_tcphdr(p);
 	
 	uint8_t *dst_opt = p_tcph->options + ((off - 5) * 4);
 	uint8_t *src_opt = tcph->options + ((off - 5) * 4);

@@ -4000,9 +4000,9 @@ int redir_main(struct redir_t *redir,
     memset(answer, 0, sizeof(answer));
     
     /*answer_ethh = ethhdr(answer);*/
-    answer_iph = iphdr(answer);
-    answer_udph = udphdr(answer);
-    answer_dns = dnspkt(answer);
+    answer_iph = pkt_iphdr(answer);
+    answer_udph = pkt_udphdr(answer);
+    answer_dns = pkt_dnspkt(answer);
 	
     /* DNS Header */
     answer_dns->id      = 1;

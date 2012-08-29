@@ -645,7 +645,9 @@ net_pcap_handler(u_char *user, const struct pcap_pkthdr *hdr,
   if (!bytes || hdr->caplen < sizeof(struct pkt_ethhdr_t))
     np->read = -1;
   else {
-    np->read = np->func(np->d, (void *)bytes, hdr->caplen);
+    struct pkt_buffer pb;
+    pkt_buffer_init(&pb, (uint8_t *)bytes, hdr->caplen, 0);
+    np->read = np->func(np->d, &pb);
   }
 }
 #endif
@@ -715,7 +717,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
     np.dlen = dlen;
     np.read = 0;
 
-    cnt = pcap_dispatch(netif->pd, 1, net_pcap_read, &np);
+    cnt = pcap_dispatch(netif->pd, 1, net_pcap_read, (u_char *)&np);
     
     return cnt ? np.read : -1;
   }
@@ -1578,6 +1580,7 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
   unsigned cnt, was_drop;
   struct tpacket2_hdr *h;
   /*  struct timespec tv;*/
+  struct pkt_buffer pb;
   void *data;
 
   was_drop = 0;
@@ -1607,7 +1610,8 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
     if (_options.logfacility > 100)
       log_dbg("RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
 
-    func(ctx, data + h->tp_mac, h->tp_snaplen);
+    pkt_buffer_init(&pb, (uint8_t *)data, h->tp_snaplen, h->tp_mac);
+    func(ctx, &pb);
 
     was_drop |= h->tp_status & TP_STATUS_LOSING;
     
@@ -1823,7 +1827,6 @@ static void setup_frames(struct ring *ring, void *data) {
 
 /* Allocate and map the shared ring buffer */
 static void setup_rings(net_interface *iface, unsigned size, int mtu) {
-  const char *unit;
   socklen_t len;
   int ret, val;
   
@@ -1912,7 +1915,6 @@ static void setup_rings2(net_interface *iface) {
 /* Setting SO_SNDBUF/SO_RCVBUF is just advisory, so report the real value being
  * used */
 static void set_buffer(net_interface *iface, int what, int size) {
-  const char *unit;
   socklen_t len;
   int ret, val;
   

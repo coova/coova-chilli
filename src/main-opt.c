@@ -242,6 +242,7 @@ int main(int argc, char **argv) {
   char hostname[USERURLSIZE];
   int numargs;
   int ret = -1;
+  int i;
 
   options_init();
 
@@ -660,7 +661,6 @@ int main(int argc, char **argv) {
 
   _options.uamanydns = args_info.uamanydns_flag;
 #ifdef ENABLE_UAMANYIP
-  log_dbg("HERE --- %d", args_info.uamanyip_flag);
   _options.uamanyip = args_info.uamanyip_flag;
   _options.uamnatanyip = args_info.uamnatanyip_flag;
 #endif
@@ -773,9 +773,18 @@ int main(int argc, char **argv) {
   }
 
   if (args_info.uamdomain_given) {
-    for (numargs = 0; numargs < args_info.uamdomain_given && 
-	   numargs < MAX_UAM_DOMAINS; ++numargs) 
-      _options.uamdomains[numargs] = STRDUP(args_info.uamdomain_arg[numargs]);
+    for (numargs = 0, i=0; 
+	 numargs < args_info.uamdomain_given && i < MAX_UAM_DOMAINS; 
+	 ++numargs) {
+      char *tb = args_info.uamdomain_arg[numargs];
+      char *tok, *str, *ptr;
+      for (str = tb ; i < MAX_UAM_DOMAINS; str = NULL) {
+	tok = strtok_r(str, ",", &ptr);
+	if (!tok) break;
+	log_dbg("uamdomain %s", tok);
+	_options.uamdomains[i++] = STRDUP(tok);
+      }
+    }
   }
 
   _options.allowdyn = 1;

@@ -52,7 +52,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 
 static  struct nfq_handle *h;
 static  struct nfq_q_handle *qh;
-static  struct nfnl_handle *nh;
+/*static  struct nfnl_handle *nh;*/
 static  int fd;
 
 int q_setup() {

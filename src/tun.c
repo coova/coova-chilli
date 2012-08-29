@@ -810,7 +810,7 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
       return -1;
     
     ethsize = PKT_ETH_HLEN;
-    iph = iphdr(packet);
+    iph = pkt_iphdr(packet);
     
   } else {
     
@@ -828,7 +828,7 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
 
   if (c->idx > 0) {
 #ifdef ENABLE_NETNAT
-    struct pkt_udphdr_t *udph = udphdr(packet);
+    struct pkt_udphdr_t *udph = pkt_udphdr(packet);
     if (iph->daddr == tun(c->this, c->idx).address.s_addr &&
 	ntohs(udph->dst) > 10000 && ntohs(udph->dst) < 30000) {
       if (nat_undo(c->this, c->idx, packet, length))
@@ -976,7 +976,7 @@ int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     size_t ethlen = sizeofeth(pack);
     memset(&addr,0,sizeof(addr));
     addr.sll_family = AF_PACKET;
-    addr.sll_protocol = ethhdr(pack)->prot;
+    addr.sll_protocol = pkt_ethhdr(pack)->prot;
     addr.sll_ifindex = tun(tun, idx).ifindex;
     pack += ethlen;
     len  -= ethlen;
@@ -1000,14 +1000,14 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   int result;
 
   if (_options.tcpwin)
-    pkt_shape_tcpwin(iphdr(pack), _options.tcpwin);
+    pkt_shape_tcpwin(pkt_iphdr(pack), _options.tcpwin);
 
   if (_options.tcpmss)
     pkt_shape_tcpmss(pack, &len);
 
 #ifdef ENABLE_MULTIROUTE
   if (idx > 0) {
-    struct pkt_iphdr_t *iph = iphdr(pack);
+    struct pkt_iphdr_t *iph = pkt_iphdr(pack);
     if ((iph->daddr & _options.mask.s_addr) == _options.net.s_addr ||
 	iph->daddr == dhcp->uamlisten.s_addr) {
       log_dbg("Using route idx == 0 (tun/tap)");
@@ -1016,7 +1016,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   }
 
   if (_options.routeonetone && idx > 0) {
-    struct pkt_iphdr_t *iph = iphdr(pack);
+    struct pkt_iphdr_t *iph = pkt_iphdr(pack);
     if (!tun(tun, idx).nataddress.s_addr)
       tun(tun, idx).nataddress.s_addr = iph->saddr;
     iph->saddr = tun(tun, idx).address.s_addr;
@@ -1034,7 +1034,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
 #if defined(HAVE_NETFILTER_QUEUE) || defined(HAVE_NETFILTER_COOVA)
   if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
-    struct pkt_iphdr_t *iph = iphdr(pack);
+    struct pkt_iphdr_t *iph = pkt_iphdr(pack);
 
     iph->saddr  = iph->saddr & ~(_options.mask.s_addr);
     iph->saddr |= _options.uamlisten.s_addr & _options.mask.s_addr;

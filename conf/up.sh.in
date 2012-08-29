@@ -76,6 +76,8 @@ then
 	
 	[ "$HS_LAN_ACCESS" != "on" -a "$HS_LAN_ACCESS" != "allow" ] && \
 	    ipt -I FORWARD -i $TUNTAP \! -o $HS_WANIF -j DROP
+
+	ipt -I FORWARD -i $TUNTAP -o $HS_WANIF -j ACCEPT
 	
 	[ "$HS_LOCAL_DNS" = "on" ] && \
 	    ipt -I PREROUTING -t nat -i $TUNTAP -p udp --dport 53 -j DNAT --to-destination $ADDR
