@@ -5317,6 +5317,11 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
 #endif
   }
 
+  if (!this) {
+      log_warn(0, "DHCP connection no longer valid");
+      return 0;
+  }
+
 #ifdef ENABLE_LAYER3
   /*
    *  A bit of a hack to decouple the one-to-one relationship
