@@ -1,3 +1,4 @@
+/* -*- mode: c; c-basic-offset: 2 -*- */
 /* 
  * Copyright (C) 2007-2012 Coova Technologies, LLC. <support@coova.com>
  * 

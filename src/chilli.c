@@ -1,5 +1,6 @@
+/* -*- mode: c; c-basic-offset: 2 -*- */
 /* 
- * Copyright (C) 2007-2011 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2012 Coova Technologies, LLC. <support@coova.com>
  * Copyright (C) 2003-2005 Mondru AB., 
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -612,9 +613,9 @@ leaky_bucket(struct app_conn_t *conn,
 	     uint64_t octetsup, uint64_t octetsdown) {
   int result = 0;
   uint64_t timediff; 
-
+  
   timediff = (uint64_t) mainclock_diffu(conn->s_state.last_time);
-
+  
   if (_options.debug && 
       (conn->s_params.bandwidthmaxup || conn->s_params.bandwidthmaxdown))
     log_dbg("Leaky bucket timediff: %lld, bucketup: %lld/%lld, "
@@ -6501,10 +6502,10 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
     {
       int listfmt = req->options & CMDSOCK_OPT_JSON ?
 	LIST_JSON_FMT : LIST_LONG_FMT;
-
+      
       struct app_conn_t *appconn=0;
       struct dhcp_conn_t *dhcpconn=0;
-
+      
       int crt = 0;
       
 #ifdef ENABLE_JSON
@@ -6529,7 +6530,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	       appconn = appconn->next) {
 	    chilli_print(s, listfmt, appconn, 0);
 	  }
-	} else 
+	} else {
 #endif
 	  if (dhcp) {
 	    dhcpconn = dhcp->firstusedconn;
@@ -6538,6 +6539,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	      dhcpconn = dhcpconn->next;
 	    }
 	  }
+	}
       }
       
 #ifdef ENABLE_JSON

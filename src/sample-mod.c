@@ -1,3 +1,4 @@
+/* -*- mode: c; c-basic-offset: 2 -*- */
 
 #include "chilli.h"
 #include "chilli_module.h"

@@ -1,3 +1,4 @@
+/* -*- mode: c; c-basic-offset: 2 -*- */
 /*
  * MatrixSSL helper functions
  *
