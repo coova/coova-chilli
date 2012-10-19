@@ -31,7 +31,7 @@ $uamsecret = "uamsecret";
 
 # Uncomment the following line if you want to use ordinary user-password (PAP)
 # for radius authentication. 
-$userpassword=1;
+# $userpassword=1;
 
 $loginpath = "/cgi-bin/hotspotlogin.cgi";
 $debug = 1;
@@ -145,7 +145,7 @@ $password =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/seg;
 
 # If attempt to login
 
-if ($button =~ /^Login$/) {
+if ($button =~ /^Login$/ || ($res eq "wispr" && $username ne "")) {
 
     print "Content-type: text/html\n\n";
 
@@ -249,7 +249,7 @@ if ($res =~ /^notyet$/) {
 }
 
 # If login from smart client
-if ($res =~ /^smartclient$/) { 
+if ($res =~ /^wispr$/) { 
     $result = 6;
 }
 
@@ -292,7 +292,8 @@ if ($result == 0) {
 }
 
 #Generate the output
-print "Content-type: text/html\n\n
+if ($result != 6) {
+    print "Content-type: text/html\n\n
 <!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">
 <html>
 <head>
@@ -389,7 +390,7 @@ print "Content-type: text/html\n\n
   </script>
 </head>
 <body onLoad=\"javascript:doOnLoad($result, '$loginpath?res=popup2&uamip=$uamip&uamport=$uamport&userurl=$userurl&redirurl=$redirurl&timeleft=$timeleft','$userurldecode', '$redirurldecode', '$timeleft')\" onBlur = \"javascript:doOnBlur($result)\" bgColor = '#c0d8f4'>";
-
+}
 
 #      if (!window.opener) {
 #        document.bgColor = '#c0d8f4';

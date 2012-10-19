@@ -1212,6 +1212,10 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
   return 0;
 }
 
+int dhcp_reopen() {
+  return 0;
+}
+
 int dhcp_reserve_ip(uint8_t *mac, struct in_addr *ip) {
   struct dhcp_conn_t *conn = 0;
 
@@ -6017,3 +6021,5 @@ int dhcp_receive(struct dhcp_t *this, int idx) {
   return 0;
 }
 #endif
+
+/* -*- c-file-style: "linux" -*- */

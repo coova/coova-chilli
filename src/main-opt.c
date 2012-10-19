@@ -33,7 +33,7 @@ static const char *description =
   "  http://www.coova.org/\n";
 
 static const char *copyright = 
-  "2006-2011 Coova Technologies LLC., Copyright (c) 2003-2005 Mondru AB.\n"
+  "2006-2012 Coova Technologies LLC., Copyright (c) 2003-2005 Mondru AB.\n"
   "Licensed under the GNU General Public License (GPL).\n";
 
 static const char *usage =
