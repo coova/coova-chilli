@@ -6500,7 +6500,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 
   case CMDSOCK_LIST:
     {
-      int listfmt = req->options & CMDSOCK_OPT_JSON ?
+      int listfmt = (req->options & CMDSOCK_OPT_JSON) ?
 	LIST_JSON_FMT : LIST_LONG_FMT;
       
       struct app_conn_t *appconn=0;
@@ -6539,7 +6539,9 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	      dhcpconn = dhcpconn->next;
 	    }
 	  }
+#ifdef ENABLE_LAYER3
 	}
+#endif
       }
       
 #ifdef ENABLE_JSON
