@@ -1,6 +1,6 @@
 .\" * chilli.conf
 .\" * Copyright (C) 2002, 2003, 2004, 2005 Mondru AB.
-.\" * Copyright (C) 2007 David Bird <david@coova.com>
+.\" * Copyright (C) 2007-2012 David Bird (Coova Technologies)
 .\" *
 .\" * All rights reserved.
 .\" *
@@ -1048,6 +1048,6 @@ The original ChilliSpot project homepage is/was at www.chillispot.org.
 
 David Bird <david@coova.com>
 
-Copyright (C) 2002-2005 by Mondru AB., 2006-2010 Coova Technologies, LLC. All rights reserved.
+Copyright (C) 2002-2005 by Mondru AB., 2006-2012 David Bird (Coova Technologies) All rights reserved.
 
 CoovaChilli is licensed under the GNU General Public License.

@@ -1,7 +1,7 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2007-2012 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

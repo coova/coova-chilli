@@ -1,6 +1,6 @@
 /* -*- mode: c; c-basic-offset: 8; -*-
  *
- * Copyright (c) 2010 Coova Technologies, LLC.
+ * Copyright (c) 2010-2012 David Bird (Coova Technologies)
  *
  * Inspired by the "recent" module which carried these notices:
  *

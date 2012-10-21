@@ -1,5 +1,5 @@
 .\" * chilli_response
-.\" * Copyright (C) 2007 David Bird <david@coova.com>
+.\" * Copyright (C) 2007-2012 David Bird (Coova Technologies)
 .\" *
 .\" * All rights reserved.
 .\" *
@@ -37,7 +37,7 @@ The original ChilliSpot project homepage is/was at www.chillispot.org.
 
 .SH AUTHORS
 
-David Bird <david@coova.com>, Coova Technologies, LLC.
+David Bird <david@coova.com>, Coova Technologies
 
 CoovaChilli is licensed under the GNU General Public License.
 

@@ -1,6 +1,6 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
 /* 
- * Copyright (C) 2007-2012 Coova Technologies, LLC. <support@coova.com>
+ * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
  * Copyright (C) 2003-2005 Mondru AB., 
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -7126,7 +7126,7 @@ int chilli_main(int argc, char **argv) {
 
   syslog(LOG_INFO, "CoovaChilli(ChilliSpot) %s. "
 	 "Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006-2012 Coova Technologies, LLC <support@coova.com>. "
+	 "Copyright 2006-2012 David Bird (Coova Technologies) <support@coova.com>. "
 	 "Licensed under GPL. "
 	 "See http://www.coova.org/ for details.", VERSION);
 

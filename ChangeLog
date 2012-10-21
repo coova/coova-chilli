@@ -1,7 +1,7 @@
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
-== ChangeLog (CoovaChilli-v1.3.0 svn revision 478) ==
+== ChangeLog (CoovaChilli-v1.3.0 svn revision 479) ==
 
 * Removed chilli query command ''listip'', use ''list up'' instead
 * Removed chilli query command ''listmac'', use ''list mac'' instead

@@ -1,5 +1,5 @@
 .\" * chilli_rtmon
-.\" * Copyright (C) 2007-2010 Coova Technologies, LLC.
+.\" * Copyright (C) 2007-2012 David Bird (Coova Technologies)
 .\" * All rights reserved.
 
 .TH chilli_radsec 1 "February 2010"
@@ -31,7 +31,7 @@ for further documentation and community support.
 
 David Bird <david@coova.com>
 
-Copyright (C) 2006-2010 Coova Technologies, LLC. All rights reserved.
+Copyright (C) 2006-2012 David Bird (Coova Technologies) All rights reserved.
 
 CoovaChilli is licensed under the GNU General Public License.
 

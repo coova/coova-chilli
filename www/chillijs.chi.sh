@@ -1,5 +1,5 @@
 #!/bin/sh
-# copyright (c) 2011 Coova Technologies, LLC
+# copyright (c) 2012 David Bird (Coova Technologies)
 # this is the pure shell version...
 cat <<EOF
 HTTP/1.0 200 OK
