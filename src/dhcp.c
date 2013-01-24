@@ -18,6 +18,7 @@
  * 
  */
 
+#include "system.h"
 #include "chilli.h"
 #ifdef ENABLE_MODULES
 #include "chilli_module.h"
@@ -92,11 +93,10 @@ void print_peers(bstring s) {
     }
 
     safe_snprintf(line, sizeof(line),
-		  "Peer %d %-4s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+		  "Peer %d %-4s "MAC_FMT" "
 		  "/ %-16s %-8s %d sec", 
 		  i, _options.peerid == i ? "(*)" : "",
-		  peer->mac[0],peer->mac[1],peer->mac[2],
-		  peer->mac[3],peer->mac[4],peer->mac[5],
+		  MAC_ARG(peer->mac),
 		  inet_ntoa(peer->addr), state, age);
     
     bcatcstr(s, line);
@@ -582,9 +582,8 @@ void dhcp_checktag(struct dhcp_conn_t *conn, uint8_t *pack) {
       uint16_t oldtag = conn->tag8021q;
       conn->tag8021q = tag;
       
-      log_dbg("IEEE 802.1Q: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x on VLAN %d", 
-	      conn->hismac[0], conn->hismac[1], conn->hismac[2],
-	      conn->hismac[3], conn->hismac[4], conn->hismac[5],
+      log_dbg("IEEE 802.1Q: "MAC_FMT" on VLAN %d", 
+	      MAC_ARG(conn->hismac),
 	      (int)ntohs(tag & PKT_8021Q_MASK_VID));
       
       if (_options.vlanupdate) {
@@ -725,9 +724,8 @@ int dhcp_newconn(struct dhcp_t *this,
 		 uint8_t *hwaddr)
 {
   if (_options.debug) 
-    log_dbg("DHCP newconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
-	    hwaddr[0], hwaddr[1], hwaddr[2],
-	    hwaddr[3], hwaddr[4], hwaddr[5]);
+    log_dbg("DHCP newconn: "MAC_FMT, 
+	    MAC_ARG(hwaddr));
 
   if (dhcp_lnkconn(dhcp, conn) != 0)
     return -1;
@@ -786,9 +784,8 @@ int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause)
   if (conn->is_reserved)
     return 0;
 
-  log_dbg("DHCP freeconn: %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
-	  conn->hismac[0], conn->hismac[1], conn->hismac[2],
-	  conn->hismac[3], conn->hismac[4], conn->hismac[5]);
+  log_dbg("DHCP freeconn: "MAC_FMT, 
+	  MAC_ARG(conn->hismac));
 
 #ifdef HAVE_NETFILTER_COOVA
   if (_options.kname) {
@@ -906,9 +903,8 @@ int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 
     if (_options.debug) {
       addr.s_addr = pack_iph->saddr;
-      log_dbg("NFQUEUE: From %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %s", 
-	      hw->hw_addr[0],hw->hw_addr[1],hw->hw_addr[2],
-	      hw->hw_addr[3],hw->hw_addr[4],hw->hw_addr[5],
+      log_dbg("NFQUEUE: From "MAC_FMT" %s %s", 
+	      MAC_ACR(hw->hw_addr),
 	      inet_ntoa(addr), 
 	      result == NF_ACCEPT ? "Accept" : "Drop");
       
@@ -1206,6 +1202,9 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
   if (_options.patricia) {
     dhcp->ptree = patricia_new(32);
     dhcp->ptree_dyn = patricia_new(32);
+#ifdef ENABLE_AUTHEDALLOWED
+    dhcp->ptree_authed = patricia_new(32);
+#endif
   }
 #endif
 
@@ -1301,11 +1300,8 @@ int dhcp_reserve_str(char *b, size_t blen) {
 	}
 	
 	if (newline || state == 2) {
-            log(LOG_NOTICE, "Reserving IP MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X IP %s" , 
-                mac[0], mac[1], 
-                mac[2], mac[3],
-                mac[4], mac[5], 
-                inet_ntoa(ip));
+            log(LOG_NOTICE, "Reserving IP MAC="MAC_FMT" IP %s" , 
+                MAC_ARG(mac), inet_ntoa(ip));
 	  dhcp_reserve_ip(mac, &ip);
 	  state = 0;
 	}
@@ -1386,6 +1382,10 @@ void dhcp_free(struct dhcp_t *dhcp) {
     patricia_destroy (dhcp->ptree, free);
   if (dhcp->ptree_dyn)
     patricia_destroy (dhcp->ptree_dyn, free);
+#ifdef ENABLE_AUTHEDALLOWED
+  if (dhcp->ptree_authed)
+    patricia_destroy (dhcp->ptree_authed, free);
+#endif
 #endif
   if (dhcp->hash) 
     free(dhcp->hash);
@@ -1992,11 +1992,9 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	}
 	
 	safe_snprintf(line, sizeof(line),
-		      "%d,%.2X-%.2X-%.2X-%.2X-%.2X-%.2X,%s,%s,%d,%s\n",
+		      "%d,"MAC_FMT",%s,%s,%d,%s\n",
 		      time(0),
-		      conn->hismac[0], conn->hismac[1],
-		      conn->hismac[2], conn->hismac[3],
-		      conn->hismac[4], conn->hismac[5],
+		      MAC_ARG(conn->hismac),
 		      inet_ntoa(conn->hisip),
 		      q, authenticated,
 		      username ? username : "");
@@ -2320,6 +2318,60 @@ int dhcp_dnsunDNAT(struct dhcp_conn_t *conn,
   return 0; /* Not DNS */
 }
 
+
+
+
+#ifdef ENABLE_AUTHEDALLOWED
+int dhcp_garden_check_auth(struct dhcp_t *this,
+			   struct dhcp_conn_t *conn,
+			   struct app_conn_t *appconn,
+			   struct pkt_ipphdr_t *ipph,
+			   int dst) {
+  pass_through *pt=0;
+  int found = 0;
+
+#ifdef HAVE_PATRICIA
+  if (dhcp->ptree_authed) {
+
+    if (garden_patricia_check(dhcp->ptree_authed, 
+			      _options.authed_pass_throughs, 
+			      &_options.num_authed_pass_throughs, 
+			      ipph, dst))
+      found = 1;
+
+  } else {
+#endif
+
+    switch (garden_check(_options.authed_pass_throughs, 
+			 &_options.num_authed_pass_throughs, &pt,
+			 ipph, dst
+#ifdef HAVE_PATRICIA
+			 , 0
+#endif
+			 )) {
+    case 1:
+      found = 1;
+      break;
+#ifdef ENABLE_GARDENEXT
+    case -1:
+      if (pt)
+	pass_through_rem(_options.authed_pass_throughs, 
+			 &_options.num_authed_pass_throughs, pt
+#ifdef HAVE_PATRICIA
+			 , 0
+#endif
+			 );
+      break;
+#endif
+    }
+  }
+    
+  return found;
+}
+#endif
+
+
+
 int dhcp_garden_check(struct dhcp_t *this,
 		      struct dhcp_conn_t *conn,
 		      struct app_conn_t *appconn,
@@ -2453,35 +2505,38 @@ int dhcp_garden_check(struct dhcp_t *this,
 
 #ifdef ENABLE_GARDENACCOUNTING
   if (_options.uamgardendata) {
+
     if (found) {
+
       if (!appconn) 
 	appconn = dhcp_get_appconn_pkt(conn, 
 				       (struct pkt_iphdr_t *)ipph, 
 				       !dst);
+
       if (appconn) {
 	extern struct app_conn_t admin_session;
 	int len = ntohs(ipph->tot_len);
 	if (_options.swapoctets) {
 	  if (!dst) 
-	    appconn->s_state.garden_output_octets +=len;
+	    appconn->s_state.garden_output_octets += len;
 	  else
-	    appconn->s_state.garden_input_octets +=len;
+	    appconn->s_state.garden_input_octets += len;
 	  if (admin_session.s_state.authenticated) {
 	    if (!dst) 
-	      admin_session.s_state.garden_output_octets+=len;
+	      admin_session.s_state.garden_output_octets += len;
 	    else
-	      admin_session.s_state.garden_input_octets+=len;
+	      admin_session.s_state.garden_input_octets += len;
 	  }
 	} else {
 	  if (!dst)
-	    appconn->s_state.garden_input_octets +=len;
+	    appconn->s_state.garden_input_octets += len;
 	  else
-	    appconn->s_state.garden_output_octets +=len;
+	    appconn->s_state.garden_output_octets += len;
 	  if (admin_session.s_state.authenticated) {
 	    if (!dst) 
-	      admin_session.s_state.garden_input_octets+=len;
+	      admin_session.s_state.garden_input_octets += len;
 	    else
-	      admin_session.s_state.garden_output_octets+=len;
+	      admin_session.s_state.garden_output_octets += len;
 	  }
 	}
       }
@@ -2603,7 +2658,7 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
       if ((iph->protocol == PKT_IP_PROTO_TCP) &&
 	  (tcph->dst == htons(DHCP_HTTP) 
 #ifdef HAVE_SSL
-	   || (_options.redirssl && tcph->dst == htons(DHCP_HTTPS))
+	   || (_options.postauth_proxyssl && tcph->dst == htons(DHCP_HTTPS))
 #endif
 	   )) {
 
@@ -3423,10 +3478,9 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
       
       memcpy(req.arp_ha.sa_data, conn->hismac, PKT_ETH_ALEN);
       
-      log_dbg("ARP Entry: %s -> %.2x:%.2x:%.2x:%.2x:%.2x:%.2x", 
+      log_dbg("ARP Entry: %s -> "MAC_FMT, 
 	      inet_ntoa(conn->hisip),
-	      conn->hismac[0], conn->hismac[1], conn->hismac[2],
-	      conn->hismac[3], conn->hismac[4], conn->hismac[5]);
+	      MAC_ARG(conn->hismac));
       
       safe_strncpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
       
@@ -3552,7 +3606,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
    *  Chop off any trailer length
    */
   if (len > (size_t) eth_tot_len) {
-    log_dbg("chopping off trailer length %d", len - eth_tot_len);
+    //log_dbg("chopping off trailer length %d", len - eth_tot_len);
     len = eth_tot_len;
   }
   
@@ -3582,15 +3636,13 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     if (pack_ethh->dst[0] == 0x01 &&
 	pack_ethh->dst[1] == 0x00 &&
 	pack_ethh->dst[2] == 0x5e) {
-      log_dbg("Multicast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	      pack_ethh->dst[0], pack_ethh->dst[1], pack_ethh->dst[2], 
-	      pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
+      log_dbg("Multicast: "MAC_FMT,
+	      MAC_ARG(pack_ethh->dst));
     } else {
 #endif
 #if(_debug_)
-      log_dbg("Not for our MAC or broadcast: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	      pack_ethh->dst[0], pack_ethh->dst[1], pack_ethh->dst[2], 
-	      pack_ethh->dst[3], pack_ethh->dst[4], pack_ethh->dst[5]);
+      log_dbg("Not for our MAC or broadcast: "MAC_FMT,
+	      MAC_ARG(pack_ethh->dst));
 #endif
       OTHER_RECEIVED(conn, pack_iph);
       return 0;
@@ -4001,9 +4053,8 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 		switch(t) {
 		case 1: /* source link-layer address */
 		case 2: /* target link-layer address */
-		  log_dbg("ICMPv6 Source Link-Layer Address Option "
-			  "%.2X%.2X%.2X%.2X%.2X%.2X",
-			  b[0],b[1],b[2],b[3],b[4],b[5]);
+		  log_dbg("ICMPv6 Source Link-Layer Address Option "MAC_FMT,
+			  MAC_ARG(b));
 		  break;
 		default:
 		  break;
@@ -4866,10 +4917,9 @@ int dhcp_chillipkt(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 	}
 	
 	log_dbg("CHILLI: peer %d received %s from "
-		"%.2x:%.2x:%.2x:%.2x:%.2x:%.2x peerid %d len=%d",
+		MAC_FMT" peerid %d len=%d",
 		_options.peerid, cmd,
-		ethh->src[0],ethh->src[1],ethh->src[2],
-		ethh->src[3],ethh->src[4],ethh->src[5],
+		MAC_ARG(ethh->src),
 		chilli_hdr->from, olen);
       }
     }
@@ -4891,12 +4941,10 @@ char dhcp_ignore(uint16_t prot, uint8_t *packet, size_t length) {
   ignore = get_chilli_peer(-1)->state != PEER_STATE_ACTIVE;
   
   if (ignore)
-    log_dbg("ignore: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
-	    "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x %d len=%d",
-	    ethh->src[0],ethh->src[1],ethh->src[2],
-	    ethh->src[3],ethh->src[4],ethh->src[5],
-	    ethh->dst[0],ethh->dst[1],ethh->dst[2],
-	    ethh->dst[3],ethh->dst[4],ethh->dst[5],
+    log_dbg("ignore: src="MAC_FMT" "
+	    "dst="MAC_FMT" prot=%.4x %d len=%d",
+	    MAC_ARG(ethh->src),
+	    MAC_ARG(ethh->dst),
 	    prot, (int)prot, length);
   
   return ignore;
@@ -4956,12 +5004,10 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
 #if(_debug_ > 1)
   if (_options.debug) {
     struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
-    log_dbg("dhcp_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
-	    "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x %d len=%d",
-	    ethh->src[0],ethh->src[1],ethh->src[2],
-	    ethh->src[3],ethh->src[4],ethh->src[5],
-	    ethh->dst[0],ethh->dst[1],ethh->dst[2],
-	    ethh->dst[3],ethh->dst[4],ethh->dst[5],
+    log_dbg("dhcp_decaps: src="MAC_FMT" "
+	    "dst="MAC_FMT" prot=%.4x %d len=%d",
+	    MAC_ACR(ethh->src),
+	    MAC_ARG(ethh->dst),
 	    prot, (int)prot, length);
   }
 #endif
@@ -5500,10 +5546,9 @@ int dhcp_sendARP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   memcpy(packet_arp->tha, &conn->hismac, PKT_ETH_ALEN);
   memcpy(packet_arp->tpa, &conn->hisip.s_addr, PKT_IP_ALEN);
 
-  log_dbg("ARP: Replying to %s / %.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+  log_dbg("ARP: Replying to %s / "MAC_FMT, 
 	  inet_ntoa(conn->hisip),
-	  conn->hismac[0], conn->hismac[1], conn->hismac[2],
-	  conn->hismac[3], conn->hismac[4], conn->hismac[5]);
+	  MAC_ARG(conn->hismac));
   
   /* Ethernet header */
   memcpy(packet_ethh->dst, conn->hismac, PKT_ETH_ALEN);
@@ -5616,9 +5661,8 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   }
 #endif
 
-  log_dbg("ARP: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X asking about %s", 
-	  conn->hismac[0], conn->hismac[1], conn->hismac[2],
-	  conn->hismac[3], conn->hismac[4], conn->hismac[5],
+  log_dbg("ARP: "MAC_FMT" asking about %s", 
+	  MAC_ARG(conn->hismac),
 	  inet_ntoa(taraddr));
   
   if (conn->authstate == DHCP_AUTH_DROP) {
@@ -5895,11 +5939,9 @@ int dhcp_eapol_ind(struct dhcp_t *this) {
 #if(_debug_ > 1)
   if (_options.debug) {
     struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
-    log_dbg("eapol_decaps: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x",
-	    ethh->src[0],ethh->src[1],ethh->src[2],
-	    ethh->src[3],ethh->src[4],ethh->src[5],
-	    ethh->dst[0],ethh->dst[1],ethh->dst[2],
-	    ethh->dst[3],ethh->dst[4],ethh->dst[5],
+    log_dbg("eapol_decaps: src="MAC_FMT" dst="MAC_FMT" prot=%.4x",
+	    MAC_ARG(ethh->src),
+	    MAC_ARG(ethh->dst),
 	    ntohs(ethh->prot));
   }
 #endif

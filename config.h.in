@@ -9,6 +9,9 @@
 /* Define to enable the use of the ChilliSpot-AP-Session-Id attribute */
 #undef ENABLE_APSESSIONID
 
+/* Define to include Authenticated Garden */
+#undef ENABLE_AUTHEDALLOWED
+
 /* Define to enable binary status file */
 #undef ENABLE_BINSTATFILE
 

@@ -220,6 +220,8 @@ struct options_t {
   uint8_t routeonetone:1;
   uint8_t statusfilesave:1;
   uint8_t dhcpnotidle:1;
+  uint8_t uamauthedallowed:1;
+  uint8_t postauth_proxyssl:1;
 
 #ifdef ENABLE_IPV6
   uint8_t ipv6:1;
@@ -280,6 +282,11 @@ struct options_t {
 
   pass_through pass_throughs[MAX_PASS_THROUGHS];
   uint32_t num_pass_throughs;
+
+#ifdef ENABLE_AUTHEDALLOWED
+  pass_through authed_pass_throughs[MAX_PASS_THROUGHS];
+  uint32_t num_authed_pass_throughs;
+#endif
 
 #ifdef ENABLE_CHILLIREDIR
   regex_pass_through regex_pass_throughs[MAX_REGEX_PASS_THROUGHS];

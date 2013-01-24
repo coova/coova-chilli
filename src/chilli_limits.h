@@ -36,7 +36,7 @@
 /* Bucket size = BUCKET_TIME * Bandwidth-Max radius attribute */
 /* Not used if BUCKET_SIZE is defined */
 #define BUCKET_TIME                        1 /* 1 seconds */
-#define BUCKET_SIZE_MIN                 5000 /* Minimum size of leaky bucket (~10 packets) */
+#define BUCKET_SIZE_MIN                 7000 /* Minimum size of leaky bucket (~10 packets) */
 
 #define CHECK_INTERVAL                     3 /* Time between checking connections */
 
@@ -54,7 +54,7 @@
 #define REDIR_CHALLEN                     16
 #define REDIR_MD5LEN                      16
 #define REDIR_MACSTRLEN                   17
-#define REDIR_MAXBUFFER                 5125
+#define REDIR_MAXBUFFER                65535
 
 #define REDIR_USERNAMESIZE               256 /* Max length of username */
 #define REDIR_MAXQUERYSTRING            2048

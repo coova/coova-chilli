@@ -13,4 +13,3 @@ To get started from SVN:
   sh bootstrap
   ./configure
   make
-

@@ -31,15 +31,12 @@
 #undef __STRICT_ANSI__
  */
 
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
 #include <ctype.h>
-
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
+#include <stdint.h>
+#include <stdarg.h>
+#include <string.h>
+#include <stdio.h>
+#include <time.h>
 
 #ifdef HAVE_STDDEF_H
 #include <stddef.h>
@@ -51,6 +48,10 @@
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
 #endif
 
 #ifdef HAVE_ERRNO_H

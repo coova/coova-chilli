@@ -411,7 +411,8 @@ radius_queue_out(struct radius_t *this, int idx,
 	radius_authcheck(this, pack_in, 
 			 RADIUS_QUEUE_PKTPTR(this->queue[idx].p))) {
       log_warn(0, "Authenticator does not match! req-id=%d res-id=%d", 
-	       RADIUS_QUEUE_PKT(this->queue[idx].p,id), pack_in->id);
+	       RADIUS_QUEUE_PKT(this->queue[idx].p,id), 
+	       pack_in->id);
       return -1;
     }
     
@@ -1702,6 +1703,7 @@ radius_authcheck(struct radius_t *this, struct radius_packet_t *pack,
 {
   uint8_t auth[RADIUS_AUTHLEN];
   MD5_CTX context;
+  int res;
 
   MD5Init(&context);
   MD5Update(&context, (uint8_t *) pack, RADIUS_HDRSIZE-RADIUS_AUTHLEN);
@@ -1710,8 +1712,15 @@ radius_authcheck(struct radius_t *this, struct radius_packet_t *pack,
 	    ntohs(pack->length) - RADIUS_HDRSIZE);
   MD5Update(&context, (uint8_t *)this->secret, this->secretlen);
   MD5Final(auth, &context);
+
+  res = memcmp(pack->authenticator, auth, RADIUS_AUTHLEN);
+  if (res) 
+    log_warn(0, "Authenticator "
+	     AUTH_FMT"(pkt) != "AUTH_FMT"(calc)",
+	     AUTH_ARG(pack->authenticator),
+	     AUTH_ARG(auth));
   
-  return memcmp(pack->authenticator, auth, RADIUS_AUTHLEN);
+  return res;
 }
 
 /* 

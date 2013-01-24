@@ -578,4 +578,7 @@ struct pkt_buffer {
 #define pkt_buffer_is_eth(pb)  ((pb)->offset == PKT_BUFFER_ETHOFF)
 #define pkt_buffer_is_vlan(pb) ((pb)->offset == PKT_BUFFER_VLANOFF)
 
+#define MAC_FMT "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X"
+#define MAC_ARG(x) (x)[0],(x)[1],(x)[2],(x)[3],(x)[4],(x)[5]
+
 #endif

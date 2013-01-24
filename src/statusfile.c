@@ -175,12 +175,12 @@ int loadstatus() {
 	    /*
 	     * Fix time_t values:
 	     *  start_time, interim_time,
-	     *  last_sent_time, last_time,
+	     *  last_up_time, last_time,
 	     *  uamtime
 	     */
 	    localizetime(appconn.s_state.start_time);
 	    localizetime(appconn.s_state.interim_time);
-	    localizetime(appconn.s_state.last_sent_time);
+	    localizetime(appconn.s_state.last_up_time);
 	    localizetime(appconn.s_state.last_time);
 	    localizetime(appconn.s_state.uamtime);
 

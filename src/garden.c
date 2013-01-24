@@ -129,6 +129,23 @@ void garden_print(int fd) {
 		      dhcp->pass_throughs, 
 		      dhcp->num_pass_throughs);
 
+#ifdef ENABLE_AUTHEDALLOWED
+  safe_snprintf(line, sizeof line, 
+		"authed garden (%d/%d):\n",
+		_options.num_authed_pass_throughs,
+		MAX_PASS_THROUGHS);
+  if (!safe_write(fd, line, strlen(line))) /* error */;
+  
+#ifdef HAVE_PATRICIA
+  if (dhcp->ptree_authed) {
+    patricia_process(dhcp->ptree_authed, cb);
+  } else 
+#endif
+    garden_print_list(fd, 
+		      _options.authed_pass_throughs, 
+		      _options.num_authed_pass_throughs);
+#endif
+
 #ifdef ENABLE_SESSGARDEN
   chilli_appconn_run(garden_print_appconn, &fd);
 #endif
@@ -207,7 +224,7 @@ int garden_patricia_add(pass_through *pt, patricia_tree_t *ptree) {
       int i;
       for (i=0; i < nd->ptcnt; i++) {
 	if (pt_equal(&nd->ptlist[i], pt)) {
-	  log_dbg("Uamallowed already exists #%d:%d: proto=%d host=%s port=%d", 
+	  log_dbg("(Patricia)Uamallowed already exists #%d:%d: proto=%d host=%s port=%d", 
 		  i, nd->ptcnt, pt->proto, inet_ntoa(pt->host), pt->port);
 	  break;
 	}
@@ -253,7 +270,7 @@ int garden_patricia_rem(pass_through *pt, patricia_tree_t *ptree) {
 
       for (i=0; i < nd->ptcnt; i++) {
 	if (pt_equal(&nd->ptlist[i], pt)) {
-	  log_dbg("Uamallowed removing #%d:%d: proto=%d host=%s port=%d", 
+	  log_dbg("(Patricia)Uamallowed removing #%d:%d: proto=%d host=%s port=%d", 
 		  i, nd->ptcnt, pt->proto, inet_ntoa(pt->host), pt->port);
 
 	  log_dbg("Shifting uamallowed list %d to %d", i, nd->ptcnt);
@@ -304,6 +321,11 @@ void garden_patricia_reload() {
     garden_patricia_load_list(&dhcp->ptree, 
 			      _options.pass_throughs, 
 			      _options.num_pass_throughs);
+#ifdef ENABLE_AUTHEDALLOWED
+    garden_patricia_load_list(&dhcp->ptree_authed, 
+			      _options.authed_pass_throughs, 
+			      _options.num_authed_pass_throughs);
+#endif
   }
 }
 #endif

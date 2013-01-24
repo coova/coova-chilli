@@ -1,6 +1,6 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
 /* 
- * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
+ * Copyright (C) 2007-2013 David Bird (Coova Technologies) <support@coova.com>
  * Copyright (C) 2003-2005 Mondru AB., 
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -43,7 +43,7 @@ struct app_conn_t *firstusedconn=0; /* First used in linked list */
 struct app_conn_t *lastusedconn=0;  /* Last used in linked list */
 struct app_conn_t admin_session;
 
-time_t mainclock;
+struct timespec mainclock;
 time_t checktime;
 time_t rereadtime;
 
@@ -445,11 +445,11 @@ time_t mainclock_towall(time_t t) {
   if (startup_real.tv_sec) 
     return startup_real.tv_sec + (t - start_tick);
 #endif
-  return mainclock;
+  return mainclock.tv_sec;
 }
 
 time_t mainclock_wall() {
-  return mainclock_towall(mainclock);
+  return mainclock_towall(mainclock.tv_sec);
 }
 
 time_t mainclock_tick() {
@@ -469,18 +469,19 @@ time_t mainclock_tick() {
     log_err(errno, "clock_gettime()");
     /* drop through to old time() */
   } else {
-    mainclock = ts.tv_sec;
-    return mainclock;
+    mainclock.tv_sec = ts.tv_sec;
+    mainclock.tv_nsec = ts.tv_nsec;
+    return mainclock.tv_sec;
   }
 #endif
-  if (time(&mainclock) == (time_t)-1) {
+  if (time(&mainclock.tv_sec) == (time_t)-1) {
     log_err(errno, "time()");
   }
-  return mainclock;
+  return mainclock.tv_sec;
 }
 
 time_t mainclock_now() {
-  return mainclock;
+  return mainclock.tv_sec;
 }
 
 time_t mainclock_rt() {
@@ -508,13 +509,35 @@ int mainclock_rtdiff(time_t past) {
 }
 
 int mainclock_diff(time_t past) {
-  return (int) (mainclock - past);
+  return (int) (mainclock.tv_sec - past);
 }
 
 uint32_t mainclock_diffu(time_t past) {
   int i = mainclock_diff(past);
   if (i > 0) return (uint32_t) i;
   return 0;
+}
+
+void mainclock_tsdiff(struct timespec *out, 
+		      struct timespec *start, 
+		      struct timespec *end) {
+  if ((end->tv_nsec - start->tv_nsec) < 0) {
+    out->tv_sec = end->tv_sec - start->tv_sec-1;
+    out->tv_nsec = 1000000000 + end->tv_nsec - start->tv_nsec;
+  } else {
+    out->tv_sec = end->tv_sec - start->tv_sec;
+    out->tv_nsec = end->tv_nsec - start->tv_nsec;
+  }
+}
+
+double mainclock_diffd(struct timespec * past) {
+  double d = 0;
+  struct timespec tsd;
+  mainclock_tsdiff(&tsd, past, &mainclock);
+  d  = tsd.tv_nsec;
+  d /= 1000000000.0;
+  d += tsd.tv_sec;
+  return d;
 }
 
 uint8_t* chilli_called_station(struct session_state *state) {
@@ -546,8 +569,7 @@ static void set_sessionid(struct app_conn_t *appconn, char full) {
 		  "%.2X%.2X%.2X%.2X%.2X%.2X-"
 		  "%.2X%.2X%.2X%.2X%.2X%.2X-"
 		  "%.8x%.8x", 
-		  his[0],his[1],his[2],his[3],his[4],his[5],
-		  called[0],called[1],called[2],called[3],called[4],called[5],
+		  MAC_ARG(his), MAC_ARG(called),
 		  appconn->rt, appconn->unit);
   }
 #endif
@@ -612,35 +634,30 @@ static inline int
 leaky_bucket(struct app_conn_t *conn, 
 	     uint64_t octetsup, uint64_t octetsdown) {
   int result = 0;
-  uint64_t timediff; 
-  
-  timediff = (uint64_t) mainclock_diffu(conn->s_state.last_time);
-  
-  if (_options.debug && 
-      (conn->s_params.bandwidthmaxup || conn->s_params.bandwidthmaxdown))
-    log_dbg("Leaky bucket timediff: %lld, bucketup: %lld/%lld, "
-	    "bucketdown: %lld/%lld, up: %lld, down: %lld", 
-	    timediff, 
-	    conn->s_state.bucketup, conn->s_state.bucketupsize,
-	    conn->s_state.bucketdown, conn->s_state.bucketdownsize,
-	    octetsup, octetsdown);
-  
+  uint64_t upbytes=0, dnbytes=0;
+  long double timediff; 
+
+  timediff = mainclock_diffd(&conn->s_state.last_bw_time);
+
   if (conn->s_params.bandwidthmaxup) {
-    uint64_t bytes = (timediff * conn->s_params.bandwidthmaxup) / 8;
+    upbytes = (uint64_t) ((timediff * conn->s_params.bandwidthmaxup) / 8);
     
     if (!conn->s_state.bucketupsize) {
       leaky_bucket_init(conn);
     }
     
-    if (conn->s_state.bucketup > bytes) {
-      conn->s_state.bucketup -= bytes;
+    if (conn->s_state.bucketup > upbytes) {
+      conn->s_state.bucketup -= upbytes;
     }
     else {
       conn->s_state.bucketup = 0;
     }
     
-    if ((conn->s_state.bucketup + octetsup) > conn->s_state.bucketupsize) {
-      log_dbg("Leaky bucket deleting uplink packet");
+    if ((conn->s_state.bucketup + octetsup) > 
+	conn->s_state.bucketupsize) {
+      if (_options.debug) 
+	log_dbg("Leaky bucket dropping upload overflow from "MAC_FMT,
+		MAC_ARG(conn->hismac));
       result = -1;
     }
     else {
@@ -649,29 +666,43 @@ leaky_bucket(struct app_conn_t *conn,
   }
   
   if (conn->s_params.bandwidthmaxdown) {
-    uint64_t bytes = (timediff * conn->s_params.bandwidthmaxdown) / 8;
+    dnbytes = (uint64_t) ((timediff * conn->s_params.bandwidthmaxdown) / 8);
     
     if (!conn->s_state.bucketdownsize) {
       leaky_bucket_init(conn);
     }
     
-    if (conn->s_state.bucketdown > bytes) {
-      conn->s_state.bucketdown -= bytes;
+    if (conn->s_state.bucketdown > dnbytes) {
+      conn->s_state.bucketdown -= dnbytes;
     }
     else {
       conn->s_state.bucketdown = 0;
     }
     
-    if ((conn->s_state.bucketdown + octetsdown) > conn->s_state.bucketdownsize) {
-      if (_options.debug) log_dbg("Leaky bucket deleting downlink packet");
+    if ((conn->s_state.bucketdown + octetsdown) > 
+	conn->s_state.bucketdownsize) {
+      if (_options.debug) 
+	log_dbg("Leaky bucket dropping download overflow to "MAC_FMT,
+		MAC_ARG(conn->hismac));
       result = -1;
     }
     else {
       conn->s_state.bucketdown += octetsdown;
     }
   }
+
+#if(0)  
+  if (_options.debug && 
+      (conn->s_params.bandwidthmaxup || conn->s_params.bandwidthmaxdown))
+    log_dbg("Leaky bucket: bucketup: %lld/%lld, "
+	    "bucketdown: %lld/%lld, up: %lld/(%lld), down: %lld/(%lld)", 
+	    conn->s_state.bucketup, conn->s_state.bucketupsize,
+	    conn->s_state.bucketdown, conn->s_state.bucketdownsize,
+	    octetsup, upbytes, octetsdown, dnbytes);
+#endif
   
-  conn->s_state.last_time = mainclock;
+  conn->s_state.last_bw_time.tv_sec = mainclock.tv_sec;
+  conn->s_state.last_bw_time.tv_nsec = mainclock.tv_nsec;
   
   return result;
 }
@@ -693,8 +724,7 @@ void set_env(char *name, char type, void *value, int len) {
   case VAL_MAC_ADDR:
     {
       uint8_t * mac = (uint8_t*)value;
-      safe_snprintf(s, sizeof(s), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+      safe_snprintf(s, sizeof(s), MAC_FMT, MAC_ARG(mac));
       v = s;
     }
     break;
@@ -784,7 +814,7 @@ int runscript(struct app_conn_t *appconn, char* script,
   set_env("OUTPUT_OCTETS", VAL_ULONG64, &appconn->s_state.output_octets, 0);
   sessiontime = mainclock_diffu(appconn->s_state.start_time);
   set_env("SESSION_TIME", VAL_ULONG, &sessiontime, 0);
-  sessiontime = mainclock_diffu(appconn->s_state.last_sent_time);
+  sessiontime = mainclock_diffu(appconn->s_state.last_up_time);
   set_env("IDLE_TIME", VAL_ULONG, &sessiontime, 0);
 
   if (loc) {
@@ -850,7 +880,7 @@ static int newip(struct ippoolm_t **ipm, struct in_addr *hisip, uint8_t *hismac)
  */
 
 static int initconn() {
-  checktime = rereadtime = mainclock;
+  checktime = rereadtime = mainclock.tv_sec;
   return 0;
 }
 
@@ -996,7 +1026,7 @@ static int dnprot_terminate(struct app_conn_t *appconn) {
   appconn->s_state.authenticated = 0;
 #ifdef ENABLE_SESSIONSTATE
   appconn->s_state.session_state = 0;
-#endif      
+#endif
   if (appconn->s_params.url[0] &&
       appconn->s_params.flags & UAM_CLEAR_URL) {
     appconn->s_params.flags &= ~UAM_CLEAR_URL;
@@ -1057,7 +1087,7 @@ void session_interval(struct app_conn_t *conn) {
   uint32_t interimtime;
   
   sessiontime = mainclock_diffu(conn->s_state.start_time);
-  idletime    = mainclock_diffu(conn->s_state.last_sent_time);
+  idletime    = mainclock_diffu(conn->s_state.last_up_time);
   interimtime = mainclock_diffu(conn->s_state.interim_time);
   
   if (conn->s_state.authenticated == 1) {
@@ -1159,7 +1189,7 @@ static int checkconn() {
   if (checkdiff < CHECK_INTERVAL)
     return 0;
 
-  checktime = mainclock;
+  checktime = mainclock.tv_sec;
   
   if (admin_session.s_state.authenticated) {
     session_interval(&admin_session);
@@ -1183,7 +1213,7 @@ static int checkconn() {
   if (_options.interval) {
     rereaddiff = mainclock_diffu(rereadtime);
     if (rereaddiff >= _options.interval) {
-      rereadtime = mainclock;
+      rereadtime = mainclock.tv_sec;
       do_interval = 1;
     }
   }
@@ -1393,10 +1423,7 @@ int chilli_req_attrs(struct radius_t *radius,
   
   /* Include his MAC address */
   if (hismac) {
-    safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		  hismac[0], hismac[1],
-		  hismac[2], hismac[3],
-		  hismac[4], hismac[5]);
+    safe_snprintf(mac, sizeof(mac), MAC_FMT, MAC_ARG(hismac));
     
     radius_addattr(radius, pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
 		   (uint8_t*) mac, MACSTRLEN);
@@ -1517,10 +1544,7 @@ int static auth_radius(struct app_conn_t *appconn,
   }
 
   /* Include his MAC address */
-  safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		dhcpconn->hismac[0], dhcpconn->hismac[1],
-		dhcpconn->hismac[2], dhcpconn->hismac[3],
-		dhcpconn->hismac[4], dhcpconn->hismac[5]);
+  safe_snprintf(mac, sizeof(mac), MAC_FMT, MAC_ARG(dhcpconn->hismac));
 
   if (!username) {
 
@@ -1746,10 +1770,10 @@ static int acct_req(acct_type type,
   switch(status_type) {
   case RADIUS_STATUS_TYPE_START:
   case RADIUS_STATUS_TYPE_ACCOUNTING_ON:
-    conn->s_state.start_time = mainclock;
-    conn->s_state.interim_time = mainclock;
-    conn->s_state.last_time = mainclock;
-    conn->s_state.last_sent_time = mainclock;
+    conn->s_state.start_time = mainclock.tv_sec;
+    conn->s_state.interim_time = mainclock.tv_sec;
+    conn->s_state.last_time = mainclock.tv_sec;
+    conn->s_state.last_up_time = mainclock.tv_sec;
     switch(type) {
 #ifdef ENABLE_GARDENACCOUNTING
     case ACCT_GARDEN:
@@ -1757,8 +1781,8 @@ static int acct_req(acct_type type,
 		    sizeof(conn->s_state.garden_sessionid), 
 		    "UAM-%s-%.8x%.8x", inet_ntoa(conn->hisip),
 		    (int) mainclock_rt(), conn->unit);
-      conn->s_state.garden_start_time = mainclock;
-      conn->s_state.garden_interim_time = mainclock;
+      conn->s_state.garden_start_time = mainclock.tv_sec;
+      conn->s_state.garden_interim_time = mainclock.tv_sec;
       conn->s_state.garden_input_octets = 0;
       conn->s_state.garden_output_octets = 0;
       conn->s_state.other_input_octets = 0;
@@ -1775,14 +1799,14 @@ static int acct_req(acct_type type,
     break;
     
   case RADIUS_STATUS_TYPE_INTERIM_UPDATE:
-    conn->s_state.interim_time = mainclock;
+    conn->s_state.interim_time = mainclock.tv_sec;
     /* drop through */
     
   case RADIUS_STATUS_TYPE_STOP:
     switch(type) {
 #ifdef ENABLE_GARDENACCOUNTING
     case ACCT_GARDEN:
-      conn->s_state.garden_interim_time = mainclock;
+      conn->s_state.garden_interim_time = mainclock.tv_sec;
       if (!conn->s_state.garden_interim_time)
 	return 0;
 #endif
@@ -2333,12 +2357,10 @@ static int fwd_ssdp(struct in_addr *dst,
   
   if (udph && dst->s_addr == ssdp.s_addr) {
     
-    log_dbg("src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
-	    "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x prot=%.4x",
-	    ethh->src[0],ethh->src[1],ethh->src[2],
-	    ethh->src[3],ethh->src[4],ethh->src[5],
-	    ethh->dst[0],ethh->dst[1],ethh->dst[2],
-	    ethh->dst[3],ethh->dst[4],ethh->dst[5],
+    log_dbg("src="MAC_FMT" "
+	    "dst="MAC_FMT" prot=%.4x",
+	    MAC_ARG(ethh->src),
+	    MAC_ARG(ethh->dst),
 	    ntohs(ethh->prot));
     
     /* TODO: also check that the source is from this machine in case we 
@@ -2512,15 +2534,14 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
 	memcpy(&reqaddr.s_addr, p_arp->tpa, PKT_IP_ALEN);
 	
 	if (_options.debug)
-	  log_dbg("arp: ifidx=%d src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
-		  "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+	  log_dbg("arp: ifidx=%d src="MAC_FMT" "
+		  "dst="MAC_FMT" "
 		  "prot=%.4x (asking for %s)",
 		  tun(tun,idx).ifindex,
-		  ethh->src[0],ethh->src[1],ethh->src[2],
-		  ethh->src[3],ethh->src[4],ethh->src[5],
-		  ethh->dst[0],ethh->dst[1],ethh->dst[2],
-		  ethh->dst[3],ethh->dst[4],ethh->dst[5],
-		  ntohs(ethh->prot), inet_ntoa(reqaddr));
+		  MAC_ARG(ethh->src),
+		  MAC_ARG(ethh->dst),
+		  ntohs(ethh->prot), 
+		  inet_ntoa(reqaddr));
 	
 	/*
 	 *  Lookup request address, see if we control it.
@@ -2581,24 +2602,20 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
 	packet_ethh->prot = htons(PKT_ETH_PROTO_ARP);
 	
 	if (_options.debug) {
-	  log_dbg("arp-reply: src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
-		  "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
-		  packet_ethh->src[0],packet_ethh->src[1],packet_ethh->src[2],
-		  packet_ethh->src[3],packet_ethh->src[4],packet_ethh->src[5],
-		  packet_ethh->dst[0],packet_ethh->dst[1],packet_ethh->dst[2],
-		  packet_ethh->dst[3],packet_ethh->dst[4],packet_ethh->dst[5]);
+	  log_dbg("arp-reply: src="MAC_FMT" "
+		  "dst="MAC_FMT,
+		  MAC_ARG(packet_ethh->src),
+		  MAC_ARG(packet_ethh->dst));
 	  
 	  memcpy(&reqaddr.s_addr, packet_arp->spa, PKT_IP_ALEN);
-	  log_dbg("arp-reply: source sha=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x spa=%s",
-		  packet_arp->sha[0],packet_arp->sha[1],packet_arp->sha[2],
-		  packet_arp->sha[3],packet_arp->sha[4],packet_arp->sha[5],
+	  log_dbg("arp-reply: source sha="MAC_FMT" spa=%s",
+		  MAC_ARG(packet_arp->sha),
 		  inet_ntoa(reqaddr));	      
 	  
 	  memcpy(&reqaddr.s_addr, packet_arp->tpa, PKT_IP_ALEN);
-	  log_dbg("arp-reply: target tha=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x tpa=%s",
-		  packet_arp->tha[0],packet_arp->tha[1],packet_arp->tha[2],
-		  packet_arp->tha[3],packet_arp->tha[4],packet_arp->tha[5],
-		inet_ntoa(reqaddr));
+	  log_dbg("arp-reply: target tha="MAC_FMT" tpa=%s",
+		  MAC_ARG(packet_arp->tha),
+		  inet_ntoa(reqaddr));
 	}
 	
 	return tun_write(tun, (uint8_t *)&packet, length, idx);
@@ -2685,7 +2702,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
   if (_options.scalewin && appconn && appconn->s_state.bucketdownsize) {
     uint16_t win = appconn->s_state.bucketdownsize - 
       appconn->s_state.bucketdown;
-    log_dbg("window scaling to %d", win);
+    //log_dbg("window scaling to %d", win);
     pkt_shape_tcpwin((struct pkt_iphdr_t *)ipph, win);
   }
 #endif
@@ -2983,10 +3000,10 @@ chilli_learn_location(uint8_t *loc, int loclen,
 	appconn->s_params.maxtotaloctets -= total;
     }
 
-    appconn->s_state.start_time = mainclock;
-    appconn->s_state.interim_time = mainclock;
-    appconn->s_state.last_time = mainclock;
-    appconn->s_state.last_sent_time = mainclock;
+    appconn->s_state.start_time = mainclock.tv_sec;
+    appconn->s_state.interim_time = mainclock.tv_sec;
+    appconn->s_state.last_time = mainclock.tv_sec;
+    appconn->s_state.last_up_time = mainclock.tv_sec;
     appconn->s_state.input_packets = 0;
     appconn->s_state.input_octets = 0;
     appconn->s_state.output_packets = 0;
@@ -4219,8 +4236,9 @@ static int chilliauth_cb(struct radius_t *radius,
 			    RADIUS_ATTR_CHILLISPOT_CONFIG, 
 			    0, &offset)) {
 
+      char template[] = "/tmp/hs.conf.XXXXXX";
       char * hs_conf = _options.adminupdatefile;
-      char * hs_temp = "/tmp/hs.conf";
+      char * hs_temp = mktemp(template);
       
       /* 
        *  We have configurations in the administrative-user session.
@@ -4261,7 +4279,6 @@ static int chilliauth_cb(struct radius_t *radius,
 	  ssize_t r1, r2;
 
 	  if (!differ) {
-
 	    do {
 	      r1 = safe_read(newfd, b1, sizeof(b1));
 	      r2 = safe_read(oldfd, b2, sizeof(b2));
@@ -4270,11 +4287,10 @@ static int chilliauth_cb(struct radius_t *radius,
 		differ = 1;
 	    } 
 	    while (!differ && r1 > 0 && r2 > 0);
-
-	    safe_close(newfd); newfd=0;
 	  }
 	  
-	  safe_close(oldfd); oldfd=0;
+	  if (newfd) safe_close(newfd); newfd=0;
+	  if (oldfd) safe_close(oldfd); oldfd=0;
 	  
 	  if (differ) {
 	    log_dbg("Writing out new hs.conf file with administraive-user settings");
@@ -4296,6 +4312,8 @@ static int chilliauth_cb(struct radius_t *radius,
 	if (newfd > 0) safe_close(newfd);
 	if (oldfd > 0) safe_close(oldfd);
       }
+
+      unlink(hs_temp);
     }
   }
 
@@ -4409,7 +4427,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     }
     force_ip = 1;
     hisip.s_addr = hisipattr->v.i;
-
+    
     log_dbg("Framed IP address set to: %s", inet_ntoa(hisip));
 
     if (!radius_getattr(pack, &hisipattr, RADIUS_ATTR_FRAMED_IP_NETMASK, 0, 0, 0)
@@ -4816,8 +4834,9 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 	    break;
 	  }
 	}
-      } else
+      } else {
 	terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
+      }
 
       config_radius_session(&appconn->s_params, pack, appconn, 0);
 
@@ -4928,10 +4947,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 	if (_options.macallowlocal) {
 	  char mac[MACSTRLEN+1];
 
-	  safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-			conn->hismac[0], conn->hismac[1],
-			conn->hismac[2], conn->hismac[3],
-			conn->hismac[4], conn->hismac[5]);
+	  safe_snprintf(mac, sizeof(mac), MAC_FMT, MAC_ARG(conn->hismac));
 
 	  safe_strncpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
 	  
@@ -4980,7 +4996,8 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 
   if (!ipm) {
 
-    if (!allocate) return -1;
+    if (!allocate) 
+      return -1;
 
     if (appconn->dnprot != DNPROT_DHCP_NONE && appconn->hisip.s_addr) {
       log_warn(0, "Requested IP address when already allocated (hisip %s)",
@@ -4998,11 +5015,8 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     appconn->hisip.s_addr = ipm->addr.s_addr;
     appconn->hismask.s_addr = _options.mask.s_addr;
     
-    log(LOG_NOTICE, "Client MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X assigned IP %s" , 
-	conn->hismac[0], conn->hismac[1], 
-	conn->hismac[2], conn->hismac[3],
-	conn->hismac[4], conn->hismac[5], 
-	inet_ntoa(appconn->hisip));
+    log(LOG_NOTICE, "Client MAC="MAC_FMT" assigned IP %s" , 
+	MAC_ARG(conn->hismac), inet_ntoa(appconn->hisip));
     
 #ifdef ENABLE_MODULES
     { int i;
@@ -5063,7 +5077,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     appconn->dnprot = DNPROT_UAM;
 
   if (_options.dhcpnotidle) 
-    appconn->s_state.last_sent_time = mainclock;
+    appconn->s_state.last_up_time = mainclock.tv_sec;
   
   return 0;
 }
@@ -5111,10 +5125,8 @@ int chilli_connect(struct app_conn_t **appconn, struct dhcp_conn_t *conn) {
 int cb_dhcp_connect(struct dhcp_conn_t *conn) {
   struct app_conn_t *appconn;
 
-  log(LOG_NOTICE, "New DHCP request from MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X" , 
-      conn->hismac[0], conn->hismac[1], 
-      conn->hismac[2], conn->hismac[3],
-      conn->hismac[4], conn->hismac[5]);
+  log(LOG_NOTICE, "New DHCP request from MAC="MAC_FMT, 
+      MAC_ARG(conn->hismac));
   
 #if(_debug_)
   log_dbg("New DHCP connection established");
@@ -5164,7 +5176,7 @@ struct app_conn_t * chilli_connect_layer3(struct in_addr *src, struct dhcp_conn_
     }
   }
   
-  appconn->s_state.last_sent_time = mainclock_now();
+  appconn->s_state.last_up_time = mainclock_now();
   appconn->hisip.s_addr = src->s_addr;
   appconn->hismask.s_addr = _options.mask.s_addr;
   appconn->dnprot = DNPROT_LAYER3;
@@ -5195,7 +5207,7 @@ int chilli_getinfo(struct app_conn_t *appconn, bstring b, int fmt) {
 
   if (appconn->s_state.authenticated) {
     sessiontime = mainclock_diffu(appconn->s_state.start_time);
-    idletime    = mainclock_diffu(appconn->s_state.last_sent_time);
+    idletime    = mainclock_diffu(appconn->s_state.last_up_time);
   }
 
   switch(fmt) {
@@ -5388,9 +5400,7 @@ void chilli_print(bstring s, int listfmt,
       if (conn) {
 	if (appconn) bcatcstr(b, ",");
 	bcatcstr(b, "\"macAddress\":\"");
-	bassignformat(tmp, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		      conn->hismac[0], conn->hismac[1], conn->hismac[2],
-		      conn->hismac[3], conn->hismac[4], conn->hismac[5]);
+	bassignformat(tmp, MAC_FMT, MAC_ARG(conn->hismac));
 	bconcat(b, tmp);
 	bcatcstr(b, "\",\"dhcpState\":\"");
 	bcatcstr(b, state2name(conn->authstate));
@@ -5406,14 +5416,10 @@ void chilli_print(bstring s, int listfmt,
 
     default:
       if (conn && !appconn) 
-	bassignformat(b, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s",
-		      conn->hismac[0], conn->hismac[1], conn->hismac[2],
-		      conn->hismac[3], conn->hismac[4], conn->hismac[5],
+	bassignformat(b, MAC_FMT" %s", MAC_ARG(conn->hismac),
 		      state2name(conn->authstate));
       else if (conn) 
-	bassignformat(b, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s %s",
-		      conn->hismac[0], conn->hismac[1], conn->hismac[2],
-		      conn->hismac[3], conn->hismac[4], conn->hismac[5],
+	bassignformat(b, MAC_FMT" %s %s", MAC_ARG(conn->hismac),
 		      inet_ntoa(conn->hisip), state2name(conn->authstate));
       else
 	bassignformat(b, "%s", inet_ntoa(appconn->hisip));
@@ -5504,11 +5510,8 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
 int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
   struct app_conn_t *appconn;
 
-  log(LOG_INFO, "DHCP Released MAC=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X IP=%s", 
-      conn->hismac[0], conn->hismac[1], 
-      conn->hismac[2], conn->hismac[3],
-      conn->hismac[4], conn->hismac[5], 
-      inet_ntoa(conn->hisip));
+  log(LOG_INFO, "DHCP Released MAC="MAC_FMT" IP=%s", 
+      MAC_ARG(conn->hismac), inet_ntoa(conn->hisip));
 
   log_dbg("DHCP connection removed");
 
@@ -5539,7 +5542,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   if (_options.scalewin && appconn && appconn->s_state.bucketup) {
     uint16_t win = appconn->s_state.bucketupsize - 
       appconn->s_state.bucketup;
-    log_dbg("window scaling to %d", win);
+    //log_dbg("window scaling to %d", win);
     pkt_shape_tcpwin((struct pkt_iphdr_t *)ipph, win);
   }
 #endif
@@ -5629,114 +5632,240 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
 int chilli_acct_fromsub(struct app_conn_t *appconn, 
 			struct pkt_ipphdr_t *ipph) {
-  char skip = 0;
   int len = ntohs(ipph->tot_len);
-
-#ifndef ENABLE_LEAKYBUCKET
-  appconn->s_state.last_time = mainclock;
+#ifdef ENABLE_GARDENACCOUNTING
+  char checked_garden = 0;
 #endif
-  
-  appconn->s_state.last_sent_time = mainclock;
-  
-  if (appconn->s_state.authenticated == 1) {
-
+  char is_garden = 0;
+  char is_auth;
+  char do_acct;
 #ifdef ENABLE_LEAKYBUCKET
-#ifndef COUNT_UPLINK_DROP
-    if (leaky_bucket(appconn, len, 0)) return 1;
+  char do_bw;
 #endif
+
+  is_auth = appconn->s_state.authenticated == 1;
+  
+  if (is_auth) {
+    
+    do_acct = is_auth;
+#ifdef ENABLE_LEAKYBUCKET
+    do_bw = is_auth;
 #endif
+
+#ifdef ENABLE_AUTHEDALLOWED
+    if (dhcp_garden_check_auth(dhcp, 0, appconn, ipph, 1)) {
+      /*
+       *  Change to garden accounting.
+       */
+      if (_options.nousergardendata)
+	is_garden = 1;
+#ifdef ENABLE_LEAKYBUCKET
+      do_bw = 0;
+      log_dbg("!!!! Skipping leaky bucket because of authedallowed");
+#endif
+    }
+#endif
+    
+    if (_options.uamauthedallowed && do_bw) {
+#ifdef ENABLE_GARDENACCOUNTING
+      checked_garden = 1;
+#endif
+      if (dhcp_garden_check(dhcp, 0, appconn, ipph, 1)) {
+	/*
+	 *  Garden accounting taken care of in dhcp_garden_check()
+	 */
+	do_acct = 0;
+#ifdef ENABLE_LEAKYBUCKET
+	do_bw = 0;
+	log_dbg("!!!! Skipping leaky bucket because of uamauthedallowed");
+#endif
+      }
+    }
 
 #ifdef ENABLE_GARDENACCOUNTING
     if (_options.nousergardendata) {
-      if (dhcp_garden_check(dhcp, 0, appconn, ipph, 1)) {
-	skip = 1;
+      if (!checked_garden) {
+	checked_garden = 1;
+	if (dhcp_garden_check(dhcp, 0, appconn, ipph, 1)) {
+	  do_acct = 0;
+	}
       }
     }
 #endif
-
-    if (!skip) {
-      if (_options.swapoctets) {
-	appconn->s_state.input_packets++;
-	appconn->s_state.input_octets +=len;
-	if (admin_session.s_state.authenticated) {
-	  admin_session.s_state.input_packets++;
-	  admin_session.s_state.input_octets+=len;
-	}
-      } else {
-	appconn->s_state.output_packets++;
-	appconn->s_state.output_octets +=len;
-	if (admin_session.s_state.authenticated) {
-	  admin_session.s_state.output_packets++;
-	  admin_session.s_state.output_octets+=len;
-	}
-      }
-    }
 
 #ifdef ENABLE_LEAKYBUCKET
-#ifdef COUNT_UPLINK_DROP
-    if (leaky_bucket(appconn, len, 0)) return 1;
+#ifndef COUNT_UPLINK_DROP
+    if (do_bw) {
+      if (leaky_bucket(appconn, len, 0)) return 1;
+    }
 #endif
 #endif
-  }
 
+    if (do_acct) {
+      
+      if (is_garden) {
 #ifdef ENABLE_GARDENACCOUNTING
-  if (_options.uamgardendata && _options.nousergardendata) {
-  }
+	if (_options.swapoctets) {
+	  appconn->s_state.garden_input_octets += len;
+	  if (admin_session.s_state.authenticated) {
+	    admin_session.s_state.garden_input_octets += len;
+	  }
+	} else {
+	  appconn->s_state.garden_output_octets += len;
+	  if (admin_session.s_state.authenticated) {
+	    admin_session.s_state.garden_output_octets += len;
+	  }
+	}
 #endif
+      } else {
+	if (_options.swapoctets) {
+	  appconn->s_state.input_packets++;
+	  appconn->s_state.input_octets += len;
+	  if (admin_session.s_state.authenticated) {
+	    admin_session.s_state.input_packets++;
+	    admin_session.s_state.input_octets += len;
+	  }
+	} else {
+	  appconn->s_state.output_packets++;
+	  appconn->s_state.output_octets += len;
+	  if (admin_session.s_state.authenticated) {
+	    admin_session.s_state.output_packets++;
+	    admin_session.s_state.output_octets += len;
+	  }
+	}
+      }
+    }
+    
+#ifdef ENABLE_LEAKYBUCKET
+#ifdef COUNT_UPLINK_DROP
+    if (do_bw) {
+      if (leaky_bucket(appconn, len, 0)) return 1;
+    }
+#endif
+#endif
+  }
 
+  appconn->s_state.last_time = mainclock.tv_sec;
+  appconn->s_state.last_up_time = mainclock.tv_sec;
+  
   return 0;
 }
 
 int chilli_acct_tosub(struct app_conn_t *appconn, 
 		      struct pkt_ipphdr_t *ipph) {
-  char skip = 0;
   int len = ntohs(ipph->tot_len);
+#ifdef ENABLE_GARDENACCOUNTING
+  char checked_garden = 0;
+#endif
+  char is_garden = 0;
+  char is_auth;
+  char do_acct;
+#ifdef ENABLE_LEAKYBUCKET
+  char do_bw;
+#endif
 
-  if (appconn->s_state.authenticated == 1) {
+  is_auth = appconn->s_state.authenticated == 1;
 
-#ifndef ENABLE_LEAKYBUCKET
-    appconn->s_state.last_time = mainclock;
+  if (is_auth) {
+
+    do_acct = is_auth;
+#ifdef ENABLE_LEAKYBUCKET
+    do_bw = is_auth;
 #endif
     
+#ifdef ENABLE_AUTHEDALLOWED
+    if (dhcp_garden_check_auth(dhcp, 0, appconn, ipph, 0)) {
+      /*
+       *  Change to garden accounting.
+       */
+      if (_options.nousergardendata)
+	is_garden = 1;
 #ifdef ENABLE_LEAKYBUCKET
-#ifndef COUNT_DOWNLINK_DROP
-    if (leaky_bucket(appconn, 0, len)) return 1;
+      do_bw = 0;
 #endif
+    }
 #endif
+
+    if (_options.uamauthedallowed && do_bw) {
+#ifdef ENABLE_GARDENACCOUNTING
+      checked_garden = 1;
+#endif
+      if (dhcp_garden_check(dhcp, 0, appconn, ipph, 0)) {
+	/*
+	 *  Garden accounting taken care of in dhcp_garden_check()
+	 */
+	do_acct = 0;
+#ifdef ENABLE_LEAKYBUCKET
+	do_bw = 0;
+#endif
+      }
+    }
 
 #ifdef ENABLE_GARDENACCOUNTING
     if (_options.nousergardendata) {
-      if (dhcp_garden_check(dhcp, 0, appconn, ipph, 0)) {
-	skip = 1;
+      if (!checked_garden) {
+	checked_garden = 1;
+	if (dhcp_garden_check(dhcp, 0, appconn, ipph, 0)) {
+	  do_acct = 0;
+	}
       }
     }
 #endif
 
-    if (!skip) {
-      if (_options.swapoctets) {
-	appconn->s_state.output_packets++;
-	appconn->s_state.output_octets += len;
-	if (admin_session.s_state.authenticated) {
-	  admin_session.s_state.output_packets++;
-	  admin_session.s_state.output_octets+=len;
+#ifdef ENABLE_LEAKYBUCKET
+#ifndef COUNT_DOWNLINK_DROP
+    if (do_bw) {
+      if (leaky_bucket(appconn, 0, len)) return 1;
+    }
+#endif
+#endif
+    
+    if (do_acct) {
+      
+      if (is_garden) {
+#ifdef ENABLE_GARDENACCOUNTING
+	if (_options.swapoctets) {
+	  appconn->s_state.garden_output_octets += len;
+	  if (admin_session.s_state.authenticated) {
+	    admin_session.s_state.garden_output_octets += len;
+	  }
+	} else {
+	  appconn->s_state.garden_input_octets += len;
+	  if (admin_session.s_state.authenticated) {
+	    admin_session.s_state.garden_input_octets += len;
+	  }
 	}
+#endif
       } else {
-	appconn->s_state.input_packets++;
-	appconn->s_state.input_octets += len;
-	if (admin_session.s_state.authenticated) {
-	  admin_session.s_state.input_packets++;
-	  admin_session.s_state.input_octets+=len;
+	if (_options.swapoctets) {
+	  appconn->s_state.output_packets++;
+	  appconn->s_state.output_octets += len;
+	  if (admin_session.s_state.authenticated) {
+	    admin_session.s_state.output_packets++;
+	    admin_session.s_state.output_octets += len;
+	  }
+	} else {
+	  appconn->s_state.input_packets++;
+	  appconn->s_state.input_octets += len;
+	  if (admin_session.s_state.authenticated) {
+	    admin_session.s_state.input_packets++;
+	    admin_session.s_state.input_octets += len;
+	  }
 	}
       }
     }
-    
+
 #ifdef ENABLE_LEAKYBUCKET
 #ifdef COUNT_DOWNLINK_DROP
-    if (leaky_bucket(appconn, 0, len)) return 1;
+    if (do_bw) {
+      if (leaky_bucket(appconn, 0, len)) return 1;
+    }
 #endif
 #endif
   }
-  
+
+  appconn->s_state.last_time = mainclock.tv_sec;
+    
   return 0;
 }
 
@@ -5909,7 +6038,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     }
 
     appconn->uamabort = 0;
-    appconn->s_state.uamtime = mainclock;
+    appconn->s_state.uamtime = mainclock.tv_sec;
 
 #ifdef ENABLE_LAYER3
     if (!_options.layer3)
@@ -5935,7 +6064,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     break;
 
   case REDIR_CHALLENGE:
-    appconn->s_state.uamtime = mainclock;
+    appconn->s_state.uamtime = mainclock.tv_sec;
     appconn->uamabort = 0;
     break;
 
@@ -6019,10 +6148,8 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
       uint8_t z[PKT_ETH_ALEN];
       memset(z, 0, PKT_ETH_ALEN);
       
-      log_dbg("looking to inspect ip=%s/mac=%.2X%.2X%.2X%.2X%.2X%.2X",
-	      inet_ntoa(req->ip), 
-	      req->mac[0],req->mac[1],req->mac[2],
-	      req->mac[3],req->mac[4],req->mac[5]);
+      log_dbg("looking to inspect ip=%s/mac="MAC_FMT,
+	      inet_ntoa(req->ip), MAC_ARG(req->mac));
       
       if (req->ip.s_addr) 
 	appconn = dhcp_get_appconn_ip(0, &req->ip);
@@ -6066,14 +6193,13 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	
 	if (appconn->s_state.authenticated) {
 	  sessiontime = mainclock_diffu(appconn->s_state.start_time);
-	  idletime    = mainclock_diffu(appconn->s_state.last_sent_time);
+	  idletime    = mainclock_diffu(appconn->s_state.last_up_time);
 	}
 	
 	bassignformat(tmp, 
-		      "MAC:   %.2X-%.2X-%.2X-%.2X-%.2X-%.2X   IP:  %s\n"
+		      "MAC:   "MAC_FMT"   IP:  %s\n"
 		      "---------------------------------------------------\n",
-		      appconn->hismac[0], appconn->hismac[1], appconn->hismac[2],
-		      appconn->hismac[3], appconn->hismac[4], appconn->hismac[5],
+		      MAC_ARG(appconn->hismac),
 		      inet_ntoa(appconn->hisip));
 	bconcat(s, tmp);
 	
@@ -6291,19 +6417,25 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 #endif
 	
 	bassignformat(tmp, 
-		      "%20s: %lld\n"
-		      "%20s: %lld\n",
+		      "%20s: %lld (%d%%)\n"
+		      "%20s: %lld (%d%%)\n",
 		      "max b/w up",
 		      appconn->s_params.bandwidthmaxup,
+		      appconn->s_state.bucketupsize ? 
+		      (int) (appconn->s_state.bucketup * 100
+			     / appconn->s_state.bucketupsize) : 0,
 		      "max b/w down",
-		      appconn->s_params.bandwidthmaxdown);
+		      appconn->s_params.bandwidthmaxdown,
+		      appconn->s_state.bucketdownsize ? 
+		      (int) (appconn->s_state.bucketdown * 100
+			     / appconn->s_state.bucketdownsize) : 0);
 	bconcat(s, tmp);
 	
 	bassignformat(tmp, 
 		      "%20s: %d sec ago\n",
 		      "last sent time",
-		      appconn->s_state.last_sent_time ?
-		      mainclock_now()-appconn->s_state.last_sent_time:0);
+		      appconn->s_state.last_up_time ?
+		      mainclock_now()-appconn->s_state.last_up_time:0);
 	bconcat(s, tmp);
 	
 	if (dhcpconn) {
@@ -6625,23 +6757,13 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 
 	  safe_strncpy(gw, inet_ntoa(tun->_interfaces[i].gateway), sizeof(gw));
 
-	  bassignformat(b, "idx: %d dev: %s %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X "
-			"%s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X%s\n", 
+	  bassignformat(b, "idx: %d dev: %s %s "MAC_FMT" "
+			"%s "MAC_FMT"%s\n", 
 			i, tun->_interfaces[i].devname,
 			inet_ntoa(tun->_interfaces[i].address),
-			tun->_interfaces[i].hwaddr[0],
-			tun->_interfaces[i].hwaddr[1],
-			tun->_interfaces[i].hwaddr[2],
-			tun->_interfaces[i].hwaddr[3],
-			tun->_interfaces[i].hwaddr[4],
-			tun->_interfaces[i].hwaddr[5],
+			MAC_ARG(tun->_interfaces[i].hwaddr),
 			gw,
-			tun->_interfaces[i].gwaddr[0],
-			tun->_interfaces[i].gwaddr[1],
-			tun->_interfaces[i].gwaddr[2],
-			tun->_interfaces[i].gwaddr[3],
-			tun->_interfaces[i].gwaddr[4],
-			tun->_interfaces[i].gwaddr[5],
+			MAC_ARG(tun->_interfaces[i].gwaddr),
 			i == 0 ? " (tun/tap)":"");
 
 	  if (safe_write(sock, b->data, b->slen) < 0)
@@ -6655,11 +6777,8 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	    while (conn) {
 	      struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
 	      
-	      bassignformat(b, "mac: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X"
-			    " -> idx: %d\n", 
-			    appconn->hismac[0], appconn->hismac[1],
-			    appconn->hismac[2], appconn->hismac[3],
-			    appconn->hismac[4], appconn->hismac[5],
+	      bassignformat(b, "mac: "MAC_FMT" -> idx: %d\n", 
+			    MAC_ARG(appconn->hismac),
 			    appconn->s_params.routeidx);
 	      
 	      if (safe_write(sock, b->data, b->slen) < 0)
@@ -6958,7 +7077,7 @@ static int session_timeout() {
   while (conn) {
     struct app_conn_t *check_conn = conn;
     conn = conn->next;
-    if (mainclock_diff(check_conn->s_state.last_sent_time) > 
+    if (mainclock_diff(check_conn->s_state.last_up_time) > 
 	_options.lease + _options.leaseplus) {
       log_dbg("Session timeout: Removing connection");
       session_disconnect(check_conn, 0, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
@@ -7128,7 +7247,7 @@ int chilli_main(int argc, char **argv) {
 
   syslog(LOG_INFO, "CoovaChilli(ChilliSpot) %s. "
 	 "Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006-2012 David Bird (Coova Technologies) <support@coova.com>. "
+	 "Copyright 2006-2013 David Bird (Coova Technologies) <support@coova.com>. "
 	 "Licensed under GPL. "
 	 "See http://www.coova.org/ for details.", VERSION);
 
@@ -7483,7 +7602,7 @@ int chilli_main(int argc, char **argv) {
 	chilli_auth_radius(radius);
     }
 
-    if (lastSecond != mainclock) {
+    if (lastSecond != mainclock.tv_sec) {
       /*
        *  Every second, more or less
        */
@@ -7498,7 +7617,7 @@ int chilli_main(int argc, char **argv) {
 #endif
       
       checkconn();
-      lastSecond = mainclock;
+      lastSecond = mainclock.tv_sec;
       
 #ifdef ENABLE_CLUSTER
       dhcp_peer_update(0);

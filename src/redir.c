@@ -2190,7 +2190,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  while (*p && isspace((int) *p)) p++;
 	  safe_strncpy(conn->s_state.redir.useragent, 
 		       p, sizeof(conn->s_state.redir.useragent));
-#if(_debug_ > 1)
+#if(_debug_)
 	  log_dbg("User-Agent: %s",conn->s_state.redir.useragent);
 #endif
 	}
@@ -2263,13 +2263,16 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	return -1;
       }
 
-      bstrtocstr(bt, conn->s_state.redir.username, sizeof(conn->s_state.redir.username));
+      bstrtocstr(bt, conn->s_state.redir.username, 
+		 sizeof(conn->s_state.redir.username));
+
       log_dbg("-->> Setting username=[%s]",conn->s_state.redir.username);
       
       if (!redir_getparam(redir, httpreq->qs, "userurl", bt)) {
 	bstring bt2 = bfromcstr("");
 	redir_urldecode(bt, bt2);
-	bstrtocstr(bt2, conn->s_state.redir.userurl, sizeof(conn->s_state.redir.userurl));
+	bstrtocstr(bt2, conn->s_state.redir.userurl, 
+		   sizeof(conn->s_state.redir.userurl));
 	log_dbg("-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
 	bdestroy(bt2);
       }
@@ -2381,7 +2384,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       if (!redir_getparam(redir, httpreq->qs, "userurl", bt)) {
 	bstring bt2 = bfromcstr("");
 	redir_urldecode(bt, bt2);
-	bstrtocstr(bt2, conn->s_state.redir.userurl, sizeof(conn->s_state.redir.userurl));
+	bstrtocstr(bt2, conn->s_state.redir.userurl, 
+		   sizeof(conn->s_state.redir.userurl));
 	log_dbg("-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
 	bdestroy(bt2);
       }
@@ -2651,7 +2655,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		 strlen(conn->s_state.redir.username));
 
   if (redir->secret && *redir->secret) {
-    log_dbg("SECRET: [%s]",redir->secret);
+    //log_dbg("SECRET: [%s]",redir->secret);
     /* Get MD5 hash on challenge and uamsecret */
     MD5Init(&context);
     MD5Update(&context, conn->s_state.redir.uamchal, REDIR_MD5LEN);

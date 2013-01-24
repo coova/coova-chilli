@@ -265,48 +265,56 @@ int net_select_init(select_ctx *sctx) {
 }
 
 int net_select_prepare(select_ctx *sctx) {
-  int i;
 
 #ifdef ENABLE_MODULES
-  for (i=0; i < MAX_MODULES; i++) {
-    if (!_options.modules[i].name[0]) break;
-    if (_options.modules[i].ctx) {
-      struct chilli_module *m = 
+  {
+    int i;
+    for (i=0; i < MAX_MODULES; i++) {
+      if (!_options.modules[i].name[0]) break;
+      if (_options.modules[i].ctx) {
+	struct chilli_module *m = 
 	(struct chilli_module *)_options.modules[i].ctx;
-      if (m->net_select)
-	m->net_select(sctx); 
+	if (m->net_select)
+	  m->net_select(sctx); 
+      }
     }
   }
 #endif
 
 #if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
-  i = 0; /* for compiler */
+  /* nothing */
 #else
 #ifdef USING_POLL
-  for (i=0; i < sctx->count; i++) {
-    if (sctx->desc[i].fd) {
-      sctx->pfds[i].fd = sctx->desc[i].fd;
-      sctx->pfds[i].events = 0;
-      if (sctx->desc[i].evts & SELECT_READ)
-	sctx->pfds[i].events |= POLLIN;
-      if (sctx->desc[i].evts & SELECT_WRITE)
-	sctx->pfds[i].events |= POLLOUT;
+  {
+    int i;
+    for (i=0; i < sctx->count; i++) {
+      if (sctx->desc[i].fd) {
+	sctx->pfds[i].fd = sctx->desc[i].fd;
+	sctx->pfds[i].events = 0;
+	if (sctx->desc[i].evts & SELECT_READ)
+	  sctx->pfds[i].events |= POLLIN;
+	if (sctx->desc[i].evts & SELECT_WRITE)
+	  sctx->pfds[i].events |= POLLOUT;
+      }
     }
   }
 #else
   fd_zero(&sctx->rfds);
   fd_zero(&sctx->wfds);
   fd_zero(&sctx->efds);
-  for (i=0; i < sctx->count; i++) {
-    if (sctx->desc[i].fd) {
-      if (sctx->desc[i].evts & SELECT_READ) {
-	fd_set(sctx->desc[i].fd, &sctx->rfds);
-	fd_set(sctx->desc[i].fd, &sctx->efds);
+  {
+    int i;
+    for (i=0; i < sctx->count; i++) {
+      if (sctx->desc[i].fd) {
+	if (sctx->desc[i].evts & SELECT_READ) {
+	  fd_set(sctx->desc[i].fd, &sctx->rfds);
+	  fd_set(sctx->desc[i].fd, &sctx->efds);
+	}
+	if (sctx->desc[i].evts & SELECT_WRITE)
+	  fd_set(sctx->desc[i].fd, &sctx->wfds);
+      } else if (sctx->desc[i].evts & SELECT_RESET) {
+	sctx->desc[i].cb(&sctx->desc[i], -1);
       }
-      if (sctx->desc[i].evts & SELECT_WRITE)
-	fd_set(sctx->desc[i].fd, &sctx->wfds);
-    } else if (sctx->desc[i].evts & SELECT_RESET) {
-      sctx->desc[i].cb(&sctx->desc[i], -1);
     }
   }
 #endif

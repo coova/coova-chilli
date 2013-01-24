@@ -115,7 +115,7 @@ int session_json_acct(struct session_state *state,
   uint32_t idletime;
   
   sessiontime = mainclock_diffu(state->start_time);
-  idletime    = mainclock_diffu(state->last_sent_time);
+  idletime    = mainclock_diffu(state->last_up_time);
 
   init = init || !state->authenticated;
 

@@ -135,7 +135,7 @@ option "uamlisten"    - "IP address to listen to for authentication requests" st
 option "dhcplisten"   - "IP address for DHCP default gateway (defaults to uamlisten)" string no
 option "uamport"      - "TCP port to bind to for authentication requests" int default="3990" no
 option "uamuiport"    - "TCP port to bind to for UAM UI requests" int default="3991" no
-option "uamallowed"   - "Domain names exempt from access check " string no multiple
+option "uamallowed"   - "Resources exempt from access check " string no multiple
 option "uamdomain"    - "Domain name allowed (active dns filtering; one per line!) " string no multiple
 option "uamdomainttl" - "DNS TTL to use (rewrite) when query matches a uamdomain" int default="60" no
 option "uamregex"     - "Regular expression to match URLs (one per line) " string no multiple
@@ -150,6 +150,9 @@ option "uamlogoutip"  - "HTTP Auto-Logout IP Address" string default="1.0.0.0" n
 option "uamaliasip"   - "Special IP Address aliased (redirect) to uamlisten/uamport" string default="1.0.0.1" no
 option "uamaliasname" - "Special simple hostname (no dots) to be resolved to uamaliasip" string no
 option "uamhostname"  - "Special simple hostname (no dots) to be resolved to uamlisten" string no
+
+option "authedallowed" - "Resources exempt from session limitations" string no multiple
+option "uamauthedallowed" - "Use uamallowed as resources exempt from session limitations" flag off
 
 option "uamaaaurl"    - "UAM AAA URL specifying the URL to use for the Chilli HTTP AAA" string no
 option "domaindnslocal" - "Option to consider all hostnames in domain as local" flag   off
@@ -208,6 +211,7 @@ option "statusfilesave" - "Aggressively save the status of sessions to status fi
 option "localusers"    - "File keep 'Local' usernames and passwords" string no
 option "postauthproxy" - "IP of an upstream transparent proxy" string no
 option "postauthproxyport" - "Port of an upstream transparent proxy" int default="0" no
+option "postauthproxyssl" - "Send SSL to upstream transparent proxy" flag off
 option "wpaguests"     - "Allow WPA 'Guest' access" flag off
 option "openidauth"    - "Allow OpenID authentication" flag off
 option "papalwaysok"   - "Always allow 'PAP' authentication (depreciated; always on)" flag off

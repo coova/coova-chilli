@@ -239,6 +239,9 @@ struct dhcp_t {
 #ifdef HAVE_PATRICIA
   patricia_tree_t *ptree;
   patricia_tree_t *ptree_dyn;
+#ifdef ENABLE_AUTHEDALLOWED
+  patricia_tree_t *ptree_authed;
+#endif
 #endif
   pass_through pass_throughs[MAX_PASS_THROUGHS];
   uint32_t num_pass_throughs;
@@ -359,6 +362,10 @@ int dhcp_garden_check(struct dhcp_t *this,
 		      struct dhcp_conn_t *conn,
 		      struct app_conn_t *appconn,
 		      struct pkt_ipphdr_t *ipph, int dst);
+int dhcp_garden_check_auth(struct dhcp_t *this,
+			   struct dhcp_conn_t *conn,
+			   struct app_conn_t *appconn,
+			   struct pkt_ipphdr_t *ipph, int dst);
 
 #define CHILLI_DHCP_OFFER    1
 #define CHILLI_DHCP_ACK      2

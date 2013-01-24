@@ -33,13 +33,16 @@ static const char *description =
   "  http://www.coova.org/\n";
 
 static const char *copyright = 
-  "2006-2012 Coova Technologies LLC., Copyright (c) 2003-2005 Mondru AB.\n"
+  "2006-2013 David Bird (Coova Technologies), Copyright (c) 2003-2005 Mondru AB.\n"
   "Licensed under the GNU General Public License (GPL).\n";
 
 static const char *usage =
   "Usage: chilli [OPTIONS]...\n";
 
 static const char *compile_options = "Compiled with "
+#ifdef ENABLE_AUTHEDALLOWED
+  "ENABLE_AUTHEDALLOWED "
+#endif
 #ifdef ENABLE_BINSTATFILE
   "ENABLE_BINSTATFILE "
 #endif
@@ -156,6 +159,9 @@ static const char *compile_options = "Compiled with "
 #endif
 #ifdef ENABLE_UAMUIPORT
   "ENABLE_UAMUIPORT "
+#endif
+#ifdef ENABLE_USERAGENT
+  "ENABLE_USERAGENT "
 #endif
 #ifdef HAVE_MATRIXSSL
   "HAVE_MATRIXSSL "
@@ -369,6 +375,7 @@ int main(int argc, char **argv) {
   _options.rcvbuf = args_info.rcvbuf_arg;
   _options.childmax = args_info.childmax_arg;
   _options.postauth_proxyport = args_info.postauthproxyport_arg;
+  _options.postauth_proxyssl = args_info.postauthproxyssl_flag;
   _options.pap_always_ok = args_info.papalwaysok_flag;
   _options.mschapv2 = args_info.mschapv2_flag;
   _options.acct_update = args_info.acctupdate_flag;
@@ -687,8 +694,22 @@ int main(int argc, char **argv) {
 #ifdef HAVE_PATRICIA
 			      , 0
 #endif
-);
+      );
   }
+
+  _options.uamauthedallowed = args_info.uamauthedallowed_flag;
+#ifdef ENABLE_AUTHEDALLOWED
+  for (numargs = 0; numargs < args_info.authedallowed_given; ++numargs) {
+    pass_throughs_from_string(_options.authed_pass_throughs,
+			      MAX_PASS_THROUGHS,
+			      &_options.num_authed_pass_throughs,  
+			      args_info.authedallowed_arg[numargs], 0, 0
+#ifdef HAVE_PATRICIA
+			      , 0
+#endif
+      );
+  }
+#endif
 
 #ifdef ENABLE_DHCPOPT
   _options.dhcp_options_len = 0;
@@ -778,7 +799,7 @@ int main(int argc, char **argv) {
 	 numargs < args_info.uamdomain_given && i < MAX_UAM_DOMAINS; 
 	 ++numargs) {
       char *tb = args_info.uamdomain_arg[numargs];
-      char *tok, *str, *ptr;
+      char *tok, *str, *ptr=0;
       for (str = tb ; i < MAX_UAM_DOMAINS; str = NULL) {
 	tok = strtok_r(str, ",", &ptr);
 	if (!tok) break;
