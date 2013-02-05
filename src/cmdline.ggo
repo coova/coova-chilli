@@ -60,6 +60,7 @@ option "tundev"      - "TUN/TAP Device, as in tun0 or tap1" string no
 option "mtu"         - "MTU given in DHCP" int default="1500" no
 option "autostatip"  - "Auto- static ip assignment" int default="0" no
 
+option "mmapring" - "Enable use of MMAP Rings (in Linux only)" flag off
 option "ringsize" - "TX/RX Ring Size (in kbytes; linux only)" int default="0" no
 option "sndbuf" - "SNDBUF size (in kb)" int default="0" no
 option "rcvbuf" - "RCVBUF size (in kb)" int default="0" no
@@ -139,6 +140,7 @@ option "uamallowed"   - "Resources exempt from access check " string no multiple
 option "uamdomain"    - "Domain name allowed (active dns filtering; one per line!) " string no multiple
 option "uamdomainttl" - "DNS TTL to use (rewrite) when query matches a uamdomain" int default="60" no
 option "uamregex"     - "Regular expression to match URLs (one per line) " string no multiple
+option "nosystemdns"  - "Do not attempt to use the system DNS for DHCP" flag off
 option "uamanydns"    - "Allow client to use any DNS server" flag   off
 option "uamanyip"     - "Allow client to use any IP Address" flag   off
 option "uamnatanyip"  - "Source NAT clients using anyip to an IP of dynip pool" flag off

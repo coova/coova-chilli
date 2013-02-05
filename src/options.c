@@ -156,13 +156,13 @@ int options_load(int argc, char **argv, bstring bt) {
 
   fd = open(file, O_RDONLY);
 
-  while (fd <= 0) {
+  while (fd < 0) {
     int status = 0;
     int pid = opt_run(argc, argv, 0);
     waitpid(pid, &status, 0);
     if (WIFEXITED(status) && WEXITSTATUS(status) == 2) exit(0);
     fd = open(file, O_RDONLY);
-    if (fd <= 0) {
+    if (fd < 0) {
       if (done_before) break;
       else {
 	char *offline = getenv("CHILLI_OFFLINE");
@@ -184,7 +184,7 @@ int options_load(int argc, char **argv, bstring bt) {
     }
   }
 
-  if (fd <= 0) return 0;
+  if (fd < 0) return 0;
   done_before = 1;
 
   log_dbg("PID %d rereading binary file %s", getpid(), file);
@@ -569,7 +569,7 @@ int options_save(char *file, bstring bt) {
 
   umask(oldmask);
 
-  if (fd <= 0) {
+  if (fd < 0) {
 
     log_err(errno, "could not save to %s", file);
 
@@ -608,7 +608,7 @@ int options_save(char *file, bstring bt) {
 int options_binload(char *file) {
   int fd = open(file, O_RDONLY);
   int ok = 0;
-  if (fd > 0) {
+  if (fd >= 0) {
     bstring bt = bfromcstr("");
     log_dbg("PID %d loading binary options file %s", getpid(), file);
     ok = options_fromfd(fd, bt);

@@ -172,6 +172,9 @@ static const char *compile_options = "Compiled with "
 #ifdef HAVE_OPENSSL
   "HAVE_OPENSSL "
 #endif
+#ifdef USING_MMAP
+  "USING_MMAP "
+#endif
 #ifdef USING_POLL
   "USING_POLL "
 #endif
@@ -281,9 +284,11 @@ int main(int argc, char **argv) {
   }
 
   /* Get the system default DNS entries */
-  if (res_init()) {
-    log_err(0, "Failed to update system DNS settings (res_init()!");
-    goto end_processing;
+  if (!args_info.nosystemdns_flag) {
+    if (res_init()) {
+      log_err(0, "Failed to update system DNS settings (res_init()!");
+      goto end_processing;
+    }
   }
 
   /* Handle each option */
@@ -370,7 +375,10 @@ int main(int argc, char **argv) {
     log_err(0,"radproxy not implemented. build with --enable-radproxy");
 #endif
   _options.txqlen = args_info.txqlen_arg;
+#ifdef USING_MMAP
   _options.ringsize = args_info.ringsize_arg;
+  _options.mmapring = args_info.mmapring_flag;
+#endif
   _options.sndbuf = args_info.sndbuf_arg;
   _options.rcvbuf = args_info.rcvbuf_arg;
   _options.childmax = args_info.childmax_arg;
@@ -876,7 +884,7 @@ int main(int argc, char **argv) {
 	goto end_processing;
     }
   }
-  else if (_res.nscount >= 1) {
+  else if (!args_info.nosystemdns_flag &&_res.nscount >= 1) {
     _options.dns1 = _res.nsaddr_list[0].sin_addr;
   }
   else {
@@ -891,7 +899,7 @@ int main(int argc, char **argv) {
 	goto end_processing;
     }
   }
-  else if (_res.nscount >= 2) {
+  else if (!args_info.nosystemdns_flag && _res.nscount >= 2) {
     _options.dns2 = _res.nsaddr_list[1].sin_addr;
   }
   else {

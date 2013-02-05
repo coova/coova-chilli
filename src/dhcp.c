@@ -1475,7 +1475,7 @@ size_t icmpfrag(uint8_t *pack, size_t plen, uint8_t *orig_pack) {
    is smaller than IP packet length) IP packet.
   */
 
-  size_t icmp_req_len = PKT_IP_HLEN + 64;
+  size_t icmp_req_len = PKT_IP_HLEN + 8;
 
   size_t icmp_ip_len = PKT_IP_HLEN + sizeof(struct pkt_icmphdr_t) + 
     4 + icmp_req_len;
@@ -3594,7 +3594,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
       iphdr_more_frag(pack_iph) ||
       iphdr_offset(pack_iph)) {
     uint8_t icmp_pack[1500];
-    log_dbg("ICMP frag for IP packet with length %d", iph_tot_len);
+    log_dbg("ICMP frag for IP packet with length %d > %d", iph_tot_len, _options.mtu);
     dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack, 
 	      icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
     OTHER_SENDING(conn, pkt_iphdr(icmp_pack));

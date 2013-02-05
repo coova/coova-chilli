@@ -6,6 +6,9 @@
 * Smoothed out leaky bucket bandwidth calculation by considering fractions of seconds
 * New runtime option ''uamauthedallowed'' is a boolean option that has all ''uamallowed'' resources put outside of bandwidth limits or accounting
 * New runtime option ''postauthproxyssl'' to have postauth proxy send https to proxy, previously this was the default when redirssl is used
+* Runtime option ''mmapring'' to enable using RX/TX rings when compiled with ''--with-mmap''
+* Fix ICMP fragmentation needed messages to carrying original IP header plus 8 bytes (64bits)
+* Added runtime option ''nosystemdns'' to prevent the use of the system DNS servers to be used for DHCP subscribers
 
 == ChangeLog (CoovaChilli-v1.3.0 svn revision 480) ==
 

@@ -922,6 +922,9 @@ int chilli_new_conn(struct app_conn_t **conn) {
     memset(*conn, 0, sizeof(struct app_conn_t));
   }
 
+  /* Initalise connection with default options */
+  session_param_defaults(&(*conn)->s_params);
+
   /* Insert into link of used */
   if (firstusedconn) {
     firstusedconn->prev = *conn;
@@ -7652,11 +7655,13 @@ int chilli_main(int argc, char **argv) {
 
     net_run(&dhcp->rawif[0]);
 
+#ifdef ENABLE_MULTIROUTE
     if (tun) {
       for (i=0; i < (tun)->_interface_count; i++) {
 	net_run(&(tun)->_interfaces[i]); 
       }
     }
+#endif
 
 #endif
     

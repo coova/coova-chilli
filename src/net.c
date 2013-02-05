@@ -1,7 +1,7 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
 /* 
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
+ * Copyright (C) 2007-2013 David Bird (Coova Technologies) <support@coova.com>
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ static void set_buffer(net_interface *iface, int what, int size);
 static void setup_rings(net_interface *iface, unsigned size, int mtu);
 static void setup_rings2(net_interface *iface);
 static void destroy_one_ring(net_interface *iface, int what);
-static void setup_filter(net_interface *iface);
+//static void setup_filter(net_interface *iface);
 #endif
 
 static int default_sndbuf = 0;
@@ -663,6 +663,7 @@ net_pcap_handler(u_char *user, const struct pcap_pkthdr *hdr,
 
 ssize_t 
 net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx) {
+
 #if defined(USING_PCAP)
   if (netif->pd) {
     struct netpcap np; 
@@ -682,9 +683,8 @@ net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx) {
 #ifdef USING_MMAP
   if (netif->rx_ring.frames) {
     return rx_ring(netif, func, ctx);
-  }
+  } else
 #endif
-
   {
     struct pkt_buffer pb;
     uint8_t packet[PKT_MAX_LEN];
@@ -736,7 +736,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
   if (netif->rx_ring.frames) {
     log_err(0, "shouldn't be reading a mmap'ed interface this way, use dispatch");
     return -1;
-  }
+  } else 
 #endif
 
   if (netif->fd) {
@@ -1194,7 +1194,6 @@ int net_open_eth(net_interface *netif) {
  **/
 int net_open_eth(net_interface *netif) {
   struct ifreq ifr;
-  struct packet_mreq mr;
   struct sockaddr_ll sa;
   int option;
 
@@ -1214,40 +1213,45 @@ int net_open_eth(net_interface *netif) {
     return -1;
   }
 
-#ifndef USING_MMAP
-  /* Let's make this non-blocking */
-  ndelay_on(netif->fd);
-  coe(netif->fd);
+#ifdef USING_MMAP
+  if (!_options.mmapring) {
+#endif
 
-  option = 1;
-  if (net_setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY, 
-		     &option, sizeof(option)) < 0)
-    return -1;
-
-  /* Enable reception and transmission of broadcast frames */
-  option = 1;
-  if (net_setsockopt(netif->fd, SOL_SOCKET, SO_BROADCAST, 
-		     &option, sizeof(option)) < 0)
-    return -1;
-
-  if (_options.sndbuf > 0) {
-    option = _options.sndbuf;
-    net_setsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &option, sizeof(option));
-  }
-  
-  if (_options.rcvbuf > 0) {
-    option = _options.rcvbuf;
-    net_setsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
-  }
-
-  {
-    socklen_t len;
-    len = sizeof(default_sndbuf);
-    getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
-    log_dbg("Net SNDBUF %d", default_sndbuf);
-    len = sizeof(default_sndbuf);
-    getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
-    log_dbg("Net RCVBUF %d", default_rcvbuf);
+    /* Let's make this non-blocking */
+    ndelay_on(netif->fd);
+    coe(netif->fd);
+    
+    option = 1;
+    if (net_setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY, 
+		       &option, sizeof(option)) < 0)
+      return -1;
+    
+    /* Enable reception and transmission of broadcast frames */
+    option = 1;
+    if (net_setsockopt(netif->fd, SOL_SOCKET, SO_BROADCAST, 
+		       &option, sizeof(option)) < 0)
+      return -1;
+    
+    if (_options.sndbuf > 0) {
+      option = _options.sndbuf;
+      net_setsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &option, sizeof(option));
+    }
+    
+    if (_options.rcvbuf > 0) {
+      option = _options.rcvbuf;
+      net_setsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
+    }
+    
+    {
+      socklen_t len;
+      len = sizeof(default_sndbuf);
+      getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
+      log_dbg("Net SNDBUF %d", default_sndbuf);
+      len = sizeof(default_sndbuf);
+      getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
+      log_dbg("Net RCVBUF %d", default_rcvbuf);
+    }
+#ifdef USING_MMAP
   }
 #endif
 
@@ -1340,36 +1344,40 @@ int net_open_eth(net_interface *netif) {
   }
 #endif
 
-#ifndef USING_MMAP
-  /* Set interface in promisc mode */
-  if (netif->flags & NET_PROMISC) {
-
-    memset(&ifr, 0, sizeof(ifr));
-    safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
-    if (ioctl(netif->fd, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
-      log_err(errno, "ioctl(SIOCGIFFLAGS)");
-    } else {
-      netif->devflags = ifr.ifr_flags;
-      ifr.ifr_flags |= IFF_PROMISC;
-      if (ioctl (netif->fd, SIOCSIFFLAGS, (caddr_t)&ifr) == -1) {
-	log_err(errno, "Could not set flag IFF_PROMISC");
-      }
-    }
-
-    memset(&mr,0,sizeof(mr));
-    mr.mr_ifindex = netif->ifindex;
-    mr.mr_type = PACKET_MR_PROMISC;
-
-    if (net_setsockopt(netif->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, 
-		       (char *)&mr, sizeof(mr)) < 0)
-      return -1;
-  }
-#endif
-
 #ifdef USING_MMAP
-  setup_rings(netif,
-	      _options.ringsize ? _options.ringsize : DEF_RING_SIZE, 
-	      netif->mtu + 20);
+  if (_options.mmapring) {
+    setup_rings(netif,
+		_options.ringsize ? _options.ringsize : DEF_RING_SIZE, 
+		netif->mtu + 20);
+  } else
+#else
+  {
+    struct packet_mreq mr;
+
+    /* Set interface in promisc mode */
+    if (netif->flags & NET_PROMISC) {
+      
+      memset(&ifr, 0, sizeof(ifr));
+      safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+      if (ioctl(netif->fd, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
+	log_err(errno, "ioctl(SIOCGIFFLAGS)");
+      } else {
+	netif->devflags = ifr.ifr_flags;
+	ifr.ifr_flags |= IFF_PROMISC;
+	if (ioctl (netif->fd, SIOCSIFFLAGS, (caddr_t)&ifr) == -1) {
+	  log_err(errno, "Could not set flag IFF_PROMISC");
+	}
+      }
+      
+      memset(&mr,0,sizeof(mr));
+      mr.mr_ifindex = netif->ifindex;
+      mr.mr_type = PACKET_MR_PROMISC;
+      
+      if (net_setsockopt(netif->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, 
+			 (char *)&mr, sizeof(mr)) < 0)
+	return -1;
+    }
+  }
 #endif
 
   /* Bind to particular interface */
@@ -1399,14 +1407,16 @@ int net_open_eth(net_interface *netif) {
 #endif
 
 #ifdef USING_MMAP
-  setup_rings2(netif);
-  /*setup_filter(netif);*/
-
-  if (_options.sndbuf > 0)
-    set_buffer(netif, SO_SNDBUF, _options.sndbuf * 1024);
-
-  if (_options.rcvbuf > 0)
-    set_buffer(netif, SO_RCVBUF, _options.rcvbuf * 1024);
+  if (_options.mmapring) {
+    setup_rings2(netif);
+    /*setup_filter(netif);*/
+    
+    if (_options.sndbuf > 0)
+      set_buffer(netif, SO_SNDBUF, _options.sndbuf * 1024);
+    
+    if (_options.rcvbuf > 0)
+      set_buffer(netif, SO_RCVBUF, _options.rcvbuf * 1024);
+  }
 #endif
 
   return 0;
@@ -1581,10 +1591,6 @@ void net_run(net_interface *iface) {
 
 #ifdef USING_MMAP
 
-/*
- *  Credits: Based on that of http://code.google.com/p/ggaoed/
- */
-
 static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
   unsigned cnt, was_drop;
   struct tpacket2_hdr *h;
@@ -1613,21 +1619,18 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
     tv.tv_sec = h->tp_sec;
     tv.tv_nsec = h->tp_nsec;*/
     
-    /* The AoE header also contains the ethernet header, so we have
-     * start from h->tp_mac instead of h->tp_net */
-
-    if (_options.logfacility > 100)
+    if (_options.debug > 100)
       log_dbg("RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
 
     pkt_buffer_init(&pb, (uint8_t *)data, h->tp_snaplen, h->tp_mac);
+    pb.length = h->tp_len;
+
     func(ctx, &pb);
 
     was_drop |= h->tp_status & TP_STATUS_LOSING;
     
   next:
     h->tp_status = TP_STATUS_KERNEL;
-    /* Make sure other CPUs know about the status change */
-    /*AO_nop_full();*/
   }
 
   if (cnt >= iface->rx_ring.cnt)
@@ -1700,16 +1703,9 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
   iface->stats.tx_bytes += h->tp_len;
   ++iface->stats.tx_cnt;
   
-  /*drop_request(q);*/
-  
-  /* Make sure buffer writes are stable before we update the status */
-  /*AO_nop_write();*/
   h->tp_status = TP_STATUS_SEND_REQUEST;
-  /* Make sure other CPUs know about the status change */
-  /*AO_nop_full();*/
 
-
-  if (_options.logfacility > 100)
+  if (_options.debug > 100)
     log_dbg("TX sent=%d (idx %d)", length, iface->ifindex);
   
   if (!iface->is_active) {
@@ -1943,6 +1939,7 @@ static void set_buffer(net_interface *iface, int what, int size) {
   what == SO_SNDBUF ? "send" : "receive", ret, unit);*/
 }
 
+#if(0)
 static void setup_filter(net_interface *iface) {
 
   if (iface->idx > 0) {
@@ -1992,6 +1989,6 @@ static void setup_filter(net_interface *iface) {
       log_err(errno, "Failed to set up the socket filter");
   }
 }
-
+#endif
 
 #endif

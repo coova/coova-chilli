@@ -1,6 +1,6 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
 /* 
- * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
+ * Copyright (C) 2007-2013 David Bird (Coova Technologies) <support@coova.com>
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -65,7 +65,10 @@ struct options_t {
   char * macdown;
   int txqlen;
 
+#ifdef USING_MMAP
   int ringsize;
+#endif
+
   int sndbuf;
   int rcvbuf;
 
@@ -222,6 +225,10 @@ struct options_t {
   uint8_t dhcpnotidle:1;
   uint8_t uamauthedallowed:1;
   uint8_t postauth_proxyssl:1;
+
+#ifdef USING_MMAP
+  uint8_t mmapring:1;
+#endif
 
 #ifdef ENABLE_IPV6
   uint8_t ipv6:1;
