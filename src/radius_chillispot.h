@@ -69,8 +69,12 @@
 #define RADIUS_ATTR_CHILLISPOT_DHCP_DNS2                 63 /* ipaddr */
 #define RADIUS_ATTR_CHILLISPOT_DHCP_GATEWAY              64 /* ipaddr */
 #define RADIUS_ATTR_CHILLISPOT_DHCP_DOMAIN               65 /* string */
+#define RADIUS_ATTR_CHILLISPOT_DHCP_RELAY                66 /* ipaddr */
 
 #define RADIUS_ATTR_CHILLISPOT_INJECT_URL                70 /* string */
+
+#define RADIUS_ATTR_CHILLISPOT_POSTAUTHPROXY_ADDRESS     75 /* ipaddr */
+#define RADIUS_ATTR_CHILLISPOT_POSTAUTHPROXY_PORT        76 /* integer */
 
 #define RADIUS_ATTR_CHILLISPOT_GARDEN_INPUT_OCTETS       80 /* integer */
 #define RADIUS_ATTR_CHILLISPOT_GARDEN_OUTPUT_OCTETS      81 /* integer */

@@ -431,6 +431,23 @@ int main(int argc, char **argv) {
 #ifdef ENABLE_IPV6
   _options.ipv6 = args_info.ipv6_flag;
   _options.ipv6only = args_info.ipv6only_flag;
+  if (args_info.ipv6mode_arg) {
+    if (!strcmp(args_info.ipv6mode_arg, "4to6")) {
+      _options.ipv6 = 1;
+      _options.ipv4to6 = 1;
+      _options.ipv6only = 0;
+    } else if (!strcmp(args_info.ipv6mode_arg, "6to4")) {
+      _options.ipv6 = 1;
+      _options.ipv6to4 = 1;
+    } else if (!strcmp(args_info.ipv6mode_arg, "6and4") ||
+	       !strcmp(args_info.ipv6mode_arg, "4and6")) {
+      _options.ipv6 = 1;
+      _options.ipv6only = 0;
+    } else {
+      log_warn(0, "unknown ipv6mode %s", args_info.ipv6mode_arg);
+      _options.ipv6 = 0;
+    }
+  }
 #endif
 
 #ifdef ENABLE_LEAKYBUCKET

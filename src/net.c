@@ -140,10 +140,8 @@ int dev_set_address(char const *devname, struct in_addr *address,
   if (netmask) { /* Set the netmask */
 #if defined(__linux__)
     ((struct sockaddr_in *) &ifr.ifr_netmask)->sin_addr.s_addr =  netmask->s_addr;
-
 #elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
     ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr =  netmask->s_addr;
-
 #elif defined(__sun__)
     ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr =  netmask->s_addr;
 #else
@@ -1349,36 +1347,33 @@ int net_open_eth(net_interface *netif) {
     setup_rings(netif,
 		_options.ringsize ? _options.ringsize : DEF_RING_SIZE, 
 		netif->mtu + 20);
-  } else
-#else
-  {
-    struct packet_mreq mr;
-
-    /* Set interface in promisc mode */
-    if (netif->flags & NET_PROMISC) {
-      
-      memset(&ifr, 0, sizeof(ifr));
-      safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
-      if (ioctl(netif->fd, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
-	log_err(errno, "ioctl(SIOCGIFFLAGS)");
-      } else {
-	netif->devflags = ifr.ifr_flags;
-	ifr.ifr_flags |= IFF_PROMISC;
-	if (ioctl (netif->fd, SIOCSIFFLAGS, (caddr_t)&ifr) == -1) {
-	  log_err(errno, "Could not set flag IFF_PROMISC");
-	}
-      }
-      
-      memset(&mr,0,sizeof(mr));
-      mr.mr_ifindex = netif->ifindex;
-      mr.mr_type = PACKET_MR_PROMISC;
-      
-      if (net_setsockopt(netif->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, 
-			 (char *)&mr, sizeof(mr)) < 0)
-	return -1;
-    }
-  }
+  } 
 #endif
+    
+  /* Set interface in promisc mode */
+  if (netif->flags & NET_PROMISC) {
+    struct packet_mreq mr;
+    
+    memset(&ifr, 0, sizeof(ifr));
+    safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+    if (ioctl(netif->fd, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
+      log_err(errno, "ioctl(SIOCGIFFLAGS)");
+    } else {
+      netif->devflags = ifr.ifr_flags;
+      ifr.ifr_flags |= IFF_PROMISC;
+      if (ioctl (netif->fd, SIOCSIFFLAGS, (caddr_t)&ifr) == -1) {
+	log_err(errno, "Could not set flag IFF_PROMISC");
+      }
+    }
+    
+    memset(&mr,0,sizeof(mr));
+    mr.mr_ifindex = netif->ifindex;
+    mr.mr_type = PACKET_MR_PROMISC;
+    
+    if (net_setsockopt(netif->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, 
+		       (char *)&mr, sizeof(mr)) < 0)
+      return -1;
+  }
 
   /* Bind to particular interface */
   memset(&sa, 0, sizeof(sa));

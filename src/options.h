@@ -233,6 +233,8 @@ struct options_t {
 #ifdef ENABLE_IPV6
   uint8_t ipv6:1;
   uint8_t ipv6only:1;
+  uint8_t ipv6to4:1;
+  uint8_t ipv4to6:1;
 #endif
 
 #ifdef ENABLE_LEAKYBUCKET

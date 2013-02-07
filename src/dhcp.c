@@ -4129,6 +4129,8 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  uint8_t *payload;
 	  
 	  struct pkt_icmphdr_t * packet_icmp = 0;
+
+	  uint32_t v;
 	  
 	  memset(packet, 0, sizeof(packet));
 	  copy_ethproto(pack, packet);
@@ -4154,14 +4156,14 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  *payload++ = 0;
 	  
 	  /* reachable timer */
-	  { uint32_t v=htonl(0);
-	    memcpy(payload, &v, 4);
-	    payload += 4;	}
+	  v=htonl(0);
+	  memcpy(payload, &v, 4);
+	  payload += 4;	
 	  
 	  /* retrans timer */
-	  { uint32_t v=htonl(0);
-	    memcpy(payload, &v, 4);
-	    payload += 4;	}
+	  v=htonl(0);
+	  memcpy(payload, &v, 4);
+	  payload += 4;
 	  
 	  /* Target link-layer address option */
 	  data_len += 2 + PKT_ETH_ALEN;
@@ -4175,9 +4177,9 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  *payload++ = 5;
 	  *payload++ = 1;
 	  *payload++ = 0;*payload++ = 0;
-	  { uint32_t v=htonl(_options.mtu);
-	    memcpy(payload, &v, 4);
-	    payload += 4;	}
+	  v=htonl(_options.mtu);
+	  memcpy(payload, &v, 4);
+	  payload += 4;
 	  
 	  /* Prefix Information option */
 	  data_len += 32;
@@ -4185,12 +4187,12 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  *payload++ = 4;
 	  *payload++ = 64;
 	  *payload++ = (1<<6)|(1<<7);
-	  { uint32_t v=htonl(_options.mtu);
-	    memcpy(payload, &v, 4);
-	    payload += 4;	}
-	  { uint32_t v=htonl(_options.mtu);
-	    memcpy(payload, &v, 4);
-	    payload += 4;	}
+	  v=htonl(_options.mtu);
+	  memcpy(payload, &v, 4);
+	  payload += 4;
+	  v=htonl(_options.mtu);
+	  memcpy(payload, &v, 4);
+	  payload += 4;
 	  *payload++ = 0;*payload++ = 0;*payload++ = 0;*payload++ = 0;
 	  
 	  *payload++ = 0x11;*payload++ = 0x11;*payload++ = 0;*payload++ = 0;
@@ -4204,12 +4206,12 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  *payload++ = 4;
 	  *payload++ = 64;
 	  *payload++ = (1<<6)|(1<<7);
-	  { uint32_t v=htonl(_options.mtu);
-	    memcpy(payload, &v, 4);
-	    payload += 4;	}
-	  { uint32_t v=htonl(_options.mtu);
-	    memcpy(payload, &v, 4);
-	    payload += 4;	}
+	  v=htonl(_options.mtu);
+	  memcpy(payload, &v, 4);
+	  payload += 4;
+	  v=htonl(_options.mtu);
+	  memcpy(payload, &v, 4);
+	  payload += 4;
 	  *payload++ = 0;*payload++ = 0;*payload++ = 0;*payload++ = 0;
 
 	  ipv6_nat64_prefix(payload);
@@ -4508,48 +4510,55 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     break;
   }
 
-  /* rewrite to ipv4 and forward */
+  if (_options.ipv6to4) {
+    /* rewrite to ipv4 and forward */
+    switch(iphdr->next_header) {
+    case PKT_IP_PROTO_TCP:
+    case PKT_IP_PROTO_UDP:
+      if (iphdr->dst_addr[0]==0x11 &&
+	  iphdr->dst_addr[1]==0x12) {
+	struct pkt_iphdr_t *ip4hdr;
+	struct dhcp_conn_t *dhcpconn = 0;
+	struct app_conn_t *appconn = 0;
+	uint8_t prot = iphdr->next_header;
+	uint32_t ip;
+	
+	static uint16_t idcnt = 1;
+	
+	if (dhcp_getconn(this, &dhcpconn, ethh->src, 0, 1)) {
+	  /* Could not allocate address */
+	  return 0; 
+	}
+	
+	appconn = (struct app_conn_t *) dhcpconn->peer;
+	if (!appconn) return 0;
 
-  switch(iphdr->next_header) {
-  case PKT_IP_PROTO_TCP:
-  case PKT_IP_PROTO_UDP:
-    if (iphdr->dst_addr[0]==0x11 &&
-	iphdr->dst_addr[1]==0x12) {
-      struct pkt_iphdr_t *ip4hdr;
-      struct dhcp_conn_t *dhcpconn = 0;
-      struct app_conn_t *appconn = 0;
-      uint8_t prot = iphdr->next_header;
-      uint32_t ip;
+	memcpy(&ip,&iphdr->dst_addr[12],4);
+	memcpy(pack + 20, pack, sizeofeth(pack));
 
-      static uint16_t idcnt = 1;
-      
-      if (dhcp_getconn(this, &dhcpconn, ethh->src, 0, 1)) {
-	/* Could not allocate address */
-	return 0; 
+	log_dbg("IPv6to4 src "IPv6_ADDR_FMT" dst "IPv6_ADDR_FMT" --> %s",
+		ipv6_exlode_addr(iphdr->src_addr),
+		ipv6_exlode_addr(iphdr->dst_addr),
+		inet_ntoa(appconn->hisip));
+	
+	ethh = pkt_ethhdr(pack + 20);
+	ethh->prot = htons(PKT_ETH_PROTO_IP);
+	ip4hdr = (struct pkt_iphdr_t *) (pack + 20 + sizeofeth(pack));
+	ip4hdr->version_ihl = PKT_IP_VER_HLEN;
+	ip4hdr->tos = 0;
+	ip4hdr->tot_len = htons(ip_datalen + PKT_IP_HLEN);
+	ip4hdr->id = idcnt++;
+	ip4hdr->opt_off_high = 0x40;
+	ip4hdr->off_low = 0;
+	ip4hdr->ttl = 0xff;
+	ip4hdr->protocol = prot;
+	memcpy(&ip4hdr->saddr,&appconn->hisip.s_addr,4);
+	memcpy(&ip4hdr->daddr,&ip,4);
+	
+	chksum(ip4hdr);
+	
+	return dhcp_receive_ip(ctx, pack + 20, len - 20);
       }
-      
-      appconn = (struct app_conn_t *) dhcpconn->peer;
-      if (!appconn) return 0;
-      
-      memcpy(&ip,&iphdr->dst_addr[12],4);
-      memcpy(pack + 20, pack, sizeofeth(pack));
-      ethh = pkt_ethhdr(pack + 20);
-      ethh->prot = htons(PKT_ETH_PROTO_IP);
-      ip4hdr = (struct pkt_iphdr_t *) (pack + 20 + sizeofeth(pack));
-      ip4hdr->version_ihl = PKT_IP_VER_HLEN;
-      ip4hdr->tos = 0;
-      ip4hdr->tot_len = htons(ip_datalen + PKT_IP_HLEN);
-      ip4hdr->id = idcnt++;
-      ip4hdr->opt_off_high = 0x40;
-      ip4hdr->off_low = 0;
-      ip4hdr->ttl = 0xff;
-      ip4hdr->protocol = prot;
-      memcpy(&ip4hdr->saddr,&appconn->hisip.s_addr,4);
-      memcpy(&ip4hdr->daddr,&ip,4);
-
-      chksum(ip4hdr);
-
-      return dhcp_receive_ip(ctx, pack + 20, len - 20);
     }
   }
   return 0;

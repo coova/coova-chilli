@@ -74,8 +74,12 @@ ATTRIBUTE       ChilliSpot-DHCP-DNS1 		       62	ipaddr
 ATTRIBUTE       ChilliSpot-DHCP-DNS2 		       63	ipaddr
 ATTRIBUTE       ChilliSpot-DHCP-Gateway		       64	ipaddr
 ATTRIBUTE       ChilliSpot-DHCP-Domain		       65	string
+ATTRIBUTE       ChilliSpot-DHCP-Relay		       66	ipaddr
 
 ATTRIBUTE       ChilliSpot-Inject-URL		       70	string
+
+ATTRIBUTE       ChilliSpot-PostAuthProxy-Address       75	ipaddr
+ATTRIBUTE       ChilliSpot-PostAuthProxy-Port	       76	integer
 
 ATTRIBUTE       ChilliSpot-Garden-Input-Octets	       80	integer
 ATTRIBUTE       ChilliSpot-Garden-Output-Octets	       81	integer

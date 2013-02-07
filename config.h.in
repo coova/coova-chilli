@@ -147,6 +147,12 @@
 /* Define to Redir content-injection support */
 #undef ENABLE_REDIRINJECT
 
+/* Define to enable per session DHCP relay */
+#undef ENABLE_SESSDHCP
+
+/* Define to enable per session DNS enforcement */
+#undef ENABLE_SESSDNS
+
 /* Define to enable Chilli session walled garden */
 #undef ENABLE_SESSGARDEN
 
@@ -155,6 +161,9 @@
 
 /* Define to enable extended use of the ChilliSpot-Session-State attribute */
 #undef ENABLE_SESSIONSTATE
+
+/* Define to enable per session postauth proxy */
+#undef ENABLE_SESSPROXY
 
 /* Define to enable Simple Service Discovery Protocol */
 #undef ENABLE_SSDP
