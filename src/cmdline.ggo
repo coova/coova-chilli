@@ -280,6 +280,6 @@ option "extadmvsa" - "Extended administrative-user VSA script support" string no
 option "dhcpnotidle" - "DHCP counted for preventing idle-timeout" flag off
 
 option "ipv6" - "Enable IPv6 support" flag off
-option "ipv6mode" - "IPv6 mode is either 6and4 (default), 4to6, or 6to4" string default="6and4" no
+option "ipv6mode" - "IPv6 mode is either 6and4 (default), 4to6, or 6to4" string no
 option "ipv6only" - "Enable IPv6-Only" flag off
 

@@ -448,6 +448,9 @@ int main(int argc, char **argv) {
       _options.ipv6 = 0;
     }
   }
+  log_dbg("IPv6 %sabled %s", 
+	  _options.ipv6 ? "en" : "dis", 
+	  args_info.ipv6mode_arg ? args_info.ipv6mode_arg : "");
 #endif
 
 #ifdef ENABLE_LEAKYBUCKET

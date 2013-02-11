@@ -1720,7 +1720,10 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   name = what == PACKET_RX_RING ? "RX" : "TX";
   ring = what == PACKET_RX_RING ? &iface->rx_ring : &iface->tx_ring;
 
-  log_dbg("Creating %s ring: ring_size=%d; mtu=%d", name, ring_size, mtu);
+  page_size = sysconf(_SC_PAGESIZE);
+
+  log_dbg("Creating %s ring: ring_size=%d; page_size=%d; mtu=%d", 
+	  name, ring_size, page_size, mtu);
   
   /* For RX, the frame looks like:
    * - struct tpacket2_hdr
@@ -1757,7 +1760,6 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   req.tp_frame_size = ring->frame_size;
   
   /* The number of blocks is limited by the kernel implementation */
-  page_size = sysconf(_SC_PAGESIZE);
   max_blocks = page_size / sizeof(void *);
   
   /* Start with a large block size and if that fails try to lower it */
