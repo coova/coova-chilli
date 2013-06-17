@@ -543,7 +543,7 @@ redir_handle_url(struct redir_t *redir,
 		 struct sockaddr_in *peer, 
 		 redir_request *req) {
   int port = 80;
-  int matches = 1;
+  int matches = 0;
   int i = -1;
   char *p = 0;
 
@@ -553,12 +553,12 @@ redir_handle_url(struct redir_t *redir,
     safe_strncpy((char *) req->inject_url,
 		 (char *) conn->s_params.url,
 		 REDIRINJECT_MAX);
-    hasInject = 1;
+    matches = hasInject = 1;
   } else if (_options.inject && *_options.inject) { 
     safe_strncpy((char *) req->inject_url,
 		 (char *) _options.inject,
 		 REDIRINJECT_MAX);
-    hasInject = 1;
+    matches = hasInject = 1;
   } else {
 #endif
     for (i=0; i < MAX_REGEX_PASS_THROUGHS; i++) {
@@ -618,9 +618,6 @@ redir_handle_url(struct redir_t *redir,
   }
 #endif
 
-  if (i == 0)
-    matches = 0;
-    
   if (matches) {
     log_dbg("Matched for Host %s", httpreq->host);
     
@@ -692,7 +689,7 @@ redir_handle_url(struct redir_t *redir,
     
     req->state |= REDIR_CONN_FD;
     net_select_addfd(&sctx, req->conn.sock, SELECT_READ);
-    
+
     return 0;
   }
   
