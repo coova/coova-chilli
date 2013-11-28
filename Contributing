@@ -39,7 +39,7 @@ Additionally, I certify that:
 To indicate your acceptance of these terms, please add the following
 line to each contribution you make to the project:
 
-Signed-hostap: Your Name <your@email.example.org>
+Signed-by: Your Name <your@email.example.org>
 
 
 --
