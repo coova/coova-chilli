@@ -107,7 +107,7 @@ int chksum(struct pkt_iphdr_t *iph) {
   uint16_t len;
 
   /* Only IPv4 currently */
-  if (iph->version_ihl != PKT_IP_VER_HLEN)
+  if ((iph->version_ihl & 0xf0) != 0x40)
     return -1;
 
   /* Header length */
@@ -117,7 +117,7 @@ int chksum(struct pkt_iphdr_t *iph) {
   len = ntohs(iph->tot_len);
 
   /* XXX: redundant */
-  if (hlen != PKT_IP_HLEN)
+  if (hlen < PKT_IP_HLEN)
     return -1;
 
 #if(PKT_BUFFER < 65535)

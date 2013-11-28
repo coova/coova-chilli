@@ -9,6 +9,7 @@
 * Runtime option ''mmapring'' to enable using RX/TX rings when compiled with ''--with-mmap''
 * Fix ICMP fragmentation needed messages to carrying original IP header plus 8 bytes (64bits)
 * Added runtime option ''nosystemdns'' to prevent the use of the system DNS servers to be used for DHCP subscribers
+* Added compile option ''--enable-wpad'' to add support for WPAD via DHCP and DNS, new runtime option ''--wpadpacfile=filename''
 
 == ChangeLog (CoovaChilli-v1.3.0 svn revision 480) ==
 

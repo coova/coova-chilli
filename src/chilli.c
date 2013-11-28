@@ -2132,7 +2132,7 @@ int dnprot_reject(struct app_conn_t *appconn) {
       appconn->dnprot = DNPROT_NULL;
     }
     else {
-      dhcpconn->authstate = DHCP_AUTH_NONE;
+      dhcpconn->authstate = DHCP_AUTH_DNAT;
       appconn->dnprot = DNPROT_UAM;
     }
 
@@ -2891,13 +2891,13 @@ chilli_learn_location(uint8_t *loc, int loclen,
     return 0;
   }
 
-  strncpy(loc_buff, (char *)loc, loclen);
+  memcpy(loc_buff, (char *)loc, loclen);
   loc_buff[loclen]=0;
 
   strcpy(prev_loc_buff, appconn->s_state.location);
   prev_loc_len = strlen(prev_loc_buff);
   
-  log_dbg("Learned location : %.*s", loclen, loc);
+  log_dbg("Learned location : [%.*s]", loclen, loc);
   
   if (prev_loc_len == 0 || 
       prev_loc_len != loclen ||
@@ -2910,7 +2910,7 @@ chilli_learn_location(uint8_t *loc, int loclen,
       appconn->s_state.location_changes++;
       appconn->s_state.pending_location[0]=0;
       
-      log_dbg("Learned new-location : %d %.*s old %d %s", 
+      log_dbg("Learned new-location : %d [%.*s] old %d [%s]", 
 	      loclen, loclen, loc, 
 	      prev_loc_len, prev_loc_buff);
 
@@ -2960,7 +2960,7 @@ chilli_learn_location(uint8_t *loc, int loclen,
 #endif
   
   if (has_new_location) {
-    strncpy(appconn->s_state.location, (char *) loc, loclen);
+    memcpy(appconn->s_state.location, (char *) loc, loclen);
     appconn->s_state.location[loclen] = 0;
   }
   
@@ -3002,7 +3002,7 @@ chilli_learn_location(uint8_t *loc, int loclen,
       if (appconn->s_params.maxtotaloctets > total)
 	appconn->s_params.maxtotaloctets -= total;
     }
-
+    
     appconn->s_state.start_time = mainclock.tv_sec;
     appconn->s_state.interim_time = mainclock.tv_sec;
     appconn->s_state.last_time = mainclock.tv_sec;

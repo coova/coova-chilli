@@ -111,9 +111,10 @@
 #define MAX_RAWIF 1
 #endif
 
+#define MAX_EAP_LEN                     3000 /* Size of buffer to hold EAP message */
+
 #ifdef ENABLE_LARGELIMITS
 #define PKT_MAX_LEN                    65535 /* Maximum packet size we receive */
-#define MAX_EAP_LEN                     3000 /* Size of buffer to hold EAP message */
 #define SESSION_PASS_THROUGH_MAX          16
 #define MAX_PASS_THROUGHS               1024 /* Max number of allowed UAM pass-throughs */
 #define MAX_REGEX_PASS_THROUGHS          512 /* Max number of allowed UAM pass-throughs */
@@ -122,8 +123,7 @@
 #define MAX_SELECT                        56
 #define RADIUS_PACKSIZE                 4096
 #else
-#define PKT_MAX_LEN                     5000 /* Maximum packet size we receive */
-#define MAX_EAP_LEN                     1500 /* Size of buffer to hold EAP message */
+#define PKT_MAX_LEN                     9000 /* Maximum packet size we receive */
 #define SESSION_PASS_THROUGH_MAX           8
 #define MAX_PASS_THROUGHS                128 /* Max number of allowed UAM pass-throughs */
 #define MAX_REGEX_PASS_THROUGHS            8 /* Max number of allowed UAM pass-throughs */

@@ -128,36 +128,39 @@ static int netlink_route_request(int fd) {
   msg_info.msg_iov = &iov_info;
   msg_info.msg_iovlen = 1;
   
-  rtn = sendmsg(fd, &msg_info, 0);
+  rtn = safe_sendmsg(fd, &msg_info, 0);
+
   if (rtn < 0) {
     perror("sendmsg");
     return -1;
   }
+
   return 0;
 }
 
 static int netlink_route_results(int fd, char *b, size_t blen) {
   int len = 0;
+  int left = blen;
 
   bzero(b, blen);
 
-  while (blen > 0) {
-    int rtn = recv(fd, b, blen, 0);
+  while (left > 0) {
+    int rtn = safe_recv(fd, b, left, 0);
 
-    if (rtn < 0) {
+    struct nlmsghdr *hdr = (struct nlmsghdr *) b;
+    
+    if (rtn <= 0) {
       perror("recv");
       break;
     }
 
-    struct nlmsghdr *hdr = (struct nlmsghdr *) b;
-    
     if (hdr->nlmsg_type == NLMSG_DONE)	{
       break;
     }
 
-    b += rtn;
-    blen -= rtn;
-    len += rtn;
+    b    += rtn;
+    left -= rtn;
+    len  += rtn;
   }
 
   return len;
@@ -622,14 +625,15 @@ void rtmon_discover_routes(struct rtmon_t *rtmon) {
     return;
   }
   
-  netlink_route_request(fd);
-  blen = netlink_route_results(fd, b, sizeof(b));
-  netlink_parse_routes(rtmon, b, blen);
+  if (netlink_route_request(fd) == 0) {
+    blen = netlink_route_results(fd, b, sizeof(b));
+    netlink_parse_routes(rtmon, b, blen);
+    
+    for (i=0; i < rtmon->_iface_sz; i++)
+      if (rtmon->_ifaces[i].has_data & RTMON_REMOVE)
+	memset(&rtmon->_ifaces[i], 0, sizeof(struct rtmon_iface));
+  }
 
-  for (i=0; i < rtmon->_iface_sz; i++)
-    if (rtmon->_ifaces[i].has_data & RTMON_REMOVE)
-      memset(&rtmon->_ifaces[i], 0, sizeof(struct rtmon_iface));
-  
   close(fd);
 }
 

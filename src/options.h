@@ -174,6 +174,13 @@ struct options_t {
   char *uamaliasname;            /* Simple hostname (no dots) DNS name for uamalias */
   char *uamhostname;             /* Simple hostname (no dots) DNS name for uamlisten */
 
+#ifdef ENABLE_FORCEDNS
+  struct in_addr forcedns1_addr;  /* IP address to force DNS to */
+  struct in_addr forcedns2_addr;  /* IP address to force DNS to */
+  uint16_t forcedns1_port;        /* Port to force DNS to */
+  uint16_t forcedns2_port;        /* Port to force DNS to */
+#endif
+
   /* booleans */
   uint8_t layer3;                   /* Layer3 only support */
   uint8_t allowdyn:1;               /* Allow dynamic address allocation */
@@ -387,6 +394,10 @@ struct options_t {
 
 #ifdef USING_IPC_UNIX
   char *unixipc;
+#endif
+
+#ifdef ENABLE_WPAD
+  char *wpadpacfile;
 #endif
 
 #ifdef HAVE_NETFILTER_COOVA

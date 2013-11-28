@@ -695,6 +695,29 @@ int main(int argc, char **argv) {
     }
   }
 
+#ifdef ENABLE_FORCEDNS
+  _options.forcedns1_port = args_info.forcedns1port_arg;
+  if (args_info.forcedns1port_arg && !args_info.forcedns1_arg) {
+    _options.forcedns1_addr.s_addr = _options.uamlisten.s_addr;
+  } else if (args_info.forcedns1_arg) {
+    if (!inet_aton(args_info.forcedns1_arg, &_options.forcedns1_addr)) {
+      log_err(0, "Invalid DNS IP address: %s!", args_info.forcedns1_arg);
+      if (!args_info.forgiving_flag)
+	goto end_processing;
+    }
+  }
+  _options.forcedns2_port = args_info.forcedns2port_arg;
+  if (args_info.forcedns2port_arg && !args_info.forcedns2_arg) {
+    _options.forcedns2_addr.s_addr = _options.uamlisten.s_addr;
+  } else if (args_info.forcedns2_arg) {
+    if (!inet_aton(args_info.forcedns2_arg, &_options.forcedns2_addr)) {
+      log_err(0, "Invalid DNS IP address: %s!", args_info.forcedns2_arg);
+      if (!args_info.forgiving_flag)
+	goto end_processing;
+    }
+  }
+#endif
+  
   _options.uamanydns = args_info.uamanydns_flag;
 #ifdef ENABLE_UAMANYIP
   _options.uamanyip = args_info.uamanyip_flag;
@@ -986,8 +1009,6 @@ int main(int argc, char **argv) {
     }
   }
 
-  /* If no option is specified terminate                          */
-  /* Do hostname lookup to translate hostname to IP address       */
   if (args_info.radiusserver1_arg) {
     if (!(host = gethostbyname(args_info.radiusserver1_arg))) {
       log_err(0, "Invalid radiusserver1 address: %s! [%s]", 
@@ -1005,9 +1026,6 @@ int main(int argc, char **argv) {
       goto end_processing;
   }
 
-  /* radiusserver2 */
-  /* If no option is specified terminate                          */
-  /* Do hostname lookup to translate hostname to IP address       */
   if (args_info.radiusserver2_arg) {
     if (!(host = gethostbyname(args_info.radiusserver2_arg))) {
       log_err(0, "Invalid radiusserver2 address: %s! [%s]", 
@@ -1131,6 +1149,10 @@ int main(int argc, char **argv) {
 
 #ifdef USING_IPC_UNIX
   _options.unixipc = STRDUP(args_info.unixipc_arg);
+#endif
+
+#ifdef ENABLE_WPAD
+  _options.wpadpacfile = STRDUP(args_info.wpadpacfile_arg);
 #endif
 
 #ifdef HAVE_NETFILTER_COOVA

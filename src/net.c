@@ -773,13 +773,18 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
     memset (&s_addr, 0, sizeof (struct sockaddr_ll));
 
 #if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI) 
+
     len = safe_recvmsg(netif->fd, &msg, MSG_TRUNC);
+
 #else
+
     addr_len = sizeof (s_addr);
+
     len = safe_recvfrom(netif->fd, d, dlen,
 			MSG_DONTWAIT | MSG_TRUNC, 
 			(struct sockaddr *) &s_addr, 
 			(socklen_t *) &addr_len);
+
 #endif
     if (len < 0) {
 
@@ -787,13 +792,14 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 
     } else {
 
-      if (len == 0)
+      if (len == 0) {
 	log_dbg("read zero, enable ieee8021q?");
+      }
       
       if (len > dlen) {
-	log_warn(0, "data truncated, sending ICMP error %d/%d", 
+	log_warn(0, "data truncated %d/%d, sending ICMP error", 
 		 len, dlen);
-	len = dlen;
+	return -1;
       }
     }
 
@@ -830,9 +836,9 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 	  continue;
 	
 	ulen = len > iov.iov_len ? iov.iov_len : len;
-	
+
 	if (ulen < 2 * PKT_ETH_ALEN ||
-	    len >= PKT_MAX_LEN - 4) {
+	    len >= (dlen - 4)) {
 	  log_err(0, "bad pkt length to add 802.1q header %d/%d",
 		  ulen, len);
 	  break;
@@ -932,14 +938,18 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
 int net_set_mtu(net_interface *netif, size_t mtu) {
 #if !defined(USING_PCAP)
   struct ifreq ifr;
+  int fd = socket(AF_INET, SOCK_DGRAM, 0);
+  if (fd < 0) return -1;
   memset(&ifr, 0, sizeof(ifr));
   safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   ifr.ifr_mtu = mtu;
-  if (ioctl(netif->fd, SIOCSIFMTU, &ifr) < 0) {
-    log_err(errno, "could not set MTU on fd %d",
-	    netif->fd);
+  if (ioctl(fd, SIOCSIFMTU, &ifr) < 0) {
+    log_err(errno, "could not set MTU of %d on dev=%s",
+	    mtu, netif->devname);
+    close(fd);
     return -1;
   }
+  close(fd);
 #endif
   return 0;
 }
@@ -1199,7 +1209,7 @@ int net_open_eth(net_interface *netif) {
 
   /* Create socket */
   if ((netif->fd = socket(PF_PACKET, 
-			  netif->idx ? SOCK_DGRAM : SOCK_RAW, 
+			  /*XXX netif->idx ? SOCK_DGRAM : */SOCK_RAW, 
 			  htons(netif->protocol))) < 0) {
     if (errno == EPERM) {
       log_err(errno, "Cannot create raw socket. Must be root.");
@@ -1413,6 +1423,8 @@ int net_open_eth(net_interface *netif) {
       set_buffer(netif, SO_RCVBUF, _options.rcvbuf * 1024);
   }
 #endif
+
+  net_set_mtu(netif, _options.mtu);
 
   return 0;
 }

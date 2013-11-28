@@ -50,6 +50,9 @@
 #ifdef ENABLE_EWTAPI
 #define REDIR_EWTAPI         21
 #endif
+#ifdef ENABLE_WPAD
+#define REDIR_WPAD           22
+#endif
 #define REDIR_MSDOWNLOAD     25
 #define REDIR_ADMIN_CONN     30
 

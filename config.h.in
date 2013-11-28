@@ -69,6 +69,9 @@
 /* Define to enable admin-user VSA support */
 #undef ENABLE_EXTADMVSA
 
+/* Enable the forcing (NAT) of DNS */
+#undef ENABLE_FORCEDNS
+
 /* Define to enable walled garden accounting */
 #undef ENABLE_GARDENACCOUNTING
 
@@ -188,6 +191,9 @@
 
 /* Define enable the recording of user-agent */
 #undef ENABLE_USERAGENT
+
+/* Define to enable WPAD */
+#undef ENABLE_WPAD
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H

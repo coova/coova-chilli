@@ -286,6 +286,7 @@ int safe_recvfrom(int sockfd, void *buf, size_t len, int flags,
 		  struct sockaddr *src_addr, socklen_t *addrlen);
 int safe_sendto(int s, const void *b, size_t blen, int flags,
 		const struct sockaddr *dest_addr, socklen_t addrlen);
+int safe_sendmsg(int sockfd, struct msghdr *msg, int flags);
 int safe_close (int fd);
 pid_t safe_fork();
 

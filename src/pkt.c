@@ -38,6 +38,7 @@ int pkt_shape_tcpwin(struct pkt_iphdr_t *iph, uint16_t win) {
 int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
   int optval = _options.tcpmss;
   struct pkt_iphdr_t *iph = pkt_iphdr(packet);
+
   if (iph->protocol == PKT_IP_PROTO_TCP) {
     
     struct pkt_tcphdr_t *tcph = pkt_tcphdr(packet);
@@ -48,7 +49,8 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
     log_dbg("-->> offset: %d", off);
 #endif
     
-    if (off > 15 || off < 0) return -1;
+    if (off > 15 || off < 0) 
+      return -1;
 
     if (off > 5) {
       uint8_t *opts = tcph->options;
@@ -77,10 +79,14 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
 	    return -1;
 	  }
 	  if (type == 2 && len == 4) {
-#if(0)
-	    log_dbg("TCP OPTIONS: MSS");
+#if(1)
+	    log_dbg("TCP OPTIONS: MSS %d",
+		    ntohs(*((uint16_t *)&opts[i])));
 #endif
 	    if (ntohs(*((uint16_t *)&opts[i])) > optval) {
+
+	      log_dbg("Rewriting TCP MSS to %d", optval);
+
 	      *((uint16_t *)&opts[i]) = htons(optval);
 	      chksum(iph);
 	    }
@@ -108,6 +114,9 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
     if (!hasmss && *length < 1400 && tcphdr_syn(tcph)) {
       uint8_t p[PKT_BUFFER];
       memcpy(p, packet, *length);
+
+      log_dbg("Adding TCP MSS to %d", optval);
+
       {
 	struct pkt_iphdr_t *p_iph = pkt_iphdr(p);
 	struct pkt_tcphdr_t *p_tcph = pkt_tcphdr(p);

@@ -2139,6 +2139,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	else if (!strncmp(path, "ewt/json", 8))
 	  conn->type = REDIR_EWTAPI;
 #endif
+#ifdef ENABLE_WPAD
+	else if (!strncmp(path, "wpad.dat", 8))
+	  conn->type = REDIR_WPAD;
+#endif
 
 	if (qs_delim == '?') {
 	  p1 = p2 + 1;
@@ -2404,6 +2408,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       bdestroy(bt);
     } 
     break;
+
+#ifdef ENABLE_WPAD
+  case REDIR_WPAD:
+    log_dbg("WPAD %s:%d", __FUNCTION__, __LINE__);
+    break;
+#endif
 
   default:
     {
@@ -3045,7 +3055,7 @@ int redir_accept(struct redir_t *redir, int idx) {
   setenv("TCPREMOTEPORT",buffer,1);
   setenv("REMOTE_PORT",buffer,1);
 
-  if (idx == 1 && _options.uamui) {
+  if (idx == 1 && _options.uamui && *_options.uamui) {
 
     char *binqqargs[2] = { _options.uamui, 0 } ;
 
@@ -3393,6 +3403,9 @@ int redir_main(struct redir_t *redir,
 #endif
   
   switch (conn.type) {
+#ifdef ENABLE_WPAD
+  case REDIR_WPAD:
+#endif
 #ifdef ENABLE_EWTAPI
   case REDIR_EWTAPI:
 #endif
@@ -3401,12 +3414,18 @@ int redir_main(struct redir_t *redir,
 #ifdef ENABLE_EWTAPI
       char isEWT = conn.type == REDIR_EWTAPI;
 #endif
+#ifdef ENABLE_WPAD
+      char isWPAD = conn.type == REDIR_WPAD;
+#endif
       pid_t forkpid;
       int fd = -1;
       
       if (_options.wwwdir && ((conn.wwwfile && *conn.wwwfile)
 #ifdef ENABLE_EWTAPI
 			      || isEWT
+#endif
+#ifdef ENABLE_WPAD
+			      || isWPAD
 #endif
 			      )) {
 	char *ctype = "text/plain";
@@ -3421,6 +3440,12 @@ int redir_main(struct redir_t *redir,
 	    log_warn(0, "Permission denied to EWT API");
 	    return redir_main_exit();
 	  }
+	} else 
+#endif
+#ifdef ENABLE_WPAD
+	if (isWPAD) {
+	    filename = "wpad.dat";
+	    namelen = strlen(filename);
 	} else 
 #endif
 	{ 
@@ -3442,7 +3467,7 @@ int redir_main(struct redir_t *redir,
 	    return redir_main_exit();
 	  }
 	}
-	
+
 	/* serve the local content */
 	
 #ifdef ENABLE_EWTAPI
@@ -3456,11 +3481,20 @@ int redir_main(struct redir_t *redir,
 	else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
 	else if (!strcmp(filename + (namelen - 4), ".mp4"))  ctype = "video/mp4";
 	else if (!strcmp(filename + (namelen - 4), ".ogv"))  ctype = "video/ogg";
-	else if (!strcmp(filename + (namelen - 4), ".dat"))  ctype = "application/x-ns-proxy-autoconfig";
 	else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
 	else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
 	else if (!strcmp(filename + (namelen - 4), ".chi")){ ctype = "text/html"; parse = 1; }
 	else if (!strcmp(filename + (namelen - 4), ".cjs")){ ctype = "text/javascript"; parse = 1; }
+	else if (!strcmp(filename + (namelen - 4), ".dat")){ ctype = "application/x-ns-proxy-autoconfig";
+#ifdef ENABLE_WPAD
+	  if (isWPAD && _options.wpadpacfile) {
+	    struct stat statbuf;
+	    if (stat(_options.wpadpacfile, &statbuf) == 0)
+	      if (statbuf.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH))
+		parse = 1;
+	  }
+#endif
+	}
 	else { 
 	  /* we do not serve it! */
 	  log_err(0, "invalid file extension! [%s]", filename);
@@ -3628,6 +3662,15 @@ int redir_main(struct redir_t *redir,
 	    }
 	    break;
 #endif
+#ifdef ENABLE_WPAD
+	  case REDIR_WPAD:
+	    if (isWPAD && _options.wpadpacfile) {
+	      char *binqqargs[3] = { _options.wpadpacfile, 0 } ;
+	      log_dbg("Running: %s", _options.wpadpacfile);
+	      execv(*binqqargs, binqqargs);
+	      break;
+	    }
+#endif
 	  case REDIR_WWW: 
 	    /* XXX: Todo: look for malicious content! */
 	    {
@@ -3692,7 +3735,6 @@ int redir_main(struct redir_t *redir,
       return redir_main_exit();
     }
   }
-
 
   termstate = REDIR_TERM_PROCESS;
 
@@ -3956,6 +3998,47 @@ int redir_main(struct redir_t *redir,
     safe_snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
     redir_write(&socket, buffer, strlen(buffer));
     return redir_main_exit();
+
+#if(0)
+  {
+    char * hdr = 
+      "HTTP/1.0 200 OK\r\n"
+      "Content-Type: application/x-ns-proxy-autoconfig\r\n"
+      "Content-Length: %d\r\n"
+      "\r\n";
+
+    char * cnt = 
+      "function FindProxyForURL(url, host) {\r\n"
+      "debugPAC =\"PAC Debug Information\\n\";\r\n"
+      "debugPAC +=\"-----------------------------------\\n\";\r\n"
+      "debugPAC +=\"Machine IP: \" + myIpAddress() + \"\\n\";\r\n"
+      "debugPAC +=\"Hostname: \" + host + \"\\n\";\r\n"
+      "if (isResolvable(host)) {resolvableHost = \"True\"} else {resolvableHost = \"False\"};\r\n"
+      "debugPAC +=\"Host Resolvable: \" + resolvableHost + \"\\n\";\r\n"
+      "debugPAC +=\"Hostname IP: \" + dnsResolve(host) + \"\\n\";\r\n"
+      "if (isPlainHostName(host)) {plainHost = \"True\"} else {plainHost = \"False\"};\r\n"
+      "debugPAC +=\"Plain Hostname: \" + plainHost + \"\\n\";\r\n"
+      "debugPAC +=\"Domain Levels: \" + dnsDomainLevels(host) + \"\\n\";\r\n"
+      "debugPAC +=\"URL: \" + url + \"\\n\";\r\n"
+      "if (url.substring(0,5)==\"http:\") {protocol=\"HTTP\";} else\r\n"
+      "if (url.substring(0,6)==\"https:\") {protocol=\"HTTPS\";} else\r\n"
+      "if (url.substring(0,4)==\"ftp:\") {protocol=\"FTP\";}\r\n"
+      "else {protocol=\"Unknown\";}\r\n"
+      "debugPAC +=\"Protocol: \" + protocol + \"\\n\";\r\n"
+      "if (!shExpMatch(url,\"*.(js|xml|ico|gif|png|jpg|jpeg|css|swf)*\")) {alert(debugPAC);}\r\n"
+      "return \"PROXY 1.2.3.4:8080\";\r\n"
+      "}\r\n";
+
+    log_dbg("WPAD %s:%d", __FUNCTION__, __LINE__);
+
+    safe_snprintf(buffer, bufsize, hdr, strlen(cnt));
+    redir_write(&socket, buffer, strlen(buffer));
+
+    safe_snprintf(buffer, bufsize, cnt);
+    redir_write(&socket, buffer, strlen(buffer));
+    return redir_main_exit();
+  }
+#endif
 
   }
 

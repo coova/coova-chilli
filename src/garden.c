@@ -456,13 +456,17 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
   struct hostent *host;
   pass_through pt;
   char *t, *p1 = NULL, *p2 = NULL;
-  char *p3 = malloc(strlen(s)+1);
+  char *p3;
 
+  if (!s || strlen(s) == 0)
+    return 0;
+
+  p3 = malloc(strlen(s)+1);
   strcpy(p3, s);
   p1 = p3;
   
   if (_options.debug) 
-    log_dbg("Uamallowed %s", s);
+    log_dbg("Uamallowed [%s]", s);
   
   for ( ; p1; p1 = p2) {
     

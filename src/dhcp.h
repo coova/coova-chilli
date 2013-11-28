@@ -52,6 +52,8 @@
 #define DHCP_OPTION_CAPTIVE_PORTAL_ACL 198
 #define DHCP_OPTION_CAPTIVE_PORTAL_URL 199
 
+#define DHCP_OPTION_WPAD_URL 252
+
 #define DHCP_OPTION_END           255
 
 /* BOOTP Message Types */
@@ -140,6 +142,9 @@ struct dhcp_conn_t {
   uint8_t auth_cp;             /* Authenticated codepoint */
   int nextdnat;                /* Next location to use for DNAT */
   uint32_t dnatdns;            /* Destination NAT for dns mapping */
+#ifdef ENABLE_FORCEDNS
+  uint32_t dnatdns2;
+#endif
   struct dhcp_nat_t dnat[DHCP_DNAT_MAX]; /* Destination NAT */
   uint16_t mtu;                /* Maximum transfer unit */
 

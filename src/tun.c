@@ -636,6 +636,8 @@ int tuntap_interface(struct _net_interface *netif) {
     }
   }
 #endif
+
+  net_set_mtu(netif, _options.mtu);
   
   return 0;
   
@@ -975,6 +977,9 @@ int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   if (idx > 0 && tun(tun, idx).flags & NET_PPPHDR) {
     struct sockaddr_ll addr;
     size_t ethlen = sizeofeth(pack);
+#if(_debug_)
+    log_dbg("PPP Header");
+#endif
     memset(&addr,0,sizeof(addr));
     addr.sll_family = AF_PACKET;
     addr.sll_protocol = pkt_ethhdr(pack)->prot;
@@ -1092,7 +1097,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   result = tun_write(tun, pack, len, idx);
 
   if (result < 0) {
-    log_err(errno, "tun_write(%d)", result);
+    log_err(errno, "tun_write(%d) = %d", len, result);
   }
 
   return result;

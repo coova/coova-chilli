@@ -191,6 +191,13 @@ if test x"$enable_dhcpradius" = xyes; then
    AC_DEFINE(ENABLE_DHCPRADIUS,1,[Define to enable DHCP/RADIUS integration])
 fi
 
+AC_ARG_ENABLE(wpad, [AC_HELP_STRING([--enable-wpad],[Enable support WPAD])], 
+  enable_wpad=$enableval, enable_wpad=no)
+
+if test x"$enable_wpad" = xyes; then
+   AC_DEFINE(ENABLE_WPAD,1,[Define to enable WPAD])
+fi
+
 AC_ARG_ENABLE(gardenaccounting, [AC_HELP_STRING([--enable-gardenaccounting],[Enable walled garden accounting])], 
   enable_gardenaccounting=$enableval, enable_gardenaccounting=no)
 
@@ -758,6 +765,15 @@ if test x"$enable_location" = xyes ; then
 fi
 
 AM_CONDITIONAL(WITH_LOCATION, [test x"$enable_location" = xyes])
+
+
+AC_ARG_ENABLE(forcedns, [AC_HELP_STRING([--enable-forcedns],[Enable the forcing (NAT) of DNS])], 
+  enable_forcedns=$enableval, enable_forcedns=no)
+
+if test x"$enable_forcedns" = xyes ; then
+   AC_DEFINE(ENABLE_FORCEDNS,1,[Enable the forcing (NAT) of DNS])
+fi
+
 
 AC_CHECK_LIB(rt, clock_gettime)
 

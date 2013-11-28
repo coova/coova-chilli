@@ -1459,14 +1459,15 @@ int dhcp_ipwhitelist(struct pkt_ipphdr_t *iph, unsigned char dst) {
 }
 #endif
 
-size_t icmpfrag(uint8_t *pack, size_t plen, uint8_t *orig_pack) {
+size_t icmpfrag(struct dhcp_conn_t *conn, 
+		uint8_t *pack, size_t plen, uint8_t *orig_pack) {
   /*
    0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |     Type      |     Code      |          Checksum             |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                             unused                            |
+   |           unused = 0          |         Next-Hop MTU          |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |      Internet Header + 64 bits of Original Data Datagram      |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -1500,7 +1501,7 @@ size_t icmpfrag(uint8_t *pack, size_t plen, uint8_t *orig_pack) {
     memcpy(pack_ethh->src, orig_pack_ethh->dst, PKT_ETH_ALEN); 
     
     /* ip */
-    pack_iph->saddr = orig_pack_iph->daddr;
+    pack_iph->saddr = conn->ourip.s_addr;
     pack_iph->daddr = orig_pack_iph->saddr;
     pack_iph->protocol = PKT_IP_PROTO_ICMP;
     pack_iph->version_ihl = PKT_IP_VER_HLEN;
@@ -1509,6 +1510,10 @@ size_t icmpfrag(uint8_t *pack, size_t plen, uint8_t *orig_pack) {
     
     pack_icmph->type = 3;
     pack_icmph->code = 4;
+
+    /* go beyond icmp header and fill in next hop MTU */
+    pack_icmph++;
+    pack_icmph->check = htons(conn->mtu);
 
     memcpy(pack + (icmp_full_len - icmp_req_len), 
 	   orig_pack + sizeofeth(orig_pack), icmp_req_len);
@@ -1789,7 +1794,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
     
     if (dlen) {
 #if(_debug_)
-      log_dbg("remaining length not zero dlen=%d", dlen);
+      log_dbg("Remaining length not zero dlen=%d!", dlen);
 #endif
       return 0;
     }
@@ -1852,6 +1857,18 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	  memcpy(reply, &_options.uamalias.s_addr, 4);
 	}
       }
+
+#ifdef ENABLE_WPAD
+      if (!match && 
+	  (!strcasecmp((char *)q, "wpad") ||
+	   (strlen((char *)q) == (strlen(_options.domain) + 5) &&
+	    !strncasecmp((char *)q, "wpad.", 5) &&
+	    !strcasecmp((char *)q + 5, _options.domain)))) {
+	match = 1;
+	log_dbg("WPAD DNS (returning %s)\n", inet_ntoa(_options.uamalias));
+	memcpy(reply, &_options.uamalias.s_addr, 4);
+      }
+#endif
       
       if (!match && _options.domaindnslocal && _options.domain) {
 	int name_len = strlen((char *)q);
@@ -2248,19 +2265,47 @@ int dhcp_dnsDNAT(struct dhcp_conn_t *conn,
 #endif
 
   /* Was it a DNS request? */
-  if ((this->anydns ||
+  if ((this->anydns || 
        iph->daddr == conn->dns1.s_addr ||
        iph->daddr == conn->dns2.s_addr) &&
       iph->protocol == PKT_IP_PROTO_UDP && 
       udph->dst == htons(DHCP_DNS)) {
-
+    
+#ifdef ENABLE_FORCEDNS
+    if (_options.forcedns1_addr.s_addr) {
+      
+      if (_options.forcedns2_addr.s_addr &&
+	  iph->daddr == conn->dns2.s_addr) {
+	
+	conn->dnatdns2 = iph->daddr;
+	iph->daddr = _options.forcedns2_addr.s_addr;
+	
+	if (_options.forcedns2_port) {
+	  udph->dst = htons(_options.forcedns2_port);
+	}
+	
+      } else {
+	
+	conn->dnatdns = iph->daddr;
+	iph->daddr = _options.forcedns1_addr.s_addr;
+	
+	if (_options.forcedns1_port) {
+	  udph->dst = htons(_options.forcedns1_port);
+	}
+      }
+      
+      *do_checksum = 1;
+      
+    } else 
+#endif
     if (this->anydns) {
+
       if (
 #ifdef ENABLE_LAYER3
-	  ! _options.layer3 &&
+	! _options.layer3 &&
 #endif
-	  iph->daddr != conn->dns1.s_addr && 
-	  iph->daddr != conn->dns2.s_addr) {
+	iph->daddr != conn->dns1.s_addr && 
+	iph->daddr != conn->dns2.s_addr) {
 	conn->dnatdns = iph->daddr;
 	iph->daddr = conn->dns1.s_addr;
 	*do_checksum = 1;
@@ -2268,17 +2313,17 @@ int dhcp_dnsDNAT(struct dhcp_conn_t *conn,
 	conn->dnatdns = 0;
       }
     }
-
+    
     if (!dhcp_dns(conn, pack, len, 1)) {
 #if(_debug_)
       log_dbg("dhcp_dns()");
 #endif
       return -1; /* Drop DNS */
     }
-
+    
     return 1; /* Is allowed DNS */
   }
-
+  
   return 0; /* Not DNS */
 }
 
@@ -2290,31 +2335,54 @@ int dhcp_dnsunDNAT(struct dhcp_conn_t *conn,
   struct dhcp_t *this = conn->parent;
   struct pkt_iphdr_t *iph = pkt_iphdr(pack);
   struct pkt_udphdr_t *udph = pkt_udphdr(pack);
+  
+  if (iph->protocol == PKT_IP_PROTO_UDP) {
 
-  /* Was it a DNS reply? */
-  if ((this->anydns ||
-       iph->saddr == conn->dns1.s_addr ||
-       iph->saddr == conn->dns2.s_addr) &&
-      iph->protocol == PKT_IP_PROTO_UDP && 
-      udph->src == htons(DHCP_DNS)) {
-
-    if (this->anydns && 
-	conn->dnatdns &&
-	iph->saddr != conn->dnatdns) {
-      iph->saddr = conn->dnatdns;
-      *do_checksum = 1;
+#ifdef ENABLE_FORCEDNS    
+    if (_options.forcedns1_addr.s_addr) {
+      if (_options.forcedns1_addr.s_addr == iph->saddr &&
+	  udph->src == (_options.forcedns1_port ? 
+			htons(_options.forcedns1_port) :
+			htons(DHCP_DNS))) {
+	iph->saddr = conn->dnatdns;
+	udph->src = htons(DHCP_DNS);
+	*do_checksum = 1;
+      }
+      else if (_options.forcedns2_addr.s_addr == iph->saddr &&
+	  udph->src == (_options.forcedns2_port ? 
+			htons(_options.forcedns2_port) :
+			htons(DHCP_DNS))) {
+	iph->saddr = conn->dnatdns2;
+	udph->src = htons(DHCP_DNS);
+	*do_checksum = 1;
+      }
     }
-
-    if (!dhcp_dns(conn, pack, len, 0)) {
-#if(_debug_)
-      log_dbg("dhcp_dns()");
 #endif
-      return -1; /* Is not allowed DNS */
-    }
     
-    return 1; /* Is allowed DNS */
+    /* Was it a DNS reply? */
+    if ((this->anydns ||
+	 iph->saddr == conn->dns1.s_addr ||
+	 iph->saddr == conn->dns2.s_addr) &&
+	udph->src == htons(DHCP_DNS)) {
+      
+      if (this->anydns && 
+	  conn->dnatdns &&
+	  iph->saddr != conn->dnatdns) {
+	iph->saddr = conn->dnatdns;
+	*do_checksum = 1;
+      }
+      
+      if (!dhcp_dns(conn, pack, len, 0)) {
+#if(_debug_)
+	log_dbg("dhcp_dns()");
+#endif
+	return -1; /* Is not allowed DNS */
+      }
+      
+      return 1; /* Is allowed DNS */
+    }
   }
-
+  
   return 0; /* Not DNS */
 }
 
@@ -2832,6 +2900,8 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
   pack_iph->saddr = conn->ourip.s_addr;
 
   /** http://www.faqs.org/rfcs/rfc1542.html
+      Now see: http://www.faqs.org/rfcs/rfc2131.html
+
       BOOTREQUEST fields     BOOTREPLY values for UDP, IP, link-layer
    +-----------------------+-----------------------------------------+
    | 'ciaddr'  'giaddr'  B | UDP dest     IP destination   link dest |
@@ -3053,6 +3123,26 @@ static int dhcp_accept_opt(struct dhcp_conn_t *conn, uint8_t *o, int pos) {
   memcpy(&o[pos], &conn->ourip.s_addr, 4);
   pos += 4;
 
+#ifdef ENABLE_WPAD
+  {
+    char str[128];
+    char *str_fmt = "http://%s/wpad.dat";
+    int slen;
+
+    snprintf(str, sizeof(str), str_fmt, 
+	     inet_ntoa(_options.uamalias));
+
+    slen = strlen(str);
+
+    log_dbg("WPAD DHCP (URL %s)\n", str);
+    
+    o[pos++] = DHCP_OPTION_WPAD_URL;
+    o[pos++] = slen;
+    memcpy(&o[pos], str, slen);
+    pos += slen;
+  }
+#endif
+
   o[pos++] = DHCP_OPTION_END;
 
   return pos;
@@ -3076,9 +3166,10 @@ dhcp_handler(int type,
       {
 	struct dhcp_tag_t * opt82 = 0;
 	struct dhcp_packet_t * dhcpp = pkt_dhcppkt(pack);
+
 	if (!dhcp_gettag(dhcpp, ntohs(pkt_udphdr(pack)->len)-PKT_UDP_HLEN, 
 			 &opt82, DHCP_OPTION_82)) {
-
+	  
 	  if (!appconn && dhcpconn)
 	    appconn = (struct app_conn_t *) dhcpconn->peer;
 
@@ -3263,7 +3354,16 @@ static int dhcp_relay(struct dhcp_t *this,
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = _options.dhcpgwip.s_addr;
   addr.sin_port = htons(_options.dhcpgwport);
-  
+
+// -- http://www.faqs.org/rfcs/rfc1542.html
+// If the relay agent does decide to relay the request, it MUST examine
+// the 'giaddr' ("gateway" IP address) field.  If this field is zero,
+// the relay agent MUST fill this field with the IP address of the
+// interface on which the request was received.   ...
+// --
+// If the 'giaddr' field contains some non-zero value, the 'giaddr' field MUST
+//   NOT be modified. 
+// --
   if (_options.dhcprelayip.s_addr)
     pack_dhcp->giaddr = _options.dhcprelayip.s_addr;
   else
@@ -3550,20 +3650,77 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #if(_debug_ > 1)
   log_dbg("function %s()", __FUNCTION__);
 #endif
-
+  
   if (len < PKT_IP_HLEN + PKT_ETH_HLEN + 4) {
 #if(_debug_ > 1)
     log_dbg("too short");
 #endif
     return 0;
   }
-
-  if (pack_iph->version_ihl != PKT_IP_VER_HLEN) {
+  
+  if ((pack_iph->version_ihl & 0xf0) != 0x40) {
 #if(_debug_)
     log_dbg("dropping non-IPv4");
 #endif
     return 0;
   }
+
+
+  /* 
+   *  Check to see if we know MAC address
+   */
+  if (!dhcp_hashget(this, &conn, pack_ethh->src)) {
+
+    if (this->debug) 
+      log_dbg("Address found");
+
+    ourip.s_addr = conn->ourip.s_addr;
+
+  } else {
+
+    struct in_addr reqaddr;
+    
+    memcpy(&reqaddr.s_addr, &pack_iph->saddr, PKT_IP_ALEN);
+    
+    log_dbg("Address not found (%s)", inet_ntoa(reqaddr)); 
+    
+    /* Do we allow dynamic allocation of IP addresses? */
+    if (!this->allowdyn 
+#ifdef ENABLE_UAMANYIP
+	&& !_options.uamanyip
+#endif
+#ifdef ENABLE_LAYER3
+	&& !_options.layer3
+#endif
+	) {
+      log_dbg("dropping packet; no dynamic ip and no anyip");
+      return 0; 
+    }
+    
+    /* Allocate new connection */
+    if (dhcp_newconn(this, &conn, pack_ethh->src)) {
+      log_dbg("dropping packet; out of connections");
+      return 0; /* Out of connections */
+    }
+  }
+
+  /* Return if we do not know peer */
+  if (!conn) {
+    log_dbg("dropping packet; no peer");
+    return 0;
+  }
+
+  dhcp_conn_set_idx(conn, ctx);
+
+#ifdef ENABLE_IEEE8021Q
+  if (_options.ieee8021q) {
+#if(_debug_ > 1)
+    log_dbg("%s calling dhcp_checktag",__FUNCTION__);
+#endif
+    dhcp_checktag(conn, pack);
+  }
+#endif
+
 
   /*
    * Sanity check on IP total length
@@ -3581,7 +3738,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
       log_dbg("Sending fragmentation ICMP");
       dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack, 
-		icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
+		icmpfrag(conn, icmp_pack, sizeof(icmp_pack), pack));
 
       OTHER_SENDING(conn, pkt_iphdr(icmp_pack));
     }
@@ -3596,7 +3753,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     uint8_t icmp_pack[1500];
     log_dbg("ICMP frag for IP packet with length %d > %d", iph_tot_len, _options.mtu);
     dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack, 
-	      icmpfrag(icmp_pack, sizeof(icmp_pack), pack));
+	      icmpfrag(conn, icmp_pack, sizeof(icmp_pack), pack));
     OTHER_SENDING(conn, pkt_iphdr(icmp_pack));
     OTHER_RECEIVED(conn, pack_iph);
     return 0;
@@ -3673,60 +3830,6 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     return 0;
   }
   
-  /* 
-   *  Check to see if we know MAC address
-   */
-  if (!dhcp_hashget(this, &conn, pack_ethh->src)) {
-
-    if (this->debug) 
-      log_dbg("Address found");
-
-    ourip.s_addr = conn->ourip.s_addr;
-
-  } else {
-
-    struct in_addr reqaddr;
-    
-    memcpy(&reqaddr.s_addr, &pack_iph->saddr, PKT_IP_ALEN);
-    
-    log_dbg("Address not found (%s)", inet_ntoa(reqaddr)); 
-    
-    /* Do we allow dynamic allocation of IP addresses? */
-    if (!this->allowdyn 
-#ifdef ENABLE_UAMANYIP
-	&& !_options.uamanyip
-#endif
-#ifdef ENABLE_LAYER3
-	&& !_options.layer3
-#endif
-	) {
-      log_dbg("dropping packet; no dynamic ip and no anyip");
-      return 0; 
-    }
-    
-    /* Allocate new connection */
-    if (dhcp_newconn(this, &conn, pack_ethh->src)) {
-      log_dbg("dropping packet; out of connections");
-      return 0; /* Out of connections */
-    }
-  }
-
-  /* Return if we do not know peer */
-  if (!conn) {
-    log_dbg("dropping packet; no peer");
-    return 0;
-  }
-
-  dhcp_conn_set_idx(conn, ctx);
-
-#ifdef ENABLE_IEEE8021Q
-  if (_options.ieee8021q) {
-#if(_debug_ > 1)
-    log_dbg("%s calling dhcp_checktag",__FUNCTION__);
-#endif
-    dhcp_checktag(conn, pack);
-  }
-#endif
 
 #ifdef ENABLE_LAYER3
   if (is_dhcp && _options.layer3) {

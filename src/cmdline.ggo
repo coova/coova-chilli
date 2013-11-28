@@ -222,6 +222,7 @@ option "chillixml"     - "Use ChilliSpot XML in WISPr blocks" flag   off
 option "acctupdate"    - "Allow updating of session attributes in Accounting-Response" flag off
 option "dnsparanoia"   - "Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX records (to prevent dns tunnels)" flag off
 option "seskeepalive"  - "Keep sessions 'alive' after a restart of the server" flag off
+option "wpadpacfile" - "WPAD PAC file location" string no
 
 option "usetap"        - "Use a TAP instead of TUN (linux only)" flag   off
 option "noarpentries"  - "Do not create arp table entries in when using TAP." flag off
@@ -278,6 +279,12 @@ option "dhcpopt" - "Set a DHCP option using a hex string" string no multiple
 option "extadmvsa" - "Extended administrative-user VSA script support" string no multiple
 
 option "dhcpnotidle" - "DHCP counted for preventing idle-timeout" flag off
+
+option "forcedns1"   - "Force all DNS to a specific address" string no 
+option "forcedns1port"   - "Force all DNS to a specific port" int default="0" no 
+
+option "forcedns2"   - "Force all secondary DNS to a specific address" string no 
+option "forcedns2port"   - "Force all secondary DNS to a specific port" int default="0" no 
 
 option "ipv6" - "Enable IPv6 support" flag off
 option "ipv6mode" - "IPv6 mode is either 6and4 (default), 4to6, or 6to4" string no

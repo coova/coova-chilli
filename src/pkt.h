@@ -500,7 +500,7 @@ struct pkt_chillihdr_t {
 #else
 
 #define sizeofeth2(x)   (PKT_ETH_HLEN)
-#define sizeofip2(x)    (sizeofeth2(x)+PKT_IP_HLEN)
+#define sizeofip2(x)    (sizeofeth2(x)+((pkt_iphdr(x)->version_ihl&0x0f)*4))   // PKT_IP_HLEN)
 #define sizeofdot1x2(x) (sizeofeth2(x)+PKT_DOT1X_HLEN)
 #define sizeofudp2(x)   (sizeofip2(x)+PKT_UDP_HLEN)
 #define sizeoftcp2(x)   (sizeofip2(x)+PKT_TCP_HLEN)
@@ -529,8 +529,8 @@ struct pkt_chillihdr_t {
 #define pkt_eappkt(pkt)   ((struct eap_packet_t *)  (((uint8_t*)(pkt)) + sizeofdot1x(pkt)))
 #ifdef ENABLE_IPV6
 #define pkt_ip6hdr(pkt)   ((struct pkt_ip6hdr_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))
-#define pkt_udp6hdr(pkt)   ((struct pkt_udphdr_t *)  (((uint8_t*)(pkt)) + sizeofip6(pkt)))
-#define pkt_tcp6hdr(pkt)   ((struct pkt_tcphdr_t *)  (((uint8_t*)(pkt)) + sizeofip6(pk)))
+#define pkt_udp6hdr(pkt)  ((struct pkt_udphdr_t *)  (((uint8_t*)(pkt)) + sizeofip6(pkt)))
+#define pkt_tcp6hdr(pkt)  ((struct pkt_tcphdr_t *)  (((uint8_t*)(pkt)) + sizeofip6(pk)))
 #endif
 
 #define chilli_ethhdr(pkt)((struct pkt_chillihdr_t *)(((uint8_t*)(pkt)) + sizeofeth(pkt)))
