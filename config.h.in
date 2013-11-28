@@ -273,6 +273,9 @@
 /* Define to 1 if you have the `rt' library (-lrt). */
 #undef HAVE_LIBRT
 
+/* Define to 1 if you have the <linux/sysinfo.h> header file. */
+#undef HAVE_LINUX_SYSINFO_H
+
 /* if tp_vlan_tci exists */
 #undef HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI
 

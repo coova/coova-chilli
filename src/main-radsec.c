@@ -91,19 +91,34 @@ static void process_radius(struct radius_packet_t *pack, ssize_t len) {
     return;
   }
 
+  log_dbg("%s:%s", __FILE__, __FUNCTION__);
+
   if (!server.conn.connected) {
+    log_dbg("RADSEC: Connecting to %s:2083",
+	      inet_ntoa(_options.radiusserver1));
     if (connect_ssl(&_options.radiusserver1, 2083)) {
       log_err(errno, "Could not connect to RadSec server %s!",
+	      inet_ntoa(_options.radiusserver1));
+      log_dbg("RADSEC: Connecting to %s:2083", 
 	      inet_ntoa(_options.radiusserver1));
       if (connect_ssl(&_options.radiusserver2, 2083)) {
 	log_err(errno, "Could not connect to RadSec server %s!",
 		inet_ntoa(_options.radiusserver2));
       } else {
-	sleep(1);
-	goto try_again;
+	log_dbg("RADSEC: Connected to %s:2083", 
+		inet_ntoa(_options.radiusserver2));
+	server.conn.connected = 1;
       }
-    } 
-    server.conn.connected = 1;
+    } else {
+      log_dbg("RADSEC: Connected to %s:2083", 
+	      inet_ntoa(_options.radiusserver1));
+      server.conn.connected = 1;
+    }
+  }
+
+  if (!server.conn.connected) {
+    sleep(1);
+    goto try_again;
   }
   
   {

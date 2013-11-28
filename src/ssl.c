@@ -648,7 +648,7 @@ openssl_write(openssl_con *con, char *b, int l, int t) {
       if (err == -1) return err;
       else if (err > 0) {
 #if(_debug_)
-	log_dbg("ssl_repeart_write");
+	//log_dbg("ssl_repeat_write");
 #endif
 	goto repeat_write;
       }

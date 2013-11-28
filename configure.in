@@ -66,7 +66,7 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h dirent.h \
 		  netdb.h netinet/in.h netinet/tcp.h \
 		  stdint.h stddef.h stdlib.h string.h \
-		  sys/ioctl.h sys/socket.h sys/sysinfo.h \
+		  sys/ioctl.h sys/socket.h linux/sysinfo.h sys/sysinfo.h \
 		  sys/param.h sys/time.h time.h \
 		  sys/ipc.h sys/msg.h signal.h \
 		  sys/wait.h sys/un.h ifaddrs.h \

@@ -1070,7 +1070,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
     copy_mac6(ethh->dst, gwaddr);
 
-#if(_debug_)
+#if(_debug_ > 1)
     log_dbg("writing to tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
 	    "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x len=%d",
 	    ethh->src[0],ethh->src[1],ethh->src[2],
