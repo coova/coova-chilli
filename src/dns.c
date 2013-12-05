@@ -360,6 +360,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     break;
   case 29: log_dbg("LOC record"); break;
   case 33: log_dbg("SRV record"); break;
+  case 41: log_dbg("EDNS OPT pseudorecord"); break;
   case 47: log_dbg("NSEC record"); break;
   }
 

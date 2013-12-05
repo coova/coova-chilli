@@ -747,6 +747,18 @@ int main(int argc, char **argv) {
 #endif
       );
   }
+#ifdef ENABLE_LAYER3
+  for (numargs = 0; numargs < args_info.ipsrcallowed_given; ++numargs) {
+    pass_throughs_from_string(_options.ipsrc_pass_throughs,
+			      MAX_IPSRC_PASS_THROUGHS,
+			      &_options.ipsrc_num_pass_throughs,  
+			      args_info.ipsrcallowed_arg[numargs], 0, 0
+#ifdef HAVE_PATRICIA
+			      , 0
+#endif
+      );
+  }
+#endif
 
   _options.uamauthedallowed = args_info.uamauthedallowed_flag;
 #ifdef ENABLE_AUTHEDALLOWED

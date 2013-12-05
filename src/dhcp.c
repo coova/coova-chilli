@@ -904,7 +904,7 @@ int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
     if (_options.debug) {
       addr.s_addr = pack_iph->saddr;
       log_dbg("NFQUEUE: From "MAC_FMT" %s %s", 
-	      MAC_ACR(hw->hw_addr),
+	      MAC_ARG(hw->hw_addr),
 	      inet_ntoa(addr), 
 	      result == NF_ACCEPT ? "Accept" : "Drop");
       
@@ -2571,6 +2571,26 @@ int dhcp_garden_check(struct dhcp_t *this,
     found = 1;
 #endif
 
+#ifdef ENABLE_LAYER3
+  if (!found && _options.ipsrc_num_pass_throughs) {
+#if(_debug_ > 1)
+    log_dbg("Checking ipsrcallowed pass throughs (%d)", _options.ipsrc_num_pass_throughs);
+#endif
+    if (garden_check(_options.ipsrc_pass_throughs,
+                       &_options.ipsrc_num_pass_throughs, &pt,
+                       ipph, !dst
+#ifdef HAVE_PATRICIA
+                       , 0
+#endif
+                       )) {
+      found = 1;
+#if(_debug_ > 1)
+      log_dbg("Packet matches ipsrcallowed");
+#endif
+    }
+  }
+#endif
+
 #ifdef ENABLE_GARDENACCOUNTING
   if (_options.uamgardendata) {
 
@@ -3556,6 +3576,12 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
   conn->dns1.s_addr = dns1->s_addr;
   conn->dns2.s_addr = dns2->s_addr;
 
+#ifdef ENABLE_IPV6
+  conn->dns1_v6 = _options.dns1_v6;
+  conn->dns2_v6 = _options.dns2_v6;
+  conn->v6prefix = _options.v6prefix;
+#endif
+
   if (!conn->domain[0] && _options.domain) {
     safe_strncpy(conn->domain, _options.domain, DHCP_DOMAIN_LEN);
   }
@@ -4181,6 +4207,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
       
       switch (icmphdr->type) {
       case 133: /* 133 Router Solicitation (NDP) */
+      case 143: /* 143 Multicast Listener Report Message v2 */
 
 	/*
 	  4.1. Router Solicitation Message Format
@@ -4290,12 +4317,14 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  *payload++ = 4;
 	  *payload++ = 64;
 	  *payload++ = (1<<6)|(1<<7);
-	  v=htonl(_options.mtu);
+	  v=htonl(345600); /* valid lifetime */
 	  memcpy(payload, &v, 4);
 	  payload += 4;
-	  v=htonl(_options.mtu);
+	  v=htonl(345600); /* preferred lifetime */
 	  memcpy(payload, &v, 4);
 	  payload += 4;
+
+	  /* reserved */
 	  *payload++ = 0;*payload++ = 0;*payload++ = 0;*payload++ = 0;
 	  
 	  *payload++ = 0x11;*payload++ = 0x11;*payload++ = 0;*payload++ = 0;
@@ -5118,7 +5147,7 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
     struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
     log_dbg("dhcp_decaps: src="MAC_FMT" "
 	    "dst="MAC_FMT" prot=%.4x %d len=%d",
-	    MAC_ACR(ethh->src),
+	    MAC_ARG(ethh->src),
 	    MAC_ARG(ethh->dst),
 	    prot, (int)prot, length);
   }

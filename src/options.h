@@ -69,6 +69,12 @@ struct options_t {
   int ringsize;
 #endif
 
+#ifdef ENABLE_IPV6
+  struct in6_addr dns1_v6;
+  struct in6_addr dns2_v6;
+  struct in6_addr v6prefix;
+#endif
+
   int sndbuf;
   int rcvbuf;
 
@@ -307,6 +313,11 @@ struct options_t {
 #ifdef ENABLE_CHILLIREDIR
   regex_pass_through regex_pass_throughs[MAX_REGEX_PASS_THROUGHS];
   uint32_t regex_num_pass_throughs;
+#endif
+
+#ifdef ENABLE_LAYER3
+  pass_through ipsrc_pass_throughs[MAX_IPSRC_PASS_THROUGHS];
+  uint32_t ipsrc_num_pass_throughs;
 #endif
 
   char* uamdomains[MAX_UAM_DOMAINS];

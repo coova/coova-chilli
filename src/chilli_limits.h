@@ -134,4 +134,12 @@
 #define RADIUS_QUEUE_PACKET_PTR 1
 #endif
 
+#ifdef ENABLE_LAYER3
+#ifdef ENABLE_LARGELIMITS
+#define MAX_IPSRC_PASS_THROUGHS               512 /* Max number of allowed IP source addresses, for Layer3 */
+#else
+#define MAX_IPSRC_PASS_THROUGHS               8 /* Max number of allowed IP source addresses, for Layer3 */
+#endif
+#endif
+
 #endif

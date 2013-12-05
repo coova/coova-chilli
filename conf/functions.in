@@ -179,6 +179,9 @@ writeconfig() {
     HS_UAMALLOW=$(echo $HS_UAMALLOW|sed 's/ /,/g')
     uamallow=${HS_UAMALLOW:+",$HS_UAMALLOW"}
 
+    HS_IPSRCALLOWED=$(echo $HS_IPSRCALLOWED|sed 's/ /,/g')
+    addconfig1 ${HS_IPSRCALLOWED:+"ipsrcallowed $HS_IPSRCALLOWED"}
+
     addconfig1 ${HS_MAXCLIENTS:+"maxclients $HS_MAXCLIENTS"}
     addconfig1 ${HS_RADIUSQSIZE:+"radiusqsize $HS_RADIUSQSIZE"}
     addconfig1 ${HS_DHCPHASHSIZE:+"dhcphashsize $HS_DHCPHASHSIZE"}

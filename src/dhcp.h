@@ -165,6 +165,11 @@ struct dhcp_conn_t {
 #endif
 
 #ifdef ENABLE_IPV6
+  struct in6_addr ourip_v6;
+  struct in6_addr hisip_v6;
+  struct in6_addr v6prefix;
+  struct in6_addr dns1_v6;
+  struct in6_addr dns2_v6;
 #endif
 
 #ifdef ENABLE_DHCPRADIUS

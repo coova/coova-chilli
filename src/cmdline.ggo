@@ -267,6 +267,7 @@ option "ipwhitelist" - "Binary IP White List file" string no
 option "uamdomainfile" - "Load uamdomains (regex) from file" string no
 
 option "layer3" - "Layer3 only" flag off
+option "ipsrcallowed"  - "List of allowed source IP addresses, for Layer3" string no multiple
 option "patricia" - "Use patricia tries for walled garden lookup" flag off
 option "redirdnsreq" - "Send DNS query on redirect to pick of DNS based walled garden" flag off
 
