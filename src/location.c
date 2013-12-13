@@ -258,8 +258,8 @@ void location_printlist(bstring s, char *loc, int json, int list) {
 	  }
 #endif
 
-	  if (appconn->s_state.last_sent_time) {
-	    last_sent=act_mainclock-appconn->s_state.last_sent_time;
+	  if (appconn->s_state.last_up_time) {
+	    last_sent=act_mainclock-appconn->s_state.last_up_time;
 	  } else last_sent=-1;
 
 	  if (list) {

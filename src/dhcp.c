@@ -4055,7 +4055,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     if (_options.kname) {
       if (conn->peer) {
 	appconn = (struct app_conn_t *)conn->peer;
-	appconn->s_state.last_sent_time =
+	appconn->s_state.last_up_time =
 	  appconn->s_state.last_time = mainclock_now();
       }
       return 1;
