@@ -530,7 +530,7 @@ struct pkt_chillihdr_t {
 #ifdef ENABLE_IPV6
 #define pkt_ip6hdr(pkt)   ((struct pkt_ip6hdr_t *)  (((uint8_t*)(pkt)) + sizeofeth(pkt)))
 #define pkt_udp6hdr(pkt)  ((struct pkt_udphdr_t *)  (((uint8_t*)(pkt)) + sizeofip6(pkt)))
-#define pkt_tcp6hdr(pkt)  ((struct pkt_tcphdr_t *)  (((uint8_t*)(pkt)) + sizeofip6(pk)))
+#define pkt_tcp6hdr(pkt)  ((struct pkt_tcphdr_t *)  (((uint8_t*)(pkt)) + sizeofip6(pkt)))
 #endif
 
 #define chilli_ethhdr(pkt)((struct pkt_chillihdr_t *)(((uint8_t*)(pkt)) + sizeofeth(pkt)))
@@ -580,5 +580,21 @@ struct pkt_buffer {
 
 #define MAC_FMT "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X"
 #define MAC_ARG(x) (x)[0],(x)[1],(x)[2],(x)[3],(x)[4],(x)[5]
+
+struct pkt_ctx {
+  uint8_t *pkt;
+  size_t pkt_len;
+
+  struct pkt_ethhdr_t *ethh;
+#ifdef ENABLE_IEEE8021Q
+  struct pkt_ethhdr8021q_t *ethh_1q;
+#endif
+  struct pkt_iphdr_t  *ip4h;
+#ifdef ENABLE_IPV6
+  struct pkt_ip6hdr_t *ip6h;
+#endif
+  struct pkt_tcphdr_t *tcph;
+  struct pkt_udphdr_t *udph;
+};
 
 #endif

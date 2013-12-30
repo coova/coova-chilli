@@ -24,7 +24,7 @@
 #include "chilli_module.h"
 #endif
 
-int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr) {
+inline int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr) {
   int ret;
   do {
     ret = accept(fd, sa, lenptr);
@@ -32,7 +32,7 @@ int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr) {
   return ret;
 }
 
-int safe_select(int nfds, fd_set *readfds, fd_set *writefds,
+inline int safe_select(int nfds, fd_set *readfds, fd_set *writefds,
 		fd_set *exceptfds, struct timeval *timeout) {
   int ret;
   do {
@@ -43,7 +43,7 @@ int safe_select(int nfds, fd_set *readfds, fd_set *writefds,
 
 #ifdef USING_POLL
 #ifdef HAVE_SYS_EPOLL_H
-int safe_epoll_wait(int epfd, struct epoll_event *events,
+inline int safe_epoll_wait(int epfd, struct epoll_event *events,
 		    int maxevents, int timeout) {
   int ret;
   do {
@@ -52,7 +52,7 @@ int safe_epoll_wait(int epfd, struct epoll_event *events,
   return ret;
 }
 #else
-int safe_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
+inline int safe_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
   int ret;
   do {
     ret = poll(fds, nfds, timeout);
@@ -62,7 +62,7 @@ int safe_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 #endif
 #endif
 
-int safe_connect(int s, struct sockaddr *sock, size_t len) {
+inline int safe_connect(int s, struct sockaddr *sock, size_t len) {
   int ret;
   do {
     ret = connect(s, sock, len);
@@ -70,7 +70,7 @@ int safe_connect(int s, struct sockaddr *sock, size_t len) {
   return ret;
 }
 
-int safe_read(int s, void *b, size_t blen) {
+inline int safe_read(int s, void *b, size_t blen) {
   int ret;
   do {
     ret = read(s, b, blen);
@@ -78,7 +78,7 @@ int safe_read(int s, void *b, size_t blen) {
   return ret;
 }
 
-int safe_write(int s, void *b, size_t blen) {
+inline int safe_write(int s, void *b, size_t blen) {
   int ret;
   do {
     ret = write(s, b, blen);
@@ -90,7 +90,7 @@ int safe_write(int s, void *b, size_t blen) {
   return ret;
 }
 
-int safe_recv(int sockfd, void *buf, size_t len, int flags) {
+inline int safe_recv(int sockfd, void *buf, size_t len, int flags) {
   int ret;
   do {
     ret = recv(sockfd, buf, len, flags);
@@ -102,7 +102,7 @@ int safe_recv(int sockfd, void *buf, size_t len, int flags) {
   return ret;
 }
 
-int safe_send(int sockfd, void *buf, size_t len, int flags) {
+inline int safe_send(int sockfd, void *buf, size_t len, int flags) {
   int ret;
   do {
     ret = send(sockfd, buf, len, flags);
@@ -110,7 +110,7 @@ int safe_send(int sockfd, void *buf, size_t len, int flags) {
   return ret;
 }
 
-int safe_recvfrom(int sockfd, void *buf, size_t len, int flags,
+inline int safe_recvfrom(int sockfd, void *buf, size_t len, int flags,
 		  struct sockaddr *src_addr, socklen_t *addrlen) {
   int ret;
   do {
@@ -119,7 +119,7 @@ int safe_recvfrom(int sockfd, void *buf, size_t len, int flags,
   return ret;
 }
 
-int safe_recvmsg(int sockfd, struct msghdr *msg, int flags) {
+inline int safe_recvmsg(int sockfd, struct msghdr *msg, int flags) {
   int ret;
   do {
     ret = recvmsg(sockfd, msg, flags);
@@ -127,7 +127,7 @@ int safe_recvmsg(int sockfd, struct msghdr *msg, int flags) {
   return ret;
 }
 
-int safe_sendmsg(int sockfd, struct msghdr *msg, int flags) {
+inline int safe_sendmsg(int sockfd, struct msghdr *msg, int flags) {
   int ret;
   do {
     ret = sendmsg(sockfd, msg, flags);
@@ -135,7 +135,7 @@ int safe_sendmsg(int sockfd, struct msghdr *msg, int flags) {
   return ret;
 }
 
-int safe_sendto(int s, const void *b, size_t blen, int flags,
+inline int safe_sendto(int s, const void *b, size_t blen, int flags,
 		const struct sockaddr *dest_addr, socklen_t addrlen) {
   int ret;
   do {
@@ -144,7 +144,7 @@ int safe_sendto(int s, const void *b, size_t blen, int flags,
   return ret;
 }
 
-int safe_close (int fd) {
+inline int safe_close (int fd) {
   int ret;
   do {
     ret = close(fd);
@@ -152,7 +152,7 @@ int safe_close (int fd) {
   return ret;
 }
 
-pid_t safe_fork() {
+inline pid_t safe_fork() {
   pid_t pid;
   do {
     pid = fork();

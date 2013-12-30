@@ -77,7 +77,7 @@ struct tun_t {
 int tun_new(struct tun_t **tun);
 int tun_free(struct tun_t *this);
 int tun_decaps(struct tun_t *this, int idx);
-int tun_encaps(struct tun_t *this, uint8_t *pack, size_t len, int idx);
+int tun_encaps(struct tun_t *this, struct pkt_ctx *pctx, int idx);
 int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx);
 
 /*int tun_addaddr(struct tun_t *this, struct in_addr *addr, struct in_addr *dstaddr, struct in_addr *netmask);

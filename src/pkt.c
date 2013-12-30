@@ -25,7 +25,7 @@ int pkt_shape_tcpwin(struct pkt_iphdr_t *iph, uint16_t win) {
       (struct pkt_tcphdr_t *)(((uint8_t *)iph) + PKT_IP_HLEN);
     /*log_dbg("TCP Window %d", ntohs(tcph->win));*/
     if (ntohs(tcph->win) > win) {
-#if(_debug_ > 1)
+#if(_debug_)
       log_dbg("Rewriting TCP Window %d", win);
 #endif
       tcph->win = htons(win);

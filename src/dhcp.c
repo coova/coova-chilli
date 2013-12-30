@@ -1572,7 +1572,12 @@ static
 void tun_sendRESET(struct tun_t *tun, uint8_t *pack, struct app_conn_t *appconn) {
 #if !defined(HAVE_NETFILTER_QUEUE) && !defined(HAVE_NETFILTER_COOVA)
   uint8_t tcp_pack[1500];
-  tun_encaps(tun, tcp_pack, tcprst(tcp_pack, pack, 1), appconn->s_params.routeidx);
+  struct pkt_ctx tcp_ctx;
+  memset(&tcp_ctx, 0, sizeof(tcp_ctx));
+  tcp_ctx.pkt = tcp_pack;
+  tcp_ctx.pkt_len = tcprst(tcp_pack, pack, 1);
+  tcp_ctx.ethh = pkt_ethhdr(tcp_ctx.pkt);
+  tun_encaps(tun, &tcp_ctx, appconn->s_params.routeidx);
 #endif
 }
 
@@ -1661,22 +1666,21 @@ int dhcp_matchDNS(uint8_t *r, char *name) {
  *   returns: 0 = do not forward, 1 = forward DNS
  */
 static 
-int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack, 
-	     size_t *plen, char isReq) {
+int dhcp_dns(struct dhcp_conn_t *conn, struct pkt_ctx *pctx, char isReq) {
 
-  if (*plen < DHCP_DNS_HLEN + sizeofudp(pack)) {
+  if (pctx->pkt_len < DHCP_DNS_HLEN + sizeofudp(pctx->pkt)) {
     
-    log_dbg("bad DNS packet of length %d", *plen);
+    log_dbg("bad DNS packet of length %d", pctx->pkt_len);
     return 0;
     
   } else {
     
 #if defined(ENABLE_DNSLOG) || defined(ENABLE_MODULES)
-    struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pkt_iphdr(pack), !isReq);
+    struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pctx->ip4h, !isReq);
 #endif
-    struct dns_packet_t *dnsp = pkt_dnspkt(pack);
+    struct dns_packet_t *dnsp = pkt_dnspkt(pctx->pkt);
     
-    size_t dlen = *plen - DHCP_DNS_HLEN - sizeofudp(pack);
+    size_t dlen = pctx->pkt_len - DHCP_DNS_HLEN - sizeofudp(pctx->pkt);
     size_t olen = dlen;
     
     uint16_t flags   = ntohs(dnsp->flags);
@@ -1698,14 +1702,14 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
     int i;
 
 #ifdef ENABLE_MDNS
-    struct pkt_udphdr_t *udph = pkt_udphdr(pack);
+    struct pkt_udphdr_t *udph = pctx->udph;
     char isMDNS = 0;
 #endif
     
 #if(_debug_ > 1)
     uint16_t id      = ntohs(dnsp->id);
 
-    log_dbg("dhcp_dns plen=%d dlen=%d olen=%d", *plen, dlen, olen);
+    log_dbg("dhcp_dns plen=%d dlen=%d olen=%d", pctx->pkt_len, dlen, olen);
     log_dbg("DNS ID:    %d", id);
     log_dbg("DNS Flags: %d", flags);
 #endif
@@ -1718,14 +1722,13 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	  struct chilli_module *m = 
 	    (struct chilli_module *)_options.modules[i].ctx;
 	  if (m->dns_handler)
-	    res = m->dns_handler(appconn, conn, 
-				 pack, plen, isReq); 
+	    res = m->dns_handler(appconn, conn, pctx, isReq); 
 	  switch (res) {
 	    case CHILLI_DNS_MOD:
 	      mod = 1;
 	      break;
 	  case CHILLI_DNS_NAK:
-	    return dhcp_nakDNS(conn,pack,*plen);
+	    return dhcp_nakDNS(conn,pctx->pkt,pctx->pkt_len);
 	  case CHILLI_DNS_ERR:
 	  case CHILLI_DNS_DROP:
 	    return 0;
@@ -1776,7 +1779,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 		       q, sizeof(q), isReq,		\
 		       &qmatch, &mod, mode)) {		\
         log_warn(0, "dropping malformed DNS");		\
-	return isReq ? dhcp_nakDNS(conn,pack,*plen) : 0; \
+	return isReq ? dhcp_nakDNS(conn,pctx->pkt,pctx->pkt_len) : 0; \
       } \
     }
     
@@ -1895,9 +1898,9 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	
 	uint8_t answer[1500];
 	
-	struct pkt_ethhdr_t *ethh = pkt_ethhdr(pack);
-	struct pkt_iphdr_t  *iph  = pkt_iphdr(pack);
-	struct pkt_udphdr_t *udph = pkt_udphdr(pack);
+	struct pkt_ethhdr_t *ethh = pctx->ethh;
+	struct pkt_iphdr_t  *iph  = pctx->ip4h;
+	struct pkt_udphdr_t *udph = pctx->udph;
 	
 	struct pkt_ethhdr_t *answer_ethh;
 	struct pkt_iphdr_t  *answer_iph;
@@ -1944,7 +1947,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	memcpy(query + query_len, reply, 4);
 	query_len += 4;
 	
-	memcpy(answer, pack, *plen); /* TODO */
+	memcpy(answer, pctx->pkt, pctx->pkt_len); /* TODO */
 	
 	answer_ethh = pkt_ethhdr(answer);
 	answer_iph = pkt_iphdr(answer);
@@ -2128,30 +2131,30 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
       
       if (new_ancount > 0) {
 	uint16_t bdiff = (uint16_t)(bp - bt);
-	int newlen = (int)(an_mark - pack) + (int)bdiff;
+	int newlen = (int)(an_mark - pctx->pkt) + (int)bdiff;
 	if (newlen < 0 || newlen > 1500) {
 	  log_err(0, "Problem growing DNS packet from %d to %d (%d %d)",
-		  *plen, newlen, (an_mark - pack), bdiff);
+		  pctx->pkt_len, newlen, (an_mark - pctx->pkt), bdiff);
 	} else {
 	  uint16_t data_len = bdiff + (uint16_t) (an_mark - ((uint8_t *)dnsp));
-	  struct pkt_iphdr_t  *iph  = pkt_iphdr(pack);
-	  struct pkt_udphdr_t *udph = pkt_udphdr(pack);
+	  struct pkt_iphdr_t  *iph  = pctx->ip4h;
+	  struct pkt_udphdr_t *udph = pctx->udph;
 	  log_dbg("Growing DNS packet from %d to %d (%d %d) dt=%d",
-		  *plen, newlen, (an_mark - pack), bdiff, data_len);
+		  pctx->pkt_len, newlen, (an_mark - pctx->pkt), bdiff, data_len);
 	  data_len += PKT_UDP_HLEN;
 	  udph->len = htons(data_len);
 	  data_len += PKT_IP_HLEN;
 	  iph->tot_len = htons(data_len);
 	  dnsp->ancount = htons(new_ancount);
 	  memcpy(an_mark, b, bdiff);
-	  *plen = newlen;
+	  pctx->pkt_len = newlen;
 	}
       }
     }
 #endif
 
     if (mod > 0) {
-      chksum(pkt_iphdr(pack));
+      chksum(pctx->ip4h);
     }
   }
 
@@ -2243,12 +2246,12 @@ int dhcp_uam_unnat(struct dhcp_conn_t *conn,
 
 static 
 int dhcp_dnsDNAT(struct dhcp_conn_t *conn, 
-		 uint8_t *pack, size_t *len, 
+		 struct pkt_ctx *pctx,
 		 char *do_checksum) {
   
   struct dhcp_t *this = conn->parent;
-  struct pkt_iphdr_t  *iph  = pkt_iphdr(pack);
-  struct pkt_udphdr_t *udph = pkt_udphdr(pack);
+  struct pkt_iphdr_t  *iph  = pctx->ip4h;
+  struct pkt_udphdr_t *udph = pctx->udph;
 
 #ifdef ENABLE_MDNS
   if (iph->protocol == PKT_IP_PROTO_UDP && 
@@ -2314,7 +2317,7 @@ int dhcp_dnsDNAT(struct dhcp_conn_t *conn,
       }
     }
     
-    if (!dhcp_dns(conn, pack, len, 1)) {
+    if (!dhcp_dns(conn, pctx, 1)) {
 #if(_debug_)
       log_dbg("dhcp_dns()");
 #endif
@@ -2329,14 +2332,15 @@ int dhcp_dnsDNAT(struct dhcp_conn_t *conn,
 
 static 
 int dhcp_dnsunDNAT(struct dhcp_conn_t *conn, 
-		   uint8_t *pack, size_t *len, 
+		   struct pkt_ctx *pctx,
 		   char *do_checksum) {
   
   struct dhcp_t *this = conn->parent;
-  struct pkt_iphdr_t *iph = pkt_iphdr(pack);
-  struct pkt_udphdr_t *udph = pkt_udphdr(pack);
-  
-  if (iph->protocol == PKT_IP_PROTO_UDP) {
+  struct pkt_iphdr_t *iph = pctx->ip4h;
+  struct pkt_udphdr_t *udph = pctx->udph;
+
+  if (iph && udph &&
+      iph->protocol == PKT_IP_PROTO_UDP) {
 
 #ifdef ENABLE_FORCEDNS    
     if (_options.forcedns1_addr.s_addr) {
@@ -2372,7 +2376,7 @@ int dhcp_dnsunDNAT(struct dhcp_conn_t *conn,
 	*do_checksum = 1;
       }
       
-      if (!dhcp_dns(conn, pack, len, 0)) {
+      if (!dhcp_dns(conn, pctx, 0)) {
 #if(_debug_)
 	log_dbg("dhcp_dns()");
 #endif
@@ -2385,9 +2389,6 @@ int dhcp_dnsunDNAT(struct dhcp_conn_t *conn,
   
   return 0; /* Not DNS */
 }
-
-
-
 
 #ifdef ENABLE_AUTHEDALLOWED
 int dhcp_garden_check_auth(struct dhcp_t *this,
@@ -3423,7 +3424,7 @@ static int dhcp_relay(struct dhcp_t *this,
  *  dhcp_getreq()
  *  Process a received DHCP request and sends a response.
  **/
-int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
+int dhcp_getreq(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
   struct dhcp_t *this = ctx->parent;
   uint8_t mac[PKT_ETH_ALEN];
   struct dhcp_tag_t *message_type = 0;
@@ -3431,16 +3432,16 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   struct dhcp_conn_t *conn;
   struct in_addr addr;
 
-  struct pkt_ethhdr_t *pack_ethh = pkt_ethhdr(pack);
-  struct pkt_udphdr_t *pack_udph = pkt_udphdr(pack);
-  struct dhcp_packet_t *pack_dhcp = pkt_dhcppkt(pack);
+  struct pkt_ethhdr_t *pack_ethh = pctx->ethh;
+  struct pkt_udphdr_t *pack_udph = pctx->udph;
+  struct dhcp_packet_t *pack_dhcp = pkt_dhcppkt(pctx->pkt);
 
   log_dbg("function %s()", __FUNCTION__);
 
   if (pack_udph->dst != htons(DHCP_BOOTPS)) 
     return 0; /* Not a DHCP packet */
 
-  if (dhcp_gettag(pkt_dhcppkt(pack), ntohs(pack_udph->len)-PKT_UDP_HLEN, 
+  if (dhcp_gettag(pack_dhcp, ntohs(pack_udph->len)-PKT_UDP_HLEN, 
 		  &message_type, DHCP_OPTION_MESSAGE_TYPE)) {
     return -1;
   }
@@ -3476,7 +3477,7 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     return 0;
   }
   
-  if (dhcp_getconn(this, &conn, mac, pack, this->allowdyn)) {
+  if (dhcp_getconn(this, &conn, mac, pctx->pkt, this->allowdyn)) {
     /* Could not allocate address */
     return 0; 
   }
@@ -3485,7 +3486,7 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   if (this->relayfd > 0) {
     /** Relay the DHCP request **/
-    return dhcp_relay(this, pack, len);
+    return dhcp_relay(this, pctx->pkt, pctx->pkt_len);
   }
 
   if (conn->authstate == DHCP_AUTH_DROP)
@@ -3493,23 +3494,23 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   addr.s_addr = pack_dhcp->ciaddr;
 
-  if (!dhcp_gettag(pkt_dhcppkt(pack), ntohs(pack_udph->len)-PKT_UDP_HLEN, 
+  if (!dhcp_gettag(pack_dhcp, ntohs(pack_udph->len)-PKT_UDP_HLEN, 
 		   &requested_ip, DHCP_OPTION_REQUESTED_IP))
     memcpy(&addr.s_addr, requested_ip->v, 4);
   
   if (_options.strictdhcp && addr.s_addr &&
       (addr.s_addr & _options.mask.s_addr) != _options.net.s_addr) {
     log_dbg("NAK: strictdhcp and address not in net");
-    return dhcp_sendNAK(conn, pack, len);
+    return dhcp_sendNAK(conn, pctx->pkt, pctx->pkt_len);
   }
   
   /* Request an IP address */ 
   /** if (conn->authstate == DHCP_AUTH_NONE) XXX **/
   {
     if (this->cb_request && 
-	this->cb_request(conn, &addr, pack, len)) {
+	this->cb_request(conn, &addr, pctx->pkt, pctx->pkt_len)) {
       log_dbg("NAK: auth-none");
-      return dhcp_sendNAK(conn, pack, len);
+      return dhcp_sendNAK(conn, pctx->pkt, pctx->pkt_len);
     }
   }
   
@@ -3521,7 +3522,7 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   switch (message_type->v[0]) {
   case DHCPDISCOVER:
     if (conn->hisip.s_addr) 
-      dhcp_sendOFFER(conn, pack, len);
+      dhcp_sendOFFER(conn, pctx->pkt, pctx->pkt_len);
     return 0;
   
   case DHCPREQUEST:
@@ -3532,7 +3533,7 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #if(_debug_)
 	log_dbg("hisip not set!");
 #endif
-	return dhcp_sendNAK(conn, pack, len);
+	return dhcp_sendNAK(conn, pctx->pkt, pctx->pkt_len);
       }
       
       if (!memcmp(&conn->hisip.s_addr, &pack_dhcp->ciaddr, 4))
@@ -3543,13 +3544,13 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  send_ack = 1;
       
       if (send_ack) {
-	return dhcp_sendACK(conn, pack, len);
+	return dhcp_sendACK(conn, pctx->pkt, pctx->pkt_len);
       }
       
 #if(_debug_)
       log_dbg("Sending NAK to client");
 #endif
-      return dhcp_sendNAK(conn, pack, len);
+      return dhcp_sendNAK(conn, pctx->pkt, pctx->pkt_len);
     }
   }
   
@@ -3651,12 +3652,8 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len);
  *  dhcp_receive_ip()
  *  Received a packet from the dhcpif
  */
-int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
+int dhcp_receive_ip(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
   struct dhcp_t *this = ctx->parent;
-  struct pkt_ethhdr_t *pack_ethh = pkt_ethhdr(pack);
-  struct pkt_iphdr_t  *pack_iph  = pkt_iphdr(pack);
-  struct pkt_tcphdr_t *pack_tcph = pkt_tcphdr(pack);
-  struct pkt_udphdr_t *pack_udph = pkt_udphdr(pack);
   struct dhcp_conn_t *conn = 0;
   struct in_addr ourip;
   struct in_addr addr;
@@ -3672,6 +3669,12 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   uint16_t iph_tot_len;
   uint16_t eth_tot_len;
+
+  struct pkt_ethhdr_t *pack_ethh = pctx->ethh;
+  struct pkt_iphdr_t  *pack_iph  = pctx->ip4h = pkt_iphdr(pctx->pkt);
+  struct pkt_tcphdr_t *pack_tcph = pctx->tcph = pkt_tcphdr(pctx->pkt);
+  struct pkt_udphdr_t *pack_udph = pctx->udph = pkt_udphdr(pctx->pkt);
+  size_t len = pctx->pkt_len;
 
 #if(_debug_ > 1)
   log_dbg("function %s()", __FUNCTION__);
@@ -3704,11 +3707,11 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   } else {
 
-    struct in_addr reqaddr;
-    
-    memcpy(&reqaddr.s_addr, &pack_iph->saddr, PKT_IP_ALEN);
-    
-    log_dbg("Address not found (%s)", inet_ntoa(reqaddr)); 
+    if (_options.debug) {
+      struct in_addr reqaddr;
+      memcpy(&reqaddr.s_addr, &pack_iph->saddr, PKT_IP_ALEN);
+      log_dbg("Address not found (%s)", inet_ntoa(reqaddr)); 
+    }
     
     /* Do we allow dynamic allocation of IP addresses? */
     if (!this->allowdyn 
@@ -3743,28 +3746,27 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #if(_debug_ > 1)
     log_dbg("%s calling dhcp_checktag",__FUNCTION__);
 #endif
-    dhcp_checktag(conn, pack);
+    dhcp_checktag(conn, pctx->pkt);
   }
 #endif
-
 
   /*
    * Sanity check on IP total length
    */
   iph_tot_len = ntohs(pack_iph->tot_len);
-  eth_tot_len = iph_tot_len + sizeofeth(pack);
+  eth_tot_len = iph_tot_len + sizeofeth(pctx->pkt);
 
   if (eth_tot_len > (uint16_t) len) {
     log_dbg("dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
 	    iph_tot_len,
-	    sizeofeth(pack), (int)len);
+	    sizeofeth(pctx->pkt), (int)len);
     
     if (pack_iph->opt_off_high & 64) { /* Don't Defrag Option */
       uint8_t icmp_pack[1500];
 
       log_dbg("Sending fragmentation ICMP");
       dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack, 
-		icmpfrag(conn, icmp_pack, sizeof(icmp_pack), pack));
+		icmpfrag(conn, icmp_pack, sizeof(icmp_pack), pctx->pkt));
 
       OTHER_SENDING(conn, pkt_iphdr(icmp_pack));
     }
@@ -3772,14 +3774,12 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     OTHER_RECEIVED(conn, pack_iph);
     return 0;
   }
-  
-  if (iph_tot_len > _options.mtu ||
-      iphdr_more_frag(pack_iph) ||
-      iphdr_offset(pack_iph)) {
+
+  if (iph_tot_len > _options.mtu) {
     uint8_t icmp_pack[1500];
     log_dbg("ICMP frag for IP packet with length %d > %d", iph_tot_len, _options.mtu);
     dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack, 
-	      icmpfrag(conn, icmp_pack, sizeof(icmp_pack), pack));
+	      icmpfrag(conn, icmp_pack, sizeof(icmp_pack), pctx->pkt));
     OTHER_SENDING(conn, pkt_iphdr(icmp_pack));
     OTHER_RECEIVED(conn, pack_iph);
     return 0;
@@ -3851,7 +3851,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #endif
       ) {
     log_dbg("dhcp/bootps request being processed");
-    (void) dhcp_getreq(ctx, pack, len);
+    (void) dhcp_getreq(ctx, pctx);
     OTHER_RECEIVED(conn, pack_iph);
     return 0;
   }
@@ -3863,13 +3863,13 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
     if (this->relayfd > 0) {
       /** Relay the DHCP request **/
-      return dhcp_relay(this, pack, len);
+      return dhcp_relay(this, pctx->pkt, pctx->pkt_len);
     }
 
     (void) dhcp_handler(CHILLI_DHCP_PROXY,
-			0, pack, len, 0, 0);
+			0, pctx->pkt, pctx->pkt_len, 0, 0);
       
-    this->cb_data_ind(conn, pack, len);
+    this->cb_data_ind(conn, pctx);
     OTHER_RECEIVED(conn, pack_iph);
     return 0;
   }
@@ -3937,7 +3937,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #if(_debug_ > 1)
       log_dbg("%s calling dhcp_checktag",__FUNCTION__);
 #endif
-      dhcp_checktag(conn, pack);
+      dhcp_checktag(conn, pctx->pkt);
     }
 #endif
 
@@ -4028,7 +4028,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 		 this->uamport);
   }
   
-  switch (dhcp_dnsDNAT(conn, pack, &len, &do_checksum)) { 
+  switch (dhcp_dnsDNAT(conn, pctx, &do_checksum)) { 
   case 0:  /* Not DNS */ break;
   case 1:  /* Allowed DNS */ allowed = 1; break; 
   default: /* Drop */ 
@@ -4063,7 +4063,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #endif
 
     /* Check for post-auth proxy, otherwise pass packets unmodified */
-    dhcp_postauthDNAT(conn, pack, len, 0, &do_checksum);
+    dhcp_postauthDNAT(conn, pctx->pkt, pctx->pkt_len, 0, &do_checksum);
     break; 
 
   case DHCP_AUTH_UNAUTH_TOS:
@@ -4079,12 +4079,12 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     break;
 
   case DHCP_AUTH_SPLASH:
-    dhcp_doDNAT(conn, pack, len, 0, &do_checksum);
+    dhcp_doDNAT(conn, pctx->pkt, pctx->pkt_len, 0, &do_checksum);
     break;
     
   case DHCP_AUTH_DNAT:
     /* Destination NAT if request to unknown web server */
-    if (dhcp_doDNAT(conn, pack, len, 1, &do_checksum) && !allowed) {
+    if (dhcp_doDNAT(conn, pctx->pkt, pctx->pkt_len, 1, &do_checksum) && !allowed) {
 #if(_debug_ > 1)
       log_dbg("dropping packet; not nat'ed");
 #endif
@@ -4117,7 +4117,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   if (has_ip && (this->cb_data_ind)) {
 
-    this->cb_data_ind(conn, pack, len);
+    this->cb_data_ind(conn, pctx);
 
   } else {
 
@@ -4129,17 +4129,17 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 }
 
 #ifdef ENABLE_IPV6
-int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
+int dhcp_receive_ipv6(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
   struct dhcp_t *this = ctx->parent;
-  struct pkt_ethhdr_t *ethh = pkt_ethhdr(pack);
-  struct pkt_ip6hdr_t *iphdr = pkt_ip6hdr(pack);
+  struct pkt_ethhdr_t *ethh = pctx->ethh;
+  struct pkt_ip6hdr_t *iphdr = pctx->ip6h = pkt_ip6hdr(pctx->pkt);
 
   int ip_datalen = (int) ntohs(iphdr->data_len);
 
   log_dbg("Processing IPv6 ver=%d class=%d len=%d datalen=%d",
 	  (int) ipv6_version(iphdr),
 	  (int) ipv6_class(iphdr),
-	  (int) len, ip_datalen);
+	  (int) pctx->pkt_len, ip_datalen);
 
   log_dbg("src "IPv6_ADDR_FMT" dst "IPv6_ADDR_FMT,
 	  ipv6_exlode_addr(iphdr->src_addr),
@@ -4263,7 +4263,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  uint32_t v;
 	  
 	  memset(packet, 0, sizeof(packet));
-	  copy_ethproto(pack, packet);
+	  copy_ethproto(pctx->pkt, packet);
 	  
 	  packet_ethh = pkt_ethhdr(packet);
 	  packet_ip6h = pkt_ip6hdr(packet);
@@ -4389,7 +4389,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  check_options();
 	  
 	  memset(packet, 0, sizeof(packet));
-	  copy_ethproto(pack, packet);
+	  copy_ethproto(pctx->pkt, packet);
 	  
 	  packet_ethh = pkt_ethhdr(packet);
 	  packet_ip6h = pkt_ip6hdr(packet);
@@ -4518,7 +4518,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	      uint16_t u;
 	      uint32_t u2;
 	  
-	      copy_ethproto(pack, packet);
+	      copy_ethproto(pctx->pkt, packet);
 	  
 	      packet_ethh = pkt_ethhdr(packet);
 	      packet_ip6h = pkt_ip6hdr(packet);
@@ -4666,16 +4666,16 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	if (!appconn) return 0;
 
 	memcpy(&ip,&iphdr->dst_addr[12],4);
-	memcpy(pack + 20, pack, sizeofeth(pack));
+	memcpy(pctx->pkt + 20, pctx->pkt, sizeofeth(pctx->pkt));
 
 	log_dbg("IPv6to4 src "IPv6_ADDR_FMT" dst "IPv6_ADDR_FMT" --> %s",
 		ipv6_exlode_addr(iphdr->src_addr),
 		ipv6_exlode_addr(iphdr->dst_addr),
 		inet_ntoa(appconn->hisip));
 	
-	ethh = pkt_ethhdr(pack + 20);
+	ethh = pkt_ethhdr(pctx->pkt + 20);
 	ethh->prot = htons(PKT_ETH_PROTO_IP);
-	ip4hdr = (struct pkt_iphdr_t *) (pack + 20 + sizeofeth(pack));
+	ip4hdr = (struct pkt_iphdr_t *) (pctx->pkt + 20 + sizeofeth(pctx->pkt));
 	ip4hdr->version_ihl = PKT_IP_VER_HLEN;
 	ip4hdr->tos = 0;
 	ip4hdr->tot_len = htons(ip_datalen + PKT_IP_HLEN);
@@ -4688,8 +4688,10 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	memcpy(&ip4hdr->daddr,&ip,4);
 	
 	chksum(ip4hdr);
-	
-	return dhcp_receive_ip(ctx, pack + 20, len - 20);
+
+	pctx->pkt += 20;
+	pctx->pkt_len -= 20;
+	return dhcp_receive_ip(ctx, pctx);
       }
     }
   }
@@ -5105,17 +5107,18 @@ void dhcp_peer_update(char force) {
 #endif
 
 static 
-int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
-  struct dhcp_ctx *ctx = (struct dhcp_ctx *)pctx;
+int dhcp_decaps_cb(void *ctxp, struct pkt_buffer *pb) {
+  struct dhcp_ctx *ctx = (struct dhcp_ctx *)ctxp;
+  struct pkt_ctx pctx;
   uint16_t prot = 0;
   char ignore = 0;
 
   uint8_t *packet = pkt_buffer_head(pb);
   size_t length = pkt_buffer_length(pb);
 
-  int min_length = sizeof(struct pkt_ethhdr_t);
-  
-  if (length < min_length) {
+  memset(&pctx, 0, sizeof(pctx));
+
+  if (length < sizeof(struct pkt_ethhdr_t)) {
     log_dbg("bad packet length %d", length);
     return 0;
   }
@@ -5123,23 +5126,21 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
 #ifdef ENABLE_IEEE8021Q
   if (_options.ieee8021q) {
     if (is_8021q(packet)) {
-      struct pkt_ethhdr8021q_t *ethh;
-      min_length = sizeof(struct pkt_ethhdr8021q_t);
-      if (length < min_length) {
+      if (length < sizeof(struct pkt_ethhdr8021q_t)) {
 	log_dbg("bad packet length %d", length);
 	return 0;
       }
-      ethh = ethhdr8021q(packet);
-      prot = ntohs(ethh->prot);
+      pctx.ethh_1q = ethhdr8021q(packet);
+      prot = ntohs(pctx.ethh_1q->prot);
     } else if (_options.ieee8021q_only) {
       return 0;
     }
   }
 #endif
 
+  pctx.ethh = pkt_ethhdr(packet);
   if (!prot) {
-    struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
-    prot = ntohs(ethh->prot);
+    prot = ntohs(pctx.ethh->prot);
   }
 
 #if(_debug_ > 1)
@@ -5152,6 +5153,9 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
 	    prot, (int)prot, length);
   }
 #endif
+
+  pctx.pkt = packet;
+  pctx.pkt_len = length;
 
 #ifdef ENABLE_CLUSTER
   ignore = dhcp_ignore(prot, packet, length);
@@ -5211,7 +5215,7 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
       ignore = 1;
 #endif
     if (!ignore)
-      return dhcp_receive_ip(ctx, packet, length);
+      return dhcp_receive_ip(ctx, &pctx);
     break;
 
 #ifdef ENABLE_PPPOE
@@ -5234,7 +5238,7 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
 #ifdef ENABLE_IPV6
   case PKT_ETH_PROTO_IPv6:
     if (_options.ipv6)
-      return dhcp_receive_ipv6(ctx, packet, length);
+      return dhcp_receive_ipv6(ctx, &pctx);
 #endif
 
   case PKT_ETH_PROTO_PPP:
@@ -5467,6 +5471,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
 
   uint8_t *packet = pkt_buffer_head(pb);
   size_t length = pkt_buffer_length(pb);
+  struct pkt_ctx pctx;
 
 #ifdef ENABLE_IEEE8021Q
   uint16_t tag = conn->tag8021q;
@@ -5514,6 +5519,41 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
       return 0;
   }
 
+  memset(&pctx, 0, sizeof(pctx));
+  pctx.pkt = packet;
+  pctx.pkt_len = length;
+
+  pctx.ethh = pkt_ethhdr(pctx.pkt);
+  dhcp_ethhdr(conn, packet, conn->hismac, dhcp_nexthop(this), 
+	      pctx.ethh->prot ? ntohs(pctx.ethh->prot) : PKT_ETH_PROTO_IP);
+
+  switch(ntohs(pctx.ethh->prot)) {
+#ifdef ENABLE_IPV6
+  case PKT_ETH_PROTO_IPv6:
+    pctx.ip6h = pkt_ip6hdr(pctx.pkt);
+    switch(pctx.ip6h->next_header) {
+    case PKT_IP_PROTO_UDP:
+      pctx.udph = pkt_udp6hdr(pctx.pkt);
+      break;
+    case PKT_IP_PROTO_TCP:
+      pctx.tcph = pkt_tcp6hdr(pctx.pkt);
+      break;
+    }
+    break;
+#endif
+  case PKT_ETH_PROTO_IP:
+    pctx.ip4h = pkt_iphdr(pctx.pkt);
+    switch(pctx.ip4h->protocol) {
+    case PKT_IP_PROTO_UDP:
+      pctx.udph = pkt_udphdr(pctx.pkt);
+      break;
+    case PKT_IP_PROTO_TCP:
+      pctx.tcph = pkt_tcphdr(pctx.pkt);
+      break;
+    }
+    break;
+  }
+  
 #ifdef ENABLE_LAYER3
   /*
    *  A bit of a hack to decouple the one-to-one relationship
@@ -5548,31 +5588,28 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
 #else
   authstate = conn->authstate;
 #endif
-  
-  dhcp_ethhdr(conn, packet, conn->hismac, dhcp_nexthop(this), PKT_ETH_PROTO_IP);
-  
-  switch (dhcp_dnsunDNAT(conn, packet, &length, &do_checksum)) {
+
+  switch (dhcp_dnsunDNAT(conn, &pctx, &do_checksum)) {
   case 0:  /* Not DNS */break;
   case 1:  /* Allowed DNS */ allowed = 1; break;
   default: /* Drop */ return 0;
   }
   
   switch (authstate) {
-    
   case DHCP_AUTH_PASS:
   case DHCP_AUTH_AUTH_TOS:
-    dhcp_postauthDNAT(conn, packet, length, 1, &do_checksum);
+    dhcp_postauthDNAT(conn, pctx.pkt, pctx.pkt_len, 1, &do_checksum);
     break;
     
   case DHCP_AUTH_SPLASH:
   case DHCP_AUTH_UNAUTH_TOS:
-    dhcp_undoDNAT(conn, packet, &length, 0, &do_checksum);
+    dhcp_undoDNAT(conn, pctx.pkt, &pctx.pkt_len, 0, &do_checksum);
     break;
 
   case DHCP_AUTH_DNAT:
   case DHCP_AUTH_NONE:
     /* undo destination NAT */
-    if (dhcp_undoDNAT(conn, packet, &length, 1, &do_checksum) && !allowed) { 
+    if (dhcp_undoDNAT(conn, pctx.pkt, &pctx.pkt_len, 1, &do_checksum) && !allowed) { 
 #if(_debug_ > 1)
       log_dbg("dhcp_undoDNAT() returns true");
 #endif
@@ -5598,7 +5635,6 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
       (struct pkt_iphdr_t *)(packet + sizeofeth2(tag));
 
     struct pkt_ethhdr_t *ethh;
-
     struct pkt_ip6hdr_t *ip6hdr;
 
     uint8_t *p = packet;
@@ -5642,7 +5678,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
   if (do_checksum)
     chksum(pkt_iphdr(packet));
 
-  return dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, packet, length);
+  return dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, pctx.pkt, pctx.pkt_len);
 }
 
 /**
@@ -6103,7 +6139,7 @@ int dhcp_set_cb_eap_ind(struct dhcp_t *this,
  * Set callback function which is called when packet has arrived
  **/
 int dhcp_set_cb_data_ind(struct dhcp_t *this, 
-  int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len)) {
+  int (*cb_data_ind) (struct dhcp_conn_t *conn, struct pkt_ctx *pctx)) {
   this->cb_data_ind = cb_data_ind;
   return 0;
 }

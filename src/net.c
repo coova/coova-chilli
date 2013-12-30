@@ -31,9 +31,9 @@ int tx_ring_bug = 1;
 static int tx_ring(net_interface *iface, void *packet, size_t length);
 static int rx_ring(net_interface *iface, net_handler func, void *ctx);
 static void set_buffer(net_interface *iface, int what, int size);
+static void destroy_one_ring(net_interface *iface, int what);
 static void setup_rings(net_interface *iface, unsigned size, int mtu);
 static void setup_rings2(net_interface *iface);
-static void destroy_one_ring(net_interface *iface, int what);
 //static void setup_filter(net_interface *iface);
 #endif
 
@@ -684,9 +684,9 @@ net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx) {
   } else
 #endif
   {
-    struct pkt_buffer pb;
-    uint8_t packet[PKT_MAX_LEN];
-    ssize_t length;
+    static struct pkt_buffer pb;
+    static uint8_t packet[PKT_MAX_LEN];
+    static ssize_t length;
     pkt_buffer_init(&pb, packet, sizeof(packet), PKT_BUFFER_IPOFF);
     length = net_read_eth(netif, 
 			  pkt_buffer_head(&pb), 
@@ -699,9 +699,9 @@ net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx) {
 
 ssize_t 
 net_read_dispatch(net_interface *netif, net_handler func, void *ctx) {
-  struct pkt_buffer pb;
-  uint8_t packet[PKT_MAX_LEN];
-  ssize_t length;
+  static struct pkt_buffer pb;
+  static uint8_t packet[PKT_MAX_LEN];
+  static ssize_t length;
   pkt_buffer_init(&pb, packet, sizeof(packet), PKT_BUFFER_IPOFF);
   length = safe_read(netif->fd, 
 		     pkt_buffer_head(&pb), 
@@ -905,17 +905,17 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
     switch (errno) {
     case EWOULDBLOCK:
       log_err(errno, "packet dropped due to congestion");
-      if (!_options.uid)
-	net_reopen(netif);
       break;
       
 #ifdef ENETDOWN
     case ENETDOWN:
+      log_err(errno, "net_write_eth(fd=%d, len=%d) failed", netif->fd, dlen);
       net_reopen(netif);
       break;
 #endif
 #ifdef ENXIO
     case ENXIO:
+      log_err(errno, "net_write_eth(fd=%d, len=%d) failed", netif->fd, dlen);
       net_reopen(netif);
       break;
 #endif
@@ -927,7 +927,6 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
 #endif
     }
     
-    log_err(errno, "net_write_eth(fd=%d, len=%d) failed", netif->fd, dlen);
     return -1;
   }
 
@@ -1315,7 +1314,7 @@ int net_open_eth(net_interface *netif) {
   log_dbg("device %s ifindex %d", netif->devname, netif->ifindex);
 
 #ifdef ENABLE_IPV6
-  {
+  if (_options.ipv6) {
     struct ifaddrs *ifaddr, *ifa;
     char host[NI_MAXHOST];
     int family, s;

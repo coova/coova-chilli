@@ -790,13 +790,12 @@ struct tundecap {
 
 static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
   struct tundecap *c = (struct tundecap *)ctx;
-  struct pkt_iphdr_t *iph;
-  int ethsize = 0;
+  //struct pkt_iphdr_t *iph;
+  //int ethsize = 0;
 
   char ethhdr = (tun(c->this, c->idx).flags & NET_ETHHDR) != 0;
-
   size_t length = pkt_buffer_length(pb);
-  uint8_t *packet = pkt_buffer_head(pb);
+  //uint8_t *packet = pkt_buffer_head(pb);
 
   if (c->idx) ethhdr = 0;
 
@@ -812,15 +811,16 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
     if (length < PKT_IP_HLEN + PKT_ETH_HLEN)
       return -1;
     
-    ethsize = PKT_ETH_HLEN;
-    iph = pkt_iphdr(packet);
+    //ethsize = PKT_ETH_HLEN;
+    //iph = pkt_iphdr(packet);
     
   } else {
     
-    iph = (struct pkt_iphdr_t *)packet;
+    //iph = (struct pkt_iphdr_t *)packet;
     
   }
 
+#if(0) // THIS shouldn't be here!
 #if defined(HAVE_NETFILTER_QUEUE) || defined(HAVE_NETFILTER_COOVA)
   if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
     iph->daddr  = iph->daddr & ~(_options.mask.s_addr);
@@ -871,6 +871,7 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
       return -1;
     }
   }
+#endif
 
   return c->this->cb_ind(c->this, pb, c->idx);
 }
@@ -1002,37 +1003,39 @@ int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 #endif
 }
 
-int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
+int tun_encaps(struct tun_t *tun, struct pkt_ctx *pctx, int idx) {
   int result;
 
-  if (_options.tcpwin)
-    pkt_shape_tcpwin(pkt_iphdr(pack), _options.tcpwin);
+  if (_options.tcpwin && pctx->ip4h)
+    pkt_shape_tcpwin(pctx->ip4h, _options.tcpwin);
 
-  if (_options.tcpmss)
-    pkt_shape_tcpmss(pack, &len);
+  if (_options.tcpmss && pctx->ip4h)
+    pkt_shape_tcpmss(pctx->pkt, &pctx->pkt_len);
 
 #ifdef ENABLE_MULTIROUTE
   if (idx > 0) {
-    struct pkt_iphdr_t *iph = pkt_iphdr(pack);
-    if ((iph->daddr & _options.mask.s_addr) == _options.net.s_addr ||
-	iph->daddr == dhcp->uamlisten.s_addr) {
-      log_dbg("Using route idx == 0 (tun/tap)");
-      idx = 0;
+    if (pctx->ip4h) {
+      if ((pctx->ip4h->daddr & _options.mask.s_addr) == _options.net.s_addr ||
+	  pctx->ip4h->daddr == dhcp->uamlisten.s_addr) {
+	log_dbg("Using route idx == 0 (tun/tap)");
+	idx = 0;
+      }
     }
   }
 
   if (_options.routeonetone && idx > 0) {
-    struct pkt_iphdr_t *iph = pkt_iphdr(pack);
-    if (!tun(tun, idx).nataddress.s_addr)
-      tun(tun, idx).nataddress.s_addr = iph->saddr;
-    iph->saddr = tun(tun, idx).address.s_addr;
-    chksum(iph);
+    if (pctx->ip4h) {
+      if (!tun(tun, idx).nataddress.s_addr)
+	tun(tun, idx).nataddress.s_addr = pctx->ip4h->saddr;
+      pctx->ip4h->saddr = tun(tun, idx).address.s_addr;
+      chksum(pctx->ip4h);
+    }
   }
 #endif
 
 #ifdef ENABLE_NETNAT
   if (idx > 0) {
-    if (nat_do(tun, idx, pack, len)) {
+    if (nat_do(tun, idx, pctx->pkt, pctx->pkt_len)) {
       log_err(0, "unable to nat packet!");
     }
   }
@@ -1040,20 +1043,19 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
 #if defined(HAVE_NETFILTER_QUEUE) || defined(HAVE_NETFILTER_COOVA)
   if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
-    struct pkt_iphdr_t *iph = pkt_iphdr(pack);
-
-    iph->saddr  = iph->saddr & ~(_options.mask.s_addr);
-    iph->saddr |= _options.uamlisten.s_addr & _options.mask.s_addr;
-
-    chksum(iph);
+    if (pctx->ip4h) {
+      pctx->ip4h->saddr  = pctx->ip4h->saddr & ~(_options.mask.s_addr);
+      pctx->ip4h->saddr |= _options.uamlisten.s_addr & _options.mask.s_addr;
+      chksum(pctx->ip4h);
+    }
   }
 #endif
 
   if (tun(tun, idx).flags & NET_ETHHDR) {
     uint8_t *gwaddr = _options.nexthop; /*tun(tun, idx).gwaddr;*/
-    struct pkt_ethhdr_t *ethh = (struct pkt_ethhdr_t *)pack;
+    struct pkt_ethhdr_t *ethh = pctx->ethh;
     /* memcpy(ethh->src, tun(tun, idx).hwaddr, PKT_ETH_ALEN); */
-
+    
     /*
      * TODO: When using ieee8021q, the vlan tag has to be stripped
      * off for the non-vlan WAN.
@@ -1085,19 +1087,19 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 #endif
     
   } else {
-    size_t ethlen = sizeofeth(pack);
-    pack += ethlen;
-    len  -= ethlen;
+    size_t ethlen = sizeofeth(pctx->pkt);
+    pctx->pkt += ethlen;
+    pctx->pkt_len -= ethlen;
   }
 
 #if(_debug_ > 1)
   log_dbg("tun_encaps(%s) len=%d", tun(tun,idx).devname, len);
 #endif
 
-  result = tun_write(tun, pack, len, idx);
+  result = tun_write(tun, pctx->pkt, pctx->pkt_len, idx);
 
   if (result < 0) {
-    log_err(errno, "tun_write(%d) = %d", len, result);
+    log_err(errno, "tun_write(%d) = %d", pctx->pkt_len, result);
   }
 
   return result;

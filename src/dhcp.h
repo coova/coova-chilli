@@ -257,7 +257,7 @@ struct dhcp_t {
   uint32_t num_pass_throughs;
 
   /* Call back functions */
-  int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
+  int (*cb_data_ind) (struct dhcp_conn_t *conn, struct pkt_ctx *pctx);
   int (*cb_eap_ind)  (struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
   int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr, uint8_t *pack, size_t len);
   int (*cb_connect) (struct dhcp_conn_t *conn);
@@ -304,7 +304,7 @@ int dhcp_receive(struct dhcp_t *this, int idx);
 #endif
 
 int dhcp_set_cb_data_ind(struct dhcp_t *this, 
-  int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len));
+  int (*cb_data_ind) (struct dhcp_conn_t *conn, struct pkt_ctx *pctx));
 
 int dhcp_set_cb_request(struct dhcp_t *this, 
   int (*cb_request) (struct dhcp_conn_t *conn, 

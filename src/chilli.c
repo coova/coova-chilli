@@ -5533,9 +5533,9 @@ int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
 }
 
 /* Callback for receiving messages from dhcp */
-int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
-  struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pkt_iphdr(pack), 0);
-  struct pkt_ipphdr_t *ipph = pkt_ipphdr(pack);
+int cb_dhcp_data_ind(struct dhcp_conn_t *conn, struct pkt_ctx *pctx) {
+  struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pctx->ip4h, 0);
+  struct pkt_ipphdr_t *ipph = (struct pkt_ipphdr_t *) pctx->ip4h;
 
   /*if (_options.debug)
     log_dbg("cb_dhcp_data_ind. Packet received. DHCP authstate: %d\n", 
@@ -5546,7 +5546,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     uint16_t win = appconn->s_state.bucketupsize - 
       appconn->s_state.bucketup;
     //log_dbg("window scaling to %d", win);
-    pkt_shape_tcpwin((struct pkt_iphdr_t *)ipph, win);
+    pkt_shape_tcpwin(pctx->ip4h, win);
   }
 #endif
 
@@ -5559,7 +5559,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
       addr.s_addr = ipph->saddr;
 
       if (!addr.s_addr) {
-	return tun_encaps(tun, pack, len, 0);
+	return tun_encaps(tun, pctx, 0);
       }
 
       if (ippool_getip(ippool, &ipm, &addr)) {
@@ -5624,13 +5624,13 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
        || ipph->dport == htons(_options.uamuiport)
 #endif
        )) {
-    return tun_encaps(tun, pack, len, 0);
+    return tun_encaps(tun, pctx, 0);
   }
   
   if (chilli_acct_fromsub(appconn, ipph))
     return 0;
   
-  return tun_encaps(tun, pack, len, appconn->s_params.routeidx);
+  return tun_encaps(tun, pctx, appconn->s_params.routeidx);
 }
 
 int chilli_acct_fromsub(struct app_conn_t *appconn, 

@@ -4050,9 +4050,9 @@ int redir_main(struct redir_t *redir,
 
 #ifdef ENABLE_REDIRDNSREQ
   if (_options.redirdnsreq && tun) {
+    struct pkt_ctx pctx;
+
     uint8_t answer[PKT_BUFFER];
-    
-    /*struct pkt_ethhdr_t *answer_ethh;*/
     struct pkt_iphdr_t  *answer_iph;
     struct pkt_udphdr_t *answer_udph;
     struct dns_packet_t *answer_dns;
@@ -4060,11 +4060,12 @@ int redir_main(struct redir_t *redir,
     uint8_t query[512];
     size_t query_len = 0;
     size_t udp_len = 0;
-    size_t length;
 
     char *host = httpreq.host;
     char *idx;
     int i;
+
+    memset(&pctx, 0, sizeof(pctx));
 
     do {
       idx = strchr(host, '.');
@@ -4086,10 +4087,11 @@ int redir_main(struct redir_t *redir,
     query[query_len++] = 1;
 
     memset(answer, 0, sizeof(answer));
+    pctx.pkt = answer;
     
-    /*answer_ethh = ethhdr(answer);*/
-    answer_iph = pkt_iphdr(answer);
-    answer_udph = pkt_udphdr(answer);
+    pctx.ethh = pkt_ethhdr(answer);
+    pctx.ip4h = answer_iph = pkt_iphdr(answer);
+    pctx.udph = answer_udph = pkt_udphdr(answer);
     answer_dns = pkt_dnspkt(answer);
 	
     /* DNS Header */
@@ -4130,9 +4132,9 @@ int redir_main(struct redir_t *redir,
     chksum(answer_iph);
     
     /* Calculate total length */
-    length = udp_len + sizeofip(answer);
+    pctx.pkt_len = udp_len + sizeofip(answer);
     
-    tun_encaps(tun, answer, length, 0);
+    tun_encaps(tun, &pctx, 0);
   }
 #endif
 
