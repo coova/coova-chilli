@@ -23,7 +23,7 @@ suid_programs =
 libchilli_la_SOURCES = \
 chilli.c tun.c ippool.c radius.c md5.c redir.c dhcp.c syserr.c \
 iphash.c lookup.c system.h util.c options.c statusfile.c conn.c sig.c \
-garden.c dns.c session.c pkt.c chksum.c net.c safe.c
+garden.c dns.c session.c pkt.c chksum.c net.c 
 
 AM_CFLAGS = -D_GNU_SOURCE -Wall -Werror -fno-builtin -fno-strict-aliasing \
   -O2 -fomit-frame-pointer -funroll-loops -pipe -I$(top_builddir)/bstring \

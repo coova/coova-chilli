@@ -265,31 +265,142 @@
 #define safe_snprintf portable_snprintf
 char *safe_strncpy(char *dst, const char *src, size_t size);
 
-int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr);
-int safe_select(int nfds, fd_set *readfds, fd_set *writefds,
-		fd_set *exceptfds, struct timeval *timeout);
+
+static inline int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr) {
+  int ret;
+  do {
+    ret = accept(fd, sa, lenptr);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+static inline int safe_select(int nfds, fd_set *readfds, fd_set *writefds,
+		fd_set *exceptfds, struct timeval *timeout) {
+  int ret;
+  do {
+    ret = select(nfds, readfds, writefds, exceptfds, timeout);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
 #ifdef USING_POLL
 #ifdef HAVE_SYS_EPOLL_H
-int safe_epoll_wait(int epfd, struct epoll_event *events,
-		    int maxevents, int timeout);
+static inline int safe_epoll_wait(int epfd, struct epoll_event *events,
+		    int maxevents, int timeout) {
+  int ret;
+  do {
+    ret = epoll_wait(epfd, events, maxevents, timeout);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
 #else
-int safe_poll(struct pollfd *fds, nfds_t nfds, int timeout);
+static inline int safe_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
+  int ret;
+  do {
+    ret = poll(fds, nfds, timeout);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
 #endif
 #endif
-int safe_connect(int s, struct sockaddr *sock, size_t len);
-int safe_write(int s, void *b, size_t blen);
-int safe_read(int s, void *b, size_t blen);
-int safe_recv(int s, void *b, size_t blen, int flags);
-int safe_send(int s, void *b, size_t blen, int flags);
-int safe_recvmsg(int sockfd, struct msghdr *msg, int flags);
-int safe_recvfrom(int sockfd, void *buf, size_t len, int flags,
-		  struct sockaddr *src_addr, socklen_t *addrlen);
-int safe_sendto(int s, const void *b, size_t blen, int flags,
-		const struct sockaddr *dest_addr, socklen_t addrlen);
-int safe_sendmsg(int sockfd, struct msghdr *msg, int flags);
-int safe_close (int fd);
-pid_t safe_fork();
 
+static inline int safe_connect(int s, struct sockaddr *sock, size_t len) {
+  int ret;
+  do {
+    ret = connect(s, sock, len);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+static inline int safe_read(int s, void *b, size_t blen) {
+  int ret;
+  do {
+    ret = read(s, b, blen);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+static inline int safe_write(int s, void *b, size_t blen) {
+  int ret;
+  do {
+    ret = write(s, b, blen);
+  } while (ret == -1 && errno == EINTR);
+#if(_debug_)
+  if (ret < 0)
+    log_err(errno, "write(%d, %d)", s, blen);
+#endif
+  return ret;
+}
+
+static inline int safe_recv(int sockfd, void *buf, size_t len, int flags) {
+  int ret;
+  do {
+    ret = recv(sockfd, buf, len, flags);
+  } while (ret == -1 && errno == EINTR);
+#if(_debug_)
+  if (ret < 0)
+    log_err(errno, "recv(%d, %d)", sockfd, len);
+#endif
+  return ret;
+}
+
+static inline int safe_send(int sockfd, void *buf, size_t len, int flags) {
+  int ret;
+  do {
+    ret = send(sockfd, buf, len, flags);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+static inline int safe_recvfrom(int sockfd, void *buf, size_t len, int flags,
+		  struct sockaddr *src_addr, socklen_t *addrlen) {
+  int ret;
+  do {
+    ret = recvfrom(sockfd, buf, len, flags, src_addr, addrlen);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+static inline int safe_recvmsg(int sockfd, struct msghdr *msg, int flags) {
+  int ret;
+  do {
+    ret = recvmsg(sockfd, msg, flags);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+static inline int safe_sendmsg(int sockfd, struct msghdr *msg, int flags) {
+  int ret;
+  do {
+    ret = sendmsg(sockfd, msg, flags);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+static inline int safe_sendto(int s, const void *b, size_t blen, int flags,
+		const struct sockaddr *dest_addr, socklen_t addrlen) {
+  int ret;
+  do {
+    ret = sendto(s, b, blen, flags, dest_addr, addrlen);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+static inline int safe_close (int fd) {
+  int ret;
+  do {
+    ret = close(fd);
+  } while (ret == -1 && errno == EINTR);
+  return ret;
+}
+
+static inline pid_t safe_fork() {
+  pid_t pid;
+  do {
+    pid = fork();
+  } while (pid == -1 && errno == EINTR);
+  return pid;
+}
 
 #ifndef TEMP_FAILURE_RETRY
 #define TEMP_FAILURE_RETRY(expression) \
