@@ -2432,8 +2432,10 @@ int dhcp_garden_check_auth(struct dhcp_t *this,
       break;
 #endif
     }
+#ifdef HAVE_PATRICIA
   }
-    
+#endif
+
   return found;
 }
 #endif
