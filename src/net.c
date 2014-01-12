@@ -1132,6 +1132,48 @@ int net_getip6(char *dev, struct in6_addr *addr) {
   }
   return ret;
 }
+
+uint8_t
+mask2prefixlen(struct sockaddr_in6 *sa_in6)
+{
+  uint8_t l = 0, *ap, *ep;
+  ap = (uint8_t *)&sa_in6->sin6_addr;
+  ep = (uint8_t *)sa_in6 + sizeof(struct in6_addr);
+  for (; ap < ep; ap++) {
+    switch (*ap) {
+    case 0xff:
+      l += 8;
+      break;
+    case 0xfe:
+      l += 7;
+      return (l);
+    case 0xfc:
+      l += 6;
+      return (l);
+    case 0xf8:
+      l += 5;
+      return (l);
+    case 0xf0:
+      l += 4;
+      return (l);
+    case 0xe0:
+      l += 3;
+      return (l);
+    case 0xc0:
+      l += 2;
+      return (l);
+    case 0x80:
+      l += 1;
+      return (l);
+    case 0x00:
+      return (l);
+    default:
+      log_dbg("non contiguous inet6 netmask");
+    }
+  }
+  
+  return (l);
+}
 #endif
 
 #if defined(USING_PCAP)

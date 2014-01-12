@@ -109,7 +109,7 @@ int ippool_print(int fd, struct ippool_t *this) {
     safe_snprintf(line, sizeof(line), 
 		  "Unit %3d : %7s : %15s :%s%s\n", 
 		  n, useLine,
-		  inet_ntoa(this->member[n].addr),	
+		  inet_ntoa(this->member[n].a.addr),	
 		  this->member[n].is_static ? " static" : "",
 		  peerLine
 		  );
@@ -145,7 +145,7 @@ int ippool_hashadd(struct ippool_t *this, struct ippoolm_t *member) {
   struct ippoolm_t *p_prev = NULL; 
 
   /* Insert into hash table */
-  hash = ippool_hash4(&member->addr) & this->hashmask;
+  hash = ippool_hash4(&member->a.addr) & this->hashmask;
 
   for (p = this->hash[hash]; p; p = p->nexthash)
     p_prev = p;
@@ -158,13 +158,34 @@ int ippool_hashadd(struct ippool_t *this, struct ippoolm_t *member) {
   return 0; /* Always OK to insert */
 }
 
+#ifdef ENABLE_IPV6
+int ip6pool_hashadd(struct ip6pool_t *this, struct ippoolm_t *member) {
+  uint32_t hash;
+  struct ippoolm_t *p;
+  struct ippoolm_t *p_prev = NULL; 
+
+  /* Insert into hash table */
+  hash = ip6pool_hash(&member->a.addr6) & this->hashmask;
+
+  for (p = this->hash[hash]; p; p = p->nexthash)
+    p_prev = p;
+
+  if (!p_prev)
+    this->hash[hash] = member;
+  else 
+    p_prev->nexthash = member;
+
+  return 0; /* Always OK to insert */
+}
+#endif
+
 int ippool_hashdel(struct ippool_t *this, struct ippoolm_t *member) {
   uint32_t hash;
   struct ippoolm_t *p;
   struct ippoolm_t *p_prev = NULL; 
 
   /* Find in hash table */
-  hash = ippool_hash4(&member->addr) & this->hashmask;
+  hash = ippool_hash4(&member->a.addr) & this->hashmask;
   for (p = this->hash[hash]; p; p = p->nexthash) {
     if (p == member) {
       break;
@@ -185,13 +206,42 @@ int ippool_hashdel(struct ippool_t *this, struct ippoolm_t *member) {
   return 0;
 }
 
+#ifdef ENABLE_IPV6
+int ip6pool_hashdel(struct ip6pool_t *this, struct ippoolm_t *member) {
+  uint32_t hash;
+  struct ippoolm_t *p;
+  struct ippoolm_t *p_prev = NULL; 
+
+  /* Find in hash table */
+  hash = ip6pool_hash(&member->a.addr6) & this->hashmask;
+  for (p = this->hash[hash]; p; p = p->nexthash) {
+    if (p == member) {
+      break;
+    }
+    p_prev = p;
+  }
+
+  if (p != member) {
+    log_err(0, "ip6pool_hashdel: Tried to delete member not in hash table");
+    return -1;
+  }
+
+  if (!p_prev)
+    this->hash[hash] = p->nexthash;
+  else
+    p_prev->nexthash = p->nexthash;
+
+  return 0;
+}
+#endif
+
 uint32_t ippool_hash4(struct in_addr *addr) {
   return lookup((unsigned char *)&addr->s_addr, sizeof(addr->s_addr), 0);
 }
 
-#ifndef IPPOOL_NOIP6
-uint32_t ippool_hash6(struct in6_addr *addr) {
-  return lookup((unsigned char *)addr->u6_addr8, sizeof(addr->u6_addr8), 0);
+#ifdef ENABLE_IPV6
+uint32_t ip6pool_hash(struct in6_addr *addr) {
+  return lookup((unsigned char *)addr->s6_addr, sizeof(addr->s6_addr), 0);
 }
 #endif
 
@@ -363,7 +413,7 @@ int ippool_new(struct ippool_t **this,
       naddr.s_addr = htonl(ntohl(addr.s_addr) + i + start);
     }
 
-    (*this)->member[i].addr.s_addr = naddr.s_addr;
+    (*this)->member[i].a.addr.s_addr = naddr.s_addr;
     (*this)->member[i].in_use = 0;
     (*this)->member[i].is_static = 0;
 
@@ -384,7 +434,7 @@ int ippool_new(struct ippool_t **this,
   (*this)->firststat = NULL;
   (*this)->laststat = NULL;
   for (i = dynsize; i < listsize; i++) {
-    (*this)->member[i].addr.s_addr = 0;
+    (*this)->member[i].a.addr.s_addr = 0;
     (*this)->member[i].in_use = 0;
     (*this)->member[i].is_static = 1;
 
@@ -408,6 +458,31 @@ int ippool_new(struct ippool_t **this,
   return 0;
 }
 
+#ifdef ENABLE_IPV6
+int ip6pool_new(struct ip6pool_t **this, int hashsize) {
+  if (!(*this = calloc(sizeof(struct ip6pool_t), 1))) {
+    log_err(0, "Failed to allocate memory for ippool");
+    return -1;
+  }
+
+  for ((*this)->hashlog = 0; 
+       ((1 << (*this)->hashlog) < hashsize);
+       (*this)->hashlog++);
+
+  log_dbg("Hashlog %d %d %d", (*this)->hashlog, hashsize, 
+	  (1 << (*this)->hashlog));
+
+  (*this)->hashsize = 1 << (*this)->hashlog;
+  (*this)->hashmask = (*this)->hashsize -1;
+
+  if (!((*this)->hash = calloc(sizeof(struct ippoolm_t *), hashsize))) {
+    log_err(0, "Failed to allocate memory for hash members in ip6pool");
+    return -1;
+  }
+
+  return 0;
+}
+#endif
 
 /* Delete existing address pool */
 int ippool_free(struct ippool_t *this) {
@@ -416,6 +491,14 @@ int ippool_free(struct ippool_t *this) {
   free(this);
   return 0; /* Always OK */
 }
+
+#ifdef ENABLE_IPV6
+int ip6pool_free(struct ip6pool_t *this) {
+  free(this->hash);
+  free(this);
+  return 0; /* Always OK */
+}
+#endif
 
 /* Find an IP address in the pool */
 int ippool_getip(struct ippool_t *this, 
@@ -427,7 +510,7 @@ int ippool_getip(struct ippool_t *this,
   /* Find in hash table */
   hash = ippool_hash4(addr) & this->hashmask;
   for (p = this->hash[hash]; p; p = p->nexthash) {
-    if ((p->addr.s_addr == addr->s_addr) && (p->in_use)) {
+    if ((p->a.addr.s_addr == addr->s_addr) && (p->in_use)) {
       if (member) *member = p;
       return 0;
     }
@@ -436,6 +519,27 @@ int ippool_getip(struct ippool_t *this,
   if (member) *member = NULL;
   return -1;
 }
+
+#ifdef ENABLE_IPV6
+int ip6pool_getip(struct ip6pool_t *this, 
+		  struct ippoolm_t **member,
+		  struct in6_addr *addr) {
+  struct ippoolm_t *p;
+  uint32_t hash;
+
+  /* Find in hash table */
+  hash = ip6pool_hash(addr) & this->hashmask;
+  for (p = this->hash[hash]; p; p = p->nexthash) {
+    if (!memcpy(&p->a.addr6, addr, sizeof(*addr)) && p->in_use) {
+      if (member) *member = p;
+      return 0;
+    }
+  }
+  
+  if (member) *member = NULL;
+  return -1;
+}
+#endif
 
 /**
  * ippool_newip
@@ -501,7 +605,7 @@ int ippool_newip(struct ippool_t *this,
     /* Find in hash table */
     hash = ippool_hash4(addr) & this->hashmask;
     for (p = this->hash[hash]; p; p = p->nexthash) {
-      if ((p->addr.s_addr == addr->s_addr)) {
+      if ((p->a.addr.s_addr == addr->s_addr)) {
 	p2 = p;
 	break;
       }
@@ -512,7 +616,7 @@ int ippool_newip(struct ippool_t *this,
   /* if anyip is set and statip return the same ip */
   if (statip && _options.uamanyip && p2 && p2->is_static) {
     log_dbg("Found already allocated static ip %s", 
-	    inet_ntoa(p2->addr));
+	    inet_ntoa(p2->a.addr));
     *member = p2;
     return 0;
   }
@@ -615,7 +719,7 @@ int ippool_newip(struct ippool_t *this,
     p2->prev = NULL;
     p2->in_use = 1; 
 
-    p2->addr.s_addr = addr->s_addr;
+    p2->a.addr.s_addr = addr->s_addr;
 
     *member = p2;
 
@@ -634,6 +738,29 @@ int ippool_newip(struct ippool_t *this,
   return -1; 
 }
 
+#ifdef ENABLE_IPV6
+int ip6pool_newip(struct ip6pool_t *this, 
+		  struct ippoolm_t **member,
+		  struct in6_addr *addr) {
+  struct ippoolm_t *p;
+
+#if(_debug_)
+  if (_options.debug) {
+    char fmt[1024];
+    inet_ntop(AF_INET6, addr, fmt, sizeof(fmt));
+    log_dbg("Requesting new ipv6: %s", fmt);
+  }
+#endif
+
+  p = (struct ippoolm_t *)calloc(sizeof(*p), 1);
+  p->in_use = 1;
+  memcpy(&p->a.addr6, addr, sizeof(*addr));
+  
+  *member = p;
+  ip6pool_hashadd(this, *member);
+  return 0; 
+}
+#endif
 
 int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
   
@@ -664,7 +791,7 @@ int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
     this->laststat = member;
     
     member->in_use = 0;
-    member->addr.s_addr = 0;
+    member->a.addr.s_addr = 0;
     member->peer = NULL;
     member->nexthash = NULL;
 
@@ -693,9 +820,3 @@ int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
   return 0;
 }
 
-
-#ifndef IPPOOL_NOIP6
-extern uint32_t ippool_hash6(struct in6_addr *addr);
-extern int ippool_getip6(struct ippool_t *this, struct in6_addr *addr);
-extern int ippool_returnip6(struct ippool_t *this, struct in6_addr *addr);
-#endif

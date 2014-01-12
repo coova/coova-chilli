@@ -243,7 +243,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 #endif
 
 #ifdef ENABLE_IPV6
-    if (_options.ipv6) {
+    if (_options.ipv6 && _options.ipv6to4) {
       if (isReq && type == 28) {
 	log_dbg("changing AAAA to A request");
 	us = 1;

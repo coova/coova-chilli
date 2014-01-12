@@ -70,6 +70,10 @@ struct options_t {
 #endif
 
 #ifdef ENABLE_IPV6
+  enum {
+    UNDEFINED=0,
+    HAS_PREFIX,
+  } ipv6_mode;
   struct in6_addr dns1_v6;
   struct in6_addr dns2_v6;
   struct in6_addr v6prefix;

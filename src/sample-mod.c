@@ -90,7 +90,7 @@ static int module_session_stop(struct app_conn_t *appconn) {
 
 static int module_dns_handler (struct app_conn_t *appconn, 
 			       struct dhcp_conn_t *dhcpconn,
-			       uint8_t *pack, size_t *plen, int isReq) {
+			       struct pkt_ctx *pctx, int isReq) {
   log_dbg("%s", __FUNCTION__);
   return CHILLI_DNS_OK;
 }

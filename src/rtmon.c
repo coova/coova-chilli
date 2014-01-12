@@ -308,7 +308,6 @@ void rtmon_print_ifaces(struct rtmon_t *rtmon, int fd) {
   safe_write(fd, line, strlen(line));
   
   for (i=0; i < rtmon->_iface_sz; i++) {
-
     if (rtmon->_ifaces[i].has_data) {
       unsigned char *u = rtmon->_ifaces[i].hwaddr;
 
@@ -343,6 +342,25 @@ void rtmon_print_ifaces(struct rtmon_t *rtmon, int fd) {
 
       safe_snprintf(line,512," mtu=%u\n",  rtmon->_ifaces[i].mtu);
       safe_write(fd, line, strlen(line));
+
+#ifdef ENABLE_IPV6
+      if (rtmon->_ifaces[i].ipv6_cnt) {
+	char host[128];
+	int j;
+	
+	safe_snprintf(line,512,"   IPv6:");
+	safe_write(fd, line, strlen(line));
+	for (j = 0; j < rtmon->_ifaces[i].ipv6_cnt; j++) {
+	  inet_ntop(AF_INET6, &rtmon->_ifaces[i].address_v6[j],
+		    host, sizeof(host));
+	  safe_snprintf(line,512," %s/%d", host, 
+			rtmon->_ifaces[i].v6prefix[j]);
+	  safe_write(fd, line, strlen(line));
+	}
+	safe_snprintf(line,512,"\n");
+	safe_write(fd, line, strlen(line));
+      }
+#endif
     }
   }
 }
@@ -454,27 +472,24 @@ void rtmon_check_updates(struct rtmon_t *rtmon) {
   }
 }
 
-static int rtmon_add_iface(struct rtmon_t *rtmon, struct rtmon_iface *ri) {
+static struct rtmon_iface *
+rtmon_get_iface(struct rtmon_t *rtmon, char *devname, char create) {
   int sz = rtmon->_iface_sz;
   struct rtmon_iface *dst = 0;
   int i;
-
-  ri->has_data = 1 | RTMON_REMOVE;
-
+  
   for (i=0; i < sz; i++) {
-    log_dbg("i=%d sz=%d",i,sz);
-    if (!memcmp(&rtmon->_ifaces[i], ri, sizeof(struct rtmon_iface))) {
-      rtmon->_ifaces[i].has_data = 1;
-      log_dbg("Already have this iface %s", ri->devname);
-      return 0;
+    log_dbg("%s i=%d sz=%d", __FUNCTION__, i, sz);
+    if (!strcmp(rtmon->_ifaces[i].devname, devname)) {
+      log_dbg("Found iface %s", devname);
+      return &rtmon->_ifaces[i];
     }
     if (!dst && !rtmon->_ifaces[i].has_data) {
       dst = &rtmon->_ifaces[i];
     }
   }
 
-  if (!dst) {
-
+  if (create && !dst) {
     if (sz) {
       rtmon->_ifaces = 
 	(struct rtmon_iface *)realloc(rtmon->_ifaces, 
@@ -484,25 +499,27 @@ static int rtmon_add_iface(struct rtmon_t *rtmon, struct rtmon_iface *ri) {
       dst = rtmon->_ifaces = 
 	(struct rtmon_iface *)malloc(sizeof(struct rtmon_iface));
     }
-
+    memset(dst, 0, sizeof(struct rtmon_iface));
+    safe_strncpy(dst->devname, devname, sizeof(dst->devname));
     rtmon->_iface_sz++;
   }
-
-  if (!dst) return -1;
-
-  ri->has_data = 1;
-  memcpy(dst, ri, sizeof(struct rtmon_iface));
-  return 0;
+  
+  return dst;
 }
 
 void rtmon_discover_ifaces(struct rtmon_t *rtmon) {
-  struct rtmon_iface ri;
+  struct rtmon_iface *ri;
   struct ifconf ic;
   int fd, len, i;
 
-  for (i=0; i < rtmon->_iface_sz; i++)
-    if (rtmon->_ifaces[i].has_data)
+  for (i=0; i < rtmon->_iface_sz; i++) {
+    if (rtmon->_ifaces[i].has_data) {
       rtmon->_ifaces[i].has_data |= RTMON_REMOVE;
+    }
+#ifdef ENABLE_IPV6
+    rtmon->_ifaces[i].ipv6_cnt = 0;
+#endif
+  }
   
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     return;
@@ -528,23 +545,26 @@ void rtmon_discover_ifaces(struct rtmon_t *rtmon) {
   for (i=0; i < len; ++i) {
     struct ifreq *ifr = (struct ifreq *)&ic.ifc_req[i];
 
-    memset(&ri, 0, sizeof(ri));
-    
     /* device name and address */
-    safe_strncpy(ri.devname, ifr->ifr_name, sizeof(ri.devname));
-    ri.address = inaddr(ifr_addr);
+
+    ri = rtmon_get_iface(rtmon, ifr->ifr_name, 1);
+    if (!ri) continue;
+
+    ri->address = inaddr(ifr_addr);
     
+    log_dbg("INTERFACE %s", ri->devname);
+
     /* index */
     if (-1 < ioctl(fd, SIOCGIFINDEX, (caddr_t) ifr)) {
-      ri.index = ifr->ifr_ifindex;
+      ri->index = ifr->ifr_ifindex;
     }
     
     /* netmask */
     if (-1 < ioctl(fd, SIOCGIFNETMASK, (caddr_t)ifr)) {
-      ri.netmask = inaddr(ifr_addr);
+      ri->netmask = inaddr(ifr_addr);
     } 
     
-    ri.network.s_addr = ri.address.s_addr & ri.netmask.s_addr;
+    ri->network.s_addr = ri->address.s_addr & ri->netmask.s_addr;
     
     /* hardware address */
 #ifdef SIOCGIFHWADDR
@@ -558,7 +578,7 @@ void rtmon_discover_ifaces(struct rtmon_t *rtmon) {
       case  ARPHRD_IEEE802: 
 	{
 	  unsigned char *u = (unsigned char *)&ifr->ifr_addr.sa_data;
-	  memcpy(ri.hwaddr, u, 6);
+	  memcpy(ri->hwaddr, u, 6);
 	}
 	break;
       }
@@ -567,7 +587,7 @@ void rtmon_discover_ifaces(struct rtmon_t *rtmon) {
 #ifdef SIOCGENADDR
     if (-1 < ioctl(fd, SIOCGENADDR, (caddr_t)ifr)) {
       unsigned char *u = (unsigned char *)&ifr->ifr_enaddr;
-      memcpy(ri.hwaddr, u, 6);
+      memcpy(ri->hwaddr, u, 6);
     } 
 #else
 #warning Do not know how to find interface hardware address
@@ -577,30 +597,57 @@ void rtmon_discover_ifaces(struct rtmon_t *rtmon) {
     
     /* flags */
     if (-1 < ioctl(fd, SIOCGIFFLAGS, (caddr_t)ifr)) {
-      ri.devflags = ifr->ifr_flags;
+      ri->devflags = ifr->ifr_flags;
     } 
     
     /* point-to-point gateway */
-    if (ri.devflags & IFF_POINTOPOINT) {
+    if (ri->devflags & IFF_POINTOPOINT) {
       if (-1 < ioctl(fd, SIOCGIFDSTADDR, (caddr_t)ifr)) {
-	ri.gateway = inaddr(ifr_addr);
+	ri->gateway = inaddr(ifr_addr);
       } 
     }
     
     /* broadcast address */
-    if (ri.devflags & IFF_BROADCAST) {
+    if (ri->devflags & IFF_BROADCAST) {
       if (-1 < ioctl(fd, SIOCGIFBRDADDR, (caddr_t)ifr)) {
-	ri.broadcast = inaddr(ifr_addr);
+	ri->broadcast = inaddr(ifr_addr);
       } 
     }
     
     if (-1 < ioctl(fd, SIOCGIFMTU, (caddr_t)ifr)) {
-      ri.mtu = ifr->ifr_mtu;
+      ri->mtu = ifr->ifr_mtu;
     } 
 
-    rtmon_add_iface(rtmon, &ri);
+    ri->has_data = 1;
   }
 
+#ifdef ENABLE_IPV6
+  if (_options.ipv6) {
+    struct ifaddrs *ifaddr, *ifa;
+    int family;
+    if (getifaddrs(&ifaddr) == 0) {
+      for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
+	if (!ifa->ifa_addr) continue;
+	family = ifa->ifa_addr->sa_family;
+	if (family == AF_INET6) {
+	  ri = rtmon_get_iface(rtmon, ifa->ifa_name, 1);
+	  if (!ri) continue;
+	  ri->has_data = 1;
+	  if (ri->ipv6_cnt < MAX_IPv6_ADDRESSES) {
+	    struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+	    struct sockaddr_in6 *mask6 = (struct sockaddr_in6 *)ifa->ifa_netmask;
+	    memcpy(&ri->address_v6[ri->ipv6_cnt], &in6->sin6_addr, 
+		   sizeof(struct in6_addr));
+	    ri->v6prefix[ri->ipv6_cnt] = mask2prefixlen(mask6);
+	    ri->ipv6_cnt++;
+	  }
+	}
+      }
+      freeifaddrs(ifaddr);
+    }
+  }
+#endif
+  
   for (i=0; i < rtmon->_iface_sz; i++) {
     if (rtmon->_ifaces[i].has_data & RTMON_REMOVE) {
       tun_delif(tun, rtmon->_ifaces[i].index);

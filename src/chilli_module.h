@@ -65,7 +65,7 @@ struct chilli_module {
 #define CHILLI_DNS_MOD    2
 #define CHILLI_DNS_NAK    3
   int (* dns_handler) 
-  (struct app_conn_t *, struct dhcp_conn_t *, uint8_t *, size_t *, int);
+  (struct app_conn_t *, struct dhcp_conn_t *, struct pkt_ctx *, int);
 
 #define CHILLI_RADIUS_ERR  -1
 #define CHILLI_RADIUS_OK    0

@@ -197,7 +197,7 @@ int loadstatus() {
 #endif
 	      
 	      dhcp_set_addrs(conn, 
-			     &newipm->addr, &_options.mask, 
+			     &newipm->a.addr, &_options.mask, 
 			     &aconn->ourip, &aconn->mask,
 			     &_options.dns1, &_options.dns2);
 	    }
@@ -288,7 +288,7 @@ int loadstatus() {
 #endif
 	      
 	      dhcp_set_addrs(conn, 
-			     &newipm->addr, &_options.mask, 
+			     &newipm->a.addr, &_options.mask, 
 			     &aconn->ourip, &aconn->mask,
 			     &_options.dns1, &_options.dns2);
 	    }

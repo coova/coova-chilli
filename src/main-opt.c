@@ -448,9 +448,24 @@ int main(int argc, char **argv) {
       _options.ipv6 = 0;
     }
   }
+
   log_dbg("IPv6 %sabled %s", 
 	  _options.ipv6 ? "en" : "dis", 
 	  args_info.ipv6mode_arg ? args_info.ipv6mode_arg : "");
+
+  if (args_info.ipv6dns1_arg)
+    if (inet_pton(AF_INET6, args_info.ipv6dns1_arg, &_options.dns1_v6) != 1)
+      log_warn(0, "ipv6dns1: bad ipv6 address %s", args_info.ipv6dns1_arg);
+  if (args_info.ipv6dns2_arg)
+    if (inet_pton(AF_INET6, args_info.ipv6dns2_arg, &_options.dns2_v6) != 1)
+      log_warn(0, "ipv6dns2: bad ipv6 address %s", args_info.ipv6dns2_arg);
+  if (args_info.ipv6prefix_arg) {
+    if (inet_pton(AF_INET6, args_info.ipv6prefix_arg, &_options.v6prefix) != 1) {
+      log_warn(0, "ipv6prefix: bad ipv6 address %s", args_info.ipv6prefix_arg);
+    } else {
+      _options.ipv6_mode = HAS_PREFIX;
+    }
+  }
 #endif
 
 #ifdef ENABLE_LEAKYBUCKET

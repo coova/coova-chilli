@@ -142,4 +142,6 @@
 #endif
 #endif
 
+#define MAX_IPv6_ADDRESSES 4
+
 #endif

@@ -41,6 +41,13 @@ struct rtmon_iface {
   struct in_addr broadcast;
   struct in_addr gateway;
 
+#ifdef ENABLE_IPV6
+  struct in6_addr address_v6[MAX_IPv6_ADDRESSES];
+  uint8_t v6prefix[MAX_IPv6_ADDRESSES];
+  struct in6_addr dns_v6[2];
+  uint8_t ipv6_cnt;
+#endif
+
   char has_data;
 };
 

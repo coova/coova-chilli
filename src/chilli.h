@@ -152,6 +152,11 @@ struct app_conn_t {
   struct in_addr dns1;
   struct in_addr dns2;
 
+#ifdef ENABLE_IPV6
+  struct in6_addr hisip_v6[MAX_IPv6_ADDRESSES];
+  struct in6_addr dns_v6[2];
+#endif
+
 #if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
   struct list_entity loc_sess;
   struct loc_search_t *loc_search_node;

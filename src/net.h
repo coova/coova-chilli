@@ -203,7 +203,9 @@ typedef struct _net_interface {
   struct in_addr gateway;
 
 #ifdef ENABLE_IPV6
-  struct in6_addr address_v6;
+  struct in6_addr address_v6[MAX_IPv6_ADDRESSES];
+  uint8_t v6prefix[MAX_IPv6_ADDRESSES];
+  uint8_t ipv6_cnt;
 #endif
 
 #ifdef ENABLE_MULTIROUTE
@@ -310,6 +312,7 @@ int net_select_dereg(select_ctx *sctx, int oldfd);
 int net_getip(char *dev, struct in_addr *addr);
 #ifdef ENABLE_IPV6
 int net_getip6(char *dev, struct in6_addr *addr);
+uint8_t mask2prefixlen(struct sockaddr_in6 *sa_in6);
 #endif
 
 int net_getmac(const char *ifname, char *macaddr);

@@ -36,8 +36,6 @@
    in RFC2373.
 */
 
-#define IPPOOL_NOIP6
-
 #include "system.h"
 #include "lookup.h"
 
@@ -62,12 +60,24 @@ struct ippool_t {
   struct ippoolm_t *laststat;    /* Pointer to last free static member */
 };
 
-struct ippoolm_t {
-#ifndef IPPOOL_NOIP6
-  struct in6_addr addr;          /* IP address of this member */
-#else
-  struct in_addr addr;           /* IP address of this member */
+#ifdef ENABLE_IPV6
+struct ip6pool_t {
+  int hashsize;                  /* Size of hash table */
+  int hashlog;                   /* Log2 size of hash table */
+  int hashmask;                  /* Bitmask for calculating hash */
+  struct ippoolm_t **hash;       /* Hashsize array of pointer to member */
+  struct ippoolm_t *first;       /* Pointer to first free dynamic member */
+  struct ippoolm_t *last;        /* Pointer to last free dynamic member */
+};
 #endif
+
+struct ippoolm_t {
+  union {
+#ifdef ENABLE_IPV6
+    struct in6_addr addr6;         /* IP address of this member */
+#endif
+    struct in_addr addr;           /* IP address of this member */
+  } a;
   char in_use;                   /* 0=available; 1= used */
   char is_static;                /* 0= dynamic; 1 = static */
   struct ippoolm_t *nexthash;    /* Linked list part of hash table */
@@ -80,40 +90,50 @@ struct ippoolm_t {
    bytes for each address. */
 
 /* Hash an IP address using code based on Bob Jenkins lookupa */
-extern uint32_t ippool_hash4(struct in_addr *addr);
+uint32_t ippool_hash4(struct in_addr *addr);
 
 /* Create new address pool */
-extern int ippool_new(struct ippool_t **this, 
-		      char *dyn, int start, int end, 
-		      char *stat, int allowdyn, int allowstat);
+int ippool_new(struct ippool_t **this, 
+	       char *dyn, int start, int end, 
+	       char *stat, int allowdyn, int allowstat);
 
 /* Delete existing address pool */
-extern int ippool_free(struct ippool_t *this);
+int ippool_free(struct ippool_t *this);
 
 /* Find an IP address in the pool */
-extern int ippool_getip(struct ippool_t *this, struct ippoolm_t **member,
+int ippool_getip(struct ippool_t *this, struct ippoolm_t **member,
 		 struct in_addr *addr);
 
 /* Get an IP address. If addr = 0.0.0.0 get a dynamic IP address. Otherwise
    check to see if the given address is available */
-extern int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
-			struct in_addr *addr, int statip);
+int ippool_newip(struct ippool_t *this, struct ippoolm_t **member,
+		 struct in_addr *addr, int statip);
 
 /* Return a previously allocated IP address */
-extern int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member);
+int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member);
 
 /* Get net and mask based on ascii string */
-extern int ippool_aton(struct in_addr *addr, struct in_addr *mask,
-		       char *pool, int number);
+int ippool_aton(struct in_addr *addr, struct in_addr *mask,
+		char *pool, int number);
 
 int ippool_hashadd(struct ippool_t *this, struct ippoolm_t *member);
 
 int ippool_print(int fd, struct ippool_t *this);
 
-#ifndef IPPOOL_NOIP6
-extern uint32_t ippool_hash6(struct in6_addr *addr);
-extern int ippool_getip6(struct ippool_t *this, struct in6_addr *addr);
-extern int ippool_returnip6(struct ippool_t *this, struct in6_addr *addr);
+#ifdef ENABLE_IPV6
+int ip6pool_new(struct ip6pool_t **this, int listsize);
+
+uint32_t ip6pool_hash(struct in6_addr *addr);
+
+int ip6pool_getip(struct ip6pool_t *this, 
+		  struct ippoolm_t **member,
+		  struct in6_addr *addr);
+
+int ip6pool_newip(struct ip6pool_t *this, 
+		  struct ippoolm_t **member,
+		  struct in6_addr *addr);
+
+int ip6pool_free(struct ip6pool_t *this);
 #endif
 
 #endif	/* !_IPPOOL_H */

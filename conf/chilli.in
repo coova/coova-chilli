@@ -56,6 +56,7 @@ case $1 in
 
         /sbin/modprobe tun >/dev/null 2>&1
         echo 1 > /proc/sys/net/ipv4/ip_forward
+	sysctl -w net.ipv6.conf.all.forwarding=1
 
 	[ -e /dev/net/tun ] || {
 	    (cd /dev; 

@@ -27,6 +27,9 @@
 
 struct tun_t *tun;                /* TUN instance            */
 struct ippool_t *ippool;          /* Pool of IP addresses */
+#ifdef ENABLE_IPV6
+struct ip6pool_t *ip6pool;        /* Pool of IPv6 addresses */
+#endif
 struct radius_t *radius;          /* Radius client instance */
 struct dhcp_t *dhcp = NULL;       /* DHCP instance */
 struct redir_t *redir = NULL;     /* Redir instance */
@@ -2072,7 +2075,7 @@ int chilli_assign_snat(struct app_conn_t *appconn, int force) {
     return -1;
   }
   
-  appconn->natip.s_addr = newipm->addr.s_addr;
+  appconn->natip.s_addr = newipm->a.addr.s_addr;
   newipm->peer = appconn;
   
   log_dbg("SNAT IP %s assigned", inet_ntoa(appconn->natip));
@@ -2509,7 +2512,8 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
 
     switch (prot) {
     case PKT_ETH_PROTO_IPv6:
-      return 0;
+      dhcp_data_req((struct dhcp_conn_t *)appconn->dnlink, pb, ethhdr);
+      break;
 
     case PKT_ETH_PROTO_IP:
       break;
@@ -2673,7 +2677,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
   
   dst.s_addr = ipph->daddr;
 
-#if(_debug_ > 1)
+#if(_debug_)
   log_dbg("sending to : %s", inet_ntoa(dst));
 #endif
   
@@ -3739,8 +3743,8 @@ session_disconnect(struct app_conn_t *appconn,
 	  struct in_addr mask;
 	  int res;
 	  mask.s_addr = 0xffffffff;
-	  res = net_del_route(&member->addr, &appconn->ourip, &mask);
-	  log_dbg("Removing route: %s %d", inet_ntoa(member->addr), res);
+	  res = net_del_route(&member->a.addr, &appconn->ourip, &mask);
+	  log_dbg("Removing route: %s %d", inet_ntoa(member->a.addr), res);
 	}
       } else {
 	struct ippoolm_t *natipm;
@@ -3757,7 +3761,7 @@ session_disconnect(struct app_conn_t *appconn,
     if (member->in_use && (!dhcpconn || !dhcpconn->is_reserved)) {
       if (ippool_freeip(ippool, member)) {
 	log_err(0, "ippool_freeip(%s) failed!", 
-		inet_ntoa(member->addr));
+		inet_ntoa(member->a.addr));
       }
     }
     
@@ -3832,7 +3836,7 @@ upprot_getip(struct app_conn_t *appconn,
     if (newip(&ipm, hisip, dhcpconn ? dhcpconn->hismac : 0))
       return dnprot_reject(appconn);
 
-    appconn->hisip.s_addr = ipm->addr.s_addr;
+    appconn->hisip.s_addr = ipm->a.addr.s_addr;
     
     if (hismask && hismask->s_addr)
       appconn->hismask.s_addr = hismask->s_addr;
@@ -4463,11 +4467,11 @@ int cb_radius_auth_conf(struct radius_t *radius,
 	/*
 	 *  Force the assigment of an IP address. 
 	 */
-	if (ipm->addr.s_addr != hisip.s_addr) {
+	if (ipm->a.addr.s_addr != hisip.s_addr) {
 	  uint8_t hwaddr[sizeof(dhcpconn->hismac)];
 	  memcpy(hwaddr, dhcpconn->hismac, sizeof(hwaddr));
 	  
-	  log_dbg("Old ip address freed %s", inet_ntoa(ipm->addr));
+	  log_dbg("Old ip address freed %s", inet_ntoa(ipm->a.addr));
 	  log_dbg("Resetting ip address to %s", inet_ntoa(hisip));
 	  
 	  dhcp_freeconn(dhcpconn, 0);
@@ -5015,7 +5019,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
       return -1;
     }
     
-    appconn->hisip.s_addr = ipm->addr.s_addr;
+    appconn->hisip.s_addr = ipm->a.addr.s_addr;
     appconn->hismask.s_addr = _options.mask.s_addr;
     
     log(LOG_NOTICE, "Client MAC="MAC_FMT" assigned IP %s" , 
@@ -5057,7 +5061,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
   
   if (ipm) {
     dhcp_set_addrs(conn, 
-		   &ipm->addr, &_options.mask, 
+		   &ipm->a.addr, &_options.mask, 
 		   &appconn->ourip, &appconn->mask,
 		   &_options.dns1, &_options.dns2);
   }
@@ -5354,6 +5358,26 @@ int chilli_getinfo(struct app_conn_t *appconn, bstring b, int fmt) {
   return 0;
 }
 
+#ifdef ENABLE_IPV6
+void chilli_print_ipv6(bstring s, struct app_conn_t *appconn) {
+  int c=0, i;
+  char b[128];
+  struct in6_addr a;
+  memset(&a, 0, sizeof(a));
+  bcatcstr(s, " ");
+  for (i = 0; i < MAX_IPv6_ADDRESSES; i++) {
+    if (!memcmp(&a, &appconn->hisip_v6[i], sizeof(a))) break;
+    inet_ntop(AF_INET6, &appconn->hisip_v6[i],
+	      b, sizeof(b));
+    if (c) bcatcstr(s, ",");
+    bcatcstr(s, b);
+    c++;
+  }
+  if (c == 0)
+    bcatcstr(s, "-");
+}
+#endif
+
 void chilli_print(bstring s, int listfmt, 
 		  struct app_conn_t *appconn,
 		  struct dhcp_conn_t *conn) {
@@ -5418,14 +5442,26 @@ void chilli_print(bstring s, int listfmt,
 #endif
 
     default:
-      if (conn && !appconn) 
+      if (conn && !appconn) {
 	bassignformat(b, MAC_FMT" %s", MAC_ARG(conn->hismac),
 		      state2name(conn->authstate));
-      else if (conn) 
-	bassignformat(b, MAC_FMT" %s %s", MAC_ARG(conn->hismac),
-		      inet_ntoa(conn->hisip), state2name(conn->authstate));
-      else
+      } else if (conn && appconn) {
+	bassignformat(b, MAC_FMT" %s", MAC_ARG(conn->hismac),
+		      inet_ntoa(conn->hisip));
+#ifdef ENABLE_IPV6
+	if (_options.ipv6)
+	  chilli_print_ipv6(b, appconn);
+#endif
+	bassignformat(tmp, " %s", 
+		      state2name(conn->authstate));
+	bconcat(b, tmp);
+      } else if (appconn) {
 	bassignformat(b, "%s", inet_ntoa(appconn->hisip));
+#ifdef ENABLE_IPV6
+	if (_options.ipv6)
+	  chilli_print_ipv6(b, appconn);
+#endif
+      }
       
       switch(listfmt) {
       case LIST_LONG_FMT:
@@ -6200,10 +6236,30 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	}
 	
 	bassignformat(tmp, 
-		      "MAC:   "MAC_FMT"   IP:  %s\n"
-		      "---------------------------------------------------\n",
+		      "MAC:  "MAC_FMT"\n"
+		      "IPv4: %s\n",
 		      MAC_ARG(appconn->hismac),
 		      inet_ntoa(appconn->hisip));
+	bconcat(s, tmp);
+
+#ifdef ENABLE_IPV6
+	if (_options.ipv6) {
+	  int i;
+	  char b[128];
+	  struct in6_addr a;
+	  memset(&a, 0, sizeof(a));
+	  for (i = 0; i < MAX_IPv6_ADDRESSES; i++) {
+	    if (!memcmp(&a, &appconn->hisip_v6[i], sizeof(a))) break;
+	    inet_ntop(AF_INET6, &appconn->hisip_v6[i],
+		      b, sizeof(b));
+	    bassignformat(tmp, "IPv6: %s\n", b);
+	    bconcat(s, tmp);
+	  }
+	}
+#endif
+
+	bassignformat(tmp, 
+		      "---------------------------------------------------\n");
 	bconcat(s, tmp);
 	
 #ifdef ENABLE_IEEE8021Q
@@ -7091,6 +7147,38 @@ static int session_timeout() {
 }
 #endif
 
+#ifdef ENABLE_IPV6
+static int ipv6icmp_accept(void *nullData, int sock) {
+  struct sockaddr_ll s_addr;
+  socklen_t addr_len = sizeof (s_addr);
+
+  uint8_t b[1500];
+  uint8_t *bp = b;
+
+  int s = safe_recvfrom(sock, b, sizeof(b),
+			MSG_DONTWAIT | MSG_TRUNC, 
+			(struct sockaddr *) &s_addr, 
+			&addr_len);
+  if (s <= 0)
+    return -1;
+    
+  struct pkt_icmphdr_t * icmphdr = (struct pkt_icmphdr_t *)b;
+  log_dbg("-------------- ICMPv6 type=%d", icmphdr->type);
+  switch (icmphdr->type) {
+  case 135: /* 135  Neighbor Solicitation Message */
+    bp += sizeof(struct pkt_icmphdr_t);
+    bp += 4;
+    struct in6_addr in6;
+    memcpy(&in6, bp, sizeof(in6));
+    char t[128];
+    inet_ntop(AF_INET6,&in6,t,sizeof(t));
+    log_dbg("---------------------------------------------           Looking for %s", t);
+    break;
+  }  
+  return 0;
+}
+#endif
+
 int chilli_main(int argc, char **argv) {
   select_ctx sctx;
   int status;
@@ -7100,6 +7188,9 @@ int chilli_main(int argc, char **argv) {
 
 #ifdef ENABLE_CHILLIQUERY
   int cmdsock = -1;
+#endif
+#ifdef ENABLE_IPV6
+  int ipv6icmp = -1;
 #endif
 
   pid_t cpid = getpid();
@@ -7300,6 +7391,13 @@ int chilli_main(int argc, char **argv) {
     log_err(0, "Failed to allocate IP pool!");
     exit(1);
   }
+
+#ifdef ENABLE_IPV6
+  if (ip6pool_new(&ip6pool, 1024)) {
+    log_err(0, "Failed to allocate IPv6 pool!");
+    exit(1);
+  }
+#endif  
   
   /* Create an instance of dhcp */
   if (dhcp_new(&dhcp, 
@@ -7420,6 +7518,59 @@ int chilli_main(int argc, char **argv) {
     _options.redir = 0;
 #endif
   }
+
+#ifdef ENABLE_IPV6
+  if (_options.ipv6) {
+    struct ifreq ifr;
+    int ifindex = 0;
+
+    //int on;
+    ipv6icmp = socket (AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
+
+    memset(&ifr, 0, sizeof (ifr));
+    snprintf(ifr.ifr_name, sizeof (ifr.ifr_name), "%s", "wlan0");
+    ioctl(ipv6icmp, SIOCGIFHWADDR, &ifr);
+
+    memset(&ifr, 0, sizeof(ifr));
+    safe_strncpy(ifr.ifr_name, "wlan0", sizeof(ifr.ifr_name));
+    if (ioctl(ipv6icmp, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
+      log_err(errno, "ioctl(SIOCGIFFLAGS)");
+    } else {
+      ifindex = ifr.ifr_ifindex;
+      ifr.ifr_flags |= IFF_PROMISC;
+      if (ioctl (ipv6icmp, SIOCSIFFLAGS, (caddr_t)&ifr) == -1) {
+	log_err(errno, "Could not set flag IFF_PROMISC");
+      }
+    }
+
+    struct packet_mreq mr;
+    memset(&mr,0,sizeof(mr));
+    mr.mr_ifindex = ifindex;
+    mr.mr_type = PACKET_MR_PROMISC;
+    
+    setsockopt(ipv6icmp, SOL_PACKET, PACKET_ADD_MEMBERSHIP, 
+	       (char *)&mr, sizeof(mr));
+    
+    struct ipv6_mreq mreq;
+    
+    inet_pton(AF_INET6,"ff02::1",&mreq.ipv6mr_multiaddr);
+    mreq.ipv6mr_interface = 0;//ifindex;
+    
+    if (setsockopt(ipv6icmp, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, 
+		   (char*) &mreq, sizeof(mreq)) != 0)
+    {
+      perror("setsockopt() failed for ipv6 multicast");
+      log_err(0, "------------------------ %d ", ifindex);
+    }
+    
+    //on = 1;
+    //setsockopt (ipv6icmp, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &on, sizeof (on));
+    //on = 1;
+    //setsockopt (ipv6icmp, IPPROTO_IPV6, IPV6_RECVPKTINFO, &on, sizeof (on));
+    
+    setsockopt(ipv6icmp, SOL_SOCKET, SO_BINDTODEVICE, (void *) &ifr, sizeof (ifr));
+  }
+#endif
 
 #if(_debug_)
   log_dbg("Waiting for client request...");
@@ -7564,6 +7715,12 @@ int chilli_main(int argc, char **argv) {
 		 (select_callback)cmdsock_accept, 0, cmdsock);
 #endif
 
+#ifdef ENABLE_IPV6
+  if (ipv6icmp > 0)
+    net_select_reg(&sctx, ipv6icmp, SELECT_READ, 
+		   (select_callback)ipv6icmp_accept, 0, ipv6icmp);
+#endif
+
   mainclock_tick();
   while (keep_going) {
 
@@ -7703,6 +7860,11 @@ int chilli_main(int argc, char **argv) {
 
   if (ippool) 
     ippool_free(ippool);
+
+#ifdef ENABLE_IPV6
+  if (ip6pool) 
+    ip6pool_free(ip6pool);
+#endif
 
   /*
    *  Terminate not-so-nicely

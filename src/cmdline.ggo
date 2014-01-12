@@ -290,4 +290,8 @@ option "forcedns2port"   - "Force all secondary DNS to a specific port" int defa
 option "ipv6" - "Enable IPv6 support" flag off
 option "ipv6mode" - "IPv6 mode is either 6and4 (default), 4to6, or 6to4" string no
 option "ipv6only" - "Enable IPv6-Only" flag off
+option "ipv6dns1" - "IPv6 DNS server address" string no
+option "ipv6dns2" - "IPv6 DNS server address" string no
+option "ipv6prefix" - "IPv6 prefix address" string no
+option "ipv6relay" - "Relay IPv6 ICMP to interface" string no
 

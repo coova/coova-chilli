@@ -31,6 +31,9 @@ static uint8_t nmac[PKT_ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 static int connections = 0;
 
 extern struct ippool_t *ippool;
+#ifdef ENABLE_IPV6
+extern struct ip6pool_t *ip6pool;
+#endif
 
 struct dhcp_ctx {
   struct dhcp_t *parent;
@@ -1152,7 +1155,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
   dhcp_sendGARP(dhcp, -1);
 
 #ifdef ENABLE_IPV6
-  net_getip6(dhcp->rawif[0].devname, &dhcp->rawif[0].address_v6);
+  //net_getip6(dhcp->rawif[0].devname, &dhcp->rawif[0].address_v6);
 
   if (_options.debug) {
     /*
@@ -1160,13 +1163,13 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
     int family, s;
     char host[NI_MAXHOST];
     */
-    char fmt[1024];
+//    char fmt[1024];
 
-    inet_ntop(AF_INET6, &dhcp->rawif[0].address_v6.s6_addr,
-	      fmt, sizeof(fmt));
+//    inet_ntop(AF_INET6, &dhcp->rawif[0].address_v6.s6_addr,
+//	      fmt, sizeof(fmt));
     
-    log_dbg("dhcpif (%s) IPv6 address %s", 
-	    dhcp->rawif[0].devname, fmt);
+//    log_dbg("dhcpif (%s) IPv6 address %s", 
+//	    dhcp->rawif[0].devname, fmt);
     
     /*
     if (getifaddrs(&ifaddr) == 0) {
@@ -2028,7 +2031,8 @@ int dhcp_dns(struct dhcp_conn_t *conn, struct pkt_ctx *pctx, char isReq) {
 #endif
 
 #ifdef ENABLE_IPV6
-    if (_options.ipv6 && mod > 0 && !isReq && an_mark && ancount > 0) {
+    if (_options.ipv6 && _options.ipv6only &&
+	mod > 0 && !isReq && an_mark && ancount > 0) {
       /* repack as IPv6 AAAA addresses */
       uint8_t n[1500];
       uint8_t b[1500];
@@ -3578,9 +3582,9 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
   conn->dns2.s_addr = dns2->s_addr;
 
 #ifdef ENABLE_IPV6
-  conn->dns1_v6 = _options.dns1_v6;
-  conn->dns2_v6 = _options.dns2_v6;
-  conn->v6prefix = _options.v6prefix;
+//  conn->dns1_v6 = _options.dns1_v6;
+//  conn->dns2_v6 = _options.dns2_v6;
+//  conn->v6prefix = _options.v6prefix;
 #endif
 
   if (!conn->domain[0] && _options.domain) {
@@ -3677,7 +3681,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
   size_t len = pctx->pkt_len;
 
 #if(_debug_ > 1)
-  log_dbg("function %s()", __FUNCTION__);
+  log_dbg("function %s(v%d)", __FUNCTION__, (int) ipv);
 #endif
   
   if (len < PKT_IP_HLEN + PKT_ETH_HLEN + 4) {
@@ -3721,7 +3725,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
 #ifdef ENABLE_LAYER3
 	&& !_options.layer3
 #endif
-	) {
+      ) {
       log_dbg("dropping packet; no dynamic ip and no anyip");
       return 0; 
     }
@@ -3732,15 +3736,15 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
       return 0; /* Out of connections */
     }
   }
-
+  
   /* Return if we do not know peer */
   if (!conn) {
     log_dbg("dropping packet; no peer");
     return 0;
   }
-
+  
   dhcp_conn_set_idx(conn, ctx);
-
+  
 #ifdef ENABLE_IEEE8021Q
   if (_options.ieee8021q) {
 #if(_debug_ > 1)
@@ -3784,7 +3788,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
     OTHER_RECEIVED(conn, pack_iph);
     return 0;
   }
-
+  
   /*
    *  Chop off any trailer length
    */
@@ -3807,7 +3811,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
       return 0;
     }
   }
-  
+
   /* 
    *  Check that the destination MAC address is our MAC or Broadcast 
    */
@@ -4129,109 +4133,285 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
 }
 
 #ifdef ENABLE_IPV6
-int dhcp_receive_ipv6(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
+int dhcp_ipv6_send_ra(struct dhcp_ctx *ctx, struct pkt_ctx *pctx,
+		      struct pkt_ethhdr_t *ethh,
+		      struct pkt_ip6hdr_t *iphdr) {
   struct dhcp_t *this = ctx->parent;
-  struct pkt_ethhdr_t *ethh = pctx->ethh;
-  struct pkt_ip6hdr_t *iphdr = pctx->ip6h = pkt_ip6hdr(pctx->pkt);
+  uint8_t packet[1500];
+  struct pkt_ethhdr_t *packet_ethh;
+  struct pkt_ip6hdr_t *packet_ip6h;
+  uint16_t data_len = ntohs(iphdr->data_len);
+  uint8_t *payload;
+  
+  struct pkt_icmphdr_t * packet_icmp = 0;
+  
+  uint32_t v;
+  
+  memset(packet, 0, sizeof(packet));
+  copy_ethproto(pctx->pkt, packet);
+  
+  packet_ethh = pkt_ethhdr(packet);
+  packet_ip6h = pkt_ip6hdr(packet);
+  
+  payload = ((uint8_t *)packet_ip6h) + sizeof(struct pkt_ip6hdr_t);
+  packet_icmp = (struct pkt_icmphdr_t *) payload;
+  
+  packet_icmp->type = 134;
+  packet_icmp->code = 0;
+  packet_icmp->check = 0;
+  
+  data_len = 16; 
+  
+  payload += sizeof(struct pkt_icmphdr_t);
+  *payload++ = 255;/*hop*/
+  *payload++ = (1<<7);/*flags*/
+  
+  /* router lifetime short */
+  *payload++ = 1; 
+  *payload++ = 0;
+  
+  /* reachable timer */
+  v=htonl(3600000);
+  memcpy(payload, &v, 4);
+  payload += 4;	
+  
+  /* retrans timer */
+  v=htonl(1000);
+  memcpy(payload, &v, 4);
+  payload += 4;
+  
+  /* Target link-layer address option */
+  data_len += 2 + PKT_ETH_ALEN;
+  *payload++ = 1;
+  *payload++ = 1;
+  memcpy(payload, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
+  payload += PKT_ETH_ALEN;
+  
+  /* MTU option */
+  data_len += 8;
+  *payload++ = 5;
+  *payload++ = 1;
+  *payload++ = 0;*payload++ = 0;
+  v=htonl(_options.mtu);
+  memcpy(payload, &v, 4);
+  payload += 4;
+  
+  /* Prefix Information option */
+  data_len += 32;
+  *payload++ = 3;
+  *payload++ = 4;
+  *payload++ = 64;
+  *payload++ = (1<<6)|(1<<7);
+  v=htonl(345600); /* valid lifetime */
+  memcpy(payload, &v, 4);
+  payload += 4;
+  v=htonl(345600); /* preferred lifetime */
+  memcpy(payload, &v, 4);
+  payload += 4;
+  
+  /* reserved */
+  *payload++ = 0;*payload++ = 0;*payload++ = 0;*payload++ = 0;
 
-  int ip_datalen = (int) ntohs(iphdr->data_len);
+  memcpy(payload, &_options.v6prefix, PKT_IPv6_ALEN);
+  payload += PKT_IPv6_ALEN;
 
-  log_dbg("Processing IPv6 ver=%d class=%d len=%d datalen=%d",
-	  (int) ipv6_version(iphdr),
-	  (int) ipv6_class(iphdr),
-	  (int) pctx->pkt_len, ip_datalen);
+  /* DNS option */
+  data_len += 24;
+  *payload++ = 25;
+  *payload++ = 3;
+  *payload++ = 0;
+  *payload++ = 0;
+  v=htonl(3); /* lifetime */
+  memcpy(payload, &v, 4);
+  payload += 4;
+  
+  memcpy(payload, &_options.dns1_v6, PKT_IPv6_ALEN);
+  payload += PKT_IPv6_ALEN;
 
-  log_dbg("src "IPv6_ADDR_FMT" dst "IPv6_ADDR_FMT,
-	  ipv6_exlode_addr(iphdr->src_addr),
-	  ipv6_exlode_addr(iphdr->dst_addr));
+  /* DNS option */
+  data_len += 24;
+  *payload++ = 25;
+  *payload++ = 3;
+  *payload++ = 0;
+  *payload++ = 0;
+  v=htonl(3); /* lifetime */
+  memcpy(payload, &v, 4);
+  payload += 4;
+  
+  memcpy(payload, &_options.dns2_v6, PKT_IPv6_ALEN);
+  payload += PKT_IPv6_ALEN;
 
-  switch(iphdr->next_header) {
-  case ICMPv6_NEXT_HEADER:
-    {
-      int datalen = 0;
-      uint8_t b[256], *data;
-      
-      struct pkt_icmphdr_t * icmphdr = 
-	(struct pkt_icmphdr_t *)
-	(((uint8_t *)iphdr) + sizeof(struct pkt_ip6hdr_t));
 
-      void check_options() {
-	if (datalen > 0) {
-	  uint8_t t, l;
-	  int i=0;
-	  while (datalen > 0) {
-	    int dlen = -1;
-	    t = data[i++]; datalen--;
-	    if (!datalen) break;
-	    l = data[i++]; datalen--;
-	    if (!datalen) break;
+  packet_ip6h->ver_class_label = iphdr->ver_class_label;
+  packet_ip6h->next_header = iphdr->next_header;
+  packet_ip6h->hop_limit = 255;
+  packet_ip6h->data_len = htons(data_len);
+  
+  memcpy(packet_ip6h->src_addr, 
+	 &this->rawif[0].address_v6[0].s6_addr, PKT_IPv6_ALEN);
+  memcpy(packet_ip6h->dst_addr, iphdr->src_addr, PKT_IPv6_ALEN);
+  
+  memcpy(packet_ethh->dst, ethh->src, PKT_ETH_ALEN);
+  memcpy(packet_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
+  
+  chksum6(packet_ip6h);
+  
+  return dhcp_send(this, ctx->idx, ethh->src, 
+		   packet, sizeofeth(packet) + 
+		   sizeof(struct pkt_ip6hdr_t) + data_len);
+}
+
+int dhcp_ipv6_send_na(struct dhcp_ctx *ctx, uint8_t *pack, size_t len,
+		      struct pkt_ethhdr_t *ethh,
+		      struct pkt_ip6hdr_t *iphdr,
+		      uint8_t *target) {
+  struct dhcp_t *this = ctx->parent;
+  uint8_t packet[1500];
+  struct pkt_ethhdr_t *packet_ethh;
+  struct pkt_ip6hdr_t *packet_ip6h;
+  uint16_t data_len = ntohs(iphdr->data_len);
+  uint8_t *payload;
+  
+  struct pkt_icmphdr_t * packet_icmp = 0;
+  
+  memset(packet, 0, sizeof(packet));
+  copy_ethproto(pack, packet);
+  
+  packet_ethh = pkt_ethhdr(packet);
+  packet_ip6h = pkt_ip6hdr(packet);
+  
+  payload = ((uint8_t *)packet_ip6h) + sizeof(struct pkt_ip6hdr_t);
+  packet_icmp = (struct pkt_icmphdr_t *) payload;
+  
+  packet_icmp->type = 136;
+  packet_icmp->code = 0;
+  packet_icmp->check = 0;
+  
+  data_len = 24;
+  
+  payload += sizeof(struct pkt_icmphdr_t);
+  *payload++ = (1<<6)|(1<<5);
+  *payload++ = 0;
+  *payload++ = 0;
+  *payload++ = 0;
+  
+  memcpy(payload, target, PKT_IPv6_ALEN);
+  payload += PKT_IPv6_ALEN;
+  
+  /* Target link-layer address option */
+  data_len += 2 + PKT_ETH_ALEN;
+  *payload++ = 2;
+  *payload++ = 1;
+  memcpy(payload, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
+  payload += PKT_ETH_ALEN;
+  
+  packet_ip6h->ver_class_label = iphdr->ver_class_label;
+  packet_ip6h->next_header = iphdr->next_header;
+  packet_ip6h->hop_limit = 255;
+  packet_ip6h->data_len = htons(data_len);
+  
+  memcpy(packet_ip6h->src_addr, 
+	 &this->rawif[0].address_v6[0].s6_addr, PKT_IPv6_ALEN);
+  memcpy(packet_ip6h->dst_addr, iphdr->src_addr, PKT_IPv6_ALEN);
+  
+  memcpy(packet_ethh->dst, ethh->src, PKT_ETH_ALEN);
+  memcpy(packet_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
+  
+  chksum6(packet_ip6h);
+  
+  return dhcp_send(this, ctx->idx, ethh->src, 
+		   packet, sizeofeth(packet) + 
+		   sizeof(struct pkt_ip6hdr_t) + data_len);
+}
+
+int dhcp_ipv6_icmp(struct dhcp_ctx *ctx, struct pkt_ctx *pctx,
+		   struct pkt_ethhdr_t *ethh,
+		   struct pkt_ip6hdr_t *iphdr) {
+  int datalen = 0;
+  uint8_t b[256], *data;
+  
+  struct pkt_icmphdr_t * icmphdr = 
+    (struct pkt_icmphdr_t *)
+    (((uint8_t *)iphdr) + sizeof(struct pkt_ip6hdr_t));
+  
+  void check_options() {
+    if (datalen > 0) {
+      uint8_t t, l;
+      int i=0;
+      while (datalen > 0) {
+	int dlen = -1;
+	t = data[i++]; datalen--;
+	if (!datalen) break;
+	l = data[i++]; datalen--;
+	if (!datalen) break;
+	switch(t) {
+	case 1: /* source link-layer address */
+	case 2: /* target link-layer address */
+	  dlen = l * PKT_ETH_ALEN;
+	  break;
+	default:
+	  log_dbg(0, "could not parse ICMP option");
+	  datalen = 0;
+	  break;
+	}
+	if (dlen > 0) {
+	  if (dlen <= datalen) {
+	    log_dbg("ICMPv6 Option %d %d %d",(int)t,(int)l,dlen);
+	    memcpy(b, data + i, dlen);
 	    switch(t) {
 	    case 1: /* source link-layer address */
 	    case 2: /* target link-layer address */
-	      dlen = l * PKT_ETH_ALEN;
+	      log_dbg("ICMPv6 Source Link-Layer Address Option "MAC_FMT,
+		      MAC_ARG(b));
 	      break;
 	    default:
-	      log_dbg(0, "could not parse ICMP option");
-	      datalen = 0;
 	      break;
 	    }
-	    if (dlen > 0) {
-	      if (dlen <= datalen) {
-		log_dbg("ICMPv6 Option %d %d %d",(int)t,(int)l,dlen);
-		memcpy(b, data + i, dlen);
-		switch(t) {
-		case 1: /* source link-layer address */
-		case 2: /* target link-layer address */
-		  log_dbg("ICMPv6 Source Link-Layer Address Option "MAC_FMT,
-			  MAC_ARG(b));
-		  break;
-		default:
-		  break;
-		}
-	      }
-	      
-	      i += dlen;
-	      datalen -= dlen;
-	    }
 	  }
+	  
+	  i += dlen;
+	  datalen -= dlen;
 	}
       }
-
-      data = ((uint8_t *)icmphdr) + sizeof(struct pkt_icmphdr_t);
+    }
+  }
+  
+  int ip_datalen = (int) ntohs(iphdr->data_len);
+  
+  data = ((uint8_t *)icmphdr) + sizeof(struct pkt_icmphdr_t);
+  
+  datalen = ip_datalen - sizeof(struct pkt_icmphdr_t);
+  
+  log_dbg("ICMPv6 type=%d", icmphdr->type);
+  
+  /* Check checksum */
+  
+  switch (icmphdr->type) {
+  case 133: /* 133 Router Solicitation (NDP) */
+  case 143: /* 143 Multicast Listener Report Message v2 */
+    
+    /*
+      4.1. Router Solicitation Message Format
       
-      datalen = ip_datalen - sizeof(struct pkt_icmphdr_t);
-
-      log_dbg("ICMPv6 type=%d", icmphdr->type);
+      Hosts send Router Solicitations in order to prompt routers to
+      generate Router Advertisements quickly.
       
-      /* Check checksum */
-      
-      switch (icmphdr->type) {
-      case 133: /* 133 Router Solicitation (NDP) */
-      case 143: /* 143 Multicast Listener Report Message v2 */
-
-	/*
-	  4.1. Router Solicitation Message Format
-	  
-	  
-	  Hosts send Router Solicitations in order to prompt routers to
-	  generate Router Advertisements quickly.
-	  
-	  0                   1                   2                   3
-	  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	  |     Type      |     Code      |          Checksum             |
-	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	  |                            Reserved                           |
-	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	  |   Options ...
-	  +-+-+-+-+-+-+-+-+-+-+-+-
-	*/
-
-	data += 4;
-	datalen -= 4;
-	check_options();
-	
-	/*	  
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |     Type      |     Code      |          Checksum             |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |                            Reserved                           |
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |   Options ...
+      +-+-+-+-+-+-+-+-+-+-+-+-
+    */
+    
+    data += 4;
+    datalen -= 4;
+    check_options();
+    
+    /*	  
 	  4.2. Router Advertisement Message Format
 	  
 	  Routers send out Router Advertisement messages periodically, or in
@@ -4250,398 +4430,321 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
 	  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 	  |   Options ...
 	  +-+-+-+-+-+-+-+-+-+-+-+-
-	*/
-	{
-	  uint8_t packet[1500];
-	  struct pkt_ethhdr_t *packet_ethh;
-	  struct pkt_ip6hdr_t *packet_ip6h;
-	  uint16_t data_len = ntohs(iphdr->data_len);
-	  uint8_t *payload;
-	  
-	  struct pkt_icmphdr_t * packet_icmp = 0;
+    */
+    if (_options.ipv6_mode == HAS_PREFIX) {
+      dhcp_ipv6_send_ra(ctx, pctx, ethh, iphdr);
+    }
+    break;
+    
+  case 135: /* 135  Neighbor Solicitation Message */
+  {
+    //uint8_t *target;
+    data += 4;
+    datalen -= 4;
+    //target = data;
+    data += 16;
+    datalen -= 16;
+    check_options();
+    //dhcp_ipv6_send_na(ctx, pctx, ethh, iphdr, target);
+  }
+  break;
 
-	  uint32_t v;
-	  
-	  memset(packet, 0, sizeof(packet));
-	  copy_ethproto(pctx->pkt, packet);
-	  
-	  packet_ethh = pkt_ethhdr(packet);
-	  packet_ip6h = pkt_ip6hdr(packet);
-	  
-	  payload = ((uint8_t *)packet_ip6h) + sizeof(struct pkt_ip6hdr_t);
-	  packet_icmp = (struct pkt_icmphdr_t *) payload;
-	  
-	  packet_icmp->type = 134;
-	  packet_icmp->code = 0;
-	  packet_icmp->check = 0;
-	  
-	  data_len = 16; 
-	  
-	  payload += sizeof(struct pkt_icmphdr_t);
-	  *payload++ = 255;
-	  *payload++ = (1<<7);
-	  
-	  /* router lifetime short */
-	  *payload++ = 1; 
-	  *payload++ = 0;
-	  
-	  /* reachable timer */
-	  v=htonl(0);
-	  memcpy(payload, &v, 4);
-	  payload += 4;	
-	  
-	  /* retrans timer */
-	  v=htonl(0);
-	  memcpy(payload, &v, 4);
-	  payload += 4;
-	  
-	  /* Target link-layer address option */
-	  data_len += 2 + PKT_ETH_ALEN;
-	  *payload++ = 1;
-	  *payload++ = 1;
-	  memcpy(payload, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
-	  payload += PKT_ETH_ALEN;
-	  
-	  /* MTU option */
-	  data_len += 8;
-	  *payload++ = 5;
-	  *payload++ = 1;
-	  *payload++ = 0;*payload++ = 0;
-	  v=htonl(_options.mtu);
-	  memcpy(payload, &v, 4);
-	  payload += 4;
-	  
-	  /* Prefix Information option */
-	  data_len += 32;
-	  *payload++ = 3;
-	  *payload++ = 4;
-	  *payload++ = 64;
-	  *payload++ = (1<<6)|(1<<7);
-	  v=htonl(345600); /* valid lifetime */
-	  memcpy(payload, &v, 4);
-	  payload += 4;
-	  v=htonl(345600); /* preferred lifetime */
-	  memcpy(payload, &v, 4);
-	  payload += 4;
+  break;
+  }
+  return 0;
+}
 
-	  /* reserved */
-	  *payload++ = 0;*payload++ = 0;*payload++ = 0;*payload++ = 0;
-	  
-	  *payload++ = 0x11;*payload++ = 0x11;*payload++ = 0;*payload++ = 0;
-	  *payload++ = 0;*payload++ = 0;*payload++ = 0;*payload++ = 0;
-	  *payload++ = 0;*payload++ = 0;*payload++ = 0;*payload++ = 0;
-	  *payload++ = 0;*payload++ = 0;*payload++ = 0;*payload++ = 0;
+int dhcp_ipv6_dhcp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len,
+		   struct pkt_ethhdr_t *ethh,
+		   struct pkt_ip6hdr_t *iphdr,
+		   struct pkt_udphdr_t *udphdr) {
+  struct dhcp_t *this = ctx->parent;
 
-	  /* Prefix Information option */
-	  data_len += 32;
-	  *payload++ = 3;
-	  *payload++ = 4;
-	  *payload++ = 64;
-	  *payload++ = (1<<6)|(1<<7);
-	  v=htonl(_options.mtu);
-	  memcpy(payload, &v, 4);
-	  payload += 4;
-	  v=htonl(_options.mtu);
-	  memcpy(payload, &v, 4);
-	  payload += 4;
-	  *payload++ = 0;*payload++ = 0;*payload++ = 0;*payload++ = 0;
+  int ip_datalen = (int) ntohs(iphdr->data_len);
 
-	  ipv6_nat64_prefix(payload);
-	  
-	  packet_ip6h->ver_class_label = iphdr->ver_class_label;
-	  packet_ip6h->next_header = iphdr->next_header;
-	  packet_ip6h->hop_limit = 255;
-	  packet_ip6h->data_len = htons(data_len);
-	  
-	  memcpy(packet_ip6h->src_addr, 
-		 &this->rawif[0].address_v6.s6_addr, PKT_IPv6_ALEN);
-	  memcpy(packet_ip6h->dst_addr, iphdr->src_addr, PKT_IPv6_ALEN);
-	  
-	  memcpy(packet_ethh->dst, ethh->src, PKT_ETH_ALEN);
-	  memcpy(packet_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
-	  
-	  chksum6(packet_ip6h);
-	  
-	  return dhcp_send(this, ctx->idx, ethh->src, 
-			   packet, sizeofeth(packet) + 
-			   sizeof(struct pkt_ip6hdr_t) + data_len);
-	}
+  struct pkt_dhcp6hdr_t * dhcp6hdr = 
+    (struct pkt_dhcp6hdr_t *)
+    (((uint8_t *)udphdr) + sizeof(struct pkt_udphdr_t));
+  
+  uint8_t * opts = 
+    (((uint8_t *)dhcp6hdr) + sizeof(struct pkt_dhcp6hdr_t));
+  
+  int optlen = ip_datalen - sizeof(struct pkt_udphdr_t) 
+    - sizeof(struct pkt_dhcp6hdr_t);
+  
+  log_dbg("DHCPv6 message %d 0x%.2X%.2X%.2X",
+	  dhcp6hdr->type,dhcp6hdr->id[0],
+	  dhcp6hdr->id[1],dhcp6hdr->id[2]);
+  
+  switch(dhcp6hdr->type) {
+  case 1: /* Solicit */
+  case 3: /* Request */
+  case 4: /* Confirm */
+  {
+    struct dhcp_conn_t *conn = 0;
+    uint8_t *duid = 0;
+    uint16_t duid_len = 0;
+    uint16_t ia_type = 0;
+    int status = -1;
+    
+    uint8_t *m;
+    
+    while (optlen > 4) {
+      uint16_t t, l;
+      memcpy(&t, opts, 2); opts+=2; optlen-=2;
+      memcpy(&l, opts, 2); opts+=2; optlen-=2;
+      t = ntohs(t);
+      l = ntohs(l);
+      log_dbg("DHCPv6 Option %d %d", t, l);
+      switch(t) {
+      case 1: /* Client-Identifier */
+	duid = opts;
+	duid_len = l;
 	break;
-
-      case 135: /* 135  Neighbor Solicitation Message */
-	{
-	  uint8_t packet[1500];
-	  struct pkt_ethhdr_t *packet_ethh;
-	  struct pkt_ip6hdr_t *packet_ip6h;
-	  uint16_t data_len = ntohs(iphdr->data_len);
-	  uint8_t *payload, *target;
-	  
-	  struct pkt_icmphdr_t * packet_icmp = 0;
-
-	  data += 4;
-	  datalen -= 4;
-
-	  target = data;
-
-	  data += 16;
-	  datalen -= 16;
-
-	  check_options();
-	  
-	  memset(packet, 0, sizeof(packet));
-	  copy_ethproto(pctx->pkt, packet);
-	  
-	  packet_ethh = pkt_ethhdr(packet);
-	  packet_ip6h = pkt_ip6hdr(packet);
-	  
-	  payload = ((uint8_t *)packet_ip6h) + sizeof(struct pkt_ip6hdr_t);
-	  packet_icmp = (struct pkt_icmphdr_t *) payload;
-	  
-	  packet_icmp->type = 136;
-	  packet_icmp->code = 0;
-	  packet_icmp->check = 0;
-	  
-	  data_len = 24;
-	  
-	  payload += sizeof(struct pkt_icmphdr_t);
-	  *payload++ = (1<<6)|(1<<5);
-	  *payload++ = 0;
-	  *payload++ = 0;
-	  *payload++ = 0;
-
-	  memcpy(payload, target, PKT_IPv6_ALEN);
-	  payload += PKT_IPv6_ALEN;
-	  
-	  /* Target link-layer address option */
-	  data_len += 2 + PKT_ETH_ALEN;
-	  *payload++ = 2;
-	  *payload++ = 1;
-	  memcpy(payload, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
-	  payload += PKT_ETH_ALEN;
-	  
-	  packet_ip6h->ver_class_label = iphdr->ver_class_label;
-	  packet_ip6h->next_header = iphdr->next_header;
-	  packet_ip6h->hop_limit = 255;
-	  packet_ip6h->data_len = htons(data_len);
-	  
-	  memcpy(packet_ip6h->src_addr, 
-		 &this->rawif[0].address_v6.s6_addr, PKT_IPv6_ALEN);
-	  memcpy(packet_ip6h->dst_addr, iphdr->src_addr, PKT_IPv6_ALEN);
-	  
-	  memcpy(packet_ethh->dst, ethh->src, PKT_ETH_ALEN);
-	  memcpy(packet_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
-	  
-	  chksum6(packet_ip6h);
-	  
-	  return dhcp_send(this, ctx->idx, ethh->src, 
-			   packet, sizeofeth(packet) + 
-			   sizeof(struct pkt_ip6hdr_t) + data_len);
-	}
+      case 3: /* Identity Association for 
+		 Non-temporary Addresses Option  */
+      case 4: /* Identity Association for 
+		 Temporary Addresses Option */
+	ia_type = t;
 	break;
       }
-
+      opts += l;
+      optlen -= l;
     }
-  case PKT_IP_PROTO_UDP:
+    
+    if (dhcp_getconn(this, &conn, ethh->src, 0, 1)) {
+      /* Could not allocate address */
+      return 0; 
+    }
+    
+    this->cb_request(conn, 0, 0, 0);
+    
     {
-      struct pkt_udphdr_t * udphdr = 
-	(struct pkt_udphdr_t *)
-	(((uint8_t *)iphdr) + sizeof(struct pkt_ip6hdr_t));
-
-      if (ntohs(udphdr->src) == 546 && ntohs(udphdr->dst) == 547) {
-	struct pkt_dhcp6hdr_t * dhcp6hdr = 
-	  (struct pkt_dhcp6hdr_t *)
-	  (((uint8_t *)udphdr) + sizeof(struct pkt_udphdr_t));
-
-	uint8_t * opts = 
-	  (((uint8_t *)dhcp6hdr) + sizeof(struct pkt_dhcp6hdr_t));
-
-	int optlen = ip_datalen - sizeof(struct pkt_udphdr_t) 
-	  - sizeof(struct pkt_dhcp6hdr_t);
-
-	log_dbg("DHCPv6 message %d 0x%.2X%.2X%.2X",
-		dhcp6hdr->type,dhcp6hdr->id[0],
-		dhcp6hdr->id[1],dhcp6hdr->id[2]);
-
-	switch(dhcp6hdr->type) {
-	case 1: /* Solicit */
-	case 3: /* Request */
-	case 4: /* Confirm */
-	  {
-	    struct dhcp_conn_t *conn = 0;
-	    uint8_t *duid = 0;
-	    uint16_t duid_len = 0;
-	    uint16_t ia_type = 0;
-	    int status = -1;
-
-	    uint8_t *m;
-
-	    while (optlen > 4) {
-	      uint16_t t, l;
-	      memcpy(&t, opts, 2); opts+=2; optlen-=2;
-	      memcpy(&l, opts, 2); opts+=2; optlen-=2;
-	      t = ntohs(t);
-	      l = ntohs(l);
-	      log_dbg("DHCPv6 Option %d %d", t, l);
-	      switch(t) {
-	      case 1: /* Client-Identifier */
-		duid = opts;
-		duid_len = l;
-		break;
-	      case 3: /* Identity Association for 
-			 Non-temporary Addresses Option  */
-	      case 4: /* Identity Association for 
-			 Temporary Addresses Option */
-		ia_type = t;
-		break;
-	      }
-	      opts += l;
-	      optlen -= l;
-	    }
-
-	    if (dhcp_getconn(this, &conn, ethh->src, 0, 1)) {
-	      /* Could not allocate address */
-	      return 0; 
-	    }
-
-	    this->cb_request(conn, 0, 0, 0);
-
-	    {
-	      uint8_t packet[1500];
-	      struct pkt_ethhdr_t *packet_ethh;
-	      struct pkt_ip6hdr_t *packet_ip6h;
-	      struct pkt_udphdr_t *packet_udph;
-	      uint8_t *payload;
-
-	      uint16_t data_len = sizeof(struct pkt_udphdr_t) + 
-		sizeof(struct pkt_dhcp6hdr_t );
-
-	      uint16_t u;
-	      uint32_t u2;
-	  
-	      copy_ethproto(pctx->pkt, packet);
-	  
-	      packet_ethh = pkt_ethhdr(packet);
-	      packet_ip6h = pkt_ip6hdr(packet);
-
-	      payload = ((uint8_t *)packet_ip6h) + sizeof(struct pkt_ip6hdr_t);
-
-	      packet_udph = (struct pkt_udphdr_t *)payload;
-	      payload += sizeof(struct pkt_udphdr_t);
-	      if (dhcp6hdr->type == 1) {
-		*payload++=2;
-	      } else {
-		if (dhcp6hdr->type == 4) 
-		  status = 0;
-		*payload++=7;
-	      }
-	      *payload++=dhcp6hdr->id[0];
-	      *payload++=dhcp6hdr->id[1];
-	      *payload++=dhcp6hdr->id[2];
-
-	      if (duid) {
-		data_len += 4 + duid_len;
-		u = htons(1); memcpy(payload, &u, 2); payload+=2;
-		u = htons(duid_len); memcpy(payload, &u, 2); payload+=2;
-		memcpy(payload, duid, duid_len); payload+=duid_len;
-	      }
-
-	      data_len += 4 + 14;
-	      u = htons(2); memcpy(payload, &u, 2); payload+=2;
-	      u = htons(14); memcpy(payload, &u, 2); payload+=2;
-	      u = htons(1); memcpy(payload, &u, 2); payload+=2;
-	      u = htons(1); memcpy(payload, &u, 2); payload+=2;
-	      u2 = htonl(time(0)); memcpy(payload, &u2, 4); payload+=4;
-	      memcpy(payload, dhcp_nexthop(dhcp), PKT_ETH_ALEN); 
-	      payload+=PKT_ETH_ALEN;
-
-	      if (ia_type) {
-		uint16_t olen = 4; /* IAID */
-		data_len += 4; /* IA-Type option header */
-		switch(ia_type) {
-		case 3:
-		  olen += 4 + 4; /* T1 and T2 */
-		  break;
-		}
-		olen += 4 + 24; /* IA-Address option */
-		data_len += olen;
-
-		u = htons(ia_type); memcpy(payload, &u, 2); payload+=2;
-		u = htons(olen); memcpy(payload, &u, 2); payload+=2;
-		u2 = htonl(1); memcpy(payload, &u2, 4); payload+=4;
-		switch(ia_type) {
-		case 3:
-		  u2 = htonl(300); memcpy(payload, &u2, 4); payload+=4;
-		  u2 = htonl(300); memcpy(payload, &u2, 4); payload+=4;
-		  break;
-		}
-		u = htons(5); memcpy(payload, &u, 2); payload+=2;
-		u = htons(24); memcpy(payload, &u, 2); payload+=2;
-
-		ipv6_eui64_pack(payload, ethh->src);
-
-		u2 = htonl(300); memcpy(payload, &u2, 4); payload+=4;
-		u2 = htonl(300); memcpy(payload, &u2, 4); payload+=4;
-	      }
-
-	      data_len += 4 + 16;
-	      u = htons(23); memcpy(payload, &u, 2); payload+=2;
-	      u = htons(16); memcpy(payload, &u, 2); payload+=2;
-
-	      m = (uint8_t *)&_options.dns1.s_addr;
-	      ipv6_nat64_pack(payload, m);
-
-	      data_len += 4 + strlen(_options.domain) + 1;
-	      u = htons(24); memcpy(payload, &u, 2); payload+=2;
-	      u = htons(strlen(_options.domain) + 1); memcpy(payload, &u, 2); payload+=2;
-	      *payload++ = strlen(_options.domain);
-	      memcpy(payload, _options.domain, strlen(_options.domain));
-	      payload+=strlen(_options.domain);
-
-	      if (status > -1) {
-		data_len += 4 + 2;
-		u = htons(13); memcpy(payload, &u, 2); payload+=2;
-		u = htons(2); memcpy(payload, &u, 2); payload+=2;
-		u = htons((uint16_t)status); memcpy(payload, &u, 2); payload+=2;
-	      }
-
-	      data_len += 4 + 2;
-	      u = htons(8); memcpy(payload, &u, 2); payload+=2;
-	      u = htons(2); memcpy(payload, &u, 2); payload+=2;
-	      u = htons(1); memcpy(payload, &u, 2); payload+=2;
-
-	      packet_udph->dst = udphdr->src;
-	      packet_udph->src = udphdr->dst;
-	      packet_udph->check = 0;
-	      packet_udph->len = htons(data_len);
-	  
-	      packet_ip6h->ver_class_label = iphdr->ver_class_label;
-	      packet_ip6h->next_header = iphdr->next_header;
-	      packet_ip6h->hop_limit = 255;
-	      packet_ip6h->data_len = htons(data_len);
-	  
-	      memcpy(packet_ip6h->src_addr, 
-		     &this->rawif[0].address_v6.s6_addr, PKT_IPv6_ALEN);
-	      memcpy(packet_ip6h->dst_addr, iphdr->src_addr, PKT_IPv6_ALEN);
-	      
-	      memcpy(packet_ethh->dst, ethh->src, PKT_ETH_ALEN);
-	      memcpy(packet_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
-	      
-	      chksum6(packet_ip6h);
-	      
-	      return dhcp_send(this, ctx->idx, ethh->src, 
-			       packet, sizeofeth(packet) + 
-			       sizeof(struct pkt_ip6hdr_t) + data_len);
-	    }
-	  }
+      uint8_t packet[1500];
+      struct pkt_ethhdr_t *packet_ethh;
+      struct pkt_ip6hdr_t *packet_ip6h;
+      struct pkt_udphdr_t *packet_udph;
+      uint8_t *payload;
+      
+      uint16_t data_len = sizeof(struct pkt_udphdr_t) + 
+	sizeof(struct pkt_dhcp6hdr_t );
+      
+      uint16_t u;
+      uint32_t u2;
+      
+      copy_ethproto(pack, packet);
+      
+      packet_ethh = pkt_ethhdr(packet);
+      packet_ip6h = pkt_ip6hdr(packet);
+      
+      payload = ((uint8_t *)packet_ip6h) + sizeof(struct pkt_ip6hdr_t);
+      
+      packet_udph = (struct pkt_udphdr_t *)payload;
+      payload += sizeof(struct pkt_udphdr_t);
+      if (dhcp6hdr->type == 1) {
+	*payload++=2;
+      } else {
+	if (dhcp6hdr->type == 4) 
+	  status = 0;
+	*payload++=7;
+      }
+      *payload++=dhcp6hdr->id[0];
+      *payload++=dhcp6hdr->id[1];
+      *payload++=dhcp6hdr->id[2];
+      
+      if (duid) {
+	data_len += 4 + duid_len;
+	u = htons(1); memcpy(payload, &u, 2); payload+=2;
+	u = htons(duid_len); memcpy(payload, &u, 2); payload+=2;
+	memcpy(payload, duid, duid_len); payload+=duid_len;
+      }
+      
+      data_len += 4 + 14;
+      u = htons(2); memcpy(payload, &u, 2); payload+=2;
+      u = htons(14); memcpy(payload, &u, 2); payload+=2;
+      u = htons(1); memcpy(payload, &u, 2); payload+=2;
+      u = htons(1); memcpy(payload, &u, 2); payload+=2;
+      u2 = htonl(time(0)); memcpy(payload, &u2, 4); payload+=4;
+      memcpy(payload, dhcp_nexthop(dhcp), PKT_ETH_ALEN); 
+      payload+=PKT_ETH_ALEN;
+      
+      if (ia_type) {
+	uint16_t olen = 4; /* IAID */
+	data_len += 4; /* IA-Type option header */
+	switch(ia_type) {
+	case 3:
+	  olen += 4 + 4; /* T1 and T2 */
 	  break;
 	}
+	olen += 4 + 24; /* IA-Address option */
+	data_len += olen;
+	
+	u = htons(ia_type); memcpy(payload, &u, 2); payload+=2;
+	u = htons(olen); memcpy(payload, &u, 2); payload+=2;
+	u2 = htonl(1); memcpy(payload, &u2, 4); payload+=4;
+	switch(ia_type) {
+	case 3:
+	  u2 = htonl(300); memcpy(payload, &u2, 4); payload+=4;
+	  u2 = htonl(300); memcpy(payload, &u2, 4); payload+=4;
+	  break;
+	}
+	u = htons(5); memcpy(payload, &u, 2); payload+=2;
+	u = htons(24); memcpy(payload, &u, 2); payload+=2;
+	
+	ipv6_eui64_pack(payload, ethh->src);
+	
+	u2 = htonl(300); memcpy(payload, &u2, 4); payload+=4;
+	u2 = htonl(300); memcpy(payload, &u2, 4); payload+=4;
       }
+      
+      data_len += 4 + 16;
+      u = htons(23); memcpy(payload, &u, 2); payload+=2;
+      u = htons(16); memcpy(payload, &u, 2); payload+=2;
+      
+      m = (uint8_t *)&_options.dns1.s_addr;
+      ipv6_nat64_pack(payload, m);
+      
+      data_len += 4 + strlen(_options.domain) + 1;
+      u = htons(24); memcpy(payload, &u, 2); payload+=2;
+      u = htons(strlen(_options.domain) + 1); memcpy(payload, &u, 2); payload+=2;
+      *payload++ = strlen(_options.domain);
+      memcpy(payload, _options.domain, strlen(_options.domain));
+      payload+=strlen(_options.domain);
+      
+      if (status > -1) {
+	data_len += 4 + 2;
+	u = htons(13); memcpy(payload, &u, 2); payload+=2;
+	u = htons(2); memcpy(payload, &u, 2); payload+=2;
+	u = htons((uint16_t)status); memcpy(payload, &u, 2); payload+=2;
+      }
+      
+      data_len += 4 + 2;
+      u = htons(8); memcpy(payload, &u, 2); payload+=2;
+      u = htons(2); memcpy(payload, &u, 2); payload+=2;
+      u = htons(1); memcpy(payload, &u, 2); payload+=2;
+      
+      packet_udph->dst = udphdr->src;
+      packet_udph->src = udphdr->dst;
+      packet_udph->check = 0;
+      packet_udph->len = htons(data_len);
+      
+      packet_ip6h->ver_class_label = iphdr->ver_class_label;
+      packet_ip6h->next_header = iphdr->next_header;
+      packet_ip6h->hop_limit = 255;
+      packet_ip6h->data_len = htons(data_len);
+      
+//      memcpy(packet_ip6h->src_addr, 
+//	     &this->rawif[0].address_v6.s6_addr, PKT_IPv6_ALEN);
+      memcpy(packet_ip6h->dst_addr, iphdr->src_addr, PKT_IPv6_ALEN);
+      
+      memcpy(packet_ethh->dst, ethh->src, PKT_ETH_ALEN);
+      memcpy(packet_ethh->src, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
+      
+      chksum6(packet_ip6h);
+      
+      return dhcp_send(this, ctx->idx, ethh->src, 
+		       packet, sizeofeth(packet) + 
+		       sizeof(struct pkt_ip6hdr_t) + data_len);
     }
-    break;
-  case PKT_IP_PROTO_TCP:
-    break;
   }
+  break;
+  }
+  
+  return 0; 
+}
 
+int check_ipv6_addr(struct app_conn_t *appconn, uint8_t *ip) {
+  int c, i;
+  for (i = 0; i < MAX_IPv6_ADDRESSES; i++) {
+    if (!memcmp(&appconn->hisip_v6[i],ip,PKT_IPv6_ALEN)) return 0;
+    for (c=0; c < PKT_IPv6_ALEN; c++) 
+      if (appconn->hisip_v6[i].s6_addr[c] != 0) 
+	break;
+    if (c == PKT_IPv6_ALEN) {
+      struct ippoolm_t *ipm = 0;
+      memcpy(&appconn->hisip_v6[i], ip, PKT_IPv6_ALEN);
+      if (ip6pool_getip(ip6pool, &ipm, &appconn->hisip_v6[i])) {
+	if (ip6pool_newip(ip6pool, &ipm, &appconn->hisip_v6[i])) {
+	  log_dbg("could not add new ipv6 address");
+	}
+      }
+      if (ipm) {
+	ipm->peer = appconn;
+      }
+      return 0;
+    }
+  }
+  return -1;
+}
+
+int dhcp_receive_ipv6(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
+  struct dhcp_t *this = ctx->parent;
+  struct pkt_ethhdr_t *ethh = pctx->ethh;
+  struct pkt_ip6hdr_t *iphdr = pctx->ip6h = pkt_ip6hdr(pctx->pkt);
+  struct dhcp_conn_t *conn = 0;
+  struct app_conn_t *appconn = 0;
+
+  int ip_datalen = (int) ntohs(iphdr->data_len);
+
+  log_dbg(MAC_FMT" Processing IPv6 ver=%d class=%d len=%d datalen=%d",
+	  MAC_ARG(ethh->src),
+	  (int) ipv6_version(iphdr),
+	  (int) ipv6_class(iphdr),
+	  (int) pctx->pkt_len, ip_datalen);
+
+  log_dbg("src "IPv6_ADDR_FMT" dst "IPv6_ADDR_FMT,
+	  ipv6_exlode_addr(iphdr->src_addr),
+	  ipv6_exlode_addr(iphdr->dst_addr));
+
+  if (!dhcp_hashget(this, &conn, ethh->src)) {
+    if (this->debug) 
+      log_dbg("Address found");
+  } else {
+    /* Allocate new connection */
+    if (dhcp_newconn(this, &conn, ethh->src)) {
+      log_dbg("dropping packet; out of connections");
+      return 0; /* Out of connections */
+    }
+  }
+  
+  /* Return if we do not know peer */
+  if (!conn) {
+    log_dbg("dropping packet; no peer");
+    return 0;
+  }
+  
+  dhcp_conn_set_idx(conn, ctx);
+  
+#ifdef ENABLE_IEEE8021Q
+  if (_options.ieee8021q) {
+#if(_debug_ > 1)
+    log_dbg("%s calling dhcp_checktag",__FUNCTION__);
+#endif
+    dhcp_checktag(conn, pctx->pkt);
+  }
+#endif
+  
+  switch(iphdr->next_header) {
+  case ICMPv6_NEXT_HEADER:
+  {
+    dhcp_ipv6_icmp(ctx, pctx, ethh, iphdr);
+    return 0;
+  }
+  break;
+  case PKT_IP_PROTO_UDP:
+  {
+    struct pkt_udphdr_t * udphdr = 
+      (struct pkt_udphdr_t *)
+      (((uint8_t *)iphdr) + sizeof(struct pkt_ip6hdr_t));
+    
+    if (ntohs(udphdr->src) == 546 && ntohs(udphdr->dst) == 547) {
+      // dhcp_ipv6_dhcp(ctx, pack, len, ethh, iphdr, udphdr);
+      return 0;
+    }
+  }
+  break;
+  }
+  
   if (_options.ipv6to4) {
     /* rewrite to ipv4 and forward */
     switch(iphdr->next_header) {
@@ -4650,9 +4753,8 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
       if (iphdr->dst_addr[0]==0x11 &&
 	  iphdr->dst_addr[1]==0x12) {
 	struct pkt_iphdr_t *ip4hdr;
-	struct dhcp_conn_t *dhcpconn = 0;
-	struct app_conn_t *appconn = 0;
 	uint8_t prot = iphdr->next_header;
+	struct dhcp_conn_t *dhcpconn = 0;
 	uint32_t ip;
 	
 	static uint16_t idcnt = 1;
@@ -4688,14 +4790,23 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, struct pkt_ctx *pctx) {
 	memcpy(&ip4hdr->daddr,&ip,4);
 	
 	chksum(ip4hdr);
+	
 
 	pctx->pkt += 20;
 	pctx->pkt_len -= 20;
 	return dhcp_receive_ip(ctx, pctx);
       }
     }
+    return 0;
   }
-  return 0;
+  
+  appconn = (struct app_conn_t *) conn->peer;
+  if (!appconn) return 0;
+
+  if (check_ipv6_addr(appconn, iphdr->src_addr))
+    return 0;
+  
+  return tun_encaps(tun, pctx, appconn->s_params.routeidx);
 }
 #endif
 
