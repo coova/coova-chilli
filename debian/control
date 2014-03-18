@@ -2,7 +2,7 @@ Source: coova-chilli
 Section: net
 Priority: optional
 Maintainer: David Bird (Coova Technologies) <support@coova.com>
-Build-Depends: debhelper (>= 7), libc6-dev | libc6-dev-amd64 
+Build-Depends: debhelper (>= 7), libc6-dev | libc6-dev-amd64, gengetopt
 Standards-Version: 3.8.1
 
 Package: coova-chilli 
