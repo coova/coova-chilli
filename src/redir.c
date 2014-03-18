@@ -1705,10 +1705,17 @@ int redir_listen(struct redir_t *redir) {
 #ifdef SO_REUSEPORT
     optval = 1;
     if (setsockopt(redir->fd[n], SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))) {
-      log_err(errno, "setsockopt(SO_REUSEPORT)");
-      safe_close(redir->fd[n]);
-      redir->fd[n]=0;
-      return -1;
+      error_t last_errno = errno;
+      log_err(last_errno, "setsockopt(SO_REUSEPORT)");
+      if (last_errno != ENOPROTOOPT) {
+	log_dbg ("setsockopt(SO_REUSEPORT) failed hard, aborting.");
+	safe_close(redir->fd[n]);
+	redir->fd[n]=0;
+	return -1;
+      } else {
+	log_dbg ("setsockopt(SO_REUSEPORT) failed due to proto not available "
+		 "(probably compiled with newer header files), continueing anyways...");
+      }
     }
 #endif
     
