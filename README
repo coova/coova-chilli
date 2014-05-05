@@ -8,7 +8,7 @@ Coova-Chilli, see:
 
 http://www.coova.org/
 
-To get started from SVN:
+To get started after cloning git repository:
 
   sh bootstrap
   ./configure
