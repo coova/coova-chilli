@@ -28,6 +28,11 @@
 #include "ewt.h"
 #endif
 
+#ifndef __error_t_defined
+typedef int error_t;
+# define __error_t_defined
+#endif
+
 static int optionsdebug = 0; /* TODO: Should be changed to instance */
 
 static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
