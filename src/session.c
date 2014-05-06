@@ -73,6 +73,9 @@ int session_json_params(struct session_state *state,
   bcatcstr(json,",\"sessionTimeout\":");
   bassignformat(tmp, "%lld", params->sessiontimeout);
   bconcat(json, tmp);
+  bcatcstr(json,",\"terminateTime\":");
+  bassignformat(tmp, "%lld", params->sessionterminatetime);
+  bconcat(json, tmp);
   bcatcstr(json,",\"idleTimeout\":");
   bassignformat(tmp, "%ld", params->idletimeout);
   bconcat(json, tmp);
