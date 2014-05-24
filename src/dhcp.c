@@ -4164,7 +4164,7 @@ void check_options(int datalen, uint8_t *data, uint8_t b[256]) {
               log_dbg(0, "could not parse ICMP option");
               datalen = 0;
               break;
-            }
+                }
             if (dlen > 0) {
               if (dlen <= datalen) {
                 log_dbg("ICMPv6 Option %d %d %d",(int)t,(int)l,dlen);
@@ -4183,10 +4183,10 @@ void check_options(int datalen, uint8_t *data, uint8_t b[256]) {
               i += dlen;
               datalen -= dlen;
             }
+              }
+            }
           }
         }
-}
-}
 }
 
 int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
