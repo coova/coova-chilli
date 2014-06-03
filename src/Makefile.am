@@ -89,7 +89,7 @@ libchilli_la_SOURCES += mssl.c mssl.h
 libchilli_la_LIBADD += -lmatrixssl
 LDADD += -lmatrixssl
 if WITH_MATRIXSSL_CLI
-SUBDIRS = mssl
+SUBDIRS += mssl
 endif
 endif
 
@@ -166,8 +166,8 @@ endif
 if WITH_MODULES
 sample_la_SOURCES = sample-mod.c
 sample_la_LDFLAGS = -module -avoid-version
-pkglibdir = $(libdir)/coova-chilli
-pkglib_LTLIBRARIES = sample.la
+samplelibdir = $(libdir)/coova-chilli
+samplelib_LTLIBRARIES = sample.la
 libchilli_la_SOURCES += chilli_module.c
 libchilli_la_LIBADD += -ldl
 LDADD += -ldl
