@@ -2646,7 +2646,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
   case PKT_IP_PROTO_AH:
     {
       if (ntohs(ipph->tot_len) > len) {
-	log_dbg("invalid IP packet %d / %d / %d", 
+	log_dbg("invalid IP packet %d / %d",
 		ntohs(ipph->tot_len),
 		len);
 	return 0;
@@ -2656,12 +2656,17 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
   case PKT_IP_PROTO_UDP:
     {
       size_t hlen = (ipph->version_ihl & 0x0f) << 2;
-      udph = (struct pkt_udphdr_t *)(((void *)ipph) + hlen);
+      /*
+       * Only the first IP fragment has the UDP header.
+       */
+      if (iphdr_offset((struct pkt_iphdr_t*)ipph) == 0) {
+        udph = (struct pkt_udphdr_t *)(((void *)ipph) + hlen);
+      }
       if (ntohs(ipph->tot_len) > len ||
-	  ntohs(udph->len) > len) {
+           (udph && (ntohs(udph->len) > len))) {
 	log_dbg("invalid UDP packet %d / %d / %d", 
 		ntohs(ipph->tot_len),
-		ntohs(udph->len), len);
+		udph?ntohs(udph->len):-1, len);
 	return 0;
       }
     }
