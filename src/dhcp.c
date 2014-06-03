@@ -3775,11 +3775,14 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     return 0;
   }
   
-  if (iph_tot_len > _options.mtu ||
-      iphdr_more_frag(pack_iph) ||
-      iphdr_offset(pack_iph)) {
+  /*
+   * Do not drop all fragments, only if they have DF bit.
+   * Note: this is as in SVN before R462 / git e4a934 (2012-03-01 15:46:22).
+   */
+
+  if (iph_tot_len > _options.mtu && (pack_iph->opt_off_high & 64)) {
     uint8_t icmp_pack[1500];
-    log_dbg("ICMP frag for IP packet with length %d > %d", iph_tot_len, _options.mtu);
+    log_dbg("ICMP frag forbidden for IP packet with length %d > %d", iph_tot_len, _options.mtu);
     dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack, 
 	      icmpfrag(conn, icmp_pack, sizeof(icmp_pack), pack));
     OTHER_SENDING(conn, pkt_iphdr(icmp_pack));
@@ -3797,11 +3800,14 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   
   /*
    * Sanity check on UDP total length
+   * Note: we cannot check fragments.
    */
   if (pack_iph->protocol == PKT_IP_PROTO_UDP) {
     uint16_t udph_len = ntohs(pack_udph->len);
     if (udph_len < PKT_UDP_HLEN ||
-	iph_tot_len != udph_len + PKT_IP_HLEN) {
+        (iph_tot_len != udph_len + PKT_IP_HLEN &&
+         iphdr_more_frag(pack_iph) == 0 &&
+         iphdr_offset(pack_iph) == 0)) {
       log_dbg("dropping udp packet; ip-len=%d != udp-len=%d + ip-hdr=20",
 	      (int) iph_tot_len,
 	      (int) udph_len);
