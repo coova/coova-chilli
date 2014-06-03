@@ -4131,6 +4131,64 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 }
 
 #ifdef ENABLE_IPV6
+void check_options(int datalen, uint8_t *data, uint8_t b[256]) {
+        if (datalen > 0) {
+          uint8_t t, l;
+          int i=0;
+          while (datalen > 0) {
+            int dlen = -1;
+            t = data[i++]; datalen--;
+            if (!datalen) break;
+            l = data[i++]; datalen--;
+            if (!datalen) break;
+            switch(t) {
+            case 1: /* source link-layer address */
+            case 2: /* target link-layer address */
+              dlen = l * PKT_ETH_ALEN;
+              break;
+            default:
+              log_dbg(0, "could not parse ICMP option");
+              datalen = 0;
+              break;
+            }
+            if (dlen > 0) {
+              if (dlen <= datalen) {
+                log_dbg("ICMPv6 Option %d %d %d",(int)t,(int)l,dlen);
+                memcpy(b, data + i, dlen);
+                switch(t) {
+                case 1: /* source link-layer address */
+                case 2: /* target link-layer address */
+              dlen = l * PKT_ETH_ALEN;
+              break;
+            default:
+              log_dbg(0, "could not parse ICMP option");
+              datalen = 0;
+              break;
+                }
+            if (dlen > 0) {
+              if (dlen <= datalen) {
+                log_dbg("ICMPv6 Option %d %d %d",(int)t,(int)l,dlen);
+                memcpy(b, data + i, dlen);
+                switch(t) {
+                case 1: /* source link-layer address */
+                case 2: /* target link-layer address */
+                  log_dbg("ICMPv6 Source Link-Layer Address Option "MAC_FMT,
+                          MAC_ARG(b));
+                  break;
+                default:
+                  break;
+                }
+              }
+
+              i += dlen;
+              datalen -= dlen;
+            }
+              }
+            }
+          }
+        }
+}
+
 int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   struct dhcp_t *this = ctx->parent;
   struct pkt_ethhdr_t *ethh = pkt_ethhdr(pack);
@@ -4151,53 +4209,13 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   case ICMPv6_NEXT_HEADER:
     {
       int datalen = 0;
-      uint8_t b[256], *data;
+      uint8_t b[256], *data = NULL;
       
       struct pkt_icmphdr_t * icmphdr = 
 	(struct pkt_icmphdr_t *)
 	(((uint8_t *)iphdr) + sizeof(struct pkt_ip6hdr_t));
 
-      void check_options() {
-	if (datalen > 0) {
-	  uint8_t t, l;
-	  int i=0;
-	  while (datalen > 0) {
-	    int dlen = -1;
-	    t = data[i++]; datalen--;
-	    if (!datalen) break;
-	    l = data[i++]; datalen--;
-	    if (!datalen) break;
-	    switch(t) {
-	    case 1: /* source link-layer address */
-	    case 2: /* target link-layer address */
-	      dlen = l * PKT_ETH_ALEN;
-	      break;
-	    default:
-	      log_dbg(0, "could not parse ICMP option");
-	      datalen = 0;
-	      break;
-	    }
-	    if (dlen > 0) {
-	      if (dlen <= datalen) {
-		log_dbg("ICMPv6 Option %d %d %d",(int)t,(int)l,dlen);
-		memcpy(b, data + i, dlen);
-		switch(t) {
-		case 1: /* source link-layer address */
-		case 2: /* target link-layer address */
-		  log_dbg("ICMPv6 Source Link-Layer Address Option "MAC_FMT,
-			  MAC_ARG(b));
-		  break;
-		default:
-		  break;
-		}
-	      }
-	      
-	      i += dlen;
-	      datalen -= dlen;
-	    }
-	  }
-	}
-      }
+      check_options(datalen, data, b);
 
       data = ((uint8_t *)icmphdr) + sizeof(struct pkt_icmphdr_t);
       
@@ -4231,7 +4249,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
 	data += 4;
 	datalen -= 4;
-	check_options();
+	check_options(datalen, data, b);
 	
 	/*	  
 	  4.2. Router Advertisement Message Format
@@ -4388,7 +4406,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  data += 16;
 	  datalen -= 16;
 
-	  check_options();
+	  check_options(datalen, data, b);
 	  
 	  memset(packet, 0, sizeof(packet));
 	  copy_ethproto(pack, packet);

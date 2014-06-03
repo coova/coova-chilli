@@ -53,7 +53,8 @@ void garden_print_list(int fd, pass_through *ptlist, int ptcnt) {
 #endif
 		  );
     
-    if (!safe_write(fd, line, strlen(line))) /* error */;
+    if (!safe_write(fd, line, strlen(line))) /* error */
+	;
   }
 }
 
@@ -103,7 +104,8 @@ void garden_print(int fd) {
 		"static garden (%d/%d):\n",
 		_options.num_pass_throughs,
 		MAX_PASS_THROUGHS);
-  if (!safe_write(fd, line, strlen(line))) /* error */;
+  if (!safe_write(fd, line, strlen(line))) /* error */
+	;
 
 #ifdef HAVE_PATRICIA
   if (dhcp->ptree) {
@@ -118,7 +120,8 @@ void garden_print(int fd) {
 		"dynamic garden (%d/%d):\n",
 		dhcp->num_pass_throughs,
 		MAX_PASS_THROUGHS);
-  if (!safe_write(fd, line, strlen(line))) /* error */;
+  if (!safe_write(fd, line, strlen(line))) /* error */
+	;
   
 #ifdef HAVE_PATRICIA
   if (dhcp->ptree_dyn) {

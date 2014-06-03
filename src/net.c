@@ -91,29 +91,28 @@ int dev_get_flags(char const *dev, int *flags) {
 
 int dev_set_address(char const *devname, struct in_addr *address, 
 		    struct in_addr *dstaddr, struct in_addr *netmask) {
+#if defined(__linux__)
   struct ifreq ifr;
+#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
+  struct ifaliasreq ifr;
+#endif
   int fd;
 
   memset(&ifr, 0, sizeof (ifr));
-  ifr.ifr_addr.sa_family = AF_INET;
-  ifr.ifr_dstaddr.sa_family = AF_INET;
-  
-#if defined(__linux__)
-  ifr.ifr_netmask.sa_family = AF_INET;
-  
-#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
-  ((struct sockaddr_in *) &ifr.ifr_addr)->sin_len = sizeof (struct sockaddr_in);
-  ((struct sockaddr_in *) &ifr.ifr_dstaddr)->sin_len = sizeof (struct sockaddr_in);
-#endif
-  
-  safe_strncpy(ifr.ifr_name, devname, IFNAMSIZ);
-  
+
   /* Create a channel to the NET kernel. */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     log_err(errno, "socket() failed");
     return -1;
   }
-  
+
+#if defined(__linux__)
+  safe_strncpy(ifr.ifr_name, devname, IFNAMSIZ);
+  ifr.ifr_addr.sa_family = AF_INET;
+  ifr.ifr_dstaddr.sa_family = AF_INET;
+  ifr.ifr_netmask.sa_family = AF_INET;
+  ifr.ifr_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
+
   if (address) { /* Set the interface address */
     ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr = address->s_addr;
     if (ioctl(fd, SIOCSIFADDR, (void *) &ifr) < 0) {
@@ -138,23 +137,46 @@ int dev_set_address(char const *devname, struct in_addr *address,
   }
 
   if (netmask) { /* Set the netmask */
-#if defined(__linux__)
     ((struct sockaddr_in *) &ifr.ifr_netmask)->sin_addr.s_addr =  netmask->s_addr;
-#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
-    ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr =  netmask->s_addr;
-#elif defined(__sun__)
-    ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr =  netmask->s_addr;
-#else
-#error  "Unknown platform!" 
-#endif
-
     if (ioctl(fd, SIOCSIFNETMASK, (void *) &ifr) < 0) {
       log_err(errno, "ioctl(SIOCSIFNETMASK) failed");
       close(fd);
       return -1;
     }
   }
+
   
+#elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
+  strncpy(ifr.ifra_name, devname, IFNAMSIZ);
+  ifr.ifra_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
+
+  ((struct sockaddr_in*) &ifr.ifra_addr)->sin_family = AF_INET;
+  ((struct sockaddr_in*) &ifr.ifra_addr)->sin_len = sizeof(ifr.ifra_addr);
+  ((struct sockaddr_in*) &ifr.ifra_addr)->sin_addr.s_addr = address->s_addr;
+
+  ((struct sockaddr_in*) &ifr.ifra_mask)->sin_family = AF_INET;
+  ((struct sockaddr_in*) &ifr.ifra_mask)->sin_len    = sizeof(ifr.ifra_mask);
+  ((struct sockaddr_in*) &ifr.ifra_mask)->sin_addr.s_addr = netmask->s_addr;
+
+  /* For some reason FreeBSD uses ifra_broadcast for specifying dstaddr */
+  ((struct sockaddr_in*) &ifr.ifra_broadaddr)->sin_family = AF_INET;
+  ((struct sockaddr_in*) &ifr.ifra_broadaddr)->sin_len = sizeof(ifr.ifra_broadaddr);
+  ((struct sockaddr_in*) &ifr.ifra_broadaddr)->sin_addr.s_addr = dstaddr->s_addr;
+
+    if (ioctl(fd, SIOCAIFADDR, (void *) &ifr) < 0) {
+      if (errno != EEXIST) {
+	  log_err(errno, "ioctl(SIOCAIFADDR) failed");
+      }
+      else {
+	  log_warn(errno, "ioctl(SIOCAIFADDR): Address already exists");
+      }
+      close(fd);
+      return -1;
+    }
+#else
+#error  "Unknown platform!"
+#endif
+
   close(fd);
   
   return dev_set_flags(devname, IFF_UP | IFF_RUNNING); 

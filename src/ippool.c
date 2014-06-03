@@ -501,7 +501,7 @@ int ippool_newip(struct ippool_t *this,
     /* Find in hash table */
     hash = ippool_hash4(addr) & this->hashmask;
     for (p = this->hash[hash]; p; p = p->nexthash) {
-      if ((p->addr.s_addr == addr->s_addr)) {
+      if (p->addr.s_addr == addr->s_addr) {
 	p2 = p;
 	break;
       }
