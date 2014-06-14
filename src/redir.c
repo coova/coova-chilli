@@ -3191,13 +3191,13 @@ int redir_main_exit(struct redir_socket_t *socket, int forked) {
     /* if (httpreq->data_in) bdestroy(httpreq->data_in); */
     /* if (!forked) return 0; XXXX*/
 #ifdef HAVE_SSL
-    if (socket.sslcon) {
+    if (socket->sslcon) {
 #if(_debug_ > 1)
       log_dbg("Shutting down SSL");
 #endif
-      openssl_shutdown(socket.sslcon, 2);
-      openssl_free(socket.sslcon);
-      socket.sslcon = 0;
+      openssl_shutdown(socket->sslcon, 2);
+      openssl_free(socket->sslcon);
+      socket->sslcon = 0;
       if (rreq)
         rreq->sslcon = 0;
     }
