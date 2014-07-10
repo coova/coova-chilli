@@ -9,7 +9,7 @@ Group:     System Environment/Daemons
 BuildRoot: %{_tmppath}/%{name}-root
 
 %if %{!?_without_ssl:1}0
-BuildRequires: openssl-devel libtool
+BuildRequires: openssl-devel libtool gengetopt
 %endif
 
 %description
@@ -25,7 +25,7 @@ your favorite radius server. Read more at http://www.coova.org/.
 %setup
 
 %build
-
+sh bootstrap
 %configure \
         --disable-static \
         --enable-shared \
@@ -86,6 +86,7 @@ fi
 %{_sysconfdir}/chilli/wwwsh
 %{_sysconfdir}/chilli/functions
 %{_sysconfdir}/chilli/*.sh
+%{_sysconfdir}/chilli/wpad.dat
 %{_mandir}/man1/*.1*
 %{_mandir}/man5/*.5*
 %{_mandir}/man8/*.8*
