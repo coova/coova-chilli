@@ -1,3 +1,24 @@
+== ChangeLog (CoovaChilli-v1.3.1 git2763bb5) ==
+
+* Added NethServer distro spec.in
+* Pass redir_request *rreq to redir_main_exit()
+* Add terminateTime to chilli session json object
+* Pass redir_request *rreq to redir_main_exit() (Unbreaks building with OpenSSL support)
+* Reference the members of socket struct correctly
+* Do no drop IP fragments (needed for some UDP VPN)
+* Fixed automake warnings
+* Fix building using clang & dev_set_address() on the BSD's
+* Fix indentation of closing brakets in check_options()
+* Use ifaliasreq for BSDs & derivatives
+* When calling redir_main_exit() from redir_main() pass it forked
+* Allow Coova to be built using clang without any options enabled
+* Fix CR/LF > LF
+* Fix build with FreeBSD
+* Moved on github (https://github.com/coova/coova-chilli)
+* Added haserl dependency for miniportal
+* Added libtool, automake and libssl-dev, iptables, gengetopt as dependencies to build a .deb from sources
+* Now SO_REUSEPORT socket flag is checked at runtime
+* Fix compile w/o patricia support
 
 == ChangeLog (CoovaChilli current svn revision) ==
 
