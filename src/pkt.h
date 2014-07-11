@@ -500,7 +500,7 @@ struct pkt_chillihdr_t {
 #else
 
 #define sizeofeth2(x)   (PKT_ETH_HLEN)
-#define sizeofip2(x)    (sizeofeth2(x)+((pkt_iphdr(x)->version_ihl&0x0f)*4))   // PKT_IP_HLEN)
+#define sizeofip2(x)    (sizeofeth2(x)+((pkt_iphdr(x)->version_ihl&0x0f)*4))) /* PKT_IP_HLEN */
 #define sizeofdot1x2(x) (sizeofeth2(x)+PKT_DOT1X_HLEN)
 #define sizeofudp2(x)   (sizeofip2(x)+PKT_UDP_HLEN)
 #define sizeoftcp2(x)   (sizeofip2(x)+PKT_TCP_HLEN)
