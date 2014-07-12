@@ -5550,7 +5550,6 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   if (_options.scalewin && appconn && appconn->s_state.bucketup) {
     uint16_t win = appconn->s_state.bucketupsize - 
       appconn->s_state.bucketup;
-    //log_dbg("window scaling to %d", win);
     pkt_shape_tcpwin((struct pkt_iphdr_t *)ipph, win);
   }
 #endif
