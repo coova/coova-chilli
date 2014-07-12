@@ -4214,6 +4214,7 @@ static int chilliauth_cb(struct radius_t *radius,
 
   struct radius_attr_t *attr = NULL;
   size_t offset = 0;
+  int fd;
 
   if (!pack) { 
     log_err(0, "Radius request timed out");
@@ -4254,7 +4255,7 @@ static int chilliauth_cb(struct radius_t *radius,
 
       log_dbg("using temp: %s", hs_temp);
       
-      int fd = open(hs_temp, O_RDWR | O_TRUNC | O_CREAT, 0644);
+      fd = open(hs_temp, O_RDWR | O_TRUNC | O_CREAT, 0644);
 
       if (fd > 0) {
 
