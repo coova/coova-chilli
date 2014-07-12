@@ -47,7 +47,6 @@ typedef enum {
   CMDSOCK_ROUTE_GW,
 #endif
   CMDSOCK_ADD_GARDEN,
-  CMDSOCK_REM_GARDEN,
 #ifdef ENABLE_INSPECT
   CMDSOCK_INSPECT,
 #endif
@@ -55,6 +54,7 @@ typedef enum {
  CMDSOCK_LISTLOC,
  CMDSOCK_LISTLOCSUM,
 #endif
+ CMDSOCK_REM_GARDEN
 } chilli_cmdtype;
 #define  CMDSOCK_OPT_JSON      (1)
 
