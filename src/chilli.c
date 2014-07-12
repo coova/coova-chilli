@@ -2710,7 +2710,6 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
   if (_options.scalewin && appconn && appconn->s_state.bucketdownsize) {
     uint16_t win = appconn->s_state.bucketdownsize - 
       appconn->s_state.bucketdown;
-    //log_dbg("window scaling to %d", win);
     pkt_shape_tcpwin((struct pkt_iphdr_t *)ipph, win);
   }
 #endif
