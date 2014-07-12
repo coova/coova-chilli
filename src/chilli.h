@@ -76,10 +76,10 @@ struct app_conn_t {
   void *uplink;                  /* Uplink network interface (Internet) */
   void *dnlink;                  /* Downlink network interface (Wireless) */
 
-  uint8_t inuse:1;
-  uint8_t is_adminsession:1;
-  uint8_t uamabort:1;
-  uint8_t uamexit:1;
+  unsigned int inuse:1;
+  unsigned int is_adminsession:1;
+  unsigned int uamabort:1;
+  unsigned int uamexit:1;
 
   /* Management of connections */
   int unit;
