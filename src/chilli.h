@@ -166,10 +166,10 @@ struct app_conn_t {
 #define VAL_USHORT   5
 
 typedef enum {
-  ACCT_USER,
 #ifdef ENABLE_GARDENACCOUNTING
   ACCT_GARDEN,
 #endif
+  ACCT_USER
 } acct_type;
 
 void set_env(char *name, char type, void *value, int len);
