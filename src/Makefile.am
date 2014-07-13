@@ -1,4 +1,4 @@
-AUTOMAKE_OPTIONS=foreign
+AUTOMAKE_OPTIONS=foreign subdir-objects
 
 SUBDIRS = 
 EXTRA_DIST = cmdline.ggo cmdline.patch \

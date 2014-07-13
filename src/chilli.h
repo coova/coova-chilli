@@ -76,10 +76,10 @@ struct app_conn_t {
   void *uplink;                  /* Uplink network interface (Internet) */
   void *dnlink;                  /* Downlink network interface (Wireless) */
 
-  uint8_t inuse:1;
-  uint8_t is_adminsession:1;
-  uint8_t uamabort:1;
-  uint8_t uamexit:1;
+  unsigned int inuse:1;
+  unsigned int is_adminsession:1;
+  unsigned int uamabort:1;
+  unsigned int uamexit:1;
 
   /* Management of connections */
   int unit;
@@ -166,10 +166,10 @@ struct app_conn_t {
 #define VAL_USHORT   5
 
 typedef enum {
-  ACCT_USER,
 #ifdef ENABLE_GARDENACCOUNTING
   ACCT_GARDEN,
 #endif
+  ACCT_USER
 } acct_type;
 
 void set_env(char *name, char type, void *value, int len);

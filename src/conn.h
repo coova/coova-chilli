@@ -45,8 +45,8 @@ struct conn_t {
   openssl_con * sslcon;
 #endif
 
-  uint8_t connected:1;
-  uint8_t error:1;
+  unsigned int connected:1;
+  unsigned int error:1;
 
   conn_handler read_handler;
   void * read_handler_ctx;

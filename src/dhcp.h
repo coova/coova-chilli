@@ -124,10 +124,10 @@ struct dhcp_conn_t {
   uint8_t peerid;
 #endif
 
-  uint8_t inuse:1;             /* Free = 0; Inuse = 1 */
-  uint8_t noc2c:1;             /* Prevent client to client access using /32 subnets */
-  uint8_t is_reserved:1;       /* If this is a static/reserved mapping */
-  uint8_t padding:5;
+  unsigned int inuse:1;             /* Free = 0; Inuse = 1 */
+  unsigned int noc2c:1;             /* Prevent client to client access using /32 subnets */
+  unsigned int is_reserved:1;       /* If this is a static/reserved mapping */
+  unsigned int padding:5;
 
   time_t lasttime;             /* Last time we heard anything from client */
   uint8_t hismac[PKT_ETH_ALEN];/* Peer's MAC address */
@@ -224,9 +224,6 @@ struct dhcp_t {
 
   struct in_addr uamlisten; /* IP address to redirect HTTP requests to */
   uint16_t uamport;     /* TCP port to redirect HTTP requests to */
-
-  //struct in_addr *authip; /* IP address of authentication server */
-  //int authiplen;        /* Number of authentication server IP addresses */
 
   int anydns;           /* Allow any dns server */
 

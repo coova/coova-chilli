@@ -2677,7 +2677,6 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		 strlen(conn->s_state.redir.username));
 
   if (redir->secret && *redir->secret) {
-    //log_dbg("SECRET: [%s]",redir->secret);
     /* Get MD5 hash on challenge and uamsecret */
     MD5Init(&context);
     MD5Update(&context, conn->s_state.redir.uamchal, REDIR_MD5LEN);
