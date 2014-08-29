@@ -806,6 +806,7 @@ AC_CONFIG_FILES([Makefile
 		 json/Makefile
 		 distro/Makefile
 		 distro/suse/coova-chilli.spec
+		 distro/nethserver/coova-chilli.spec
 		 distro/redhat/coova-chilli.spec])
 
 AC_OUTPUT
