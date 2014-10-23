@@ -29,7 +29,6 @@
  */
 
 #include "chilli.h"
-#include "debug.h"
 #ifdef ENABLE_MULTIROUTE
 #include "rtmon.h"
 extern struct rtmon_t _rtmon;

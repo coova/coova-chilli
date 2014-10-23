@@ -18,7 +18,6 @@
  */
 
 #include "chilli.h"
-#include "debug.h"
 
 #define antidnstunnel _options.dnsparanoia
 

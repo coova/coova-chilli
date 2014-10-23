@@ -23,7 +23,6 @@
 #include "cmdline.h"
 #include "system.h"
 #include "chilli.h"
-#include "debug.h"
 
 struct options_t _options;
 

@@ -42,7 +42,6 @@
 
 #include "chilli.h"
 #include "ssl.h"
-#include "debug.h"
 
 #define SSL_SOCKET_EOF  0x0001
 #define SSL_SOCKET_CLOSE_NOTIFY  0x0002

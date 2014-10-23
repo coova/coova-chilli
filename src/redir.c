@@ -20,7 +20,6 @@
 
 #include "system.h"
 #include "chilli.h"
-#include "debug.h"
 #ifdef ENABLE_MODULES
 #include "chilli_module.h"
 #endif
