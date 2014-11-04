@@ -5674,7 +5674,11 @@ int chilli_acct_fromsub(struct app_conn_t *appconn,
     }
 #endif
     
-    if (_options.uamauthedallowed && do_bw) {
+    if (_options.uamauthedallowed
+#ifdef ENABLE_LEAKYBUCKET
+      && do_bw
+#endif
+    ) {
 #ifdef ENABLE_GARDENACCOUNTING
       checked_garden = 1;
 #endif
@@ -5794,7 +5798,11 @@ int chilli_acct_tosub(struct app_conn_t *appconn,
     }
 #endif
 
-    if (_options.uamauthedallowed && do_bw) {
+    if (_options.uamauthedallowed
+#ifdef ENABLE_LEAKYBUCKET
+      && do_bw
+#endif
+    ) {
 #ifdef ENABLE_GARDENACCOUNTING
       checked_garden = 1;
 #endif
