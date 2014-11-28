@@ -375,10 +375,14 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 	
       case SSL_ERROR_SYSCALL:
 	if (errno != EINTR) {
-	  if (errno > 0)
-	    log_err(errno, "SSL handshake interrupted by system [Hint: Stop button pressed in browser?!]");
-	  else
-	    log_err(errno, "Spurious SSL handshake interrupt [Hint: Usually just one of those OpenSSL confusions!?]");
+#if(_debug_ > 1)
+	  if (errno > 0) {
+	    log_dbg("SSL handshake interrupted by system [Hint: Stop button pressed in browser?!]");
+         }
+	  else {
+	    log_dbg("Spurious SSL handshake interrupt [Hint: Usually just one of those OpenSSL confusions!?]");
+        }
+#endif
 	}
 	break;
       }

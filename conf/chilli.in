@@ -62,7 +62,7 @@ start() {
         echo "*/$HS_ADMINTERVAL * * * * $0 radconfig") | crontab - 2>&-
     }
 
-    ifconfig $HS_LANIF 0.0.0.0
+    test ${HS_LANIF_KEEPADDR:-0} -eq 0 && ifconfig $HS_LANIF 0.0.0.0
 
     daemon $exec -c $CONFIG
     retval=$?

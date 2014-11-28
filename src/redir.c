@@ -2025,11 +2025,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 #endif
 	  wblock = 1;
 	} else {
-	  log_err(errno, "%s_read(%d) failed!", 
+#if(_debug_ > 1)
+	  log_dbg("%s_read(%d) failed!",
 #ifdef HAVE_SSL
 		  sock->sslcon ? "SSL" : 
 #endif
 		  "redir", fd);
+#endif
 	  return -1;
 	}
       }
