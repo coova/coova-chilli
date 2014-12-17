@@ -529,7 +529,7 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
     }
     
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0);
-    curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_SSLv3);
+    curl_easy_setopt(curl, CURLOPT_SSLVERSION, CURL_SSLVERSION_DEFAULT);
 #endif
     
     curl_easy_setopt(curl, CURLOPT_VERBOSE, /*debug ? 1 :*/ 0);
