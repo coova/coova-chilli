@@ -7272,12 +7272,12 @@ int chilli_main(int argc, char **argv) {
   if (clock_gettime(CLOCK_REALTIME, &startup_real) < 0) {
     syslog(LOG_ERR, "%d getting startup (realtime) time", errno);
   }
-  syslog(LOG_DEBUG, "clock realtime sec %d nsec %d", startup_real.tv_sec, startup_real.tv_nsec);
+  syslog(LOG_DEBUG, "clock realtime sec %ld nsec %ld", startup_real.tv_sec, startup_real.tv_nsec);
 #ifdef CLOCK_MONOTONIC
   if (clock_gettime(CLOCK_MONOTONIC, &startup_mono) < 0) {
     syslog(LOG_ERR, "%d getting startup (monotonic) time", errno);
   }
-  syslog(LOG_DEBUG, "clock monotonic sec %d nsec %d", startup_mono.tv_sec, startup_mono.tv_nsec);
+  syslog(LOG_DEBUG, "clock monotonic sec %ld nsec %ld", startup_mono.tv_sec, startup_mono.tv_nsec);
 #endif
 #endif
 
