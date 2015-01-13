@@ -148,7 +148,7 @@ static pid_t launch_daemon(char *name, char *path) {
 
   if (p < 0) {
 
-    log_err(errno, "fork failed");
+    syslog(LOG_ERR, "%d fork failed", errno);
 
   } else if (p == 0) {
 
@@ -164,7 +164,7 @@ static pid_t launch_daemon(char *name, char *path) {
     newargs[i++] = NULL;
     
     if (execv(path, newargs) != 0) {
-      log_err(errno, "execl() did not return 0!");
+      syslog(LOG_ERR, "%d execl() did not return 0!", errno);
       exit(0);
     }
 
@@ -311,19 +311,19 @@ static void _sigchld(int signum) {
 #endif
 #ifdef ENABLE_CHILLIRADSEC
     if (!_options.debug && radsec_pid > 0 && radsec_pid == pid) {
-      log_err(0, "Having to re-launch chilli_radsec... PID %d exited", pid);
+      syslog(LOG_ERR, "Having to re-launch chilli_radsec... PID %d exited", pid);
       launch_chilliradsec();
     }
 #endif
 #ifdef ENABLE_CHILLIPROXY
     if (!_options.debug && proxy_pid > 0 && proxy_pid == pid) {
-      log_err(0, "Having to re-launch chilli_proxy... PID %d exited", pid);
+      syslog(LOG_ERR, "Having to re-launch chilli_proxy... PID %d exited", pid);
       launch_chilliproxy();
     }
 #endif
 #ifdef ENABLE_CHILLIREDIR
     if (!_options.debug && redir_pid > 0 && redir_pid == pid) {
-      log_err(0, "Having to re-launch chilli_redir... PID %d exited", pid);
+      syslog(LOG_ERR, "Having to re-launch chilli_redir... PID %d exited", pid);
       launch_chilliredir();
     }
 #endif
@@ -466,7 +466,7 @@ time_t mainclock_tick() {
     res = clock_gettime(cid, &ts);
   }
   if (res == -1) {
-    log_err(errno, "clock_gettime()");
+    syslog(LOG_ERR, "%d clock_gettime()", errno);
     /* drop through to old time() */
   } else {
     mainclock.tv_sec = ts.tv_sec;
@@ -475,7 +475,7 @@ time_t mainclock_tick() {
   }
 #endif
   if (time(&mainclock.tv_sec) == (time_t)-1) {
-    log_err(errno, "time()");
+    syslog(LOG_ERR, "%d time()", errno);
   }
   return mainclock.tv_sec;
 }
@@ -490,7 +490,7 @@ time_t mainclock_rt() {
   struct timespec ts;
   clockid_t cid = CLOCK_REALTIME;
   if (clock_gettime(cid, &ts) < 0) {
-    log_err(errno, "clock_gettime()");
+    syslog(LOG_ERR, "%d clock_gettime()", errno);
     /* drop through to old time() */
   } else {
     rt = ts.tv_sec;
@@ -498,7 +498,7 @@ time_t mainclock_rt() {
   }
 #endif
   if (time(&rt) == (time_t)-1) {
-    log_err(errno, "time()");
+    syslog(LOG_ERR, "%d time()", errno);
   }
   return rt;
 }
@@ -759,7 +759,7 @@ void set_env(char *name, char type, void *value, int len) {
 
   if (name != NULL && v != NULL) {
     if (setenv(name, v, 1) != 0) {
-      log_err(errno, "setenv(%s, %s, 1) did not return 0!", name, v);
+      syslog(LOG_ERR, "%d setenv(%s, %s, 1) did not return 0!", errno, name, v);
     }
   }
 }
@@ -770,7 +770,7 @@ int runscript(struct app_conn_t *appconn, char* script,
   uint32_t sessiontime;
 
   if ((status = chilli_fork(CHILLI_PROC_SCRIPT, script)) < 0) {
-    log_err(errno, "forking %s", script);
+    syslog(LOG_ERR, "%d forking %s", errno, script);
     return 0;
   }
 
@@ -835,7 +835,7 @@ int runscript(struct app_conn_t *appconn, char* script,
 	    script,
 #endif
 	    script, (char *) 0) != 0) {
-    log_err(errno, "exec %s failed", script);
+    syslog(LOG_ERR, "%d exec %s failed", errno, script);
   }
   
   exit(0);
@@ -866,7 +866,7 @@ static int newip(struct ippoolm_t **ipm, struct in_addr *hisip, uint8_t *hismac)
 
   if (ippool_newip(ippool, ipm, hisip, 1)) {
     if (ippool_newip(ippool, ipm, hisip, 0)) {
-      log_err(0, "Failed to allocate either static or dynamic IP address");
+      syslog(LOG_ERR, "Failed to allocate either static or dynamic IP address");
       return -1;
     }
   }
@@ -890,15 +890,14 @@ int chilli_new_conn(struct app_conn_t **conn) {
   if (!firstfreeconn) {
 
     if (connections == _options.max_clients) {
-      log_err(0, "reached max connections %d!",
-	      _options.max_clients);
+      syslog(LOG_ERR, "reached max connections %d!", _options.max_clients);
       return -1;
     }
 
     n = ++connections;
 
     if (!(*conn = calloc(1, sizeof(struct app_conn_t)))) {
-      log_err(0, "Out of memory!");
+      syslog(LOG_ERR, "Out of memory!");
       connections--;
       return -1;
     }
@@ -1005,7 +1004,7 @@ int chilli_getconn(struct app_conn_t **conn, uint32_t ip,
   while (appconn) {
 
     if (!appconn->inuse) {
-      log_err(0, "Connection with inuse == 0!");
+      syslog(LOG_ERR, "Connection with inuse == 0!");
     }
 
     if (ip && appconn->hisip.s_addr == ip) {
@@ -1069,7 +1068,7 @@ static int dnprot_terminate(struct app_conn_t *appconn) {
     break;
 #endif
   default: 
-    log_err(0, "Unknown downlink protocol"); 
+    syslog(LOG_ERR, "Unknown downlink protocol");
     break;
   }
   return 0;
@@ -1378,7 +1377,7 @@ int chilli_req_attrs(struct radius_t *radius,
 #endif
   case ACCT_USER:
     if (state->redir.classlen) {
-      syslog(LOG_DEBUG, "RADIUS Request + Class(%d)", state->redir.classlen);
+      syslog(LOG_DEBUG, "RADIUS Request + Class(%zu)", state->redir.classlen);
       radius_addattr(radius, pack,
 		     RADIUS_ATTR_CLASS, 0, 0, 0,
 		     state->redir.classbuf,
@@ -1386,7 +1385,7 @@ int chilli_req_attrs(struct radius_t *radius,
     }
     
     if (state->redir.cuilen > 1) {
-      syslog(LOG_DEBUG, "RADIUS Request + CUI(%d)", state->redir.cuilen);
+      syslog(LOG_DEBUG, "RADIUS Request + CUI(%zu)", state->redir.cuilen);
       radius_addattr(radius, pack, 
 		     RADIUS_ATTR_CHARGEABLE_USER_IDENTITY, 0, 0, 0,
 		     state->redir.cuibuf,
@@ -1503,7 +1502,7 @@ int chilli_auth_radius(struct radius_t *radius) {
   int ret = -1;
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
-    log_err(0, "radius_default_pack() failed");
+    syslog(LOG_ERR, "radius_default_pack() failed");
     return ret;
   }
   
@@ -1540,7 +1539,7 @@ int static auth_radius(struct app_conn_t *appconn,
   syslog(LOG_DEBUG, "Starting radius authentication");
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
-    log_err(0, "radius_default_pack() failed");
+    syslog(LOG_ERR, "radius_default_pack() failed");
     return -1;
   }
 
@@ -1635,7 +1634,7 @@ int static radius_access_reject(struct app_conn_t *conn) {
   conn->radiuswait = 0;
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REJECT)) {
-    log_err(0, "radius_default_pack() failed");
+    syslog(LOG_ERR, "radius_default_pack() failed");
     return -1;
   }
 
@@ -1655,7 +1654,7 @@ int static radius_access_challenge(struct app_conn_t *conn) {
   conn->radiuswait = 0;
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_CHALLENGE)) {
-    log_err(0, "radius_default_pack() failed");
+    syslog(LOG_ERR, "radius_default_pack() failed");
     return -1;
   }
 
@@ -1670,7 +1669,7 @@ int static radius_access_challenge(struct app_conn_t *conn) {
 
     if (radius_addattr(radius, &radius_pack, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
 		       conn->chal + offset, eaplen)) {
-      log_err(0, "radius_default_pack() failed");
+      syslog(LOG_ERR, "radius_default_pack() failed");
       return -1;
     }
     offset += eaplen;
@@ -1703,7 +1702,7 @@ int static radius_access_accept(struct app_conn_t *conn) {
   conn->radiuswait = 0;
 
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_ACCEPT)) {
-    log_err(0, "radius_default_pack() failed");
+    syslog(LOG_ERR, "radius_default_pack() failed");
     return -1;
   }
 
@@ -1828,7 +1827,7 @@ static int acct_req(acct_type type,
    */
   if (radius_default_pack(radius, &radius_pack, 
 			  RADIUS_CODE_ACCOUNTING_REQUEST)) {
-    log_err(0, "radius_default_pack() failed");
+    syslog(LOG_ERR, "radius_default_pack() failed");
     return -1;
   }
   
@@ -1860,7 +1859,7 @@ static int acct_req(acct_type type,
 	
 	if (sysinfo(&the_info)) {
 	  
-	  log_err(errno, "sysinfo()");
+	  syslog(LOG_ERR, "%d sysinfo()", errno);
 	  
 	} else {
 	  float shiftfloat;
@@ -2060,7 +2059,7 @@ int chilli_assign_snat(struct app_conn_t *appconn, int force) {
   }
   
   if (ippool_newip(ippool, &newipm, &appconn->natip, 0)) {
-    log_err(0, "Failed to allocate SNAT IP address");
+    syslog(LOG_ERR, "Failed to allocate SNAT IP address");
     /*
      *  Clean up the static pool listing too, it's misconfigured now.
      */ 
@@ -2098,7 +2097,7 @@ int dnprot_reject(struct app_conn_t *appconn) {
 #ifdef ENABLE_EAPOL
   case DNPROT_EAPOL:
     if (!(dhcpconn = (struct dhcp_conn_t*) appconn->dnlink)) {
-      log_err(0, "No downlink protocol");
+      syslog(LOG_ERR, "No downlink protocol");
       return 0;
     }
     
@@ -2121,7 +2120,7 @@ int dnprot_reject(struct app_conn_t *appconn) {
       safe_strncpy(appconn->s_state.redir.username, "-", USERNAMESIZE);
 
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
-      log_err(0, "No downlink protocol");
+      syslog(LOG_ERR, "No downlink protocol");
       return 0;
     }
 
@@ -2143,7 +2142,7 @@ int dnprot_reject(struct app_conn_t *appconn) {
     return 0;
 
   default:
-    log_err(0, "Unknown downlink protocol");
+    syslog(LOG_ERR, "Unknown downlink protocol");
     return 0;
   }
 }
@@ -2158,7 +2157,7 @@ int static dnprot_challenge(struct app_conn_t *appconn) {
     {
       struct dhcp_conn_t* dhcpconn = NULL;
       if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
-	log_err(0, "No downlink protocol");
+	syslog(LOG_ERR, "No downlink protocol");
 	return 0;
       }
       
@@ -2182,7 +2181,7 @@ int static dnprot_challenge(struct app_conn_t *appconn) {
 #endif
 
   default:
-    log_err(0, "Unknown downlink protocol");
+    syslog(LOG_ERR, "Unknown downlink protocol");
   }
 
   return 0;
@@ -2195,7 +2194,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
   if (appconn->is_adminsession) return 0;
 
   if (!appconn->hisip.s_addr) {
-    log_err(0, "IP address not allocated");
+    syslog(LOG_ERR, "IP address not allocated");
     return 0;
   }
 
@@ -2204,7 +2203,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
 #ifdef ENABLE_EAPOL
   case DNPROT_EAPOL:
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
-      log_err(0, "No downlink protocol");
+      syslog(LOG_ERR, "No downlink protocol");
       return 0;
     }
 
@@ -2226,7 +2225,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
 
   case DNPROT_UAM:
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
-      log_err(0, "No downlink protocol");
+      syslog(LOG_ERR, "No downlink protocol");
       return 0;
     }
 
@@ -2243,7 +2242,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
 #ifdef ENABLE_RADPROXY
   case DNPROT_WPA:
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
-      log_err(0, "No downlink protocol");
+      syslog(LOG_ERR, "No downlink protocol");
       return 0;
     }
 
@@ -2269,7 +2268,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
 
   case DNPROT_MAC:
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
-      log_err(0, "No downlink protocol");
+      syslog(LOG_ERR, "No downlink protocol");
       return 0;
     }
 
@@ -2291,7 +2290,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
 #endif
 
   default:
-    log_err(0, "Unknown downlink protocol");
+    syslog(LOG_ERR, "Unknown downlink protocol");
     return 0;
   }
 
@@ -2420,7 +2419,7 @@ static int fwd_layer3(struct app_conn_t *appconn,
 	src.s_addr = pdhcp->yiaddr;
 	appconn = chilli_connect_layer3(&src, 0);
 	if (!appconn) {
-	  log_err(0, "could not allocate for %s", inet_ntoa(src));
+	  syslog(LOG_ERR, "could not allocate for %s", inet_ntoa(src));
 	  return 1;
 	}
       }
@@ -2555,7 +2554,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
 	
 	if ((appconn  = (struct app_conn_t *)ipm->peer) == NULL ||
 	    (appconn->dnlink) == NULL) {
-	  log_err(0, "No peer protocol defined for ARP request");
+	  syslog(LOG_ERR, "No peer protocol defined for ARP request");
 	  return 0;
 	}
       
@@ -2644,7 +2643,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
   case PKT_IP_PROTO_AH:
     {
       if (ntohs(ipph->tot_len) > len) {
-	syslog(LOG_DEBUG, "invalid IP packet %d / %d",
+	syslog(LOG_DEBUG, "invalid IP packet %d / %zu",
 		ntohs(ipph->tot_len),
 		len);
 	return 0;
@@ -2662,7 +2661,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
       }
       if (ntohs(ipph->tot_len) > len ||
            (udph && (ntohs(udph->len) > len))) {
-	syslog(LOG_DEBUG, "invalid UDP packet %d / %d / %d", 
+	syslog(LOG_DEBUG, "invalid UDP packet %d / %d / %zu", 
 		ntohs(ipph->tot_len),
 		udph?ntohs(udph->len):-1, len);
 	return 0;
@@ -2720,7 +2719,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
 #endif
   
   if (appconn == NULL || appconn->dnlink == NULL) {
-    log_err(0, "No %s protocol defined for %s", 
+    syslog(LOG_ERR, "No %s protocol defined for %s", 
 	    appconn ? "dnlink" : "peer", inet_ntoa(dst));
     return 0;
   }
@@ -2779,7 +2778,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
     break;
     
   default:
-    log_err(0, "Unknown downlink protocol: %d", appconn->dnprot);
+    syslog(LOG_ERR, "Unknown downlink protocol: %d", appconn->dnprot);
     break;
   }
   
@@ -2890,7 +2889,7 @@ chilli_learn_location(uint8_t *loc, int loclen,
   char restart_accounting = 0;
   
   if (loclen >= MAX_LOCATION_LENGTH) {
-    log_err(0, "Location too long %d", loclen);
+    syslog(LOG_ERR, "Location too long %d", loclen);
     return 0;
   }
 
@@ -3164,7 +3163,7 @@ int accounting_request(struct radius_packet_t *pack,
 
   if (radius_default_pack(radius, &radius_pack, 
 			  RADIUS_CODE_ACCOUNTING_RESPONSE)) {
-    log_err(0, "radius_default_pack() failed");
+    syslog(LOG_ERR, "radius_default_pack() failed");
     return -1;
   }
   
@@ -3173,7 +3172,7 @@ int accounting_request(struct radius_packet_t *pack,
   
   /* Status type */
   if (radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_STATUS_TYPE, 0, 0, 0)) {
-    log_err(0, "Status type is missing from radius request");
+    syslog(LOG_ERR, "Status type is missing from radius request");
     radius_resp(radius, &radius_pack, peer, pack->authenticator);
     return 0;
   }
@@ -3187,7 +3186,7 @@ int accounting_request(struct radius_packet_t *pack,
     if (!radius_getattr(pack, &nasipattr, 
 			RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, 0)) {
       if ((nasipattr->l-2) != sizeof(appconn->nasip)) {
-	log_err(0, "Wrong length of NAS IP address");
+	syslog(LOG_ERR, "Wrong length of NAS IP address");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
       nasip = nasipattr->v.i;
@@ -3197,7 +3196,7 @@ int accounting_request(struct radius_packet_t *pack,
     if (!radius_getattr(pack, &nasportattr, 
 			RADIUS_ATTR_NAS_PORT, 0, 0, 0)) {
       if ((nasportattr->l-2) != sizeof(appconn->nasport)) {
-	log_err(0, "Wrong length of NAS port");
+	syslog(LOG_ERR, "Wrong length of NAS port");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
       nasport = nasportattr->v.i;
@@ -3210,7 +3209,7 @@ int accounting_request(struct radius_packet_t *pack,
 	      hismacattr->l-2, hismacattr->v.t);
 
       if ((macstrlen = (size_t)hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
-	log_err(0, "Wrong length of called station ID");
+	syslog(LOG_ERR, "Wrong length of called station ID");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
       
@@ -3225,7 +3224,7 @@ int accounting_request(struct radius_packet_t *pack,
       if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x",
 		  &temp[0], &temp[1], &temp[2], 
 		  &temp[3], &temp[4], &temp[5]) != 6) {
-	log_err(0, "Failed to convert Calling Station ID to MAC Address");
+	syslog(LOG_ERR, "Failed to convert Calling Station ID to MAC Address");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
       
@@ -3240,18 +3239,18 @@ int accounting_request(struct radius_packet_t *pack,
        */
 #ifdef ENABLE_LAYER3
       if (_options.layer3) {
-	log_err(0, "Not supported in layer3 mode");
+	syslog(LOG_ERR, "Not supported in layer3 mode");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       } else {
 #endif
 	if (dhcp_hashget(dhcp, &dhcpconn, hismac)) {
 	  if (dhcp_newconn(dhcp, &dhcpconn, hismac)) {
-	    log_err(0, "Out of connections");
+	    syslog(LOG_ERR, "Out of connections");
 	    return radius_resp(radius, &radius_pack, peer, pack->authenticator);
 	  }
 	}
 	if (!(dhcpconn->peer)) {
-	  log_err(0, "No peer protocol defined");
+	  syslog(LOG_ERR, "No peer protocol defined");
 	  return radius_resp(radius, &radius_pack, peer, pack->authenticator);
 	}
 	appconn = (struct app_conn_t *)dhcpconn->peer;
@@ -3261,13 +3260,13 @@ int accounting_request(struct radius_packet_t *pack,
     }
     else if (nasipattr && nasportattr) { /* Look for NAS IP / Port */
       if (chilli_getconn(&appconn, 0, nasip, nasport)) {
-	log_err(0, "Unknown connection");
+	syslog(LOG_ERR, "Unknown connection");
 	radius_resp(radius, &radius_pack, peer, pack->authenticator);
 	return 0;
       }
     }
     else {
-      log_err(0, "Calling Station ID or NAS IP/Port is missing from radius request");
+      syslog(LOG_ERR, "Calling Station ID or NAS IP/Port is missing from radius request");
       radius_resp(radius, &radius_pack, peer, pack->authenticator);
       return 0;
     }
@@ -3323,7 +3322,7 @@ int accounting_request(struct radius_packet_t *pack,
     /* -- This needs to be optional --
        case RADIUS_STATUS_TYPE_STOP:
        if (!dhcpconn) {
-       log_err(0,"No downlink protocol defined for RADIUS proxy client");
+       syslog(LOG_ERR,"No downlink protocol defined for RADIUS proxy client");
        return 0;
        }
        dhcp_freeconn(dhcpconn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
@@ -3387,7 +3386,7 @@ int access_request(struct radius_packet_t *pack,
   syslog(LOG_DEBUG, "RADIUS Access-Request received");
   
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REJECT)) {
-    log_err(0, "radius_default_pack() failed");
+    syslog(LOG_ERR, "radius_default_pack() failed");
     return -1;
   }
 
@@ -3405,7 +3404,7 @@ int access_request(struct radius_packet_t *pack,
   if (!radius_getattr(pack, &hisipattr, 
 		      RADIUS_ATTR_FRAMED_IP_ADDRESS, 0, 0, 0)) {
     if ((hisipattr->l-2) != sizeof(hisip.s_addr)) {
-      log_err(0, "Wrong length of framed IP address");
+      syslog(LOG_ERR, "Wrong length of framed IP address");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     hisip.s_addr = hisipattr->v.i;
@@ -3416,10 +3415,10 @@ int access_request(struct radius_packet_t *pack,
   if (!radius_getattr(pack, &hismacattr, 
 		      RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0)) {
 
-    syslog(LOG_DEBUG, "Calling Station ID is: %.*x", hismacattr->l-2, hismacattr->v.t);
+    syslog(LOG_DEBUG, "Calling Station ID is: %.*s", hismacattr->l-2, hismacattr->v.t);
 
     if ((macstrlen = (size_t)hismacattr->l-2) >= (RADIUS_ATTR_VLEN-1)) {
-      log_err(0, "Wrong length of calling station ID");
+      syslog(LOG_ERR, "Wrong length of calling station ID");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
 
@@ -3434,7 +3433,7 @@ int access_request(struct radius_packet_t *pack,
     if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x",
 		&temp[0], &temp[1], &temp[2], 
 		&temp[3], &temp[4], &temp[5]) != 6) {
-      log_err(0, "Failed to convert Calling Station ID to MAC Address");
+      syslog(LOG_ERR, "Failed to convert Calling Station ID to MAC Address");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     
@@ -3444,25 +3443,25 @@ int access_request(struct radius_packet_t *pack,
 
   /* Framed IP address or MAC Address must be given in request */
   if ((!hisipattr) && (!hismacattr)) {
-    log_err(0, "Framed IP address or Calling Station ID is missing from radius request");
+    syslog(LOG_ERR, "Framed IP address or Calling Station ID is missing from radius request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
 
   /* Username (Mandatory) */
   if (radius_getattr(pack, &uidattr, RADIUS_ATTR_USER_NAME, 0, 0, 0)) {
-    log_err(0, "User-Name is missing from radius request");
+    syslog(LOG_ERR, "User-Name is missing from radius request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   } 
   
   if (hisipattr) { /* Find user based on IP address */
     if (ippool_getip(ippool, &ipm, &hisip)) {
-      log_err(0, "RADIUS-Request: IP Address not found");
+      syslog(LOG_ERR, "RADIUS-Request: IP Address not found");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     
     if ((appconn  = (struct app_conn_t *)ipm->peer)        == NULL || 
 	(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink) == NULL) {
-      log_err(0, "RADIUS-Request: No peer protocol defined");
+      syslog(LOG_ERR, "RADIUS-Request: No peer protocol defined");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
   }
@@ -3473,18 +3472,18 @@ int access_request(struct radius_packet_t *pack,
      */
 #ifdef ENABLE_LAYER3
     if (_options.layer3) {
-      log_err(0, "Not supported in layer3 mode");
+      syslog(LOG_ERR, "Not supported in layer3 mode");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     } else {
 #endif
       if (dhcp_hashget(dhcp, &dhcpconn, hismac)) {
 	if (dhcp_newconn(dhcp, &dhcpconn, hismac)) {
-	  log_err(0, "Out of connections");
+	  syslog(LOG_ERR, "Out of connections");
 	  return radius_resp(radius, &radius_pack, peer, pack->authenticator);
 	}
       }
       if (!(dhcpconn->peer)) {
-	log_err(0, "No peer protocol defined");
+	syslog(LOG_ERR, "No peer protocol defined");
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
       appconn = (struct app_conn_t *)dhcpconn->peer;
@@ -3493,7 +3492,7 @@ int access_request(struct radius_packet_t *pack,
 #endif
   }
   else {
-    log_err(0, "Framed-IP-Address or Calling-Station-ID required in RADIUS request");
+    syslog(LOG_ERR, "Framed-IP-Address or Calling-Station-ID required in RADIUS request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
   
@@ -3517,7 +3516,7 @@ int access_request(struct radius_packet_t *pack,
 			pwdattr->v.t, pwdattr->l-2, pack->authenticator,
 			radius->proxysecret,
 			radius->proxysecretlen)) {
-      log_err(0, "radius_pwdecode() failed");
+      syslog(LOG_ERR, "radius_pwdecode() failed");
       return -1;
     }
 #if(_debug_)
@@ -3551,7 +3550,7 @@ int access_request(struct radius_packet_t *pack,
 
   /* Passwd or EAP must be given in request */
   if ((!pwdattr) && (!resplen)) {
-    log_err(0, "Password or EAP message is missing from radius request");
+    syslog(LOG_ERR, "Password or EAP message is missing from radius request");
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
 
@@ -3583,7 +3582,7 @@ int access_request(struct radius_packet_t *pack,
        (memcmp(appconn->s_state.redir.username, uidattr->v.t, uidattr->l-2)))) {
     terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
     if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REJECT)) {
-      log_err(0, "radius_default_pack() failed");
+      syslog(LOG_ERR, "radius_default_pack() failed");
       return -1;
     }
   }
@@ -3591,7 +3590,7 @@ int access_request(struct radius_packet_t *pack,
   /* NAS IP */
   if (!radius_getattr(pack, &nasipattr, RADIUS_ATTR_NAS_IP_ADDRESS, 0, 0, 0)) {
     if ((nasipattr->l-2) != sizeof(appconn->nasip)) {
-      log_err(0, "Wrong length of NAS IP address");
+      syslog(LOG_ERR, "Wrong length of NAS IP address");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     appconn->nasip = nasipattr->v.i;
@@ -3600,7 +3599,7 @@ int access_request(struct radius_packet_t *pack,
   /* NAS PORT */
   if (!radius_getattr(pack, &nasportattr, RADIUS_ATTR_NAS_PORT, 0, 0, 0)) {
     if ((nasportattr->l-2) != sizeof(appconn->nasport)) {
-      log_err(0, "Wrong length of NAS port");
+      syslog(LOG_ERR, "Wrong length of NAS port");
       return radius_resp(radius, &radius_pack, peer, pack->authenticator);
     }
     appconn->nasport = nasportattr->v.i;
@@ -3691,7 +3690,7 @@ int cb_radius_ind(struct radius_t *rp, struct radius_packet_t *pack,
 		  struct sockaddr_in *peer) {
 
   if (rp != radius) {
-    log_err(0, "Radius callback from unknown instance");
+    syslog(LOG_ERR, "Radius callback from unknown instance");
     return 0;
   }
   
@@ -3701,7 +3700,7 @@ int cb_radius_ind(struct radius_t *rp, struct radius_packet_t *pack,
   case RADIUS_CODE_ACCESS_REQUEST:
     return access_request(pack, peer);
   default:
-    log_err(0, "Unsupported radius request received: %d", pack->code);
+    syslog(LOG_ERR, "Unsupported radius request received: %d", pack->code);
     return 0;
   }
 }
@@ -3749,7 +3748,7 @@ session_disconnect(struct app_conn_t *appconn,
 	struct ippoolm_t *natipm;
 	if (ippool_getip(ippool, &natipm, &appconn->natip) == 0) {
 	  if (ippool_freeip(ippool, natipm)) {
-	    log_err(0, "ippool_freeip(%s) failed for nat ip!",
+	    syslog(LOG_ERR, "ippool_freeip(%s) failed for nat ip!",
 		    inet_ntoa(appconn->natip));
 	  }
 	}
@@ -3759,7 +3758,7 @@ session_disconnect(struct app_conn_t *appconn,
 
     if (member->in_use && (!dhcpconn || !dhcpconn->is_reserved)) {
       if (ippool_freeip(ippool, member)) {
-	log_err(0, "ippool_freeip(%s) failed!", 
+	syslog(LOG_ERR, "ippool_freeip(%s) failed!", 
 		inet_ntoa(member->addr));
       }
     }
@@ -3920,7 +3919,7 @@ config_radius_session(struct session_params *params,
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 0, 0, 0)) {
     params->interim_interval = ntohl(attr->v.i);
     if (params->interim_interval < 60) {
-      log_err(0, "Received too small radius Acct-Interim-Interval: %d; resettings to default.",
+      syslog(LOG_ERR, "Received too small radius Acct-Interim-Interval: %d; resettings to default.",
 	      params->interim_interval);
       params->interim_interval = 0;
     } 
@@ -4215,20 +4214,20 @@ static int chilliauth_cb(struct radius_t *radius,
   size_t offset = 0;
 
   if (!pack) { 
-    log_err(0, "Radius request timed out");
+    syslog(LOG_ERR, "Radius request timed out");
     return 0;
   }
 
   if ((pack->code != RADIUS_CODE_ACCESS_REJECT) && 
       (pack->code != RADIUS_CODE_ACCESS_CHALLENGE) &&
       (pack->code != RADIUS_CODE_ACCESS_ACCEPT)) {
-    log_err(0, "Unknown radius access reply code %d", pack->code);
+    syslog(LOG_ERR, "Unknown radius access reply code %d", pack->code);
     return 0;
   }
 
   /* ACCESS-ACCEPT */
   if (pack->code != RADIUS_CODE_ACCESS_ACCEPT) {
-    log_err(0, "Administrative-User Login Failed");
+    syslog(LOG_ERR, "Administrative-User Login Failed");
     return 0;
   }
 
@@ -4260,7 +4259,7 @@ static int chilliauth_cb(struct radius_t *radius,
 	do {
 	  if (safe_write(fd, attr->v.t, attr->l - 2) < 0 ||
 	      safe_write(fd, "\n", 1) < 0) {
-	    log_err(errno, "adminupdatefile");
+	    syslog(LOG_ERR, "%d adminupdatefile", errno);
 	    break;
 	  }
 	} 
@@ -4344,7 +4343,7 @@ int cb_radius_acct_conf(struct radius_t *radius,
   struct app_conn_t *appconn = (struct app_conn_t*) cbp;
 
   if (!appconn) {
-    log_err(0,"No peer protocol defined");
+    syslog(LOG_ERR,"No peer protocol defined");
     return 0;
   }
 
@@ -4387,7 +4386,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
   struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
 
   if (!appconn) {
-    log_err(0,"No peer protocol defined");
+    syslog(LOG_ERR,"No peer protocol defined");
     return 0;
   }
 
@@ -4403,7 +4402,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #endif
   
   if (!pack) { /* Timeout */
-    log_err(0, "RADIUS request id=%d timed out for session %s",
+    syslog(LOG_ERR, "RADIUS request id=%d timed out for session %s",
 	    pack_req ? pack_req->id : -1,
 	    appconn->s_state.sessionid);
     if (_options.noradallow) {
@@ -4428,7 +4427,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #endif
       ) {
     if ((hisipattr->l-2) != sizeof(struct in_addr)) {
-      log_err(0, "Wrong length of framed IP address");
+      syslog(LOG_ERR, "Wrong length of framed IP address");
       return dnprot_reject(appconn);
     }
     force_ip = 1;
@@ -4445,7 +4444,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #endif
 	) {
       if ((hisipattr->l-2) != sizeof(struct in_addr)) {
-	log_err(0, "Wrong length of framed IP netmask");
+	syslog(LOG_ERR, "Wrong length of framed IP netmask");
 	return dnprot_reject(appconn);
       }
       hismask.s_addr = hisipattr->v.i;
@@ -4598,7 +4597,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
   
   /* ACCESS-ACCEPT */
   if (pack->code != RADIUS_CODE_ACCESS_ACCEPT) {
-    log_err(0, "Unknown RADIUS code");
+    syslog(LOG_ERR, "Unknown RADIUS code");
     return dnprot_reject(appconn);
   }
   
@@ -4658,7 +4657,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 			 (uint8_t *)&sendattr->v.t, sendattr->l-2, 
 			 pack_req->authenticator,
 			 radius->secret, radius->secretlen)) {
-      log_err(0, "radius_keydecode() failed!");
+      syslog(LOG_ERR, "radius_keydecode() failed!");
       return dnprot_reject(appconn);
     }
   }
@@ -4671,7 +4670,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 			 (uint8_t *)&recvattr->v.t, recvattr->l-2,
 			 pack_req->authenticator,
 			 radius->secret, radius->secretlen) ) {
-      log_err(0, "radius_keydecode() failed!");
+      syslog(LOG_ERR, "radius_keydecode() failed!");
       return dnprot_reject(appconn);
     }
   }
@@ -4686,7 +4685,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 			&appconn->lmntlen, (uint8_t *)&lmntattr->v.t,
 			lmntattr->l-2, pack_req->authenticator,
 			radius->secret, radius->secretlen)) {
-      log_err(0, "radius_pwdecode() failed");
+      syslog(LOG_ERR, "radius_pwdecode() failed");
       return dnprot_reject(appconn);
     }
   }
@@ -4710,7 +4709,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 		      RADIUS_VENDOR_MS,
 		      RADIUS_ATTR_MS_CHAP2_SUCCESS, 0)) {
     if ((succattr->l-5) != MS2SUCCSIZE) {
-      log_err(0, "Wrong length of MS-CHAP2 success: %d", succattr->l-5);
+      syslog(LOG_ERR, "Wrong length of MS-CHAP2 success: %d", succattr->l-5);
       return dnprot_reject(appconn);
     }
     memcpy(appconn->ms2succ, (&succattr->v.t)+3, MS2SUCCSIZE);
@@ -4740,7 +4739,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
       return dnprot_reject(appconn);
       }
     if (!succattr) {
-      log_err(0, "No MS-CHAP2 success found");
+      syslog(LOG_ERR, "No MS-CHAP2 success found");
       return dnprot_reject(appconn);
     }
     break;
@@ -4759,7 +4758,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     break;
 
   default:
-    log_err(0, "Unknown authtype");
+    syslog(LOG_ERR, "Unknown authtype");
     return dnprot_reject(appconn);
   }
   
@@ -4784,7 +4783,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
   
   if (pack->code != RADIUS_CODE_DISCONNECT_REQUEST &&
       pack->code != RADIUS_CODE_COA_REQUEST) {
-    log_err(0, "Radius packet not supported: %d,\n", pack->code);
+    syslog(LOG_ERR, "Radius packet not supported: %d,\n", pack->code);
     return -1;
   }
 
@@ -4807,7 +4806,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
   
   for (appconn = firstusedconn; appconn; appconn = appconn->next) {
 
-    if (!appconn->inuse) { log_err(0, "Connection with inuse == 0!"); }
+    if (!appconn->inuse) { syslog(LOG_ERR, "Connection with inuse == 0!"); }
 
     if (
 	(strlen(appconn->s_state.redir.username) == uattr->l-2 && 
@@ -4856,14 +4855,14 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
   if (found) {
     if (radius_default_pack(radius, &radius_pack, 
 			    iscoa ? RADIUS_CODE_COA_ACK : RADIUS_CODE_DISCONNECT_ACK)) {
-      log_err(0, "radius_default_pack() failed");
+      syslog(LOG_ERR, "radius_default_pack() failed");
       return -1;
     }
   }
   else {
     if (radius_default_pack(radius, &radius_pack, 
 			    iscoa ? RADIUS_CODE_COA_NAK : RADIUS_CODE_DISCONNECT_NAK)) {
-      log_err(0, "radius_default_pack() failed");
+      syslog(LOG_ERR, "radius_default_pack() failed");
       return -1;
     }
   }
@@ -4899,7 +4898,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 #endif
   
   if (!appconn) {
-    log_err(0, "Peer protocol not defined");
+    syslog(LOG_ERR, "Peer protocol not defined");
     return -1;
   }
   
@@ -5014,7 +5013,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     /* Allocate dynamic IP address */
     /* XXX  if (ippool_newip(ippool, &ipm, &appconn->reqip, 0)) {*/
     if (newip(&ipm, &appconn->reqip, conn->hismac)) {
-      log_err(0, "Failed allocate dynamic IP address");
+      syslog(LOG_ERR, "Failed allocate dynamic IP address");
       return -1;
     }
     
@@ -5098,7 +5097,7 @@ int chilli_connect(struct app_conn_t **appconn, struct dhcp_conn_t *conn) {
 
   /* Allocate new application connection */
   if (chilli_new_conn(appconn)) {
-    log_err(0, "Failed to allocate connection");
+    syslog(LOG_ERR, "Failed to allocate connection");
     return -1;
   }
 
@@ -5162,7 +5161,7 @@ struct app_conn_t * chilli_connect_layer3(struct in_addr *src, struct dhcp_conn_
     syslog(LOG_DEBUG, "New Layer3 %s", inet_ntoa(*src));
     if (ippool_newip(ippool, &ipm, src, 1)) {
       if (ippool_newip(ippool, &ipm, src, 0)) {
-	log_err(0, "Failed to allocate either static or dynamic IP address");
+	syslog(LOG_ERR, "Failed to allocate either static or dynamic IP address");
 	return 0;
       }
     }
@@ -5176,7 +5175,7 @@ struct app_conn_t * chilli_connect_layer3(struct in_addr *src, struct dhcp_conn_
   if ((appconn = (struct app_conn_t *)ipm->peer) == NULL) {
     if (chilli_getconn(&appconn, src->s_addr, 0, 0)) {
       if (chilli_connect(&appconn, conn)) {
-	log_err(0, "chilli_connect()");
+	syslog(LOG_ERR, "chilli_connect()");
 	return 0;
       }
     }
@@ -5575,7 +5574,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     if (!appconn)
 #endif
     {
-      log_err(0, "No peer protocol defined");
+      syslog(LOG_ERR, "No peer protocol defined");
       return -1;
     }
   }
@@ -5598,7 +5597,7 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     break;
 
   default:
-    log_err(0, "Unknown downlink protocol: %d", appconn->dnprot);
+    syslog(LOG_ERR, "Unknown downlink protocol: %d", appconn->dnprot);
     break;
   }
 
@@ -5908,7 +5907,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
       appconn->authtype = EAP_MESSAGE;
     }
     else if (appconn->dnprot == DNPROT_DHCP_NONE) {
-      log_err(0, "Initial EAP response was not a valid identity response!");
+      syslog(LOG_ERR, "Initial EAP response was not a valid identity response!");
       return 0;
     }
   }
@@ -5921,7 +5920,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   }
   
   if (radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST)) {
-    log_err(0, "radius_default_pack() failed");
+    syslog(LOG_ERR, "radius_default_pack() failed");
     return -1;
   }
 
@@ -5986,7 +5985,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 
   if ((appconn  = (struct app_conn_t *)ipm->peer)        == NULL || 
       (dhcpconn = (struct dhcp_conn_t *)appconn->dnlink) == NULL) {
-    log_err(0, "No peer protocol defined");
+    syslog(LOG_ERR, "No peer protocol defined");
     return 0;
   }
 
@@ -6904,7 +6903,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
       }
 #endif
       if (unknown) {
-	log_err(0, "unknown cmdsock command");
+	syslog(LOG_ERR, "unknown cmdsock command");
 	safe_close(sock);
 	return -1;
       }
@@ -6931,12 +6930,12 @@ static int cmdsock_accept(void *nullData, int sock) {
 
   len = sizeof(remote);
   if ((csock = safe_accept(sock, (struct sockaddr *)&remote, &len)) == -1) {
-    log_err(errno, "cmdsock_accept()/accept()");
+    syslog(LOG_ERR, "%d cmdsock_accept()/accept()", errno);
     return -1;
   }
 
   if (safe_read(csock, &req, sizeof(req)) != sizeof(req)) {
-    log_err(errno, "cmdsock_accept()/read()");
+    syslog(LOG_ERR, "%d cmdsock_accept()/read()", errno);
     safe_close(csock);
     return -1;
   }
@@ -6947,7 +6946,7 @@ static int cmdsock_accept(void *nullData, int sock) {
   rval = chilli_cmd(&req, s, csock);
 
   if (net_write(csock, s->data, s->slen) < 0)
-    log_err(errno, "write()");
+    syslog(LOG_ERR, "%d write()", errno);
   
   bdestroy(s);
   shutdown(csock, 2);
@@ -6973,7 +6972,7 @@ int chilli_io(int fd_ctrl_r, int fd_ctrl_w, int fd_pkt_r, int fd_pkt_w) {
 
     if  ((status = select(maxfd + 1, &fds, NULL, NULL, NULL)) == -1) {
       if (EINTR != errno) {
-	log_err(errno, "select() returned -1!");
+	syslog(LOG_ERR, "select() returned -1!");
       }
     }
 
@@ -6987,7 +6986,7 @@ int chilli_io(int fd_ctrl_r, int fd_ctrl_w, int fd_pkt_r, int fd_pkt_w) {
       if (fd_isset(fd_pkt_w, &fds)) {
       }
     } else {
-      log_err(errno, "problem in select");
+      syslog(LOG_ERR, "%d problem in select", errno);
       break;
     }
   }
@@ -7013,16 +7012,16 @@ int static redir_msg(struct redir_t *this) {
 			      &msg.mdata.baddress, 
 			      &conn) != -1) {
 	  if (safe_write(socket, &conn, sizeof(conn)) < 0) {
-	    log_err(errno, "redir_msg writing");
+	    syslog(LOG_ERR, "%d redir_msg writing", errno);
 	  }
 	}
       } else {
 	uam_msg(&msg);
       }
     } else if (msgresult == -1) {
-      log_err(errno, "redir_msg read");
+      syslog(LOG_ERR, "%d redir_msg read", errno);
     } else {
-      log_err(0, "invalid size %d", msgresult);
+      syslog(LOG_ERR, "invalid size %d", msgresult);
     }
     safe_close(socket);
   }
@@ -7064,7 +7063,7 @@ static int rtmon_proc_route(struct rtmon_t *rtmon,
 
 static int rtmon_accept(struct rtmon_t *rtmon, int idx) {
   if (rtmon_read_event(rtmon))
-    log_err(errno, "error reading netlink message");
+    syslog(LOG_ERR, "%d error reading netlink message", errno);
   return 0;
 }
 #endif
@@ -7151,15 +7150,15 @@ int chilli_main(int argc, char **argv) {
   if (!_options.foreground) {
     /* Close the standard file descriptors. */
     /* Is this really needed ? */
-    if (!freopen("/dev/null", "w", stdout)) log_err(errno,"freopen()");
-    if (!freopen("/dev/null", "w", stderr)) log_err(errno,"freopen()");
-    if (!freopen("/dev/null", "r", stdin))  log_err(errno,"freopen()");
+    if (!freopen("/dev/null", "w", stdout)) syslog(LOG_ERR, "freopen()");
+    if (!freopen("/dev/null", "w", stderr)) syslog(LOG_ERR, "freopen()");
+    if (!freopen("/dev/null", "r", stdin))  syslog(LOG_ERR, "freopen()");
 #if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
     if (fork() > 0) {
       exit(0);
 #else
     if (daemon(1, 1)) {
-      log_err(errno, "daemon() failed!");
+      syslog(LOG_ERR, "daemon() failed!");
 #endif
     }
     else {
@@ -7197,7 +7196,7 @@ int chilli_main(int argc, char **argv) {
       ok = options_save(file2, bt);
 
       if (!ok) {
-	log_err(errno, "could not save configuration options! [%s]", file2);
+	syslog(LOG_ERR, "%d could not save configuration options! [%s]", errno, file2);
 	exit(1);
       }
 
@@ -7211,7 +7210,7 @@ int chilli_main(int argc, char **argv) {
       bdestroy(bt);
 
       if (!options_binload(file2)) {
-	log_err(errno, "could not reload configuration! [%s]", file2);
+	syslog(LOG_ERR, "%d could not reload configuration! [%s]", errno, file2);
 	exit(1);
       }
     }
@@ -7271,12 +7270,12 @@ int chilli_main(int argc, char **argv) {
   memset(&startup_real, 0, sizeof(startup_real));
   memset(&startup_mono, 0, sizeof(startup_mono));
   if (clock_gettime(CLOCK_REALTIME, &startup_real) < 0) {
-    log_err(errno, "getting startup (realtime) time");
+    syslog(LOG_ERR, "%d getting startup (realtime) time", errno);
   }
   syslog(LOG_DEBUG, "clock realtime sec %d nsec %d", startup_real.tv_sec, startup_real.tv_nsec);
 #ifdef CLOCK_MONOTONIC
   if (clock_gettime(CLOCK_MONOTONIC, &startup_mono) < 0) {
-    log_err(errno, "getting startup (monotonic) time");
+    syslog(LOG_ERR, "%d getting startup (monotonic) time", errno);
   }
   syslog(LOG_DEBUG, "clock monotonic sec %d nsec %d", startup_mono.tv_sec, startup_mono.tv_nsec);
 #endif
@@ -7286,7 +7285,7 @@ int chilli_main(int argc, char **argv) {
 
   /* Create a tunnel interface */
   if (tun_new(&tun)) {
-    log_err(0, "Failed to create tun");
+    syslog(LOG_ERR, "Failed to create tun");
     exit(1);
   }
   
@@ -7308,7 +7307,7 @@ int chilli_main(int argc, char **argv) {
 		 _options.statip, 
 		 _options.allowdyn, 
 		 _options.allowstat)) {
-    log_err(0, "Failed to allocate IP pool!");
+    syslog(LOG_ERR, "Failed to allocate IP pool!");
     exit(1);
   }
   
@@ -7322,7 +7321,7 @@ int chilli_main(int argc, char **argv) {
 	       &_options.dhcplisten, _options.lease, 1, 
 	       &_options.uamlisten, _options.uamport, 
 	       _options.noc2c)) {
-    log_err(0, "Failed to create dhcp listener on %s", _options.dhcpif);
+    syslog(LOG_ERR, "Failed to create dhcp listener on %s", _options.dhcpif);
     exit(1);
   }
   
@@ -7337,7 +7336,7 @@ int chilli_main(int argc, char **argv) {
   if (dhcp_set(dhcp, 
 	       _options.ethers, 
 	       (_options.debug & DEBUG_DHCP))) {
-    log_err(0, "Failed to set DHCP parameters");
+    syslog(LOG_ERR, "Failed to set DHCP parameters");
     exit(1);
   }
   
@@ -7347,7 +7346,7 @@ int chilli_main(int argc, char **argv) {
 		 _options.coaport, 
 		 _options.coanoipcheck, 1) ||
       radius_init_q(radius, _options.radiusqsize)) {
-    log_err(0, "Failed to create radius");
+    syslog(LOG_ERR, "Failed to create radius");
     return -1;
   }
   
@@ -7376,17 +7375,17 @@ int chilli_main(int argc, char **argv) {
 		0
 #endif
 		)) {
-    log_err(0, "Failed to create redir");
+    syslog(LOG_ERR, "Failed to create redir");
     return -1;
   }
 
   if (!_options.redir && redir_listen(redir)) {
-    log_err(0, "Failed to create redir listen");
+    syslog(LOG_ERR, "Failed to create redir listen");
     return -1;
   }
 
   if (redir_ipc(redir)) {
-    log_err(0, "Failed to create redir IPC");
+    syslog(LOG_ERR, "Failed to create redir IPC");
     return -1;
   }
   
@@ -7402,8 +7401,7 @@ int chilli_main(int argc, char **argv) {
     cmdsock = cmdsock_port_init();
   }
   if (cmdsock < 0) {
-    log_err(errno,
-	    "Failed to initialize chilli query socket");
+    syslog(LOG_ERR, "%d Failed to initialize chilli query socket", errno);
     return -1;
   }
 #endif
@@ -7412,14 +7410,14 @@ int chilli_main(int argc, char **argv) {
 #ifdef ENABLE_CHILLIRADSEC
     launch_chilliradsec();
 #else
-    log_err(0, "Feature is not supported; use --enable-chilliradsec");
+    syslog(LOG_ERR, "Feature is not supported; use --enable-chilliradsec");
     _options.radsec = 0;
 #endif
   } else if (_options.uamaaaurl) {
 #ifdef ENABLE_CHILLIPROXY
     launch_chilliproxy();
 #else
-    log_err(0, "Feature is not supported; use --enable-chilliproxy");
+    syslog(LOG_ERR, "Feature is not supported; use --enable-chilliproxy");
 #endif
   }
 
@@ -7427,7 +7425,7 @@ int chilli_main(int argc, char **argv) {
 #ifdef ENABLE_CHILLIREDIR
     launch_chilliredir();
 #else
-    log_err(0, "Feature is not supported; use --enable-chilliredir");
+    syslog(LOG_ERR, "Feature is not supported; use --enable-chilliredir");
     _options.redir = 0;
 #endif
   }
@@ -7484,17 +7482,17 @@ int chilli_main(int argc, char **argv) {
   /******************************************************************/
 
   if (_options.gid && setgid(_options.gid)) {
-    log_err(errno, "setgid(%d) failed while running with gid = %d", 
-	    _options.gid, getgid());
+    syslog(LOG_ERR, "%d setgid(%d) failed while running with gid = %d",
+	    errno, _options.gid, getgid());
   }
 
   if (_options.uid && setuid(_options.uid)) {
-    log_err(errno, "setuid(%d) failed while running with uid = %d",
-	    _options.uid, getuid());
+    syslog(LOG_ERR, "%d setuid(%d) failed while running with uid = %d",
+	    errno, _options.uid, getuid());
   }
 
   if (net_select_init(&sctx))
-    log_err(errno, "select init");
+    syslog(LOG_ERR, "%d select init", errno);
 
 #ifdef ENABLE_MULTIROUTE
   tun->sctx = &sctx;
@@ -7639,7 +7637,7 @@ int chilli_main(int argc, char **argv) {
     }
 
     if (net_select_prepare(&sctx))
-      log_err(errno, "select prepare");
+      syslog(LOG_ERR, "%d select prepare", errno);
 
     status = net_select(&sctx);
 
@@ -7649,7 +7647,7 @@ int chilli_main(int argc, char **argv) {
     if ((msgresult = 
 	 TEMP_FAILURE_RETRY(msgrcv(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0, IPC_NOWAIT)))  == -1) {
       if ((errno != EAGAIN) && (errno != ENOMSG))
-	log_err(errno, "msgrcv() failed!");
+	syslog(LOG_ERR, "%d msgrcv() failed!", errno);
     }
 
     if (msgresult > 0) 
@@ -7683,7 +7681,7 @@ int chilli_main(int argc, char **argv) {
   if (_options.seskeepalive) {
 #ifdef ENABLE_BINSTATFILE
     if (printstatus() != 0) 
-      log_err(errno, "could not save status file");
+      syslog(LOG_ERR, "%d could not save status file", errno);
 #else
     log_warn(0, "Not stopping sessions! seskeepalive should be used with compile option --enable-binstatusfile");
 #endif
@@ -7691,7 +7689,7 @@ int chilli_main(int argc, char **argv) {
     killconn();
 #ifdef ENABLE_STATFILE
     if (printstatus() != 0) 
-      log_err(errno, "could not save status file");
+      syslog(LOG_ERR, "%d could not save status file", errno);
 #endif
   }
 
