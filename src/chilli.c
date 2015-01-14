@@ -3141,7 +3141,7 @@ chilli_proxy_radlocation(struct radius_packet_t *pack,
   }
 #endif
 
-  return 0;
+  return 1;
 }
 #endif
 
