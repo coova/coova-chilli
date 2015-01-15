@@ -1775,7 +1775,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 		       (uint8_t *)dnsp, olen,		\
 		       q, sizeof(q), isReq,		\
 		       &qmatch, &mod, mode)) {		\
-        log_warn(0, "dropping malformed DNS");		\
+        syslog(LOG_WARNING, "dropping malformed DNS");		\
 	return isReq ? dhcp_nakDNS(conn,pack,*plen) : 0; \
       } \
     }
@@ -3057,7 +3057,7 @@ int dhcp_gettag(struct dhcp_packet_t *pack, size_t length,
   size_t offset = DHCP_MIN_LEN + DHCP_OPTION_MAGIC_LEN;
 
   /* if (length > DHCP_LEN) {
-    log_warn(0,"Length of dhcp packet larger then %d: %d", DHCP_LEN, length);
+    syslog(LOG_WARNING,"Length of dhcp packet larger then %d: %d", DHCP_LEN, length);
     length = DHCP_LEN;
   } */
   
@@ -5536,7 +5536,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
   }
 
   if (!this) {
-      log_warn(0, "DHCP connection no longer valid");
+      syslog(LOG_WARNING, "DHCP connection no longer valid");
       return 0;
   }
 
@@ -5775,7 +5775,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
       if (dhcp_hashget(this, &conn, pack_arp->sha)) {
 	syslog(LOG_DEBUG, "ARP: Address not found: %s", inet_ntoa(reqaddr));
 	if (dhcp_newconn(this, &conn, pack_arp->sha)) {
-	  log_warn(0, "ARP: out of connections");
+	  syslog(LOG_WARNING, "ARP: out of connections");
 	  return 0; /* Out of connections */
 	}
       }
@@ -5811,7 +5811,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     
     /* Allocate new connection */
     if (dhcp_newconn(this, &conn, pack_arp->sha)) {
-      log_warn(0, "ARP: out of connections");
+      syslog(LOG_WARNING, "ARP: out of connections");
       return 0; /* Out of connections */
     }
   }
@@ -6210,7 +6210,7 @@ int dhcp_receive(struct dhcp_t *this, int idx) {
     }
 
     if (hdrp->bh_caplen != hdrp->bh_datalen) {
-      log_warn(0, "BPF caplen(%d) != datalen(%d)", 
+      syslog(LOG_WARNING, "BPF caplen(%d) != datalen(%d)", 
 	       hdrp->bh_caplen, hdrp->bh_datalen);
       this->pb.offset += hdrp->bh_hdrlen + hdrp->bh_caplen;
       continue;
