@@ -4577,7 +4577,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
       eapattr=NULL;
       if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, instance++)) {
 	if ((appconn->challen + eapattr->l-2) > MAX_EAP_LEN) {
-	  log(LOG_INFO, "EAP message too long %d %d", 
+	  syslog(LOG_INFO, "EAP message too long %zu %d", 
 	      appconn->challen, (int) eapattr->l-2);
 	  return dnprot_reject(appconn);
 	}
@@ -4587,7 +4587,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     } while (eapattr);
     
     if (!appconn->challen) {
-      log(LOG_INFO, "No EAP message found");
+      syslog(LOG_INFO, "No EAP message found");
       return dnprot_reject(appconn);
     }
     
@@ -4625,7 +4625,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   if (appconn->s_params.sessionterminatetime) {
     if (mainclock_rtdiff(appconn->s_params.sessionterminatetime) > 0) {
-      log(LOG_WARNING, "WISPr-Session-Terminate-Time in the past received, rejecting");
+      syslog(LOG_WARNING, "WISPr-Session-Terminate-Time in the past received, rejecting");
       return dnprot_reject(appconn);
     }
   }
@@ -4724,7 +4724,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #ifdef ENABLE_RADPROXY
   case EAP_MESSAGE:
     if (!appconn->challen) {
-      log(LOG_INFO, "No EAP message found");
+      syslog(LOG_INFO, "No EAP message found");
       return dnprot_reject(appconn);
     }
     break;
@@ -4735,7 +4735,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   case CHAP_MICROSOFT:
     if (!lmntattr) {
-      log(LOG_INFO, "No MPPE keys found");
+      syslog(LOG_INFO, "No MPPE keys found");
       return dnprot_reject(appconn);
       }
     if (!succattr) {
@@ -4746,12 +4746,12 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   case CHAP_MICROSOFT_V2:
     if (!sendattr) {
-      log(LOG_INFO, "No MPPE sendkey found");
+      syslog(LOG_INFO, "No MPPE sendkey found");
       return dnprot_reject(appconn);
     }
     
     if (!recvattr) {
-      log(LOG_INFO, "No MPPE recvkey found");
+      syslog(LOG_INFO, "No MPPE recvkey found");
       return dnprot_reject(appconn);
     }
     
@@ -5020,7 +5020,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
     appconn->hisip.s_addr = ipm->addr.s_addr;
     appconn->hismask.s_addr = _options.mask.s_addr;
     
-    log(LOG_DEBUG, "Client MAC="MAC_FMT" assigned IP %s" , 
+    syslog(LOG_DEBUG, "Client MAC="MAC_FMT" assigned IP %s" , 
 	MAC_ARG(conn->hismac), inet_ntoa(appconn->hisip));
     
 #ifdef ENABLE_MODULES
@@ -5130,7 +5130,7 @@ int chilli_connect(struct app_conn_t **appconn, struct dhcp_conn_t *conn) {
 int cb_dhcp_connect(struct dhcp_conn_t *conn) {
   struct app_conn_t *appconn;
 
-  log(LOG_DEBUG, "New DHCP request from MAC="MAC_FMT, 
+  syslog(LOG_DEBUG, "New DHCP request from MAC="MAC_FMT, 
       MAC_ARG(conn->hismac));
   
 #if(_debug_)
@@ -5515,7 +5515,7 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
 int cb_dhcp_disconnect(struct dhcp_conn_t *conn, int term_cause) {
   struct app_conn_t *appconn;
 
-  log(LOG_INFO, "DHCP Released MAC="MAC_FMT" IP=%s", 
+  syslog(LOG_INFO, "DHCP Released MAC="MAC_FMT" IP=%s", 
       MAC_ARG(conn->hismac), inet_ntoa(conn->hisip));
 
   syslog(LOG_DEBUG, "DHCP connection removed");
