@@ -43,7 +43,7 @@ struct chilli_peer * chilli_peers = 0;
 struct chilli_peer * get_chilli_peer(int id) {
   if (id < 0) id = _options.peerid;
   if (_options.peerid >= 8) {
-    log_err(0, "Valid PEERID is 0-7!");
+    syslog(LOG_ERR, "Valid PEERID is 0-7!");
     exit(-1);
   }
   if (!chilli_peers) {
@@ -158,13 +158,13 @@ int dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
   if (EVP_EncryptUpdate (&ctx, outbuf, &olen, 
 			 (const unsigned char *) &chilli_hdr, 
 			 sizeof(chilli_hdr)) != 1) {
-    log_err(errno, "CHILLI: peer %d error in encrypt update",
-	    _options.peerid);
+    syslog(LOG_ERR, "%d CHILLI: peer %d error in encrypt update",
+	    errno, _options.peerid);
   } else {
     datalen += olen;
     if (EVP_EncryptFinal (&ctx, outbuf + olen, &tlen) != 1) {
-      log_err(errno, "CHILLI: peer %d error in encrypt final",
-	      _options.peerid);
+      syslog(LOG_ERR, "%d CHILLI: peer %d error in encrypt final",
+	      errno, _options.peerid);
     } else {
       datalen += tlen;
       
@@ -251,7 +251,7 @@ dhcp_get_appconn_ip(struct dhcp_conn_t *conn, struct in_addr *dst) {
   if ((appconn = (struct app_conn_t *)ipm->peer) == NULL) {
     if (chilli_getconn(&appconn, dst->s_addr, 0, 0)) {
       if (conn && chilli_connect(&appconn, conn)) {
-	log_err(0, "chilli_connect()");
+	syslog(LOG_ERR, "chilli_connect()");
 	return 0;
       }
     }
@@ -415,7 +415,7 @@ int dhcp_net_send(struct _net_interface *netif, unsigned char *hismac,
 
 #elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   if (safe_write(netif->fd, packet, length) < 0) {
-    log_err(errno, "write() failed");
+    syslog(LOG_ERR, "%d write() failed", errno);
     return -1;
   }
 #endif
@@ -539,7 +539,7 @@ int vlanupdate_script(struct dhcp_conn_t *conn, char* script,
   uint16_t tag;
 
   if ((status = chilli_fork(CHILLI_PROC_SCRIPT, script)) < 0) {
-    log_err(errno, "forking %s", script);
+    syslog(LOG_ERR, "%d forking %s", errno, script);
     return 0;
   }
 
@@ -566,7 +566,7 @@ int vlanupdate_script(struct dhcp_conn_t *conn, char* script,
 	    script,
 #endif
 	    script, (char *) 0) != 0) {
-    log_err(errno, "exec %s failed", script);
+    syslog(LOG_ERR, "%d exec %s failed", errno, script);
   }
 
   exit(0);
@@ -639,7 +639,7 @@ int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn) {
   if (!this->firstfreeconn) {
 
     if (connections == _options.max_clients) {
-      log_err(0, "reached max connections %d!",
+      syslog(LOG_ERR, "reached max connections %d!",
 	      _options.max_clients);
        return -1;
      }
@@ -647,7 +647,7 @@ int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn) {
     ++connections;
     
     if (!(*conn = calloc(1, sizeof(struct dhcp_conn_t)))) {
-      log_err(0, "Out of memory!");
+      syslog(LOG_ERR, "Out of memory!");
       return -1;
     }
 
@@ -963,7 +963,7 @@ int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
       
       if ((appconn = (struct app_conn_t *)ipm->peer) == NULL ||
 	  (appconn->dnlink) == NULL) {
-	log_err(0, "No %s protocol defined for %s", appconn ? "dnlink" : "peer", inet_ntoa(addr));
+	syslog(LOG_ERR, "No %s protocol defined for %s", appconn ? "dnlink" : "peer", inet_ntoa(addr));
       }
       else {
 	
@@ -1009,7 +1009,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
   struct dhcp_t *dhcp;
   
   if (!(dhcp = *pdhcp = calloc(sizeof(struct dhcp_t), 1))) {
-    log_err(0, "calloc() failed");
+    syslog(LOG_ERR, "calloc() failed");
     return -1;
   }
 
@@ -1036,8 +1036,8 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
 		   0,
 #endif
 		   promisc, 0) < 0) {
-	log_err(errno, "could not setup interface %s",
-		_options.moreif[i].dhcpif);
+	syslog(LOG_ERR, "%d could not setup interface %s",
+		errno, _options.moreif[i].dhcpif);
       } else {
 	log_dbg("Configured interface %s/%s fd=%d",
 		_options.moreif[i].dhcpif, 
@@ -1067,12 +1067,12 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
   { 
     int blen=0;
     if (ioctl(dhcp->rawif[0].fd, BIOCGBLEN, &blen) < 0) {
-      log_err(errno,"ioctl() failed!");
+      syslog(LOG_ERR, "%d ioctl() failed!", errno);
     }
     log_dbg("BIOCGBLEN=%d",blen);
     dhcp->pb.buflen = blen;
     if (!(dhcp->pb.buf = calloc(dhcp->pb.buflen, 1))) {
-      log_err(errno, "malloc() failed");
+      syslog(LOG_ERR, "%d malloc() failed", errno);
     }
   }
 #endif
@@ -1111,11 +1111,11 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
       addr.sin_port = htons(_options.dhcpgwport);
       
       if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
-	log_err(errno, "Can't set reuse option");
+	syslog(LOG_ERR, "%d Can't set reuse option", errno);
       }
       
       if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-	log_err(errno, "socket or bind failed for dhcp relay!");
+	syslog(LOG_ERR, "%d socket or bind failed for dhcp relay!", errno);
 	close(fd);
 	fd = -1;
       }
@@ -1220,7 +1220,7 @@ int dhcp_reserve_ip(uint8_t *mac, struct in_addr *ip) {
 
   if (dhcp_hashget(dhcp, &conn, mac)) {
     if (dhcp_newconn(dhcp, &conn, mac)) {
-      log_err(0, "could not allocate connection");
+      syslog(LOG_ERR, "could not allocate connection");
       return -1;
     }
   }
@@ -1274,7 +1274,7 @@ int dhcp_reserve_str(char *b, size_t blen) {
 	    if (sscanf (bp, "%2x %2x %2x %2x %2x %2x", 
 			&tmp[0], &tmp[1], &tmp[2], 
 			&tmp[3], &tmp[4], &tmp[5]) != 6) {	
-	      log_err(0, "Parse error in ethers file at line %d", lineno);
+	      syslog(LOG_ERR, "Parse error in ethers file at line %d", lineno);
 	      state = -1;
 	    } else {
 	      mac[0] = (uint8_t) tmp[0];
@@ -1290,7 +1290,7 @@ int dhcp_reserve_str(char *b, size_t blen) {
 	case 1:
 	  {
 	    if (!inet_aton(bp, &ip)) {	
-	      log_err(0, "Bad IP address!");
+	      syslog(LOG_ERR, "Bad IP address!");
 	      state = -1;
 	    } else {
 	      state = 2;
@@ -1350,7 +1350,7 @@ int dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug) {
 	  if (r == blen) {
 	    dhcp_reserve_str(b, blen);
 	  } else {
-	    log_err(0, "bad ethers file %s", ethers);
+	    syslog(LOG_ERR, "bad ethers file %s", ethers);
 	  }
 	  free(b);
 	}      
@@ -1358,7 +1358,7 @@ int dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug) {
 
       close(fd);
     } else {
-      log_err(0, "could not open ethers file %s", ethers);
+      syslog(LOG_ERR, "could not open ethers file %s", ethers);
     }
   }
 
@@ -1438,7 +1438,7 @@ int dhcp_ipwhitelist(struct pkt_ipphdr_t *iph, unsigned char dst) {
   FILE *fp; 
 
   if ((fp = fopen(_options.ipwhitelist, "r")) == NULL) {
-    log_err(errno, "error openning %s", _options.ipwhitelist);
+    syslog(LOG_ERR, "%d error openning %s", errno, _options.ipwhitelist);
     return 0;
   }
   
@@ -2019,7 +2019,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	safe_write(fd, line, strlen(line));
 	close(fd);
       } else {
-	log_err(errno, "could not open log file %s", _options.dnslog);
+	syslog(LOG_ERR, "%d could not open log file %s", errno, _options.dnslog);
       }
     }
 #endif
@@ -2130,7 +2130,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	uint16_t bdiff = (uint16_t)(bp - bt);
 	int newlen = (int)(an_mark - pack) + (int)bdiff;
 	if (newlen < 0 || newlen > 1500) {
-	  log_err(0, "Problem growing DNS packet from %d to %d (%d %d)",
+	  syslog(LOG_ERR, "Problem growing DNS packet from %zu to %d (%ld %d)",
 		  *plen, newlen, (an_mark - pack), bdiff);
 	} else {
 	  uint16_t data_len = bdiff + (uint16_t) (an_mark - ((uint8_t *)dnsp));
@@ -3414,7 +3414,7 @@ static int dhcp_relay(struct dhcp_t *this,
   if (sendto(this->relayfd, pack_dhcp, 
 	     ntohs(pack_udph->len) - PKT_UDP_HLEN, 0,
 	     (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-    log_err(errno, "could not relay DHCP request!");
+    syslog(LOG_ERR, "%d could not relay DHCP request!", errno);
     return -1;
   }
 
@@ -5026,14 +5026,14 @@ int dhcp_chillipkt(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 		  (const unsigned char *)_options.peerkey, iv);
   
   if (EVP_DecryptUpdate(&cctx, out, &olen, in, n) != 1) {
-    log_err(errno, "CHILLI: peer %d error in decrypt update",
-	    _options.peerid);
+    syslog(LOG_ERR, "%d CHILLI: peer %d error in decrypt update",
+	    errno, _options.peerid);
   } else {
     log_dbg("CHILLI: peer %d decrypted %d bytes", 
 	    _options.peerid, olen);
     if (EVP_DecryptFinal(&cctx, out + olen, &tlen) != 1) {
-      log_err(errno, "CHILLI: peer %d error in decrypt final",
-	      _options.peerid);
+      syslog(LOG_ERR, "%d CHILLI: peer %d error in decrypt final",
+	      errno, _options.peerid);
     } else {
       log_dbg("CHILLI: peer %d decrypted %d bytes", 
 	      _options.peerid, tlen);
@@ -5064,7 +5064,7 @@ int dhcp_chillipkt(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 	case CHILLI_PEER_INIT:
 	  cmd = "Init";
 	  if (chilli_hdr->from == _options.peerid) {
-	    log_err(0, "peer %d possible conflicting peerid, oops",
+	    syslog(LOG_ERR, "peer %d possible conflicting peerid, oops",
 		    _options.peerid);
 	  } else {
 	    dhcp_sendCHILLI(CHILLI_PEER_HELLO, 0, 0);
@@ -5075,7 +5075,7 @@ int dhcp_chillipkt(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 	case CHILLI_PEER_HELLO:
 	  cmd = "Hello";
 	  if (chilli_hdr->from == _options.peerid) {
-	    log_err(0, "peer %d possible conflicting peerid",
+	    syslog(LOG_ERR, "peer %d possible conflicting peerid",
 		    _options.peerid);
 	  } else {
 	    update_peer(chilli_hdr);
@@ -5356,7 +5356,7 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
 
   if ((length = recvfrom(this->relayfd, &packet, sizeof(packet), 0,
                          (struct sockaddr *) &addr, &fromlen)) <= 0) {
-    log_err(errno, "recvfrom() failed");
+    syslog(LOG_ERR, "%d recvfrom() failed", errno);
     return -1;
   }
 
@@ -5389,19 +5389,19 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
 
   if (dhcp_gettag(&packet, length, &message_type, 
 		  DHCP_OPTION_MESSAGE_TYPE)) {
-    log_err(0, "no message type");
+    syslog(LOG_ERR, "no message type");
     return -1;
   }
   
   if (message_type->l != 1) {
-    log_err(0, "wrong message type length");
+    syslog(LOG_ERR, "wrong message type length");
     return -1; /* Wrong length of message type */
   }
   
   if (dhcp_hashget(this, &conn, packet.chaddr)) {
     /* Allocate new connection */
     if (dhcp_newconn(this, &conn, packet.chaddr)) {
-      log_err(0, "out of connections");
+      syslog(LOG_ERR, "out of connections");
       return 0; /* Out of connections */
     }
   }
@@ -5512,7 +5512,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
     size_t hdrplus = sizeofeth2(tag) - sizeofeth(packet);
     if (hdrplus > 0) {
       if (pb->offset < hdrplus) {
-	log_err(0, "bad buffer off=%d hdrplus=%d",
+	syslog(LOG_ERR, "bad buffer off=%d hdrplus=%d",
 		(int) pb->offset, (int) hdrplus);
 	return 0;
       }
@@ -5523,7 +5523,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
   } else { 
     size_t hdrlen = sizeofeth2(tag);
     if (pb->offset < hdrlen) {
-      log_err(0, "bad buffer off=%d hdr=%d",
+      syslog(LOG_ERR, "bad buffer off=%d hdr=%d",
 	      (int) pb->offset, (int) hdrlen);
       return 0;
     }
@@ -5737,7 +5737,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   struct arp_packet_t *pack_arp = pkt_arppkt(pack);
 
   if (len < sizeofeth(pack) + sizeof(struct arp_packet_t)) {
-    log_err(0, "ARP too short %d < %d", len, 
+    syslog(LOG_ERR, "ARP too short %zu < %lu", len, 
 	    sizeofeth(pack) + sizeof(struct arp_packet_t));
     return 0;
   }
@@ -5745,7 +5745,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   if (ntohs(pack_arp->hrd) != 1 ||       /* Ethernet Hardware */
       pack_arp->hln != PKT_ETH_ALEN ||   /* MAC Address Size */
       pack_arp->pln != PKT_IP_ALEN) {    /* IP Address Size */
-    log_err(0, "ARP reject hrd=%d hln=%d pln=%d", 
+    syslog(LOG_ERR, "ARP reject hrd=%d hln=%d pln=%d", 
 	    ntohs(pack_arp->hrd), pack_arp->hln, pack_arp->pln);
     return 0;
   }
@@ -6194,7 +6194,7 @@ int dhcp_receive(struct dhcp_t *this, int idx) {
     log_dbg("dhcp_packet offset: %d", this->pb.offset);
 
     if (this->pb.length - this->pb.offset < sizeof(struct bpf_hdr)) {
-      log_err(0, "bad packet read");
+      syslog(LOG_ERR, "bad packet read");
       break;
     }
     
@@ -6205,7 +6205,7 @@ int dhcp_receive(struct dhcp_t *this, int idx) {
     
     if (this->pb.offset + hdrp->bh_hdrlen + 
 	hdrp->bh_caplen > this->pb.length) {
-      log_err(0, "bad packet read");
+      syslog(LOG_ERR, "bad packet read");
       break;
     }
 
