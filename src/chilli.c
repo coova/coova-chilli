@@ -1202,7 +1202,7 @@ static int checkconn() {
 	  !_options.layer3 &&
 #endif
 	  !(dhcpconn = (struct dhcp_conn_t *)conn->dnlink)) {
-	log_warn(0, "No downlink protocol");
+	syslog(LOG_WARNING, "No downlink protocol");
 	continue;
       }
       session_interval(conn);
@@ -2219,7 +2219,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
     /* Tell client it was successful */
     dhcp_sendEAP(dhcpconn, appconn->chal, appconn->challen);
 
-    log_warn(0, "Do not know how to set encryption keys on this platform!");
+    syslog(LOG_WARNING, "Do not know how to set encryption keys on this platform!");
     break;
 #endif
 
@@ -2815,7 +2815,7 @@ int cb_redir_getstate(struct redir_t *redir,
   
   if ( (appconn  = (struct app_conn_t *)ipm->peer)        == NULL || 
        (dhcpconn = (struct dhcp_conn_t *)appconn->dnlink) == NULL ) {
-    log_warn(0, "No peer protocol defined app-null=%d", appconn == 0);
+    syslog(LOG_WARNING, "No peer protocol defined app-null=%d", appconn == 0);
     return -1;
   }
   
@@ -3071,7 +3071,7 @@ chilli_proxy_radlocation(struct radius_packet_t *pack,
       
       if ((appconn->s_state.redir.vsalen + (size_t) attr->l) > 
 	  RADIUS_PROXYVSA) {
-	log_warn(0, "VSAs too long");
+	syslog(LOG_WARNING, "VSAs too long");
 	return -1;
       }
       
@@ -4196,7 +4196,7 @@ config_radius_session(struct session_params *params,
     }
     else {
       params->sessionterminatetime = 0;
-      log_warn(0, "Invalid WISPr-Session-Terminate-Time received: %s", attrs);
+      syslog(LOG_WARNING, "Invalid WISPr-Session-Terminate-Time received: %s", attrs);
     }
   }
   else if (!reconfig)
@@ -4791,7 +4791,7 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 
   /* Get username */
   if (radius_getattr(pack, &uattr, RADIUS_ATTR_USER_NAME, 0, 0, 0)) {
-    log_warn(0, "Username must be included in disconnect request");
+    syslog(LOG_WARNING, "Username must be included in disconnect request");
     return -1;
   }
 
@@ -5005,7 +5005,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
       return -1;
 
     if (appconn->dnprot != DNPROT_DHCP_NONE && appconn->hisip.s_addr) {
-      log_warn(0, "Requested IP address when already allocated (hisip %s)",
+      syslog(LOG_WARNING, "Requested IP address when already allocated (hisip %s)",
 	       inet_ntoa(appconn->hisip));
       appconn->reqip.s_addr = appconn->hisip.s_addr;
     }
@@ -5914,7 +5914,7 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
   /* Return if not EAPOL */
   if (appconn->dnprot != DNPROT_EAPOL) {
-    log_warn(0, "Received EAP message, processing for authentication");
+    syslog(LOG_WARNING, "Received EAP message, processing for authentication");
     appconn->dnprot = DNPROT_EAPOL;
     return 0;
   }
@@ -7683,7 +7683,7 @@ int chilli_main(int argc, char **argv) {
     if (printstatus() != 0) 
       syslog(LOG_ERR, "%d could not save status file", errno);
 #else
-    log_warn(0, "Not stopping sessions! seskeepalive should be used with compile option --enable-binstatusfile");
+    syslog(LOG_WARNING, "Not stopping sessions! seskeepalive should be used with compile option --enable-binstatusfile");
 #endif
   } else {
     killconn();
