@@ -3531,7 +3531,7 @@ int access_request(struct radius_packet_t *pack,
     if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
 			instance++)) {
       if ((resplen + (size_t)eapattr->l-2) > MAX_EAP_LEN) {
-	log(LOG_INFO, "EAP message too long %d %d", resplen, (int)eapattr->l-2);
+	syslog(LOG_INFO, "EAP message too long %zu %d", resplen, (int)eapattr->l-2);
 	return radius_resp(radius, &radius_pack, peer, pack->authenticator);
       }
       memcpy(resp + resplen, eapattr->v.t, (size_t)eapattr->l-2);
@@ -4638,7 +4638,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
 			instance++)) {
       if ((appconn->challen + eapattr->l-2) > MAX_EAP_LEN) {
-	log(LOG_INFO, "EAP message too long %d %d", 
+	syslog(LOG_INFO, "EAP message too long %zu %d", 
 	    appconn->challen, (int) eapattr->l-2);
 	return dnprot_reject(appconn);
       }
