@@ -56,7 +56,7 @@ int chilli_module_load(void **ctx, char *name) {
   m = (struct chilli_module *) sym;
   m->lib = lib_handle;
 
-  log_dbg("Loaded module %s", name);
+  syslog(LOG_DEBUG, "Loaded module %s", name);
 
   *ctx = m;
   
