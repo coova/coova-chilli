@@ -38,15 +38,15 @@ int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
 #endif
 
     if (ndelay_on(sock) < 0) {
-      log_err(errno, "could not set non-blocking");
+      syslog(LOG_ERR, "%d could not set non-blocking", errno);
     }
 
     if (safe_connect(sock, 
 		     (struct sockaddr *) &server, 
 		     sizeof(server)) < 0) {
       if (errno != EINPROGRESS) {
-	log_err(errno, "could not connect to %s:%d", 
-		inet_ntoa(server.sin_addr), port);
+	syslog(LOG_ERR, "%d could not connect to %s:%d", 
+		errno, inet_ntoa(server.sin_addr), port);
 	close(sock);
 	return -1;
       }
@@ -68,7 +68,7 @@ int conn_setup(struct conn_t *conn, char *hostname,
   conn->read_buf = bread;
 
   if (!(host = gethostbyname(hostname)) || !host->h_addr_list[0]) {
-    log_err(0, "Could not resolve IP address of uamserver: %s! [%s]", 
+    syslog(LOG_ERR, "Could not resolve IP address of uamserver: %s! [%s]", 
 	    hostname, strerror(errno));
     return -1;
   }
@@ -119,7 +119,7 @@ int conn_update_write(struct conn_t *conn) {
     socklen_t errlen = sizeof(err);
     if (getsockopt(conn->sock, SOL_SOCKET, SO_ERROR, 
 		   &err, &errlen) || (err != 0)) {
-      log_err(errno, "not connected");
+      syslog(LOG_ERR, "%d not connected", errno);
       conn_finish(conn);
       return -1;
     } else {
@@ -127,7 +127,7 @@ int conn_update_write(struct conn_t *conn) {
       /*log_dbg("RESETTING non-blocking");*/
 #endif
       /*if (ndelay_off(conn->sock) < 0) {
-	log_err(errno, "could not un-set non-blocking");
+	syslog(LOG_ERR, "%d could not un-set non-blocking", errno);
 	}*/
     }
   }
