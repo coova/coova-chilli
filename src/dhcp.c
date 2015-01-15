@@ -1300,7 +1300,7 @@ int dhcp_reserve_str(char *b, size_t blen) {
 	}
 	
 	if (newline || state == 2) {
-            log(LOG_NOTICE, "Reserving IP MAC="MAC_FMT" IP %s" , 
+            syslog(LOG_NOTICE, "Reserving IP MAC="MAC_FMT" IP %s" , 
                 MAC_ARG(mac), inet_ntoa(ip));
 	  dhcp_reserve_ip(mac, &ip);
 	  state = 0;
