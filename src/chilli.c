@@ -3556,7 +3556,7 @@ int access_request(struct radius_packet_t *pack,
 
 #ifdef ENABLE_RADPROXY
   if (_options.proxymacaccept && !resplen) {
-    log_info("Accepting MAC login");
+    syslog(LOG_INFO, "Accepting MAC login");
     radius_pack.code = RADIUS_CODE_ACCESS_ACCEPT;
     return radius_resp(radius, &radius_pack, peer, pack->authenticator);
   }
@@ -4967,7 +4967,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 	   */
 	  upprot_getip(appconn, &appconn->reqip, 0);
 	  
-	  log_info("Granted MAC=%s with IP=%s access without radius auth",
+	  syslog(LOG_INFO, "Granted MAC=%s with IP=%s access without radius auth",
 		   mac, inet_ntoa(appconn->hisip));
 	  
 	  ipm = (struct ippoolm_t*) appconn->uplink;
@@ -6005,13 +6005,13 @@ int static uam_msg(struct redir_msg_t *msg) {
     
   case REDIR_LOGIN:
     if (appconn->uamabort) {
-      log_info("UAM login from username=%s IP=%s was aborted!", 
+      syslog(LOG_INFO, "UAM login from username=%s IP=%s was aborted!", 
 	       msg->mdata.redir.username, inet_ntoa(appconn->hisip));
       appconn->uamabort = 0;
       return 0;
     }
 
-    log_info("Successful UAM login from username=%s IP=%s", 
+    syslog(LOG_INFO, "Successful UAM login from username=%s IP=%s", 
 	     msg->mdata.redir.username, inet_ntoa(appconn->hisip));
     
     /* Initialise */
@@ -6035,7 +6035,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 
   case REDIR_LOGOUT:
 
-    log_info("Received UAM logoff from username=%s IP=%s",
+    syslog(LOG_INFO, "Received UAM logoff from username=%s IP=%s",
 	     appconn->s_state.redir.username, inet_ntoa(appconn->hisip));
 
     syslog(LOG_DEBUG, "Received logoff from UAM");
@@ -6062,7 +6062,7 @@ int static uam_msg(struct redir_msg_t *msg) {
 
   case REDIR_ABORT:
     
-    log_info("Received UAM abort from IP=%s", inet_ntoa(appconn->hisip));
+    syslog(LOG_INFO, "Received UAM abort from IP=%s", inet_ntoa(appconn->hisip));
 
     appconn->uamabort = 1; /* Next login will be aborted */
     appconn->s_state.uamtime = 0;  /* Force generation of new challenge */
@@ -7676,7 +7676,7 @@ int chilli_main(int argc, char **argv) {
     
   } /* while(keep_going) */
   
-  log_info("CoovaChilli shutting down");
+  syslog(LOG_INFO, "CoovaChilli shutting down");
   
   if (_options.seskeepalive) {
 #ifdef ENABLE_BINSTATFILE
