@@ -2466,6 +2466,10 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   
   if (!pack) { /* Timeout */
     log_err(0, "Radius request timed out");
+	if (_options.noradallow) {
+    	conn->response = REDIR_SUCCESS;
+    	return 0;
+    } 
     conn->response = REDIR_FAILED_TIMEOUT;
     return 0;
   }
