@@ -28,6 +28,14 @@
 #define MD5Update MD5_Update
 #define MD5Final MD5_Final
 
+#elif HAVE_CYASSL
+#include <cyassl/openssl/md5.h>
+
+#define MD5Init MD5_Init
+#define MD5Update MD5_Update
+#define MD5Final MD5_Final
+
+typedef struct CYASSL_MD5_CTX MD5_CTX;
 #else
 
 struct MD5Context {

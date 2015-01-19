@@ -18,7 +18,7 @@
 #include <string.h>		/* for memcpy() */
 #include "md5.h"
 
-#ifndef HAVE_OPENSSL
+#if !defined(HAVE_OPENSSL) && !defined(HAVE_CYASSL)
 
 void byteReverse(unsigned char *buf, size_t longs);
 
