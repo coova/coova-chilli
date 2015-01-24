@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
       log_err(errno, "setuid %s", argv[0]);
   }
   
-  log_info("Running %s (%d/%d)", argv[2], getuid(), geteuid());
+  syslog(LOG_INFO, "Running %s (%d/%d)", argv[2], getuid(), geteuid());
 
   if (execv(argv[2], &argv[2])) {
     log_err(errno, "exec %s", argv[2]);
