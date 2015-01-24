@@ -75,7 +75,7 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
 	default:
 	  len = (int) opts[i++];
 	  if (len < 2 || len > TCP_MAX_OPTION_LEN) {
-	    log_err(0, "bad TCP option during parse, len=%d", len);
+	    syslog(LOG_ERR, "bad TCP option during parse, len=%d", len);
 	    return -1;
 	  }
 	  if (type == 2 && len == 4) {

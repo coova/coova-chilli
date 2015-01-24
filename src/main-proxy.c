@@ -139,7 +139,7 @@ static proxy_request * get_request() {
   
   if (!req) {
     /* problem */
-    log_err(0,"out of connections");
+    syslog(LOG_ERR, "out of connections");
     print_requests();
     return 0;
   }
@@ -159,7 +159,7 @@ static int radius_reply(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,(struct sockaddr *) peer, 
 	     sizeof(struct sockaddr_in)) < 0) {
-    log_err(errno, "sendto() failed!");
+    syslog(LOG_ERR, "%d sendto() failed!", errno);
     return -1;
   } 
   
@@ -653,7 +653,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
   process_options(i, argv, 1);
 
   if (!_options.uamaaaurl) {
-    log_err(0, "uamaaaurl not defined in configuration");
+    syslog(LOG_ERR, "uamaaaurl not defined in configuration");
     exit(-1);
   }
 
@@ -728,7 +728,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
 
   if (req.data->slen)
     if (safe_write(1, req.data->data, req.data->slen) < 0)
-      log_err(errno, "write()");
+      syslog(LOG_ERR, "%d write()", errno);
 
   bdestroy(req.url);
   bdestroy(req.data);
@@ -759,7 +759,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
   if (!req) return;
 
   if (!_options.uamaaaurl) {
-    log_err(0,"No --uamaaaurl parameter defined");
+    syslog(LOG_ERR, "No --uamaaaurl parameter defined");
     return;
   }
 
@@ -826,7 +826,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 	bcatcstr(req->url, "down");
 	break;
       default:
-	log_err(0,"unsupported acct-status-type %d",ntohl(attr->v.i));
+	syslog(LOG_ERR, "unsupported acct-status-type %d", ntohl(attr->v.i));
 	error = "Unsupported acct-status-type";
 	break;
       }
@@ -1052,7 +1052,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
       close_request(req);
     
   } else {
-    log_err(0, "problem: %s", error);
+    syslog(LOG_ERR, "problem: %s", error);
   }
 
   bdestroy(tmp);
@@ -1136,7 +1136,7 @@ int main(int argc, char **argv) {
 		 _options.radiusauthport : RADIUS_AUTHPORT, 
 		 0, 0) || 
       radius_init_q(radius_auth, 0)) {
-    log_err(0, "Failed to create radius");
+    syslog(LOG_ERR, "Failed to create radius");
     return -1;
   }
 
@@ -1145,7 +1145,7 @@ int main(int argc, char **argv) {
 		 _options.radiusacctport : RADIUS_ACCTPORT, 
 		 0, 0) || 
       radius_init_q(radius_acct, 0)) {
-    log_err(0, "Failed to create radius");
+    syslog(LOG_ERR, "Failed to create radius");
     return -1;
   }
   
@@ -1153,13 +1153,13 @@ int main(int argc, char **argv) {
   radius_set(radius_acct, 0, 0);
   
   if (_options.gid && setgid(_options.gid)) {
-    log_err(errno, "setgid(%d) failed while running with gid = %d\n", 
-	    _options.gid, getgid());
+    syslog(LOG_ERR, "%d setgid(%d) failed while running with gid = %d\n", 
+	    errno, _options.gid, getgid());
   }
   
   if (_options.uid && setuid(_options.uid)) {
-    log_err(errno, "setuid(%d) failed while running with uid = %d\n", 
-	    _options.uid, getuid());
+    syslog(LOG_ERR, "%d setuid(%d) failed while running with uid = %d\n", 
+	    errno, _options.uid, getuid());
   }
 
   while (keep_going) {
@@ -1209,7 +1209,7 @@ int main(int argc, char **argv) {
     switch (status) {
     case -1:
       if (EINTR != errno) {
-	log_err(errno, "select() returned -1!");
+	syslog(LOG_ERR, "%d select() returned -1!", errno);
       }
       break;  
 
@@ -1241,7 +1241,7 @@ int main(int argc, char **argv) {
 	  if ((status = recvfrom(radius_auth->fd, 
 				 &radius_pack, sizeof(radius_pack), 0, 
 				 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    log_err(errno, "recvfrom() failed");
+	    syslog(LOG_ERR, "%d recvfrom() failed", errno);
 	    
 	    return -1;
 	  }
@@ -1261,7 +1261,7 @@ int main(int argc, char **argv) {
 	  if ((status = recvfrom(radius_acct->fd, 
 				 &radius_pack, sizeof(radius_pack), 0, 
 			       (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    log_err(errno, "recvfrom() failed");
+	    syslog(LOG_ERR, "%d recvfrom() failed", errno);
 	    return -1;
 	  }
 	  
@@ -1298,7 +1298,7 @@ int main(int argc, char **argv) {
 #endif
 	    http_aaa_finish(&requests[idx]);
 	  } else {
-	    log_err(0, "Could not find request in queue");
+	    syslog(LOG_ERR, "%d Could not find request in queue", errno);
 	  }
 	}
       }

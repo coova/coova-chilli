@@ -412,13 +412,13 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   }
 
   if (addr_len != sizeof(local)) {
-    log_err(0, "Wrong address length %d", addr_len);
+    syslog(LOG_ERR, "Wrong address length %d", addr_len);
     close(fd);
     return -1;
   }
 
   if (local.nl_family != AF_NETLINK) {
-    log_err(0, "Wrong address family %d", local.nl_family);
+    syslog(LOG_ERR, "Wrong address family %d", local.nl_family);
     close(fd);
     return -1;
   }
@@ -1033,7 +1033,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 #ifdef ENABLE_NETNAT
   if (idx > 0) {
     if (nat_do(tun, idx, pack, len)) {
-      log_err(0, "unable to nat packet!");
+      syslog(LOG_ERR, "unable to nat packet!");
     }
   }
 #endif

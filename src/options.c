@@ -57,31 +57,31 @@ int option_aton(struct in_addr *addr, struct in_addr *mask,
     break;
   case 5:
     if (m1 > 32) {
-      log_err(0, "Invalid mask");
+      syslog(LOG_ERR, "Invalid mask");
       return -1; /* Invalid mask */
     }
     mask->s_addr = m1 > 0 ? htonl(0xffffffff << (32 - m1)) : 0;
     break;
   case 8:
     if (m1 >= 256 ||  m2 >= 256 || m3 >= 256 || m4 >= 256) {
-      log_err(0, "Invalid mask");
+      syslog(LOG_ERR, "Invalid mask");
       return -1; /* Wrong mask format */
     }
     m = m1 * 0x1000000 + m2 * 0x10000 + m3 * 0x100 + m4;
     for (masklog = 0; ((1 << masklog) < ((~m)+1)); masklog++);
     if (((~m)+1) != (1 << masklog)) {
-      log_err(0, "Invalid mask");
+      syslog(LOG_ERR, "Invalid mask");
       return -1; /* Wrong mask format (not all ones followed by all zeros)*/
     }
     mask->s_addr = htonl(m);
     break;
   default:
-    log_err(0, "Invalid mask");
+    syslog(LOG_ERR, "Invalid mask");
     return -1; /* Invalid mask */
   }
 
   if (a1 >= 256 ||  a2 >= 256 || a3 >= 256 || a4 >= 256) {
-    log_err(0, "Wrong IP address format");
+    syslog(LOG_ERR, "Wrong IP address format");
     return -1;
   }
   else

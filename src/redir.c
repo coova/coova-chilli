@@ -762,7 +762,7 @@ static void redir_xmlchilli_reply (struct redir_t *redir, struct redir_conn_t *c
     break;
     
   default:
-    log_err(0, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
+    syslog(LOG_ERR, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
   }
   bcatcstr(b, "</ChilliSpotSession>\r\n"  
 	   "-->\r\n");
@@ -953,7 +953,7 @@ void redir_wispr1_reply (struct redir_t *redir, struct redir_conn_t *conn,
     break;
     
   default:
-    log_err(0, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
+    syslog(LOG_ERR, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
   }
   bcatcstr(b, "</WISPAccessGatewayParam>\r\n"
 	   "-->\r\n");
@@ -1254,7 +1254,7 @@ void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn,
     break;
     
   default:
-    log_err(0, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
+    syslog(LOG_ERR, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
   }
 
   bcatcstr(b, "</WISPAccessGatewayParam>\r\n"
@@ -1534,7 +1534,7 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
     resp = "challenge";
     break;
   default:
-    log_err(0, "Unknown res in switch");
+    syslog(LOG_ERR, "Unknown res in switch");
     return -1;
   }
 
@@ -1809,7 +1809,7 @@ int redir_ipc(struct redir_t *redir) {
 #else
   if ((redir->msgid = msgget(IPC_PRIVATE, 0)) < 0) {
     log_err(errno, "msgget() failed");
-    log_err(0, "Most likely your computer does not have System V IPC installed");
+    syslog(LOG_ERR, "Most likely your computer does not have System V IPC installed");
     return -1;
   }
   
@@ -2001,7 +2001,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
     if (read_waiting || !forked) {
 
       if (buflen + 2 >= sizeof(buffer)) { /* ensure space for a least one more byte + null */
-        log_err(0, "Too much data in http request! %d", (int) buflen);
+        syslog(LOG_ERR, "Too much data in http request! %d", (int) buflen);
         return -1;
       }
 
@@ -2051,14 +2051,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
     }
     
     if (httpreq->data_in && forked) {
-      log_err(0,"should not happen");
+      syslog(LOG_ERR,"should not happen");
       exit(1);
     }
     
     if (httpreq->data_in && !forked) {
       /*syslog(LOG_DEBUG, "buffer (%d)", httpreq->data_in->slen);*/
       if (httpreq->data_in->slen >= sizeof(buffer)) {
-	log_err(0, "buffer too long (%d)", httpreq->data_in->slen);
+	syslog(LOG_ERR, "buffer too long (%d)", httpreq->data_in->slen);
 	return -1;
       } else {
 	buflen = httpreq->data_in->slen;
@@ -2104,12 +2104,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	}
 
 	if (*p1 == '/') p1++;
-	else { log_err(0, "parse error"); return -1; }
+	else { syslog(LOG_ERR, "parse error"); return -1; }
 	
 	/* The path ends with a ? or a space */
 	p2 = strchr(p1, qs_delim);
 	if (!p2) { qs_delim = ' '; p2 = strchr(p1, qs_delim); }
-	if (!p2) { log_err(0, "parse error"); return -1; }
+	if (!p2) { syslog(LOG_ERR, "parse error"); return -1; }
 	*p2 = 0;
 
 	safe_strncpy(path, p1, sizeof(httpreq->path));
@@ -2275,7 +2275,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	bstrtocstr(bt, conn->lang, sizeof(conn->lang));
       
       if (redir_getparam(redir, httpreq->qs, "username", bt)) {
-	log_err(0, "No username found in login request");
+	syslog(LOG_ERR, "No username found in login request");
 	conn->response = REDIR_ERROR_PROTOCOL;
 	bdestroy(bt);
 	return -1;
@@ -2350,7 +2350,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  int rc;
 
 	  if (conn->authdata.type != REDIR_AUTH_NONE){
-	    log_err(0, "Request contains both password and eap message");
+	    syslog(LOG_ERR, "Request contains both password and eap message");
 	    conn->response = REDIR_ERROR_PROTOCOL;
 	    bdestroy(bt);
 	    return 0;
@@ -2360,14 +2360,14 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 			     &(conn->authdata.v.eapmsg));
 
 	  if (rc == 1) {
-	    log_err(0, "EAP message is too big, max allowed 1265 bytes");
+	    syslog(LOG_ERR, "EAP message is too big, max allowed 1265 bytes");
 	    conn->response = REDIR_FAILED_MTU;
 	    bdestroy(bt);
 	    return 0;
 	  } 
 
 	  if (rc == 2) {
-	    log_err(0, "Invalid EAP message encoding");
+	    syslog(LOG_ERR, "Invalid EAP message encoding");
 	    conn->response = REDIR_ERROR_PROTOCOL;
 	    bdestroy(bt);
 	    return 0;
@@ -2459,13 +2459,13 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   syslog(LOG_DEBUG, "Received RADIUS response");
   
   if (!conn) {
-    log_err(0, "No peer protocol defined");
+    syslog(LOG_ERR, "No peer protocol defined");
     conn->response = REDIR_FAILED_OTHER;
     return 0;
   }
   
   if (!pack) { /* Timeout */
-    log_err(0, "Radius request timed out");
+    syslog(LOG_ERR, "Radius request timed out");
     conn->response = REDIR_FAILED_TIMEOUT;
     return 0;
   }
@@ -2474,7 +2474,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   if ((pack->code != RADIUS_CODE_ACCESS_REJECT) && 
       (pack->code != RADIUS_CODE_ACCESS_CHALLENGE) &&
       (pack->code != RADIUS_CODE_ACCESS_ACCEPT)) {
-    log_err(0, "Unknown radius access reply code %d", pack->code);
+    syslog(LOG_ERR, "Unknown radius access reply code %d", pack->code);
     conn->response = REDIR_FAILED_OTHER;
     return 0;
   }
@@ -2535,7 +2535,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, 
                         instance++)) {
       if ((conn->authdata.v.eapmsg.len + (size_t)attr->l-2) > MAX_EAP_LEN) {
-	log_err(0, "received EAP message from Radius packet is too big");
+	syslog(LOG_ERR, "received EAP message from Radius packet is too big");
 	conn->authdata.v.eapmsg.len = 0;
 	return -1;
       }
@@ -2579,7 +2579,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 	syslog(LOG_DEBUG, "plainstring MPPE_SEND_KEY: len %zu key %s", dstlen, hexString);
       } else {
 	syslog(LOG_DEBUG, "received radius MPPE_SEND_KEY attribute (%d bytes): %s", attr->l, hexString);
-	log_err(0, "Decryption of MPPE_SEND_KEY failed");
+	syslog(LOG_ERR, "Decryption of MPPE_SEND_KEY failed");
       }
     }     
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
@@ -2597,7 +2597,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 	syslog(LOG_DEBUG, "plainstring MPPE_RECV_KEY: len %zu key %s", dstlen, hexString);
       } else {
 	syslog(LOG_DEBUG, "received radius MPPE_RECV_KEY attribute (%d bytes): %s", attr->l, hexString);
-	log_err(0, "Decryption of MPPE_RECV_KEY failed");
+	syslog(LOG_ERR, "Decryption of MPPE_RECV_KEY failed");
       }
     }
   }
@@ -2622,7 +2622,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     conn->response = REDIR_FAILED_REJECT;
     break;
   default:
-    log_err(0, "Unsupported radius access reply code %d", pack->code);
+    syslog(LOG_ERR, "Unsupported radius access reply code %d", pack->code);
     return -1;
   }
   return 0;
@@ -2651,7 +2651,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   if (radius_new(&radius,
 		 &redir->radiuslisten, 0, 0, 0) ||
       radius_init_q(radius, 8)) {
-    log_err(0, "Failed to create radius");
+    syslog(LOG_ERR, "Failed to create radius");
     return -1;
   }
 
@@ -2781,7 +2781,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 	if (radius_addattr(radius, &radius_pack, 
 			   RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
 			   conn->authdata.v.eapmsg.data + offset, eaplen)) {
-	  log_err(0, "EAP message segmentation in EAP attributes failed");
+	  syslog(LOG_ERR, "EAP message segmentation in EAP attributes failed");
 	  radius_free(radius);
 	  return -1;
 	}
@@ -2798,7 +2798,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
     }
     break;
   default:
-    log_err(0, "Invalid authentication type: %d", 
+    syslog(LOG_ERR, "Invalid authentication type: %d", 
 	    conn->authdata.type);
     radius_free(radius);
     return -1;
@@ -2858,7 +2858,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
     if (status > 0) {
       if ((radius->fd != -1) && FD_ISSET(radius->fd, &fds) && 
 	  radius_decaps(radius, 0) < 0) {
-	log_err(0, "radius_ind() failed!");
+	syslog(LOG_ERR, "radius_ind() failed!");
       }
     }
     
@@ -2930,7 +2930,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
     memcpy(user_password, conn->authdata.v.chapmsg.password, REDIR_MD5LEN);
     break;
   default:
-    log_err(0, "Authentication method not supported for locally authenticated users: %d", 
+    syslog(LOG_ERR, "Authentication method not supported for locally authenticated users: %d", 
 	    conn->authdata.type);
     return 0;
   }
@@ -3313,7 +3313,7 @@ int redir_main(struct redir_t *redir,
   termstate = REDIR_TERM_GETSTATE;
 
   if (!redir->cb_getstate) { 
-    log_err(0, "No cb_getstate() defined!"); 
+    syslog(LOG_ERR, "No cb_getstate() defined!"); 
     return redir_main_exit(&socket, forked, rreq);
   }
 
@@ -3477,7 +3477,7 @@ int redir_main(struct redir_t *redir,
 	    if (*p >= 'A' && *p <= 'Z') continue;
 	    if (*p >= '0' && *p <= '9') continue;
 	    /* invalid file name! */
-	    log_err(0, "invalid www request [%s]!", filename);
+	    syslog(LOG_ERR, "invalid www request [%s]!", filename);
 	    return redir_main_exit(&socket, forked, rreq);
 	  }
 	}
@@ -3511,7 +3511,7 @@ int redir_main(struct redir_t *redir,
 	}
 	else { 
 	  /* we do not serve it! */
-	  log_err(0, "invalid file extension! [%s]", filename);
+	  syslog(LOG_ERR, "invalid file extension! [%s]", filename);
 	  return redir_main_exit(&socket, forked, rreq);
 	}
 	
@@ -3529,7 +3529,7 @@ int redir_main(struct redir_t *redir,
 	if (parse) {
 	  
 	  if (!_options.wwwbin) {
-	    log_err(0, "the 'wwwbin' setting must be configured for CGI use");
+	    syslog(LOG_ERR, "the 'wwwbin' setting must be configured for CGI use");
 	    return redir_main_exit(&socket, forked, rreq);
 	  }
 
@@ -3738,13 +3738,13 @@ int redir_main(struct redir_t *redir,
 	    
 	    safe_close(fd);
 	  } 
-	  else log_err(0, "could not open local content file %s!", filename);
+	  else syslog(LOG_ERR, "could not open local content file %s!", filename);
 	}
-	else log_err(0, "chroot/chdir to %s was not successful\n", _options.wwwdir); 
+	else syslog(LOG_ERR, "chroot/chdir to %s was not successful\n", _options.wwwdir); 
 	
 	return _redir_close_exit(infd, outfd); /* which exits */
       }
-      else log_err(0, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param"); 
+      else syslog(LOG_ERR, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param"); 
       
       return redir_main_exit(&socket, forked, rreq);
     }

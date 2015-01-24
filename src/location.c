@@ -125,7 +125,7 @@ void location_add_conn(struct app_conn_t *appconn, char *loc) {
       loc_search->loc_closed_bytes_down=0;*/
     list_init_head(&loc_search->loc_sess_head);
     if (avl_insert(&loc_search_tree, &loc_search->node)!=0) {
-      log_err(0, "unexpected avl error!");
+      syslog(LOG_ERR, "unexpected avl error!");
     }
   }
 

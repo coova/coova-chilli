@@ -252,7 +252,7 @@ int
 openssl_env_init(openssl_env *env, char *engine, int server) {
 
   if (!_options.sslcertfile || !_options.sslkeyfile) {
-    log_err(0, "options sslcertfile and sslkeyfile are required");
+    syslog(LOG_ERR, "options sslcertfile and sslkeyfile are required");
     return 0;
   }
 
@@ -266,13 +266,13 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
     
     if (!openssl_use_certificate(env, _options.sslcertfile) ||
 	!openssl_use_privatekey(env, _options.sslkeyfile)) {
-      log_err(0, "failed reading setup sslcertfile and/or sslkeyfile");
+      syslog(LOG_ERR, "failed reading setup sslcertfile and/or sslkeyfile");
       return 0;
     }
 
     if (_options.sslcafile) {
       if (!openssl_cacert_location(env, _options.sslcafile, 0)) {
-	log_err(0, "failed reading sslcafile");
+	syslog(LOG_ERR, "failed reading sslcafile");
 	return 0;
       }
     }
@@ -461,7 +461,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
   if (!c) return 0;
 
   if (!env || !env->ready) {
-    log_err(0, "SSL not available!");
+    syslog(LOG_ERR, "SSL not available!");
     return 0;
   }
 

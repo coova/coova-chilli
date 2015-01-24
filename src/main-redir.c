@@ -108,7 +108,7 @@ static redir_request * get_request() {
   
   if (!req) {
     /* problem */
-    log_err(0,"out of connections!");
+    syslog(LOG_ERR,"out of connections!");
     return 0;
   }
 
@@ -175,7 +175,7 @@ sock_redir_getstate(struct redir_t *redir,
   memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress));
 
   if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    log_err(errno, "socket()");
+    syslog(LOG_ERR, "%d socket()", errno);
     return -1;
   }
 
@@ -191,13 +191,13 @@ sock_redir_getstate(struct redir_t *redir,
   len = offsetof(struct sockaddr_un, sun_path) + strlen(remote.sun_path);
 
   if (safe_connect(s, (struct sockaddr *)&remote, len) == -1) {
-    log_err(errno, "could not connect to %s", remote.sun_path);
+    syslog(LOG_ERR, "%d could not connect to %s", errno, remote.sun_path);
     close(s);
     return -1;
   }
   
   if (safe_write(s, &msg, sizeof(msg)) != sizeof(msg)) {
-    log_err(errno, "could not write to %s", remote.sun_path);
+    syslog(LOG_ERR, "%d could not write to %s", errno, remote.sun_path);
     close(s);
     return -1;
   }
@@ -267,9 +267,8 @@ static int redir_cli_rewrite(redir_request *req, struct conn_t *conn) {
 		      conn->read_buf->slen -
 		      conn->read_pos);
     if (w < 0 && errno != EWOULDBLOCK && errno != EAGAIN) {
-      log_err(errno, "net_write(%d)",
-	      conn->read_buf->slen -
-	      conn->read_pos);
+      syslog(LOG_ERR, "%d net_write(%d)",
+	errno, conn->read_buf->slen - conn->read_pos);
       redir_conn_finish(conn, req);
       return -1;
     } else if (w > 0) {
@@ -519,7 +518,7 @@ check_regex(regex_t *re, char *regex, char *s) {
     if ((ret = regcomp(re, regex, REG_EXTENDED | REG_NOSUB)) != 0) {
       char error[512];
       regerror(ret, re, error, sizeof(error));
-      log_err(0, "regcomp(%s) failed (%s)", regex, error);
+      syslog(LOG_ERR, "regcomp(%s) failed (%s)", regex, error);
       regex[0] = 0;
       return -1;
     }
@@ -683,7 +682,7 @@ redir_handle_url(struct redir_t *redir,
 
     if (conn_setup(&req->conn, httpreq->host, port, 
 		   req->wbuf, req->dbuf)) {
-      log_err(errno, "conn_setup()");
+      syslog(LOG_ERR, "%d conn_setup()", errno);
       return -1;
     }
     
@@ -710,7 +709,7 @@ int redir_accept2(struct redir_t *redir, int idx) {
 				(struct sockaddr *)&address, 
 				&addrlen)) < 0) {
     if (errno != ECONNABORTED)
-      log_err(errno, "accept()");
+      syslog(LOG_ERR, "%d accept()", errno);
     
     return 0;
   }
@@ -728,13 +727,13 @@ int redir_accept2(struct redir_t *redir, int idx) {
   }
 
   if (ndelay_on(new_socket) < 0) {
-    log_err(errno, "could not set ndelay");
+    syslog(LOG_ERR, "%d could not set ndelay", errno);
   }
   
   if (idx == 1 && _options.uamui) {
     
     if ((status = redir_fork(new_socket, new_socket)) < 0) {
-      log_err(errno, "fork() returned -1!");
+      syslog(LOG_ERR, "%d fork() returned -1!", errno);
       close(new_socket);
       return 0;
     }
@@ -829,7 +828,7 @@ int main(int argc, char **argv) {
   if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
     memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
   } else {
-    log_err(errno, "could not get MAC address");
+    syslog(LOG_ERR, "%d could not get MAC address", errno);
     return -1;
   }
 #endif  
@@ -844,12 +843,12 @@ int main(int argc, char **argv) {
 		0
 #endif
 		)) {
-    log_err(0, "Failed to create redir");
+    syslog(LOG_ERR, "Failed to create redir");
     return -1;
   }
   
   if (redir_listen(redir)) {
-    log_err(0, "Failed to create redir listen");
+    syslog(LOG_ERR, "Failed to create redir listen");
     return -1;
   }
 
@@ -859,7 +858,7 @@ int main(int argc, char **argv) {
   redir->cb_handle_url = redir_handle_url;
 
   if (net_select_init(&sctx))
-    log_err(errno, "select init");
+    syslog(LOG_ERR, "%d select init", errno);
 
   selfpipe = selfpipe_init();
 
@@ -869,13 +868,13 @@ int main(int argc, char **argv) {
   net_select_addfd(&sctx, redir->fd[1], SELECT_READ);
 
   if (_options.gid && setgid(_options.gid)) {
-    log_err(errno, "setgid(%d) failed while running with gid = %d\n", 
-	    _options.gid, getgid());
+    syslog(LOG_ERR, "%d setgid(%d) failed while running with gid = %d\n", 
+	    errno, _options.gid, getgid());
   }
   
   if (_options.uid && setuid(_options.uid)) {
-    log_err(errno, "setuid(%d) failed while running with uid = %d\n", 
-	    _options.uid, getuid());
+    syslog(LOG_ERR, "%d setuid(%d) failed while running with uid = %d\n", 
+	    errno, _options.uid, getuid());
   }
 
   while (keep_going) {
@@ -979,7 +978,7 @@ int main(int argc, char **argv) {
 
     switch (status) {
     case -1:
-      log_err(errno, "select() returned -1!");
+      syslog(LOG_ERR, "%d select() returned -1!", errno);
       break;  
 
     default:
@@ -992,12 +991,12 @@ int main(int argc, char **argv) {
 	if (redir->fd[0])
 	  if (net_select_read_fd(&sctx, redir->fd[0])==1 && 
 	      redir_accept2(redir, 0) < 0)
-	    log_err(0, "redir_accept() failed!");
+	    syslog(LOG_ERR, "redir_accept() failed!");
 	
 	if (redir->fd[1])
 	  if (net_select_read_fd(&sctx, redir->fd[1])==1 && 
 	      redir_accept2(redir, 1) < 0)
-	    log_err(0, "redir_accept() failed!");
+	    syslog(LOG_ERR, "redir_accept() failed!");
       
 	for (idx=0; idx < max_requests; idx++) {
 
@@ -1084,7 +1083,7 @@ int main(int argc, char **argv) {
 		      syslog(LOG_DEBUG, "proxy_write: %d", w);
 		    */
 		    if (r != w) {
-		      log_err(errno, "problem writing what we read from client");
+		      syslog(LOG_ERR, "%d problem writing what we read from client", errno);
 		      redir_conn_finish(&requests[idx].conn, 
 					&requests[idx]);
 		    }

@@ -240,7 +240,7 @@ static int radius_queue_next(struct radius_t *this) {
       goto try_again;
     }
     
-    log_err(0, "radius queue is full! qnext=%d qsize=%d",
+    syslog(LOG_ERR, "radius queue is full! qnext=%d qsize=%d",
 	    qnext, this->qsize);
     
     return -1;
@@ -389,12 +389,12 @@ radius_queue_out(struct radius_t *this, int idx,
   }
   
   if (idx < 0) {
-    log_err(0, "bad idx (%d)", idx);
+    syslog(LOG_ERR, "bad idx (%d)", idx);
     return -1;
   }
   
   if (this->queue[idx].state != 1) {
-    log_err(0, "RADIUS id=%d idx=%d with state != 1", 
+    syslog(LOG_ERR, "RADIUS id=%d idx=%d with state != 1", 
 	    id, idx);
     return -1;
   }
@@ -457,7 +457,7 @@ static int radius_queue_reschedule(struct radius_t *this, int idx) {
   struct timeval *tv;
 
   if (this->queue[idx].state != 1) {
-    log_err(0, "No such id in radius queue: id=%d!", idx);
+    syslog(LOG_ERR, "No such id in radius queue: id=%d!", idx);
     return -1;
   }
 
@@ -792,7 +792,7 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
 
     if ((length+vlen+2) > RADIUS_PACKSIZE) {
-      log_err(0, "No more space!");
+      syslog(LOG_ERR, "No more space!");
       return -1;
     }
 
@@ -825,7 +825,7 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
 
     if ((length+vlen+2) > RADIUS_PACKSIZE) { 
-      log_err(0, "No more space!");
+      syslog(LOG_ERR, "No more space!");
       return -1;
     }
 
@@ -977,14 +977,14 @@ int radius_keydecode(struct radius_t *this,
   int i, n;
 
   if (srclen < 18) {
-    log_err(0, "radius_keydecode MPPE attribute content len must be at least 18, len = %d", srclen);
+    syslog(LOG_ERR, "radius_keydecode MPPE attribute content len must be at least 18, len=%zd", srclen);
     return -1;
   }
  
   blocks = ((int)srclen - 2) / RADIUS_MD5LEN;
 
   if ((blocks * RADIUS_MD5LEN + 2) != (int)srclen) {
-    log_err(0, "radius_keydecode: srclen must be 2 plus n*16");
+    syslog(LOG_ERR, "radius_keydecode: srclen must be 2 plus n*16");
     return -1;
   }
 
@@ -999,12 +999,12 @@ int radius_keydecode(struct radius_t *this,
   *dstlen = (size_t)(src[2] ^ b[0]);
   
   if (*dstlen > (srclen - 3)) {
-    log_err(0,"radius_keydecode not enough encrypted data bytes for indicated key length = %d (bytes)", *dstlen);
+    syslog(LOG_ERR,"radius_keydecode not enough encrypted data bytes for indicated key length = %zd (bytes)", *dstlen);
     return -1; 
   }
 
   if (*dstlen > dstsize) {
-    log_err(0,"radius_keydecode output buffer for plaintext key is too small");
+    syslog(LOG_ERR,"radius_keydecode output buffer for plaintext key is too small");
     return -1; 
   }
 
@@ -1049,7 +1049,7 @@ int radius_keyencode(struct radius_t *this,
   if ((blocks * RADIUS_MD5LEN) < ((int)srclen + 1)) blocks++;
   
   if (((blocks * RADIUS_MD5LEN) + 2) > (int)dstsize) {
-    log_err(0, "radius_keyencode dstsize too small");
+    syslog(LOG_ERR, "radius_keyencode dstsize too small");
     return -1;
   }
 
@@ -1109,12 +1109,12 @@ int radius_pwdecode(struct radius_t *this,
 #endif
 
   if (srclen > dstsize) {
-    log_err(0, "radius_pwdecode srclen larger than dstsize");
+    syslog(LOG_ERR, "radius_pwdecode srclen larger than dstsize");
     return -1;
   }
 
   if (srclen % RADIUS_MD5LEN) {
-    log_err(0, "radius_pwdecode srclen is not multiple of 16 octets");
+    syslog(LOG_ERR, "radius_pwdecode srclen is not multiple of 16 octets");
     return -1;
   }
 
@@ -1252,7 +1252,7 @@ int radius_new(struct radius_t **this,
 
   /* Allocate storage for instance */
   if (!(new_radius = calloc(sizeof(struct radius_t), 1))) {
-    log_err(0, "calloc() failed");
+    syslog(LOG_ERR, "calloc() failed");
     return -1;
   }
 
@@ -1412,7 +1412,7 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
     this->hisaddr1.s_addr = _options.radiusserver2.s_addr;
     
     if ((this->secretlen = strlen(_options.radiussecret)) > RADIUS_SECRETSIZE) {
-      log_err(0, "Radius secret too long. Truncating to %d characters", 
+      syslog(LOG_ERR, "Radius secret too long. Truncating to %d characters", 
 	      RADIUS_SECRETSIZE);
       this->secretlen = RADIUS_SECRETSIZE;
     }
@@ -1509,7 +1509,7 @@ int radius_req(struct radius_t *this,
   
   /* Place packet in queue */
   if (radius_queue_in(this, pack, cbp)) {
-    log_err(0, "could not put in queue");
+    syslog(LOG_ERR, "could not put in queue");
     return -1;
   }
   
@@ -2050,7 +2050,7 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
   }
 
   if (ntohs(pack.length) != (uint16_t)status) {
-    log_err(0, "Received RADIUS packet with wrong length field %d != %d!",
+    syslog(LOG_ERR, "Received RADIUS packet with wrong length field %d != %zd!",
 	    ntohs(pack.length), status);
     return -1;
   }

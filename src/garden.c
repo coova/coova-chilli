@@ -533,7 +533,7 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 
     if (strchr(p1, '/')) {	/* parse a network address */
       if (option_aton(&pt.host, &pt.mask, p1, 0)) {
-	log_err(0, "Invalid uamallowed network address or mask %s!", s);
+	syslog(LOG_ERR, "Invalid uamallowed network address or mask %s!", s);
 	continue;
       } 
       if (is_rem) {
@@ -542,14 +542,14 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 			     , ptree
 #endif
 			     ))
-	  log_err(0, "Too many pass-throughs! skipped %s", s);
+	  syslog(LOG_ERR, "Too many pass-throughs! skipped %s", s);
       } else {
 	if (pass_through_add(ptlist, ptlen, ptcnt, &pt, is_dyn
 #ifdef HAVE_PATRICIA
 			     , ptree
 #endif
 			     ))
-	  log_err(0, "Too many pass-throughs! skipped %s", s);
+	  syslog(LOG_ERR, "Too many pass-throughs! skipped %s", s);
       }
     }
     else {	/* otherwise, parse a host ip or hostname */
@@ -557,7 +557,7 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
       pt.mask.s_addr = 0xffffffff;
 
       if (!(host = gethostbyname(p1))) {
-	log_err(errno, "Invalid uamallowed domain or address: %s!", p1);
+	syslog(LOG_ERR, "%d Invalid uamallowed domain or address: %s!", errno, p1);
 	continue;
       }
 
@@ -569,14 +569,14 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 			       , ptree
 #endif
 			       ))
-	    log_err(0, "Too many pass-throughs! skipped %s", s);
+	    syslog(LOG_ERR, "Too many pass-throughs! skipped %s", s);
 	} else {
 	  if (pass_through_add(ptlist, ptlen, ptcnt, &pt, is_dyn
 #ifdef HAVE_PATRICIA
 			       , ptree
 #endif
 			       ))
-	    log_err(0, "Too many pass-throughs! skipped %s", s);
+	    syslog(LOG_ERR, "Too many pass-throughs! skipped %s", s);
 	}
       }
     }
@@ -658,8 +658,8 @@ void garden_load_domainfile() {
 
     fp = fopen(_options.uamdomainfile, "r");
     if (!fp) { 
-      log_err(errno, "could not open file %s", 
-	      _options.uamdomainfile); 
+      syslog(LOG_ERR, "%d could not open file %s", 
+	      errno, _options.uamdomainfile); 
       return; 
     }
     
@@ -684,7 +684,7 @@ void garden_load_domainfile() {
 	
 	syslog(LOG_DEBUG, "compiling %s", pline);
 	if (regcomp(&uam_re->re, pline, REG_EXTENDED | REG_NOSUB)) {
-	  log_err(0, "could not compile regex %s", line);
+	  syslog(LOG_ERR, "could not compile regex %s", line);
 	  free(uam_re);
 	  continue;
 	}

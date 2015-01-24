@@ -54,7 +54,7 @@ int iphash_new(struct iphash_t **this, struct iphashm_t **member, int listsize, 
   int i;
 
   if (!(n = calloc(sizeof(struct iphash_t), 1))) {
-    log_err(0, "Failed to allocate memory for iphash");
+    syslog(LOG_ERR, "Failed to allocate memory for iphash");
     return -1;
   }
   
@@ -85,7 +85,7 @@ int iphash_new(struct iphash_t **this, struct iphashm_t **member, int listsize, 
   }
   
   if (!(n->hash = calloc(sizeof(struct iphashm_t *), n->hashsize))){
-    log_err(0, "Failed to allocate memory for iphash");
+    syslog(LOG_ERR, "Failed to allocate memory for iphash");
     free(n);
     return -1;
   }
@@ -126,7 +126,7 @@ int iphash_hashdel(struct iphash_t *this, struct iphashm_t *member) {
   }
 
   if (p != member) {
-    log_err(0, "iphash_hashdel: Tried to delete member not in hash table");
+    syslog(LOG_ERR, "iphash_hashdel: Tried to delete member not in hash table");
     return -1;
   }
 

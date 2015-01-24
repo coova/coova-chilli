@@ -144,7 +144,7 @@ int loadstatus() {
       if (ippool_getip(ippool, &newipm, &dhcpconn.hisip)) {
 	if (ippool_newip(ippool, &newipm, &dhcpconn.hisip, 1)) {
 	  if (ippool_newip(ippool, &newipm, &dhcpconn.hisip, 0)) {
-	    log_err(0, "Failed to allocate either static or dynamic IP address");
+	    syslog(LOG_ERR, "Failed to allocate either static or dynamic IP address");
 	    conn->hisip.s_addr = 0;
 	  }
 	}
@@ -262,7 +262,7 @@ int loadstatus() {
 	    if (ippool_getip(ippool, &newipm, &conn->hisip)) {
 	      if (ippool_newip(ippool, &newipm, &conn->hisip, 1)) {
 		if (ippool_newip(ippool, &newipm, &conn->hisip, 0)) {
-		  log_err(0, "Failed to allocate either static or dynamic IP address");
+		  syslog(LOG_ERR, "Failed to allocate either static or dynamic IP address");
 		  fclose(file); 
 		  return -1;
 		}

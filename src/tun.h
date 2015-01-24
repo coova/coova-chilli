@@ -53,7 +53,7 @@ struct tun_t {
   for (i=0; i<(tun)->_interface_count; i++) {\
     if (net_issetR(&(tun)->_interfaces[i], (fds)) &&\
         tun_decaps((tun), i) < 0)\
-      log_err(0, "tun_decaps()"); } }
+      syslog(LOG_ERR, "tun_decaps()"); } }
 
 #define tun_close(tun) { int i; \
     for (i=0; i<(tun)->_interface_count; i++) \
@@ -67,7 +67,7 @@ struct tun_t {
 #define tun_fdsetR(tun,fds) net_fdsetR(&(tun)->_tuntap, (fds))
 #define tun_ckread(tun,fds) \
   if (net_issetR(&(tun)->_tuntap, (fds)) && tun_decaps((tun), i) < 0)\
-    log_err(0, "tun_decaps()"))
+    syslog(LOG_ERR, "tun_decaps()"))
 #define tun_close(tun) net_close(&(tun)->_tuntap)
 #endif
 
