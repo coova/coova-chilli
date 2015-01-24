@@ -166,7 +166,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   len -= namelen;
 
   if (antidnstunnel && namelen > 128) {
-    log_warn(0,"dropping dns for anti-dnstunnel (namelen: %d)", namelen);
+    syslog(LOG_WARNING,"dropping dns for anti-dnstunnel (namelen: %zd)", namelen);
     return -1;
   }
 
@@ -365,7 +365,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   }
 
   if (antidnstunnel && !required) {
-    log_warn(0, "dropping dns for anti-dnstunnel (type %d: length %d)", 
+    syslog(LOG_WARNING, "dropping dns for anti-dnstunnel (type %d: length %d)", 
 	     type, rdlen);
     return -1;
   }
