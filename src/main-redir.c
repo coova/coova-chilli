@@ -203,7 +203,7 @@ sock_redir_getstate(struct redir_t *redir,
   }
 
   if (safe_read(s, conn, sizeof(*conn)) != sizeof(*conn)) {
-    log_warn(0, "no session available from %s", remote.sun_path);
+    syslog(LOG_WARNING, "no session available from %s", remote.sun_path);
     close(s);
     return -1;
   }
@@ -307,8 +307,8 @@ static int redir_cli_write(redir_request *req, uint8_t *d, int l) {
   if (w >= 0) {
     if (w < l) {
       bcatblk(req->dbuf, d + w, l - w);
-      log_warn(errno, "buffering %d - %d = %d (%d queued)", 
-	       l, w, l-w, req->dbuf->slen);
+      sylog(LOG_WARNING, "%d buffering %d - %d = %d (%d queued)", 
+	       errno, l, w, l-w, req->dbuf->slen);
     }
   }
   
@@ -724,7 +724,7 @@ int redir_accept2(struct redir_t *redir, int idx) {
 
   if (getsockname(new_socket, (struct sockaddr *)&baddress, 
 		  &addrlen) < 0) {
-    log_warn(errno, "getsockname() failed!");
+    syslog(LOG_WARNING, "%d getsockname() failed!", errno);
   }
 
   if (ndelay_on(new_socket) < 0) {

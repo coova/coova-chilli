@@ -146,7 +146,7 @@ int SSL_accept2(SSL *ssl) {
     if (ssl->status == EAGAIN || ssl->status == EWOULDBLOCK)
       return 0;
 
-    log_warn(ssl->status, "Error rc %d", rc);
+    syslog(LOG_WARNING, "%d Error rc %d", ssl->status, rc);
     return -1;
   }
   
@@ -425,7 +425,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
     if (bytes == -1) {
       ssl->status = errno;
 
-      log_warn(errno, "recv()");
+      syslog(LOG_WARNING, "%d recv()", errno);
 
       if (errno == EWOULDBLOCK || errno == EAGAIN) 
 	return 0;

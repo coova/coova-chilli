@@ -120,7 +120,8 @@ int dev_set_address(char const *devname, struct in_addr *address,
 	log_err(errno, "ioctl(SIOCSIFADDR) failed");
       }
       else {
-	log_warn(errno, "ioctl(SIOCSIFADDR): Address already exists");
+	syslog(LOG_WARNING, "%d ioctl(SIOCSIFADDR): Address already exists",
+		errno);
       }
       close(fd);
       return -1;
@@ -168,7 +169,8 @@ int dev_set_address(char const *devname, struct in_addr *address,
 	  log_err(errno, "ioctl(SIOCAIFADDR) failed");
       }
       else {
-	  log_warn(errno, "ioctl(SIOCAIFADDR): Address already exists");
+	  syslog(LOG_WARNING, "%d ioctl(SIOCAIFADDR): Address already exists",
+		errno);
       }
       close(fd);
       return -1;
@@ -819,7 +821,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
       }
       
       if (len > dlen) {
-	log_warn(0, "data truncated %d/%d, sending ICMP error", 
+	syslog(LOG_WARNING, "data truncated %d/%d, sending ICMP error", 
 		 len, dlen);
 	return -1;
       }
@@ -1716,7 +1718,7 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
       iface->congested = TRUE;
       }
     */
-    log_warn(0, "dropped packet, buffer full");
+    syslog(LOG_WARNING, "dropped packet, buffer full");
     return -1;
   }
   

@@ -410,7 +410,7 @@ radius_queue_out(struct radius_t *this, int idx,
     if (pack_in &&
 	radius_authcheck(this, pack_in, 
 			 RADIUS_QUEUE_PKTPTR(this->queue[idx].p))) {
-      log_warn(0, "Authenticator does not match! req-id=%d res-id=%d", 
+      syslog(LOG_WARNING, "Authenticator does not match! req-id=%d res-id=%d", 
 	       RADIUS_QUEUE_PKT(this->queue[idx].p,id), 
 	       pack_in->id);
       return -1;
@@ -709,14 +709,14 @@ int radius_timeout(struct radius_t *this) {
       }
 
       if (radius_queue_reschedule(this, this->first)) {
-	log_warn(0, "Matching request was not found in queue: %d!", this->first);
+	syslog(LOG_WARNING, "Matching request was not found in queue: %d!", this->first);
 	return -1;
       }
     }
     else { /* Finished retrans */
       if (radius_queue_out(this, this->first,
 			   0, &pack_req, &cbp)) {
-	log_warn(0, "RADIUS idx=%d was not found in queue!", 
+	syslog(LOG_WARNING, "RADIUS idx=%d was not found in queue!", 
 		 this->first);
 	return -1;
       }
@@ -786,7 +786,7 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
     
     if (vlen > RADIUS_ATTR_VLEN) {
-      log_warn(0, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d bytes [%s]", 
+      syslog(LOG_WARNING, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d bytes [%s]", 
 	       type, vendor_id, vendor_type, vlen, RADIUS_ATTR_VLEN, data);
       vlen = RADIUS_ATTR_VLEN;
     }
@@ -819,7 +819,7 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
 
     if (vlen > RADIUS_ATTR_VLEN-8) {
-      log_warn(0, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d [%s]", 
+      syslog(LOG_WARNING, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d [%s]", 
 	       type, vendor_id, vendor_type, vlen, RADIUS_ATTR_VLEN-8, data);
       vlen = RADIUS_ATTR_VLEN-8;
     }
@@ -1715,7 +1715,7 @@ radius_authcheck(struct radius_t *this, struct radius_packet_t *pack,
 
   res = memcmp(pack->authenticator, auth, RADIUS_AUTHLEN);
   if (res) 
-    log_warn(0, "Authenticator "
+    syslog(LOG_WARNING, "Authenticator "
 	     AUTH_FMT"(pkt) != "AUTH_FMT"(calc)",
 	     AUTH_ARG(pack->authenticator),
 	     AUTH_ARG(auth));
@@ -1893,14 +1893,15 @@ int radius_decaps(struct radius_t *this, int idx) {
   }
 
   if (status < RADIUS_HDRSIZE) {
-    log_warn(0, "Received radius packet which is too short: %d < %d!",
+    syslog(LOG_WARNING, "Received radius packet which is too short: %zd < %d!",
 	     status, RADIUS_HDRSIZE);
     return -1;
   }
 
   if (ntohs(pack.length) != (uint16_t)status) {
-    log_warn(errno, "Received radius packet with wrong length field %d != %d!",
-	     ntohs(pack.length), status);
+    syslog(LOG_WARNING, 
+	"%d Received radius packet with wrong length field %d !=%zd!",
+	     errno, ntohs(pack.length), status);
     return -1;
   }
 
@@ -1913,14 +1914,14 @@ int radius_decaps(struct radius_t *this, int idx) {
       /* Check that request is from correct address */
       if ((addr.sin_addr.s_addr != this->hisaddr0.s_addr) &&
 	  (addr.sin_addr.s_addr != this->hisaddr1.s_addr)) {
-	log_warn(0, "Received RADIUS from wrong address %.8x!",
+	syslog(LOG_WARNING, "Received RADIUS from wrong address %.8x!",
 		 addr.sin_addr.s_addr);
 	return -1;
       }
     }
     
     if (radius_acctcheck(this, &pack)) {
-      log_warn(0, "RADIUS id=%d Authenticator did not match!", pack.id);
+      syslog(LOG_WARNING, "RADIUS id=%d Authenticator did not match!", pack.id);
       return -1;
     }
     break;
@@ -1929,7 +1930,7 @@ int radius_decaps(struct radius_t *this, int idx) {
     /* Check that reply is from correct address */
     if ((addr.sin_addr.s_addr != this->hisaddr0.s_addr) &&
 	(addr.sin_addr.s_addr != this->hisaddr1.s_addr)) {
-      log_warn(0, "Received radius reply from wrong address %s!",
+      syslog(LOG_WARNING, "Received radius reply from wrong address %s!",
 	       inet_ntoa(addr.sin_addr));
       return -1;
     }
@@ -1937,13 +1938,13 @@ int radius_decaps(struct radius_t *this, int idx) {
     /* Check that UDP source port is correct */
     if ((addr.sin_port != htons(this->authport)) &&
 	(addr.sin_port != htons(this->acctport))) {
-      log_warn(0, "Received radius packet from wrong port %d!",
+      syslog(LOG_WARNING, "Received radius packet from wrong port %d!",
 	       ntohs(addr.sin_port));
       return -1;
     }
     
     if (radius_queue_out(this, -1, &pack, &pack_req, &cbp)) {
-      log_warn(0, "RADIUS id %d was not found in queue!", 
+      syslog(LOG_WARNING, "RADIUS id %d was not found in queue!", 
 	       (int) pack.id);
       return -1;
     }
@@ -2015,11 +2016,11 @@ int radius_decaps(struct radius_t *this, int idx) {
     break;
 #endif
   default:
-    log_warn(0, "Received unknown RADIUS packet %d!", pack.code);
+    syslog(LOG_WARNING, "Received unknown RADIUS packet %d!", pack.code);
     return -1;
   }
   
-  log_warn(0, "Received unknown RADIUS packet %d!", pack.code);
+  syslog(LOG_WARNING, "Received unknown RADIUS packet %d!", pack.code);
   return -1;
 }
 
@@ -2043,7 +2044,7 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
   syslog(LOG_DEBUG, "Received RADIUS proxy packet id=%d", pack.id);
 
   if (status < RADIUS_HDRSIZE) {
-    log_warn(0, "Received RADIUS packet which is too short: %d < %d!",
+    syslog(LOG_WARNING, "Received RADIUS packet which is too short: %zd < %d!",
 	    status, RADIUS_HDRSIZE);
     return -1;
   }
@@ -2063,7 +2064,7 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
     if ( (addr.sin_addr.s_addr   & this->proxymask.s_addr) != 
 	 (this->proxyaddr.s_addr & this->proxymask.s_addr) ) {
 
-      log_warn(0, "Received RADIUS proxy request from wrong address %s",
+      syslog(LOG_WARNING, "Received RADIUS proxy request from wrong address %s",
 	       inet_ntoa(addr.sin_addr));
 
       return -1;
@@ -2072,7 +2073,7 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
     return this->cb_ind(this, &pack, &addr);
   }
   
-  log_warn(0, "Received unknown RADIUS proxy packet %d!", pack.code);
+  syslog(LOG_WARNING, "Received unknown RADIUS proxy packet %d!", pack.code);
   return -1;
 }
 

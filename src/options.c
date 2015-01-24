@@ -178,7 +178,7 @@ int options_load(int argc, char **argv, bstring bt) {
 	  break;
 	} 
 
-	log_warn(0, "could not generate configuration (%s), sleeping one second", file);
+	syslog(LOG_WARNING, "could not generate configuration (%s), sleeping one second", file);
 	sleep(1);
       }
     }

@@ -307,7 +307,7 @@ int main(int argc, char **argv) {
   _options.layer3 = args_info.layer3_flag;
 #if(_debug_ && !defined(ENABLE_LAYER3))
   if (_options.layer3) 
-    log_warn(0, "layer3 not implemented. build with --enable-layer3");
+    syslog(LOG_WARNING, "layer3 not implemented. build with --enable-layer3");
 #endif
   _options.uid = args_info.uid_arg;
   _options.gid = args_info.gid_arg;
@@ -316,11 +316,11 @@ int main(int argc, char **argv) {
   _options.noarpentries = args_info.noarpentries_flag;
 #if(_debug_ && !defined(ENABLE_TAP))
   if (_options.noarpentries) 
-    log_warn(0, "tap not implemented. build with --enable-tap");
+    syslog(LOG_WARNING, "tap not implemented. build with --enable-tap");
 #endif
 #if(_debug_ && !defined(ENABLE_TAP))
   if (_options.usetap) 
-    log_warn(0, "tap not implemented. build with --enable-tap");
+    syslog(LOG_WARNING, "tap not implemented. build with --enable-tap");
 #endif
   _options.foreground = args_info.fg_flag;
   _options.interval = args_info.interval_arg;
@@ -331,7 +331,7 @@ int main(int argc, char **argv) {
   _options.eapolenable = args_info.eapolenable_flag;
 #if(_debug_ && !defined(ENABLE_EAPOL))
   if (_options.eapolenable) 
-    log_warn(0, "EAPOL not implemented. build with --enable-eapol");
+    syslog(LOG_WARNING, "EAPOL not implemented. build with --enable-eapol");
 #endif
   _options.swapoctets = args_info.swapoctets_flag;
   _options.logfacility = args_info.logfacility_arg;
@@ -444,7 +444,7 @@ int main(int argc, char **argv) {
       _options.ipv6 = 1;
       _options.ipv6only = 0;
     } else {
-      log_warn(0, "unknown ipv6mode %s", args_info.ipv6mode_arg);
+      syslog(LOG_WARNING, "unknown ipv6mode %s", args_info.ipv6mode_arg);
       _options.ipv6 = 0;
     }
   }
@@ -982,7 +982,7 @@ int main(int argc, char **argv) {
 #ifdef ENABLE_NETNAT
   if (args_info.natip_arg) {
     if (!(host = gethostbyname(args_info.natip_arg))) {
-      log_warn(0, "Invalid natip address: %s! [%s]", 
+      syslog(LOG_WARNING, "Invalid natip address: %s! [%s]", 
 	       args_info.natip_arg, strerror(errno));
     }
     else {
@@ -993,7 +993,7 @@ int main(int argc, char **argv) {
 
   if (args_info.uamlogoutip_arg) {
     if (!(host = gethostbyname(args_info.uamlogoutip_arg))) {
-      log_warn(0, "Invalid uamlogoutup address: %s! [%s]", 
+      syslog(LOG_WARNING, "Invalid uamlogoutup address: %s! [%s]", 
 	       args_info.uamlogoutip_arg, strerror(errno));
     }
     else {
@@ -1003,7 +1003,7 @@ int main(int argc, char **argv) {
 
   if (args_info.uamaliasip_arg) {
     if (!(host = gethostbyname(args_info.uamaliasip_arg))) {
-      log_warn(0, "Invalid uamaliasip address: %s! [%s]", 
+      syslog(LOG_WARNING, "Invalid uamaliasip address: %s! [%s]", 
 	       args_info.uamlogoutip_arg, strerror(errno));
     }
     else {
@@ -1013,7 +1013,7 @@ int main(int argc, char **argv) {
 
   if (args_info.postauthproxy_arg) {
     if (!(host = gethostbyname(args_info.postauthproxy_arg))) {
-      log_warn(0, "Invalid postauthproxy address: %s! [%s]", 
+      syslog(LOG_WARNING, "Invalid postauthproxy address: %s! [%s]", 
 	       args_info.postauthproxy_arg, strerror(errno));
     }
     else {
@@ -1070,7 +1070,7 @@ int main(int argc, char **argv) {
   else {
     _options.proxylisten.s_addr = htonl(INADDR_ANY);
 #elif (_debug_)
-    log_warn(0,"radproxy not implemented. build with --enable-radproxy");
+    syslog(LOG_WARNING, "radproxy not implemented. build with --enable-radproxy");
 #endif
   }
   
@@ -1088,7 +1088,7 @@ int main(int argc, char **argv) {
     _options.proxyaddr.s_addr = ~0; /* Let nobody through */
     _options.proxymask.s_addr = 0; 
 #elif (_debug_)
-    log_warn(0,"radproxy not implemented. build with --enable-radproxy");
+    syslog(LOG_WARNING, "radproxy not implemented. build with --enable-radproxy");
 #endif
   }
 

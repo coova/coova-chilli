@@ -56,7 +56,7 @@ static void redir_termination(int signum) {
 
 /* Alarm handler for ensured shutdown */
 static void redir_alarm(int signum) {
-  log_warn(0, "Client process timed out: %d", termstate);
+  syslog(LOG_WARNING, "Client process timed out: %d", termstate);
   exit(0);
 }
 
@@ -1726,8 +1726,8 @@ int redir_listen(struct redir_t *redir) {
     
     while (bind(redir->fd[n], (struct sockaddr *)&address, sizeof(address)) == -1) {
       if ((EADDRINUSE == errno) && (10 > tries++)) {
-	log_warn(errno, "IP: %s Port: %d - Waiting for retry.",
-		 inet_ntoa(address.sin_addr), ntohs(address.sin_port));
+	syslog(LOG_WARNING, "%d IP: %s Port: %d - Waiting for retry.",
+		 errno, inet_ntoa(address.sin_addr), ntohs(address.sin_port));
 	if (sleep(5)) { /* In case we got killed */
 	  safe_close(redir->fd[n]);
 	  redir->fd[n]=0;
@@ -1738,7 +1738,7 @@ int redir_listen(struct redir_t *redir) {
 	log_err(errno, "bind() failed for %s:%d",
 		inet_ntoa(address.sin_addr), ntohs(address.sin_port));
 	if (n == 0 && address.sin_addr.s_addr != INADDR_ANY) {
-	  log_warn(0, "trying INADDR_ANY instead");
+	  syslog(LOG_WARNING, "trying INADDR_ANY instead");
 	  address.sin_addr.s_addr = INADDR_ANY;
 	} else {
 	  safe_close(redir->fd[n]);
@@ -2606,7 +2606,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     time_t timenow = mainclock_now();
     if (timenow > conn->s_params.sessionterminatetime) {
       conn->response = REDIR_FAILED_OTHER;
-      log_warn(0, "WISPr-Session-Terminate-Time in the past received: %s", attrs);
+      syslog(LOG_WARNING, "WISPr-Session-Terminate-Time in the past received: %s", attrs);
       return 0;
     }
   }
@@ -2953,7 +2953,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
       /* skip over ':' otherwise error */
       if (*pl == ':') pl++;
       else {
-	log_warn(0, "not a valid localusers line: %s", line);
+	syslog(LOG_WARNING, "not a valid localusers line: %s", line);
 	continue;
       }
 
@@ -3041,7 +3041,7 @@ int redir_accept(struct redir_t *redir, int idx) {
   addrlen = sizeof(struct sockaddr_in);
 
   if (getsockname(redir->fd[idx], (struct sockaddr *)&baddress, &addrlen) < 0) {
-    log_warn(errno, "getsockname() failed!");
+    syslog(LOG_WARNING, "%d getsockname() failed!", errno);
   }
 
   radius_packet_id++;
@@ -3451,7 +3451,7 @@ int redir_main(struct redir_t *redir,
 #ifdef ENABLE_EWTAPI
 	if (isEWT) {
 	  if (!(conn.s_params.flags & ADMIN_LOGIN)) {
-	    log_warn(0, "Permission denied to EWT API");
+	    syslog(LOG_WARNING, "Permission denied to EWT API");
 	    return redir_main_exit(&socket, forked, rreq);
 	  }
 	} else 
