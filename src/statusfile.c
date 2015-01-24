@@ -101,7 +101,7 @@ int loadstatus() {
 
     if (dhcp_hashget(dhcp, &conn, dhcpconn.hismac)) {
 
-      log_info("Loading dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+      syslog(LOG_INFO, "Loading dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 	       dhcpconn.hismac[0], dhcpconn.hismac[1],
 	       dhcpconn.hismac[2], dhcpconn.hismac[3],
 	       dhcpconn.hismac[4], dhcpconn.hismac[5]);
@@ -221,7 +221,7 @@ int loadstatus() {
 
     } else {
 
-      log_info("Known dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+      syslog(LOG_INFO, "Known dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 	       dhcpconn.hismac[0], dhcpconn.hismac[1],
 	       dhcpconn.hismac[2], dhcpconn.hismac[3],
 	       dhcpconn.hismac[4], dhcpconn.hismac[5]);
@@ -230,7 +230,7 @@ int loadstatus() {
       
       if (dhcpconn.peer) {
 
-	log_info("Reading appconn (peer)");
+	syslog(LOG_INFO, "Reading appconn (peer)");
 
 	if (fread(&appconn, sizeof(struct app_conn_t), 1, file) == 1) {
 
@@ -246,7 +246,7 @@ int loadstatus() {
 	     */
 	    struct app_conn_t *aconn = (struct app_conn_t*) conn->peer;
 	    
-	    log_info("Overwriting existing appconn %d", appconn.s_state.authenticated);
+	    syslog(LOG_INFO, "Overwriting existing appconn %d", appconn.s_state.authenticated);
 	    
 	    memcpy(&aconn->s_params, &appconn.s_params, sizeof(struct session_params));
 	    memcpy(&aconn->s_state, &appconn.s_state, sizeof(struct session_state));
@@ -257,7 +257,7 @@ int loadstatus() {
 	     */
 	    struct app_conn_t *aconn = 0;
 	    
-	    log_info("Creating new appconn (peer)");
+	    syslog(LOG_INFO, "Creating new appconn (peer)");
 	    
 	    if (ippool_getip(ippool, &newipm, &conn->hisip)) {
 	      if (ippool_newip(ippool, &newipm, &conn->hisip, 1)) {
