@@ -602,7 +602,7 @@ int tuntap_interface(struct _net_interface *netif) {
       nifr.ifr_qlen = _options.txqlen;
       
       if (ioctl(nfd, SIOCSIFTXQLEN, (void *) &nifr) >= 0) 
-	log_info("TX queue length set to %d", _options.txqlen);
+	syslog(LOG_INFO, "TX queue length set to %d", _options.txqlen);
       else 
 	log_err(errno, "Cannot set tx queue length on %s", ifr.ifr_name);
 
