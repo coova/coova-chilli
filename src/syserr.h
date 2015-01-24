@@ -27,6 +27,4 @@ void sys_err(int pri, char *filename, int line, int en, const char *fmt, ...);
 void sys_errpack(int pri, char *fn, int ln, int en, struct sockaddr_in *peer,
 		 void *pack, unsigned len, char *fmt, ...);
 
-#define log_err(e,fmt,args...)  sys_err(LOG_ERR,     __FILE__,__LINE__,e,fmt,## args)
-
 #endif	/* !_SYSERR_H */
