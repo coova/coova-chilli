@@ -1218,8 +1218,7 @@ int tun_addroute2(struct tun_t *this,
   tun_nlattr(&req.n, sizeof(req), RTA_GATEWAY, gateway, 4);
   
   if ((fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "socket() failed");
+    syslog(LOG_ERR, "%d %s %d socket() failed", errno, __FILE__, __LINE__);
     return -1;
   }
 
@@ -1228,30 +1227,26 @@ int tun_addroute2(struct tun_t *this,
   local.nl_groups = 0;
   
   if (bind(fd, (struct sockaddr*)&local, sizeof(local)) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "bind() failed");
+    syslog(LOG_ERR, "%d %s %d  bind() failed", errno, __FILE__, __LINE__);
     close(fd);
     return -1;
   }
 
   addr_len = sizeof(local);
   if (getsockname(fd, (struct sockaddr*)&local, &addr_len) < 0) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, errno,
-	    "getsockname() failed");
+    syslog(LOG_ERR, "%d %s %d getsockname() failed", errno, __FILE__, __LINE__);
     close(fd);
     return -1;
   }
 
   if (addr_len != sizeof(local)) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Wrong address length %d", addr_len);
+    syslog(LOG_ERR, "%d %s %d Wrong address length %d", errno, __FILE__, __LINE__, addr_len);
     close(fd);
     return -1;
   }
 
   if (local.nl_family != AF_NETLINK) {
-    sys_err(LOG_ERR, __FILE__, __LINE__, 0,
-	    "Wrong address family %d", local.nl_family);
+    syslog(LOG_ERR, "%d %s %d Wrong address family %d", errno, __FILE__, __LINE__, local.nl_family);
     close(fd);
     return -1;
   }
