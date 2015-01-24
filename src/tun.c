@@ -105,7 +105,7 @@ int tun_name2idx(struct tun_t *tun, char *name) {
     if (rti) {
       net_interface *newif = 0;
       net_interface netif;
-      log_dbg("Discoving TUN %s", name);
+      syslog(LOG_DEBUG, "Discoving TUN %s", name);
       memset(&netif, 0, sizeof(netif));
       safe_strncpy(netif.devname, rti->devname, sizeof(netif.devname));
       memcpy(netif.hwaddr, rti->hwaddr, sizeof(netif.hwaddr));
@@ -181,26 +181,26 @@ int tun_discover(struct tun_t *this) {
     safe_strncpy(netif.devname, ifr->ifr_name, sizeof(netif.devname));
     netif.address = inaddr(ifr_addr);
 
-    log_dbg("Interface: %s", ifr->ifr_name);
+    syslog(LOG_DEBUG, "Interface: %s", ifr->ifr_name);
 
     if (!strcmp(ifr->ifr_name, _options.dhcpif)) {
-      log_dbg("skipping dhcpif %s", _options.dhcpif);
+      syslog(LOG_DEBUG, "skipping dhcpif %s", _options.dhcpif);
       continue;
     }
 
     if (!strncmp(ifr->ifr_name, "tun", 3) || !strncmp(ifr->ifr_name, "tap", 3)) {
-      log_dbg("skipping tun/tap %s", _options.dhcpif);
+      syslog(LOG_DEBUG, "skipping tun/tap %s", _options.dhcpif);
       continue;
     }
 
-    log_dbg("\tIP Address:\t%s", inet_ntoa(inaddr(ifr_addr)));
+    syslog(LOG_DEBUG, "\tIP Address:\t%s", inet_ntoa(inaddr(ifr_addr)));
 
 
     /* netmask */
     if (-1 < ioctl(fd, SIOCGIFNETMASK, (caddr_t)ifr)) {
 
       netif.netmask = inaddr(ifr_addr);
-      log_dbg("\tNetmask:\t%s", inet_ntoa(inaddr(ifr_addr)));
+      syslog(LOG_DEBUG, "\tNetmask:\t%s", inet_ntoa(inaddr(ifr_addr)));
 
     } else log_err(errno, "ioctl(SIOCGIFNETMASK)");
 
@@ -220,7 +220,7 @@ int tun_discover(struct tun_t *this) {
 
 	  memcpy(netif.hwaddr, u, 6);
 
-	  log_dbg("\tHW Address:\t%2.2X-%2.2X-%2.2X-%2.2X-%2.2X-%2.2x",
+	  syslog(LOG_DEBUG, "\tHW Address:\t%2.2X-%2.2X-%2.2X-%2.2X-%2.2X-%2.2x",
 		  u[0], u[1], u[2], u[3], u[4], u[5]);
 	}
 	break;
@@ -233,7 +233,7 @@ int tun_discover(struct tun_t *this) {
 
       memcpy(netif.hwaddr, u, 6);
 
-      log_dbg("\tHW Address:\t%2.2X-%2.2X-%2.2X-%2.2X-%2.2X-%2.2x",
+      syslog(LOG_DEBUG, "\tHW Address:\t%2.2X-%2.2X-%2.2X-%2.2X-%2.2X-%2.2x",
 		  u[0], u[1], u[2], u[3], u[4], u[5]);
     } else log_err(errno, "ioctl(SIOCGENADDR)");
 #else
@@ -254,7 +254,7 @@ int tun_discover(struct tun_t *this) {
 
 	netif.flags |= NET_PPPHDR;
 	netif.gateway = inaddr(ifr_addr);
-	log_dbg("\tPoint-to-Point:\t%s", inet_ntoa(inaddr(ifr_dstaddr)));
+	syslog(LOG_DEBUG, "\tPoint-to-Point:\t%s", inet_ntoa(inaddr(ifr_dstaddr)));
 
       } else log_err(errno, "ioctl(SIOCGIFDSTADDR)");
     }
@@ -264,7 +264,7 @@ int tun_discover(struct tun_t *this) {
       if (-1 < ioctl(fd, SIOCGIFBRDADDR, (caddr_t)ifr)) {
 	
 	netif.broadcast = inaddr(ifr_addr);
-	log_dbg("\tBroadcast:\t%s", inet_ntoa(inaddr(ifr_addr)));
+	syslog(LOG_DEBUG, "\tBroadcast:\t%s", inet_ntoa(inaddr(ifr_addr)));
 	
       } else log_err(errno, "ioctl(SIOCGIFBRDADDR)");
     }
@@ -273,7 +273,7 @@ int tun_discover(struct tun_t *this) {
     if (-1 < ioctl(fd, SIOCGIFMTU, (caddr_t)ifr)) {
       
       netif.mtu = ifr->ifr_mtu;
-      log_dbg("\tMTU:      \t%u",  ifr->ifr_mtu);
+      syslog(LOG_DEBUG, "\tMTU:      \t%u",  ifr->ifr_mtu);
       
     } else log_err(errno, "ioctl(SIOCGIFMTU)");
     
@@ -297,7 +297,7 @@ int tun_discover(struct tun_t *this) {
 	  tun->routeidx = newif->idx;
 
       } else {
-	log_dbg("no room for interface %s", netif.devname);
+	syslog(LOG_DEBUG, "no room for interface %s", netif.devname);
       }
     }
   }
@@ -629,7 +629,7 @@ int tuntap_interface(struct _net_interface *netif) {
 	log_err(errno, "ioctl(d=%d, request=%d) failed", fd, SIOCGIFHWADDR);
       }
       memcpy(netif->hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
-      log_dbg("tap-mac: %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X", ifr.ifr_name,
+      syslog(LOG_DEBUG, "tap-mac: %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X", ifr.ifr_name,
 	      netif->hwaddr[0],netif->hwaddr[1],netif->hwaddr[2],
 	      netif->hwaddr[3],netif->hwaddr[4],netif->hwaddr[5]);
       close(fd);
@@ -801,7 +801,7 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
   if (c->idx) ethhdr = 0;
 
 #if(_debug_ > 1)
-  log_dbg("tun_decaps(idx=%d, len=%d)", tun(c->this, c->idx).ifindex, length);
+  syslog(LOG_DEBUG, "tun_decaps(idx=%d, len=%d)", tun(c->this, c->idx).ifindex, length);
 #endif
 
   if (length < PKT_IP_HLEN)
@@ -850,7 +850,7 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
 #if(_debug_)
       struct in_addr addr;
       addr.s_addr = iph->daddr;
-      log_dbg("pkt not for our network %s",inet_ntoa(addr));
+      syslog(LOG_DEBUG, "pkt not for our network %s",inet_ntoa(addr));
 #endif
       return -1;
     }
@@ -859,13 +859,13 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
   if (!_options.usetap) {
     if (iph->version_ihl != PKT_IP_VER_HLEN) {
 #if(_debug_)
-      log_dbg("dropping non-IPv4");
+      syslog(LOG_DEBUG, "dropping non-IPv4");
 #endif
       return -1;
     }
     
     if ((int)ntohs(iph->tot_len) + ethsize > length) {
-      log_dbg("dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
+      syslog(LOG_DEBUG, "dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
 	      (int)ntohs(iph->tot_len),
 	      ethsize, (int)length);
       return -1;
@@ -915,7 +915,7 @@ int tun_decaps(struct tun_t *this, int idx) {
   pb.length = length;
   
   /*
-    log_dbg("tun_decaps(%d) %s",length,tun(tun,idx).devname);
+    syslog(LOG_DEBUG, "tun_decaps(%d) %s",length,tun(tun,idx).devname);
   */
 
   if (this->cb_ind) {
@@ -978,7 +978,7 @@ int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     struct sockaddr_ll addr;
     size_t ethlen = sizeofeth(pack);
 #if(_debug_)
-    log_dbg("PPP Header");
+    syslog(LOG_DEBUG, "PPP Header");
 #endif
     memset(&addr,0,sizeof(addr));
     addr.sll_family = AF_PACKET;
@@ -1016,7 +1016,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     struct pkt_iphdr_t *iph = pkt_iphdr(pack);
     if ((iph->daddr & _options.mask.s_addr) == _options.net.s_addr ||
 	iph->daddr == dhcp->uamlisten.s_addr) {
-      log_dbg("Using route idx == 0 (tun/tap)");
+      syslog(LOG_DEBUG, "Using route idx == 0 (tun/tap)");
       idx = 0;
     }
   }
@@ -1076,7 +1076,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     copy_mac6(ethh->dst, gwaddr);
 
 #if(_debug_ > 1)
-    log_dbg("writing to tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
+    syslog(LOG_DEBUG, "writing to tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
 	    "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x len=%d",
 	    ethh->src[0],ethh->src[1],ethh->src[2],
 	    ethh->src[3],ethh->src[4],ethh->src[5],
@@ -1091,7 +1091,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   }
 
 #if(_debug_ > 1)
-  log_dbg("tun_encaps(%s) len=%d", tun(tun,idx).devname, len);
+  syslog(LOG_DEBUG, "tun_encaps(%s) len=%d", tun(tun,idx).devname, len);
 #endif
 
   result = tun_write(tun, pack, len, idx);
@@ -1108,7 +1108,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
   pid_t pid;
   char b[56];
   
-  log_dbg("Running %s", script);
+  syslog(LOG_DEBUG, "Running %s", script);
 
   net.s_addr = tuntap(tun).address.s_addr & tuntap(tun).netmask.s_addr;
 

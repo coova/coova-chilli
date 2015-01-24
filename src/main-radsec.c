@@ -91,26 +91,26 @@ static void process_radius(struct radius_packet_t *pack, ssize_t len) {
     return;
   }
 
-  log_dbg("%s:%s", __FILE__, __FUNCTION__);
+  syslog(LOG_DEBUG, "%s:%s", __FILE__, __FUNCTION__);
 
   if (!server.conn.connected) {
-    log_dbg("RADSEC: Connecting to %s:2083",
+    syslog(LOG_DEBUG, "RADSEC: Connecting to %s:2083",
 	      inet_ntoa(_options.radiusserver1));
     if (connect_ssl(&_options.radiusserver1, 2083)) {
       log_err(errno, "Could not connect to RadSec server %s!",
 	      inet_ntoa(_options.radiusserver1));
-      log_dbg("RADSEC: Connecting to %s:2083", 
+      syslog(LOG_DEBUG, "RADSEC: Connecting to %s:2083", 
 	      inet_ntoa(_options.radiusserver1));
       if (connect_ssl(&_options.radiusserver2, 2083)) {
 	log_err(errno, "Could not connect to RadSec server %s!",
 		inet_ntoa(_options.radiusserver2));
       } else {
-	log_dbg("RADSEC: Connected to %s:2083", 
+	syslog(LOG_DEBUG, "RADSEC: Connected to %s:2083", 
 		inet_ntoa(_options.radiusserver2));
 	server.conn.connected = 1;
       }
     } else {
-      log_dbg("RADSEC: Connected to %s:2083", 
+      syslog(LOG_DEBUG, "RADSEC: Connected to %s:2083", 
 	      inet_ntoa(_options.radiusserver1));
       server.conn.connected = 1;
     }
@@ -123,7 +123,7 @@ static void process_radius(struct radius_packet_t *pack, ssize_t len) {
   
   {
     int l = openssl_write(server.conn.sslcon, (char *)pack, len, 0);
-    log_dbg("ssl_write %d",l);
+    syslog(LOG_DEBUG, "ssl_write %d",l);
     if (l <= 0) {
       shutdown_ssl();
       /*
@@ -137,29 +137,29 @@ static void process_radius(struct radius_packet_t *pack, ssize_t len) {
 static void process_radius_reply() {
   uint8_t *d = (uint8_t *) &server.pack;
   int l = openssl_read(server.conn.sslcon, (char *)d, 4, 0);
-  log_dbg("reply %d", l);
+  syslog(LOG_DEBUG, "reply %d", l);
   if (l == 4) {
     int len = ntohs(server.pack.length) - 4;
     l = openssl_read(server.conn.sslcon, (char *)(d + 4), len, 0);
-    log_dbg("reply %d", l);
+    syslog(LOG_DEBUG, "reply %d", l);
     if (l == len) {
-      log_dbg("reply +%d", len);
+      syslog(LOG_DEBUG, "reply +%d", len);
       switch (server.pack.code) {
       case RADIUS_CODE_ACCESS_ACCEPT:
       case RADIUS_CODE_ACCESS_REJECT:
       case RADIUS_CODE_ACCESS_CHALLENGE:
-	log_dbg("reply auth %d", len);
+	syslog(LOG_DEBUG, "reply auth %d", len);
 	radius_reply(server.radius_auth, &server.pack, &server.auth_peer);
 	break;
       case RADIUS_CODE_ACCOUNTING_RESPONSE:
-	log_dbg("reply acct %d", len);
+	syslog(LOG_DEBUG, "reply acct %d", len);
 	radius_reply(server.radius_acct, &server.pack, &server.acct_peer);
 	break;
       case RADIUS_CODE_COA_REQUEST:
       case RADIUS_CODE_DISCONNECT_REQUEST:
       case RADIUS_CODE_STATUS_REQUEST:
 	if (_options.coaport) {
-	  log_dbg("reply coa %d", len);
+	  syslog(LOG_DEBUG, "reply coa %d", len);
 	  radius_reply(server.radius_cli, &server.pack, &server.acct_peer);
 	}
 	break;
@@ -327,7 +327,7 @@ int main(int argc, char **argv) {
 	   *    ---> Accounting
 	   */
 	  
-	  log_dbg("received accounting");
+	  syslog(LOG_DEBUG, "received accounting");
 	  
 	  if ((status = recvfrom(server.radius_acct->fd, &radius_pack, sizeof(radius_pack), 0, 
 			       (struct sockaddr *) &addr, &fromlen)) <= 0) {

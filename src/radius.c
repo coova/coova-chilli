@@ -223,12 +223,12 @@ static int radius_queue_next(struct radius_t *this) {
   qnext = this->qnext;
 
 #if(_debug_ > 1)
-  log_dbg("qnext=%d",qnext);
+  syslog(LOG_DEBUG, "qnext=%d",qnext);
 #endif
 
   if (this->queue[qnext].state == 1) {
     
-    log_dbg("skipping over active idx %d radius-id=%d", 
+    syslog(LOG_DEBUG, "skipping over active idx %d radius-id=%d", 
 	    qnext, RADIUS_QUEUE_PKT(this->queue[qnext].p,id));
     
     if (attempt++ < (this->qsize ? this->qsize : 256)) {
@@ -267,7 +267,7 @@ static int radius_queue_idx(struct radius_t *this, int id) {
     idx %= sz;
     if (RADIUS_QUEUE_HASPKT(this->queue[idx].p)) {
 #if(_debug_ > 1)
-      log_dbg("idx %d pid %d id %d", idx, 
+      syslog(LOG_DEBUG, "idx %d pid %d id %d", idx, 
 	      RADIUS_QUEUE_PKT(this->queue[idx].p,id), id);
 #endif
       if (RADIUS_QUEUE_PKT(this->queue[idx].p,id) == id)
@@ -301,7 +301,7 @@ int radius_queue_in(struct radius_t *this,
     return -1;
   
 #if(_debug_ > 1)
-  log_dbg("RADIUS queue-in id=%d idx=%d", pack->id, qnext);
+  syslog(LOG_DEBUG, "RADIUS queue-in id=%d idx=%d", pack->id, qnext);
 #endif
   
   /* If packet contains message authenticator: Calculate it! */
@@ -362,7 +362,7 @@ int radius_queue_in(struct radius_t *this,
   
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("sending radius packet (code=%d, id=%d, len=%d)\n",
+    syslog(LOG_DEBUG, "sending radius packet (code=%d, id=%d, len=%d)\n",
 	    pack->code, pack->id, ntohs(pack->length));
 
     radius_printqueue(0, this);
@@ -401,7 +401,7 @@ radius_queue_out(struct radius_t *this, int idx,
   
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("radius_queue_out");
+    syslog(LOG_DEBUG, "radius_queue_out");
     radius_printqueue(0, this);
   }
 #endif
@@ -424,7 +424,7 @@ radius_queue_out(struct radius_t *this, int idx,
 
   *cbp = this->queue[idx].cbp;
   
-  log_dbg("RADIUS queue-out id=%d idx=%d", pack_out->id, idx);
+  syslog(LOG_DEBUG, "RADIUS queue-out id=%d idx=%d", pack_out->id, idx);
 
   this->queue[idx].state = 0;
 
@@ -441,7 +441,7 @@ radius_queue_out(struct radius_t *this, int idx,
   
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("radius_queue_out end");
+    syslog(LOG_DEBUG, "radius_queue_out end");
     radius_printqueue(0, this);
   }
 #endif
@@ -461,12 +461,12 @@ static int radius_queue_reschedule(struct radius_t *this, int idx) {
     return -1;
   }
 
-  log_dbg("Rescheduling RADIUS request id=%d idx=%d",
+  syslog(LOG_DEBUG, "Rescheduling RADIUS request id=%d idx=%d",
 	  RADIUS_QUEUE_PKT(this->queue[idx].p,id), idx);
 
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("radius_reschedule");
+    syslog(LOG_DEBUG, "radius_reschedule");
     radius_printqueue(0, this);
   }
 #endif
@@ -653,7 +653,7 @@ int radius_timeout(struct radius_t *this) {
 
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("radius_timeout(%d) %8d %8d", this->first, 
+    syslog(LOG_DEBUG, "radius_timeout(%d) %8d %8d", this->first, 
 	    (int)now.tv_sec, (int)now.tv_usec);
     radius_printqueue(0, this);
   }
@@ -733,9 +733,9 @@ int radius_timeout(struct radius_t *this) {
   
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("radius_timeout");
+    syslog(LOG_DEBUG, "radius_timeout");
     if (this->first > 0) {
-      log_dbg("first %d, timeout %8d %8d", this->first, 
+      syslog(LOG_DEBUG, "first %d, timeout %8d %8d", this->first, 
 	     (int) this->queue[this->first].timeout.tv_sec, 
 	     (int) this->queue[this->first].timeout.tv_usec); 
     }
@@ -860,7 +860,7 @@ radius_addvsa(struct radius_packet_t *pack, struct redir_state *state) {
     memcpy(m, state->vsa, state->vsalen);
     length += state->vsalen;
     pack->length = htons(length);
-    log_dbg("Recalled VSA with length %d",length);
+    syslog(LOG_DEBUG, "Recalled VSA with length %d",length);
   }
   return 0;
 }
@@ -1105,7 +1105,7 @@ int radius_pwdecode(struct radius_t *this,
   unsigned char output[RADIUS_MD5LEN];
 
 #if(_debug_ > 1)
-  log_dbg("pw decode secret=%s", secret);
+  syslog(LOG_DEBUG, "pw decode secret=%s", secret);
 #endif
 
   if (srclen > dstsize) {
@@ -1192,7 +1192,7 @@ int radius_pwencode(struct radius_t *this,
   size_t i, n;
 
 #if(_debug_ > 1)
-  log_dbg("pw encode secret=%s", secret);
+  syslog(LOG_DEBUG, "pw encode secret=%s", secret);
 #endif
 
   memset(dst, 0, dstsize);
@@ -1311,7 +1311,7 @@ int radius_new(struct radius_t **this,
   addr.sin_addr = new_radius->ouraddr;
   addr.sin_port = htons(new_radius->ourport);
 
-  log_dbg("RADIUS client %s:%d",
+  syslog(LOG_DEBUG, "RADIUS client %s:%d",
 	  inet_ntoa(new_radius->ouraddr),
 	  new_radius->ourport);
   
@@ -1529,7 +1529,7 @@ int radius_req(struct radius_t *this,
     addr.sin_port = htons(this->authport);
   
 #if(_debug_ > 1)
-    log_dbg("RADIUS id=%d sent to %s:%d", 
+    syslog(LOG_DEBUG, "RADIUS id=%d sent to %s:%d", 
 	    pack->id,
 	    inet_ntoa(addr.sin_addr), 
 	    ntohs(addr.sin_port));
@@ -1777,7 +1777,7 @@ static void chilli_extadmvsa(struct radius_t *radius,
 	  continue;
 	
 	if (stat(_options.extadmvsa[i].data, &statbuf)) {
-	  log_dbg("Skipping %s, does not exist",
+	  syslog(LOG_DEBUG, "Skipping %s, does not exist",
 		  _options.extadmvsa[i].data);
 	  continue;
 	}
@@ -1793,7 +1793,7 @@ static void chilli_extadmvsa(struct radius_t *radius,
 	  continue;
 	}
 	
-	log_dbg("Reading %s", _options.extadmvsa[i].data);
+	syslog(LOG_DEBUG, "Reading %s", _options.extadmvsa[i].data);
 	
 	len = read(fd, b, sizeof(b));
 	close(fd);
@@ -1821,23 +1821,23 @@ static void chilli_extadmvsa(struct radius_t *radius,
 	
 	if (!_options.extadmvsa[i].attr_vsa) {
 #if(_debug_)
-	  log_dbg("looking for attr %d", _options.extadmvsa[i].attr);
+	  syslog(LOG_DEBUG, "looking for attr %d", _options.extadmvsa[i].attr);
 #endif
 	  if (radius_getattr(resp, &attr, _options.extadmvsa[i].attr, 
 			     0, 0, 0)) {
-	    log_dbg("didn't find attr %d", _options.extadmvsa[i].attr);
+	    syslog(LOG_DEBUG, "didn't find attr %d", _options.extadmvsa[i].attr);
 	    attr = 0;
 	  }
 	} else {
 #if(_debug_)
-	  log_dbg("looking for attr %d/%d", _options.extadmvsa[i].attr_vsa, 
+	  syslog(LOG_DEBUG, "looking for attr %d/%d", _options.extadmvsa[i].attr_vsa, 
 		  _options.extadmvsa[i].attr);
 #endif
 	  if (radius_getattr(resp, &attr, 
 			     RADIUS_ATTR_VENDOR_SPECIFIC, 
 			     _options.extadmvsa[i].attr_vsa, 
 			     _options.extadmvsa[i].attr, 0)) {
-	    log_dbg("didn't find attr %d/%d", _options.extadmvsa[i].attr_vsa, 
+	    syslog(LOG_DEBUG, "didn't find attr %d/%d", _options.extadmvsa[i].attr_vsa, 
 		    _options.extadmvsa[i].attr);
 	    attr = 0;
 	  }
@@ -1846,7 +1846,7 @@ static void chilli_extadmvsa(struct radius_t *radius,
 	  char v[256];
 	  memset(v, 0, sizeof(v));
 	  memcpy(v, attr->v.t, attr->l - 2);
-	  log_dbg("Running script %s %d",
+	  syslog(LOG_DEBUG, "Running script %s %d",
 		  _options.extadmvsa[i].script, 
 		  attr->l - 2);
 	  if (chilli_fork(CHILLI_PROC_SCRIPT, 	 
@@ -1904,7 +1904,7 @@ int radius_decaps(struct radius_t *this, int idx) {
     return -1;
   }
 
-  log_dbg("Received RADIUS packet id=%d", pack.id);
+  syslog(LOG_DEBUG, "Received RADIUS packet id=%d", pack.id);
   
   switch (pack.code) {
   case RADIUS_CODE_DISCONNECT_REQUEST:
@@ -2040,7 +2040,7 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
     return -1;
   }
 
-  log_dbg("Received RADIUS proxy packet id=%d", pack.id);
+  syslog(LOG_DEBUG, "Received RADIUS proxy packet id=%d", pack.id);
 
   if (status < RADIUS_HDRSIZE) {
     log_warn(0, "Received RADIUS packet which is too short: %d < %d!",

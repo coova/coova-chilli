@@ -334,7 +334,7 @@ int ippool_new(struct ippool_t **this,
        ((1 << (*this)->hashlog) < listsize);
        (*this)->hashlog++);
 
-  log_dbg("Hashlog %d %d %d", (*this)->hashlog, listsize, 
+  syslog(LOG_DEBUG, "Hashlog %d %d %d", (*this)->hashlog, listsize, 
 	  (1 << (*this)->hashlog));
 
   /* Determine hashsize */
@@ -452,7 +452,7 @@ int ippool_newip(struct ippool_t *this,
   struct ippoolm_t *p2 = NULL;
   uint32_t hash;
   
-  log_dbg("Requesting new %s ip: %s", 
+  syslog(LOG_DEBUG, "Requesting new %s ip: %s", 
 	  statip ? "static" : "dynamic", inet_ntoa(*addr));
 
   /* If static:
@@ -478,7 +478,7 @@ int ippool_newip(struct ippool_t *this,
     if (!_options.uamanyip) {
 #endif
       if (!this->allowstat) {
-	log_dbg("Static IP address not allowed");
+	syslog(LOG_DEBUG, "Static IP address not allowed");
 	return -1;
       }
       if ((addr->s_addr & this->statmask.s_addr) != this->stataddr.s_addr) {
@@ -511,7 +511,7 @@ int ippool_newip(struct ippool_t *this,
 #ifdef ENABLE_UAMANYIP
   /* if anyip is set and statip return the same ip */
   if (statip && _options.uamanyip && p2 && p2->is_static) {
-    log_dbg("Found already allocated static ip %s", 
+    syslog(LOG_DEBUG, "Found already allocated static ip %s", 
 	    inet_ntoa(p2->addr));
     *member = p2;
     return 0;
@@ -619,7 +619,7 @@ int ippool_newip(struct ippool_t *this,
 
     *member = p2;
 
-    log_dbg("Assigned a static ip to: %s", inet_ntoa(*addr));
+    syslog(LOG_DEBUG, "Assigned a static ip to: %s", inet_ntoa(*addr));
 
     ippool_hashadd(this, *member);
 

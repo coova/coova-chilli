@@ -47,7 +47,7 @@ int loadstatus() {
 
   statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
 
-  log_dbg("Loading file %s", filedest);
+  syslog(LOG_DEBUG, "Loading file %s", filedest);
 
   file = fopen(filedest, "r");
   if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
@@ -79,11 +79,11 @@ int loadstatus() {
   }
 
   rtoffset = wall - rt;
-  log_dbg("now: wall = %d, rt = %d, wall at rt=0 %d",
+  syslog(LOG_DEBUG, "now: wall = %d, rt = %d, wall at rt=0 %d",
 	  (int)wall, (int)rt, (int)rtoffset);
 
   r_rtoffset = r_wall - r_rt;
-  log_dbg("file: wall = %d, rt = %d, wall at rt=0 %d",
+  syslog(LOG_DEBUG, "file: wall = %d, rt = %d, wall at rt=0 %d",
 	  (int)r_wall, (int)r_rt, (int)r_rtoffset);
 
   while (fread(&dhcpconn, sizeof(struct dhcp_conn_t), 1, file) == 1) {
@@ -138,7 +138,7 @@ int loadstatus() {
 	memset(conn->dnat[n].mac, 0, PKT_ETH_ALEN); 
       }
       
-      log_dbg("checking IP %s", inet_ntoa(dhcpconn.hisip));
+      syslog(LOG_DEBUG, "checking IP %s", inet_ntoa(dhcpconn.hisip));
 
       /* add into ippool */
       if (ippool_getip(ippool, &newipm, &dhcpconn.hisip)) {
@@ -319,7 +319,7 @@ int printstatus() {
 
   statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
 
-  log_dbg("Writing status file: %s", filedest);
+  syslog(LOG_DEBUG, "Writing status file: %s", filedest);
 
   file = fopen(filedest, "w");
   if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
@@ -347,7 +347,7 @@ int printstatus() {
 #ifdef ENABLE_LAYER3
     case DHCP_AUTH_ROUTER:
 #endif
-      log_dbg("Saving dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s",
+      syslog(LOG_DEBUG, "Saving dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s",
 	      dhcpconn->hismac[0], dhcpconn->hismac[1],
 	      dhcpconn->hismac[2], dhcpconn->hismac[3],
 	      dhcpconn->hismac[4], dhcpconn->hismac[5],

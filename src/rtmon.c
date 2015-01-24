@@ -175,7 +175,7 @@ static int rtmon_add_route(struct rtmon_t *rtmon, struct rtmon_route *rt) {
 
   for (i=0; i < sz; i++) {
     if (!memcmp(&rtmon->_routes[i], rt, sizeof(struct rtmon_route))) {
-      log_dbg("Already have this route for %s", inet_ntoa(rt->destination));
+      syslog(LOG_DEBUG, "Already have this route for %s", inet_ntoa(rt->destination));
       return 0;
     }
     if (!dst && !rtmon->_routes[i].has_data) {
@@ -384,7 +384,7 @@ void rtmon_check_updates(struct rtmon_t *rtmon) {
     if (rtmon->_routes[i].has_data) {
       if (rtmon->_routes[i].destination.s_addr == 0) {
 
-	log_dbg("Default Route %s", inet_ntoa(rtmon->_routes[i].gateway));
+	syslog(LOG_DEBUG, "Default Route %s", inet_ntoa(rtmon->_routes[i].gateway));
 
 	for (j=0; j < rtmon->_iface_sz; j++) {
 	  if (rtmon->_ifaces[j].has_data) {
@@ -393,7 +393,7 @@ void rtmon_check_updates(struct rtmon_t *rtmon) {
 	      struct sockaddr_in *sin;
 	      int s, attempt=0, retries=3;
 	      
-	      log_dbg("Route Interface %s", rtmon->_ifaces[j].devname);
+	      syslog(LOG_DEBUG, "Route Interface %s", rtmon->_ifaces[j].devname);
 
 	      if ((s = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
 		perror("socket");
@@ -425,7 +425,7 @@ void rtmon_check_updates(struct rtmon_t *rtmon) {
 		if (ioctl(s, SIOCGARP, (caddr_t) &areq) == -1) {
 
 		  if (errno == ENXIO) {
-		    log_dbg("%s -- no entry\n", inet_ntoa(sin->sin_addr));
+		    syslog(LOG_DEBUG, "%s -- no entry\n", inet_ntoa(sin->sin_addr));
 		    attempt++;
 		    sleep(1);
 		    continue;
@@ -434,7 +434,7 @@ void rtmon_check_updates(struct rtmon_t *rtmon) {
 
 		} else {
 
-		  log_dbg("MAC %s", mactoa((uint8_t *)&areq.arp_ha.sa_data));
+		  syslog(LOG_DEBUG, "MAC %s", mactoa((uint8_t *)&areq.arp_ha.sa_data));
 		  memcpy(rtmon->_routes[i].gwaddr, &areq.arp_ha.sa_data, sizeof(rtmon->_routes[i].gwaddr));
 
 		  if (rtmon->cb(rtmon, &rtmon->_ifaces[j], &rtmon->_routes[i]))
@@ -462,10 +462,10 @@ static int rtmon_add_iface(struct rtmon_t *rtmon, struct rtmon_iface *ri) {
   ri->has_data = 1 | RTMON_REMOVE;
 
   for (i=0; i < sz; i++) {
-    log_dbg("i=%d sz=%d",i,sz);
+    syslog(LOG_DEBUG, "i=%d sz=%d",i,sz);
     if (!memcmp(&rtmon->_ifaces[i], ri, sizeof(struct rtmon_iface))) {
       rtmon->_ifaces[i].has_data = 1;
-      log_dbg("Already have this iface %s", ri->devname);
+      syslog(LOG_DEBUG, "Already have this iface %s", ri->devname);
       return 0;
     }
     if (!dst && !rtmon->_ifaces[i].has_data) {
@@ -661,7 +661,7 @@ int rtmon_read_event(struct rtmon_t *rtmon) {
     return ret;
   }
 
-  log_dbg("Type: %i (%s)",(nlh.nlmsg_type),lookup_name(typenames,nlh.nlmsg_type));
+  syslog(LOG_DEBUG, "Type: %i (%s)",(nlh.nlmsg_type),lookup_name(typenames,nlh.nlmsg_type));
 
 #define FLAG(x) if (nlh.nlmsg_flags & x) printf(" %s",#x)
   FLAG(NLM_F_REQUEST);
@@ -674,7 +674,7 @@ int rtmon_read_event(struct rtmon_t *rtmon) {
   FLAG(NLM_F_APPEND);
 #undef FLAG
 
-  log_dbg("Seq : %i Pid : %i",nlh.nlmsg_seq,nlh.nlmsg_pid);
+  syslog(LOG_DEBUG, "Seq : %i Pid : %i",nlh.nlmsg_seq,nlh.nlmsg_pid);
 
   rtmon_discover_ifaces(rtmon);
   rtmon_discover_routes(rtmon);

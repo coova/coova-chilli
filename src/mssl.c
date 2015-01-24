@@ -100,7 +100,7 @@ int SSL_accept(SSL *ssl) {
   int  rc;
   
 #if(_debug_)
-  log_dbg("MatrixSSL_accept()");
+  syslog(LOG_DEBUG, "MatrixSSL_accept()");
 #endif
 
  readMore:
@@ -127,19 +127,19 @@ int SSL_accept2(SSL *ssl) {
   int  rc;
   
 #if(_debug_)
-  log_dbg("MatrixSSL_accept2()");
+  syslog(LOG_DEBUG, "MatrixSSL_accept2()");
 #endif
 
   rc = _ssl_read(ssl, buf, sizeof(buf));
 
   if (rc == 0) {
     if (ssl->status == SSL_SOCKET_EOF || ssl->status == SSL_SOCKET_CLOSE_NOTIFY) {
-      log_dbg("EOF or Closed");
+      syslog(LOG_DEBUG, "EOF or Closed");
       return -1;
     }
     return 0;
   } else if (rc > 0) {
-    log_dbg("Accept2() returning %d", rc);
+    syslog(LOG_DEBUG, "Accept2() returning %d", rc);
     return rc;
   } else {
 
@@ -156,7 +156,7 @@ int SSL_accept2(SSL *ssl) {
 int SSL_is_init_finished(SSL *ssl) {
   int v = matrixSslHandshakeIsComplete(ssl->ssl) != 0;
 #if(_debug_)
-  log_dbg("MatrixSSL is_finished %d", v);
+  syslog(LOG_DEBUG, "MatrixSSL is_finished %d", v);
 #endif
   return v;
 }
@@ -169,7 +169,7 @@ int SSL_read(SSL *ssl, char *buf, int len) {
   int rc;
  readMore:
   rc = _ssl_read(ssl, buf, len);
-  log_dbg("SSL_read(%d) = %d", len, rc);
+  syslog(LOG_DEBUG, "SSL_read(%d) = %d", len, rc);
   if (rc <= 0) {
     if (rc < 0 || ssl->status == SSL_SOCKET_EOF || 
 	ssl->status == SSL_SOCKET_CLOSE_NOTIFY) {
@@ -207,12 +207,12 @@ int SSL_pending(SSL *ssl) {
     available = 1;
     ssl->pending=0;
   }
-  log_dbg("SSL_pending() = %d", available);
+  syslog(LOG_DEBUG, "SSL_pending() = %d", available);
   return (int) available;
 }
 
 void SSL_free(SSL * ssl) {
-  log_dbg("Matrix SSL_Free()");
+  syslog(LOG_DEBUG, "Matrix SSL_Free()");
   if (ssl->ssl)
     matrixSslDeleteSession(ssl->ssl);
   ssl->ssl = 0;
@@ -354,7 +354,7 @@ static void _ssl_closeSocket(int fd) {
   char buf[32];
 
 #if(_debug_)
-  log_dbg("MatrixSSL %s", __FUNCTION__);
+  syslog(LOG_DEBUG, "MatrixSSL %s", __FUNCTION__);
 #endif
 
   if (fd != -1) {
@@ -372,14 +372,14 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
   unsigned char error, alertLevel, alertDescription, performRead;
 
 #if(_debug_)
-  log_dbg("MatrixSSL %s", __FUNCTION__);
+  syslog(LOG_DEBUG, "MatrixSSL %s", __FUNCTION__);
 #endif
 
   ssl->status = 0;
   
   if (ssl->ssl == NULL || len <= 0) {
 #if(_debug_)
-    log_dbg("MatrixSSL %s null", __FUNCTION__);
+    syslog(LOG_DEBUG, "MatrixSSL %s null", __FUNCTION__);
 #endif
     return -1;
   }
@@ -441,7 +441,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
   /*
     Define a temporary sslBuf
   */
-  log_dbg("SSL buffer sized %d", len);
+  syslog(LOG_DEBUG, "SSL buffer sized %d", len);
   ssl->inbuf.start = ssl->inbuf.end = ssl->inbuf.buf = (unsigned char *)malloc(len);
   ssl->inbuf.size = len;
   /*
@@ -459,13 +459,13 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
       Successfully decoded a record that did not return data or require a response.
     */
   case SSL_SUCCESS:
-log_dbg("SSL_SUCCESS");
+syslog(LOG_DEBUG, "SSL_SUCCESS");
 		return 0;
 		/*
 		  Successfully decoded an application data record, and placed in tmp buf
 		*/
   case SSL_PROCESS_DATA:
-log_dbg("SSL_PROCESS_DATA");
+syslog(LOG_DEBUG, "SSL_PROCESS_DATA");
     /*
       Copy as much as we can from the temp buffer into the caller's buffer
       and leave the remainder in conn->inbuf until the next call to read
@@ -484,7 +484,7 @@ log_dbg("SSL_PROCESS_DATA");
       to the outgoing data buffer and flush it out.
     */
   case SSL_SEND_RESPONSE:
-log_dbg("SSL_SEND_RESPONSE");
+syslog(LOG_DEBUG, "SSL_SEND_RESPONSE");
     bytes = send(ssl->fd, (char *)ssl->inbuf.start, 
 		 (int)(ssl->inbuf.end - ssl->inbuf.start), MSG_NOSIGNAL);
     if (bytes == -1) {
@@ -524,8 +524,8 @@ log_dbg("SSL_SEND_RESPONSE");
       Since we're closing on error, we don't worry too much about a clean flush.
     */
   case SSL_ERROR:
-log_dbg("SSL_ERROR");
-    log_dbg("ssl error");
+syslog(LOG_DEBUG, "SSL_ERROR");
+    syslog(LOG_DEBUG, "ssl error");
     if (ssl->inbuf.start < ssl->inbuf.end) {
       _ssl_setSocketNonblock(ssl->fd);
       bytes = send(ssl->fd, (char *)ssl->inbuf.start, 
@@ -537,8 +537,8 @@ log_dbg("SSL_ERROR");
       matrixSslDecode are filled in with the specifics.
     */
   case SSL_ALERT:
-log_dbg("SSL_ALERT");
-    log_dbg("ssl alert");
+syslog(LOG_DEBUG, "SSL_ALERT");
+    syslog(LOG_DEBUG, "ssl alert");
     if (alertDescription == SSL_ALERT_CLOSE_NOTIFY) {
       ssl->status = SSL_SOCKET_CLOSE_NOTIFY;
       goto readZero;
@@ -550,7 +550,7 @@ log_dbg("SSL_ALERT");
       here so that we CAN read more data when called the next time.
     */
   case SSL_PARTIAL:
-log_dbg("SSL_PARTIAL");
+syslog(LOG_DEBUG, "SSL_PARTIAL");
     if (ssl->insock.start == ssl->insock.buf && ssl->insock.end == 
 	(ssl->insock.buf + ssl->insock.size)) {
       if (ssl->insock.size > SSL_MAX_BUF_SIZE) {
@@ -574,7 +574,7 @@ log_dbg("SSL_PARTIAL");
       data.  Increase the size of the buffer and call decode again
     */
   case SSL_FULL:
-log_dbg("SSL_FULL");
+syslog(LOG_DEBUG, "SSL_FULL");
     ssl->inbuf.size *= 2;
     if (ssl->inbuf.buf != (unsigned char*)buf) {
       free(ssl->inbuf.buf);

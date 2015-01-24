@@ -142,7 +142,7 @@ int iphash_add(struct iphash_t *this, struct iphashm_t **member, struct in_addr 
   struct iphashm_t *p;
   /*uint32_t hash;*/
 
-  log_dbg("IPHASH IP: %s %d", inet_ntoa(*addr), ntohs(port));
+  syslog(LOG_DEBUG, "IPHASH IP: %s %d", inet_ntoa(*addr), ntohs(port));
 
   p = this->first;
   

@@ -464,10 +464,10 @@ patricia_search_exact (patricia_tree_t *patricia, prefix_t *prefix)
     if (BIT_TEST (addr[node->bit >> 3], 0x80 >> (node->bit & 0x07))) {
 #ifdef PATRICIA_DEBUG
       if (node->prefix) {
-	log_dbg( "patricia_search_exact: take right %s/%d", 
+	syslog(LOG_DEBUG,  "patricia_search_exact: take right %s/%d", 
 		 prefix_toa (node->prefix), node->prefix->bitlen);
       } else {
-	log_dbg( "patricia_search_exact: take right at %u", 
+	syslog(LOG_DEBUG,  "patricia_search_exact: take right at %u", 
 		 node->bit);
       }
 #endif /* PATRICIA_DEBUG */
@@ -476,10 +476,10 @@ patricia_search_exact (patricia_tree_t *patricia, prefix_t *prefix)
     else {
 #ifdef PATRICIA_DEBUG
       if (node->prefix) {
-	log_dbg( "patricia_search_exact: take left %s/%d", 
+	syslog(LOG_DEBUG,  "patricia_search_exact: take left %s/%d", 
 		 prefix_toa (node->prefix), node->prefix->bitlen);
       } else { 
-	log_dbg( "patricia_search_exact: take left at %u", 
+	syslog(LOG_DEBUG,  "patricia_search_exact: take left at %u", 
 		 node->bit);
       }
 #endif /* PATRICIA_DEBUG */
@@ -492,10 +492,10 @@ patricia_search_exact (patricia_tree_t *patricia, prefix_t *prefix)
   
 #ifdef PATRICIA_DEBUG
   if (node->prefix) {
-    log_dbg( "patricia_search_exact: stop at %s/%d", 
+    syslog(LOG_DEBUG,  "patricia_search_exact: stop at %s/%d", 
 	     prefix_toa (node->prefix), node->prefix->bitlen);
   } else {
-    log_dbg( "patricia_search_exact: stop at %u", node->bit);
+    syslog(LOG_DEBUG,  "patricia_search_exact: stop at %u", node->bit);
   }
 #endif /* PATRICIA_DEBUG */
   if (node->bit > bitlen || node->prefix == NULL)
@@ -505,7 +505,7 @@ patricia_search_exact (patricia_tree_t *patricia, prefix_t *prefix)
   if (comp_with_mask (prefix_tochar (node->prefix), prefix_tochar (prefix),
 		      bitlen)) {
 #ifdef PATRICIA_DEBUG
-    log_dbg( "patricia_search_exact: found %s/%d", 
+    syslog(LOG_DEBUG,  "patricia_search_exact: found %s/%d", 
 	     prefix_toa (node->prefix), node->prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
     return (node);
@@ -539,7 +539,7 @@ patricia_search_best2 (patricia_tree_t *patricia, prefix_t *prefix, int inclusiv
     
     if (node->prefix) {
 #ifdef PATRICIA_DEBUG
-      log_dbg( "patricia_search_best: push %s/%d", 
+      syslog(LOG_DEBUG,  "patricia_search_best: push %s/%d", 
 	       prefix_toa (node->prefix), node->prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
       stack[cnt++] = node;
@@ -548,10 +548,10 @@ patricia_search_best2 (patricia_tree_t *patricia, prefix_t *prefix, int inclusiv
     if (BIT_TEST (addr[node->bit >> 3], 0x80 >> (node->bit & 0x07))) {
 #ifdef PATRICIA_DEBUG
       if (node->prefix) {
-	log_dbg( "patricia_search_best: take right %s/%d", 
+	syslog(LOG_DEBUG,  "patricia_search_best: take right %s/%d", 
 		 prefix_toa (node->prefix), node->prefix->bitlen);
       } else {
-	log_dbg( "patricia_search_best: take right at %u", 
+	syslog(LOG_DEBUG,  "patricia_search_best: take right at %u", 
 		 node->bit);
       }
 #endif /* PATRICIA_DEBUG */
@@ -560,10 +560,10 @@ patricia_search_best2 (patricia_tree_t *patricia, prefix_t *prefix, int inclusiv
     else {
 #ifdef PATRICIA_DEBUG
       if (node->prefix) {
-	log_dbg( "patricia_search_best: take left %s/%d", 
+	syslog(LOG_DEBUG,  "patricia_search_best: take left %s/%d", 
 		 prefix_toa (node->prefix), node->prefix->bitlen);
       } else {
-	log_dbg( "patricia_search_best: take left at %u", 
+	syslog(LOG_DEBUG,  "patricia_search_best: take left at %u", 
 		 node->bit);
       }
 #endif /* PATRICIA_DEBUG */
@@ -579,12 +579,12 @@ patricia_search_best2 (patricia_tree_t *patricia, prefix_t *prefix, int inclusiv
   
 #ifdef PATRICIA_DEBUG
   if (node == NULL) {
-    log_dbg( "patricia_search_best: stop at null");
+    syslog(LOG_DEBUG,  "patricia_search_best: stop at null");
   } else if (node->prefix) {
-    log_dbg( "patricia_search_best: stop at %s/%d", 
+    syslog(LOG_DEBUG,  "patricia_search_best: stop at %s/%d", 
 	     prefix_toa (node->prefix), node->prefix->bitlen);
   } else {
-    log_dbg( "patricia_search_best: stop at %u", node->bit);
+    syslog(LOG_DEBUG,  "patricia_search_best: stop at %u", node->bit);
   }
 #endif /* PATRICIA_DEBUG */
   
@@ -594,14 +594,14 @@ patricia_search_best2 (patricia_tree_t *patricia, prefix_t *prefix, int inclusiv
   while (--cnt >= 0) {
     node = stack[cnt];
 #ifdef PATRICIA_DEBUG
-    log_dbg( "patricia_search_best: pop %s/%d", 
+    syslog(LOG_DEBUG,  "patricia_search_best: pop %s/%d", 
 	     prefix_toa (node->prefix), node->prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
     if (comp_with_mask (prefix_tochar (node->prefix), 
 			prefix_tochar (prefix),
 			node->prefix->bitlen) && node->prefix->bitlen <= bitlen) {
 
-      log_dbg( "patricia_search_best: found %s/%d", 
+      syslog(LOG_DEBUG,  "patricia_search_best: found %s/%d", 
 	       prefix_toa (node->prefix), node->prefix->bitlen);
 
       return (node);
@@ -639,7 +639,7 @@ patricia_lookup (patricia_tree_t *patricia, prefix_t *prefix)
     node->data = NULL;
     patricia->head = node;
 #ifdef PATRICIA_DEBUG
-    log_dbg( "patricia_lookup: new_node #0 %s/%d (head)", 
+    syslog(LOG_DEBUG,  "patricia_lookup: new_node #0 %s/%d (head)", 
 	     prefix_toa (prefix), prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
     patricia->num_active_node++;
@@ -658,10 +658,10 @@ patricia_lookup (patricia_tree_t *patricia, prefix_t *prefix)
 	break;
 #ifdef PATRICIA_DEBUG
       if (node->prefix) {
-	log_dbg( "patricia_lookup: take right %s/%d", 
+	syslog(LOG_DEBUG,  "patricia_lookup: take right %s/%d", 
 		 prefix_toa (node->prefix), node->prefix->bitlen);
       } else {
-	log_dbg( "patricia_lookup: take right at %u", node->bit);
+	syslog(LOG_DEBUG,  "patricia_lookup: take right at %u", node->bit);
       }
 #endif /* PATRICIA_DEBUG */
       node = node->r;
@@ -671,10 +671,10 @@ patricia_lookup (patricia_tree_t *patricia, prefix_t *prefix)
 	break;
 #ifdef PATRICIA_DEBUG
       if (node->prefix) {
-	log_dbg( "patricia_lookup: take left %s/%d", 
+	syslog(LOG_DEBUG,  "patricia_lookup: take left %s/%d", 
 		 prefix_toa (node->prefix), node->prefix->bitlen);
       } else {
-	log_dbg( "patricia_lookup: take left at %u", node->bit);
+	syslog(LOG_DEBUG,  "patricia_lookup: take left at %u", node->bit);
       }
 #endif /* PATRICIA_DEBUG */
       node = node->l;
@@ -685,7 +685,7 @@ patricia_lookup (patricia_tree_t *patricia, prefix_t *prefix)
   
   assert (node->prefix);
 #ifdef PATRICIA_DEBUG
-  log_dbg( "patricia_lookup: stop at %s/%d", 
+  syslog(LOG_DEBUG,  "patricia_lookup: stop at %s/%d", 
 	   prefix_toa (node->prefix), node->prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
   
@@ -711,7 +711,7 @@ patricia_lookup (patricia_tree_t *patricia, prefix_t *prefix)
   if (differ_bit > check_bit)
     differ_bit = check_bit;
 #ifdef PATRICIA_DEBUG
-  log_dbg( "patricia_lookup: differ_bit %d", differ_bit);
+  syslog(LOG_DEBUG,  "patricia_lookup: differ_bit %d", differ_bit);
 #endif /* PATRICIA_DEBUG */
   
   parent = node->parent;
@@ -720,10 +720,10 @@ patricia_lookup (patricia_tree_t *patricia, prefix_t *prefix)
     parent = node->parent;
 #ifdef PATRICIA_DEBUG
     if (node->prefix) {
-      log_dbg( "patricia_lookup: up to %s/%d", 
+      syslog(LOG_DEBUG,  "patricia_lookup: up to %s/%d", 
 	       prefix_toa (node->prefix), node->prefix->bitlen);
     } else {
-      log_dbg( "patricia_lookup: up to %u", node->bit);
+      syslog(LOG_DEBUG,  "patricia_lookup: up to %u", node->bit);
     }
 #endif /* PATRICIA_DEBUG */
   }
@@ -731,14 +731,14 @@ patricia_lookup (patricia_tree_t *patricia, prefix_t *prefix)
   if (differ_bit == bitlen && node->bit == bitlen) {
     if (node->prefix) {
 #ifdef PATRICIA_DEBUG 
-      log_dbg( "patricia_lookup: found %s/%d", 
+      syslog(LOG_DEBUG,  "patricia_lookup: found %s/%d", 
 	       prefix_toa (node->prefix), node->prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
       return (node);
 	}
     node->prefix = patricia_prefix_ref (prefix);
 #ifdef PATRICIA_DEBUG
-    log_dbg( "patricia_lookup: new node #1 %s/%d (glue mod)",
+    syslog(LOG_DEBUG,  "patricia_lookup: new node #1 %s/%d (glue mod)",
 	     prefix_toa (prefix), prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
     assert (node->data == NULL);
@@ -765,7 +765,7 @@ patricia_lookup (patricia_tree_t *patricia, prefix_t *prefix)
       node->l = new_node;
     }
 #ifdef PATRICIA_DEBUG
-    log_dbg( "patricia_lookup: new_node #2 %s/%d (child)", 
+    syslog(LOG_DEBUG,  "patricia_lookup: new_node #2 %s/%d (child)", 
 	     prefix_toa (prefix), prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
     return (new_node);
@@ -792,7 +792,7 @@ patricia_lookup (patricia_tree_t *patricia, prefix_t *prefix)
     }
     node->parent = new_node;
 #ifdef PATRICIA_DEBUG
-    log_dbg( "patricia_lookup: new_node #3 %s/%d (parent)", 
+    syslog(LOG_DEBUG,  "patricia_lookup: new_node #3 %s/%d (parent)", 
 	     prefix_toa (prefix), prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
   }
@@ -826,7 +826,7 @@ patricia_lookup (patricia_tree_t *patricia, prefix_t *prefix)
     }
     node->parent = glue;
 #ifdef PATRICIA_DEBUG
-    log_dbg( "patricia_lookup: new_node #4 %s/%d (glue+node)", 
+    syslog(LOG_DEBUG,  "patricia_lookup: new_node #4 %s/%d (glue+node)", 
 	     prefix_toa (prefix), prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
   }
@@ -844,7 +844,7 @@ patricia_remove (patricia_tree_t *patricia, patricia_node_t *node)
   
   if (node->r && node->l) {
 #ifdef PATRICIA_DEBUG
-    log_dbg( "patricia_remove: #0 %s/%d (r & l)", 
+    syslog(LOG_DEBUG,  "patricia_remove: #0 %s/%d (r & l)", 
 	     prefix_toa (node->prefix), node->prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
     
@@ -860,7 +860,7 @@ patricia_remove (patricia_tree_t *patricia, patricia_node_t *node)
   
   if (node->r == NULL && node->l == NULL) {
 #ifdef PATRICIA_DEBUG
-    log_dbg( "patricia_remove: #1 %s/%d (!r & !l)", 
+    syslog(LOG_DEBUG,  "patricia_remove: #1 %s/%d (!r & !l)", 
 	     prefix_toa (node->prefix), node->prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
     parent = node->parent;
@@ -907,7 +907,7 @@ patricia_remove (patricia_tree_t *patricia, patricia_node_t *node)
   }
   
 #ifdef PATRICIA_DEBUG
-  log_dbg( "patricia_remove: #2 %s/%d (r ^ l)", 
+  syslog(LOG_DEBUG,  "patricia_remove: #2 %s/%d (r ^ l)", 
 	   prefix_toa (node->prefix), node->prefix->bitlen);
 #endif /* PATRICIA_DEBUG */
   if (node->r) {

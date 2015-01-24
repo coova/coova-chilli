@@ -216,7 +216,7 @@ int net_open(net_interface *netif) {
     struct in_addr noaddr;
     net_sflags(netif, netif->devflags | IFF_NOARP);
     memset(&noaddr, 0, sizeof(noaddr));
-    log_dbg("removing ip address from %s", netif->devname);
+    syslog(LOG_DEBUG, "removing ip address from %s", netif->devname);
     dev_set_address(netif->devname, &noaddr, NULL, NULL);
   }
 
@@ -239,7 +239,7 @@ int net_reopen(net_interface *netif) {
   int option;
   socklen_t len;
 
-  log_dbg("net_reopen(%s)", netif->devname);
+  syslog(LOG_DEBUG, "net_reopen(%s)", netif->devname);
 
   net_open(netif);
 
@@ -251,11 +251,11 @@ int net_reopen(net_interface *netif) {
   
   len = sizeof(default_sndbuf);
   getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
-  log_dbg("Net SNDBUF %d", default_sndbuf);
+  syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
 
   len = sizeof(default_sndbuf);
   getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
-  log_dbg("Net RCVBUF %d", default_rcvbuf);
+  syslog(LOG_DEBUG, "Net RCVBUF %d", default_rcvbuf);
 
   if (netif->sctx)
     net_select_rereg(netif->sctx, previous_fd, netif->fd);
@@ -413,7 +413,7 @@ int net_select_reg(select_ctx *sctx, int fd, char evts,
   if (fd > sctx->maxfd) sctx->maxfd = fd;
 #endif
   sctx->count++;
-  log_dbg("net select count: %d", sctx->count);
+  syslog(LOG_DEBUG, "net select count: %d", sctx->count);
   return 0;
 }
 
@@ -449,7 +449,7 @@ int net_select_rmfd(select_ctx *sctx, int fd) {
   struct epoll_event event;
   memset(&event, 0, sizeof(event));
   event.data.fd = fd;
-  log_dbg("epoll rm %d", fd);
+  syslog(LOG_DEBUG, "epoll rm %d", fd);
   /*
    */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, fd, &event))
@@ -466,7 +466,7 @@ int net_select_addfd(select_ctx *sctx, int fd, int evts) {
   event.data.fd = fd;
   if (evts & SELECT_READ) event.events |= EPOLLIN;
   if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
-  log_dbg("epoll add %d (%d)", fd, sctx->efd);
+  syslog(LOG_DEBUG, "epoll add %d (%d)", fd, sctx->efd);
   /*
    */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_ADD, fd, &event))
@@ -483,7 +483,7 @@ int net_select_modfd(select_ctx *sctx, int fd, int evts) {
   event.data.fd = fd;
   if (evts & SELECT_READ) event.events |= EPOLLIN;
   if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
-  /*log_dbg("epoll mod %d", fd);*/
+  /*syslog(LOG_DEBUG, "epoll mod %d", fd);*/
   if (epoll_ctl(sctx->efd, EPOLL_CTL_MOD, fd, &event))
     log_err(errno, "Failed to watch fd");
 #endif
@@ -541,17 +541,17 @@ int net_select(select_ctx *sctx) {
 		    &sctx->idleTime);
     
 #if(0)
-    if (status) log_dbg("select() == %d", status);
+    if (status) syslog(LOG_DEBUG, "select() == %d", status);
     {int i;
       for (i=0; i<FD_SETSIZE; i++)
 	if (FD_ISSET(i, &sctx->rfds))
-	  log_dbg("rfds[%d]",i);
+	  syslog(LOG_DEBUG, "rfds[%d]",i);
       for (i=0; i<FD_SETSIZE; i++)
 	if (FD_ISSET(i, &sctx->wfds))
-	  log_dbg("wfds[%d]",i);
+	  syslog(LOG_DEBUG, "wfds[%d]",i);
       for (i=0; i<FD_SETSIZE; i++)
 	if (FD_ISSET(i, &sctx->efds))
-	  log_dbg("efds[%d]",i);
+	  syslog(LOG_DEBUG, "efds[%d]",i);
     }
 #endif
     
@@ -592,7 +592,7 @@ int net_select_write_fd(select_ctx *sctx, int fd) {
   for (idx=0; idx < sctx->count; idx++)
     if (sctx->events[idx].data.fd == fd) {
 #if(_debug_ > 1)
-      log_dbg("write %d", (sctx->events[idx].events & EPOLLOUT) != 0);
+      syslog(LOG_DEBUG, "write %d", (sctx->events[idx].events & EPOLLOUT) != 0);
 #endif
       if (sctx->events[idx].events & EPOLLOUT)
 	return 1;
@@ -815,7 +815,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
     } else {
 
       if (len == 0) {
-	log_dbg("read zero, enable ieee8021q?");
+	syslog(LOG_DEBUG, "read zero, enable ieee8021q?");
       }
       
       if (len > dlen) {
@@ -867,7 +867,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 	}
 	
 #if(_debug_ > 1)
-	log_dbg("adding 8021q header from auxdata");
+	syslog(LOG_DEBUG, "adding 8021q header from auxdata");
 #endif
 	
 	memmove(d + (2 * PKT_ETH_ALEN) + 4, 
@@ -1083,7 +1083,7 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
 #ifdef HAVE_NETFILTER_QUEUE
   netif->h = nfq_open();
 
-  log_dbg("netif nfqueue %d", (int)q);
+  syslog(LOG_DEBUG, "netif nfqueue %d", (int)q);
   
   if (!netif->h) {
     log_err(errno, "nfq_open() failed");
@@ -1276,10 +1276,10 @@ int net_open_eth(net_interface *netif) {
       socklen_t len;
       len = sizeof(default_sndbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
-      log_dbg("Net SNDBUF %d", default_sndbuf);
+      syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
       len = sizeof(default_sndbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
-      log_dbg("Net RCVBUF %d", default_rcvbuf);
+      syslog(LOG_DEBUG, "Net RCVBUF %d", default_rcvbuf);
     }
 #ifdef USING_MMAP
   }
@@ -1334,7 +1334,7 @@ int net_open_eth(net_interface *netif) {
   }
   netif->ifindex = ifr.ifr_ifindex;
   
-  log_dbg("device %s ifindex %d", netif->devname, netif->ifindex);
+  syslog(LOG_DEBUG, "device %s ifindex %d", netif->devname, netif->ifindex);
 
 #ifdef ENABLE_IPV6
   {
@@ -1346,7 +1346,7 @@ int net_open_eth(net_interface *netif) {
 	if (!ifa->ifa_addr) continue;
 	family = ifa->ifa_addr->sa_family;
 
-	log_dbg("%s  address family: %d%s",
+	syslog(LOG_DEBUG, "%s  address family: %d%s",
 		ifa->ifa_name, family,
 		(family == AF_PACKET) ? " (AF_PACKET)" :
 		(family == AF_INET) ?   " (AF_INET)" :
@@ -1363,9 +1363,9 @@ int net_open_eth(net_interface *netif) {
 			  sizeof(struct sockaddr_in6),
 			  host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
 	  if (s != 0) {
-	    log_dbg("getnameinfo() failed: %s\n", strerror(s));
+	    syslog(LOG_DEBUG, "getnameinfo() failed: %s\n", strerror(s));
 	  } else {
-	    log_dbg("address: <%s>\n", host);
+	    syslog(LOG_DEBUG, "address: <%s>\n", host);
 	  }
 	}
       }
@@ -1649,7 +1649,7 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
     tv.tv_nsec = h->tp_nsec;*/
     
     if (_options.debug > 100)
-      log_dbg("RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
+      syslog(LOG_DEBUG, "RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
 
     pkt_buffer_init(&pb, (uint8_t *)data, h->tp_snaplen, h->tp_mac);
     pb.length = h->tp_len;
@@ -1674,7 +1674,7 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
       iface->stats.dropped += stats.tp_drops;
 
     if (_options.logfacility > 100)
-      log_dbg("RX drops %d", iface->stats.dropped);
+      syslog(LOG_DEBUG, "RX drops %d", iface->stats.dropped);
   }
   
   ++iface->stats.rx_runs;
@@ -1735,7 +1735,7 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
   h->tp_status = TP_STATUS_SEND_REQUEST;
 
   if (_options.debug > 100)
-    log_dbg("TX sent=%d (idx %d)", length, iface->ifindex);
+    syslog(LOG_DEBUG, "TX sent=%d (idx %d)", length, iface->ifindex);
   
   if (!iface->is_active) {
     iface->is_active = 1;
@@ -1756,7 +1756,7 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
 
   page_size = sysconf(_SC_PAGESIZE);
 
-  log_dbg("Creating %s ring: ring_size=%d; page_size=%d; mtu=%d", 
+  syslog(LOG_DEBUG, "Creating %s ring: ring_size=%d; page_size=%d; mtu=%d", 
 	  name, ring_size, page_size, mtu);
   
   /* For RX, the frame looks like:

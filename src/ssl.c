@@ -42,7 +42,7 @@ openssl_env * initssl() {
       SSLeay_add_ssl_algorithms();
 #else
       matrixSslOpen();
-      log_dbg("MatrixSslOpen()");
+      syslog(LOG_DEBUG, "MatrixSslOpen()");
 #endif
     }
     openssl_env_init(sslenv_svr = calloc(1, sizeof(openssl_env)), 0, 1);
@@ -61,7 +61,7 @@ openssl_env * initssl_cli() {
       SSLeay_add_ssl_algorithms();
 #else
       matrixSslOpen();
-      log_dbg("MatrixSslOpen()");
+      syslog(LOG_DEBUG, "MatrixSslOpen()");
 #endif
     }
     openssl_env_init(sslenv_cli = calloc(1, sizeof(openssl_env)), 0, 0);
@@ -281,11 +281,11 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
     return err;
   }
 #else
-  log_dbg("MatrixSSL Setup:");
-  log_dbg("SSL cert: %s",_options.sslcertfile);
-  log_dbg("SSL key: %s",_options.sslkeyfile);
-  log_dbg("SSL pass: %s",_options.sslkeypass?_options.sslkeypass:"null");
-  log_dbg("SSL ca: %s",_options.sslcafile?_options.sslcafile:"null");
+  syslog(LOG_DEBUG, "MatrixSSL Setup:");
+  syslog(LOG_DEBUG, "SSL cert: %s",_options.sslcertfile);
+  syslog(LOG_DEBUG, "SSL key: %s",_options.sslkeyfile);
+  syslog(LOG_DEBUG, "SSL pass: %s",_options.sslkeypass?_options.sslkeypass:"null");
+  syslog(LOG_DEBUG, "SSL ca: %s",_options.sslcafile?_options.sslcafile:"null");
   if ( matrixSslReadKeys( &env->keys,
 			  _options.sslcertfile, 
 			  _options.sslkeyfile, 
@@ -302,7 +302,7 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
 
 #ifdef HAVE_MATRIXSSL
 static int certValidator(sslCertInfo_t *t, void *arg) {
-  log_dbg("MatrixSSL: certValidator()");
+  syslog(LOG_DEBUG, "MatrixSSL: certValidator()");
   return 1;
 }
 #endif
@@ -334,7 +334,7 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
 #if(_debug_)
     unsigned long error;
     while ((error = ERR_get_error())) {
-      log_dbg("TLS: %s", ERR_error_string(error, NULL));
+      syslog(LOG_DEBUG, "TLS: %s", ERR_error_string(error, NULL));
       is_error = 1;
     }
 #endif
@@ -377,10 +377,10 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 	if (errno != EINTR) {
 #if(_debug_ > 1)
 	  if (errno > 0) {
-	    log_dbg("SSL handshake interrupted by system [Hint: Stop button pressed in browser?!]");
+	    syslog(LOG_DEBUG, "SSL handshake interrupted by system [Hint: Stop button pressed in browser?!]");
          }
 	  else {
-	    log_dbg("Spurious SSL handshake interrupt [Hint: Usually just one of those OpenSSL confusions!?]");
+	    syslog(LOG_DEBUG, "Spurious SSL handshake interrupt [Hint: Usually just one of those OpenSSL confusions!?]");
         }
 #endif
 	}
@@ -400,12 +400,12 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 	X509_NAME_oneline(X509_get_subject_name(peer_cert),subj,sizeof(subj));
 	
 	if (SSL_get_verify_result(c->con) != X509_V_OK) {
-	  log_dbg("auth_failed: %s", subj);
+	  syslog(LOG_DEBUG, "auth_failed: %s", subj);
 	  X509_free(peer_cert);
 	  return -1;
 	}
 		
-	log_dbg("auth_success: %s", subj);
+	syslog(LOG_DEBUG, "auth_success: %s", subj);
 	if (conn) conn->s_params.flags |= ADMIN_LOGIN;
 
 	if (_options.debug) {
@@ -415,21 +415,21 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 #endif
 	  SSL_CIPHER *cipher;
 	  char b[512];
-	  log_dbg("Debugging: SSL Information:\n");
+	  syslog(LOG_DEBUG, "Debugging: SSL Information:\n");
 	  cipher = SSL_get_current_cipher(c->con);
-	  log_dbg("  Protocol: %s, %s with %.*s bit key\n", 
+	  syslog(LOG_DEBUG, "  Protocol: %s, %s with %.*s bit key\n", 
 		  SSL_CIPHER_get_version(cipher),
 		  (char*)SSL_CIPHER_get_name(cipher),
 		  sprintf(b, "%d", EVP_PKEY_bits(pktmp)), b);
-	  log_dbg("  Subject:  %s\n", subj);
+	  syslog(LOG_DEBUG, "  Subject:  %s\n", subj);
 	  X509_NAME_oneline(X509_get_issuer_name(peer_cert),b,sizeof(b));
-	  log_dbg("  Issuer:   %s\n", b);
+	  syslog(LOG_DEBUG, "  Issuer:   %s\n", b);
 	  EVP_PKEY_free(pktmp);
 	}
 	
 	X509_free(peer_cert);
       } else {
-	log_dbg("no SSL certificate");
+	syslog(LOG_DEBUG, "no SSL certificate");
       }
 #endif
     }
@@ -526,7 +526,7 @@ openssl_error(openssl_con *con, int ret, char *func) {
   if (con->con) {
     err = SSL_get_error(con->con, ret);
 #if(_debug_ > 1)
-    log_dbg("SSL: (%s()) %s", func,
+    syslog(LOG_DEBUG, "SSL: (%s()) %s", func,
 	    err == SSL_ERROR_NONE ? "None": 
             err == SSL_ERROR_ZERO_RETURN ? "Return!":
 	    err == SSL_ERROR_WANT_READ ? "Read (continue)":
@@ -609,7 +609,7 @@ openssl_read(openssl_con *con, char *b, int l, int t) {
 
   rbytes = SSL_read(con->con, b, l);
 
-  log_dbg("--- SSL_read() = %d", rbytes);
+  syslog(LOG_DEBUG, "--- SSL_read() = %d", rbytes);
 
   if (rbytes <= 0) {
     err = openssl_error(con, rbytes, "openssl_read");
@@ -652,7 +652,7 @@ openssl_write(openssl_con *con, char *b, int l, int t) {
       if (err == -1) return err;
       else if (err > 0) {
 #if(_debug_)
-	//log_dbg("ssl_repeat_write");
+	//syslog(LOG_DEBUG, "ssl_repeat_write");
 #endif
 	goto repeat_write;
       }
@@ -681,7 +681,7 @@ openssl_free(openssl_con *con) {
 void
 openssl_env_free(openssl_env *env) {
 #if(_debug_)
-  log_dbg("Freeing SSL environemnt");
+  syslog(LOG_DEBUG, "Freeing SSL environemnt");
 #endif
 #ifdef HAVE_OPENSSL
   if (env->ctx) SSL_CTX_free(env->ctx);

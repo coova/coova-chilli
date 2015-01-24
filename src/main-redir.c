@@ -98,7 +98,7 @@ static redir_request * get_request() {
 	req = req->next;
 	cnt++;
       }
-      log_dbg("redir free connections %d", cnt);;
+      syslog(LOG_DEBUG, "redir free connections %d", cnt);;
     }
     req = requests_free;
     requests_free = requests_free->next;
@@ -121,14 +121,14 @@ static redir_request * get_request() {
   req->ibuf = string_init_reset(req->ibuf);
 
   /*
-    log_dbg("url->len  %d",req->url->slen);
-    log_dbg("data->len %d",req->data->slen);
-    log_dbg("post->len %d",req->post->slen);
+    syslog(LOG_DEBUG, "url->len  %d",req->url->slen);
+    syslog(LOG_DEBUG, "data->len %d",req->data->slen);
+    syslog(LOG_DEBUG, "post->len %d",req->post->slen);
   */
-  log_dbg("dbuf->len %d",req->dbuf->slen);
-  log_dbg("wbuf->len %d",req->wbuf->slen);
-  log_dbg("hbuf->len %d",req->hbuf->slen);
-  log_dbg("ibuf->len %d",req->ibuf->slen);
+  syslog(LOG_DEBUG, "dbuf->len %d",req->dbuf->slen);
+  syslog(LOG_DEBUG, "wbuf->len %d",req->wbuf->slen);
+  syslog(LOG_DEBUG, "hbuf->len %d",req->hbuf->slen);
+  syslog(LOG_DEBUG, "ibuf->len %d",req->ibuf->slen);
   
   req->read_closed = 0;
   req->write_closed = 0;
@@ -142,7 +142,7 @@ static redir_request * get_request() {
 }
 
 static void close_request(redir_request *req) {
-  log_dbg("closing request");
+  syslog(LOG_DEBUG, "closing request");
   req->inuse = 0;
   req->proxy = 0;
   req->socket_fd = 0;
@@ -231,7 +231,7 @@ static int redir_conn_finish(struct conn_t *conn, void *ctx) {
       char b[256];
       char *inject = inject_fmt(req);
       int w = net_write(req->socket_fd, inject, strlen(inject));
-      log_dbg("injected %d bytes", w);
+      syslog(LOG_DEBUG, "injected %d bytes", w);
     }
     */
 #endif
@@ -274,11 +274,11 @@ static int redir_cli_rewrite(redir_request *req, struct conn_t *conn) {
       return -1;
     } else if (w > 0) {
 #if(_debug_)      
-      log_dbg("client (re)write: %d", w);
+      syslog(LOG_DEBUG, "client (re)write: %d", w);
 #endif
       conn->read_pos += w;
       if (conn->read_pos == conn->read_buf->slen) {
-	log_dbg("emptying write queue");
+	syslog(LOG_DEBUG, "emptying write queue");
 	conn->read_pos = 0;
 	bassigncstr(conn->read_buf, "");
       }
@@ -299,8 +299,8 @@ static int redir_cli_write(redir_request *req, uint8_t *d, int l) {
     w = net_write(req->socket_fd, d, l);
 
 #if(_debug_ )      
-    log_dbg("client write: %d", w);
-    /*log_dbg("write: [%s]", b);*/
+    syslog(LOG_DEBUG, "client write: %d", w);
+    /*syslog(LOG_DEBUG, "write: [%s]", b);*/
 #endif
   }
   
@@ -326,13 +326,13 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
   r = safe_recv(conn->sock, bb, sizeof(bb)-1, 0);
   
 #if(_debug_)
-  log_dbg("conn_read: %d clen=%d", r, req->clen);
+  syslog(LOG_DEBUG, "conn_read: %d clen=%d", r, req->clen);
 #endif
   
   if (r == 0) {
 
     if (req->read_closed && redir_cli_rewrite(req, conn) == 0) {
-      log_dbg("done reading and writing");
+      syslog(LOG_DEBUG, "done reading and writing");
       redir_conn_finish(conn, req);
       return -1;
     }
@@ -342,7 +342,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
   } else if (r < 0 && 
 	     errno != EWOULDBLOCK && errno != EAGAIN) {
     
-    log_dbg("ERRNO %d", errno);
+    syslog(LOG_DEBUG, "ERRNO %d", errno);
     redir_conn_finish(conn, ctx);
     
   } else if (r > 0) {
@@ -372,7 +372,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	if (strncmp((char *)req->hbuf->data, "HTTP/1.", 7) ||
 	    strncmp((char *)req->hbuf->data+8, " 2", 2)) {
 	  
-	  log_dbg("Not HTTP/1.X 2XX reply");
+	  syslog(LOG_DEBUG, "Not HTTP/1.X 2XX reply");
 	  bcatblk(newhdr, req->hbuf->data, header_len + 4);
 	  
 	} else {
@@ -399,7 +399,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	      char c = hdr[l];
 	      hdr[l] = 0;
 	      clen = req->clen = atoi(hdr+15);
-	      log_dbg("Detected Content Length %d", req->clen);
+	      syslog(LOG_DEBUG, "Detected Content Length %d", req->clen);
 	      hdr[l] = c;
 	    } else if (!strncasecmp(hdr, "content-type:", 13)) {
 	      if (strstr(hdr, "text/html")) {
@@ -446,7 +446,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	      }
 	    }
 	    
-	    log_dbg("Resp Header [%d] %.*s%s", 
+	    syslog(LOG_DEBUG, "Resp Header [%d] %.*s%s", 
 		    l, l, hdr, skip ? " [Skipped]" : "");
 	    
 	    if (!skip) {
@@ -498,7 +498,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
     }
 #endif
   }
-  /*log_dbg("leaving redir_conn_read()");*/
+  /*syslog(LOG_DEBUG, "leaving redir_conn_read()");*/
   return 0;
 }
 
@@ -507,7 +507,7 @@ check_regex(regex_t *re, char *regex, char *s) {
   int ret;
 
 #if(_debug_)
-  log_dbg("Checking %s =~ %s", s, regex);
+  syslog(LOG_DEBUG, "Checking %s =~ %s", s, regex);
 #endif
 
 #if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
@@ -527,7 +527,7 @@ check_regex(regex_t *re, char *regex, char *s) {
   
   if ((ret = regexec(re, s, 0, 0, 0)) == 0) {
     
-    log_dbg("Matched regex %s", regex);
+    syslog(LOG_DEBUG, "Matched regex %s", regex);
     return 0;
     
   }
@@ -574,12 +574,12 @@ redir_handle_url(struct redir_t *redir,
       */
       
 #if(_debug_)
-      log_dbg("REGEX host=[%s] path=[%s] qs=[%s]",
+      syslog(LOG_DEBUG, "REGEX host=[%s] path=[%s] qs=[%s]",
 	      _options.regex_pass_throughs[i].regex_host,
 	      _options.regex_pass_throughs[i].regex_path,
 	      _options.regex_pass_throughs[i].regex_qs);
       
-      log_dbg("Host %s", httpreq->host);
+      syslog(LOG_DEBUG, "Host %s", httpreq->host);
 #endif
       
       if (_options.regex_pass_throughs[i].regex_host[0]) {
@@ -619,7 +619,7 @@ redir_handle_url(struct redir_t *redir,
 #endif
 
   if (matches) {
-    log_dbg("Matched for Host %s", httpreq->host);
+    syslog(LOG_DEBUG, "Matched for Host %s", httpreq->host);
     
     req->proxy = 1;
     
@@ -667,7 +667,7 @@ redir_handle_url(struct redir_t *redir,
       }
       
       if (req->wbuf->slen != newhdr->slen) {
-	log_dbg("Changed HTTP Headers");
+	syslog(LOG_DEBUG, "Changed HTTP Headers");
       }
       
       bassign(req->wbuf, newhdr);
@@ -716,7 +716,7 @@ int redir_accept2(struct redir_t *redir, int idx) {
   }
 
 #if(_debug_)
-  log_dbg("new redir socket %d from %s", new_socket, 
+  syslog(LOG_DEBUG, "new redir socket %d from %s", new_socket, 
 	  inet_ntoa(address.sin_addr));
 #endif
   
@@ -764,7 +764,7 @@ int redir_accept2(struct redir_t *redir, int idx) {
     
     req->parent = redir;
 
-    log_dbg("redir_main() for %s", inet_ntoa(address.sin_addr));
+    syslog(LOG_DEBUG, "redir_main() for %s", inet_ntoa(address.sin_addr));
 
     req->last_active = mainclock_tick();
     memcpy(&req->conn.peer, &address, sizeof (struct sockaddr_in));
@@ -779,18 +779,18 @@ int redir_accept2(struct redir_t *redir, int idx) {
     switch (redir_main(redir, new_socket, new_socket,
 		       &address, &baddress, idx, req)) {
     case 1:
-      log_dbg("redir queued %s socket_fd=%d conn.fd=%d", 
+      syslog(LOG_DEBUG, "redir queued %s socket_fd=%d conn.fd=%d", 
 	      inet_ntoa(address.sin_addr),
 	      req->socket_fd, req->conn.sock);
       req->state |= REDIR_SOCKET_FD;
       net_select_addfd(&sctx, req->socket_fd, SELECT_READ);
       return 1;
     case 0: 
-      log_dbg("redir completed %s", inet_ntoa(address.sin_addr));
+      syslog(LOG_DEBUG, "redir completed %s", inet_ntoa(address.sin_addr));
       redir_conn_finish(&req->conn, req);
       return 0;
     default:
-      log_dbg("redir completed %s", inet_ntoa(address.sin_addr));
+      syslog(LOG_DEBUG, "redir completed %s", inet_ntoa(address.sin_addr));
       redir_conn_finish(&req->conn, req);
       return -1;
     }
@@ -905,7 +905,7 @@ int main(int argc, char **argv) {
 	int timeout = 60;
 
 	if (now - requests[idx].last_active > timeout) {
-	  log_dbg("timeout connection %d", idx);
+	  syslog(LOG_DEBUG, "timeout connection %d", idx);
 	  redir_conn_finish(&requests[idx].conn, &requests[idx]);
 	} else {
 	  int evt = SELECT_READ;
@@ -951,7 +951,7 @@ int main(int argc, char **argv) {
 			    " (timeout)");
 	    }
 
-	    log_dbg("%s", line);
+	    syslog(LOG_DEBUG, "%s", line);
 	  }
 	}
 #endif
@@ -959,7 +959,7 @@ int main(int argc, char **argv) {
     }
 
     if (active != active_last) {
-      log_dbg("active connections: %d", active);
+      syslog(LOG_DEBUG, "active connections: %d", active);
       active_last = active;
     }
     
@@ -968,9 +968,9 @@ int main(int argc, char **argv) {
 #if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H) && (_debug_ > 1)
     if (_options.debug && status > 0) {
       int i;
-      log_dbg("epoll %d", status);
+      syslog(LOG_DEBUG, "epoll %d", status);
       for (i=0; i < status; i++) {
-	log_dbg("epoll fd %d %d", 
+	syslog(LOG_DEBUG, "epoll fd %d %d", 
 		sctx.events[i].data.fd, 
 		sctx.events[i].events);
       }
@@ -1015,7 +1015,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_SSL
 	    if (requests[idx].sslcon) {
 	      if (openssl_check_accept(requests[idx].sslcon, 0) < 0) {
-		log_dbg("ssl error %d", errno);
+		syslog(LOG_DEBUG, "ssl error %d", errno);
 		redir_conn_finish(&requests[idx].conn, &requests[idx]);
 		continue;
 	      }
@@ -1024,14 +1024,14 @@ int main(int argc, char **argv) {
 
 	    switch (net_select_write_fd(&sctx, fd)) {
 	    case 1:
-	      log_dbg("client writeable");
+	      syslog(LOG_DEBUG, "client writeable");
 	      redir_cli_rewrite(&requests[idx], &requests[idx].conn);
 	      break;
 	    }
 	    
 	    switch (net_select_read_fd(&sctx, fd)) {
 	    case -1:
-	      log_dbg("EXCEPTION");
+	      syslog(LOG_DEBUG, "EXCEPTION");
 	      redir_conn_finish(&requests[idx].conn, 
 				&requests[idx]);
 	      break;
@@ -1045,7 +1045,7 @@ int main(int argc, char **argv) {
 #ifdef HAVE_SSL
 		  if (requests[idx].sslcon) {
 		    /*
-		      log_dbg("proxy_read_ssl");
+		      syslog(LOG_DEBUG, "proxy_read_ssl");
 		    */
 		    r = openssl_read(requests[idx].sslcon, 
 				     b, sizeof(b)-1, 0);
@@ -1054,12 +1054,12 @@ int main(int argc, char **argv) {
 		    r = safe_read(fd, b, sizeof(b)-1);
 		  
 		  /*
-		    log_dbg("proxy_read: %d %d", fd, r);
+		    syslog(LOG_DEBUG, "proxy_read: %d %d", fd, r);
 		  */
 		  
 		  if (r <= 0) {
 
-		    log_dbg("recv %d %d %d", r, 
+		    syslog(LOG_DEBUG, "recv %d %d %d", r, 
 			    requests[idx].conn.read_buf->slen -
 			    requests[idx].conn.read_pos,
 			    errno);
@@ -1068,7 +1068,7 @@ int main(int argc, char **argv) {
 			  (errno == EWOULDBLOCK || errno == EAGAIN))) {
 		      if (redir_cli_rewrite(&requests[idx], 
 					    &requests[idx].conn) == 0) {
-			log_dbg("done reading and writing");
+			syslog(LOG_DEBUG, "done reading and writing");
 			redir_conn_finish(&requests[idx].conn, 
 					  &requests[idx]);
 		      }
@@ -1081,7 +1081,7 @@ int main(int argc, char **argv) {
 		    w = net_write(requests[idx].conn.sock, b, r);
 		    
 		    /*
-		      log_dbg("proxy_write: %d", w);
+		      syslog(LOG_DEBUG, "proxy_write: %d", w);
 		    */
 		    if (r != w) {
 		      log_err(errno, "problem writing what we read from client");
@@ -1100,19 +1100,19 @@ int main(int argc, char **argv) {
 				     requests[idx].uiidx, 
 				     &requests[idx])) {
 		  case 1:
-		    /*log_dbg("redir cont'ed");*/
+		    /*syslog(LOG_DEBUG, "redir cont'ed");*/
 #ifdef HAVE_SSL
 		    if (requests[idx].sslcon && 
 			openssl_pending(requests[idx].sslcon) > 0) {
-		      log_dbg("ssl_pending, trying again");
+		      syslog(LOG_DEBUG, "ssl_pending, trying again");
 		      goto go_again;
 		    }
 #endif
 		  break;
 		  case -1: 
-		    log_dbg("redir error");
+		    syslog(LOG_DEBUG, "redir error");
 		  default:
-		    log_dbg("redir completed");
+		    syslog(LOG_DEBUG, "redir completed");
 		    redir_conn_finish(&requests[idx].conn, 
 				      &requests[idx]);
 		    break;

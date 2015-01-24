@@ -37,7 +37,7 @@ kmod(char cmd, struct in_addr *addr) {
       safe_snprintf(line, sizeof(line), "%c\n", cmd);
 
     rd = safe_write(fd, line, strlen(line));
-    log_dbg("kmod wrote %d %s", rd, line);
+    syslog(LOG_DEBUG, "kmod wrote %d %s", rd, line);
     close(fd);
     return rd == strlen(line);
   } else {
@@ -121,7 +121,7 @@ kmod_coova_sync() {
 	    appconn->s_state.input_packets = pout;
 	  }
 	} else {
-	  log_dbg("Unknown entry");
+	  syslog(LOG_DEBUG, "Unknown entry");
 	}
       }
 

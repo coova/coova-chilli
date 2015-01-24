@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     }
   }
   
-  log_dbg("USER %s(%d/%d), GROUP %s(%d/%d) CHILLI[UID %d, GID %d]", 
+  syslog(LOG_DEBUG, "USER %s(%d/%d), GROUP %s(%d/%d) CHILLI[UID %d, GID %d]", 
 	  pwd->pw_name, uid, euid, grp->gr_name, gid, egid,
 	  _options.uid, _options.gid);
   

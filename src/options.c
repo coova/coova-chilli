@@ -113,7 +113,7 @@ static int opt_run(int argc, char **argv, int reload) {
 
   chilli_binconfig(file, sizeof(file), 0);
 
-  log_dbg("(Re)processing options [%s]", file);
+  syslog(LOG_DEBUG, "(Re)processing options [%s]", file);
 
   if ((status = safe_fork()) < 0) {
     log_err(errno, "fork() returned -1!");
@@ -137,7 +137,7 @@ static int opt_run(int argc, char **argv, int reload) {
   newargs[i++] = file;
   newargs[i++] = reload ? "-r" : NULL;
 
-  log_dbg("running chilli_opt on %s", file);
+  syslog(LOG_DEBUG, "running chilli_opt on %s", file);
 
   if (execv(SBINDIR "/chilli_opt", newargs) != 0) {
     log_err(errno, "execl() did not return 0!");
@@ -187,7 +187,7 @@ int options_load(int argc, char **argv, bstring bt) {
   if (fd < 0) return 0;
   done_before = 1;
 
-  log_dbg("PID %d rereading binary file %s", getpid(), file);
+  syslog(LOG_DEBUG, "PID %d rereading binary file %s", getpid(), file);
   return options_fromfd(fd, bt);
 }
 
@@ -401,7 +401,7 @@ int options_fromfd(int fd, bstring bt) {
       if (m->destroy)
 	m->destroy(isReload[i]);
     }
-    log_dbg("Unloading module %s",_options.modules[i].name);
+    syslog(LOG_DEBUG, "Unloading module %s",_options.modules[i].name);
     chilli_module_unload(_options.modules[i].ctx);
   }
 #endif
@@ -411,10 +411,10 @@ int options_fromfd(int fd, bstring bt) {
   _options._data = (char *)bt->data;
 
 #ifdef ENABLE_MODULES
-  log_dbg("Loading modules");
+  syslog(LOG_DEBUG, "Loading modules");
   for (i=0; i < MAX_MODULES; i++) {
     if (!_options.modules[i].name[0]) break;
-    log_dbg("Loading module %s",_options.modules[i].name);
+    syslog(LOG_DEBUG, "Loading module %s",_options.modules[i].name);
     chilli_module_load(&_options.modules[i].ctx, 
 		       _options.modules[i].name);
     if (_options.modules[i].ctx) {
@@ -443,7 +443,7 @@ int options_save(char *file, bstring bt) {
   mode_t oldmask;
   int fd, i;
 
-  log_dbg("PID %d saving options to %s", getpid(), file);
+  syslog(LOG_DEBUG, "PID %d saving options to %s", getpid(), file);
 
   memcpy(&o, &_options, sizeof(o));
 
@@ -616,7 +616,7 @@ int options_binload(char *file) {
   int ok = 0;
   if (fd >= 0) {
     bstring bt = bfromcstr("");
-    log_dbg("PID %d loading binary options file %s", getpid(), file);
+    syslog(LOG_DEBUG, "PID %d loading binary options file %s", getpid(), file);
     ok = options_fromfd(fd, bt);
     bdestroy(bt);
     return ok;
@@ -655,7 +655,7 @@ void reprocess_options(int argc, char **argv) {
 int reload_options(int argc, char **argv) {
   bstring bt = bfromcstr("");
   int ok = options_load(argc, argv, bt);
-  log_dbg("PID %d reloaded binary options file", getpid());
+  syslog(LOG_DEBUG, "PID %d reloaded binary options file", getpid());
   bdestroy(bt);
   return ok;
 }
@@ -679,14 +679,14 @@ void options_cleanup() {
       if (m->destroy)
 	m->destroy(0);
     }
-    log_dbg("Unloading module %s",_options.modules[i].name);
+    syslog(LOG_DEBUG, "Unloading module %s",_options.modules[i].name);
     chilli_module_unload(_options.modules[i].ctx);
   }
 #endif
 
   chilli_binconfig(file, sizeof(file), getpid());
-  log_dbg("Removing %s", file);
-  if (remove(file)) log_dbg("remove(%s) failed", file);
+  syslog(LOG_DEBUG, "Removing %s", file);
+  if (remove(file)) syslog(LOG_DEBUG, "remove(%s) failed", file);
   options_destroy();
 }
 
