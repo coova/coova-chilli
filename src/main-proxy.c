@@ -94,7 +94,7 @@ static void print_requests() {
 
   for (i=0; i < max_requests; i++) {
     req = &requests[i];
-    log_info("%.3d. inuse=%d prev=%.3d next=%.3d url=%s fd=%d", 
+    syslog(LOG_INFO, "%.3d. inuse=%d prev=%.3d next=%.3d url=%s fd=%d",
 	     req->index, req->inuse ? 1 : 0,
 	     req->prev ? req->prev->index : -1,
 	     req->next ? req->next->index : -1,
