@@ -27,7 +27,6 @@
 #include "ippool.h"
 #include "radius.h"
 #include "redir.h"
-#include "syserr.h"
 #include "session.h"
 #include "dhcp.h"
 #include "options.h"
