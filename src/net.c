@@ -1165,7 +1165,7 @@ int net_open_eth(net_interface *netif) {
 
   netif->pd = pcap_open_live(netif->devname, 2500, 1, 10, errbuf);
 
-  log_info("opening pcap device: %s", netif->devname);
+  syslog(LOG_INFO, "opening pcap device: %s", netif->devname);
 
   if (!netif->pd) {
     log_err(errno, "pcap: %s", errbuf);
@@ -1831,7 +1831,7 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   ring->cnt = req.tp_frame_nr;
   ring->frames = calloc(sizeof(void *), req.tp_frame_nr);
 
-  log_info("Created %s ring: len=%d; block size=%d; frame size=%d, cnt=%d", 
+  syslog(LOG_INFO, "Created %s ring: len=%d; block size=%d; frame size=%d, cnt=%d", 
 	   name, ring->len, req.tp_block_size, req.tp_frame_size, ring->cnt);
 }
 
@@ -1944,7 +1944,7 @@ static void setup_rings2(net_interface *iface) {
     setup_frames(&iface->tx_ring, iface->ring_ptr + len);
   
   /*len = human_format(iface->ring_len, &unit);*/
-  log_info("Set up ring buffer (%u RX/%u TX packets)",
+  syslog(LOG_INFO, "Set up ring buffer (%u RX/%u TX packets)",
 	   iface->rx_ring.cnt, iface->tx_ring.cnt);
 }
 
@@ -1966,7 +1966,7 @@ static void set_buffer(net_interface *iface, int what, int size) {
     val = size;
 
   /*ret = human_format(val, &unit);
-  log_info("The %s buffer is %d %s",
+  syslog(LOG_INFO, "The %s buffer is %d %s",
   what == SO_SNDBUF ? "send" : "receive", ret, unit);*/
 }
 
