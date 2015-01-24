@@ -12,7 +12,7 @@ static int acc(void *nullData, int sock) {
   char req[512];
 
   if ((rlen = safe_read(fd, req, sizeof(req))) < 0) {
-    log_err(errno, "acc()/read()");
+    syslog(LOG_ERR, "%d acc()/read()", errno);
     return -1;
   }
 
@@ -28,7 +28,7 @@ static int module_initialize(char *conf, char isReload) {
 
   if ((fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
 
-    log_err(errno, "could not allocate UNIX Socket!");
+    syslog(LOG_ERR, "%d could not allocate UNIX Socket!", errno);
 
   } else {
 
@@ -39,7 +39,7 @@ static int module_initialize(char *conf, char isReload) {
 
     if (bind(fd, (struct sockaddr *)&local, 
 	     sizeof(struct sockaddr_un)) == -1) {
-      log_err(errno, "could bind UNIX Socket!");
+      syslog(LOG_ERR, "%d could bind UNIX Socket!", errno);
       close(fd);
       fd = 0;
     }

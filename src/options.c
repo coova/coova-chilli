@@ -116,7 +116,7 @@ static int opt_run(int argc, char **argv, int reload) {
   syslog(LOG_DEBUG, "(Re)processing options [%s]", file);
 
   if ((status = safe_fork()) < 0) {
-    log_err(errno, "fork() returned -1!");
+    syslog(LOG_ERR, "%d fork() returned -1!", errno);
     return -1;
   }
   
@@ -140,7 +140,7 @@ static int opt_run(int argc, char **argv, int reload) {
   syslog(LOG_DEBUG, "running chilli_opt on %s", file);
 
   if (execv(SBINDIR "/chilli_opt", newargs) != 0) {
-    log_err(errno, "execl() did not return 0!");
+    syslog(LOG_ERR, "%d execl() did not return 0!", errno);
     exit(0);
   }
 
@@ -199,19 +199,19 @@ int options_mkdir(char *path) {
       /* not necessarily a directory */
       unlink(path);
       if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO)) {
-	log_err(errno, "mkdir %s", path);
+	syslog(LOG_ERR, "%d mkdir %s", errno, path);
 	return -1;
       }
       break;
     default:
-      log_err(errno, "mkdir %s", path);
+      syslog(LOG_ERR, "%d mkdir %s", errno, path);
       return -1;
     }
   }
 
   if (_options.uid && geteuid() == 0) {
     if (chown(path, _options.uid, _options.gid)) {
-      log_err(errno, "could not chown() %s", path);
+      syslog(LOG_ERR, "%d could not chown() %s", errno, path);
     }
   }
   return 0;
@@ -253,8 +253,8 @@ int options_fromfd(int fd, bstring bt) {
   close(fd);
 
   if (has_error) {
-    log_err(errno, "could not read configuration, some kind of mismatch fd=%d %s",
-	    fd, SBINDIR);
+    syslog(LOG_ERR, "%d could not read configuration, some kind of mismatch fd=%d %s",
+	    errno, fd, SBINDIR);
     return 0;
   }
   
@@ -577,33 +577,33 @@ int options_save(char *file, bstring bt) {
 
   if (fd < 0) {
 
-    log_err(errno, "could not save to %s", file);
+    syslog(LOG_ERR, "%d could not save to %s", errno, file);
 
     return 0;
 
   } else {
     if (safe_write(fd, &o, sizeof(o)) < 0)
-      log_err(errno, "write()");
+      syslog(LOG_ERR, "%d write()", errno);
 
     size_t len = bt->slen;
 
     if (safe_write(fd, &len, sizeof(len)) < 0)
-      log_err(errno, "write()");
+      syslog(LOG_ERR, "%d write()", errno);
 
     if (safe_write(fd, bt->data, len) < 0)
-      log_err(errno, "write()");
+      syslog(LOG_ERR, "%d write()", errno);
 
     options_md5(&o, cksum);
 
     if (safe_write(fd, cksum, sizeof(cksum)) < 0)
-      log_err(errno, "write()");
+      syslog(LOG_ERR, "%d write()", errno);
 
     close(fd);
 
     if (_options.uid) {
       if (chown(file, _options.uid, _options.gid)) {
-	log_err(errno, "could not chown() %s", 
-		_options.binconfig);
+	syslog(LOG_ERR, "%d could not chown() %s", 
+		errno, _options.binconfig);
       }
     }
   }

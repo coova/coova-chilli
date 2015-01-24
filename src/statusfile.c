@@ -50,11 +50,11 @@ int loadstatus() {
   syslog(LOG_DEBUG, "Loading file %s", filedest);
 
   file = fopen(filedest, "r");
-  if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
+  if (!file) { syslog(LOG_ERR, "%d could not open file %s", errno, filedest); return -1; }
 
   while ((c = fgetc(file)) != MARK_START) {
     if (c == EOF) { 
-      log_err(errno, "end of file");
+      syslog(LOG_ERR, "%d end of file", errno);
       fclose(file); 
       return -1; 
     }
@@ -62,18 +62,18 @@ int loadstatus() {
 
   time(&wall);
   if (fread(&r_wall, sizeof(time_t), 1, file) != 1) {
-    log_err(errno, "bad binary file");
+    syslog(LOG_ERR, "%d bad binary file", errno);
     if (c == EOF) { fclose(file); return -1; }
   }
 
   rt = mainclock_tick();
   if (fread(&r_rt, sizeof(time_t), 1, file) != 1) {
-    log_err(errno, "bad binary file");
+    syslog(LOG_ERR, "%d bad binary file", errno);
     if (c == EOF) { fclose(file); return -1; }
   }
 
   if ((c = fgetc(file)) != MARK_START) {
-    log_err(errno, "bad binary file");
+    syslog(LOG_ERR, "%d bad binary file", errno);
     fclose(file); 
     return -1; 
   }
@@ -94,7 +94,7 @@ int loadstatus() {
     /* todo: read a md5 checksum or magic token */
 
     if ((c = fgetc(file)) != MARK_NEXT) {
-      log_err(errno, "bad binary file");
+      syslog(LOG_ERR, "%d bad binary file", errno);
       fclose(file); 
       return -1;
     }
@@ -159,7 +159,7 @@ int loadstatus() {
 	  struct app_conn_t *aconn = 0;
 	  
 	  if ((c = fgetc(file)) != MARK_NEXT) {
-	    log_err(errno, "bad binary file");
+	    syslog(LOG_ERR, "%d bad binary file", errno);
 	    fclose(file); 
 	    return -1;
 	  }
@@ -214,7 +214,7 @@ int loadstatus() {
 	  /* todo: read a md5 checksum or magic token */
 	}
 	else {
-	  log_err(errno, "Problem loading state file %s",filedest);
+	  syslog(LOG_ERR, "%d Problem loading state file %s", errno, filedest);
 	  break;
 	}
       }
@@ -235,7 +235,7 @@ int loadstatus() {
 	if (fread(&appconn, sizeof(struct app_conn_t), 1, file) == 1) {
 
 	  if ((c = fgetc(file)) != MARK_NEXT) {
-	    log_err(errno, "bad binary file");
+	    syslog(LOG_ERR, "%d bad binary file", errno);
 	    fclose(file); 
 	    return -1;
 	  }
@@ -322,7 +322,7 @@ int printstatus() {
   syslog(LOG_DEBUG, "Writing status file: %s", filedest);
 
   file = fopen(filedest, "w");
-  if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
+  if (!file) { syslog(LOG_ERR, "%d could not open file %s", errno, filedest); return -1; }
   fprintf(file, "#CoovaChilli-Version: %s\n", VERSION);
   fprintf(file, "#Timestamp: %d\n", (int) mainclock);
 
@@ -389,7 +389,7 @@ int printstatus() {
   statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
 
   file = fopen(filedest, "w");
-  if (!file) { log_err(errno, "could not open file %s", filedest); return -1; }
+  if (!file) { syslog(LOG_ERR, "%d could not open file %s", errno, filedest); return -1; }
 
   fprintf(file, "#Version:1.1\n");
   fprintf(file, "#SessionID = SID\n#Start-Time = ST\n");
