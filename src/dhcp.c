@@ -4167,7 +4167,7 @@ void check_options(int datalen, uint8_t *data, uint8_t b[256]) {
               dlen = l * PKT_ETH_ALEN;
               break;
             default:
-              syslog(LOG_DEBUG, 0, "could not parse ICMP option");
+              syslog(LOG_DEBUG, "could not parse ICMP option");
               datalen = 0;
               break;
                 }

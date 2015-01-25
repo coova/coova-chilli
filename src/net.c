@@ -821,7 +821,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
       }
       
       if (len > dlen) {
-	syslog(LOG_WARNING, "data truncated %d/%d, sending ICMP error", 
+	syslog(LOG_WARNING, "data truncated %zu/%zd, sending ICMP error", 
 		 len, dlen);
 	return -1;
       }
@@ -863,7 +863,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 
 	if (ulen < 2 * PKT_ETH_ALEN ||
 	    len >= (dlen - 4)) {
-	  syslog(LOG_ERR, "bad pkt length to add 802.1q header %d/%d",
+	  syslog(LOG_ERR, "bad pkt length to add 802.1q header %d/%zd",
 		  ulen, len);
 	  break;
 	}
@@ -951,7 +951,7 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
 #endif
     }
     
-    syslog(LOG_ERR, "%d net_write_eth(fd=%d, len=%d) failed", errno, netif->fd, dlen);
+    syslog(LOG_ERR, "%d net_write_eth(fd=%d, len=%zu) failed", errno, netif->fd, dlen);
     return -1;
   }
 
@@ -1239,7 +1239,7 @@ int net_open_eth(net_interface *netif) {
       syslog(LOG_ERR, "%d Cannot create raw socket. Must be root.", errno);
     }
 
-    syslog(LOG_ERR, "%d socket(domain=%d, type=%lx, protocol=%d) failed",
+    syslog(LOG_ERR, "%d socket(domain=%d, type=%d, protocol=%d) failed",
 	    errno, PF_PACKET, SOCK_RAW, netif->protocol);
 
     return -1;

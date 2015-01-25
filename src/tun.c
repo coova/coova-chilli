@@ -412,7 +412,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   }
 
   if (addr_len != sizeof(local)) {
-    syslog(LOG_ERR, "Wrong address length %d", addr_len);
+    syslog(LOG_ERR, "Wrong address length %zd", addr_len);
     close(fd);
     return -1;
   }
