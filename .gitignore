@@ -82,6 +82,7 @@ libtool
 ltmain.sh
 m4/
 missing
+stamp-h1
 
 src/chilli
 src/chilli_opt
