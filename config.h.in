@@ -1,4 +1,4 @@
-/* config.h.in.  Generated from configure.in by autoheader.  */
+/* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define enable the recording of accept-language */
 #undef ENABLE_ACCEPTLANGUAGE
