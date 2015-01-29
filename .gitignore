@@ -46,6 +46,7 @@ www/Makefile
 www/Makefile.in
 
 aclocal.m4
+compile
 conf/CoovaChilliLib.py
 conf/chilli
 conf/chilli.conf
