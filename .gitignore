@@ -62,6 +62,7 @@ config.log
 config.status
 configure
 depcomp
+distro/nethserver/coova-chilli.spec
 distro/redhat/coova-chilli.spec
 distro/suse/coova-chilli.spec
 doc/chilli-radius.5
