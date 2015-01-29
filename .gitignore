@@ -77,6 +77,7 @@ doc/chilli_rtmon.1
 doc/chilli_script.1
 install-sh
 libtool
+ltmain.sh
 m4/
 missing
 
