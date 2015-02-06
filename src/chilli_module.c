@@ -35,7 +35,7 @@ int chilli_module_load(void **ctx, char *name) {
   lib_handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
 
   if (!lib_handle) {
-    log_err(errno, "chilli_module_load() %s", dlerror());
+    syslog(LOG_ERR, "%d chilli_module_load() %s", errno, dlerror());
     return -1;
   }
 
@@ -49,14 +49,14 @@ int chilli_module_load(void **ctx, char *name) {
   sym = dlsym(lib_handle, path);
   if ((error = dlerror()) != NULL) {
     dlclose(lib_handle);
-    log_err(errno, "%s", error);
+    syslog(LOG_ERR, "%d %s", errno, error);
     return -1;
   }
 
   m = (struct chilli_module *) sym;
   m->lib = lib_handle;
 
-  log_dbg("Loaded module %s", name);
+  syslog(LOG_DEBUG, "Loaded module %s", name);
 
   *ctx = m;
   

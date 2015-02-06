@@ -223,12 +223,12 @@ static int radius_queue_next(struct radius_t *this) {
   qnext = this->qnext;
 
 #if(_debug_ > 1)
-  log_dbg("qnext=%d",qnext);
+  syslog(LOG_DEBUG, "qnext=%d",qnext);
 #endif
 
   if (this->queue[qnext].state == 1) {
     
-    log_dbg("skipping over active idx %d radius-id=%d", 
+    syslog(LOG_DEBUG, "skipping over active idx %d radius-id=%d", 
 	    qnext, RADIUS_QUEUE_PKT(this->queue[qnext].p,id));
     
     if (attempt++ < (this->qsize ? this->qsize : 256)) {
@@ -240,7 +240,7 @@ static int radius_queue_next(struct radius_t *this) {
       goto try_again;
     }
     
-    log_err(0, "radius queue is full! qnext=%d qsize=%d",
+    syslog(LOG_ERR, "radius queue is full! qnext=%d qsize=%d",
 	    qnext, this->qsize);
     
     return -1;
@@ -267,7 +267,7 @@ static int radius_queue_idx(struct radius_t *this, int id) {
     idx %= sz;
     if (RADIUS_QUEUE_HASPKT(this->queue[idx].p)) {
 #if(_debug_ > 1)
-      log_dbg("idx %d pid %d id %d", idx, 
+      syslog(LOG_DEBUG, "idx %d pid %d id %d", idx, 
 	      RADIUS_QUEUE_PKT(this->queue[idx].p,id), id);
 #endif
       if (RADIUS_QUEUE_PKT(this->queue[idx].p,id) == id)
@@ -301,7 +301,7 @@ int radius_queue_in(struct radius_t *this,
     return -1;
   
 #if(_debug_ > 1)
-  log_dbg("RADIUS queue-in id=%d idx=%d", pack->id, qnext);
+  syslog(LOG_DEBUG, "RADIUS queue-in id=%d idx=%d", pack->id, qnext);
 #endif
   
   /* If packet contains message authenticator: Calculate it! */
@@ -362,7 +362,7 @@ int radius_queue_in(struct radius_t *this,
   
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("sending radius packet (code=%d, id=%d, len=%d)\n",
+    syslog(LOG_DEBUG, "sending radius packet (code=%d, id=%d, len=%d)\n",
 	    pack->code, pack->id, ntohs(pack->length));
 
     radius_printqueue(0, this);
@@ -389,19 +389,19 @@ radius_queue_out(struct radius_t *this, int idx,
   }
   
   if (idx < 0) {
-    log_err(0, "bad idx (%d)", idx);
+    syslog(LOG_ERR, "bad idx (%d)", idx);
     return -1;
   }
   
   if (this->queue[idx].state != 1) {
-    log_err(0, "RADIUS id=%d idx=%d with state != 1", 
+    syslog(LOG_ERR, "RADIUS id=%d idx=%d with state != 1", 
 	    id, idx);
     return -1;
   }
   
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("radius_queue_out");
+    syslog(LOG_DEBUG, "radius_queue_out");
     radius_printqueue(0, this);
   }
 #endif
@@ -410,7 +410,7 @@ radius_queue_out(struct radius_t *this, int idx,
     if (pack_in &&
 	radius_authcheck(this, pack_in, 
 			 RADIUS_QUEUE_PKTPTR(this->queue[idx].p))) {
-      log_warn(0, "Authenticator does not match! req-id=%d res-id=%d", 
+      syslog(LOG_WARNING, "Authenticator does not match! req-id=%d res-id=%d", 
 	       RADIUS_QUEUE_PKT(this->queue[idx].p,id), 
 	       pack_in->id);
       return -1;
@@ -424,7 +424,7 @@ radius_queue_out(struct radius_t *this, int idx,
 
   *cbp = this->queue[idx].cbp;
   
-  log_dbg("RADIUS queue-out id=%d idx=%d", pack_out->id, idx);
+  syslog(LOG_DEBUG, "RADIUS queue-out id=%d idx=%d", pack_out->id, idx);
 
   this->queue[idx].state = 0;
 
@@ -441,7 +441,7 @@ radius_queue_out(struct radius_t *this, int idx,
   
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("radius_queue_out end");
+    syslog(LOG_DEBUG, "radius_queue_out end");
     radius_printqueue(0, this);
   }
 #endif
@@ -457,16 +457,16 @@ static int radius_queue_reschedule(struct radius_t *this, int idx) {
   struct timeval *tv;
 
   if (this->queue[idx].state != 1) {
-    log_err(0, "No such id in radius queue: id=%d!", idx);
+    syslog(LOG_ERR, "No such id in radius queue: id=%d!", idx);
     return -1;
   }
 
-  log_dbg("Rescheduling RADIUS request id=%d idx=%d",
+  syslog(LOG_DEBUG, "Rescheduling RADIUS request id=%d idx=%d",
 	  RADIUS_QUEUE_PKT(this->queue[idx].p,id), idx);
 
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("radius_reschedule");
+    syslog(LOG_DEBUG, "radius_reschedule");
     radius_printqueue(0, this);
   }
 #endif
@@ -653,7 +653,7 @@ int radius_timeout(struct radius_t *this) {
 
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("radius_timeout(%d) %8d %8d", this->first, 
+    syslog(LOG_DEBUG, "radius_timeout(%d) %8d %8d", this->first, 
 	    (int)now.tv_sec, (int)now.tv_usec);
     radius_printqueue(0, this);
   }
@@ -702,21 +702,21 @@ int radius_timeout(struct radius_t *this) {
 		   ntohs(RADIUS_QUEUE_PKT(this->queue[this->first].p, length)),
 		   0, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
 	  
-	  log_err(errno, "sendto() failed!");
+	  syslog(LOG_ERR, "%d sendto() failed!", errno);
 	  radius_queue_reschedule(this, this->first);
 	  return -1;
 	}
       }
 
       if (radius_queue_reschedule(this, this->first)) {
-	log_warn(0, "Matching request was not found in queue: %d!", this->first);
+	syslog(LOG_WARNING, "Matching request was not found in queue: %d!", this->first);
 	return -1;
       }
     }
     else { /* Finished retrans */
       if (radius_queue_out(this, this->first,
 			   0, &pack_req, &cbp)) {
-	log_warn(0, "RADIUS idx=%d was not found in queue!", 
+	syslog(LOG_WARNING, "RADIUS idx=%d was not found in queue!", 
 		 this->first);
 	return -1;
       }
@@ -733,9 +733,9 @@ int radius_timeout(struct radius_t *this) {
   
 #if(_debug_ > 1)
   if (_options.debug) {
-    log_dbg("radius_timeout");
+    syslog(LOG_DEBUG, "radius_timeout");
     if (this->first > 0) {
-      log_dbg("first %d, timeout %8d %8d", this->first, 
+      syslog(LOG_DEBUG, "first %d, timeout %8d %8d", this->first, 
 	     (int) this->queue[this->first].timeout.tv_sec, 
 	     (int) this->queue[this->first].timeout.tv_usec); 
     }
@@ -786,13 +786,13 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
     
     if (vlen > RADIUS_ATTR_VLEN) {
-      log_warn(0, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d bytes [%s]", 
+      syslog(LOG_WARNING, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d bytes [%s]", 
 	       type, vendor_id, vendor_type, vlen, RADIUS_ATTR_VLEN, data);
       vlen = RADIUS_ATTR_VLEN;
     }
 
     if ((length+vlen+2) > RADIUS_PACKSIZE) {
-      log_err(0, "No more space!");
+      syslog(LOG_ERR, "No more space!");
       return -1;
     }
 
@@ -819,13 +819,13 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
 
     if (vlen > RADIUS_ATTR_VLEN-8) {
-      log_warn(0, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d [%s]", 
+      syslog(LOG_WARNING, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d [%s]", 
 	       type, vendor_id, vendor_type, vlen, RADIUS_ATTR_VLEN-8, data);
       vlen = RADIUS_ATTR_VLEN-8;
     }
 
     if ((length+vlen+2) > RADIUS_PACKSIZE) { 
-      log_err(0, "No more space!");
+      syslog(LOG_ERR, "No more space!");
       return -1;
     }
 
@@ -860,7 +860,7 @@ radius_addvsa(struct radius_packet_t *pack, struct redir_state *state) {
     memcpy(m, state->vsa, state->vsalen);
     length += state->vsalen;
     pack->length = htons(length);
-    log_dbg("Recalled VSA with length %d",length);
+    syslog(LOG_DEBUG, "Recalled VSA with length %d",length);
   }
   return 0;
 }
@@ -977,14 +977,14 @@ int radius_keydecode(struct radius_t *this,
   int i, n;
 
   if (srclen < 18) {
-    log_err(0, "radius_keydecode MPPE attribute content len must be at least 18, len = %d", srclen);
+    syslog(LOG_ERR, "radius_keydecode MPPE attribute content len must be at least 18, len=%zd", srclen);
     return -1;
   }
  
   blocks = ((int)srclen - 2) / RADIUS_MD5LEN;
 
   if ((blocks * RADIUS_MD5LEN + 2) != (int)srclen) {
-    log_err(0, "radius_keydecode: srclen must be 2 plus n*16");
+    syslog(LOG_ERR, "radius_keydecode: srclen must be 2 plus n*16");
     return -1;
   }
 
@@ -999,12 +999,12 @@ int radius_keydecode(struct radius_t *this,
   *dstlen = (size_t)(src[2] ^ b[0]);
   
   if (*dstlen > (srclen - 3)) {
-    log_err(0,"radius_keydecode not enough encrypted data bytes for indicated key length = %d (bytes)", *dstlen);
+    syslog(LOG_ERR,"radius_keydecode not enough encrypted data bytes for indicated key length = %zd (bytes)", *dstlen);
     return -1; 
   }
 
   if (*dstlen > dstsize) {
-    log_err(0,"radius_keydecode output buffer for plaintext key is too small");
+    syslog(LOG_ERR,"radius_keydecode output buffer for plaintext key is too small");
     return -1; 
   }
 
@@ -1049,7 +1049,7 @@ int radius_keyencode(struct radius_t *this,
   if ((blocks * RADIUS_MD5LEN) < ((int)srclen + 1)) blocks++;
   
   if (((blocks * RADIUS_MD5LEN) + 2) > (int)dstsize) {
-    log_err(0, "radius_keyencode dstsize too small");
+    syslog(LOG_ERR, "radius_keyencode dstsize too small");
     return -1;
   }
 
@@ -1057,7 +1057,7 @@ int radius_keyencode(struct radius_t *this,
 
   /* Read two salt octets */
   if (fread(dst, 1, 2, this->urandom_fp) != 2) {
-    log_err(errno, "fread() failed");
+    syslog(LOG_ERR, "%d fread() failed", errno);
     return -1;
   }
 
@@ -1105,16 +1105,16 @@ int radius_pwdecode(struct radius_t *this,
   unsigned char output[RADIUS_MD5LEN];
 
 #if(_debug_ > 1)
-  log_dbg("pw decode secret=%s", secret);
+  syslog(LOG_DEBUG, "pw decode secret=%s", secret);
 #endif
 
   if (srclen > dstsize) {
-    log_err(0, "radius_pwdecode srclen larger than dstsize");
+    syslog(LOG_ERR, "radius_pwdecode srclen larger than dstsize");
     return -1;
   }
 
   if (srclen % RADIUS_MD5LEN) {
-    log_err(0, "radius_pwdecode srclen is not multiple of 16 octets");
+    syslog(LOG_ERR, "radius_pwdecode srclen is not multiple of 16 octets");
     return -1;
   }
 
@@ -1192,7 +1192,7 @@ int radius_pwencode(struct radius_t *this,
   size_t i, n;
 
 #if(_debug_ > 1)
-  log_dbg("pw encode secret=%s", secret);
+  syslog(LOG_DEBUG, "pw encode secret=%s", secret);
 #endif
 
   memset(dst, 0, dstsize);
@@ -1252,7 +1252,7 @@ int radius_new(struct radius_t **this,
 
   /* Allocate storage for instance */
   if (!(new_radius = calloc(sizeof(struct radius_t), 1))) {
-    log_err(0, "calloc() failed");
+    syslog(LOG_ERR, "calloc() failed");
     return -1;
   }
 
@@ -1300,7 +1300,7 @@ int radius_new(struct radius_t **this,
   
   /* Initialise radius socket */
   if ((new_radius->fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-    log_err(errno, "socket() failed!");
+    syslog(LOG_ERR, "%d socket() failed!", errno);
     fclose(new_radius->urandom_fp);
     free(new_radius);
     return -1;
@@ -1311,12 +1311,12 @@ int radius_new(struct radius_t **this,
   addr.sin_addr = new_radius->ouraddr;
   addr.sin_port = htons(new_radius->ourport);
 
-  log_dbg("RADIUS client %s:%d",
+  syslog(LOG_DEBUG, "RADIUS client %s:%d",
 	  inet_ntoa(new_radius->ouraddr),
 	  new_radius->ourport);
   
   if (bind(new_radius->fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-    log_err(errno, "bind() failed!");
+    syslog(LOG_ERR, "%d bind() failed!", errno);
     fclose(new_radius->urandom_fp);
     close(new_radius->fd);
     free(new_radius);
@@ -1324,7 +1324,7 @@ int radius_new(struct radius_t **this,
   }
 
   if ((new_radius->urandom_fp = fopen("/dev/urandom", "r")) == 0) {
-    log_err(errno, "fopen(/dev/urandom, r) failed");
+    syslog(LOG_ERR, "%d fopen(/dev/urandom, r) failed", errno);
     return -1;
   }
   
@@ -1332,7 +1332,7 @@ int radius_new(struct radius_t **this,
   if (proxy) {     /* Initialise proxy socket */
 
     if ((new_radius->proxyfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-      log_err(errno, "socket() failed for proxyfd!");
+      syslog(LOG_ERR, "%d socket() failed for proxyfd!", errno);
       fclose(new_radius->urandom_fp);
       close(new_radius->fd);
       free(new_radius);
@@ -1345,7 +1345,7 @@ int radius_new(struct radius_t **this,
     addr.sin_port = htons(new_radius->proxyport);
     
     if (bind(new_radius->proxyfd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-      log_err(errno, "bind() failed for proxylisten!");
+      syslog(LOG_ERR, "%d bind() failed for proxylisten!", errno);
       fclose(new_radius->urandom_fp);
       close(new_radius->fd);
       close(new_radius->proxyfd);
@@ -1387,11 +1387,11 @@ radius_free(struct radius_t *this) {
   }
   if (this->urandom_fp) {
     if (fclose(this->urandom_fp)) {
-      log_err(errno, "fclose() failed!");
+      syslog(LOG_ERR, "%d fclose() failed!", errno);
     }
   }
   if (close(this->fd)) {
-    log_err(errno, "close() failed!");
+    syslog(LOG_ERR, "%d close() failed!", errno);
   }
   free(this);
   return 0;
@@ -1412,7 +1412,7 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
     this->hisaddr1.s_addr = _options.radiusserver2.s_addr;
     
     if ((this->secretlen = strlen(_options.radiussecret)) > RADIUS_SECRETSIZE) {
-      log_err(0, "Radius secret too long. Truncating to %d characters", 
+      syslog(LOG_ERR, "Radius secret too long. Truncating to %d characters", 
 	      RADIUS_SECRETSIZE);
       this->secretlen = RADIUS_SECRETSIZE;
     }
@@ -1509,7 +1509,7 @@ int radius_req(struct radius_t *this,
   
   /* Place packet in queue */
   if (radius_queue_in(this, pack, cbp)) {
-    log_err(0, "could not put in queue");
+    syslog(LOG_ERR, "could not put in queue");
     return -1;
   }
   
@@ -1529,7 +1529,7 @@ int radius_req(struct radius_t *this,
     addr.sin_port = htons(this->authport);
   
 #if(_debug_ > 1)
-    log_dbg("RADIUS id=%d sent to %s:%d", 
+    syslog(LOG_DEBUG, "RADIUS id=%d sent to %s:%d", 
 	    pack->id,
 	    inet_ntoa(addr.sin_addr), 
 	    ntohs(addr.sin_port));
@@ -1537,7 +1537,7 @@ int radius_req(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,
 	     (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-    log_err(errno, "sendto(%s) failed!", inet_ntoa(addr.sin_addr));
+    syslog(LOG_ERR, "%d sendto(%s) failed!", errno, inet_ntoa(addr.sin_addr));
     return -1;
   } 
     
@@ -1571,7 +1571,7 @@ int radius_resp(struct radius_t *this,
   
   if (sendto(this->proxyfd, pack, len, 0,
 	     (struct sockaddr *) peer, sizeof(struct sockaddr_in)) < 0) {
-    log_err(errno, "sendto() failed!");
+    syslog(LOG_ERR, "%d sendto() failed!", errno);
     return -1;
   } 
   
@@ -1606,7 +1606,7 @@ int radius_coaresp(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,
 	     (struct sockaddr *) peer, sizeof(struct sockaddr_in)) < 0) {
-    log_err(errno, "sendto() failed!");
+    syslog(LOG_ERR, "%d sendto() failed!", errno);
     return -1;
   } 
   
@@ -1645,7 +1645,7 @@ radius_default_pack(struct radius_t *this,
 
   if (fread(pack->authenticator, 1, RADIUS_AUTHLEN, 
 	    this->urandom_fp) != RADIUS_AUTHLEN) {
-    log_err(errno, "fread() failed");
+    syslog(LOG_ERR, "%d fread() failed", errno);
     return -1;
   }
 
@@ -1715,7 +1715,7 @@ radius_authcheck(struct radius_t *this, struct radius_packet_t *pack,
 
   res = memcmp(pack->authenticator, auth, RADIUS_AUTHLEN);
   if (res) 
-    log_warn(0, "Authenticator "
+    syslog(LOG_WARNING, "Authenticator "
 	     AUTH_FMT"(pkt) != "AUTH_FMT"(calc)",
 	     AUTH_ARG(pack->authenticator),
 	     AUTH_ARG(auth));
@@ -1777,23 +1777,23 @@ static void chilli_extadmvsa(struct radius_t *radius,
 	  continue;
 	
 	if (stat(_options.extadmvsa[i].data, &statbuf)) {
-	  log_dbg("Skipping %s, does not exist",
+	  syslog(LOG_DEBUG, "Skipping %s, does not exist",
 		  _options.extadmvsa[i].data);
 	  continue;
 	}
 	
 	if (statbuf.st_size > 127) {
-	  log_err(errno, "File %s too big", 
-		  _options.extadmvsa[i].data);
+	  syslog(LOG_ERR, "%d File %s too big", 
+		  errno, _options.extadmvsa[i].data);
 	  continue;
 	}
 	
 	if ((fd = open(_options.extadmvsa[i].data, O_RDONLY)) < 0) {
-	  log_err(errno, "Failed to open %s", _options.extadmvsa[i].data);
+	  syslog(LOG_ERR, "%d Failed to open %s", errno, _options.extadmvsa[i].data);
 	  continue;
 	}
 	
-	log_dbg("Reading %s", _options.extadmvsa[i].data);
+	syslog(LOG_DEBUG, "Reading %s", _options.extadmvsa[i].data);
 	
 	len = read(fd, b, sizeof(b));
 	close(fd);
@@ -1821,23 +1821,23 @@ static void chilli_extadmvsa(struct radius_t *radius,
 	
 	if (!_options.extadmvsa[i].attr_vsa) {
 #if(_debug_)
-	  log_dbg("looking for attr %d", _options.extadmvsa[i].attr);
+	  syslog(LOG_DEBUG, "looking for attr %d", _options.extadmvsa[i].attr);
 #endif
 	  if (radius_getattr(resp, &attr, _options.extadmvsa[i].attr, 
 			     0, 0, 0)) {
-	    log_dbg("didn't find attr %d", _options.extadmvsa[i].attr);
+	    syslog(LOG_DEBUG, "didn't find attr %d", _options.extadmvsa[i].attr);
 	    attr = 0;
 	  }
 	} else {
 #if(_debug_)
-	  log_dbg("looking for attr %d/%d", _options.extadmvsa[i].attr_vsa, 
+	  syslog(LOG_DEBUG, "looking for attr %d/%d", _options.extadmvsa[i].attr_vsa, 
 		  _options.extadmvsa[i].attr);
 #endif
 	  if (radius_getattr(resp, &attr, 
 			     RADIUS_ATTR_VENDOR_SPECIFIC, 
 			     _options.extadmvsa[i].attr_vsa, 
 			     _options.extadmvsa[i].attr, 0)) {
-	    log_dbg("didn't find attr %d/%d", _options.extadmvsa[i].attr_vsa, 
+	    syslog(LOG_DEBUG, "didn't find attr %d/%d", _options.extadmvsa[i].attr_vsa, 
 		    _options.extadmvsa[i].attr);
 	    attr = 0;
 	  }
@@ -1846,7 +1846,7 @@ static void chilli_extadmvsa(struct radius_t *radius,
 	  char v[256];
 	  memset(v, 0, sizeof(v));
 	  memcpy(v, attr->v.t, attr->l - 2);
-	  log_dbg("Running script %s %d",
+	  syslog(LOG_DEBUG, "Running script %s %d",
 		  _options.extadmvsa[i].script, 
 		  attr->l - 2);
 	  if (chilli_fork(CHILLI_PROC_SCRIPT, 	 
@@ -1860,12 +1860,12 @@ static void chilli_extadmvsa(struct radius_t *radius,
 #endif
 		      _options.extadmvsa[i].script, 
 		      v, (char *) 0) != 0) {
-	      log_err(errno, "exec %s failed",
-		      _options.extadmvsa[i].script);
+	      syslog(LOG_ERR, "%d exec %s failed",
+		      errno, _options.extadmvsa[i].script);
 	    }
 	    exit(0);
 	  } else {
-	    log_err(errno, "forking %s", _options.extadmvsa[i].script);
+	    syslog(LOG_ERR, "%d forking %s", errno, _options.extadmvsa[i].script);
 	  }
 	}
       }
@@ -1888,23 +1888,24 @@ int radius_decaps(struct radius_t *this, int idx) {
 
   if ((status = recvfrom(this->fd, &pack, sizeof(pack), 0, 
 			 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-    log_err(errno, "recvfrom() failed");
+    syslog(LOG_ERR, "%d recvfrom() failed", errno);
     return -1;
   }
 
   if (status < RADIUS_HDRSIZE) {
-    log_warn(0, "Received radius packet which is too short: %d < %d!",
+    syslog(LOG_WARNING, "Received radius packet which is too short: %zd < %d!",
 	     status, RADIUS_HDRSIZE);
     return -1;
   }
 
   if (ntohs(pack.length) != (uint16_t)status) {
-    log_warn(errno, "Received radius packet with wrong length field %d != %d!",
-	     ntohs(pack.length), status);
+    syslog(LOG_WARNING, 
+	"%d Received radius packet with wrong length field %d !=%zd!",
+	     errno, ntohs(pack.length), status);
     return -1;
   }
 
-  log_dbg("Received RADIUS packet id=%d", pack.id);
+  syslog(LOG_DEBUG, "Received RADIUS packet id=%d", pack.id);
   
   switch (pack.code) {
   case RADIUS_CODE_DISCONNECT_REQUEST:
@@ -1913,14 +1914,14 @@ int radius_decaps(struct radius_t *this, int idx) {
       /* Check that request is from correct address */
       if ((addr.sin_addr.s_addr != this->hisaddr0.s_addr) &&
 	  (addr.sin_addr.s_addr != this->hisaddr1.s_addr)) {
-	log_warn(0, "Received RADIUS from wrong address %.8x!",
+	syslog(LOG_WARNING, "Received RADIUS from wrong address %.8x!",
 		 addr.sin_addr.s_addr);
 	return -1;
       }
     }
     
     if (radius_acctcheck(this, &pack)) {
-      log_warn(0, "RADIUS id=%d Authenticator did not match!", pack.id);
+      syslog(LOG_WARNING, "RADIUS id=%d Authenticator did not match!", pack.id);
       return -1;
     }
     break;
@@ -1929,7 +1930,7 @@ int radius_decaps(struct radius_t *this, int idx) {
     /* Check that reply is from correct address */
     if ((addr.sin_addr.s_addr != this->hisaddr0.s_addr) &&
 	(addr.sin_addr.s_addr != this->hisaddr1.s_addr)) {
-      log_warn(0, "Received radius reply from wrong address %s!",
+      syslog(LOG_WARNING, "Received radius reply from wrong address %s!",
 	       inet_ntoa(addr.sin_addr));
       return -1;
     }
@@ -1937,13 +1938,13 @@ int radius_decaps(struct radius_t *this, int idx) {
     /* Check that UDP source port is correct */
     if ((addr.sin_port != htons(this->authport)) &&
 	(addr.sin_port != htons(this->acctport))) {
-      log_warn(0, "Received radius packet from wrong port %d!",
+      syslog(LOG_WARNING, "Received radius packet from wrong port %d!",
 	       ntohs(addr.sin_port));
       return -1;
     }
     
     if (radius_queue_out(this, -1, &pack, &pack_req, &cbp)) {
-      log_warn(0, "RADIUS id %d was not found in queue!", 
+      syslog(LOG_WARNING, "RADIUS id %d was not found in queue!", 
 	       (int) pack.id);
       return -1;
     }
@@ -2015,11 +2016,11 @@ int radius_decaps(struct radius_t *this, int idx) {
     break;
 #endif
   default:
-    log_warn(0, "Received unknown RADIUS packet %d!", pack.code);
+    syslog(LOG_WARNING, "Received unknown RADIUS packet %d!", pack.code);
     return -1;
   }
   
-  log_warn(0, "Received unknown RADIUS packet %d!", pack.code);
+  syslog(LOG_WARNING, "Received unknown RADIUS packet %d!", pack.code);
   return -1;
 }
 
@@ -2036,20 +2037,20 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
 
   if ((status = recvfrom(this->proxyfd, &pack, sizeof(pack), 0, 
 			 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-    log_err(errno, "recvfrom() failed");
+    syslog(LOG_ERR, "%d recvfrom() failed", errno);
     return -1;
   }
 
-  log_dbg("Received RADIUS proxy packet id=%d", pack.id);
+  syslog(LOG_DEBUG, "Received RADIUS proxy packet id=%d", pack.id);
 
   if (status < RADIUS_HDRSIZE) {
-    log_warn(0, "Received RADIUS packet which is too short: %d < %d!",
+    syslog(LOG_WARNING, "Received RADIUS packet which is too short: %zd < %d!",
 	    status, RADIUS_HDRSIZE);
     return -1;
   }
 
   if (ntohs(pack.length) != (uint16_t)status) {
-    log_err(0, "Received RADIUS packet with wrong length field %d != %d!",
+    syslog(LOG_ERR, "Received RADIUS packet with wrong length field %d != %zd!",
 	    ntohs(pack.length), status);
     return -1;
   }
@@ -2063,7 +2064,7 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
     if ( (addr.sin_addr.s_addr   & this->proxymask.s_addr) != 
 	 (this->proxyaddr.s_addr & this->proxymask.s_addr) ) {
 
-      log_warn(0, "Received RADIUS proxy request from wrong address %s",
+      syslog(LOG_WARNING, "Received RADIUS proxy request from wrong address %s",
 	       inet_ntoa(addr.sin_addr));
 
       return -1;
@@ -2072,7 +2073,7 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
     return this->cb_ind(this, &pack, &addr);
   }
   
-  log_warn(0, "Received unknown RADIUS proxy packet %d!", pack.code);
+  syslog(LOG_WARNING, "Received unknown RADIUS proxy packet %d!", pack.code);
   return -1;
 }
 

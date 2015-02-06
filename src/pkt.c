@@ -26,7 +26,7 @@ int pkt_shape_tcpwin(struct pkt_iphdr_t *iph, uint16_t win) {
     /*log_dbg("TCP Window %d", ntohs(tcph->win));*/
     if (ntohs(tcph->win) > win) {
 #if(_debug_ > 1)
-      log_dbg("Rewriting TCP Window %d", win);
+      syslog(LOG_DEBUG, "Rewriting TCP Window %d", win);
 #endif
       tcph->win = htons(win);
       chksum(iph);
@@ -46,7 +46,7 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
     int hasmss = 0;
     
 #if(0)
-    log_dbg("-->> offset: %d", off);
+    syslog(LOG_DEBUG, "-->> offset: %d", off);
 #endif
     
     if (off > 15 || off < 0) 
@@ -68,24 +68,24 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
 	  
 	case 1: 
 #if(0)
-	  log_dbg("TCP OPTIONS: NOP");
+	  syslog(LOG_DEBUG, "TCP OPTIONS: NOP");
 #endif
 	  break;
 	  
 	default:
 	  len = (int) opts[i++];
 	  if (len < 2 || len > TCP_MAX_OPTION_LEN) {
-	    log_err(0, "bad TCP option during parse, len=%d", len);
+	    syslog(LOG_ERR, "bad TCP option during parse, len=%d", len);
 	    return -1;
 	  }
 	  if (type == 2 && len == 4) {
 #if(1)
-	    log_dbg("TCP OPTIONS: MSS %d",
+	    syslog(LOG_DEBUG, "TCP OPTIONS: MSS %d",
 		    ntohs(*((uint16_t *)&opts[i])));
 #endif
 	    if (ntohs(*((uint16_t *)&opts[i])) > optval) {
 
-	      log_dbg("Rewriting TCP MSS to %d", optval);
+	      syslog(LOG_DEBUG, "Rewriting TCP MSS to %d", optval);
 
 	      *((uint16_t *)&opts[i]) = htons(optval);
 	      chksum(iph);
@@ -93,7 +93,7 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
 	    hasmss = 1;
 #ifdef ENABLE_LEAKYBUCKET
 	  } else if (_options.scalewin && type == 3 && len == 3) {
-	    log_dbg("TCP OPTIONS: window scale was %d",
+	    syslog(LOG_DEBUG, "TCP OPTIONS: window scale was %d",
 		    (int) opts[i]);
 	    if (opts[i] > 0) {
 	      opts[i]=0;
@@ -102,7 +102,7 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
 #endif
 	  } else {
 #if(0)
-	    log_dbg("TCP OPTIONS: type %d len %d", type, len); 
+	    syslog(LOG_DEBUG, "TCP OPTIONS: type %d len %d", type, len); 
 #endif
 	  }
 	  i += len - 2;
@@ -115,7 +115,7 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
       uint8_t p[PKT_BUFFER];
       memcpy(p, packet, *length);
 
-      log_dbg("Adding TCP MSS to %d", optval);
+      syslog(LOG_DEBUG, "Adding TCP MSS to %d", optval);
 
       {
 	struct pkt_iphdr_t *p_iph = pkt_iphdr(p);

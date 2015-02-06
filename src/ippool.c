@@ -173,7 +173,7 @@ int ippool_hashdel(struct ippool_t *this, struct ippoolm_t *member) {
   }
 
   if (p!= member) {
-    log_err(0, "ippool_hashdel: Tried to delete member not in hash table");
+    syslog(LOG_ERR, "ippool_hashdel: Tried to delete member not in hash table");
     return -1;
   }
 
@@ -218,7 +218,7 @@ int ippool_new(struct ippool_t **this,
   }
   else {
     if (option_aton(&addr, &mask, dyn, 0)) {
-      log_err(0, "Failed to parse dynamic pool");
+      syslog(LOG_ERR, "Failed to parse dynamic pool");
       return -1;
     }
 
@@ -234,25 +234,25 @@ int ippool_new(struct ippool_t **this,
 
     if ( ((ntohl(addr.s_addr) + start) & m) != (ntohl(addr.s_addr) & m) ) {
       addr.s_addr = htonl(ntohl(addr.s_addr) + start);
-      log_err(0, "Invalid dhcpstart=%d (%s) (outside of subnet)!",
+      syslog(LOG_ERR, "Invalid dhcpstart=%d (%s) (outside of subnet)!",
 	      start, inet_ntoa(addr));
       return -1;
     }
 
     if ( ((ntohl(addr.s_addr) + end) & m) != (ntohl(addr.s_addr) & m) ) {
-      log_err(0, "Invalid dhcpend (outside of subnet)!");
+      syslog(LOG_ERR, "Invalid dhcpend (outside of subnet)!");
       return -1;
     }
 
     if (start > 0 && end > 0) {
 
       if (end < start) {
-	log_err(0, "Bad arguments dhcpstart=%d and dhcpend=%d", start, end);
+	syslog(LOG_ERR, "Bad arguments dhcpstart=%d and dhcpend=%d", start, end);
 	return -1;
       }
 
       if ((end - start) > dynsize) {
-	log_err(0, "Too many IPs between dhcpstart=%d and dhcpend=%d",
+	syslog(LOG_ERR, "Too many IPs between dhcpstart=%d and dhcpend=%d",
 		start, end);
 	return -1;
       }
@@ -295,7 +295,7 @@ int ippool_new(struct ippool_t **this,
   }
   else {
     if (option_aton(&stataddr, &statmask, stat, 0)) {
-      log_err(0, "Failed to parse static range");
+      syslog(LOG_ERR, "Failed to parse static range");
       return -1;
     }
 
@@ -312,7 +312,7 @@ int ippool_new(struct ippool_t **this,
   listsize = dynsize + statsize; /* Allocate space for static IP addresses */
 
   if (!(*this = calloc(sizeof(struct ippool_t), 1))) {
-    log_err(0, "Failed to allocate memory for ippool");
+    syslog(LOG_ERR, "Failed to allocate memory for ippool");
     return -1;
   }
   
@@ -326,7 +326,7 @@ int ippool_new(struct ippool_t **this,
   (*this)->listsize  = listsize;
 
   if (!((*this)->member = calloc(sizeof(struct ippoolm_t), listsize))){
-    log_err(0, "Failed to allocate memory for members in ippool");
+    syslog(LOG_ERR, "Failed to allocate memory for members in ippool");
     return -1;
   }
   
@@ -334,7 +334,7 @@ int ippool_new(struct ippool_t **this,
        ((1 << (*this)->hashlog) < listsize);
        (*this)->hashlog++);
 
-  log_dbg("Hashlog %d %d %d", (*this)->hashlog, listsize, 
+  syslog(LOG_DEBUG, "Hashlog %d %d %d", (*this)->hashlog, listsize, 
 	  (1 << (*this)->hashlog));
 
   /* Determine hashsize */
@@ -344,7 +344,7 @@ int ippool_new(struct ippool_t **this,
   /* Allocate hash table */
   if (!((*this)->hash = 
 	calloc(sizeof(struct ippoolm_t *), (*this)->hashsize))){
-    log_err(0, "Failed to allocate memory for hash members in ippool");
+    syslog(LOG_ERR, "Failed to allocate memory for hash members in ippool");
     return -1;
   }
 
@@ -452,7 +452,7 @@ int ippool_newip(struct ippool_t *this,
   struct ippoolm_t *p2 = NULL;
   uint32_t hash;
   
-  log_dbg("Requesting new %s ip: %s", 
+  syslog(LOG_DEBUG, "Requesting new %s ip: %s", 
 	  statip ? "static" : "dynamic", inet_ntoa(*addr));
 
   /* If static:
@@ -478,11 +478,11 @@ int ippool_newip(struct ippool_t *this,
     if (!_options.uamanyip) {
 #endif
       if (!this->allowstat) {
-	log_dbg("Static IP address not allowed");
+	syslog(LOG_DEBUG, "Static IP address not allowed");
 	return -1;
       }
       if ((addr->s_addr & this->statmask.s_addr) != this->stataddr.s_addr) {
-	log_err(0, "Static out of range");
+	syslog(LOG_ERR, "Static out of range");
 	return -1;
       }
 #ifdef ENABLE_UAMANYIP
@@ -491,7 +491,7 @@ int ippool_newip(struct ippool_t *this,
   }
   else {
     if (!this->allowdyn) {
-      log_err(0, "Dynamic IP address not allowed");
+      syslog(LOG_ERR, "Dynamic IP address not allowed");
       return -1; 
     }
   }
@@ -511,7 +511,7 @@ int ippool_newip(struct ippool_t *this,
 #ifdef ENABLE_UAMANYIP
   /* if anyip is set and statip return the same ip */
   if (statip && _options.uamanyip && p2 && p2->is_static) {
-    log_dbg("Found already allocated static ip %s", 
+    syslog(LOG_DEBUG, "Found already allocated static ip %s", 
 	    inet_ntoa(p2->addr));
     *member = p2;
     return 0;
@@ -526,7 +526,7 @@ int ippool_newip(struct ippool_t *this,
   /* If not found yet and dynamic IP then allocate dynamic IP */
   if ((!p2) && (!statip) /*XXX: && (!addr || !addr->s_addr)*/) {
     if (!this->firstdyn) {
-      log_err(0, "No more dynamic addresses available");
+      syslog(LOG_ERR, "No more dynamic addresses available");
       return -1;
     }
     else {
@@ -537,14 +537,14 @@ int ippool_newip(struct ippool_t *this,
   if (p2) { /* Was allocated from dynamic address pool */
     
     if (p2->in_use) {
-      log_err(0, "IP address already in use");
+      syslog(LOG_ERR, "IP address already in use");
       return -1; /* Already in use / Should not happen */
     }
     
     /* Remove from linked list of free dynamic addresses */
 
     if (p2->is_static) {
-      log_err(0, "Should not happen!");
+      syslog(LOG_ERR, "Should not happen!");
       return -1;
     }
 
@@ -582,7 +582,7 @@ int ippool_newip(struct ippool_t *this,
 				   )) { /* IP address given */
 
     if (!this->firststat) {
-      log_err(0, "No more static addresses available");
+      syslog(LOG_ERR, "No more static addresses available");
       return -1; /* No more available */
     }
     else {
@@ -592,12 +592,12 @@ int ippool_newip(struct ippool_t *this,
     /* Remove from linked list of free static addresses */
 
     if (p2->in_use) {
-      log_err(0, "IP address already in use");
+      syslog(LOG_ERR, "IP address already in use");
       return -1; /* Already in use / Should not happen */
     }
     
     if (!p2->is_static) {
-      log_err(0, "Should not happen!");
+      syslog(LOG_ERR, "Should not happen!");
       return -1;
     }
 
@@ -619,7 +619,7 @@ int ippool_newip(struct ippool_t *this,
 
     *member = p2;
 
-    log_dbg("Assigned a static ip to: %s", inet_ntoa(*addr));
+    syslog(LOG_DEBUG, "Assigned a static ip to: %s", inet_ntoa(*addr));
 
     ippool_hashadd(this, *member);
 
@@ -643,7 +643,7 @@ int ippool_freeip(struct ippool_t *this, struct ippoolm_t *member) {
 #endif
 
   if (!member->in_use) {
-    log_err(0, "Address not in use");
+    syslog(LOG_ERR, "Address not in use");
     return -1; /* Not in use: Should not happen */
   }
 

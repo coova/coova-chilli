@@ -81,7 +81,7 @@ int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos) {
     slashslash = src + 8;
   }
   else {
-    log_err(0, "URL must start with http:// or https:// [%s]!", src);
+    syslog(LOG_ERR, "URL must start with http:// or https:// [%s]!", src);
     return -1;
   }
   
@@ -100,7 +100,7 @@ int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos) {
     /* ...:port/... */
     hostlen = colon - slashslash;
     if (1 != sscanf(colon+1, "%d", port)) {
-      log_err(0, "Not able to parse URL port: %s!", src);
+      syslog(LOG_ERR, "Not able to parse URL port: %s!", src);
       return -1;
     }
   }
@@ -109,7 +109,7 @@ int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos) {
   }
 
   if (hostlen > (hostsize-1)) {
-    log_err(0, "URL hostname larger than %d: %s!", hostsize-1, src);
+    syslog(LOG_ERR, "URL hostname larger than %d: %s!", hostsize-1, src);
     return -1;
   }
 

@@ -437,7 +437,7 @@ int main(int argc, char **argv) {
   itval.it_value.tv_usec = 0; 
   
   if (setitimer(ITIMER_REAL, &itval, NULL)) {
-    log_err(errno, "setitimer() failed!");
+    syslog(LOG_ERR, "%d setitimer() failed!", errno);
   }
   
   if (argc < 2) return usage(argv[0]);
@@ -579,7 +579,7 @@ int main(int argc, char **argv) {
     printf("blen %d\n", blen);
 
     if (fd < 0) {
-      log_err(errno,"socket() failed");
+      syslog(LOG_ERR, "%d socket() failed", errno);
       exit(1);
     }
 
