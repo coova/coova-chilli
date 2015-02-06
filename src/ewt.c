@@ -48,11 +48,11 @@ int http_parse_input(char *src, int len, int is_cookie) {
       /*bunescape(name);*/
 
       if ((eq_pos + 1) == end_pos || (end_pos - eq_pos) <= 1) {
-	log_dbg("%s = nil", name->data);
+	syslog(LOG_DEBUG, "%s = nil", name->data);
       } else {
         bassignblk(value, src+eq_pos+1, end_pos-eq_pos-1);
         /*bunescape(value);*/
-	log_dbg("%s = %s", name->data, value->data);
+	syslog(LOG_DEBUG, "%s = %s", name->data, value->data);
 	setenv((char *)name->data, (char *)value->data, 1);
       }
       start_pos = end_pos + 1;
@@ -147,12 +147,12 @@ static void json_walk(bstring prefix, struct json_object *obj) {
     case json_type_array:
       bassign(tmp, prefix);
       bcatcstr(tmp, key);
-      log_dbg("a %s=%s", tmp->data, json_object_to_json_string(val));
+      syslog(LOG_DEBUG, "a %s=%s", tmp->data, json_object_to_json_string(val));
       break;
     default:
       bassign(tmp, prefix);
       bcatcstr(tmp, key);
-      log_dbg("%s=%s", tmp->data, json_object_to_json_string(val));
+      syslog(LOG_DEBUG, "%s=%s", tmp->data, json_object_to_json_string(val));
       break;
     }
     bdestroy(tmp);
@@ -170,7 +170,7 @@ int ewtapi(struct redir_t *redir,
   bstring res = bfromcstr("");
   int i;
 
-  log_dbg("EWT API Request");
+  syslog(LOG_DEBUG, "EWT API Request");
 
   redir_getparam(redir, httpreq->qs, "s", s);
   redir_getparam(redir, httpreq->qs, "res", res);
@@ -183,7 +183,7 @@ int ewtapi(struct redir_t *redir,
     struct json_object *obj = 0;
     bblk_fromfd(b, 0, httpreq->clen);
     if ((obj = json_tokener_parse((char *)b->data))) {
-      log_dbg("obj.to_string()=%s", json_object_to_json_string(obj));
+      syslog(LOG_DEBUG, "obj.to_string()=%s", json_object_to_json_string(obj));
       json_object_object_foreach(obj, key, val) {
 	if (!strcmp(key, (char *)s->data)) {
 	  bstring tmp = bfromcstr("CAP_");
@@ -204,7 +204,7 @@ int ewtapi(struct redir_t *redir,
 		"Content-type: application/json\r\n\r\n");
   
   if (safe_write(1, b->data, b->slen) < 0) {
-    log_err(errno, "redir_write()");
+    syslog(LOG_ERR, "%d redir_write()", errno);
   }
 
   safe_snprintf(path, sizeof(path),
@@ -214,9 +214,9 @@ int ewtapi(struct redir_t *redir,
     bassigncstr(b, "");
     if (!strcmp(ewt_services[i].name, (char *)s->data)) {
       ewt_services[i].func(b);
-      log_dbg("Internal EWT Service %s -> %s", ewt_services[i].name, b->data);
+      syslog(LOG_DEBUG, "Internal EWT Service %s -> %s", ewt_services[i].name, b->data);
       if (safe_write(1, b->data, b->slen) < 0) {
-	log_err(errno, "redir_write()");
+	syslog(LOG_ERR, "%d redir_write()", errno);
       }
       bdestroy(b);
       bdestroy(s);
@@ -226,9 +226,9 @@ int ewtapi(struct redir_t *redir,
   } 
 
   setenv("EWTAPI", "1", 1);
-  log_dbg("EWT API Running %s", *binqqargs);
+  syslog(LOG_DEBUG, "EWT API Running %s", *binqqargs);
   
   execv(*binqqargs, binqqargs);
-  log_err(errno, "count not exec %s", *binqqargs);
+  syslog(LOG_ERR, "%d count not exec %s", errno, *binqqargs);
   return -1;
 }

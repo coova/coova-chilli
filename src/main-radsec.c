@@ -51,7 +51,7 @@ static int radius_reply(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,(struct sockaddr *) peer, 
 	     sizeof(struct sockaddr_in)) < 0) {
-    log_err(errno, "sendto() failed!");
+    syslog(LOG_ERR, "%d sendto() failed!", errno);
     return -1;
   } 
   
@@ -64,7 +64,7 @@ static int connect_ssl(struct in_addr *addr, int port) {
   }
   server.conn.sslcon = openssl_connect_fd(server.env, server.conn.sock, 10);
   if (!server.conn.sslcon) {
-    log_err(errno, "Failed to connect to %s:%d", inet_ntoa(*addr), port);
+    syslog(LOG_ERR, "%d Failed to connect to %s:%d", errno, inet_ntoa(*addr), port);
     return -1;
   }
   return 0;
@@ -87,30 +87,30 @@ static void process_radius(struct radius_packet_t *pack, ssize_t len) {
  try_again:
 
   if (attempts++ == 5) {
-    log_err(errno, "Dropping RADIUS packet!");
+    syslog(LOG_ERR, "%d Dropping RADIUS packet!", errno);
     return;
   }
 
-  log_dbg("%s:%s", __FILE__, __FUNCTION__);
+  syslog(LOG_DEBUG, "%s:%s", __FILE__, __FUNCTION__);
 
   if (!server.conn.connected) {
-    log_dbg("RADSEC: Connecting to %s:2083",
+    syslog(LOG_DEBUG, "RADSEC: Connecting to %s:2083",
 	      inet_ntoa(_options.radiusserver1));
     if (connect_ssl(&_options.radiusserver1, 2083)) {
-      log_err(errno, "Could not connect to RadSec server %s!",
-	      inet_ntoa(_options.radiusserver1));
-      log_dbg("RADSEC: Connecting to %s:2083", 
+      syslog(LOG_ERR, "%d Could not connect to RadSec server %s!",
+	      errno, inet_ntoa(_options.radiusserver1));
+      syslog(LOG_DEBUG, "RADSEC: Connecting to %s:2083", 
 	      inet_ntoa(_options.radiusserver1));
       if (connect_ssl(&_options.radiusserver2, 2083)) {
-	log_err(errno, "Could not connect to RadSec server %s!",
-		inet_ntoa(_options.radiusserver2));
+	syslog(LOG_ERR, "%d Could not connect to RadSec server %s!",
+		errno, inet_ntoa(_options.radiusserver2));
       } else {
-	log_dbg("RADSEC: Connected to %s:2083", 
+	syslog(LOG_DEBUG, "RADSEC: Connected to %s:2083", 
 		inet_ntoa(_options.radiusserver2));
 	server.conn.connected = 1;
       }
     } else {
-      log_dbg("RADSEC: Connected to %s:2083", 
+      syslog(LOG_DEBUG, "RADSEC: Connected to %s:2083", 
 	      inet_ntoa(_options.radiusserver1));
       server.conn.connected = 1;
     }
@@ -123,7 +123,7 @@ static void process_radius(struct radius_packet_t *pack, ssize_t len) {
   
   {
     int l = openssl_write(server.conn.sslcon, (char *)pack, len, 0);
-    log_dbg("ssl_write %d",l);
+    syslog(LOG_DEBUG, "ssl_write %d",l);
     if (l <= 0) {
       shutdown_ssl();
       /*
@@ -137,29 +137,29 @@ static void process_radius(struct radius_packet_t *pack, ssize_t len) {
 static void process_radius_reply() {
   uint8_t *d = (uint8_t *) &server.pack;
   int l = openssl_read(server.conn.sslcon, (char *)d, 4, 0);
-  log_dbg("reply %d", l);
+  syslog(LOG_DEBUG, "reply %d", l);
   if (l == 4) {
     int len = ntohs(server.pack.length) - 4;
     l = openssl_read(server.conn.sslcon, (char *)(d + 4), len, 0);
-    log_dbg("reply %d", l);
+    syslog(LOG_DEBUG, "reply %d", l);
     if (l == len) {
-      log_dbg("reply +%d", len);
+      syslog(LOG_DEBUG, "reply +%d", len);
       switch (server.pack.code) {
       case RADIUS_CODE_ACCESS_ACCEPT:
       case RADIUS_CODE_ACCESS_REJECT:
       case RADIUS_CODE_ACCESS_CHALLENGE:
-	log_dbg("reply auth %d", len);
+	syslog(LOG_DEBUG, "reply auth %d", len);
 	radius_reply(server.radius_auth, &server.pack, &server.auth_peer);
 	break;
       case RADIUS_CODE_ACCOUNTING_RESPONSE:
-	log_dbg("reply acct %d", len);
+	syslog(LOG_DEBUG, "reply acct %d", len);
 	radius_reply(server.radius_acct, &server.pack, &server.acct_peer);
 	break;
       case RADIUS_CODE_COA_REQUEST:
       case RADIUS_CODE_DISCONNECT_REQUEST:
       case RADIUS_CODE_STATUS_REQUEST:
 	if (_options.coaport) {
-	  log_dbg("reply coa %d", len);
+	  syslog(LOG_DEBUG, "reply coa %d", len);
 	  radius_reply(server.radius_cli, &server.pack, &server.acct_peer);
 	}
 	break;
@@ -210,28 +210,28 @@ int main(int argc, char **argv) {
   memset(&server, 0, sizeof(server));
 
   if (!(server.env = initssl_cli())) {
-    log_err(0, "Failed to create ssl environment");
+    syslog(LOG_ERR, "Failed to create ssl environment");
     return -1;
   }
 
   if (radius_new(&server.radius_auth, &radiuslisten, 
 		 _options.radiusauthport ? _options.radiusauthport : RADIUS_AUTHPORT, 
 		 0, 0)) {
-    log_err(0, "Failed to create radius");
+    syslog(LOG_ERR, "Failed to create radius");
     return -1;
   }
 
   if (radius_new(&server.radius_acct, &radiuslisten, 
 		 _options.radiusacctport ? _options.radiusacctport : RADIUS_ACCTPORT, 
 		 0, 0)) {
-    log_err(0, "Failed to create radius");
+    syslog(LOG_ERR, "Failed to create radius");
     return -1;
   }
 
   if (_options.coaport) {
     if (radius_new(&server.radius_cli, &radiuslisten, 0, 0, 0) ||
 	radius_init_q(server.radius_cli, 8)) {
-      log_err(0, "Failed to create radius");
+      syslog(LOG_ERR, "Failed to create radius");
       return -1;
     }
     radius_set(server.radius_cli, 0, 0);
@@ -242,13 +242,13 @@ int main(int argc, char **argv) {
   radius_set(server.radius_acct, 0, 0);
 
   if (_options.gid && setgid(_options.gid)) {
-    log_err(errno, "setgid(%d) failed while running with gid = %d\n", 
-	    _options.gid, getgid());
+    syslog(LOG_ERR, "%d setgid(%d) failed while running with gid = %d\n", 
+	    errno, _options.gid, getgid());
   }
   
   if (_options.uid && setuid(_options.uid)) {
-    log_err(errno, "setuid(%d) failed while running with uid = %d\n", 
-	    _options.uid, getuid());
+    syslog(LOG_ERR, "%d setuid(%d) failed while running with uid = %d\n", 
+	    errno, _options.uid, getuid());
   }
 
   while (keep_going) {
@@ -292,7 +292,7 @@ int main(int argc, char **argv) {
     switch (status) {
     case -1:
       if (errno != EINTR)
-	log_err(errno, "select() returned -1!");
+	syslog(LOG_ERR, "%d select() returned -1!", errno);
       break;  
 
     case 0:
@@ -312,7 +312,7 @@ int main(int argc, char **argv) {
 	  
 	  if ((status = recvfrom(server.radius_auth->fd, &radius_pack, sizeof(radius_pack), 0, 
 				 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    log_err(errno, "recvfrom() failed");
+	    syslog(LOG_ERR, "%d recvfrom() failed", errno);
 	    
 	    return -1;
 	  }
@@ -327,11 +327,11 @@ int main(int argc, char **argv) {
 	   *    ---> Accounting
 	   */
 	  
-	  log_dbg("received accounting");
+	  syslog(LOG_DEBUG, "received accounting");
 	  
 	  if ((status = recvfrom(server.radius_acct->fd, &radius_pack, sizeof(radius_pack), 0, 
 			       (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    log_err(errno, "recvfrom() failed");
+	    syslog(LOG_ERR, "%d recvfrom() failed", errno);
 	    return -1;
 	  }
 

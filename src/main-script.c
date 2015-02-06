@@ -55,28 +55,28 @@ int main(int argc, char **argv) {
   memset(&statbuf, 0, sizeof(statbuf));
   
   if (!options_binload(argv[1])) {
-    log_err(0, "invalid binary config file %s", argv[1]);
+    syslog(LOG_ERR, "invalid binary config file %s", argv[1]);
     usage(argv[0]);
   }
 
   if (uid != 0) {
     if (strcmp(pwd->pw_name, CHILLI_USER)) {
-      log_err(0, "has to run as user %s or root", CHILLI_USER);
+      syslog(LOG_ERR, "has to run as user %s or root", CHILLI_USER);
       usage(argv[0]);
     }
     
     if (strcmp(grp->gr_name, CHILLI_GROUP)) {
-      log_err(0, "has to run as group %s or root", CHILLI_GROUP);
+      syslog(LOG_ERR, "has to run as group %s or root", CHILLI_GROUP);
       usage(argv[0]);
     }
   }
   
-  log_dbg("USER %s(%d/%d), GROUP %s(%d/%d) CHILLI[UID %d, GID %d]", 
+  syslog(LOG_DEBUG, "USER %s(%d/%d), GROUP %s(%d/%d) CHILLI[UID %d, GID %d]", 
 	  pwd->pw_name, uid, euid, grp->gr_name, gid, egid,
 	  _options.uid, _options.gid);
   
   if (stat(argv[2], &statbuf)) { 
-    log_err(errno, "%s does not exist", argv[2]); 
+    syslog(LOG_ERR, "%d %s does not exist", errno, argv[2]); 
     usage(argv[0]);
   }
   
@@ -88,13 +88,13 @@ int main(int argc, char **argv) {
       (statbuf.st_mode & 0400) == 0400) {
     
     if (setuid(0))
-      log_err(errno, "setuid %s", argv[0]);
+      syslog(LOG_ERR, "%d setuid %s", errno, argv[0]);
   }
   
-  log_info("Running %s (%d/%d)", argv[2], getuid(), geteuid());
+  syslog(LOG_INFO, "Running %s (%d/%d)", argv[2], getuid(), geteuid());
 
   if (execv(argv[2], &argv[2])) {
-    log_err(errno, "exec %s", argv[2]);
+    syslog(LOG_ERR, "%d exec %s", errno, argv[2]);
     usage(argv[0]);
   }
   

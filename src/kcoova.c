@@ -37,11 +37,11 @@ kmod(char cmd, struct in_addr *addr) {
       safe_snprintf(line, sizeof(line), "%c\n", cmd);
 
     rd = safe_write(fd, line, strlen(line));
-    log_dbg("kmod wrote %d %s", rd, line);
+    syslog(LOG_DEBUG, "kmod wrote %d %s", rd, line);
     close(fd);
     return rd == strlen(line);
   } else {
-    log_err(errno, "could not open %s", file);
+    syslog(LOG_ERR, "%d could not open %s", errno, file);
   }
   return 0;
 }
@@ -89,7 +89,7 @@ kmod_coova_sync() {
   
   while ((read = getline(&line, &len, fp)) != -1) {
     if (len > 256) {
-      log_err(errno, "problem");
+      syslog(LOG_ERR, "%d problem", errno);
       continue;
     }
 
@@ -121,12 +121,12 @@ kmod_coova_sync() {
 	    appconn->s_state.input_packets = pout;
 	  }
 	} else {
-	  log_dbg("Unknown entry");
+	  syslog(LOG_DEBUG, "Unknown entry");
 	}
       }
 
     } else {
-      log_err(errno, "Error parsing %s", line);
+      syslog(LOG_ERR, "%d Error parsing %s", errno, line);
     }
   }
   

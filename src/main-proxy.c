@@ -94,7 +94,7 @@ static void print_requests() {
 
   for (i=0; i < max_requests; i++) {
     req = &requests[i];
-    log_info("%.3d. inuse=%d prev=%.3d next=%.3d url=%s fd=%d", 
+    syslog(LOG_INFO, "%.3d. inuse=%d prev=%.3d next=%.3d url=%s fd=%d",
 	     req->index, req->inuse ? 1 : 0,
 	     req->prev ? req->prev->index : -1,
 	     req->next ? req->next->index : -1,
@@ -134,17 +134,17 @@ static proxy_request * get_request() {
   }
   
 #if(_debug_)
-  log_dbg("connections free %d", num_requests_free);
+  syslog(LOG_DEBUG, "connections free %d", num_requests_free);
 #endif
   
   if (!req) {
     /* problem */
-    log_err(0,"out of connections");
+    syslog(LOG_ERR, "out of connections");
     print_requests();
     return 0;
   }
 
-  log_dbg("request index %d", req->index);
+  syslog(LOG_DEBUG, "request index %d", req->index);
   req->lasttime = time(NULL);
   req->next = req->prev = 0;
   req->inuse = 1;
@@ -159,7 +159,7 @@ static int radius_reply(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,(struct sockaddr *) peer, 
 	     sizeof(struct sockaddr_in)) < 0) {
-    log_err(errno, "sendto() failed!");
+    syslog(LOG_ERR, "%d sendto() failed!", errno);
     return -1;
   } 
   
@@ -188,7 +188,7 @@ static void bunhex(bstring src, bstring dst) {
 
 static void close_request(proxy_request *req) {
 
-  log_dbg("%s", __FUNCTION__);
+  syslog(LOG_DEBUG, "%s", __FUNCTION__);
 
   if (req->url)  bdestroy(req->url);
   if (req->data) bdestroy(req->data);
@@ -214,7 +214,7 @@ static void close_request(proxy_request *req) {
   num_requests_free++;
 
 #if(_debug_)
-  log_dbg("connections free %d", num_requests_free);
+  syslog(LOG_DEBUG, "connections free %d", num_requests_free);
 #endif
 }
 
@@ -224,11 +224,11 @@ static int http_aaa_finish(proxy_request *req) {
 
 #ifdef USING_CURL
 #if(_debug_)
-  log_dbg("calling curl_easy_cleanup()");
+  syslog(LOG_DEBUG, "calling curl_easy_cleanup()");
 #endif
   if (req->curl) {
     if (req->error_buffer[0])
-      log_dbg("curl error %s", req->error_buffer);
+      syslog(LOG_DEBUG, "curl error %s", req->error_buffer);
     curl_multi_remove_handle(curl_multi, req->curl);
     curl_easy_cleanup(req->curl);
     req->curl = 0;
@@ -240,7 +240,7 @@ static int http_aaa_finish(proxy_request *req) {
 
   if (req->data && req->data->slen) {
 #if(_debug_)
-    log_dbg("Received: %s\n",req->data->data);
+    syslog(LOG_DEBUG, "Received: %s\n",req->data->data);
 #endif
     req->authorized = !memcmp(req->data->data, "Auth: 1", 7);
     req->challenge = !memcmp(req->data->data, "Auth: 2", 7);
@@ -250,14 +250,14 @@ static int http_aaa_finish(proxy_request *req) {
   switch(req->radius_req.code) {
   case RADIUS_CODE_ACCOUNTING_REQUEST:
 #if(_debug_)
-    log_dbg("Accounting-Response");
+    syslog(LOG_DEBUG, "Accounting-Response");
 #endif
     radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCOUNTING_RESPONSE);
     break;
     
   case RADIUS_CODE_ACCESS_REQUEST:
 #if(_debug_)
-    log_dbg("Access-%s", req->authorized ? "Accept" : 
+    syslog(LOG_DEBUG, "Access-%s", req->authorized ? "Accept" : 
 	    req->challenge ? "Challenge" : "Reject");
 #endif
     radius_default_pack(radius, &req->radius_res, 
@@ -345,7 +345,7 @@ static int http_aaa_finish(proxy_request *req) {
 		if (v > 0) {
 		  radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, v, NULL, 0);
 #if(_debug_)
-		  log_dbg("Setting %s = %d", attrs[i].n, v);
+		  syslog(LOG_DEBUG, "Setting %s = %d", attrs[i].n, v);
 #endif
 		}
 	      }
@@ -355,7 +355,7 @@ static int http_aaa_finish(proxy_request *req) {
 		radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, 0, 
 			       (uint8_t *)ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
 #if(_debug_)
-		log_dbg("Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
+		syslog(LOG_DEBUG, "Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
 #endif
 	      }
 	      break;
@@ -393,7 +393,7 @@ static int http_aaa_finish(proxy_request *req) {
 		} 
 		
 #if(_debug_)
-		log_dbg("Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
+		syslog(LOG_DEBUG, "Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
 #endif
 	      }
 	      break;
@@ -449,7 +449,7 @@ static int bstring_data(void *ptr, size_t size, size_t nmemb, void *userdata) {
   if (size > 0 && nmemb > 0) {
     int rsize = size * nmemb;
     bcatblk(s,ptr,rsize);
-    log_dbg("read %d", rsize);
+    syslog(LOG_DEBUG, "read %d", rsize);
     return rsize;
   }
   return 0;
@@ -483,7 +483,7 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
     
     if (cert && strlen(cert)) {
 #if(_debug_)
-      log_dbg("using cert [%s]",cert);
+      syslog(LOG_DEBUG, "using cert [%s]",cert);
 #endif
       curl_easy_setopt(curl, CURLOPT_SSLCERT, cert);
       curl_easy_setopt(curl, CURLOPT_SSLCERTTYPE, "PEM");
@@ -491,13 +491,13 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
 
     if (key && strlen(key)) {
 #if(_debug_)
-      log_dbg("using key [%s]",key);
+      syslog(LOG_DEBUG, "using key [%s]",key);
 #endif
       curl_easy_setopt(curl, CURLOPT_SSLKEY, key);
       curl_easy_setopt(curl, CURLOPT_SSLKEYTYPE, "PEM");
       if (keypwd && strlen(keypwd)) {
 #if(_debug_)
-	log_dbg("using key pwd [%s]",keypwd);
+	syslog(LOG_DEBUG, "using key pwd [%s]",keypwd);
 #endif
 #ifdef CURLOPT_SSLCERTPASSWD
 	curl_easy_setopt(curl, CURLOPT_SSLCERTPASSWD, keypwd);
@@ -516,7 +516,7 @@ static int http_aaa_setup(struct radius_t *radius, proxy_request *req) {
     if (ca && strlen(ca)) {
 #ifdef CURLOPT_ISSUERCERT
 #if(_debug_)
-      log_dbg("using ca [%s]",ca);
+      syslog(LOG_DEBUG, "using ca [%s]",ca);
 #endif
       curl_easy_setopt(curl, CURLOPT_ISSUERCERT, ca);
       curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1);
@@ -632,7 +632,7 @@ static int http_aaa(struct radius_t *radius, proxy_request *req) {
 	  curl_multi_perform(curl_multi, &still_running));
 
 #if(_debug_ > 1)
-    log_dbg("curl still running %d", still_running);
+    syslog(LOG_DEBUG, "curl still running %d", still_running);
 #endif
 #endif
     
@@ -653,7 +653,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
   process_options(i, argv, 1);
 
   if (!_options.uamaaaurl) {
-    log_err(0, "uamaaaurl not defined in configuration");
+    syslog(LOG_ERR, "uamaaaurl not defined in configuration");
     exit(-1);
   }
 
@@ -710,7 +710,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
   if (http_aaa_setup(0, &req) == 0) {
 
 #if(_debug_ > 1)
-    log_dbg("==> %s\npost:%s", req.url->data, req.post->data);
+    syslog(LOG_DEBUG, "==> %s\npost:%s", req.url->data, req.post->data);
 #endif
 
 #ifdef USING_CURL
@@ -718,7 +718,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
 #endif
 
 #if(_debug_ > 1)
-    log_dbg("<== %s", req.data->data);
+    syslog(LOG_DEBUG, "<== %s", req.data->data);
 #endif
 
 #ifdef USING_CURL
@@ -728,7 +728,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
 
   if (req.data->slen)
     if (safe_write(1, req.data->data, req.data->slen) < 0)
-      log_err(errno, "write()");
+      syslog(LOG_ERR, "%d write()", errno);
 
   bdestroy(req.url);
   bdestroy(req.data);
@@ -759,7 +759,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
   if (!req) return;
 
   if (!_options.uamaaaurl) {
-    log_err(0,"No --uamaaaurl parameter defined");
+    syslog(LOG_ERR, "No --uamaaaurl parameter defined");
     return;
   }
 
@@ -826,7 +826,7 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 	bcatcstr(req->url, "down");
 	break;
       default:
-	log_err(0,"unsupported acct-status-type %d",ntohl(attr->v.i));
+	syslog(LOG_ERR, "unsupported acct-status-type %d", ntohl(attr->v.i));
 	error = "Unsupported acct-status-type";
 	break;
       }
@@ -1046,13 +1046,13 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
       redir_md_param(req->url, _options.uamsecret, "&");
     
 #if(_debug_ > 1)
-    log_dbg("==> %s", req->url->data);
+    syslog(LOG_DEBUG, "==> %s", req->url->data);
 #endif
     if (http_aaa(radius, req) < 0)
       close_request(req);
     
   } else {
-    log_err(0, "problem: %s", error);
+    syslog(LOG_ERR, "problem: %s", error);
   }
 
   bdestroy(tmp);
@@ -1136,7 +1136,7 @@ int main(int argc, char **argv) {
 		 _options.radiusauthport : RADIUS_AUTHPORT, 
 		 0, 0) || 
       radius_init_q(radius_auth, 0)) {
-    log_err(0, "Failed to create radius");
+    syslog(LOG_ERR, "Failed to create radius");
     return -1;
   }
 
@@ -1145,7 +1145,7 @@ int main(int argc, char **argv) {
 		 _options.radiusacctport : RADIUS_ACCTPORT, 
 		 0, 0) || 
       radius_init_q(radius_acct, 0)) {
-    log_err(0, "Failed to create radius");
+    syslog(LOG_ERR, "Failed to create radius");
     return -1;
   }
   
@@ -1153,13 +1153,13 @@ int main(int argc, char **argv) {
   radius_set(radius_acct, 0, 0);
   
   if (_options.gid && setgid(_options.gid)) {
-    log_err(errno, "setgid(%d) failed while running with gid = %d\n", 
-	    _options.gid, getgid());
+    syslog(LOG_ERR, "%d setgid(%d) failed while running with gid = %d\n", 
+	    errno, _options.gid, getgid());
   }
   
   if (_options.uid && setuid(_options.uid)) {
-    log_err(errno, "setuid(%d) failed while running with uid = %d\n", 
-	    _options.uid, getuid());
+    syslog(LOG_ERR, "%d setuid(%d) failed while running with uid = %d\n", 
+	    errno, _options.uid, getuid());
   }
 
   while (keep_going) {
@@ -1182,7 +1182,7 @@ int main(int argc, char **argv) {
     for (idx=0; idx < max_requests; idx++) {
       if (requests[idx].inuse && 
 	  requests[idx].lasttime < expired_time) {
-	log_dbg("remove expired index %d", idx);
+	syslog(LOG_DEBUG, "remove expired index %d", idx);
 	http_aaa_finish(&requests[idx]);
       }
     }
@@ -1209,7 +1209,7 @@ int main(int argc, char **argv) {
     switch (status) {
     case -1:
       if (EINTR != errno) {
-	log_err(errno, "select() returned -1!");
+	syslog(LOG_ERR, "%d select() returned -1!", errno);
       }
       break;  
 
@@ -1224,7 +1224,7 @@ int main(int argc, char **argv) {
 	  int signo = chilli_handle_signal(0, 0);
 	  if (signo) {
 #if(_debug_)
-	    log_dbg("main-proxy signal %d", signo);
+	    syslog(LOG_DEBUG, "main-proxy signal %d", signo);
 #endif
 	    switch(signo) {
 	    case SIGUSR2: print_requests(); break;
@@ -1241,7 +1241,7 @@ int main(int argc, char **argv) {
 	  if ((status = recvfrom(radius_auth->fd, 
 				 &radius_pack, sizeof(radius_pack), 0, 
 				 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    log_err(errno, "recvfrom() failed");
+	    syslog(LOG_ERR, "%d recvfrom() failed", errno);
 	    
 	    return -1;
 	  }
@@ -1255,13 +1255,13 @@ int main(int argc, char **argv) {
 	   */
 	  
 #if(_debug_)
-	  log_dbg("received accounting");
+	  syslog(LOG_DEBUG, "received accounting");
 #endif
 	  
 	  if ((status = recvfrom(radius_acct->fd, 
 				 &radius_pack, sizeof(radius_pack), 0, 
 			       (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    log_err(errno, "recvfrom() failed");
+	    syslog(LOG_ERR, "%d recvfrom() failed", errno);
 	    return -1;
 	  }
 	  
@@ -1274,13 +1274,13 @@ int main(int argc, char **argv) {
 	    curl_multi_perform(curl_multi, &still_running));
 
 #if(_debug_ > 1)
-      log_dbg("curl still running %d", still_running);
+      syslog(LOG_DEBUG, "curl still running %d", still_running);
 #endif
       
       while ((msg = curl_multi_info_read(curl_multi, &msgs_left))) {
 
 #if(_debug_ > 1)
-	log_dbg("curl messages left %d", msgs_left);
+	syslog(LOG_DEBUG, "curl messages left %d", msgs_left);
 #endif
 
 	if (msg->msg == CURLMSG_DONE) {
@@ -1294,11 +1294,11 @@ int main(int argc, char **argv) {
 	  if (found) {
 	    --idx;
 #if(_debug_)
-	    log_dbg("HTTP completed with status %d\n", msg->data.result);
+	    syslog(LOG_DEBUG, "HTTP completed with status %d\n", msg->data.result);
 #endif
 	    http_aaa_finish(&requests[idx]);
 	  } else {
-	    log_err(0, "Could not find request in queue");
+	    syslog(LOG_ERR, "%d Could not find request in queue", errno);
 	  }
 	}
       }

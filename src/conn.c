@@ -38,15 +38,15 @@ int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
 #endif
 
     if (ndelay_on(sock) < 0) {
-      log_err(errno, "could not set non-blocking");
+      syslog(LOG_ERR, "%d could not set non-blocking", errno);
     }
 
     if (safe_connect(sock, 
 		     (struct sockaddr *) &server, 
 		     sizeof(server)) < 0) {
       if (errno != EINPROGRESS) {
-	log_err(errno, "could not connect to %s:%d", 
-		inet_ntoa(server.sin_addr), port);
+	syslog(LOG_ERR, "%d could not connect to %s:%d", 
+		errno, inet_ntoa(server.sin_addr), port);
 	close(sock);
 	return -1;
       }
@@ -68,7 +68,7 @@ int conn_setup(struct conn_t *conn, char *hostname,
   conn->read_buf = bread;
 
   if (!(host = gethostbyname(hostname)) || !host->h_addr_list[0]) {
-    log_err(0, "Could not resolve IP address of uamserver: %s! [%s]", 
+    syslog(LOG_ERR, "Could not resolve IP address of uamserver: %s! [%s]", 
 	    hostname, strerror(errno));
     return -1;
   }
@@ -111,7 +111,7 @@ void conn_finish(struct conn_t *conn) {
 
 int conn_update_write(struct conn_t *conn) {
 #if(_debug_)
-  log_dbg("socket writeable!");
+  syslog(LOG_DEBUG, "socket writeable!");
 #endif
   
   if (conn->write_pos == 0) {
@@ -119,7 +119,7 @@ int conn_update_write(struct conn_t *conn) {
     socklen_t errlen = sizeof(err);
     if (getsockopt(conn->sock, SOL_SOCKET, SO_ERROR, 
 		   &err, &errlen) || (err != 0)) {
-      log_err(errno, "not connected");
+      syslog(LOG_ERR, "%d not connected", errno);
       conn_finish(conn);
       return -1;
     } else {
@@ -127,7 +127,7 @@ int conn_update_write(struct conn_t *conn) {
       /*log_dbg("RESETTING non-blocking");*/
 #endif
       /*if (ndelay_off(conn->sock) < 0) {
-	log_err(errno, "could not un-set non-blocking");
+	syslog(LOG_ERR, "%d could not un-set non-blocking", errno);
 	}*/
     }
   }
@@ -141,7 +141,7 @@ int conn_update_write(struct conn_t *conn) {
       conn->write_pos += ret;
     } else if (ret < 0 || errno != EWOULDBLOCK) {
 #if(_debug_)
-      log_dbg("socket closed!");
+      syslog(LOG_DEBUG, "socket closed!");
 #endif
       conn_finish(conn);
       return -1;
@@ -155,7 +155,7 @@ int conn_select_update(struct conn_t *conn, select_ctx *sctx) {
   if (conn->sock) {
     switch (net_select_read_fd(sctx, conn->sock)) {
     case -1:
-      log_dbg("exception");
+      syslog(LOG_DEBUG, "exception");
       conn_finish(conn);
       return -1;
       
@@ -187,7 +187,7 @@ int conn_update(struct conn_t *conn, fd_set *r, fd_set *w, fd_set *e) {
 
     if (FD_ISSET(conn->sock, e)) {
 #if(_debug_)
-      log_dbg("socket exception!");
+      syslog(LOG_DEBUG, "socket exception!");
 #endif
       conn_finish(conn);
     }
@@ -208,13 +208,13 @@ _conn_bstring_readhandler(struct conn_t *conn, void *ctx) {
 
   if (ret > 0) {
 #if(_debug_)
-    log_dbg("bstring_read: %d bytes", ret);
+    syslog(LOG_DEBUG, "bstring_read: %d bytes", ret);
 #endif
     data->slen += ret;
   } else {
 #if(_debug_)
-    log_dbg("socket closed!");
-    log_dbg("<== [%s]", data->data);
+    syslog(LOG_DEBUG, "socket closed!");
+    syslog(LOG_DEBUG, "<== [%s]", data->data);
 #endif
     conn_finish(conn);
   }

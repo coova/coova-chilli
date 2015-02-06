@@ -49,12 +49,12 @@ int dev_set_flags(char const *dev, int flags) {
   safe_strncpy(ifr.ifr_name, dev, IFNAMSIZ);
 
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    log_err(errno,"socket() failed");
+    syslog(LOG_ERR, "%d socket() failed", errno);
     return -1;
   }
 
   if (ioctl(fd, SIOCSIFFLAGS, &ifr)) {
-    log_err(errno,"ioctl(SIOCSIFFLAGS) failed");
+    syslog(LOG_ERR, "%d ioctl(SIOCSIFFLAGS) failed", errno);
     close(fd);
     return -1;
   }
@@ -72,12 +72,12 @@ int dev_get_flags(char const *dev, int *flags) {
   safe_strncpy(ifr.ifr_name, dev, IFNAMSIZ);
 
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    log_err(errno, "socket() failed");
+    syslog(LOG_ERR, "%d socket() failed", errno);
     return -1;
   }
 
   if (ioctl(fd, SIOCGIFFLAGS, &ifr)) {
-    log_err(errno, "ioctl(SIOCSIFFLAGS) failed on %s",dev);
+    syslog(LOG_ERR, "%d ioctl(SIOCSIFFLAGS) failed on %s", errno, dev);
     close(fd);
     return -1;
   }
@@ -102,7 +102,7 @@ int dev_set_address(char const *devname, struct in_addr *address,
 
   /* Create a channel to the NET kernel. */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    log_err(errno, "socket() failed");
+    syslog(LOG_ERR, "%d socket() failed", errno);
     return -1;
   }
 
@@ -117,10 +117,11 @@ int dev_set_address(char const *devname, struct in_addr *address,
     ((struct sockaddr_in *) &ifr.ifr_addr)->sin_addr.s_addr = address->s_addr;
     if (ioctl(fd, SIOCSIFADDR, (void *) &ifr) < 0) {
       if (errno != EEXIST) {
-	log_err(errno, "ioctl(SIOCSIFADDR) failed");
+	syslog(LOG_ERR, "%d ioctl(SIOCSIFADDR) failed", errno);
       }
       else {
-	log_warn(errno, "ioctl(SIOCSIFADDR): Address already exists");
+	syslog(LOG_WARNING, "%d ioctl(SIOCSIFADDR): Address already exists",
+		errno);
       }
       close(fd);
       return -1;
@@ -130,7 +131,7 @@ int dev_set_address(char const *devname, struct in_addr *address,
   if (dstaddr) { /* Set the destination address */
     ((struct sockaddr_in *) &ifr.ifr_dstaddr)->sin_addr.s_addr = dstaddr->s_addr;
     if (ioctl(fd, SIOCSIFDSTADDR, (caddr_t) &ifr) < 0) {
-      log_err(errno, "ioctl(SIOCSIFDSTADDR) failed");
+      syslog(LOG_ERR, "%d ioctl(SIOCSIFDSTADDR) failed", errno);
       close(fd);
       return -1; 
     }
@@ -139,7 +140,7 @@ int dev_set_address(char const *devname, struct in_addr *address,
   if (netmask) { /* Set the netmask */
     ((struct sockaddr_in *) &ifr.ifr_netmask)->sin_addr.s_addr =  netmask->s_addr;
     if (ioctl(fd, SIOCSIFNETMASK, (void *) &ifr) < 0) {
-      log_err(errno, "ioctl(SIOCSIFNETMASK) failed");
+      syslog(LOG_ERR, "%d ioctl(SIOCSIFNETMASK) failed", errno);
       close(fd);
       return -1;
     }
@@ -165,10 +166,11 @@ int dev_set_address(char const *devname, struct in_addr *address,
 
     if (ioctl(fd, SIOCAIFADDR, (void *) &ifr) < 0) {
       if (errno != EEXIST) {
-	  log_err(errno, "ioctl(SIOCAIFADDR) failed");
+	  syslog(LOG_ERR, "%d ioctl(SIOCAIFADDR) failed", errno);
       }
       else {
-	  log_warn(errno, "ioctl(SIOCAIFADDR): Address already exists");
+	  syslog(LOG_WARNING, "%d ioctl(SIOCAIFADDR): Address already exists",
+		errno);
       }
       close(fd);
       return -1;
@@ -216,7 +218,7 @@ int net_open(net_interface *netif) {
     struct in_addr noaddr;
     net_sflags(netif, netif->devflags | IFF_NOARP);
     memset(&noaddr, 0, sizeof(noaddr));
-    log_dbg("removing ip address from %s", netif->devname);
+    syslog(LOG_DEBUG, "removing ip address from %s", netif->devname);
     dev_set_address(netif->devname, &noaddr, NULL, NULL);
   }
 
@@ -226,8 +228,8 @@ int net_open(net_interface *netif) {
 static int net_setsockopt(int s, int l, int op, void *v, socklen_t vl) {
 
   if (setsockopt(s, l, op, v, vl) < 0) {
-    log_err(errno, "setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
-	    s, l, op, (int) vl);
+    syslog(LOG_ERR, "%d setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
+	    errno, s, l, op, (int) vl);
     return -1;
   }
 
@@ -239,7 +241,7 @@ int net_reopen(net_interface *netif) {
   int option;
   socklen_t len;
 
-  log_dbg("net_reopen(%s)", netif->devname);
+  syslog(LOG_DEBUG, "net_reopen(%s)", netif->devname);
 
   net_open(netif);
 
@@ -251,11 +253,11 @@ int net_reopen(net_interface *netif) {
   
   len = sizeof(default_sndbuf);
   getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
-  log_dbg("Net SNDBUF %d", default_sndbuf);
+  syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
 
   len = sizeof(default_sndbuf);
   getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
-  log_dbg("Net RCVBUF %d", default_rcvbuf);
+  syslog(LOG_DEBUG, "Net RCVBUF %d", default_rcvbuf);
 
   if (netif->sctx)
     net_select_rereg(netif->sctx, previous_fd, netif->fd);
@@ -277,7 +279,7 @@ int net_select_init(select_ctx *sctx) {
 #if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
   sctx->efd = epoll_create(MAX_SELECT);
   if (sctx->efd <= 0) {
-    log_err(errno,"!! could not create epoll !!");
+    syslog(LOG_ERR, "%d !! could not create epoll !!", errno);
     return -1;
   }
 #endif  
@@ -369,14 +371,14 @@ int net_select_rereg(select_ctx *sctx, int oldfd, int newfd) {
 	event.data.fd = oldfd;
 	event.events = EPOLLIN | EPOLLOUT;
 	if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, oldfd, &event))
-	  log_err(errno, "epoll fd %d not found", oldfd);
+	  syslog(LOG_ERR, "%d epoll fd %d not found", errno, oldfd);
 
 	memset(&event, 0, sizeof(event));
 	if (sctx->desc[i].evts & SELECT_READ) event.events |= EPOLLIN;
 	if (sctx->desc[i].evts & SELECT_WRITE) event.events |= EPOLLOUT;
 	event.data.ptr = &sctx->desc[i];
 	if (epoll_ctl(sctx->efd, EPOLL_CTL_ADD, newfd, &event))
-	  log_err(errno, "Failed to watch fd");
+	  syslog(LOG_ERR, "%d Failed to watch fd", errno);
       }
 #endif
       return 0;
@@ -406,14 +408,14 @@ int net_select_reg(select_ctx *sctx, int fd, char evts,
     if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
     event.data.ptr = &sctx->desc[sctx->count];
     if (epoll_ctl(sctx->efd, EPOLL_CTL_ADD, fd, &event))
-      log_err(errno, "Failed to watch fd");
+      syslog(LOG_ERR, "%d Failed to watch fd", errno);
   }
 #endif
 #else
   if (fd > sctx->maxfd) sctx->maxfd = fd;
 #endif
   sctx->count++;
-  log_dbg("net select count: %d", sctx->count);
+  syslog(LOG_DEBUG, "net select count: %d", sctx->count);
   return 0;
 }
 
@@ -449,12 +451,12 @@ int net_select_rmfd(select_ctx *sctx, int fd) {
   struct epoll_event event;
   memset(&event, 0, sizeof(event));
   event.data.fd = fd;
-  log_dbg("epoll rm %d", fd);
+  syslog(LOG_DEBUG, "epoll rm %d", fd);
   /*
    */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, fd, &event))
-    log_err(errno, "Failed to remove fd %d (%d)", 
-	    fd, sctx->efd);
+    syslog(LOG_ERR, "%d Failed to remove fd %d (%d)", 
+	    errno, fd, sctx->efd);
 #endif
   return 0;
 }
@@ -466,12 +468,12 @@ int net_select_addfd(select_ctx *sctx, int fd, int evts) {
   event.data.fd = fd;
   if (evts & SELECT_READ) event.events |= EPOLLIN;
   if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
-  log_dbg("epoll add %d (%d)", fd, sctx->efd);
+  syslog(LOG_DEBUG, "epoll add %d (%d)", fd, sctx->efd);
   /*
    */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_ADD, fd, &event))
-    log_err(errno, "Failed to add fd %d (%d)",
-	    fd, sctx->efd);
+    syslog(LOG_ERR, "%d Failed to add fd %d (%d)",
+	    errno, fd, sctx->efd);
 #endif
   return 0;
 }
@@ -483,9 +485,9 @@ int net_select_modfd(select_ctx *sctx, int fd, int evts) {
   event.data.fd = fd;
   if (evts & SELECT_READ) event.events |= EPOLLIN;
   if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
-  /*log_dbg("epoll mod %d", fd);*/
+  /*syslog(LOG_DEBUG, "epoll mod %d", fd);*/
   if (epoll_ctl(sctx->efd, EPOLL_CTL_MOD, fd, &event))
-    log_err(errno, "Failed to watch fd");
+    syslog(LOG_ERR, "%d Failed to watch fd", errno);
 #endif
   return 0;
 }
@@ -541,17 +543,17 @@ int net_select(select_ctx *sctx) {
 		    &sctx->idleTime);
     
 #if(0)
-    if (status) log_dbg("select() == %d", status);
+    if (status) syslog(LOG_DEBUG, "select() == %d", status);
     {int i;
       for (i=0; i<FD_SETSIZE; i++)
 	if (FD_ISSET(i, &sctx->rfds))
-	  log_dbg("rfds[%d]",i);
+	  syslog(LOG_DEBUG, "rfds[%d]",i);
       for (i=0; i<FD_SETSIZE; i++)
 	if (FD_ISSET(i, &sctx->wfds))
-	  log_dbg("wfds[%d]",i);
+	  syslog(LOG_DEBUG, "wfds[%d]",i);
       for (i=0; i<FD_SETSIZE; i++)
 	if (FD_ISSET(i, &sctx->efds))
-	  log_dbg("efds[%d]",i);
+	  syslog(LOG_DEBUG, "efds[%d]",i);
     }
 #endif
     
@@ -592,7 +594,7 @@ int net_select_write_fd(select_ctx *sctx, int fd) {
   for (idx=0; idx < sctx->count; idx++)
     if (sctx->events[idx].data.fd == fd) {
 #if(_debug_ > 1)
-      log_dbg("write %d", (sctx->events[idx].events & EPOLLOUT) != 0);
+      syslog(LOG_DEBUG, "write %d", (sctx->events[idx].events & EPOLLOUT) != 0);
 #endif
       if (sctx->events[idx].events & EPOLLOUT)
 	return 1;
@@ -754,7 +756,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 
 #ifdef USING_MMAP
   if (netif->rx_ring.frames) {
-    log_err(0, "shouldn't be reading a mmap'ed interface this way, use dispatch");
+    syslog(LOG_ERR, "shouldn't be reading a mmap'ed interface this way, use dispatch");
     return -1;
   } else 
 #endif
@@ -810,16 +812,16 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 #endif
     if (len < 0) {
 
-      log_err(errno, "could not read packet");
+      syslog(LOG_ERR, "%d could not read packet", errno);
 
     } else {
 
       if (len == 0) {
-	log_dbg("read zero, enable ieee8021q?");
+	syslog(LOG_DEBUG, "read zero, enable ieee8021q?");
       }
       
       if (len > dlen) {
-	log_warn(0, "data truncated %d/%d, sending ICMP error", 
+	syslog(LOG_WARNING, "data truncated %zu/%zd, sending ICMP error", 
 		 len, dlen);
 	return -1;
       }
@@ -836,8 +838,8 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 #endif
 
     if (len < 0) {
-      log_err(errno, "net_read_eth(fd=%d, len=%d, mtu=%d) == %d", 
-	      netif->fd, dlen, netif->mtu, len);
+      syslog(LOG_ERR, "%d net_read_eth(fd=%d, len=%zu, mtu=%d) == %zd", 
+	      errno, netif->fd, dlen, netif->mtu, len);
       return -1;
     }
 
@@ -861,13 +863,13 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 
 	if (ulen < 2 * PKT_ETH_ALEN ||
 	    len >= (dlen - 4)) {
-	  log_err(0, "bad pkt length to add 802.1q header %d/%d",
+	  syslog(LOG_ERR, "bad pkt length to add 802.1q header %d/%zd",
 		  ulen, len);
 	  break;
 	}
 	
 #if(_debug_ > 1)
-	log_dbg("adding 8021q header from auxdata");
+	syslog(LOG_DEBUG, "adding 8021q header from auxdata");
 #endif
 	
 	memmove(d + (2 * PKT_ETH_ALEN) + 4, 
@@ -899,7 +901,7 @@ ssize_t net_write(int sock, void *d, size_t dlen) {
 #endif
 		  );
     if (w < 0) {
-      log_err(errno, "safe_send(%d, d+%d,%d)", sock, off, left);
+      syslog(LOG_ERR, "%d safe_send(%d, d+%d,%d)", errno, sock, off, left);
       return (errno == EWOULDBLOCK || errno == EAGAIN) ? off : -1;
     }
     left -= w;
@@ -926,7 +928,7 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
   if (len < 0) {
     switch (errno) {
     case EWOULDBLOCK:
-      log_err(errno, "packet dropped due to congestion");
+      syslog(LOG_ERR, "%d packet dropped due to congestion", errno);
       if (!_options.uid)
 	net_reopen(netif);
       break;
@@ -949,7 +951,7 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
 #endif
     }
     
-    log_err(errno, "net_write_eth(fd=%d, len=%d) failed", netif->fd, dlen);
+    syslog(LOG_ERR, "%d net_write_eth(fd=%d, len=%zu) failed", errno, netif->fd, dlen);
     return -1;
   }
 
@@ -966,8 +968,8 @@ int net_set_mtu(net_interface *netif, size_t mtu) {
   safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   ifr.ifr_mtu = mtu;
   if (ioctl(fd, SIOCSIFMTU, &ifr) < 0) {
-    log_err(errno, "could not set MTU of %d on dev=%s",
-	    mtu, netif->devname);
+    syslog(LOG_ERR, "%d could not set MTU of %zu on dev=%s",
+	    errno, mtu, netif->devname);
     close(fd);
     return -1;
   }
@@ -990,7 +992,7 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
 
   /* Create a channel to the NET kernel. */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    log_err(errno, "socket() failed");
+    syslog(LOG_ERR, "%d socket() failed", errno);
     return -1;
   }
 
@@ -1003,14 +1005,14 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
   
   if (delete) {
     if (ioctl(fd, SIOCDELRT, (void *) &r) < 0) {
-      log_err(errno,"ioctl(SIOCDELRT) failed");
+      syslog(LOG_ERR, "%d ioctl(SIOCDELRT) failed", errno);
       close(fd);
       return -1;
     }
   }
   else {
     if (ioctl(fd, SIOCADDRT, (void *) &r) < 0) {
-      log_err(errno, "ioctl(SIOCADDRT) failed");
+      syslog(LOG_ERR, "%d ioctl(SIOCADDRT) failed", errno);
       close(fd);
       return -1;
     }
@@ -1031,7 +1033,7 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
   struct rt_msghdr *rtm;
   
   if ((fd = socket(AF_ROUTE, SOCK_RAW, 0)) == -1) {
-    log_err(errno, "socket() failed");
+    syslog(LOG_ERR, "%d socket() failed", errno);
     return -1;
   }
   
@@ -1064,7 +1066,7 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
   req.gate.sin_addr.s_addr = gateway->s_addr;
   
   if (safe_write(fd, rtm, rtm->rtm_msglen) < 0) {
-    log_err(errno, "write() failed");
+    syslog(LOG_ERR, "%d write() failed", errno);
     close(fd);
     return -1;
   }
@@ -1072,7 +1074,7 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
   return 0;
   
 #elif defined(__sun__)
-  log_err(errno, "Could not set up routing on Solaris. Please add route manually.");
+  syslog(LOG_ERR, "%d Could not set up routing on Solaris. Please add route manually.", errno);
   return 0;
 #else
 #error  "Unknown platform!"
@@ -1083,30 +1085,30 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
 #ifdef HAVE_NETFILTER_QUEUE
   netif->h = nfq_open();
 
-  log_dbg("netif nfqueue %d", (int)q);
+  syslog(LOG_DEBUG, "netif nfqueue %d", (int)q);
   
   if (!netif->h) {
-    log_err(errno, "nfq_open() failed");
+    syslog(LOG_ERR, "%d nfq_open() failed", errno);
     return -1;
   }
 
   if (nfq_unbind_pf(netif->h, AF_INET) < 0) {
-    log_err(errno, "error during nfq_unbind_pf()");
+    syslog(LOG_ERR, "%d error during nfq_unbind_pf()", errno);
   }
   
   if (nfq_bind_pf(netif->h, AF_INET) < 0) {
-    log_err(errno, "error during nfq_bind_pf()");
+    syslog(LOG_ERR, "%d error during nfq_bind_pf()", errno);
     return -1;
   }
   
   netif->qh = nfq_create_queue(netif->h,  q, cb, NULL);
   if (!netif->qh) {
-    log_err(errno, "error during nfq_create_queue(%d)", (int)q);
+    syslog(LOG_ERR, "%d error during nfq_create_queue(%d)", errno, (int)q);
     return -1;
   }
   
   if (nfq_set_mode(netif->qh, NFQNL_COPY_PACKET, 21 /*0xffff*/) < 0) {
-    log_err(errno, "error during nfq_set_mode()");
+    syslog(LOG_ERR, "%d error during nfq_set_mode()", errno);
     return -1;
   }
   
@@ -1114,7 +1116,7 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
 
   return 0;
 #else
-  log_err(0, "Not implemeneted; build with --with-nfqueue");
+  syslog(LOG_ERR, "Not implemeneted; build with --with-nfqueue");
   return -1;
 #endif
 }
@@ -1165,10 +1167,10 @@ int net_open_eth(net_interface *netif) {
 
   netif->pd = pcap_open_live(netif->devname, 2500, 1, 10, errbuf);
 
-  log_info("opening pcap device: %s", netif->devname);
+  syslog(LOG_INFO, "opening pcap device: %s", netif->devname);
 
   if (!netif->pd) {
-    log_err(errno, "pcap: %s", errbuf);
+    syslog(LOG_ERR, "%d pcap: %s", errno, errbuf);
     return -1;
   }
 
@@ -1179,7 +1181,7 @@ int net_open_eth(net_interface *netif) {
   /* Get ifindex */
   safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFINDEX, (caddr_t)&ifr) < 0) {
-    log_err(errno, "ioctl(SIOCFIGINDEX) failed");
+    syslog(LOG_ERR, "%d ioctl(SIOCFIGINDEX) failed", errno);
   }
 
   netif->ifindex = ifr.ifr_ifindex;
@@ -1187,7 +1189,7 @@ int net_open_eth(net_interface *netif) {
   /* Get the MAC address of our interface */
   safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFHWADDR, (caddr_t)&ifr) < 0) {
-    log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCGIFHWADDR);
+    syslog(LOG_ERR, "%d ioctl(d=%d, request=%d) failed", errno, netif->fd, SIOCGIFHWADDR);
     return -1;
   }
 
@@ -1199,7 +1201,7 @@ int net_open_eth(net_interface *netif) {
       safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
       memcpy(ifr.ifr_hwaddr.sa_data, netif->hwaddr, PKT_ETH_ALEN);
       if (ioctl(netif->fd, SIOCSIFHWADDR, (caddr_t)&ifr) < 0) {
-	log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCSIFHWADDR);
+	syslog(LOG_ERR, "%d ioctl(d=%d, request=%d) failed", errno, netif->fd, SIOCSIFHWADDR);
 	return -1;
       }
     }
@@ -1234,11 +1236,11 @@ int net_open_eth(net_interface *netif) {
 			  /*XXX netif->idx ? SOCK_DGRAM : */SOCK_RAW, 
 			  htons(netif->protocol))) < 0) {
     if (errno == EPERM) {
-      log_err(errno, "Cannot create raw socket. Must be root.");
+      syslog(LOG_ERR, "%d Cannot create raw socket. Must be root.", errno);
     }
 
-    log_err(errno, "socket(domain=%d, type=%lx, protocol=%d) failed",
-	    PF_PACKET, SOCK_RAW, netif->protocol);
+    syslog(LOG_ERR, "%d socket(domain=%d, type=%d, protocol=%d) failed",
+	    errno, PF_PACKET, SOCK_RAW, netif->protocol);
 
     return -1;
   }
@@ -1276,10 +1278,10 @@ int net_open_eth(net_interface *netif) {
       socklen_t len;
       len = sizeof(default_sndbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
-      log_dbg("Net SNDBUF %d", default_sndbuf);
+      syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
       len = sizeof(default_sndbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
-      log_dbg("Net RCVBUF %d", default_rcvbuf);
+      syslog(LOG_DEBUG, "Net RCVBUF %d", default_rcvbuf);
     }
 #ifdef USING_MMAP
   }
@@ -1288,7 +1290,7 @@ int net_open_eth(net_interface *netif) {
   /* Get the MAC address of our interface */
   safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFHWADDR, (caddr_t)&ifr) < 0) {
-    log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCGIFHWADDR);
+    syslog(LOG_ERR, "%d ioctl(d=%d, request=%d) failed", errno, netif->fd, SIOCGIFHWADDR);
     return -1;
   }
 
@@ -1300,14 +1302,14 @@ int net_open_eth(net_interface *netif) {
       safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
       memcpy(ifr.ifr_hwaddr.sa_data, netif->hwaddr, PKT_ETH_ALEN);
       if (ioctl(netif->fd, SIOCSIFHWADDR, (caddr_t)&ifr) < 0) {
-	log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCSIFHWADDR);
+	syslog(LOG_ERR, "%d ioctl(d=%d, request=%d) failed", errno, netif->fd, SIOCSIFHWADDR);
 	return -1;
       }
     }
   }
   
   if (netif->hwaddr[0] & 0x01) {
-    log_err(0, "Ethernet has broadcast or multicast address: %.16s",
+    syslog(LOG_ERR, "Ethernet has broadcast or multicast address: %.16s",
 	    netif->devname);
   }
   
@@ -1317,11 +1319,11 @@ int net_open_eth(net_interface *netif) {
   /* Verify that MTU = ETH_DATA_LEN */
   safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFMTU, (caddr_t)&ifr) < 0) {
-    log_err(errno, "ioctl(d=%d, request=%d) failed", netif->fd, SIOCGIFMTU);
+    syslog(LOG_ERR, "%d ioctl(d=%d, request=%d) failed", errno, netif->fd, SIOCGIFMTU);
     return -1;
   }
   if (ifr.ifr_mtu > PKT_BUFFER) {
-    log_err(0, "MTU is larger than PKT_BUFFER: %d > %d", 
+    syslog(LOG_ERR, "MTU is larger than PKT_BUFFER: %d > %d", 
 	    ifr.ifr_mtu, PKT_BUFFER);
     return -1;
   }
@@ -1330,11 +1332,11 @@ int net_open_eth(net_interface *netif) {
   /* Get ifindex */
   safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFINDEX, (caddr_t)&ifr) < 0) {
-    log_err(errno, "ioctl(SIOCFIGINDEX) failed");
+    syslog(LOG_ERR, "%d ioctl(SIOCFIGINDEX) failed", errno);
   }
   netif->ifindex = ifr.ifr_ifindex;
   
-  log_dbg("device %s ifindex %d", netif->devname, netif->ifindex);
+  syslog(LOG_DEBUG, "device %s ifindex %d", netif->devname, netif->ifindex);
 
 #ifdef ENABLE_IPV6
   {
@@ -1346,7 +1348,7 @@ int net_open_eth(net_interface *netif) {
 	if (!ifa->ifa_addr) continue;
 	family = ifa->ifa_addr->sa_family;
 
-	log_dbg("%s  address family: %d%s",
+	syslog(LOG_DEBUG, "%s  address family: %d%s",
 		ifa->ifa_name, family,
 		(family == AF_PACKET) ? " (AF_PACKET)" :
 		(family == AF_INET) ?   " (AF_INET)" :
@@ -1363,9 +1365,9 @@ int net_open_eth(net_interface *netif) {
 			  sizeof(struct sockaddr_in6),
 			  host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
 	  if (s != 0) {
-	    log_dbg("getnameinfo() failed: %s\n", strerror(s));
+	    syslog(LOG_DEBUG, "getnameinfo() failed: %s\n", strerror(s));
 	  } else {
-	    log_dbg("address: <%s>\n", host);
+	    syslog(LOG_DEBUG, "address: <%s>\n", host);
 	  }
 	}
       }
@@ -1389,12 +1391,12 @@ int net_open_eth(net_interface *netif) {
     memset(&ifr, 0, sizeof(ifr));
     safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
     if (ioctl(netif->fd, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
-      log_err(errno, "ioctl(SIOCGIFFLAGS)");
+      syslog(LOG_ERR, "%d ioctl(SIOCGIFFLAGS)", errno);
     } else {
       netif->devflags = ifr.ifr_flags;
       ifr.ifr_flags |= IFF_PROMISC;
       if (ioctl (netif->fd, SIOCSIFFLAGS, (caddr_t)&ifr) == -1) {
-	log_err(errno, "Could not set flag IFF_PROMISC");
+	syslog(LOG_ERR, "%d Could not set flag IFF_PROMISC", errno);
       }
     }
     
@@ -1414,7 +1416,7 @@ int net_open_eth(net_interface *netif) {
   sa.sll_ifindex = netif->ifindex;
 
   if (bind(netif->fd, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
-    log_err(errno, "bind(sockfd=%d) failed", netif->fd);
+    syslog(LOG_ERR, "%d bind(sockfd=%d) failed", errno, netif->fd);
     return -1;
   }
 
@@ -1429,7 +1431,7 @@ int net_open_eth(net_interface *netif) {
   option = 1;
   if (setsockopt(netif->fd, SOL_PACKET, PACKET_AUXDATA, &option,
 		 sizeof(option)) == -1 && errno != ENOPROTOOPT) {
-    log_err(errno, "auxdata");
+    syslog(LOG_ERR, "%d auxdata", errno);
   }
 #endif
 
@@ -1459,7 +1461,7 @@ int net_getmac(const char *ifname, char *macaddr) {
   struct sockaddr_dl *sdl;
 
   if (getifaddrs(&ifap)) {
-    log_err(errno, "getifaddrs() failed!");
+    syslog(LOG_ERR, "%d getifaddrs() failed!", errno);
     return -1;
   }
 
@@ -1478,7 +1480,7 @@ int net_getmac(const char *ifname, char *macaddr) {
 	continue;
       }
       if (sdl->sdl_alen != PKT_ETH_ALEN) {
-	log_err(errno, "Wrong sdl_alen!");
+	syslog(LOG_ERR, "%d Wrong sdl_alen!", errno);
 	freeifaddrs(ifap);
 	return -1;
       }
@@ -1533,7 +1535,7 @@ int net_open_eth(net_interface *netif) {
     if (errno != EBUSY) break;
   } 
   if (netif->fd < 0) {
-    log_err(errno, "Can't find bpf device");
+    syslog(LOG_ERR, "%d Can't find bpf device", errno);
     return -1;
   }
 
@@ -1541,31 +1543,31 @@ int net_open_eth(net_interface *netif) {
   memset(&ifr, 0, sizeof(ifr));
   safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, BIOCSETIF, &ifr) < 0) {
-    log_err(errno,"ioctl() failed");
+    syslog(LOG_ERR, "%d ioctl() failed", errno);
     return -1;
   }
 
   /* Get and validate BPF version */
   if (ioctl(netif->fd, BIOCVERSION, &bv) < 0) {
-    log_err(errno,"ioctl() failed!");
+    syslog(LOG_ERR, "%d ioctl() failed!", errno);
     return -1;
   }  
   if (bv.bv_major != BPF_MAJOR_VERSION ||
       bv.bv_minor < BPF_MINOR_VERSION) {
-    log_err(errno,"wrong BPF version!");
+    syslog(LOG_ERR, "%d wrong BPF version!", errno);
     return -1;
   }
 
   /* Get the MAC address of our interface */
   if (net_getmac(netif->devname, (char *)netif->hwaddr)) {
-    log_err(0,"Did not find MAC address!");
+    syslog(LOG_ERR,"Did not find MAC address!");
   }
   else {
     netif->flags |= NET_ETHHDR;
   }
   
   if (netif->hwaddr[0] & 0x01) {
-    log_err(0, "Ethernet has broadcast or multicast address: %.16s", 
+    syslog(LOG_ERR, "Ethernet has broadcast or multicast address: %.16s", 
 	    netif->devname);
     return -1;
   }
@@ -1574,19 +1576,19 @@ int net_open_eth(net_interface *netif) {
   if (netif->flags & NET_PROMISC) {
     value = 1;
     if (ioctl(netif->fd, BIOCPROMISC, NULL) < 0) {
-      log_err(errno,"ioctl() failed!");
+      syslog(LOG_ERR, "%d ioctl() failed!", errno);
       return -1;
     }  
     value = 1;
     if (ioctl(netif->fd, BIOCSHDRCMPLT, &value) < 0) {
-      log_err(errno,"ioctl() failed!");
+      syslog(LOG_ERR, "%d ioctl() failed!", errno);
       return -1;
     }  
   }
   else {
     value = 0;
     if (ioctl(netif->fd, BIOCSHDRCMPLT, &value) < 0) {
-      log_err(errno,"ioctl() failed!");
+      syslog(LOG_ERR, "%d ioctl() failed!", errno);
       return -1;
     }  
   }
@@ -1594,7 +1596,7 @@ int net_open_eth(net_interface *netif) {
   /* Make sure reads return as soon as packet has been received */
   value = 1;
   if (ioctl(netif->fd, BIOCIMMEDIATE, &value) < 0) {
-    log_err(errno,"ioctl() failed!");
+    syslog(LOG_ERR, "%d ioctl() failed!", errno);
     return -1;
   }  
 
@@ -1609,7 +1611,7 @@ void net_run(net_interface *iface) {
     int ret = send(iface->fd, NULL, 0, MSG_DONTWAIT | MSG_NOSIGNAL);
     
     if (ret == -1 && errno != EAGAIN)
-      log_err(0, "Async write error");
+      syslog(LOG_ERR, "Async write error");
     else
       ++iface->stats.tx_runs;
     
@@ -1638,7 +1640,7 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
       iface->rx_ring.idx = 0;
     
     if (h->tp_snaplen < (int)sizeof(struct pkt_ethhdr_t)) {
-      log_err(0, "Packet too short");
+      syslog(LOG_ERR, "Packet too short");
       ++iface->stats.dropped;
       goto next;
     }
@@ -1649,7 +1651,7 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
     tv.tv_nsec = h->tp_nsec;*/
     
     if (_options.debug > 100)
-      log_dbg("RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
+      syslog(LOG_DEBUG, "RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
 
     pkt_buffer_init(&pb, (uint8_t *)data, h->tp_snaplen, h->tp_mac);
     pb.length = h->tp_len;
@@ -1674,7 +1676,7 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
       iface->stats.dropped += stats.tp_drops;
 
     if (_options.logfacility > 100)
-      log_dbg("RX drops %d", iface->stats.dropped);
+      syslog(LOG_DEBUG, "RX drops %d", iface->stats.dropped);
   }
   
   ++iface->stats.rx_runs;
@@ -1694,7 +1696,7 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
 #if (0)
   if (length > (unsigned)iface->mtu) {
     /*drop_request(q);*/
-    log_err(0, "dropping packet len=%d", length);
+    syslog(LOG_ERR, "dropping packet len=%d", length);
     /*return -1;*/
   }
 #endif
@@ -1716,13 +1718,13 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
       iface->congested = TRUE;
       }
     */
-    log_warn(0, "dropped packet, buffer full");
+    syslog(LOG_WARNING, "dropped packet, buffer full");
     return -1;
   }
   
   /* Should not happen */
   if (h->tp_status == TP_STATUS_WRONG_FORMAT)
-    log_err(0, "Bad packet format on send");
+    syslog(LOG_ERR, "Bad packet format on send");
   
   /* Fill the frame */
   data = (void *)h + iface->tp_hdrlen;
@@ -1735,7 +1737,7 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
   h->tp_status = TP_STATUS_SEND_REQUEST;
 
   if (_options.debug > 100)
-    log_dbg("TX sent=%d (idx %d)", length, iface->ifindex);
+    syslog(LOG_DEBUG, "TX sent=%d (idx %d)", length, iface->ifindex);
   
   if (!iface->is_active) {
     iface->is_active = 1;
@@ -1756,7 +1758,7 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
 
   page_size = sysconf(_SC_PAGESIZE);
 
-  log_dbg("Creating %s ring: ring_size=%d; page_size=%d; mtu=%d", 
+  syslog(LOG_DEBUG, "Creating %s ring: ring_size=%d; page_size=%d; mtu=%d", 
 	  name, ring_size, page_size, mtu);
   
   /* For RX, the frame looks like:
@@ -1819,8 +1821,8 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
     req.tp_block_size >>= 1;
   }
   if (ret) {
-    log_err(errno, "Failed to set up the %s ring buffer; "
-	    "block_sz=%d block_nr=%d frame_sz=%d frame_nr=%d page_size=%d", name,
+    syslog(LOG_ERR, "%d Failed to set up the %s ring buffer; "
+	    "block_sz=%d block_nr=%d frame_sz=%d frame_nr=%d page_size=%d", errno, name,
 	    req.tp_block_size, req.tp_block_nr, req.tp_frame_size, req.tp_frame_nr, page_size);
     memset(ring, 0, sizeof(*ring));
     return;
@@ -1831,7 +1833,7 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   ring->cnt = req.tp_frame_nr;
   ring->frames = calloc(sizeof(void *), req.tp_frame_nr);
 
-  log_info("Created %s ring: len=%d; block size=%d; frame size=%d, cnt=%d", 
+  syslog(LOG_INFO, "Created %s ring: len=%d; block size=%d; frame size=%d, cnt=%d", 
 	   name, ring->len, req.tp_block_size, req.tp_frame_size, ring->cnt);
 }
 
@@ -1884,7 +1886,7 @@ static void setup_rings(net_interface *iface, unsigned size, int mtu) {
   ret = net_setsockopt(iface->fd, SOL_PACKET, PACKET_VERSION, &val, sizeof(val));
 
   if (ret) {
-    log_err(errno, "Failed to set version 2 ring buffer format");
+    syslog(LOG_ERR, "%d Failed to set version 2 ring buffer format", errno);
     return;
   }
   
@@ -1893,7 +1895,7 @@ static void setup_rings(net_interface *iface, unsigned size, int mtu) {
   ret = getsockopt(iface->fd, SOL_PACKET, PACKET_HDRLEN, &val, &len);
 
   if (ret) {
-    log_err(errno, "Failed to determine the header length of the ring buffer");
+    syslog(LOG_ERR, "%d Failed to determine the header length of the ring buffer", errno);
     return;
   }
 
@@ -1904,7 +1906,7 @@ static void setup_rings(net_interface *iface, unsigned size, int mtu) {
   ret = net_setsockopt(iface->fd, SOL_PACKET, PACKET_LOSS, &val, sizeof(val));
 
   if (ret)
-    log_err(errno, "Failed to set packet drop mode");
+    syslog(LOG_ERR, "%d Failed to set packet drop mode", errno);
   
   /* The RX and TX rings share the memory mapped area, so give
    * half the requested size to each */
@@ -1925,7 +1927,7 @@ static void setup_rings2(net_interface *iface) {
 			 MAP_SHARED, iface->fd, 0);
 
   if (iface->ring_ptr == MAP_FAILED) {
-    log_err(errno, "Failed to mmap the ring buffer");
+    syslog(LOG_ERR, "%d Failed to mmap the ring buffer", errno);
     destroy_one_ring(iface, PACKET_RX_RING);
     destroy_one_ring(iface, PACKET_TX_RING);
     iface->ring_ptr = NULL;
@@ -1944,7 +1946,7 @@ static void setup_rings2(net_interface *iface) {
     setup_frames(&iface->tx_ring, iface->ring_ptr + len);
   
   /*len = human_format(iface->ring_len, &unit);*/
-  log_info("Set up ring buffer (%u RX/%u TX packets)",
+  syslog(LOG_INFO, "Set up ring buffer (%u RX/%u TX packets)",
 	   iface->rx_ring.cnt, iface->tx_ring.cnt);
 }
 
@@ -1956,8 +1958,8 @@ static void set_buffer(net_interface *iface, int what, int size) {
   
   ret = net_setsockopt(iface->fd, SOL_SOCKET, what, &size, sizeof(size));
   if (ret) {
-    log_err(errno, "Failed to set the %s buffer size",
-	    what == SO_SNDBUF ? "send" : "receive");
+    syslog(LOG_ERR, "%d Failed to set the %s buffer size",
+	    errno, what == SO_SNDBUF ? "send" : "receive");
     return;
   }
   
@@ -1966,7 +1968,7 @@ static void set_buffer(net_interface *iface, int what, int size) {
     val = size;
 
   /*ret = human_format(val, &unit);
-  log_info("The %s buffer is %d %s",
+  syslog(LOG_INFO, "The %s buffer is %d %s",
   what == SO_SNDBUF ? "send" : "receive", ret, unit);*/
 }
 
@@ -2017,7 +2019,7 @@ static void setup_filter(net_interface *iface) {
     };
     
     if (net_setsockopt(iface->fd, SOL_SOCKET, SO_ATTACH_FILTER, &prog, sizeof(prog)))
-      log_err(errno, "Failed to set up the socket filter");
+      syslog(LOG_ERR, "%d Failed to set up the socket filter", errno);
   }
 }
 #endif

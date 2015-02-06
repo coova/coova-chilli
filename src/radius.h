@@ -386,8 +386,8 @@ int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack,
 #ifdef RADIUS_QUEUE_PACKET_PTR
 #define RADIUS_QUEUE_PKT(p, field) (p)->field
 #define RADIUS_QUEUE_PKTPTR(p) (p)
-#define RADIUS_QUEUE_PKTFREE(p) if((p))free((p));(p)=NULL;log_dbg("Freeing RADIUS packet")
-#define RADIUS_QUEUE_PKTALLOC(p) if((p))free((p));(p)=calloc(sizeof(struct radius_packet_t),1);log_dbg("Allocating RADIUS packet")
+#define RADIUS_QUEUE_PKTFREE(p) if((p))free((p));(p)=NULL;syslog(LOG_DEBUG, "Freeing RADIUS packet")
+#define RADIUS_QUEUE_PKTALLOC(p) if((p))free((p));(p)=calloc(sizeof(struct radius_packet_t),1);syslog(LOG_DEBUG, "Allocating RADIUS packet")
 #define RADIUS_QUEUE_HASPKT(p) ((p) != NULL)
 #else
 #define RADIUS_QUEUE_PKT(p, field) (p).field

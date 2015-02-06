@@ -35,20 +35,20 @@ static int chilliauth_cb(struct radius_t *radius,
   size_t offset = 0;
 
   if (!pack) { 
-    log_err(0, "Radius request timed out");
+    syslog(LOG_ERR, "Radius request timed out");
     return 0;
   }
 
   if ((pack->code != RADIUS_CODE_ACCESS_REJECT) && 
       (pack->code != RADIUS_CODE_ACCESS_CHALLENGE) &&
       (pack->code != RADIUS_CODE_ACCESS_ACCEPT)) {
-    log_err(0, "Unknown radius access reply code %d", pack->code);
+    syslog(LOG_ERR, "Unknown radius access reply code %d", pack->code);
     return 0;
   }
 
   /* ACCESS-ACCEPT */
   if (pack->code != RADIUS_CODE_ACCESS_ACCEPT) {
-    log_err(0, "Administrative-User Login Failed");
+    syslog(LOG_ERR, "Administrative-User Login Failed");
     return 0;
   }
 
@@ -74,13 +74,13 @@ int static chilliauth() {
   int ret=-1;
 
   if (!_options.adminuser || !_options.adminpasswd) {
-    log_err(0, "Must be used with --adminuser and --adminpasswd");
+    syslog(LOG_ERR, "Must be used with --adminuser and --adminpasswd");
     return 1;
   }
 
   if (radius_new(&radius, &_options.radiuslisten, 0, 0, 0) ||
       radius_init_q(radius, 4)) {
-    log_err(0, "Failed to create radius");
+    syslog(LOG_ERR, "Failed to create radius");
     return ret;
   }
 
@@ -95,7 +95,7 @@ int static chilliauth() {
       memset(&ifr, 0, sizeof(ifr));
       safe_strncpy(ifr.ifr_name, _options.dhcpif, IFNAMSIZ);
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
-	log_err(errno, "ioctl(d=%d, request=%d) failed", fd, SIOCGIFHWADDR);
+	syslog(LOG_ERR, "%d ioctl(d=%d, request=%d) failed", errno, fd, SIOCGIFHWADDR);
       }
       memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
       close(fd);
@@ -109,7 +109,7 @@ int static chilliauth() {
   ret = chilli_auth_radius(radius);
 
   if (radius->fd <= 0) {
-    log_err(0, "not a valid socket!");
+    syslog(LOG_ERR, "not a valid socket!");
     return ret;
   } 
 
@@ -129,7 +129,7 @@ int static chilliauth() {
 
     switch (status = select(maxfd + 1, &fds, NULL, NULL, &idleTime)) {
     case -1:
-      log_err(errno, "select() returned -1!");
+      syslog(LOG_ERR, "%d select() returned -1!", errno);
       break;  
     case 0:
       radius_timeout(radius);
@@ -140,7 +140,7 @@ int static chilliauth() {
     if (status > 0) {
       if (FD_ISSET(radius->fd, &fds)) {
 	if (radius_decaps(radius, 0) < 0) {
-	  log_err(0, "radius_ind() failed!");
+	  syslog(LOG_ERR, "radius_ind() failed!");
 	}
 	else {
 	  ret = 0;
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
   options_init();
 
   if (process_options(argc, argv, 1)) {
-    log_err(errno, "Exiting...");
+    syslog(LOG_ERR, "%d Exiting...", errno);
     exit(1);
   }
   
