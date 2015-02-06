@@ -26,7 +26,7 @@ cmdsock_init() {
   
   if ((cmdsock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 
-    syslog(LOG_ERR, "%d could not allocate UNIX Socket!", errno);
+    syslog(LOG_ERR, "%s: could not allocate UNIX Socket!", strerror(errno));
 
   } else {
 
@@ -37,12 +37,12 @@ cmdsock_init() {
 
     if (bind(cmdsock, (struct sockaddr *)&local, 
 	     sizeof(struct sockaddr_un)) == -1) {
-      syslog(LOG_ERR, "%d could bind UNIX Socket!", errno);
+      syslog(LOG_ERR, "%s: could bind UNIX Socket!", strerror(errno));
       close(cmdsock);
       cmdsock = -1;
     } else {
       if (listen(cmdsock, 5) == -1) {
-	syslog(LOG_ERR, "%d could listen to UNIX Socket!", errno);
+	syslog(LOG_ERR, "%s: could listen to UNIX Socket!", strerror(errno));
 	close(cmdsock);
 	cmdsock = -1;
       } else {
@@ -68,7 +68,7 @@ cmdsock_port_init() {
   
   if ((cmdsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 
-    syslog(LOG_ERR, "%d could not allocate commands socket!", errno);
+    syslog(LOG_ERR, "%s: could not allocate commands socket!", strerror(errno));
 
   } else {
 
@@ -86,12 +86,12 @@ cmdsock_port_init() {
 
     if (bind(cmdsock, (struct sockaddr *)&local, 
 	     sizeof(struct sockaddr_in)) == -1) {
-      syslog(LOG_ERR, "%d could not bind commands socket!", errno);
+      syslog(LOG_ERR, "%s: could not bind commands socket!", strerror(errno));
       close(cmdsock);
       cmdsock = -1;
     } else {
       if (listen(cmdsock, 5) == -1) {
-	syslog(LOG_ERR, "%d could not listen from commands socket!", errno);
+	syslog(LOG_ERR, "%s: could not listen from commands socket!", strerror(errno));
 	close(cmdsock);
 	cmdsock = -1;
       }

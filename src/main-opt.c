@@ -1331,7 +1331,7 @@ int main(int argc, char **argv) {
   if (args_info.reload_flag) {
     if (execl(SBINDIR "/chilli_query", "chilli_query", 
 	      args_info.cmdsocket_arg, "reload", (char *) 0) != 0) {
-      syslog(LOG_ERR, "%d execl() did not return 0!", errno);
+      syslog(LOG_ERR, "%s: execl() did not return 0!", strerror(errno));
       exit(2);
     }
   }

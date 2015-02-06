@@ -438,7 +438,7 @@ void rtmon_check_updates(struct rtmon_t *rtmon) {
 		  memcpy(rtmon->_routes[i].gwaddr, &areq.arp_ha.sa_data, sizeof(rtmon->_routes[i].gwaddr));
 
 		  if (rtmon->cb(rtmon, &rtmon->_ifaces[j], &rtmon->_routes[i]))
-		    syslog(LOG_ERR, "%d callback failed", errno);
+		    syslog(LOG_ERR, "%s: callback failed", strerror(errno));
 
 		  break;
 		}

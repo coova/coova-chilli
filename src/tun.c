@@ -121,7 +121,7 @@ int tun_name2idx(struct tun_t *tun, char *name) {
       if (newif) {
 
 	if (net_init(newif, 0, ETH_P_ALL, 1, 0) < 0) {
-	  syslog(LOG_ERR, "%d net_init", errno);
+	  syslog(LOG_ERR, "%s: net_init", strerror(errno));
 	}
 	else {
 	  net_select_reg(tun->sctx, 
@@ -144,7 +144,7 @@ int tun_discover(struct tun_t *this) {
   int fd, len, i;
 
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    syslog(LOG_ERR, "%d socket() failed", errno);
+    syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
     return -1;
   }
 
@@ -152,19 +152,19 @@ int tun_discover(struct tun_t *this) {
   ic.ifc_len=0;
 
   if (ioctl(fd, SIOCGIFCONF, &ic) < 0) {
-    syslog(LOG_ERR, "%d ioctl(SIOCGIFCONF)", errno);
+    syslog(LOG_ERR, "%s: ioctl(SIOCGIFCONF)", strerror(errno));
     close(fd);
     return -1;
   }
 
   if (!(ic.ifc_buf = calloc((size_t)ic.ifc_len, 1))) {
-    syslog(LOG_ERR, "%d calloc(ic.ifc_buf)", errno);
+    syslog(LOG_ERR, "%s: calloc(ic.ifc_buf)", strerror(errno));
     close(fd);
     return -1;
   }
 
   if (ioctl(fd, SIOCGIFCONF, &ic) < 0) {
-    syslog(LOG_ERR, "%d ioctl(SIOCGIFCONF)", errno);
+    syslog(LOG_ERR, "%s: ioctl(SIOCGIFCONF)", strerror(errno));
     free(ic.ifc_buf);
     close(fd);
     return -1;
@@ -202,7 +202,7 @@ int tun_discover(struct tun_t *this) {
       netif.netmask = inaddr(ifr_addr);
       syslog(LOG_DEBUG, "\tNetmask:\t%s", inet_ntoa(inaddr(ifr_addr)));
 
-    } else syslog(LOG_ERR, "%d ioctl(SIOCGIFNETMASK)", errno);
+    } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFNETMASK)", strerror(errno));
 
     /* hardware address */
 #ifdef SIOCGIFHWADDR
@@ -225,7 +225,7 @@ int tun_discover(struct tun_t *this) {
 	}
 	break;
       }
-    } else syslog(LOG_ERR, "%d ioctl(SIOCGIFHWADDR)", errno);
+    } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFHWADDR)", strerror(errno));
 #else
 #ifdef SIOCGENADDR
     if (-1 < ioctl(fd, SIOCGENADDR, (caddr_t)ifr)) {
@@ -235,7 +235,7 @@ int tun_discover(struct tun_t *this) {
 
       syslog(LOG_DEBUG, "\tHW Address:\t%2.2X-%2.2X-%2.2X-%2.2X-%2.2X-%2.2x",
 		  u[0], u[1], u[2], u[3], u[4], u[5]);
-    } else syslog(LOG_ERR, "%d ioctl(SIOCGENADDR)", errno);
+    } else syslog(LOG_ERR, "%s: ioctl(SIOCGENADDR)", strerror(errno));
 #else
 #warning Do not know how to find interface hardware address
 #endif /* SIOCGENADDR */
@@ -246,7 +246,7 @@ int tun_discover(struct tun_t *this) {
 
       netif.devflags = ifr->ifr_flags;
 
-    } else syslog(LOG_ERR, "%d ioctl(SIOCGIFFLAGS)", errno);
+    } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFFLAGS)", strerror(errno));
 
     /* point-to-point gateway */
     if (netif.devflags & IFF_POINTOPOINT) {
@@ -256,7 +256,7 @@ int tun_discover(struct tun_t *this) {
 	netif.gateway = inaddr(ifr_addr);
 	syslog(LOG_DEBUG, "\tPoint-to-Point:\t%s", inet_ntoa(inaddr(ifr_dstaddr)));
 
-      } else syslog(LOG_ERR, "%d ioctl(SIOCGIFDSTADDR)", errno);
+      } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFDSTADDR)", strerror(errno));
     }
 
     /* broadcast address */
@@ -266,7 +266,7 @@ int tun_discover(struct tun_t *this) {
 	netif.broadcast = inaddr(ifr_addr);
 	syslog(LOG_DEBUG, "\tBroadcast:\t%s", inet_ntoa(inaddr(ifr_addr)));
 	
-      } else syslog(LOG_ERR, "%d ioctl(SIOCGIFBRDADDR)", errno);
+      } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFBRDADDR)", strerror(errno));
     }
 
     /* mtu */
@@ -275,7 +275,7 @@ int tun_discover(struct tun_t *this) {
       netif.mtu = ifr->ifr_mtu;
       syslog(LOG_DEBUG, "\tMTU:      \t%u",  ifr->ifr_mtu);
       
-    } else syslog(LOG_ERR, "%d ioctl(SIOCGIFMTU)", errno);
+    } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFMTU)", strerror(errno));
     
     /* if (0 == ioctl(fd, SIOCGIFMETRIC, ifr)) */
 
@@ -290,7 +290,7 @@ int tun_discover(struct tun_t *this) {
       if (newif) {
 
 	if (net_init(newif, 0, ETH_P_ALL, 1, 0) < 0) {
-	  syslog(LOG_ERR, "%d net_init", errno);
+	  syslog(LOG_ERR, "%s: net_init", strerror(errno));
 	}
 	
 	if (!strcmp(_options.routeif, netif.devname))
@@ -334,10 +334,10 @@ int tun_gifindex(struct tun_t *this, uint32_t *index) {
   ifr.ifr_netmask.sa_family = AF_INET;
   safe_strncpy(ifr.ifr_name, tuntap(this).devname, IFNAMSIZ);
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    syslog(LOG_ERR, "%d socket() failed", errno);
+    syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
   }
   if (ioctl(fd, SIOCGIFINDEX, &ifr)) {
-    syslog(LOG_ERR, "%d ioctl() failed", errno);
+    syslog(LOG_ERR, "%s: ioctl() failed", strerror(errno));
     close(fd);
     return -1;
   }
@@ -380,7 +380,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   req.i.ifa_scope = RT_SCOPE_HOST; /* TODO or 0 */
 
   if (tun_gifindex(this, &idx)) {
-    syslog(LOG_ERR, "%d tun_gifindex() failed", errno);
+    syslog(LOG_ERR, "%s: tun_gifindex() failed", strerror(errno));
     return -1;
   }
 
@@ -390,7 +390,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   tun_nlattr(&req.n, sizeof(req), IFA_LOCAL, dstaddr, sizeof(dstaddr));
 
   if ((fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) < 0) {
-    syslog(LOG_ERR, "%d socket() failed", errno);
+    syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
     return -1;
   }
 
@@ -399,14 +399,14 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   local.nl_groups = 0;
   
   if (bind(fd, (struct sockaddr*)&local, sizeof(local)) < 0) {
-    syslog(LOG_ERR, "%d bind() failed", errno);
+    syslog(LOG_ERR, "%s: bind() failed", strerror(errno));
     close(fd);
     return -1;
   }
 
   addr_len = sizeof(local);
   if (getsockname(fd, (struct sockaddr*)&local, (socklen_t *) &addr_len) < 0) {
-    syslog(LOG_ERR, "%d getsockname() failed", errno);
+    syslog(LOG_ERR, "%s: getsockname() failed", strerror(errno));
     close(fd);
     return -1;
   }
@@ -443,7 +443,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   req.n.nlmsg_flags |= NLM_F_ACK;
 
   if (sendmsg(fd, &msg, 0) < 0)
-    syslog(LOG_ERR, "%d sendmsg()", errno);
+    syslog(LOG_ERR, "%s: sendmsg()", strerror(errno));
 
   dev_set_flags(tuntap(this).devname, IFF_UP | IFF_RUNNING); 
 
@@ -481,12 +481,12 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
 
   /* Create a channel to the NET kernel. */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    syslog(LOG_ERR, "%d socket() failed", errno);
+    syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
     return -1;
   }
   
   if (ioctl(fd, SIOCAIFADDR, (void *) &areq) < 0) {
-    syslog(LOG_ERR, "%d ioctl(SIOCAIFADDR) failed", errno);
+    syslog(LOG_ERR, "%s: ioctl(SIOCAIFADDR) failed", strerror(errno));
     close(fd);
     return -1;
   }
@@ -500,7 +500,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   if (!this->addrs) /* Use ioctl for first addr to make ping work */
     return tun_setaddr(this, addr, dstaddr, netmask);
   
-  syslog(LOG_ERR, "%d Setting multiple addresses not possible on Solaris", errno);
+  syslog(LOG_ERR, "%s: Setting multiple addresses not possible on Solaris", strerror(errno));
   return -1;
 
 #else
@@ -546,7 +546,7 @@ int tuntap_interface(struct _net_interface *netif) {
 #if defined(__linux__)
   /* Open the actual tun device */
   if ((netif->fd = open("/dev/net/tun", O_RDWR)) < 0) {
-    syslog(LOG_ERR, "%d open() failed", errno);
+    syslog(LOG_ERR, "%s: open() failed", strerror(errno));
     return -1;
   }
 
@@ -585,7 +585,7 @@ int tuntap_interface(struct _net_interface *netif) {
     safe_strncpy(ifr.ifr_name, _options.tundev, IFNAMSIZ);
 
   if (ioctl(netif->fd, TUNSETIFF, (void *) &ifr) < 0) {
-    syslog(LOG_ERR, "%d ioctl() failed", errno);
+    syslog(LOG_ERR, "%s: ioctl() failed", strerror(errno));
     close(netif->fd);
     return -1;
   } 
@@ -602,11 +602,11 @@ int tuntap_interface(struct _net_interface *netif) {
       if (ioctl(nfd, SIOCSIFTXQLEN, (void *) &nifr) >= 0) 
 	syslog(LOG_INFO, "TX queue length set to %d", _options.txqlen);
       else 
-	syslog(LOG_ERR, "%d Cannot set tx queue length on %s", errno, ifr.ifr_name);
+	syslog(LOG_ERR, "%s: Cannot set tx queue length on %s", strerror(errno), ifr.ifr_name);
 
       close (nfd);
     } else {
-      syslog(LOG_ERR, "%d Cannot open socket on %s", errno, ifr.ifr_name);
+      syslog(LOG_ERR, "%s: Cannot open socket on %s", strerror(errno), ifr.ifr_name);
     }
   }
 #endif
@@ -624,7 +624,7 @@ int tuntap_interface(struct _net_interface *netif) {
       memset(&ifr, 0, sizeof(ifr));
       safe_strncpy(ifr.ifr_name, netif->devname, IFNAMSIZ);
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
-	syslog(LOG_ERR, "%d ioctl(d=%d, request=%d) failed", errno, fd, SIOCGIFHWADDR);
+	syslog(LOG_ERR, "%s: ioctl(d=%d, request=%d) failed", strerror(errno), fd, SIOCGIFHWADDR);
       }
       memcpy(netif->hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
       syslog(LOG_DEBUG, "tap-mac: %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X", ifr.ifr_name,
@@ -649,7 +649,7 @@ int tuntap_interface(struct _net_interface *netif) {
   } 
 
   if (netif->fd < 0) {
-    syslog(LOG_ERR, "%d Can't find tunnel device", errno);
+    syslog(LOG_ERR, "%s: Can't find tunnel device", strerror(errno));
     return -1;
   }
 
@@ -665,7 +665,7 @@ int tuntap_interface(struct _net_interface *netif) {
 
   /* Create a channel to the NET kernel. */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-    syslog(LOG_ERR, "%d socket() failed", errno);
+    syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
     return -1;
   }
   
@@ -678,23 +678,23 @@ int tuntap_interface(struct _net_interface *netif) {
 #elif defined(__sun__)
 
   if ((ip_fd = open("/dev/udp", O_RDWR, 0)) < 0) {
-    syslog(LOG_ERR, "%d Can't open /dev/udp", errno);
+    syslog(LOG_ERR, "%s: Can't open /dev/udp", strerror(errno));
     return -1;
   }
   
   if ((netif->fd = open("/dev/tun", O_RDWR, 0)) < 0) {
-    syslog(LOG_ERR, "%d Can't open /dev/tun", errno);
+    syslog(LOG_ERR, "%s: Can't open /dev/tun", strerror(errno));
     return -1;
   }
   
   /* Assign a new PPA and get its unit number. */
   if ((ppa = ioctl(netif->fd, TUNNEWPPA, -1)) < 0) {
-    syslog(LOG_ERR, "%d Can't assign new interface", errno);
+    syslog(LOG_ERR, "%s: Can't assign new interface", strerror(errno));
     return -1;
   }
   
   if ((if_fd = open("/dev/tun", O_RDWR, 0)) < 0) {
-    syslog(LOG_ERR, "%d Can't open /dev/tun (2)", errno);
+    syslog(LOG_ERR, "%s: Can't open /dev/tun (2)", strerror(errno));
     return -1;
   }
 
@@ -744,7 +744,7 @@ int tun_new(struct tun_t **ptun) {
   struct tun_t *tun;
 
   if (!(tun = *ptun = calloc(1, sizeof(struct tun_t)))) {
-    syslog(LOG_ERR, "%d calloc() failed", errno);
+    syslog(LOG_ERR, "%s: calloc() failed", strerror(errno));
     return EOF;
   }
 
@@ -906,7 +906,7 @@ int tun_decaps(struct tun_t *this, int idx) {
   if ((length = safe_read(tun(this, idx).fd, 
 			  pkt_buffer_head(&pb), 
 			  pkt_buffer_size(&pb))) <= 0) {
-    syslog(LOG_ERR, "%d read() failed", errno);
+    syslog(LOG_ERR, "%s: read() failed", strerror(errno));
     return -1;
   }
 
@@ -1095,7 +1095,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   result = tun_write(tun, pack, len, idx);
 
   if (result < 0) {
-    syslog(LOG_ERR, "%d tun_write(%zu) = %d", errno, len, result);
+    syslog(LOG_ERR, "%s: tun_write(%zu) = %d", strerror(errno), len, result);
   }
 
   return result;
@@ -1111,7 +1111,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
   net.s_addr = tuntap(tun).address.s_addr & tuntap(tun).netmask.s_addr;
 
   if ((pid = safe_fork()) < 0) {
-    syslog(LOG_ERR, "%d fork() returned -1!", errno);
+    syslog(LOG_ERR, "%s: fork() returned -1!", strerror(errno));
     return 0;
   }
   
@@ -1121,7 +1121,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
     again:
       if (waitpid(pid, &status, 0) == -1) {
 	if (errno == EINTR) goto again;
-	syslog(LOG_ERR, "%d waiting for %s", errno, script);
+	syslog(LOG_ERR, "%s: waiting for %s", strerror(errno), script);
       }
     }
     return 0;
@@ -1177,7 +1177,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
 #endif
 	    script, tuntap(tun).devname, (char *) 0) != 0) {
     
-    syslog(LOG_ERR, "%d execl(%s) did not return 0!", errno, script);
+    syslog(LOG_ERR, "%s: execl(%s) did not return 0!", strerror(errno), script);
     exit(0);
   }
   
@@ -1218,7 +1218,7 @@ int tun_addroute2(struct tun_t *this,
   tun_nlattr(&req.n, sizeof(req), RTA_GATEWAY, gateway, 4);
   
   if ((fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) < 0) {
-    syslog(LOG_ERR, "%d %s %d socket() failed", errno, __FILE__, __LINE__);
+    syslog(LOG_ERR, "%s: %s %d socket() failed", strerror(errno), __FILE__, __LINE__);
     return -1;
   }
 
@@ -1227,26 +1227,26 @@ int tun_addroute2(struct tun_t *this,
   local.nl_groups = 0;
   
   if (bind(fd, (struct sockaddr*)&local, sizeof(local)) < 0) {
-    syslog(LOG_ERR, "%d %s %d  bind() failed", errno, __FILE__, __LINE__);
+    syslog(LOG_ERR, "%s: %s %d  bind() failed", strerror(errno), __FILE__, __LINE__);
     close(fd);
     return -1;
   }
 
   addr_len = sizeof(local);
   if (getsockname(fd, (struct sockaddr*)&local, &addr_len) < 0) {
-    syslog(LOG_ERR, "%d %s %d getsockname() failed", errno, __FILE__, __LINE__);
+    syslog(LOG_ERR, "%s: %s %d getsockname() failed", strerror(errno), __FILE__, __LINE__);
     close(fd);
     return -1;
   }
 
   if (addr_len != sizeof(local)) {
-    syslog(LOG_ERR, "%d %s %d Wrong address length %d", errno, __FILE__, __LINE__, addr_len);
+    syslog(LOG_ERR, "%s: %s %d Wrong address length %d", strerror(errno), __FILE__, __LINE__, addr_len);
     close(fd);
     return -1;
   }
 
   if (local.nl_family != AF_NETLINK) {
-    syslog(LOG_ERR, "%d %s %d Wrong address family %d", errno, __FILE__, __LINE__, local.nl_family);
+    syslog(LOG_ERR, "%s: %s %d Wrong address family %d", strerror(errno), __FILE__, __LINE__, local.nl_family);
     close(fd);
     return -1;
   }

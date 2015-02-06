@@ -95,7 +95,7 @@ int static chilliauth() {
       memset(&ifr, 0, sizeof(ifr));
       safe_strncpy(ifr.ifr_name, _options.dhcpif, IFNAMSIZ);
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
-	syslog(LOG_ERR, "%d ioctl(d=%d, request=%d) failed", errno, fd, SIOCGIFHWADDR);
+	syslog(LOG_ERR, "%s: ioctl(d=%d, request=%d) failed", strerror(errno), fd, SIOCGIFHWADDR);
       }
       memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
       close(fd);
@@ -129,7 +129,7 @@ int static chilliauth() {
 
     switch (status = select(maxfd + 1, &fds, NULL, NULL, &idleTime)) {
     case -1:
-      syslog(LOG_ERR, "%d select() returned -1!", errno);
+      syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
       break;  
     case 0:
       radius_timeout(radius);
@@ -162,7 +162,7 @@ int main(int argc, char **argv)
   options_init();
 
   if (process_options(argc, argv, 1)) {
-    syslog(LOG_ERR, "%d Exiting...", errno);
+    syslog(LOG_ERR, "%s: Exiting...", strerror(errno));
     exit(1);
   }
   

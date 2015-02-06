@@ -425,7 +425,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
     if (bytes == -1) {
       ssl->status = errno;
 
-      syslog(LOG_WARNING, "%d recv()", errno);
+      syslog(LOG_WARNING, "%s: recv()", strerror(errno));
 
       if (errno == EWOULDBLOCK || errno == EAGAIN) 
 	return 0;

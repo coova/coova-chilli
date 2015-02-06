@@ -161,7 +161,7 @@ int mini_cmdline_file(char *filename, struct gengetopt_args_info *args_info,
   int i;
 
   if (!file) {
-    syslog(LOG_ERR, "%d Could not open file %s", errno, filename);
+    syslog(LOG_ERR, "%s: Could not open file %s", strerror(errno), filename);
     return -1;
   }
 

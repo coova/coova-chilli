@@ -116,7 +116,7 @@ static int opt_run(int argc, char **argv, int reload) {
   syslog(LOG_DEBUG, "(Re)processing options [%s]", file);
 
   if ((status = safe_fork()) < 0) {
-    syslog(LOG_ERR, "%d fork() returned -1!", errno);
+    syslog(LOG_ERR, "%s: fork() returned -1!", strerror(errno));
     return -1;
   }
   
@@ -140,7 +140,7 @@ static int opt_run(int argc, char **argv, int reload) {
   syslog(LOG_DEBUG, "running chilli_opt on %s", file);
 
   if (execv(SBINDIR "/chilli_opt", newargs) != 0) {
-    syslog(LOG_ERR, "%d execl() did not return 0!", errno);
+    syslog(LOG_ERR, "%s: execl() did not return 0!", strerror(errno));
     exit(0);
   }
 
@@ -199,19 +199,19 @@ int options_mkdir(char *path) {
       /* not necessarily a directory */
       unlink(path);
       if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO)) {
-	syslog(LOG_ERR, "%d mkdir %s", errno, path);
+	syslog(LOG_ERR, "%s: mkdir %s", strerror(errno), path);
 	return -1;
       }
       break;
     default:
-      syslog(LOG_ERR, "%d mkdir %s", errno, path);
+      syslog(LOG_ERR, "%s: mkdir %s", strerror(errno), path);
       return -1;
     }
   }
 
   if (_options.uid && geteuid() == 0) {
     if (chown(path, _options.uid, _options.gid)) {
-      syslog(LOG_ERR, "%d could not chown() %s", errno, path);
+      syslog(LOG_ERR, "%s: could not chown() %s", strerror(errno), path);
     }
   }
   return 0;
@@ -577,26 +577,26 @@ int options_save(char *file, bstring bt) {
 
   if (fd < 0) {
 
-    syslog(LOG_ERR, "%d could not save to %s", errno, file);
+    syslog(LOG_ERR, "%s: could not save to %s", strerror(errno), file);
 
     return 0;
 
   } else {
     if (safe_write(fd, &o, sizeof(o)) < 0)
-      syslog(LOG_ERR, "%d write()", errno);
+      syslog(LOG_ERR, "%s: write()", strerror(errno));
 
     size_t len = bt->slen;
 
     if (safe_write(fd, &len, sizeof(len)) < 0)
-      syslog(LOG_ERR, "%d write()", errno);
+      syslog(LOG_ERR, "%s: write()", strerror(errno));
 
     if (safe_write(fd, bt->data, len) < 0)
-      syslog(LOG_ERR, "%d write()", errno);
+      syslog(LOG_ERR, "%s: write()", strerror(errno));
 
     options_md5(&o, cksum);
 
     if (safe_write(fd, cksum, sizeof(cksum)) < 0)
-      syslog(LOG_ERR, "%d write()", errno);
+      syslog(LOG_ERR, "%s: write()", strerror(errno));
 
     close(fd);
 

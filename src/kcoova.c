@@ -41,7 +41,7 @@ kmod(char cmd, struct in_addr *addr) {
     close(fd);
     return rd == strlen(line);
   } else {
-    syslog(LOG_ERR, "%d could not open %s", errno, file);
+    syslog(LOG_ERR, "%s: could not open %s", strerror(errno), file);
   }
   return 0;
 }
@@ -89,7 +89,7 @@ kmod_coova_sync() {
   
   while ((read = getline(&line, &len, fp)) != -1) {
     if (len > 256) {
-      syslog(LOG_ERR, "%d problem", errno);
+      syslog(LOG_ERR, "%s: problem", strerror(errno));
       continue;
     }
 
@@ -126,7 +126,7 @@ kmod_coova_sync() {
       }
 
     } else {
-      syslog(LOG_ERR, "%d Error parsing %s", errno, line);
+      syslog(LOG_ERR, "%s: Error parsing %s", strerror(errno), line);
     }
   }
   

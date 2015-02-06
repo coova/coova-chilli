@@ -204,7 +204,7 @@ int ewtapi(struct redir_t *redir,
 		"Content-type: application/json\r\n\r\n");
   
   if (safe_write(1, b->data, b->slen) < 0) {
-    syslog(LOG_ERR, "%d redir_write()", errno);
+    syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
   }
 
   safe_snprintf(path, sizeof(path),
@@ -216,7 +216,7 @@ int ewtapi(struct redir_t *redir,
       ewt_services[i].func(b);
       syslog(LOG_DEBUG, "Internal EWT Service %s -> %s", ewt_services[i].name, b->data);
       if (safe_write(1, b->data, b->slen) < 0) {
-	syslog(LOG_ERR, "%d redir_write()", errno);
+	syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
       }
       bdestroy(b);
       bdestroy(s);
@@ -229,6 +229,6 @@ int ewtapi(struct redir_t *redir,
   syslog(LOG_DEBUG, "EWT API Running %s", *binqqargs);
   
   execv(*binqqargs, binqqargs);
-  syslog(LOG_ERR, "%d count not exec %s", errno, *binqqargs);
+  syslog(LOG_ERR, "%s: count not exec %s", strerror(errno), *binqqargs);
   return -1;
 }

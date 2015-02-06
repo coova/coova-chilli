@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
 	  _options.uid, _options.gid);
   
   if (stat(argv[2], &statbuf)) { 
-    syslog(LOG_ERR, "%d %s does not exist", errno, argv[2]); 
+    syslog(LOG_ERR, "%s: %s does not exist", strerror(errno), argv[2]); 
     usage(argv[0]);
   }
   
@@ -88,13 +88,13 @@ int main(int argc, char **argv) {
       (statbuf.st_mode & 0400) == 0400) {
     
     if (setuid(0))
-      syslog(LOG_ERR, "%d setuid %s", errno, argv[0]);
+      syslog(LOG_ERR, "%s: setuid %s", strerror(errno), argv[0]);
   }
   
   syslog(LOG_INFO, "Running %s (%d/%d)", argv[2], getuid(), geteuid());
 
   if (execv(argv[2], &argv[2])) {
-    syslog(LOG_ERR, "%d exec %s", errno, argv[2]);
+    syslog(LOG_ERR, "%s: exec %s", strerror(errno), argv[2]);
     usage(argv[0]);
   }
   

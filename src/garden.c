@@ -557,7 +557,7 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
       pt.mask.s_addr = 0xffffffff;
 
       if (!(host = gethostbyname(p1))) {
-	syslog(LOG_ERR, "%d Invalid uamallowed domain or address: %s!", errno, p1);
+	syslog(LOG_ERR, "%s: Invalid uamallowed domain or address: %s!", strerror(errno), p1);
 	continue;
       }
 

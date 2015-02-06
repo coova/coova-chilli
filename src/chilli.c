@@ -148,7 +148,7 @@ static pid_t launch_daemon(char *name, char *path) {
 
   if (p < 0) {
 
-    syslog(LOG_ERR, "%d fork failed", errno);
+    syslog(LOG_ERR, "%s: fork failed", strerror(errno));
 
   } else if (p == 0) {
 
@@ -164,7 +164,7 @@ static pid_t launch_daemon(char *name, char *path) {
     newargs[i++] = NULL;
     
     if (execv(path, newargs) != 0) {
-      syslog(LOG_ERR, "%d execl() did not return 0!", errno);
+      syslog(LOG_ERR, "%s: execl() did not return 0!", strerror(errno));
       exit(0);
     }
 
@@ -466,7 +466,7 @@ time_t mainclock_tick() {
     res = clock_gettime(cid, &ts);
   }
   if (res == -1) {
-    syslog(LOG_ERR, "%d clock_gettime()", errno);
+    syslog(LOG_ERR, "%s: clock_gettime()", strerror(errno));
     /* drop through to old time() */
   } else {
     mainclock.tv_sec = ts.tv_sec;
@@ -475,7 +475,7 @@ time_t mainclock_tick() {
   }
 #endif
   if (time(&mainclock.tv_sec) == (time_t)-1) {
-    syslog(LOG_ERR, "%d time()", errno);
+    syslog(LOG_ERR, "%s: time()", strerror(errno));
   }
   return mainclock.tv_sec;
 }
@@ -490,7 +490,7 @@ time_t mainclock_rt() {
   struct timespec ts;
   clockid_t cid = CLOCK_REALTIME;
   if (clock_gettime(cid, &ts) < 0) {
-    syslog(LOG_ERR, "%d clock_gettime()", errno);
+    syslog(LOG_ERR, "%s: clock_gettime()", strerror(errno));
     /* drop through to old time() */
   } else {
     rt = ts.tv_sec;
@@ -498,7 +498,7 @@ time_t mainclock_rt() {
   }
 #endif
   if (time(&rt) == (time_t)-1) {
-    syslog(LOG_ERR, "%d time()", errno);
+    syslog(LOG_ERR, "%s: time()", strerror(errno));
   }
   return rt;
 }
@@ -759,7 +759,7 @@ void set_env(char *name, char type, void *value, int len) {
 
   if (name != NULL && v != NULL) {
     if (setenv(name, v, 1) != 0) {
-      syslog(LOG_ERR, "%d setenv(%s, %s, 1) did not return 0!", errno, name, v);
+      syslog(LOG_ERR, "%s: setenv(%s, %s, 1) did not return 0!", strerror(errno), name, v);
     }
   }
 }
@@ -770,7 +770,7 @@ int runscript(struct app_conn_t *appconn, char* script,
   uint32_t sessiontime;
 
   if ((status = chilli_fork(CHILLI_PROC_SCRIPT, script)) < 0) {
-    syslog(LOG_ERR, "%d forking %s", errno, script);
+    syslog(LOG_ERR, "%s: forking %s", strerror(errno), script);
     return 0;
   }
 
@@ -835,7 +835,7 @@ int runscript(struct app_conn_t *appconn, char* script,
 	    script,
 #endif
 	    script, (char *) 0) != 0) {
-    syslog(LOG_ERR, "%d exec %s failed", errno, script);
+    syslog(LOG_ERR, "%s: exec %s failed", strerror(errno), script);
   }
   
   exit(0);
@@ -1859,7 +1859,7 @@ static int acct_req(acct_type type,
 	
 	if (sysinfo(&the_info)) {
 	  
-	  syslog(LOG_ERR, "%d sysinfo()", errno);
+	  syslog(LOG_ERR, "%s: sysinfo()", strerror(errno));
 	  
 	} else {
 	  float shiftfloat;
@@ -4259,7 +4259,7 @@ static int chilliauth_cb(struct radius_t *radius,
 	do {
 	  if (safe_write(fd, attr->v.t, attr->l - 2) < 0 ||
 	      safe_write(fd, "\n", 1) < 0) {
-	    syslog(LOG_ERR, "%d adminupdatefile", errno);
+	    syslog(LOG_ERR, "%s: adminupdatefile", strerror(errno));
 	    break;
 	  }
 	} 
@@ -6930,12 +6930,12 @@ static int cmdsock_accept(void *nullData, int sock) {
 
   len = sizeof(remote);
   if ((csock = safe_accept(sock, (struct sockaddr *)&remote, &len)) == -1) {
-    syslog(LOG_ERR, "%d cmdsock_accept()/accept()", errno);
+    syslog(LOG_ERR, "%s: cmdsock_accept()/accept()", strerror(errno));
     return -1;
   }
 
   if (safe_read(csock, &req, sizeof(req)) != sizeof(req)) {
-    syslog(LOG_ERR, "%d cmdsock_accept()/read()", errno);
+    syslog(LOG_ERR, "%s: cmdsock_accept()/read()", strerror(errno));
     safe_close(csock);
     return -1;
   }
@@ -6946,7 +6946,7 @@ static int cmdsock_accept(void *nullData, int sock) {
   rval = chilli_cmd(&req, s, csock);
 
   if (net_write(csock, s->data, s->slen) < 0)
-    syslog(LOG_ERR, "%d write()", errno);
+    syslog(LOG_ERR, "%s: write()", strerror(errno));
   
   bdestroy(s);
   shutdown(csock, 2);
@@ -6986,7 +6986,7 @@ int chilli_io(int fd_ctrl_r, int fd_ctrl_w, int fd_pkt_r, int fd_pkt_w) {
       if (fd_isset(fd_pkt_w, &fds)) {
       }
     } else {
-      syslog(LOG_ERR, "%d problem in select", errno);
+      syslog(LOG_ERR, "%s: problem in select", strerror(errno));
       break;
     }
   }
@@ -7012,14 +7012,14 @@ int static redir_msg(struct redir_t *this) {
 			      &msg.mdata.baddress, 
 			      &conn) != -1) {
 	  if (safe_write(socket, &conn, sizeof(conn)) < 0) {
-	    syslog(LOG_ERR, "%d redir_msg writing", errno);
+	    syslog(LOG_ERR, "%s: redir_msg writing", strerror(errno));
 	  }
 	}
       } else {
 	uam_msg(&msg);
       }
     } else if (msgresult == -1) {
-      syslog(LOG_ERR, "%d redir_msg read", errno);
+      syslog(LOG_ERR, "%s: redir_msg read", strerror(errno));
     } else {
       syslog(LOG_ERR, "invalid size %d", msgresult);
     }
@@ -7063,7 +7063,7 @@ static int rtmon_proc_route(struct rtmon_t *rtmon,
 
 static int rtmon_accept(struct rtmon_t *rtmon, int idx) {
   if (rtmon_read_event(rtmon))
-    syslog(LOG_ERR, "%d error reading netlink message", errno);
+    syslog(LOG_ERR, "%s: error reading netlink message", strerror(errno));
   return 0;
 }
 #endif
@@ -7196,7 +7196,7 @@ int chilli_main(int argc, char **argv) {
       ok = options_save(file2, bt);
 
       if (!ok) {
-	syslog(LOG_ERR, "%d could not save configuration options! [%s]", errno, file2);
+	syslog(LOG_ERR, "%s: could not save configuration options! [%s]", strerror(errno), file2);
 	exit(1);
       }
 
@@ -7210,7 +7210,7 @@ int chilli_main(int argc, char **argv) {
       bdestroy(bt);
 
       if (!options_binload(file2)) {
-	syslog(LOG_ERR, "%d could not reload configuration! [%s]", errno, file2);
+	syslog(LOG_ERR, "%s: could not reload configuration! [%s]", strerror(errno), file2);
 	exit(1);
       }
     }
@@ -7270,12 +7270,12 @@ int chilli_main(int argc, char **argv) {
   memset(&startup_real, 0, sizeof(startup_real));
   memset(&startup_mono, 0, sizeof(startup_mono));
   if (clock_gettime(CLOCK_REALTIME, &startup_real) < 0) {
-    syslog(LOG_ERR, "%d getting startup (realtime) time", errno);
+    syslog(LOG_ERR, "%s: getting startup (realtime) time", strerror(errno));
   }
   syslog(LOG_DEBUG, "clock realtime sec %ld nsec %ld", startup_real.tv_sec, startup_real.tv_nsec);
 #ifdef CLOCK_MONOTONIC
   if (clock_gettime(CLOCK_MONOTONIC, &startup_mono) < 0) {
-    syslog(LOG_ERR, "%d getting startup (monotonic) time", errno);
+    syslog(LOG_ERR, "%s: getting startup (monotonic) time", strerror(errno));
   }
   syslog(LOG_DEBUG, "clock monotonic sec %ld nsec %ld", startup_mono.tv_sec, startup_mono.tv_nsec);
 #endif
@@ -7401,7 +7401,7 @@ int chilli_main(int argc, char **argv) {
     cmdsock = cmdsock_port_init();
   }
   if (cmdsock < 0) {
-    syslog(LOG_ERR, "%d Failed to initialize chilli query socket", errno);
+    syslog(LOG_ERR, "%s: Failed to initialize chilli query socket", strerror(errno));
     return -1;
   }
 #endif
@@ -7492,7 +7492,7 @@ int chilli_main(int argc, char **argv) {
   }
 
   if (net_select_init(&sctx))
-    syslog(LOG_ERR, "%d select init", errno);
+    syslog(LOG_ERR, "%s: select init", strerror(errno));
 
 #ifdef ENABLE_MULTIROUTE
   tun->sctx = &sctx;
@@ -7637,7 +7637,7 @@ int chilli_main(int argc, char **argv) {
     }
 
     if (net_select_prepare(&sctx))
-      syslog(LOG_ERR, "%d select prepare", errno);
+      syslog(LOG_ERR, "%s: select prepare", strerror(errno));
 
     status = net_select(&sctx);
 
@@ -7647,7 +7647,7 @@ int chilli_main(int argc, char **argv) {
     if ((msgresult = 
 	 TEMP_FAILURE_RETRY(msgrcv(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0, IPC_NOWAIT)))  == -1) {
       if ((errno != EAGAIN) && (errno != ENOMSG))
-	syslog(LOG_ERR, "%d msgrcv() failed!", errno);
+	syslog(LOG_ERR, "%s: msgrcv() failed!", strerror(errno));
     }
 
     if (msgresult > 0) 
@@ -7681,7 +7681,7 @@ int chilli_main(int argc, char **argv) {
   if (_options.seskeepalive) {
 #ifdef ENABLE_BINSTATFILE
     if (printstatus() != 0) 
-      syslog(LOG_ERR, "%d could not save status file", errno);
+      syslog(LOG_ERR, "%s: could not save status file", strerror(errno));
 #else
     syslog(LOG_WARNING, "Not stopping sessions! seskeepalive should be used with compile option --enable-binstatusfile");
 #endif
@@ -7689,7 +7689,7 @@ int chilli_main(int argc, char **argv) {
     killconn();
 #ifdef ENABLE_STATFILE
     if (printstatus() != 0) 
-      syslog(LOG_ERR, "%d could not save status file", errno);
+      syslog(LOG_ERR, "%s: could not save status file", strerror(errno));
 #endif
   }
 

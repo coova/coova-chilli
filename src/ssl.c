@@ -93,7 +93,7 @@ openssl_use_certificate(openssl_env *env, char *file) {
   if (file)
     if (SSL_CTX_use_certificate_file(env->ctx, file, SSL_FILETYPE_PEM) > 0)
       return 1;
-  syslog(LOG_ERR, "%d could not load certificate file %s\n", errno, file);
+  syslog(LOG_ERR, "%s: could not load certificate file %s\n", strerror(errno), file);
   return 0;
 }
 
@@ -105,7 +105,7 @@ openssl_use_privatekey(openssl_env *env, char *file) {
         (err2 = SSL_CTX_check_private_key(env->ctx)))
       return 1;
   }
-  syslog(LOG_ERR, "%d could not load private key file %s (%d,%d)\n", errno, file, err1, err2);
+  syslog(LOG_ERR, "%s: could not load private key file %s (%d,%d)\n", strerror(errno), file, err1, err2);
   /*
     {
     BIO *bio_err = NULL;
@@ -123,7 +123,7 @@ int
 openssl_cacert_location(openssl_env *env, char *file, char *dir) {
   int err = SSL_CTX_load_verify_locations(env->ctx, file, dir);
   if (!err)
-    syslog(LOG_ERR, "%d unable to load CA certificates.\n", errno);
+    syslog(LOG_ERR, "%s: unable to load CA certificates.\n", strerror(errno));
   return err;
 }
 
@@ -178,19 +178,19 @@ static void
 openssl_tmp_genkeys(openssl_env *env) {
 
   if ((env->tmpKeys[OPENSSL_TMPKEY_RSA512] = RSA_generate_key(512, RSA_F4, NULL, NULL)) == NULL) {
-    syslog(LOG_ERR, "%d could not generate tmp 512bit RSA key\n", errno);
+    syslog(LOG_ERR, "%s: could not generate tmp 512bit RSA key\n", strerror(errno));
   }
 
   if ((env->tmpKeys[OPENSSL_TMPKEY_RSA1024] = RSA_generate_key(1024, RSA_F4, NULL, NULL)) == NULL) {
-    syslog(LOG_ERR, "%d could not generate tmp 1024bit RSA key\n", errno);
+    syslog(LOG_ERR, "%s: could not generate tmp 1024bit RSA key\n", strerror(errno));
   }
 
   if ((env->tmpKeys[OPENSSL_TMPKEY_DH512] = openssl_dh_tmpkey(512)) == NULL) {
-    syslog(LOG_ERR, "%d could not generate tmp 512bit DH key\n", errno);
+    syslog(LOG_ERR, "%s: could not generate tmp 512bit DH key\n", strerror(errno));
   }
 
   if ((env->tmpKeys[OPENSSL_TMPKEY_DH1024] = openssl_dh_tmpkey(1024)) == NULL) {
-    syslog(LOG_ERR, "%d could not generate tmp 512bit DH key\n", errno);
+    syslog(LOG_ERR, "%s: could not generate tmp 512bit DH key\n", strerror(errno));
   }
 }
 #endif
@@ -291,7 +291,7 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
 			  _options.sslkeyfile, 
 			  _options.sslkeypass, 
 			  _options.sslcafile ) < 0 ) {
-    syslog(LOG_ERR, "%d could not load ssl certificate or and/or key file", errno);
+    syslog(LOG_ERR, "%s: could not load ssl certificate or and/or key file", strerror(errno));
     return 0;
   }
 
@@ -345,7 +345,7 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
   }
 #elif  HAVE_MATRIXSSL
   if (!SSL_connect(c->con, certValidator, c)) {
-    syslog(LOG_ERR, "%d openssl_connect_fd", errno);
+    syslog(LOG_ERR, "%s: openssl_connect_fd", strerror(errno));
     openssl_free(c);
     return 0;
   }
@@ -503,7 +503,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
   matrixSslSetCertValidator(c->con->ssl, certValidator, c->con->keys);
 
   if ((rc = SSL_accept2(c->con)) < 0) {
-    syslog(LOG_ERR, "%d SSL accept failure %s", errno, c->con->status);
+    syslog(LOG_ERR, "%s: SSL accept failure %s", strerror(errno), c->con->status);
     openssl_free(c);
     return 0;
   }
@@ -556,7 +556,7 @@ openssl_error(openssl_con *con, int ret, char *func) {
   }
   return err;
 #else
-  syslog(LOG_ERR, "%d ssl error in %s", errno, func);
+  syslog(LOG_ERR, "%s: ssl error in %s", strerror(errno), func);
   return 0;
 #endif
 }

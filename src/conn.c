@@ -38,7 +38,7 @@ int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
 #endif
 
     if (ndelay_on(sock) < 0) {
-      syslog(LOG_ERR, "%d could not set non-blocking", errno);
+      syslog(LOG_ERR, "%s: could not set non-blocking", strerror(errno));
     }
 
     if (safe_connect(sock, 
@@ -119,7 +119,7 @@ int conn_update_write(struct conn_t *conn) {
     socklen_t errlen = sizeof(err);
     if (getsockopt(conn->sock, SOL_SOCKET, SO_ERROR, 
 		   &err, &errlen) || (err != 0)) {
-      syslog(LOG_ERR, "%d not connected", errno);
+      syslog(LOG_ERR, "%s: not connected", strerror(errno));
       conn_finish(conn);
       return -1;
     } else {
@@ -127,7 +127,7 @@ int conn_update_write(struct conn_t *conn) {
       /*log_dbg("RESETTING non-blocking");*/
 #endif
       /*if (ndelay_off(conn->sock) < 0) {
-	syslog(LOG_ERR, "%d could not un-set non-blocking", errno);
+	syslog(LOG_ERR, "%s: could not un-set non-blocking", strerror(errno));
 	}*/
     }
   }

@@ -415,7 +415,7 @@ int dhcp_net_send(struct _net_interface *netif, unsigned char *hismac,
 
 #elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   if (safe_write(netif->fd, packet, length) < 0) {
-    syslog(LOG_ERR, "%d write() failed", errno);
+    syslog(LOG_ERR, "%s: write() failed", strerror(errno));
     return -1;
   }
 #endif
@@ -539,7 +539,7 @@ int vlanupdate_script(struct dhcp_conn_t *conn, char* script,
   uint16_t tag;
 
   if ((status = chilli_fork(CHILLI_PROC_SCRIPT, script)) < 0) {
-    syslog(LOG_ERR, "%d forking %s", errno, script);
+    syslog(LOG_ERR, "%s: forking %s", strerror(errno), script);
     return 0;
   }
 
@@ -566,7 +566,7 @@ int vlanupdate_script(struct dhcp_conn_t *conn, char* script,
 	    script,
 #endif
 	    script, (char *) 0) != 0) {
-    syslog(LOG_ERR, "%d exec %s failed", errno, script);
+    syslog(LOG_ERR, "%s: exec %s failed", strerror(errno), script);
   }
 
   exit(0);
@@ -1067,12 +1067,12 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
   { 
     int blen=0;
     if (ioctl(dhcp->rawif[0].fd, BIOCGBLEN, &blen) < 0) {
-      syslog(LOG_ERR, "%d ioctl() failed!", errno);
+      syslog(LOG_ERR, "%s: ioctl() failed!", strerror(errno));
     }
     syslog(LOG_DEBUG, "BIOCGBLEN=%d",blen);
     dhcp->pb.buflen = blen;
     if (!(dhcp->pb.buf = calloc(dhcp->pb.buflen, 1))) {
-      syslog(LOG_ERR, "%d malloc() failed", errno);
+      syslog(LOG_ERR, "%s: malloc() failed", strerror(errno));
     }
   }
 #endif
@@ -1111,11 +1111,11 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
       addr.sin_port = htons(_options.dhcpgwport);
       
       if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
-	syslog(LOG_ERR, "%d Can't set reuse option", errno);
+	syslog(LOG_ERR, "%s: Can't set reuse option", strerror(errno));
       }
       
       if (bind(fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-	syslog(LOG_ERR, "%d socket or bind failed for dhcp relay!", errno);
+	syslog(LOG_ERR, "%s: socket or bind failed for dhcp relay!", strerror(errno));
 	close(fd);
 	fd = -1;
       }
@@ -1438,7 +1438,7 @@ int dhcp_ipwhitelist(struct pkt_ipphdr_t *iph, unsigned char dst) {
   FILE *fp; 
 
   if ((fp = fopen(_options.ipwhitelist, "r")) == NULL) {
-    syslog(LOG_ERR, "%d error openning %s", errno, _options.ipwhitelist);
+    syslog(LOG_ERR, "%s: error openning %s", strerror(errno), _options.ipwhitelist);
     return 0;
   }
   
@@ -2019,7 +2019,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	safe_write(fd, line, strlen(line));
 	close(fd);
       } else {
-	syslog(LOG_ERR, "%d could not open log file %s", errno, _options.dnslog);
+	syslog(LOG_ERR, "%s: could not open log file %s", strerror(errno), _options.dnslog);
       }
     }
 #endif
@@ -3414,7 +3414,7 @@ static int dhcp_relay(struct dhcp_t *this,
   if (sendto(this->relayfd, pack_dhcp, 
 	     ntohs(pack_udph->len) - PKT_UDP_HLEN, 0,
 	     (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-    syslog(LOG_ERR, "%d could not relay DHCP request!", errno);
+    syslog(LOG_ERR, "%s: could not relay DHCP request!", strerror(errno));
     return -1;
   }
 
@@ -5356,7 +5356,7 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
 
   if ((length = recvfrom(this->relayfd, &packet, sizeof(packet), 0,
                          (struct sockaddr *) &addr, &fromlen)) <= 0) {
-    syslog(LOG_ERR, "%d recvfrom() failed", errno);
+    syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
     return -1;
   }
 

@@ -175,7 +175,7 @@ sock_redir_getstate(struct redir_t *redir,
   memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress));
 
   if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    syslog(LOG_ERR, "%d socket()", errno);
+    syslog(LOG_ERR, "%s: socket()", strerror(errno));
     return -1;
   }
 
@@ -191,13 +191,13 @@ sock_redir_getstate(struct redir_t *redir,
   len = offsetof(struct sockaddr_un, sun_path) + strlen(remote.sun_path);
 
   if (safe_connect(s, (struct sockaddr *)&remote, len) == -1) {
-    syslog(LOG_ERR, "%d could not connect to %s", errno, remote.sun_path);
+    syslog(LOG_ERR, "%s: could not connect to %s", strerror(errno), remote.sun_path);
     close(s);
     return -1;
   }
   
   if (safe_write(s, &msg, sizeof(msg)) != sizeof(msg)) {
-    syslog(LOG_ERR, "%d could not write to %s", errno, remote.sun_path);
+    syslog(LOG_ERR, "%s: could not write to %s", strerror(errno), remote.sun_path);
     close(s);
     return -1;
   }
@@ -682,7 +682,7 @@ redir_handle_url(struct redir_t *redir,
 
     if (conn_setup(&req->conn, httpreq->host, port, 
 		   req->wbuf, req->dbuf)) {
-      syslog(LOG_ERR, "%d conn_setup()", errno);
+      syslog(LOG_ERR, "%s: conn_setup()", strerror(errno));
       return -1;
     }
     
@@ -709,7 +709,7 @@ int redir_accept2(struct redir_t *redir, int idx) {
 				(struct sockaddr *)&address, 
 				&addrlen)) < 0) {
     if (errno != ECONNABORTED)
-      syslog(LOG_ERR, "%d accept()", errno);
+      syslog(LOG_ERR, "%s: accept()", strerror(errno));
     
     return 0;
   }
@@ -723,17 +723,17 @@ int redir_accept2(struct redir_t *redir, int idx) {
 
   if (getsockname(new_socket, (struct sockaddr *)&baddress, 
 		  &addrlen) < 0) {
-    syslog(LOG_WARNING, "%d getsockname() failed!", errno);
+    syslog(LOG_WARNING, "%s: getsockname() failed!", strerror(errno));
   }
 
   if (ndelay_on(new_socket) < 0) {
-    syslog(LOG_ERR, "%d could not set ndelay", errno);
+    syslog(LOG_ERR, "%s: could not set ndelay", strerror(errno));
   }
   
   if (idx == 1 && _options.uamui) {
     
     if ((status = redir_fork(new_socket, new_socket)) < 0) {
-      syslog(LOG_ERR, "%d fork() returned -1!", errno);
+      syslog(LOG_ERR, "%s: fork() returned -1!", strerror(errno));
       close(new_socket);
       return 0;
     }
@@ -828,7 +828,7 @@ int main(int argc, char **argv) {
   if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
     memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
   } else {
-    syslog(LOG_ERR, "%d could not get MAC address", errno);
+    syslog(LOG_ERR, "%s: could not get MAC address", strerror(errno));
     return -1;
   }
 #endif  
@@ -858,7 +858,7 @@ int main(int argc, char **argv) {
   redir->cb_handle_url = redir_handle_url;
 
   if (net_select_init(&sctx))
-    syslog(LOG_ERR, "%d select init", errno);
+    syslog(LOG_ERR, "%s: select init", strerror(errno));
 
   selfpipe = selfpipe_init();
 
@@ -978,7 +978,7 @@ int main(int argc, char **argv) {
 
     switch (status) {
     case -1:
-      syslog(LOG_ERR, "%d select() returned -1!", errno);
+      syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
       break;  
 
     default:
@@ -1083,7 +1083,7 @@ int main(int argc, char **argv) {
 		      syslog(LOG_DEBUG, "proxy_write: %d", w);
 		    */
 		    if (r != w) {
-		      syslog(LOG_ERR, "%d problem writing what we read from client", errno);
+		      syslog(LOG_ERR, "%s: problem writing what we read from client", strerror(errno));
 		      redir_conn_finish(&requests[idx].conn, 
 					&requests[idx]);
 		    }

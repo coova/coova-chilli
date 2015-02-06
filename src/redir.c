@@ -60,12 +60,12 @@ static int redir_challenge(unsigned char *dst) {
   FILE *file;
   
   if ((file = fopen("/dev/urandom", "r")) == NULL) {
-    syslog(LOG_ERR, "%d fopen(/dev/urandom)", errno);
+    syslog(LOG_ERR, "%s: fopen(/dev/urandom)", strerror(errno));
     return -1;
   }
   
   if (fread(dst, 1, REDIR_MD5LEN, file) != REDIR_MD5LEN) {
-    syslog(LOG_ERR, "%d fread() failed", errno);
+    syslog(LOG_ERR, "%s: fread() failed", strerror(errno));
     fclose(file);
     return -1;
   }
@@ -91,7 +91,7 @@ int redir_hextochar(unsigned char *src, int slen, unsigned char * dst, int len) 
       case 0:  y = 0;
       case 1:  break;
       default:
-	syslog(LOG_ERR, "%d HEX conversion failed (src='%s', len=%d, n=%d, y=%d)!", errno, src, len, n, y);
+	syslog(LOG_ERR, "%s: HEX conversion failed (src='%s', len=%d, n=%d, y=%d)!", strerror(errno), src, len, n, y);
 	return -1;
       }
     }
@@ -1620,7 +1620,7 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   }
 
   if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
-    syslog(LOG_ERR, "%d redir_write()", errno);
+    syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
     bdestroy(buffer);
     return -1;
   }
@@ -1634,7 +1634,7 @@ int redir_new(struct redir_t **redir,
 	      struct in_addr *addr, int port, int uiport) {
 
   if (!(*redir = calloc(1, sizeof(struct redir_t)))) {
-    syslog(LOG_ERR, "%d calloc() failed", errno);
+    syslog(LOG_ERR, "%s: calloc() failed", strerror(errno));
     return EOF;
   }
 
@@ -1654,7 +1654,7 @@ int redir_listen(struct redir_t *redir) {
   int optval;
 
   if ((redir->fd[0] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    syslog(LOG_ERR, "%d socket() failed", errno);
+    syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
     return -1;
   }
 
@@ -1663,7 +1663,7 @@ int redir_listen(struct redir_t *redir) {
 #ifdef ENABLE_UAMUIPORT
   if (redir->uiport) {
     if ((redir->fd[1] = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-      syslog(LOG_ERR, "%d socket() failed", errno);
+      syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
       close(redir->fd[0]);
       return -1;
     }
@@ -1696,7 +1696,7 @@ int redir_listen(struct redir_t *redir) {
 
     optval = 1;
     if (setsockopt(redir->fd[n], SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval))) {
-      syslog(LOG_ERR, "%d setsockopt(SO_REUSEADDR)", errno);
+      syslog(LOG_ERR, "%s: setsockopt(SO_REUSEADDR)", strerror(errno));
       safe_close(redir->fd[n]);
       redir->fd[n]=0;
       break;
@@ -1705,7 +1705,7 @@ int redir_listen(struct redir_t *redir) {
 #ifdef SO_REUSEPORT
     optval = 1;
     if (setsockopt(redir->fd[n], SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))) {
-      syslog(LOG_ERR, "%d setsockopt(SO_REUSEPORT)", errno);
+      syslog(LOG_ERR, "%s: setsockopt(SO_REUSEPORT)", strerror(errno));
       if (errno != ENOPROTOOPT) {
 	syslog(LOG_DEBUG, "setsockopt(SO_REUSEPORT) failed hard, aborting.");
 	safe_close(redir->fd[n]);
@@ -1765,7 +1765,7 @@ int redir_ipc(struct redir_t *redir) {
   
   if ((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 
-    syslog(LOG_ERR, "%d could not allocate UNIX Socket!", errno);
+    syslog(LOG_ERR, "%s: could not allocate UNIX Socket!", strerror(errno));
 
   } else {
 
@@ -1781,12 +1781,12 @@ int redir_ipc(struct redir_t *redir) {
     
     if (bind(sock, (struct sockaddr *)&local, 
 	     sizeof(struct sockaddr_un)) == -1) {
-      syslog(LOG_ERR, "%d could bind UNIX Socket to %s!", errno, filedest);
+      syslog(LOG_ERR, "%s: could bind UNIX Socket to %s!", strerror(errno), filedest);
       safe_close(sock);
       sock = -1;
     } else {
       if (listen(sock, 128) == -1) {
-	syslog(LOG_ERR, "%d could listen to UNIX Socket!", errno);
+	syslog(LOG_ERR, "%s: could listen to UNIX Socket!", strerror(errno));
 	safe_close(sock);
 	sock = -1;
       } else {
@@ -1794,7 +1794,7 @@ int redir_ipc(struct redir_t *redir) {
 
 	if (_options.uid) {
 	  if (chown(filedest, _options.uid, _options.gid)) {
-	    syslog(LOG_ERR, "%d could not chown() %s", errno, filedest);
+	    syslog(LOG_ERR, "%s: could not chown() %s", strerror(errno), filedest);
 	  }
 	}
       }
@@ -1802,7 +1802,7 @@ int redir_ipc(struct redir_t *redir) {
   }
 #else
   if ((redir->msgid = msgget(IPC_PRIVATE, 0)) < 0) {
-    syslog(LOG_ERR, "%d msgget() failed", errno);
+    syslog(LOG_ERR, "%s: msgget() failed", strerror(errno));
     syslog(LOG_ERR, "Most likely your computer does not have System V IPC installed");
     return -1;
   }
@@ -1811,14 +1811,14 @@ int redir_ipc(struct redir_t *redir) {
     struct msqid_ds ds;
     memset(&ds, 0, sizeof(ds));
     if (msgctl(redir->msgid, IPC_STAT, &ds) < 0) {
-      syslog(LOG_ERR, "%d msgctl(stat) failed", errno);
+      syslog(LOG_ERR, "%s: msgctl(stat) failed", strerror(errno));
       return -1;
     }
     ds.msg_perm.uid = _options.uid;
     if (_options.gid) ds.msg_perm.gid = _options.gid;
     ds.msg_perm.mode = (ds.msg_perm.mode & ~0777) | 0600;
     if (msgctl(redir->msgid, IPC_SET, &ds) < 0) {
-      syslog(LOG_ERR, "%d msgctl(set) failed", errno);
+      syslog(LOG_ERR, "%s: msgctl(set) failed", strerror(errno));
       return -1;
     }
   }
@@ -1833,7 +1833,7 @@ int redir_free(struct redir_t *redir) {
   int n;
   for (n = 0; n < 2 && redir->fd[n]; n++) {
     if (safe_close(redir->fd[n])) {
-      syslog(LOG_ERR, "%d close() failed", errno);
+      syslog(LOG_ERR, "%s: close() failed", strerror(errno));
     }
   }
 
@@ -1841,7 +1841,7 @@ int redir_free(struct redir_t *redir) {
   safe_close(redir->msgfd);
 #else
   if (msgctl(redir->msgid, IPC_RMID, NULL)) {
-    syslog(LOG_ERR, "%d msgctl() failed", errno);
+    syslog(LOG_ERR, "%s: msgctl() failed", strerror(errno));
   }
 #endif
   
@@ -1966,7 +1966,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       
       switch(status) {
       case -1:
-	syslog(LOG_ERR, "%d select(%d)", errno, fd);
+	syslog(LOG_ERR, "%s: select(%d)", strerror(errno), fd);
 	return -1;
 
 	/*
@@ -2844,7 +2844,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
     switch (status = select(maxfd + 1, &fds, NULL, NULL, &idleTime)) {
     case -1:
-      syslog(LOG_ERR, "%d select() returned -1!", errno);
+      syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
       break;  
     case 0:
       radius_timeout(radius);
@@ -2888,7 +2888,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   syslog(LOG_DEBUG, "checking %s for user %s", _options.localusers, conn->s_state.redir.username);
 
   if (!(f = fopen(_options.localusers, "r"))) {
-    syslog(LOG_ERR, "%d fopen() failed opening %s!", errno, _options.localusers);
+    syslog(LOG_ERR, "%s: fopen() failed opening %s!", strerror(errno), _options.localusers);
     return 0;
   }
 
@@ -3032,14 +3032,14 @@ int redir_accept(struct redir_t *redir, int idx) {
   if ((new_socket = safe_accept(redir->fd[idx], 
 				(struct sockaddr *)&address, &addrlen)) < 0) {
     if (errno != ECONNABORTED)
-      syslog(LOG_ERR, "%d accept() failed!", errno);
+      syslog(LOG_ERR, "%s: accept() failed!", strerror(errno));
     return 0;
   }
 
   addrlen = sizeof(struct sockaddr_in);
 
   if (getsockname(redir->fd[idx], (struct sockaddr *)&baddress, &addrlen) < 0) {
-    syslog(LOG_WARNING, "%d getsockname() failed!", errno);
+    syslog(LOG_WARNING, "%s: getsockname() failed!", strerror(errno));
   }
 
   radius_packet_id++;
@@ -3050,7 +3050,7 @@ int redir_accept(struct redir_t *redir, int idx) {
      care */
 
   if ((status = redir_fork(new_socket, new_socket)) < 0) {
-    syslog(LOG_ERR, "%d fork() returned -1!", errno);
+    syslog(LOG_ERR, "%s: fork() returned -1!", strerror(errno));
     safe_close(new_socket);
     return 0;
   }
@@ -3135,13 +3135,13 @@ int redir_send_msg(struct redir_t *this, struct redir_msg_t *msg) {
   len = offsetof(struct sockaddr_un, sun_path) + strlen(remote.sun_path);
 
   if (safe_connect(s, (struct sockaddr *)&remote, len) == -1) {
-    syslog(LOG_ERR, "%d could not connect to %s", errno, remote.sun_path);
+    syslog(LOG_ERR, "%s: could not connect to %s", strerror(errno), remote.sun_path);
     safe_close(s);
     return -1;
   }
   
   if (safe_write(s, msg, sizeof(*msg)) != sizeof(*msg)) {
-    syslog(LOG_ERR, "%d could not write to %s", errno, remote.sun_path);
+    syslog(LOG_ERR, "%s: could not write to %s", strerror(errno), remote.sun_path);
     safe_close(s);
     return -1;
   }
@@ -3170,7 +3170,7 @@ pid_t redir_fork(int in, int out) {
     itval.it_value.tv_usec = 0; 
     
     if (setitimer(ITIMER_REAL, &itval, NULL)) {
-      syslog(LOG_ERR, "%d setitimer() failed!", errno);
+      syslog(LOG_ERR, "%s: setitimer() failed!", strerror(errno));
     }
 
 #if defined(F_DUPFD)
@@ -3264,7 +3264,7 @@ int redir_main(struct redir_t *redir,
   memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
   if (redir_send_msg(redir, &msg) < 0) { \
-    syslog(LOG_ERR, "%d write() failed! msgfd=%d type=%ld len=%ld", errno, redir->msgfd, msg.mtype, sizeof(msg.mdata)); \
+    syslog(LOG_ERR, "%s: write() failed! msgfd=%d type=%ld len=%ld", strerror(errno), redir->msgfd, msg.mtype, sizeof(msg.mdata)); \
     return redir_main_exit(&socket, forked, rreq); \
   } 
 #else
@@ -3275,7 +3275,7 @@ int redir_main(struct redir_t *redir,
   memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
   if (msgsnd(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0) < 0) { \
-    syslog(LOG_ERR, "%d msgsnd() failed! msgid=%d type=%d len=%d", errno, redir->msgid, msg.mtype, sizeof(msg.mdata)); \
+    syslog(LOG_ERR, "%s: msgsnd() failed! msgid=%d type=%d len=%d", strerror(errno), redir->msgid, msg.mtype, sizeof(msg.mdata)); \
     return redir_main_exit(&socket, forked, rreq); \
   } 
 #endif
@@ -3295,7 +3295,7 @@ int redir_main(struct redir_t *redir,
 
   /*
   if (ndelay_on(socket.fd[0])) {
-    syslog(LOG_ERR, "%d fcntl() failed", errno);
+    syslog(LOG_ERR, "%s: fcntl() failed", strerror(errno));
     return redir_main_exit(&socket, forked, rreq);
   }
   */
@@ -3532,7 +3532,7 @@ int redir_main(struct redir_t *redir,
 	  }
 
 	  if (ndelay_off(socket.fd[0])) {
-	    syslog(LOG_ERR, "%d fcntl() failed", errno);
+	    syslog(LOG_ERR, "%s: fcntl() failed", strerror(errno));
 	  }
 	  
 #ifdef HAVE_SSL
@@ -3546,14 +3546,14 @@ int redir_main(struct redir_t *redir,
 	    int ctop[2];
 	    
 	    if (pipe(ptoc) == -1 || pipe(ctop) == -1) {
-	      syslog(LOG_ERR, "%d pipe() failed", errno);
+	      syslog(LOG_ERR, "%s: pipe() failed", strerror(errno));
 	      return redir_main_exit(&socket, forked, rreq);
 	    }
 	    
 	    forkpid = redir_fork(ptoc[0], ctop[1]);
 	    
 	    if (forkpid < 0) {
-	      syslog(LOG_ERR, "%d fork() failed", errno);
+	      syslog(LOG_ERR, "%s: fork() failed", strerror(errno));
 	      return redir_main_exit(&socket, forked, rreq);
 	    }
 	    
@@ -3577,7 +3577,7 @@ int redir_main(struct redir_t *redir,
 #endif
 		if ((buflen = openssl_read(socket.sslcon, buffer, rd, 0)) > 0) {
 		  if (safe_write(ptoc[1], buffer, (size_t) buflen) < 0) {
-		    syslog(LOG_ERR, "%d error", errno);
+		    syslog(LOG_ERR, "%s: error", strerror(errno));
 		    return redir_main_exit(&socket, forked, rreq);
 		  }
 		  clen -= buflen;
@@ -3593,7 +3593,7 @@ int redir_main(struct redir_t *redir,
 		  syslog(LOG_DEBUG, "script_read(%d)",buflen);
 #endif
 		  if (redir_write(&socket, buffer, (size_t) buflen) < 0) {
-		    syslog(LOG_ERR, "%d redir_write() failed!", errno);
+		    syslog(LOG_ERR, "%s: redir_write() failed!", strerror(errno));
 		    break;
 		  }
 #if(_debug_ > 1)
@@ -3716,7 +3716,7 @@ int redir_main(struct redir_t *redir,
 	  if (fd > 0) {
 	    
 	    if (ndelay_off(socket.fd[0])) {
-	      syslog(LOG_ERR, "%d fcntl() failed", errno);
+	      syslog(LOG_ERR, "%s: fcntl() failed", strerror(errno));
 	    }
 	    
 	    safe_snprintf(buffer, bufsize,
@@ -3727,12 +3727,12 @@ int redir_main(struct redir_t *redir,
 			  ctype);
 	    
 	    if (redir_write(&socket, buffer, strlen(buffer)) < 0) {
-	      syslog(LOG_ERR, "%d redir_write()", errno);
+	      syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
 	    }
 	    
 	    while ((buflen = safe_read(fd, buffer, bufsize)) > 0)
 	      if (redir_write(&socket, buffer, (size_t) buflen) < 0)
-		syslog(LOG_ERR, "%d redir_write()", errno);
+		syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
 	    
 	    safe_close(fd);
 	  } 

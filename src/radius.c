@@ -702,7 +702,7 @@ int radius_timeout(struct radius_t *this) {
 		   ntohs(RADIUS_QUEUE_PKT(this->queue[this->first].p, length)),
 		   0, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
 	  
-	  syslog(LOG_ERR, "%d sendto() failed!", errno);
+	  syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
 	  radius_queue_reschedule(this, this->first);
 	  return -1;
 	}
@@ -1057,7 +1057,7 @@ int radius_keyencode(struct radius_t *this,
 
   /* Read two salt octets */
   if (fread(dst, 1, 2, this->urandom_fp) != 2) {
-    syslog(LOG_ERR, "%d fread() failed", errno);
+    syslog(LOG_ERR, "%s: fread() failed", strerror(errno));
     return -1;
   }
 
@@ -1300,7 +1300,7 @@ int radius_new(struct radius_t **this,
   
   /* Initialise radius socket */
   if ((new_radius->fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-    syslog(LOG_ERR, "%d socket() failed!", errno);
+    syslog(LOG_ERR, "%s: socket() failed!", strerror(errno));
     fclose(new_radius->urandom_fp);
     free(new_radius);
     return -1;
@@ -1316,7 +1316,7 @@ int radius_new(struct radius_t **this,
 	  new_radius->ourport);
   
   if (bind(new_radius->fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-    syslog(LOG_ERR, "%d bind() failed!", errno);
+    syslog(LOG_ERR, "%s: bind() failed!", strerror(errno));
     fclose(new_radius->urandom_fp);
     close(new_radius->fd);
     free(new_radius);
@@ -1324,7 +1324,7 @@ int radius_new(struct radius_t **this,
   }
 
   if ((new_radius->urandom_fp = fopen("/dev/urandom", "r")) == 0) {
-    syslog(LOG_ERR, "%d fopen(/dev/urandom, r) failed", errno);
+    syslog(LOG_ERR, "%s: fopen(/dev/urandom, r) failed", strerror(errno));
     return -1;
   }
   
@@ -1332,7 +1332,7 @@ int radius_new(struct radius_t **this,
   if (proxy) {     /* Initialise proxy socket */
 
     if ((new_radius->proxyfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-      syslog(LOG_ERR, "%d socket() failed for proxyfd!", errno);
+      syslog(LOG_ERR, "%s: socket() failed for proxyfd!", strerror(errno));
       fclose(new_radius->urandom_fp);
       close(new_radius->fd);
       free(new_radius);
@@ -1345,7 +1345,7 @@ int radius_new(struct radius_t **this,
     addr.sin_port = htons(new_radius->proxyport);
     
     if (bind(new_radius->proxyfd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-      syslog(LOG_ERR, "%d bind() failed for proxylisten!", errno);
+      syslog(LOG_ERR, "%s: bind() failed for proxylisten!", strerror(errno));
       fclose(new_radius->urandom_fp);
       close(new_radius->fd);
       close(new_radius->proxyfd);
@@ -1387,11 +1387,11 @@ radius_free(struct radius_t *this) {
   }
   if (this->urandom_fp) {
     if (fclose(this->urandom_fp)) {
-      syslog(LOG_ERR, "%d fclose() failed!", errno);
+      syslog(LOG_ERR, "%s: fclose() failed!", strerror(errno));
     }
   }
   if (close(this->fd)) {
-    syslog(LOG_ERR, "%d close() failed!", errno);
+    syslog(LOG_ERR, "%s: close() failed!", strerror(errno));
   }
   free(this);
   return 0;
@@ -1537,7 +1537,7 @@ int radius_req(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,
 	     (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-    syslog(LOG_ERR, "%d sendto(%s) failed!", errno, inet_ntoa(addr.sin_addr));
+    syslog(LOG_ERR, "%s: sendto(%s) failed!", strerror(errno), inet_ntoa(addr.sin_addr));
     return -1;
   } 
     
@@ -1571,7 +1571,7 @@ int radius_resp(struct radius_t *this,
   
   if (sendto(this->proxyfd, pack, len, 0,
 	     (struct sockaddr *) peer, sizeof(struct sockaddr_in)) < 0) {
-    syslog(LOG_ERR, "%d sendto() failed!", errno);
+    syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
     return -1;
   } 
   
@@ -1606,7 +1606,7 @@ int radius_coaresp(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,
 	     (struct sockaddr *) peer, sizeof(struct sockaddr_in)) < 0) {
-    syslog(LOG_ERR, "%d sendto() failed!", errno);
+    syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
     return -1;
   } 
   
@@ -1645,7 +1645,7 @@ radius_default_pack(struct radius_t *this,
 
   if (fread(pack->authenticator, 1, RADIUS_AUTHLEN, 
 	    this->urandom_fp) != RADIUS_AUTHLEN) {
-    syslog(LOG_ERR, "%d fread() failed", errno);
+    syslog(LOG_ERR, "%s: fread() failed", strerror(errno));
     return -1;
   }
 
@@ -1789,7 +1789,7 @@ static void chilli_extadmvsa(struct radius_t *radius,
 	}
 	
 	if ((fd = open(_options.extadmvsa[i].data, O_RDONLY)) < 0) {
-	  syslog(LOG_ERR, "%d Failed to open %s", errno, _options.extadmvsa[i].data);
+	  syslog(LOG_ERR, "%s: Failed to open %s", strerror(errno), _options.extadmvsa[i].data);
 	  continue;
 	}
 	
@@ -1865,7 +1865,7 @@ static void chilli_extadmvsa(struct radius_t *radius,
 	    }
 	    exit(0);
 	  } else {
-	    syslog(LOG_ERR, "%d forking %s", errno, _options.extadmvsa[i].script);
+	    syslog(LOG_ERR, "%s: forking %s", strerror(errno), _options.extadmvsa[i].script);
 	  }
 	}
       }
@@ -1888,7 +1888,7 @@ int radius_decaps(struct radius_t *this, int idx) {
 
   if ((status = recvfrom(this->fd, &pack, sizeof(pack), 0, 
 			 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-    syslog(LOG_ERR, "%d recvfrom() failed", errno);
+    syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
     return -1;
   }
 
@@ -2037,7 +2037,7 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
 
   if ((status = recvfrom(this->proxyfd, &pack, sizeof(pack), 0, 
 			 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-    syslog(LOG_ERR, "%d recvfrom() failed", errno);
+    syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
     return -1;
   }
 

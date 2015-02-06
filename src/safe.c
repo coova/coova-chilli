@@ -85,7 +85,7 @@ int safe_write(int s, void *b, size_t blen) {
   } while (ret == -1 && errno == EINTR);
 #if(_debug_)
   if (ret < 0)
-    syslog(LOG_ERR, "%d write(%d, %zd)", errno, s, blen);
+    syslog(LOG_ERR, "%s: write(%d, %zd)", strerror(errno), s, blen);
 #endif
   return ret;
 }
@@ -97,7 +97,7 @@ int safe_recv(int sockfd, void *buf, size_t len, int flags) {
   } while (ret == -1 && errno == EINTR);
 #if(_debug_)
   if (ret < 0)
-    syslog(LOG_ERR, "%d recv(%d, %zd)", errno, sockfd, len);
+    syslog(LOG_ERR, "%s: recv(%d, %zd)", strerror(errno), sockfd, len);
 #endif
   return ret;
 }

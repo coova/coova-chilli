@@ -159,7 +159,7 @@ static int radius_reply(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,(struct sockaddr *) peer, 
 	     sizeof(struct sockaddr_in)) < 0) {
-    syslog(LOG_ERR, "%d sendto() failed!", errno);
+    syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
     return -1;
   } 
   
@@ -728,7 +728,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
 
   if (req.data->slen)
     if (safe_write(1, req.data->data, req.data->slen) < 0)
-      syslog(LOG_ERR, "%d write()", errno);
+      syslog(LOG_ERR, "%s: write()", strerror(errno));
 
   bdestroy(req.url);
   bdestroy(req.data);
@@ -1209,7 +1209,7 @@ int main(int argc, char **argv) {
     switch (status) {
     case -1:
       if (EINTR != errno) {
-	syslog(LOG_ERR, "%d select() returned -1!", errno);
+	syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
       }
       break;  
 
@@ -1241,7 +1241,7 @@ int main(int argc, char **argv) {
 	  if ((status = recvfrom(radius_auth->fd, 
 				 &radius_pack, sizeof(radius_pack), 0, 
 				 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    syslog(LOG_ERR, "%d recvfrom() failed", errno);
+	    syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
 	    
 	    return -1;
 	  }
@@ -1261,7 +1261,7 @@ int main(int argc, char **argv) {
 	  if ((status = recvfrom(radius_acct->fd, 
 				 &radius_pack, sizeof(radius_pack), 0, 
 			       (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    syslog(LOG_ERR, "%d recvfrom() failed", errno);
+	    syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
 	    return -1;
 	  }
 	  
@@ -1298,7 +1298,7 @@ int main(int argc, char **argv) {
 #endif
 	    http_aaa_finish(&requests[idx]);
 	  } else {
-	    syslog(LOG_ERR, "%d Could not find request in queue", errno);
+	    syslog(LOG_ERR, "%s: Could not find request in queue", strerror(errno));
 	  }
 	}
       }

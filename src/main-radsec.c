@@ -51,7 +51,7 @@ static int radius_reply(struct radius_t *this,
   
   if (sendto(this->fd, pack, len, 0,(struct sockaddr *) peer, 
 	     sizeof(struct sockaddr_in)) < 0) {
-    syslog(LOG_ERR, "%d sendto() failed!", errno);
+    syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
     return -1;
   } 
   
@@ -64,7 +64,7 @@ static int connect_ssl(struct in_addr *addr, int port) {
   }
   server.conn.sslcon = openssl_connect_fd(server.env, server.conn.sock, 10);
   if (!server.conn.sslcon) {
-    syslog(LOG_ERR, "%d Failed to connect to %s:%d", errno, inet_ntoa(*addr), port);
+    syslog(LOG_ERR, "%s: Failed to connect to %s:%d", strerror(errno), inet_ntoa(*addr), port);
     return -1;
   }
   return 0;
@@ -87,7 +87,7 @@ static void process_radius(struct radius_packet_t *pack, ssize_t len) {
  try_again:
 
   if (attempts++ == 5) {
-    syslog(LOG_ERR, "%d Dropping RADIUS packet!", errno);
+    syslog(LOG_ERR, "%s: Dropping RADIUS packet!", strerror(errno));
     return;
   }
 
@@ -292,7 +292,7 @@ int main(int argc, char **argv) {
     switch (status) {
     case -1:
       if (errno != EINTR)
-	syslog(LOG_ERR, "%d select() returned -1!", errno);
+	syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
       break;  
 
     case 0:
@@ -312,7 +312,7 @@ int main(int argc, char **argv) {
 	  
 	  if ((status = recvfrom(server.radius_auth->fd, &radius_pack, sizeof(radius_pack), 0, 
 				 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    syslog(LOG_ERR, "%d recvfrom() failed", errno);
+	    syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
 	    
 	    return -1;
 	  }
@@ -331,7 +331,7 @@ int main(int argc, char **argv) {
 	  
 	  if ((status = recvfrom(server.radius_acct->fd, &radius_pack, sizeof(radius_pack), 0, 
 			       (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    syslog(LOG_ERR, "%d recvfrom() failed", errno);
+	    syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
 	    return -1;
 	  }
 
