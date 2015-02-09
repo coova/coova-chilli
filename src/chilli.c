@@ -2657,7 +2657,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
        * Only the first IP fragment has the UDP header.
        */
       if (iphdr_offset((struct pkt_iphdr_t*)ipph) == 0) {
-        udph = (struct pkt_udphdr_t *)(ipph + hlen);
+        udph = (struct pkt_udphdr_t *)(((void *)ipph) + hlen);
       }
       if (ntohs(ipph->tot_len) > len ||
            (udph && (ntohs(udph->len) > len))) {
@@ -4712,7 +4712,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
       syslog(LOG_ERR, "Wrong length of MS-CHAP2 success: %d", succattr->l-5);
       return dnprot_reject(appconn);
     }
-    memcpy(appconn->ms2succ, (&succattr->v.t)+3, MS2SUCCSIZE);
+    memcpy(appconn->ms2succ, ((void*)&succattr->v.t)+3, MS2SUCCSIZE);
   }
 #endif
 
