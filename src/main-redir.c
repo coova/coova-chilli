@@ -306,7 +306,7 @@ static int redir_cli_write(redir_request *req, uint8_t *d, int l) {
   if (w >= 0) {
     if (w < l) {
       bcatblk(req->dbuf, d + w, l - w);
-      sylog(LOG_WARNING, "%d buffering %d - %d = %d (%d queued)", 
+      syslog(LOG_WARNING, "%d buffering %d - %d = %d (%d queued)", 
 	       errno, l, w, l-w, req->dbuf->slen);
     }
   }
