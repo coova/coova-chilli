@@ -3264,7 +3264,8 @@ int redir_main(struct redir_t *redir,
   memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
   if (redir_send_msg(redir, &msg) < 0) { \
-    syslog(LOG_ERR, "%s: write() failed! msgfd=%d type=%ld len=%ld", strerror(errno), redir->msgfd, msg.mtype, sizeof(msg.mdata)); \
+    syslog(LOG_ERR, "%s: write() failed! msgfd=%d type=%ld len=%d",     \
+           strerror(errno), redir->msgfd, msg.mtype, (int)sizeof(msg.mdata)); \
     return redir_main_exit(&socket, forked, rreq); \
   } 
 #else
@@ -3275,7 +3276,8 @@ int redir_main(struct redir_t *redir,
   memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
   if (msgsnd(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0) < 0) { \
-    syslog(LOG_ERR, "%s: msgsnd() failed! msgid=%d type=%d len=%d", strerror(errno), redir->msgid, msg.mtype, sizeof(msg.mdata)); \
+    syslog(LOG_ERR, "%s: msgsnd() failed! msgid=%d type=%d len=%d",     \
+           strerror(errno), redir->msgid, msg.mtype, (int)sizeof(msg.mdata)); \
     return redir_main_exit(&socket, forked, rreq); \
   } 
 #endif
