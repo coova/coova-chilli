@@ -6,7 +6,7 @@
  * Copyright (C) 2005 Nicolas Thill <nthill@free.fr>
  *
  * Updated March 2008 by Eric Bishop <eric@gargoyle-router.com>
- *    - fixed bug to allow writing of more than 16k of data 
+ *    - fixed bug to allow writing of more than 16k of data
  * 	(Even Bill Gates offered 640K! How could a bug like that last this long???)
  *    - fixed bug caused by ssl->outBufferCount never being initialized
  *    - Initialized ssl->status & ssl->partial, since these weren't initialized either
@@ -69,36 +69,36 @@ int _always_true_validator(sslCertInfo_t *t, void *arg) {
 
 SSL * SSL_new(sslKeys_t *keys, int flags) {
   SSL * ssl = (SSL *)calloc(1, sizeof(SSL));
-  
+
   if (!ssl) return 0;
-  
+
   ssl->keys = keys;
   if ( matrixSslNewSession(&(ssl->ssl), ssl->keys, NULL, flags) < 0 ) {}
-  
+
   ssl->insock.size = 1024;
   ssl->insock.buf = ssl->insock.start = ssl->insock.end =
     (unsigned char *)malloc(ssl->insock.size);
-  
+
   ssl->outsock.size = 1024;
-  ssl->outsock.buf = ssl->outsock.start = ssl->outsock.end = 
+  ssl->outsock.buf = ssl->outsock.start = ssl->outsock.end =
     (unsigned char *)malloc(ssl->outsock.size);
-  
+
   ssl->inbuf.size = 0;
   ssl->inbuf.buf = ssl->inbuf.start = ssl->inbuf.end = NULL;
-  
+
   ssl->fd = -1;
   ssl->outBufferCount = 0;
   ssl->status = 0;
   ssl->pending = 1;
-  
+
   return ssl;
 }
 
 int SSL_accept(SSL *ssl) {
-  
+
   char buf[1024];
   int  rc;
-  
+
 #if(_debug_)
   syslog(LOG_DEBUG, "MatrixSSL_accept()");
 #endif
@@ -117,15 +117,15 @@ int SSL_accept(SSL *ssl) {
   } else {
     return -1;
   }
-  
+
   return 1;
 }
 
 int SSL_accept2(SSL *ssl) {
-  
+
   char buf[1024];
   int  rc;
-  
+
 #if(_debug_)
   syslog(LOG_DEBUG, "MatrixSSL_accept2()");
 #endif
@@ -149,7 +149,7 @@ int SSL_accept2(SSL *ssl) {
     syslog(LOG_WARNING, "%d Error rc %d", ssl->status, rc);
     return -1;
   }
-  
+
   return 1;
 }
 
@@ -171,7 +171,7 @@ int SSL_read(SSL *ssl, char *buf, int len) {
   rc = _ssl_read(ssl, buf, len);
   syslog(LOG_DEBUG, "SSL_read(%d) = %d", len, rc);
   if (rc <= 0) {
-    if (rc < 0 || ssl->status == SSL_SOCKET_EOF || 
+    if (rc < 0 || ssl->status == SSL_SOCKET_EOF ||
 	ssl->status == SSL_SOCKET_CLOSE_NOTIFY) {
       _ssl_closeSocket(ssl->fd);
       return rc;
@@ -195,12 +195,12 @@ int SSL_write(SSL *ssl, char *buf, int len) {
 }
 
 int SSL_pending(SSL *ssl) {
-  unsigned long available = 
-    ssl->inbuf.buf ? 
-    ((unsigned long)(ssl->inbuf.end) - 
-     (unsigned long)(ssl->inbuf.start)) : 
-    ssl->insock.buf ? 
-    ((unsigned long)(ssl->insock.end) - 
+  unsigned long available =
+    ssl->inbuf.buf ?
+    ((unsigned long)(ssl->inbuf.end) -
+     (unsigned long)(ssl->inbuf.start)) :
+    ssl->insock.buf ?
+    ((unsigned long)(ssl->insock.end) -
      (unsigned long)(ssl->insock.start)) :
     0;
   if (ssl->pending && !available) {
@@ -239,21 +239,21 @@ void SSL_free(SSL * ssl) {
   callback for user-level certificate validation which should be NULL if
   not needed. Third parameter is an optional second argument for the validation
   function.
-  
+
 */
 int SSL_connect(SSL *ssl, int (*certValidator)(sslCertInfo_t *t, void *arg), void *certValidatorArgs) {
   if (!(ssl->ssl)) {
     SSL_free(ssl);
     return -1;
   }
-  
+
   if(certValidator != NULL) {
     matrixSslSetCertValidator(ssl->ssl, certValidator, certValidatorArgs);
   } else {
     matrixSslSetCertValidator(ssl->ssl, _always_true_validator, certValidatorArgs);
   }
   int ret = _ssl_doHandshake(ssl);
-  
+
   return ret;
 }
 
@@ -265,7 +265,7 @@ int SSL_connect(SSL *ssl, int (*certValidator)(sslCertInfo_t *t, void *arg), voi
 int _ssl_doHandshake(SSL *ssl) {
   char	buf[1024];
   int		err, rc;
-  
+
   /*
     MatrixSSL doesn't provide buffers for data internally.  Define them
     here to support buffered reading and writing for non-blocking sockets.
@@ -273,16 +273,16 @@ int _ssl_doHandshake(SSL *ssl) {
     the buffers as needed.  Alternately, we could define 16K buffers here
     and not worry about growing them.
   */
-  
-  
+
+
   short cipherSuite = 0;
   err = matrixSslEncodeClientHello(ssl->ssl, &(ssl->outsock), cipherSuite);
-  
+
   if (err < 0) {
     socketAssert(err < 0);
     return -1;
   }
-  
+
   /*
     Send the hello with a blocking write
   */
@@ -292,8 +292,8 @@ int _ssl_doHandshake(SSL *ssl) {
     return -1;
   }
   ssl->outsock.start = ssl->outsock.end = ssl->outsock.buf;
-  
-  
+
+
   /*
     Call _ssl_read to work through the handshake.  Not actually expecting
     data back, so the finished case is simply when the handshake is
@@ -301,7 +301,7 @@ int _ssl_doHandshake(SSL *ssl) {
   */
  readMore:
   rc = _ssl_read(ssl, buf, 1024);
-  
+
   /*
     Reading handshake records should always return 0 bytes, we aren't
 	expecting any data yet.
@@ -314,10 +314,10 @@ int _ssl_doHandshake(SSL *ssl) {
     {
       return -1;
     }
-  
+
   return 0;
-  
-  
+
+
 }
 
 
@@ -329,7 +329,7 @@ int _psSocketWrite(int sock, sslBuf_t *out)
 {
   unsigned char	*s;
   int  bytes;
-  
+
   s = out->start;
   while (out->start < out->end) {
     bytes = send(sock, out->start, (int)(out->end - out->start), MSG_NOSIGNAL);
@@ -376,7 +376,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
 #endif
 
   ssl->status = 0;
-  
+
   if (ssl->ssl == NULL || len <= 0) {
 #if(_debug_)
     syslog(LOG_DEBUG, "MatrixSSL %s null", __FUNCTION__);
@@ -420,14 +420,14 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
  readMore:
   if (ssl->insock.end == ssl->insock.start || performRead) {
     performRead = 1;
-    bytes = recv(ssl->fd, (char *)ssl->insock.end, 
+    bytes = recv(ssl->fd, (char *)ssl->insock.end,
 		 (int)((ssl->insock.buf + ssl->insock.size) - ssl->insock.end), MSG_NOSIGNAL);
     if (bytes == -1) {
       ssl->status = errno;
 
       syslog(LOG_WARNING, "%s: recv()", strerror(errno));
 
-      if (errno == EWOULDBLOCK || errno == EAGAIN) 
+      if (errno == EWOULDBLOCK || errno == EAGAIN)
 	return 0;
 
       return -1;
@@ -451,8 +451,8 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
   error = 0;
   alertLevel = 0;
   alertDescription = 0;
-  
-  rc = matrixSslDecode(ssl->ssl, &ssl->insock, &ssl->inbuf, &error, &alertLevel, 
+
+  rc = matrixSslDecode(ssl->ssl, &ssl->insock, &ssl->inbuf, &error, &alertLevel,
 		       &alertDescription);
   switch (rc) {
     /*
@@ -480,12 +480,12 @@ syslog(LOG_DEBUG, "SSL_PROCESS_DATA");
     /*
       We've decoded a record that requires a response into tmp
       If there is no data to be flushed in the out buffer, we can write out
-      the contents of the tmp buffer.  Otherwise, we need to append the data 
+      the contents of the tmp buffer.  Otherwise, we need to append the data
       to the outgoing data buffer and flush it out.
     */
   case SSL_SEND_RESPONSE:
 syslog(LOG_DEBUG, "SSL_SEND_RESPONSE");
-    bytes = send(ssl->fd, (char *)ssl->inbuf.start, 
+    bytes = send(ssl->fd, (char *)ssl->inbuf.start,
 		 (int)(ssl->inbuf.end - ssl->inbuf.start), MSG_NOSIGNAL);
     if (bytes == -1) {
       ssl->status = errno;
@@ -502,7 +502,7 @@ syslog(LOG_DEBUG, "SSL_SEND_RESPONSE");
 	simply because we are likely in the SSL handshake.
       */
       _ssl_setSocketBlock(ssl->fd);
-      bytes = send(ssl->fd, (char *)ssl->inbuf.start, 
+      bytes = send(ssl->fd, (char *)ssl->inbuf.start,
 		   (int)(ssl->inbuf.end - ssl->inbuf.start), MSG_NOSIGNAL);
       if (bytes == -1) {
 	ssl->status = errno;
@@ -528,7 +528,7 @@ syslog(LOG_DEBUG, "SSL_ERROR");
     syslog(LOG_DEBUG, "ssl error");
     if (ssl->inbuf.start < ssl->inbuf.end) {
       _ssl_setSocketNonblock(ssl->fd);
-      bytes = send(ssl->fd, (char *)ssl->inbuf.start, 
+      bytes = send(ssl->fd, (char *)ssl->inbuf.start,
 		   (int)(ssl->inbuf.end - ssl->inbuf.start), MSG_NOSIGNAL);
     }
     goto readError;
@@ -551,13 +551,13 @@ syslog(LOG_DEBUG, "SSL_ALERT");
     */
   case SSL_PARTIAL:
 syslog(LOG_DEBUG, "SSL_PARTIAL");
-    if (ssl->insock.start == ssl->insock.buf && ssl->insock.end == 
+    if (ssl->insock.start == ssl->insock.buf && ssl->insock.end ==
 	(ssl->insock.buf + ssl->insock.size)) {
       if (ssl->insock.size > SSL_MAX_BUF_SIZE) {
 	goto readError;
       }
       ssl->insock.size *= 2;
-      ssl->insock.start = ssl->insock.buf = 
+      ssl->insock.start = ssl->insock.buf =
 	(unsigned char *)realloc(ssl->insock.buf, ssl->insock.size);
       ssl->insock.end = ssl->insock.buf + (ssl->insock.size / 2);
     }
@@ -580,7 +580,7 @@ syslog(LOG_DEBUG, "SSL_FULL");
       free(ssl->inbuf.buf);
       ssl->inbuf.buf = NULL;
     }
-    ssl->inbuf.start = ssl->inbuf.end = ssl->inbuf.buf = 
+    ssl->inbuf.start = ssl->inbuf.end = ssl->inbuf.buf =
       (unsigned char *)malloc(ssl->inbuf.size);
 		goto decodeMore;
   }
@@ -605,7 +605,7 @@ syslog(LOG_DEBUG, "SSL_FULL");
 int _ssl_write(SSL *ssl, char *buf, int len)
 {
   int rc;
-  
+
   ssl->status = 0;
   /*
     Pack the buffered socket data (if any) so that start is at zero.
@@ -621,7 +621,7 @@ int _ssl_write(SSL *ssl, char *buf, int len)
   }
   /*
     If there is buffered output data, the caller must be trying to
-    send the same amount of data as last time.  We don't support 
+    send the same amount of data as last time.  We don't support
     sending additional data until the original buffered request has
 	been completely sent.
   */
@@ -638,12 +638,12 @@ int _ssl_write(SSL *ssl, char *buf, int len)
     case SSL_ERROR:
       return -1;
     case SSL_FULL:
-			
+
       if (ssl->outsock.size > SSL_MAX_BUF_SIZE) {
 	return -1;
       }
       ssl->outsock.size *= 2;
-      ssl->outsock.buf = 
+      ssl->outsock.buf =
 	(unsigned char *)realloc(ssl->outsock.buf, ssl->outsock.size);
       ssl->outsock.end = ssl->outsock.buf + (ssl->outsock.end - ssl->outsock.start);
       ssl->outsock.start = ssl->outsock.buf;
@@ -653,7 +653,7 @@ int _ssl_write(SSL *ssl, char *buf, int len)
   /*
     We've got data to send.
   */
-  rc = send(ssl->fd, (char *)ssl->outsock.start, 
+  rc = send(ssl->fd, (char *)ssl->outsock.start,
 	    (int)(ssl->outsock.end - ssl->outsock.start), MSG_NOSIGNAL);
   if (rc == -1) {
     ssl->status = errno;

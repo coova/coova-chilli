@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #include "chilli.h"
@@ -42,7 +42,7 @@ int loadstatus() {
 
   has_loaded = 1;
 
-  if (!_options.usestatusfile) 
+  if (!_options.usestatusfile)
     return 1;
 
   statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
@@ -53,10 +53,10 @@ int loadstatus() {
   if (!file) { syslog(LOG_ERR, "%s: could not open file %s", strerror(errno), filedest); return -1; }
 
   while ((c = fgetc(file)) != MARK_START) {
-    if (c == EOF) { 
+    if (c == EOF) {
       syslog(LOG_ERR, "%s: end of file", strerror(errno));
-      fclose(file); 
-      return -1; 
+      fclose(file);
+      return -1;
     }
   }
 
@@ -74,8 +74,8 @@ int loadstatus() {
 
   if ((c = fgetc(file)) != MARK_START) {
     syslog(LOG_ERR, "%s: bad binary file", strerror(errno));
-    fclose(file); 
-    return -1; 
+    fclose(file);
+    return -1;
   }
 
   rtoffset = wall - rt;
@@ -95,7 +95,7 @@ int loadstatus() {
 
     if ((c = fgetc(file)) != MARK_NEXT) {
       syslog(LOG_ERR, "%s: bad binary file", strerror(errno));
-      fclose(file); 
+      fclose(file);
       return -1;
     }
 
@@ -108,7 +108,7 @@ int loadstatus() {
 
       /* not already known */
       dhcp_lnkconn(dhcp, &conn);
-      
+
       /* set/copy all the pointers */
       dhcpconn.nexthash = conn->nexthash;
       dhcpconn.next = conn->next;
@@ -133,11 +133,11 @@ int loadstatus() {
 
       /* initialize dhcp_conn_t */
       memcpy(conn, &dhcpconn, sizeof(struct dhcp_conn_t));
-      
+
       for (n=0; n < DHCP_DNAT_MAX; n++) {
-	memset(conn->dnat[n].mac, 0, PKT_ETH_ALEN); 
+	memset(conn->dnat[n].mac, 0, PKT_ETH_ALEN);
       }
-      
+
       syslog(LOG_DEBUG, "checking IP %s", inet_ntoa(dhcpconn.hisip));
 
       /* add into ippool */
@@ -149,21 +149,21 @@ int loadstatus() {
 	  }
 	}
       }
-      
+
       dhcp_hashadd(dhcp, conn);
-      
+
       if (conn->peer) {
 	conn->peer = 0;
-	
+
 	if (fread(&appconn, sizeof(struct app_conn_t), 1, file) == 1) {
 	  struct app_conn_t *aconn = 0;
-	  
+
 	  if ((c = fgetc(file)) != MARK_NEXT) {
 	    syslog(LOG_ERR, "%s: bad binary file", strerror(errno));
-	    fclose(file); 
+	    fclose(file);
 	    return -1;
 	  }
-	  
+
 	  if (chilli_new_conn(&aconn) == 0) {
 	    /* set/copy all the pointers/internals */
 	    appconn.unit = aconn->unit;
@@ -171,7 +171,7 @@ int loadstatus() {
 	    appconn.prev = aconn->prev;
 	    appconn.uplink = newipm;
 	    appconn.dnlink = conn;
-	    
+
 	    /*
 	     * Fix time_t values:
 	     *  start_time, interim_time,
@@ -190,14 +190,14 @@ int loadstatus() {
 
 	    if (newipm) {
 	      newipm->peer = aconn;
-	      
+
 #ifdef ENABLE_UAMANYIP
 	      if (aconn->natip.s_addr)
 		chilli_assign_snat(aconn, 1);
 #endif
-	      
-	      dhcp_set_addrs(conn, 
-			     &newipm->addr, &_options.mask, 
+
+	      dhcp_set_addrs(conn,
+			     &newipm->addr, &_options.mask,
 			     &aconn->ourip, &aconn->mask,
 			     &_options.dns1, &_options.dns2);
 	    }
@@ -205,12 +205,12 @@ int loadstatus() {
 #if defined(ENABLE_SESSGARDEN) && defined(HAVE_PATRICIA)
 	    if (aconn->s_params.pass_through_count) {
 	      garden_patricia_load_list(&aconn->ptree,
-					aconn->s_params.pass_throughs, 
+					aconn->s_params.pass_throughs,
 					aconn->s_params.pass_through_count);
 	    }
 #endif
 	  }
-	  
+
 	  /* todo: read a md5 checksum or magic token */
 	}
 	else {
@@ -227,7 +227,7 @@ int loadstatus() {
 	       dhcpconn.hismac[4], dhcpconn.hismac[5]);
 
       conn->authstate = dhcpconn.authstate;
-      
+
       if (dhcpconn.peer) {
 
 	syslog(LOG_INFO, "Reading appconn (peer)");
@@ -236,7 +236,7 @@ int loadstatus() {
 
 	  if ((c = fgetc(file)) != MARK_NEXT) {
 	    syslog(LOG_ERR, "%s: bad binary file", strerror(errno));
-	    fclose(file); 
+	    fclose(file);
 	    return -1;
 	  }
 
@@ -245,30 +245,30 @@ int loadstatus() {
 	     * Already have an appconn.
 	     */
 	    struct app_conn_t *aconn = (struct app_conn_t*) conn->peer;
-	    
+
 	    syslog(LOG_INFO, "Overwriting existing appconn %d", appconn.s_state.authenticated);
-	    
+
 	    memcpy(&aconn->s_params, &appconn.s_params, sizeof(struct session_params));
 	    memcpy(&aconn->s_state, &appconn.s_state, sizeof(struct session_state));
-	    
+
 	  } else {
 	    /*
 	     * No peer (appconn), then create it just as above.
 	     */
 	    struct app_conn_t *aconn = 0;
-	    
+
 	    syslog(LOG_INFO, "Creating new appconn (peer)");
-	    
+
 	    if (ippool_getip(ippool, &newipm, &conn->hisip)) {
 	      if (ippool_newip(ippool, &newipm, &conn->hisip, 1)) {
 		if (ippool_newip(ippool, &newipm, &conn->hisip, 0)) {
 		  syslog(LOG_ERR, "Failed to allocate either static or dynamic IP address");
-		  fclose(file); 
+		  fclose(file);
 		  return -1;
 		}
 	      }
 	    }
-	    
+
 	    if (chilli_new_conn(&aconn) == 0) {
 	      /* set/copy all the pointers/internals */
 	      appconn.unit = aconn->unit;
@@ -276,19 +276,19 @@ int loadstatus() {
 	      appconn.prev = aconn->prev;
 	      appconn.uplink = newipm;
 	      appconn.dnlink = conn;
-	      
+
 	      /* initialize app_conn_t */
 	      memcpy(aconn, &appconn, sizeof(struct app_conn_t));
 	      conn->peer = aconn;
 	      newipm->peer = aconn;
-	      
+
 #ifdef ENABLE_UAMANYIP
 	      if (appconn.natip.s_addr)
 		chilli_assign_snat(aconn, 1);
 #endif
-	      
-	      dhcp_set_addrs(conn, 
-			     &newipm->addr, &_options.mask, 
+
+	      dhcp_set_addrs(conn,
+			     &newipm->addr, &_options.mask,
 			     &aconn->ourip, &aconn->mask,
 			     &_options.dns1, &_options.dns2);
 	    }
@@ -296,7 +296,7 @@ int loadstatus() {
 	}
       }
     }
-  } 
+  }
 
   fclose(file);
   printstatus();
@@ -314,7 +314,7 @@ int printstatus() {
   if (!has_loaded)
     return 0;
 
-  if (!_options.usestatusfile) 
+  if (!_options.usestatusfile)
     return 0;
 
   statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
@@ -352,7 +352,7 @@ int printstatus() {
 	      dhcpconn->hismac[2], dhcpconn->hismac[3],
 	      dhcpconn->hismac[4], dhcpconn->hismac[5],
 	      inet_ntoa(dhcpconn->hisip));
-      
+
       fwrite(dhcpconn, sizeof(struct dhcp_conn_t), 1, file);
       fputc(MARK_NEXT, file);
       appconn = (struct app_conn_t *)dhcpconn->peer;
@@ -379,11 +379,11 @@ int loadstatus() {
 int printstatus() {
   FILE *file;
   char filedest[512];
-  
+
   struct dhcp_conn_t *dhcpconn = dhcp->firstusedconn;
   struct app_conn_t *appconn;
 
-  if (!_options.usestatusfile) 
+  if (!_options.usestatusfile)
     return 0;
 
   statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
@@ -414,7 +414,7 @@ int printstatus() {
 
     dhcpconn = dhcpconn->next;
   }
-  
+
   fclose(file);
   return 0;
 }

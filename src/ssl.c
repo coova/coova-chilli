@@ -1,20 +1,20 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2009-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 #include "system.h"
 #ifdef HAVE_SSL
@@ -74,7 +74,7 @@ static int
 openssl_verify_peer_cb(int ok, X509_STORE_CTX *ctx) {
   int err = X509_STORE_CTX_get_error(ctx);
   if (err != X509_V_OK) {
-    syslog(LOG_ERR, "%d peer certificate error: #%d : %s\n", 
+    syslog(LOG_ERR, "%d peer certificate error: #%d : %s\n",
               errno, err, X509_verify_cert_error_string(err));
     return 0;
   }
@@ -199,7 +199,7 @@ int
 _openssl_env_init(openssl_env *env, char *engine, int server) {
   /*
    * Create an OpenSSL environment (method and context).
-   * If ``server'' is 1, the environment is that of a SSL 
+   * If ``server'' is 1, the environment is that of a SSL
    * server.
    */
   if (server) {
@@ -263,7 +263,7 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
     if (_options.sslkeypass) {
       SSL_CTX_set_default_passwd_cb(env->ctx, _openssl_passwd);
     }
-    
+
     if (!openssl_use_certificate(env, _options.sslcertfile) ||
 	!openssl_use_privatekey(env, _options.sslkeyfile)) {
       syslog(LOG_ERR, "failed reading setup sslcertfile and/or sslkeyfile");
@@ -276,7 +276,7 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
 	return 0;
       }
     }
-    
+
     env->ready = 1;
     return err;
   }
@@ -287,9 +287,9 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
   syslog(LOG_DEBUG, "SSL pass: %s",_options.sslkeypass?_options.sslkeypass:"null");
   syslog(LOG_DEBUG, "SSL ca: %s",_options.sslcafile?_options.sslcafile:"null");
   if ( matrixSslReadKeys( &env->keys,
-			  _options.sslcertfile, 
-			  _options.sslkeyfile, 
-			  _options.sslkeypass, 
+			  _options.sslcertfile,
+			  _options.sslkeyfile,
+			  _options.sslkeypass,
 			  _options.sslcafile ) < 0 ) {
     syslog(LOG_ERR, "%s: could not load ssl certificate or and/or key file", strerror(errno));
     return 0;
@@ -314,16 +314,16 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
 
   c->env = env;
 #ifdef HAVE_OPENSSL
-  c->con = (SSL *)SSL_new(env->ctx); 
+  c->con = (SSL *)SSL_new(env->ctx);
 #elif  HAVE_MATRIXSSL
-  c->con = (SSL *)SSL_new(env->keys, 0); 
+  c->con = (SSL *)SSL_new(env->keys, 0);
 #endif
   c->sock = fd;
   c->timeout = timeout;
 
   SSL_set_fd(c->con, c->sock);
 
-#ifdef HAVE_OPENSSL  
+#ifdef HAVE_OPENSSL
 #ifdef HAVE_OPENSSL_ENGINE
   SSL_set_app_data(c->con, c);
 #endif
@@ -357,7 +357,7 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
 int
 openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 
-#ifdef HAVE_OPENSSL  
+#ifdef HAVE_OPENSSL
   int rc;
 
   if (!c || !c->con) return -1;
@@ -367,12 +367,12 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
     if ((rc = SSL_accept(c->con)) <= 0) {
 
       int err = SSL_get_error(c->con, rc);
-      
+
       switch (err) {
       case SSL_ERROR_WANT_READ:
-      case SSL_ERROR_WANT_WRITE: 
+      case SSL_ERROR_WANT_WRITE:
 	return 1;
-	
+
       case SSL_ERROR_SYSCALL:
 	if (errno != EINTR) {
 #if(_debug_ > 1)
@@ -386,25 +386,25 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 	}
 	break;
       }
-      
+
       return -1;
-      
+
     } else {
-      
+
 #ifdef HAVE_OPENSSL_ENGINE
       X509 *peer_cert = SSL_get_peer_certificate(c->con);
-      
+
       if (peer_cert) {
 	char subj[1024];
-	
+
 	X509_NAME_oneline(X509_get_subject_name(peer_cert),subj,sizeof(subj));
-	
+
 	if (SSL_get_verify_result(c->con) != X509_V_OK) {
 	  syslog(LOG_DEBUG, "auth_failed: %s", subj);
 	  X509_free(peer_cert);
 	  return -1;
 	}
-		
+
 	syslog(LOG_DEBUG, "auth_success: %s", subj);
 	if (conn) conn->s_params.flags |= ADMIN_LOGIN;
 
@@ -417,7 +417,7 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 	  char b[512];
 	  syslog(LOG_DEBUG, "Debugging: SSL Information:\n");
 	  cipher = SSL_get_current_cipher(c->con);
-	  syslog(LOG_DEBUG, "  Protocol: %s, %s with %.*s bit key\n", 
+	  syslog(LOG_DEBUG, "  Protocol: %s, %s with %.*s bit key\n",
 		  SSL_CIPHER_get_version(cipher),
 		  (char*)SSL_CIPHER_get_name(cipher),
 		  sprintf(b, "%d", EVP_PKEY_bits(pktmp)), b);
@@ -426,7 +426,7 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 	  syslog(LOG_DEBUG, "  Issuer:   %s\n", b);
 	  EVP_PKEY_free(pktmp);
 	}
-	
+
 	X509_free(peer_cert);
       } else {
 	syslog(LOG_DEBUG, "no SSL certificate");
@@ -467,16 +467,16 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
 
   c->env = env;
 #ifdef HAVE_OPENSSL
-  c->con = (SSL *)SSL_new(env->ctx); 
+  c->con = (SSL *)SSL_new(env->ctx);
 #elif  HAVE_MATRIXSSL
-  c->con = (SSL *)SSL_new(env->keys, SSL_FLAGS_SERVER); 
+  c->con = (SSL *)SSL_new(env->keys, SSL_FLAGS_SERVER);
 #endif
   c->sock = fd;
   c->timeout = timeout;
 
   SSL_set_fd(c->con, c->sock);
 
-#ifdef HAVE_OPENSSL  
+#ifdef HAVE_OPENSSL
 #ifdef HAVE_OPENSSL_ENGINE
   SSL_clear(c->con);
 #endif
@@ -497,7 +497,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
   }
 
 #elif  HAVE_MATRIXSSL
-  
+
   /* ndelay_off(c->sock); */
 
   matrixSslSetCertValidator(c->con->ssl, certValidator, c->con->keys);
@@ -521,13 +521,13 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
 
 int
 openssl_error(openssl_con *con, int ret, char *func) {
-#ifdef HAVE_OPENSSL  
+#ifdef HAVE_OPENSSL
   int err = -1;
   if (con->con) {
     err = SSL_get_error(con->con, ret);
 #if(_debug_ > 1)
     syslog(LOG_DEBUG, "SSL: (%s()) %s", func,
-	    err == SSL_ERROR_NONE ? "None": 
+	    err == SSL_ERROR_NONE ? "None":
             err == SSL_ERROR_ZERO_RETURN ? "Return!":
 	    err == SSL_ERROR_WANT_READ ? "Read (continue)":
 	    err == SSL_ERROR_WANT_WRITE ? "Write (continue)":
@@ -540,7 +540,7 @@ openssl_error(openssl_con *con, int ret, char *func) {
     case SSL_ERROR_NONE: return 0;
     case SSL_ERROR_WANT_READ: return 1;
     case SSL_ERROR_WANT_WRITE: return 2;
-    case SSL_ERROR_SYSCALL: 
+    case SSL_ERROR_SYSCALL:
       /*
        * This is a protocol violation, but we got
        * an EOF (remote connection did a shutdown(fd, 1).
@@ -574,13 +574,13 @@ openssl_shutdown(openssl_con *con, int state) {
     case 1: SSL_set_shutdown(con->con, SSL_SENT_SHUTDOWN); break;
     case 2: SSL_set_shutdown(con->con, SSL_RECEIVED_SHUTDOWN|SSL_SENT_SHUTDOWN); break;
     }
-    for (i = 0; i < 4; i++) 
-      if (SSL_shutdown(con->con)) 
+    for (i = 0; i < 4; i++)
+      if (SSL_shutdown(con->con))
 	break;
   }
 #endif
 }
-  
+
 int
 openssl_read(openssl_con *con, char *b, int l, int t) {
   int rbytes = 0;
@@ -604,7 +604,7 @@ openssl_read(openssl_con *con, char *b, int l, int t) {
     if (select(fd + 1,&rfds,&wfds,(fd_set *) 0,&tv) == -1) return -1;
     if (!FD_ISSET(fd, &rfds) && !FD_ISSET(fd, &wfds)) return 0;
   }
-    
+
  repeat_read:
 
   rbytes = SSL_read(con->con, b, l);
@@ -630,13 +630,13 @@ openssl_write(openssl_con *con, char *b, int l, int t) {
     fd_set wfds;
     struct timeval tv;
     int fd = con->sock;
-    
+
     tv.tv_sec = t;
     tv.tv_usec = 0;
-    
+
     FD_ZERO(&wfds);
     FD_SET(fd, &wfds);
-    
+
     if (select(fd + 1,(fd_set *) 0,&wfds,(fd_set *) 0,&tv) == -1) return -1;
     if (!FD_ISSET(fd, &wfds)) return 0;
   }
@@ -644,9 +644,9 @@ openssl_write(openssl_con *con, char *b, int l, int t) {
   while (sent < l) {
 
   repeat_write:
-    
+
     wrt = SSL_write(con->con, b+sent, l-sent);
-    
+
     if (wrt <= 0) {
       err = openssl_error(con, wrt, "openssl_write");
       if (err == -1) return err;
@@ -657,7 +657,7 @@ openssl_write(openssl_con *con, char *b, int l, int t) {
 	goto repeat_write;
       }
       break;
-    } 
+    }
 
     sent += wrt;
   }
@@ -670,10 +670,10 @@ openssl_free(openssl_con *con) {
   SSL *c = con->con;
   if (c) {
 #ifdef HAVE_OPENSSL
-    SSL_set_connect_state(c); 
+    SSL_set_connect_state(c);
 #endif
-    SSL_free(c); 
-    con->con = 0; 
+    SSL_free(c);
+    con->con = 0;
   }
   free(con);
 }
@@ -692,7 +692,7 @@ openssl_env_free(openssl_env *env) {
   free(env);
 }
 
-int 
+int
 openssl_pending(openssl_con *con) {
   if (con->con) {
     int pending = SSL_pending(con->con);

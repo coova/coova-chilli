@@ -1,20 +1,20 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #include "chilli.h"
@@ -23,7 +23,7 @@ int
 cmdsock_init() {
   struct sockaddr_un local;
   int cmdsock;
-  
+
   if ((cmdsock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
 
     syslog(LOG_ERR, "%s: could not allocate UNIX Socket!", strerror(errno));
@@ -35,7 +35,7 @@ cmdsock_init() {
     strcpy(local.sun_path, _options.cmdsocket);
     unlink(local.sun_path);
 
-    if (bind(cmdsock, (struct sockaddr *)&local, 
+    if (bind(cmdsock, (struct sockaddr *)&local,
 	     sizeof(struct sockaddr_un)) == -1) {
       syslog(LOG_ERR, "%s: could bind UNIX Socket!", strerror(errno));
       close(cmdsock);
@@ -65,7 +65,7 @@ cmdsock_port_init() {
   struct sockaddr_in local;
   int cmdsock;
   int rc;
-  
+
   if ((cmdsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 
     syslog(LOG_ERR, "%s: could not allocate commands socket!", strerror(errno));
@@ -84,7 +84,7 @@ cmdsock_port_init() {
 	       (char *)&rc,
 	       sizeof(rc));
 
-    if (bind(cmdsock, (struct sockaddr *)&local, 
+    if (bind(cmdsock, (struct sockaddr *)&local,
 	     sizeof(struct sockaddr_in)) == -1) {
       syslog(LOG_ERR, "%s: could not bind commands socket!", strerror(errno));
       close(cmdsock);

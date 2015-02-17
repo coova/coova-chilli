@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2007-2013 David Bird (Coova Technologies) <support@coova.com>
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #ifndef _OPTIONS_H
@@ -87,10 +87,10 @@ struct options_t {
   char* radiussecret;            /* Radius shared secret */
 
 #ifdef ENABLE_LARGELIMITS
-  struct in_addr radiusacctserver1; 
-  struct in_addr radiusacctserver2; 
-  struct in_addr radiusadmserver1;  
-  struct in_addr radiusadmserver2;  
+  struct in_addr radiusacctserver1;
+  struct in_addr radiusacctserver2;
+  struct in_addr radiusadmserver1;
+  struct in_addr radiusadmserver2;
   char* radiusacctsecret;
   char* radiusadmsecret;
 #endif
@@ -238,6 +238,7 @@ struct options_t {
   uint8_t dhcpnotidle:1;
   uint8_t uamauthedallowed:1;
   uint8_t postauth_proxyssl:1;
+  uint8_t nochallenge:1;
 
 #ifdef USING_MMAP
   uint8_t mmapring:1;
@@ -327,7 +328,7 @@ struct options_t {
   uint8_t macok[MACOK_MAX][PKT_ETH_ALEN]; /* Allowed MACs */
   int macoklen;                   /* Number of MAC addresses */
   char* macsuffix;               /* Suffix to add to MAC address */
-  char* macpasswd;               /* Password to use for MAC authentication */  
+  char* macpasswd;               /* Password to use for MAC authentication */
 
   uint64_t defsessiontimeout;
   uint64_t defbandwidthmaxdown;

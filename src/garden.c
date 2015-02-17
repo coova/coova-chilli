@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #include "chilli.h"
@@ -37,9 +37,9 @@ void garden_print_list(int fd, pass_through *ptlist, int ptcnt) {
 
   for (i = 0; i < ptcnt; i++) {
     pt = &ptlist[i];
-    
+
     safe_strncpy(mask, inet_ntoa(pt->mask), sizeof(mask));
-    
+
     safe_snprintf(line, sizeof(line),
 		  "host=%-16s mask=%-16s proto=%-3d port=%-3d"
 #ifdef ENABLE_GARDENEXT
@@ -52,7 +52,7 @@ void garden_print_list(int fd, pass_through *ptlist, int ptcnt) {
 		  , pt->expiry ? pt->expiry - mainclock_now() : 0
 #endif
 		  );
-    
+
     if (!safe_write(fd, line, strlen(line))) /* error */
 	;
   }
@@ -64,13 +64,13 @@ int garden_print_appconn(struct app_conn_t *appconn, void *d) {
   int fd = * (int *) d;
 #ifdef HAVE_PATRICIA
   void cb (prefix_t *prefix, void *data) {
-    struct node_pass_through_list *nd = 
+    struct node_pass_through_list *nd =
       (struct node_pass_through_list *)data;
     garden_print_list(fd, nd->ptlist, nd->ptcnt);
   }
 #endif
   if (appconn->s_params.pass_through_count > 0) {
-    safe_snprintf(line, sizeof line, 
+    safe_snprintf(line, sizeof line,
 		  "subscriber %s (%d/%d):\n",
 		  inet_ntoa(appconn->hisip),
 		  appconn->s_params.pass_through_count,
@@ -79,10 +79,10 @@ int garden_print_appconn(struct app_conn_t *appconn, void *d) {
 #ifdef HAVE_PATRICIA
     if (appconn->ptree) {
       patricia_process(appconn->ptree, cb);
-    } else 
+    } else
 #endif
-      garden_print_list(fd, 
-			appconn->s_params.pass_throughs, 
+      garden_print_list(fd,
+			appconn->s_params.pass_throughs,
 			appconn->s_params.pass_through_count);
   }
   return 0;
@@ -94,13 +94,13 @@ void garden_print(int fd) {
 
 #ifdef HAVE_PATRICIA
   void cb (prefix_t *prefix, void *data) {
-    struct node_pass_through_list *nd = 
+    struct node_pass_through_list *nd =
       (struct node_pass_through_list *)data;
     garden_print_list(fd, nd->ptlist, nd->ptcnt);
   }
 #endif
-  
-  safe_snprintf(line, sizeof line, 
+
+  safe_snprintf(line, sizeof line,
 		"static garden (%d/%d):\n",
 		_options.num_pass_throughs,
 		MAX_PASS_THROUGHS);
@@ -110,42 +110,42 @@ void garden_print(int fd) {
 #ifdef HAVE_PATRICIA
   if (dhcp->ptree) {
     patricia_process(dhcp->ptree, cb);
-  } else 
+  } else
 #endif
-    garden_print_list(fd, 
-		      _options.pass_throughs, 
+    garden_print_list(fd,
+		      _options.pass_throughs,
 		      _options.num_pass_throughs);
 
-  safe_snprintf(line, sizeof line, 
+  safe_snprintf(line, sizeof line,
 		"dynamic garden (%d/%d):\n",
 		dhcp->num_pass_throughs,
 		MAX_PASS_THROUGHS);
   if (!safe_write(fd, line, strlen(line))) /* error */
 	;
-  
+
 #ifdef HAVE_PATRICIA
   if (dhcp->ptree_dyn) {
     patricia_process(dhcp->ptree_dyn, cb);
-  } else 
+  } else
 #endif
-    garden_print_list(fd, 
-		      dhcp->pass_throughs, 
+    garden_print_list(fd,
+		      dhcp->pass_throughs,
 		      dhcp->num_pass_throughs);
 
 #ifdef ENABLE_AUTHEDALLOWED
-  safe_snprintf(line, sizeof line, 
+  safe_snprintf(line, sizeof line,
 		"authed garden (%d/%d):\n",
 		_options.num_authed_pass_throughs,
 		MAX_PASS_THROUGHS);
   if (!safe_write(fd, line, strlen(line))) /* error */;
-  
+
 #ifdef HAVE_PATRICIA
   if (dhcp->ptree_authed) {
     patricia_process(dhcp->ptree_authed, cb);
-  } else 
+  } else
 #endif
-    garden_print_list(fd, 
-		      _options.authed_pass_throughs, 
+    garden_print_list(fd,
+		      _options.authed_pass_throughs,
 		      _options.num_authed_pass_throughs);
 #endif
 
@@ -160,17 +160,17 @@ int garden_patricia_print(int fd, patricia_tree_t *ptree) {
   return 0;
 }
 
-int garden_patricia_check(patricia_tree_t *ptree, 
+int garden_patricia_check(patricia_tree_t *ptree,
 			  pass_through *ptlist, uint32_t *ptcnt,
 			  struct pkt_ipphdr_t *ipph, int dst) {
   int found = 0;
   prefix_t *prefix;
   patricia_node_t *pfx;
   struct in_addr sin;
-  
+
   sin.s_addr = dst ? ipph->daddr : ipph->saddr;
   prefix = patricia_prefix_new (AF_INET, &sin, 32);
-  
+
   pfx = patricia_search_best(ptree, prefix);
   if (pfx) {
     struct node_pass_through_list *
@@ -178,7 +178,7 @@ int garden_patricia_check(patricia_tree_t *ptree,
 
     if (nd) {
       pass_through *pt=0;
-      switch (garden_check(nd->ptlist, &nd->ptcnt, 
+      switch (garden_check(nd->ptlist, &nd->ptcnt,
 			   &pt, ipph, dst, ptree)) {
       case 1:
 	found = 1;
@@ -227,20 +227,20 @@ int garden_patricia_add(pass_through *pt, patricia_tree_t *ptree) {
       int i;
       for (i=0; i < nd->ptcnt; i++) {
 	if (pt_equal(&nd->ptlist[i], pt)) {
-	  syslog(LOG_DEBUG, "(Patricia)Uamallowed already exists #%d:%d: proto=%d host=%s port=%d", 
+	  syslog(LOG_DEBUG, "(Patricia)Uamallowed already exists #%d:%d: proto=%d host=%s port=%d",
 		  i, nd->ptcnt, pt->proto, inet_ntoa(pt->host), pt->port);
 	  break;
 	}
       }
       if (i == nd->ptcnt) {
 	nd->ptcnt++;
-	nd = realloc(nd, 
+	nd = realloc(nd,
 		     sizeof(struct node_pass_through_list)+
 		     (sizeof(pass_through)*nd->ptcnt));
 	memcpy(&nd->ptlist[nd->ptcnt-1], pt, sizeof(*pt));
       }
     }
-    
+
     PATRICIA_DATA_SET(pfx, nd);
   }
 
@@ -273,19 +273,19 @@ int garden_patricia_rem(pass_through *pt, patricia_tree_t *ptree) {
 
       for (i=0; i < nd->ptcnt; i++) {
 	if (pt_equal(&nd->ptlist[i], pt)) {
-	  syslog(LOG_DEBUG, "(Patricia)Uamallowed removing #%d:%d: proto=%d host=%s port=%d", 
+	  syslog(LOG_DEBUG, "(Patricia)Uamallowed removing #%d:%d: proto=%d host=%s port=%d",
 		  i, nd->ptcnt, pt->proto, inet_ntoa(pt->host), pt->port);
 
 	  syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, nd->ptcnt);
 
-	  for (; i < nd->ptcnt-1; i++) 
+	  for (; i < nd->ptcnt-1; i++)
 	    memcpy(&nd->ptlist[i], &nd->ptlist[i+1], sizeof(pass_through));
 
 	  nd->ptcnt--;
 
 	  if (nd->ptcnt > 0) {
 
-	    nd = realloc(nd, 
+	    nd = realloc(nd,
 			 sizeof(struct node_pass_through_list)+
 			 (sizeof(pass_through)*nd->ptcnt));
 
@@ -321,12 +321,12 @@ void garden_patricia_load_list(patricia_tree_t **pptree,
 
 void garden_patricia_reload() {
   if (_options.patricia) {
-    garden_patricia_load_list(&dhcp->ptree, 
-			      _options.pass_throughs, 
+    garden_patricia_load_list(&dhcp->ptree,
+			      _options.pass_throughs,
 			      _options.num_pass_throughs);
 #ifdef ENABLE_AUTHEDALLOWED
-    garden_patricia_load_list(&dhcp->ptree_authed, 
-			      _options.authed_pass_throughs, 
+    garden_patricia_load_list(&dhcp->ptree_authed,
+			      _options.authed_pass_throughs,
 			      _options.num_authed_pass_throughs);
 #endif
   }
@@ -347,12 +347,12 @@ int garden_check(pass_through *ptlist, uint32_t *pcnt,
   for (i = 0; i < ptcnt; i++) {
     pt = &ptlist[i];
     if (pt->proto == 0 || ipph->protocol == pt->proto)
-      if (pt->host.s_addr == 0 || 
-	  pt->host.s_addr == 
+      if (pt->host.s_addr == 0 ||
+	  pt->host.s_addr ==
 	  ((dst ? ipph->daddr : ipph->saddr) & pt->mask.s_addr))
-	if (pt->port == 0 || 
+	if (pt->port == 0 ||
 	    ((ipph->protocol == PKT_IP_PROTO_TCP ||
-	      ipph->protocol == PKT_IP_PROTO_UDP) && 
+	      ipph->protocol == PKT_IP_PROTO_UDP) &&
 	     (dst ? ipph->dport : ipph->sport) == htons(pt->port))) {
 	  if (pt_match) *pt_match = pt;
 #ifdef ENABLE_GARDENEXT
@@ -363,11 +363,11 @@ int garden_check(pass_through *ptlist, uint32_t *pcnt,
 	  return 1;
 	}
   }
-  
+
   return 0;
 }
 
-int pass_through_rem(pass_through *ptlist, uint32_t *ptcnt, 
+int pass_through_rem(pass_through *ptlist, uint32_t *ptcnt,
 		     pass_through *pt
 #ifdef HAVE_PATRICIA
 		     , patricia_tree_t *ptree
@@ -378,10 +378,10 @@ int pass_through_rem(pass_through *ptlist, uint32_t *ptcnt,
 
   for (i=0; i < cnt; i++) {
     if (pt_equal(&ptlist[i], pt)) {
-      syslog(LOG_DEBUG, "Uamallowed removing #%d: proto=%d host=%s port=%d", 
+      syslog(LOG_DEBUG, "Uamallowed removing #%d: proto=%d host=%s port=%d",
 	      i, pt->proto, inet_ntoa(pt->host), pt->port);
       syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, cnt);
-      for (; i < cnt-1; i++) 
+      for (; i < cnt-1; i++)
 	memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
       *ptcnt = *ptcnt - 1;
       break;
@@ -408,11 +408,11 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
 
   for (i=0; i < cnt; i++) {
     if (pt_equal(&ptlist[i], pt)) {
-      syslog(LOG_DEBUG, "Uamallowed already exists #%d:%d: proto=%d host=%s port=%d", 
+      syslog(LOG_DEBUG, "Uamallowed already exists #%d:%d: proto=%d host=%s port=%d",
 	      i, ptlen, pt->proto, inet_ntoa(pt->host), pt->port);
-      if (is_dyn) { 
+      if (is_dyn) {
 	syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, cnt);
-	for (; i<cnt-1; i++) 
+	for (; i<cnt-1; i++)
 	  memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
 	cnt = *ptcnt = *ptcnt - 1;
 	break;
@@ -421,7 +421,7 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
       }
     }
   }
-            
+
   if (cnt == ptlen) {
     if (!is_dyn) {
       syslog(LOG_DEBUG, "No more room for walled garden entries");
@@ -429,15 +429,15 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
     }
 
     syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, ptlen);
-    for (i=0; i<ptlen-1; i++) 
+    for (i=0; i<ptlen-1; i++)
       memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
 
     cnt = *ptcnt = *ptcnt - 1;
   }
 
-  syslog(LOG_DEBUG, "Uamallowed IP address #%d:%d: proto=%d host=%s port=%d", 
+  syslog(LOG_DEBUG, "Uamallowed IP address #%d:%d: proto=%d host=%s port=%d",
 	  cnt, ptlen, pt->proto, inet_ntoa(pt->host), pt->port);
-  
+
   memcpy(&ptlist[cnt], pt, sizeof(pass_through));
   *ptcnt = cnt + 1;
 
@@ -449,7 +449,7 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
   return 0;
 }
 
-int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen, 
+int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 			      uint32_t *ptcnt, char *s,
 			      char is_dyn, char is_rem
 #ifdef HAVE_PATRICIA
@@ -467,35 +467,35 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
   p3 = malloc(strlen(s)+1);
   strcpy(p3, s);
   p1 = p3;
-  
-  if (_options.debug) 
+
+  if (_options.debug)
     syslog(LOG_DEBUG, "Uamallowed [%s]", s);
-  
+
   for ( ; p1; p1 = p2) {
-    
+
     /* save the next entry position */
     if ((p2 = strchr(p1, ','))) { *p2=0; p2++; }
-    
+
     /* clear the pass-through entry in case we partitially filled it already */
     memset(&pt, 0, sizeof(pass_through));
-    
+
     /* eat whitespace */
     while (isspace((int) *p1)) p1++;
-    
+
     /* look for specific protocols */
-    if ((t = strchr(p1, ':'))) { 
+    if ((t = strchr(p1, ':'))) {
       int pnum = 0;
 
       *t = 0;
 
-#ifdef HAVE_GETPROTOENT      
+#ifdef HAVE_GETPROTOENT
       if (1) {
 	struct protoent *proto = getprotobyname(p1);
 
-	if (!proto && !strchr(p1, '.')) 
+	if (!proto && !strchr(p1, '.'))
 	  proto = getprotobynumber(atoi(p1));
 
-	if (proto) 
+	if (proto)
 	  pnum = proto->p_proto;
       }
 #else
@@ -513,7 +513,7 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 	*t = ':';
       }
     }
-    
+
 #ifdef ENABLE_GARDENEXT
     {
       char *e = strchr(p1, '#');
@@ -524,18 +524,18 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
       }
     }
 #endif
-    
+
     /* look for an optional port */
-    if ((t = strchr(p1, ':'))) { 
-      pt.port = atoi(t+1); 
-      *t = 0; 
+    if ((t = strchr(p1, ':'))) {
+      pt.port = atoi(t+1);
+      *t = 0;
     }
 
     if (strchr(p1, '/')) {	/* parse a network address */
       if (option_aton(&pt.host, &pt.mask, p1, 0)) {
 	syslog(LOG_ERR, "Invalid uamallowed network address or mask %s!", s);
 	continue;
-      } 
+      }
       if (is_rem) {
 	if (pass_through_rem(ptlist, ptcnt, &pt
 #ifdef HAVE_PATRICIA
@@ -587,33 +587,33 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 }
 
 #ifdef ENABLE_CHILLIREDIR
-int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen, 
+int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen,
 				    uint32_t *ptcnt, char *s,
 				    char is_dyn) {
   uint32_t cnt = *ptcnt;
   regex_pass_through pt;
   char *p, *st;
   int stage = 0;
-  
+
   memset(&pt, 0, sizeof(pt));
-  
+
   for (st = s; (p = strtok(st, "::")); st = 0, stage++) {
     int is_wild = !strcmp(p,"*");
     if (!is_wild) {
       int is_negate = (*p == '!');
       if (is_negate) p++;
       switch (stage) {
-      case 0: 
-	safe_strncpy(pt.regex_host, p, sizeof(pt.regex_host)); 
-	pt.neg_host = is_negate; 
+      case 0:
+	safe_strncpy(pt.regex_host, p, sizeof(pt.regex_host));
+	pt.neg_host = is_negate;
 	break;
       case 1:
-	safe_strncpy(pt.regex_path, p, sizeof(pt.regex_path)); 
-	pt.neg_path = is_negate; 
+	safe_strncpy(pt.regex_path, p, sizeof(pt.regex_path));
+	pt.neg_path = is_negate;
 	break;
-      case 2: 
-	safe_strncpy(pt.regex_qs, p, sizeof(pt.regex_qs));   
-	pt.neg_qs   = is_negate; 
+      case 2:
+	safe_strncpy(pt.regex_qs, p, sizeof(pt.regex_qs));
+	pt.neg_qs   = is_negate;
 	break;
       }
     }
@@ -657,23 +657,23 @@ void garden_load_domainfile() {
     uamdomain_regex * uam_end = 0;
 
     fp = fopen(_options.uamdomainfile, "r");
-    if (!fp) { 
-      syslog(LOG_ERR, "%d could not open file %s", 
-	      errno, _options.uamdomainfile); 
-      return; 
+    if (!fp) {
+      syslog(LOG_ERR, "%d could not open file %s",
+	      errno, _options.uamdomainfile);
+      return;
     }
-    
+
     while ((read = getline(&line, &len, fp)) != -1) {
       if (read <= 0) continue;
-      else if (!line[0] || line[0] == '#' || 
+      else if (!line[0] || line[0] == '#' ||
 	       isspace((int) line[0])) continue;
       else {
-	
+
 	uamdomain_regex * uam_re = (uamdomain_regex *)
 	  calloc(sizeof(uamdomain_regex), 1);
 
 	char * pline = line;
-	
+
 	while (isspace((int) pline[read-1]))
 	  pline[--read] = 0;
 
@@ -681,14 +681,14 @@ void garden_load_domainfile() {
 	  uam_re->neg = 1;
 	  pline++;
 	}
-	
+
 	syslog(LOG_DEBUG, "compiling %s", pline);
 	if (regcomp(&uam_re->re, pline, REG_EXTENDED | REG_NOSUB)) {
 	  syslog(LOG_ERR, "could not compile regex %s", line);
 	  free(uam_re);
 	  continue;
 	}
-	
+
 	if (uam_end) {
 	  uam_end->next = uam_re;
 	  uam_end = uam_re;
@@ -696,10 +696,10 @@ void garden_load_domainfile() {
 	  _list_head = uam_end = uam_re;
 	}
       }
-    }	
-    
+    }
+
     fclose(fp);
-    
+
     if (line)
       free(line);
   }
@@ -707,17 +707,17 @@ void garden_load_domainfile() {
 
 int garden_check_domainfile(char *question) {
   uamdomain_regex * uam_re = _list_head;
-  
+
   while (uam_re) {
     int match = !regexec(&uam_re->re, question, 0, 0, 0);
-    
+
 #if(_debug_)
     if (match)
       syslog(LOG_DEBUG, "matched DNS name %s", question);
 #endif
 
     if (match) return uam_re->neg ? 0 : 1;
-    
+
     uam_re = uam_re->next;
   }
 

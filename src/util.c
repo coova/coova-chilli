@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #include "chilli.h"
@@ -69,7 +69,7 @@ int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos) {
   char *slash = NULL;
   char *colon = NULL;
   int hostlen;
-  
+
   *port = 0;
 
   if (!memcmp(src, "http://", 7)) {
@@ -84,10 +84,10 @@ int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos) {
     syslog(LOG_ERR, "URL must start with http:// or https:// [%s]!", src);
     return -1;
   }
-  
+
   slash = strstr(slashslash, "/");
   colon = strstr(slashslash, ":");
-  
+
   if (slash != NULL && colon != NULL && slash < colon) {
     /* .../...: */
     hostlen = slash - slashslash;
@@ -191,6 +191,6 @@ getline (char** lineptr, size_t* n, FILE* stream) {
     *lineptr = lptr1;
     *n = nn;
     return offset;
-  }  
+  }
 }
 #endif

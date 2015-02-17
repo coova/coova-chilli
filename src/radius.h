@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #ifndef _RADIUS_H
@@ -186,7 +186,7 @@ struct radius_queue_t {      /* Holder for queued packets */
   int retrans;               /* How many times did we retransmit this? */
   int lastsent;              /* 0 or 1 indicates last server used */
   struct sockaddr_in peer;   /* Address packet was sent to / received from */
-  struct radius_packet_t 
+  struct radius_packet_t
 #ifdef RADIUS_QUEUE_PACKET_PTR
   *
 #endif
@@ -260,8 +260,8 @@ struct radius_t {
 
 
 /* Create new radius instance */
-int radius_new(struct radius_t **this, 
-	       struct in_addr *listen, uint16_t port, 
+int radius_new(struct radius_t **this,
+	       struct in_addr *listen, uint16_t port,
 	       int coanocheck, int proxy);
 
 int radius_printqueue(int fd, struct radius_t *this);
@@ -272,7 +272,7 @@ int radius_init_q(struct radius_t *this, int size);
 int radius_free(struct radius_t *this);
 
 /* Set radius parameters which can later be changed */
-void radius_set(struct radius_t *this, 
+void radius_set(struct radius_t *this,
 		unsigned char *hwaddr,
 		int debug);
 
@@ -284,23 +284,23 @@ int radius_set_cb_ind(struct radius_t *this,
 
 /* Callback function for response to access request */
 int radius_set_cb_auth_conf(struct radius_t *this,
-			    int (*cb_auth_conf) (struct radius_t *radius, 
+			    int (*cb_auth_conf) (struct radius_t *radius,
 						 struct radius_packet_t *pack,
 						 struct radius_packet_t *pack_req, void *cbp));
 
 /* Callback function for response to accounting request */
 int radius_set_cb_acct_conf(struct radius_t *this,
-			    int (*cb_acct_conf) (struct radius_t *radius, 
+			    int (*cb_acct_conf) (struct radius_t *radius,
 						 struct radius_packet_t *pack,
 						 struct radius_packet_t *pack_req, void *cbp));
 
 int radius_set_cb_coa_ind(struct radius_t *this,
-			  int (*cb_coa_ind) (struct radius_t *radius, 
+			  int (*cb_coa_ind) (struct radius_t *radius,
 					     struct radius_packet_t *pack,
 					     struct sockaddr_in *peer));
 
 /* Send of a request */
-int radius_req(struct radius_t *this, 
+int radius_req(struct radius_t *this,
 	       struct radius_packet_t *pack,
 	       void *cbp);
 
@@ -321,7 +321,7 @@ int radius_decaps(struct radius_t *this, int idx);
 int radius_proxy_ind(struct radius_t *this, int idx);
 
 /* Add an attribute to a packet */
-int radius_addattr(struct radius_t *this, struct radius_packet_t *pack, 
+int radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
 		   uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
 		   uint32_t value, uint8_t *data, uint16_t dlen);
 
@@ -331,7 +331,7 @@ int radius_default_pack(struct radius_t *this,
 			int code);
 
 /* Extract an attribute from a packet */
-int radius_getnextattr(struct radius_packet_t *pack, 
+int radius_getnextattr(struct radius_packet_t *pack,
 		       struct radius_attr_t **attr,
 		       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
 		       int instance, size_t *roffset);
@@ -342,19 +342,19 @@ int radius_getattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 
 /* Encode a password */
 int radius_pwencode(struct radius_t *this, uint8_t *dst, size_t dstsize,
-		    size_t *dstlen, uint8_t *src, size_t srclen, 
+		    size_t *dstlen, uint8_t *src, size_t srclen,
 		    uint8_t *authenticator, char *secret, size_t secretlen);
 
 
 /* Decode a password (also used for MSCHAPv1 MPPE keys) */
 int radius_pwdecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
-		    size_t *dstlen, uint8_t *src, size_t srclen, 
+		    size_t *dstlen, uint8_t *src, size_t srclen,
 		    uint8_t *authenticator, char *secret, size_t secretlen);
 
 
 /* Decode MPPE key */
 int radius_keydecode(struct radius_t *this, uint8_t *dst, size_t dstsize,
-		     size_t *dstlen, uint8_t *src, size_t srclen, 
+		     size_t *dstlen, uint8_t *src, size_t srclen,
 		     uint8_t *authenticator, char *secret, size_t secretlen);
 
 /* Encode MPPE key */
@@ -370,7 +370,7 @@ int radius_timeleft(struct radius_t *this, struct timeval *timeout);
 
 void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack);
 
-void radius_addcalledstation(struct radius_t *radius, 
+void radius_addcalledstation(struct radius_t *radius,
 			     struct radius_packet_t *pack,
 			     struct session_state *state);
 
@@ -380,7 +380,7 @@ int radius_authresp_authenticator(struct radius_t *this,
 				  char *secret, size_t secretlen);
 
 
-int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack, 
+int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack,
 		    char *secret, int secretlen, uint8_t *dst);
 
 #ifdef RADIUS_QUEUE_PACKET_PTR
@@ -392,8 +392,8 @@ int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack,
 #else
 #define RADIUS_QUEUE_PKT(p, field) (p).field
 #define RADIUS_QUEUE_PKTPTR(p) &(p)
-#define RADIUS_QUEUE_PKTFREE(p) 
-#define RADIUS_QUEUE_PKTALLOC(p) 
+#define RADIUS_QUEUE_PKTFREE(p)
+#define RADIUS_QUEUE_PKTALLOC(p)
 #define RADIUS_QUEUE_HASPKT(p) (1)
 #endif
 

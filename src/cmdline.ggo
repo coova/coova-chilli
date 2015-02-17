@@ -235,6 +235,7 @@ option "maxclients"    - "Maximum number of clients/subscribers" int default="51
 option "dhcphashsize"  - "Size of DHCP/MAC hash table" int default="56" no
 option "radiusqsize"  - "Size of RADIUS queue table" int default="0" no
 
+option "nochallenge" - "Disable the use of the challenge (PAP only)" flag off
 option "challengetimeout" - "Timeout in seconds for the generated challenge" int default="600" no
 option "challengetimeout2" - "Timeout in seconds for challenge during login" int default="1200" no
 

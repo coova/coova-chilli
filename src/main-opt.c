@@ -1,20 +1,20 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  * Author: David Bird <david@coova.com>
  */
 
@@ -27,12 +27,12 @@
 
 struct options_t _options;
 
-static const char *description = 
+static const char *description =
   "CoovaChilli - A Wireless LAN Access Point Controller.\n"
   "  For more information on this project, visit: \n"
   "  http://www.coova.org/\n";
 
-static const char *copyright = 
+static const char *copyright =
   "2006-2013 David Bird (Coova Technologies), Copyright (c) 2003-2005 Mondru AB.\n"
   "Licensed under the GNU General Public License (GPL).\n";
 
@@ -193,8 +193,8 @@ char *STRDUP(char *s) {
 #ifdef ENABLE_MINICONFIG
 
 #define cmdline_parser2 mini_cmdline_parser2
-extern int mini_cmdline_parser2(int argc, char **argv, 
-				struct gengetopt_args_info *args_info, 
+extern int mini_cmdline_parser2(int argc, char **argv,
+				struct gengetopt_args_info *args_info,
 				int, int, int);
 
 #define cmdline_parser_free mini_cmdline_free
@@ -262,7 +262,7 @@ int main(int argc, char **argv) {
     syslog(LOG_ERR, "Failed to parse command line options");
     goto end_processing;
   }
-  
+
   if (args_info.version_given) {
     options_print_version();
     exit(2);
@@ -273,11 +273,11 @@ int main(int argc, char **argv) {
     exit(2);
   }
 
-  if (cmdline_parser_configfile(args_info.conf_arg ? 
-				args_info.conf_arg : 
-				DEFCHILLICONF, 
+  if (cmdline_parser_configfile(args_info.conf_arg ?
+				args_info.conf_arg :
+				DEFCHILLICONF,
 				&args_info, 0, 0, 0)) {
-    syslog(LOG_ERR, "Failed to parse configuration file: %s!", 
+    syslog(LOG_ERR, "Failed to parse configuration file: %s!",
 	    args_info.conf_arg);
     if (!args_info.forgiving_flag)
       goto end_processing;
@@ -294,9 +294,9 @@ int main(int argc, char **argv) {
   /* Handle each option */
   _options.initialized = 1;
 
-  if (args_info.debug_flag) 
+  if (args_info.debug_flag)
     _options.debug = args_info.debugfacility_arg;
-  else 
+  else
     _options.debug = 0;
 
   /* pass-throughs */
@@ -306,7 +306,7 @@ int main(int argc, char **argv) {
   /** simple configuration parameters **/
   _options.layer3 = args_info.layer3_flag;
 #if(_debug_ && !defined(ENABLE_LAYER3))
-  if (_options.layer3) 
+  if (_options.layer3)
     syslog(LOG_WARNING, "layer3 not implemented. build with --enable-layer3");
 #endif
   _options.uid = args_info.uid_arg;
@@ -315,11 +315,11 @@ int main(int argc, char **argv) {
   _options.usetap = args_info.usetap_flag;
   _options.noarpentries = args_info.noarpentries_flag;
 #if(_debug_ && !defined(ENABLE_TAP))
-  if (_options.noarpentries) 
+  if (_options.noarpentries)
     syslog(LOG_WARNING, "tap not implemented. build with --enable-tap");
 #endif
 #if(_debug_ && !defined(ENABLE_TAP))
-  if (_options.usetap) 
+  if (_options.usetap)
     syslog(LOG_WARNING, "tap not implemented. build with --enable-tap");
 #endif
   _options.foreground = args_info.fg_flag;
@@ -330,7 +330,7 @@ int main(int argc, char **argv) {
   _options.dhcpend = args_info.dhcpend_arg;
   _options.eapolenable = args_info.eapolenable_flag;
 #if(_debug_ && !defined(ENABLE_EAPOL))
-  if (_options.eapolenable) 
+  if (_options.eapolenable)
     syslog(LOG_WARNING, "EAPOL not implemented. build with --enable-eapol");
 #endif
   _options.swapoctets = args_info.swapoctets_flag;
@@ -404,7 +404,7 @@ int main(int argc, char **argv) {
   _options.statusfilesave = args_info.statusfilesave_flag;
   _options.dhcpnotidle = args_info.dhcpnotidle_flag;
 #if(_debug_ && !defined(ENABLE_CHILLIREDIR))
-  if (_options.redir) 
+  if (_options.redir)
     syslog(LOG_ERR, "chilli_redir not implemented. build with --enable-chilliredir");
 #endif
   _options.redirssl = args_info.redirssl_flag;
@@ -413,18 +413,18 @@ int main(int argc, char **argv) {
   _options.framedservice = args_info.framedservice_flag;
   _options.radsec = args_info.radsec_flag;
 #if(_debug_ && !defined(ENABLE_CHILLIRADSEC))
-  if (_options.radsec) 
+  if (_options.radsec)
     syslog(LOG_ERR, "chilli_radsec not implemented. build with --enable-chilliradsec");
 #endif
   _options.noradallow = args_info.noradallow_flag;
   _options.peerid = args_info.peerid_arg;
 #if(_debug_ && !defined(ENABLE_CLUSTER))
-  if (_options.peerid) 
+  if (_options.peerid)
     syslog(LOG_ERR, "clustering not implemented. build with --enable-cluster");
 #endif
   _options.redirdnsreq = args_info.redirdnsreq_flag;
 #if(_debug_ && !defined(ENABLE_REDIRDNSREQ))
-  if (_options.redirdnsreq) 
+  if (_options.redirdnsreq)
     syslog(LOG_ERR, "redirdnsreq not implemented. build with --enable-redirdnsreq");
 #endif
 
@@ -448,8 +448,8 @@ int main(int argc, char **argv) {
       _options.ipv6 = 0;
     }
   }
-  syslog(LOG_DEBUG, "IPv6 %sabled %s", 
-	  _options.ipv6 ? "en" : "dis", 
+  syslog(LOG_DEBUG, "IPv6 %sabled %s",
+	  _options.ipv6 ? "en" : "dis",
 	  args_info.ipv6mode_arg ? args_info.ipv6mode_arg : "");
 #endif
 
@@ -467,11 +467,11 @@ int main(int argc, char **argv) {
   _options.location_immediate_update = args_info.locationimmediateupdate_flag;
   _options.location_option_82 = args_info.locationopt82_flag;
   if (args_info.proxylocattr_given) {
-    for (numargs = 0; numargs < args_info.proxylocattr_given 
+    for (numargs = 0; numargs < args_info.proxylocattr_given
 	   && numargs < PROXYVSA_ATTR_CNT; ++numargs)  {
       unsigned int i[2];
 
-      switch (sscanf(args_info.proxylocattr_arg[numargs], 
+      switch (sscanf(args_info.proxylocattr_arg[numargs],
 		     "%u,%u", &i[0], &i[1])) {
       case 0:
 	syslog(LOG_ERR, "invalid input %s", args_info.proxylocattr_arg[numargs]);
@@ -484,9 +484,9 @@ int main(int argc, char **argv) {
 	_options.proxy_loc[numargs].attr = i[1];
 	break;
       }
-      
-      syslog(LOG_DEBUG, "Proxy location attr %d %d", 
-	      (int)_options.proxy_loc[numargs].attr_vsa, 
+
+      syslog(LOG_DEBUG, "Proxy location attr %d %d",
+	      (int)_options.proxy_loc[numargs].attr_vsa,
 	      (int)_options.proxy_loc[numargs].attr);
     }
   }
@@ -515,12 +515,12 @@ int main(int argc, char **argv) {
     char *vln = strchr(nif, '/');
     _options.moreif[numargs].dhcpif = nif;
     if (vln) {
-      if (strlen(vln) > 1) 
+      if (strlen(vln) > 1)
 	_options.moreif[numargs].vlan = vln + 1;
       *vln = 0;
     } else {
       vln = strchr(nif, '.');
-      if (vln && strlen(vln) > 1) 
+      if (vln && strlen(vln) > 1)
 	_options.moreif[numargs].vlan = vln + 1;
     }
   }
@@ -552,18 +552,18 @@ int main(int argc, char **argv) {
     macstr[macstrlen] = 0;
 
     /* Replace anything but hex with space */
-    for (i=0; i<macstrlen; i++) 
-      if (!isxdigit((int) macstr[i])) 
+    for (i=0; i<macstrlen; i++)
+      if (!isxdigit((int) macstr[i]))
 	macstr[i] = 0x20;
 
-    if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x", 
-		&temp[0], &temp[1], &temp[2], 
+    if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x",
+		&temp[0], &temp[1], &temp[2],
 		&temp[3], &temp[4], &temp[5]) != 6) {
       syslog(LOG_ERR, "MAC conversion failed!");
       return -1;
     }
-    
-    for (i = 0; i < PKT_ETH_ALEN; i++) 
+
+    for (i = 0; i < PKT_ETH_ALEN; i++)
       _options.nexthop[i] = temp[i];
 
     _options.has_nexthop = 1;
@@ -590,18 +590,18 @@ int main(int argc, char **argv) {
     macstr[macstrlen] = 0;
 
     /* Replace anything but hex with space */
-    for (i=0; i<macstrlen; i++) 
-      if (!isxdigit((int) macstr[i])) 
+    for (i=0; i<macstrlen; i++)
+      if (!isxdigit((int) macstr[i]))
 	macstr[i] = 0x20;
 
-    if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x", 
-		&temp[0], &temp[1], &temp[2], 
+    if (sscanf (macstr, "%2x %2x %2x %2x %2x %2x",
+		&temp[0], &temp[1], &temp[2],
 		&temp[3], &temp[4], &temp[5]) != 6) {
       syslog(LOG_ERR, "MAC conversion failed!");
       return -1;
     }
-    
-    for (i = 0; i < PKT_ETH_ALEN; i++) 
+
+    for (i = 0; i < PKT_ETH_ALEN; i++)
       _options.dhcpmac[i] = temp[i];
 
     _options.dhcpusemac = 1;
@@ -651,7 +651,7 @@ int main(int argc, char **argv) {
       syslog(LOG_DEBUG, "Uamserver: %s\n", args_info.uamserver_arg);
     }
 
-    if (get_urlparts(args_info.uamserver_arg, hostname, USERURLSIZE, 
+    if (get_urlparts(args_info.uamserver_arg, hostname, USERURLSIZE,
 		     &uamserverport, 0)) {
       syslog(LOG_ERR, "Failed to parse uamserver: %s!", args_info.uamserver_arg);
       if (!args_info.forgiving_flag)
@@ -659,10 +659,10 @@ int main(int argc, char **argv) {
     }
 
     if (!args_info.uamaliasname_arg ||
-	strncmp(args_info.uamaliasname_arg, hostname, 
+	strncmp(args_info.uamaliasname_arg, hostname,
 		strlen(args_info.uamaliasname_arg))) {
       if (!(host = gethostbyname(hostname))) {
-	syslog(LOG_ERR, "Could not resolve IP address of uamserver: %s!", 
+	syslog(LOG_ERR, "Could not resolve IP address of uamserver: %s!",
 		args_info.uamserver_arg);
       }
       else {
@@ -717,7 +717,7 @@ int main(int argc, char **argv) {
     }
   }
 #endif
-  
+
   _options.uamanydns = args_info.uamanydns_flag;
 #ifdef ENABLE_UAMANYIP
   _options.uamanyip = args_info.uamanyip_flag;
@@ -740,7 +740,7 @@ int main(int argc, char **argv) {
   for (numargs = 0; numargs < args_info.uamallowed_given; ++numargs) {
     pass_throughs_from_string(_options.pass_throughs,
 			      MAX_PASS_THROUGHS,
-			      &_options.num_pass_throughs,  
+			      &_options.num_pass_throughs,
 			      args_info.uamallowed_arg[numargs], 0, 0
 #ifdef HAVE_PATRICIA
 			      , 0
@@ -751,7 +751,7 @@ int main(int argc, char **argv) {
   for (numargs = 0; numargs < args_info.ipsrcallowed_given; ++numargs) {
     pass_throughs_from_string(_options.ipsrc_pass_throughs,
 			      MAX_IPSRC_PASS_THROUGHS,
-			      &_options.ipsrc_num_pass_throughs,  
+			      &_options.ipsrc_num_pass_throughs,
 			      args_info.ipsrcallowed_arg[numargs], 0, 0
 #ifdef HAVE_PATRICIA
 			      , 0
@@ -765,7 +765,7 @@ int main(int argc, char **argv) {
   for (numargs = 0; numargs < args_info.authedallowed_given; ++numargs) {
     pass_throughs_from_string(_options.authed_pass_throughs,
 			      MAX_PASS_THROUGHS,
-			      &_options.num_authed_pass_throughs,  
+			      &_options.num_authed_pass_throughs,
 			      args_info.authedallowed_arg[numargs], 0, 0
 #ifdef HAVE_PATRICIA
 			      , 0
@@ -785,10 +785,10 @@ int main(int argc, char **argv) {
       syslog(LOG_DEBUG, "DHCP Options %s", args_info.dhcpopt_arg[numargs]);
       if (redir_hextochar((unsigned char *)args_info.dhcpopt_arg[numargs],
 			  hex_length, binopt, bin_length) == 0) {
-	if (_options.dhcp_options_len + bin_length < 
+	if (_options.dhcp_options_len + bin_length <
 	    sizeof(_options.dhcp_options)) {
-	  memcpy(_options.dhcp_options + 
-		 _options.dhcp_options_len, 
+	  memcpy(_options.dhcp_options +
+		 _options.dhcp_options_len,
 		 binopt, bin_length);
 	  _options.dhcp_options_len += bin_length;
 	} else {
@@ -816,11 +816,11 @@ int main(int argc, char **argv) {
       if (!sc) sc = strchr(n, ':');
       nlen = sc ? (sc - n) : len;
 
-      safe_snprintf(_options.modules[numargs].name, 
+      safe_snprintf(_options.modules[numargs].name,
 		    sizeof(_options.modules[numargs].name),
 		    "%.*s", nlen, n);
       if (sc && len > (nlen + 1)) {
-	safe_snprintf(_options.modules[numargs].conf, 
+	safe_snprintf(_options.modules[numargs].conf,
 		      sizeof(_options.modules[numargs].conf),
 		      "%.*s", len - nlen - 1, sc + 1);
       }
@@ -839,14 +839,14 @@ int main(int argc, char **argv) {
       regfree(&_options.regex_pass_throughs[numargs].re_qs);
   }
   */
-  
+
   memset(_options.regex_pass_throughs, 0, sizeof(_options.regex_pass_throughs));
   _options.regex_num_pass_throughs = 0;
-  
+
   for (numargs = 0; numargs < args_info.uamregex_given; ++numargs) {
     regex_pass_throughs_from_string(_options.regex_pass_throughs,
 				    MAX_REGEX_PASS_THROUGHS,
-				    &_options.regex_num_pass_throughs,  
+				    &_options.regex_num_pass_throughs,
 				    args_info.uamregex_arg[numargs], 0);
   }
 #endif
@@ -858,8 +858,8 @@ int main(int argc, char **argv) {
   }
 
   if (args_info.uamdomain_given) {
-    for (numargs = 0, i=0; 
-	 numargs < args_info.uamdomain_given && i < MAX_UAM_DOMAINS; 
+    for (numargs = 0, i=0;
+	 numargs < args_info.uamdomain_given && i < MAX_UAM_DOMAINS;
 	 ++numargs) {
       char *tb = args_info.uamdomain_arg[numargs];
       char *tok, *str, *ptr=0;
@@ -873,13 +873,13 @@ int main(int argc, char **argv) {
   }
 
   _options.allowdyn = 1;
-  
+
 #ifdef ENABLE_UAMANYIP
   _options.autostatip = args_info.autostatip_arg;
   if (_options.autostatip)
     _options.uamanyip = 1;
 #endif
-  
+
   if (args_info.nodynip_flag) {
     _options.allowdyn = 0;
   } else {
@@ -897,7 +897,7 @@ int main(int argc, char **argv) {
       }
     }
   }
-  
+
   /* statip */
   if (args_info.statip_arg) {
     struct in_addr addr;
@@ -914,26 +914,26 @@ int main(int argc, char **argv) {
 
 #ifdef ENABLE_UAMANYIP
   if (args_info.uamnatanyipex_arg) {
-    if (option_aton(&_options.uamnatanyipex_addr, 
-		    &_options.uamnatanyipex_mask, 
+    if (option_aton(&_options.uamnatanyipex_addr,
+		    &_options.uamnatanyipex_mask,
 		    args_info.uamnatanyipex_arg, 0)) {
       syslog(LOG_ERR, "Failed to parse uamnatanyipex network!");
       return -1;
     }
   }
   if (args_info.uamanyipex_arg) {
-    if (option_aton(&_options.uamanyipex_addr, 
-		    &_options.uamanyipex_mask, 
+    if (option_aton(&_options.uamanyipex_addr,
+		    &_options.uamanyipex_mask,
 		    args_info.uamanyipex_arg, 0)) {
       syslog(LOG_ERR, "Failed to parse uamanyipex network!");
       return -1;
     }
   }
 #endif
-  
+
   if (args_info.dns1_arg) {
     if (!inet_aton(args_info.dns1_arg, &_options.dns1)) {
-      syslog(LOG_ERR, "Invalid primary DNS address: %s!", 
+      syslog(LOG_ERR, "Invalid primary DNS address: %s!",
 	      args_info.dns1_arg);
       if (!args_info.forgiving_flag)
 	goto end_processing;
@@ -948,7 +948,7 @@ int main(int argc, char **argv) {
 
   if (args_info.dns2_arg) {
     if (!inet_aton(args_info.dns2_arg, &_options.dns2)) {
-      syslog(LOG_ERR, "Invalid secondary DNS address: %s!", 
+      syslog(LOG_ERR, "Invalid secondary DNS address: %s!",
 	      args_info.dns1_arg);
       if (!args_info.forgiving_flag)
 	goto end_processing;
@@ -966,7 +966,7 @@ int main(int argc, char **argv) {
   /* Do hostname lookup to translate hostname to IP address       */
   if (args_info.radiuslisten_arg) {
     if (!(host = gethostbyname(args_info.radiuslisten_arg))) {
-      syslog(LOG_ERR, "Invalid listening address: %s! [%s]", 
+      syslog(LOG_ERR, "Invalid listening address: %s! [%s]",
 	      args_info.radiuslisten_arg, strerror(errno));
       if (!args_info.forgiving_flag)
 	goto end_processing;
@@ -982,7 +982,7 @@ int main(int argc, char **argv) {
 #ifdef ENABLE_NETNAT
   if (args_info.natip_arg) {
     if (!(host = gethostbyname(args_info.natip_arg))) {
-      syslog(LOG_WARNING, "Invalid natip address: %s! [%s]", 
+      syslog(LOG_WARNING, "Invalid natip address: %s! [%s]",
 	       args_info.natip_arg, strerror(errno));
     }
     else {
@@ -993,7 +993,7 @@ int main(int argc, char **argv) {
 
   if (args_info.uamlogoutip_arg) {
     if (!(host = gethostbyname(args_info.uamlogoutip_arg))) {
-      syslog(LOG_WARNING, "Invalid uamlogoutup address: %s! [%s]", 
+      syslog(LOG_WARNING, "Invalid uamlogoutup address: %s! [%s]",
 	       args_info.uamlogoutip_arg, strerror(errno));
     }
     else {
@@ -1003,7 +1003,7 @@ int main(int argc, char **argv) {
 
   if (args_info.uamaliasip_arg) {
     if (!(host = gethostbyname(args_info.uamaliasip_arg))) {
-      syslog(LOG_WARNING, "Invalid uamaliasip address: %s! [%s]", 
+      syslog(LOG_WARNING, "Invalid uamaliasip address: %s! [%s]",
 	       args_info.uamlogoutip_arg, strerror(errno));
     }
     else {
@@ -1013,7 +1013,7 @@ int main(int argc, char **argv) {
 
   if (args_info.postauthproxy_arg) {
     if (!(host = gethostbyname(args_info.postauthproxy_arg))) {
-      syslog(LOG_WARNING, "Invalid postauthproxy address: %s! [%s]", 
+      syslog(LOG_WARNING, "Invalid postauthproxy address: %s! [%s]",
 	       args_info.postauthproxy_arg, strerror(errno));
     }
     else {
@@ -1023,7 +1023,7 @@ int main(int argc, char **argv) {
 
   if (args_info.radiusserver1_arg) {
     if (!(host = gethostbyname(args_info.radiusserver1_arg))) {
-      syslog(LOG_ERR, "Invalid radiusserver1 address: %s! [%s]", 
+      syslog(LOG_ERR, "Invalid radiusserver1 address: %s! [%s]",
 	      args_info.radiusserver1_arg, strerror(errno));
       if (!args_info.forgiving_flag)
 	goto end_processing;
@@ -1040,7 +1040,7 @@ int main(int argc, char **argv) {
 
   if (args_info.radiusserver2_arg) {
     if (!(host = gethostbyname(args_info.radiusserver2_arg))) {
-      syslog(LOG_ERR, "Invalid radiusserver2 address: %s! [%s]", 
+      syslog(LOG_ERR, "Invalid radiusserver2 address: %s! [%s]",
 	      args_info.radiusserver2_arg, strerror(errno));
       if (!args_info.forgiving_flag)
 	goto end_processing;
@@ -1058,7 +1058,7 @@ int main(int argc, char **argv) {
   if (args_info.proxylisten_arg) {
 #ifdef ENABLE_RADPROXY
     if (!(host = gethostbyname(args_info.proxylisten_arg))) {
-      syslog(LOG_ERR, "Invalid listening address: %s! [%s]", 
+      syslog(LOG_ERR, "Invalid listening address: %s! [%s]",
 	      args_info.proxylisten_arg, strerror(errno));
       if (!args_info.forgiving_flag)
 	goto end_processing;
@@ -1073,11 +1073,11 @@ int main(int argc, char **argv) {
     syslog(LOG_WARNING, "radproxy not implemented. build with --enable-radproxy");
 #endif
   }
-  
+
   /* Store proxyclient as in_addr net and mask                       */
   if (args_info.proxyclient_arg) {
 #ifdef ENABLE_RADPROXY
-    if(option_aton(&_options.proxyaddr, &_options.proxymask, 
+    if(option_aton(&_options.proxyaddr, &_options.proxymask,
 		   args_info.proxyclient_arg, 0)) {
       syslog(LOG_ERR, "Invalid proxy client address: %s!", args_info.proxyclient_arg);
       if (!args_info.forgiving_flag)
@@ -1086,7 +1086,7 @@ int main(int argc, char **argv) {
   }
   else {
     _options.proxyaddr.s_addr = ~0; /* Let nobody through */
-    _options.proxymask.s_addr = 0; 
+    _options.proxymask.s_addr = 0;
 #elif (_debug_)
     syslog(LOG_WARNING, "radproxy not implemented. build with --enable-radproxy");
 #endif
@@ -1118,26 +1118,26 @@ int main(int argc, char **argv) {
       }
       else {
 	/* Replace anything but hex and comma with space */
-	for (i=0; i<strlen(p1); i++) 
+	for (i=0; i<strlen(p1); i++)
 	  if (!isxdigit((int) p1[i])) p1[i] = 0x20;
-      
+
 	if (sscanf (p1, "%2x %2x %2x %2x %2x %2x",
 		    &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]) != 6) {
 	  syslog(LOG_ERR, "Failed to convert macallowed option to MAC Address");
 	}
 	else {
 
-	  syslog(LOG_DEBUG, "Macallowed address #%d: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+	  syslog(LOG_DEBUG, "Macallowed address #%d: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 		  _options.macoklen,
 		  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
 	  for (i = 0; i < 6; i++)
-	    _options.macok[_options.macoklen][i] = (unsigned char) mac[i]; 
+	    _options.macok[_options.macoklen][i] = (unsigned char) mac[i];
 
 	  _options.macoklen++;
 	}
       }
-      
+
       if (p2) {
 	p1 = p2+1;
 	if ((p2 = strchr(p1, ','))) {
@@ -1198,7 +1198,7 @@ int main(int argc, char **argv) {
   if (args_info.moddir_arg)
     syslog(LOG_ERR, "option moddir given when no support built-in");
 #endif
-  
+
 #ifdef ENABLE_RADPROXY
   if (!args_info.proxysecret_arg) {
     _options.proxysecret = STRDUP(args_info.radiussecret_arg);
@@ -1216,34 +1216,34 @@ int main(int argc, char **argv) {
 
 #ifdef ENABLE_EXTADMVSA
   if (args_info.extadmvsa_given) {
-    for (numargs = 0; numargs < args_info.extadmvsa_given 
+    for (numargs = 0; numargs < args_info.extadmvsa_given
 	   && numargs < EXTADMVSA_ATTR_CNT; ++numargs)  {
       int len = strlen(args_info.extadmvsa_arg[numargs]);
       if (len > 0 && len < 256) {
 	unsigned int i[2];
 	char s[256];
-	
-	if (sscanf(args_info.extadmvsa_arg[numargs], 
+
+	if (sscanf(args_info.extadmvsa_arg[numargs],
 		   "%u,%u:%s", &i[0], &i[1], s) == 3) {
 	  char *idx = strchr(s, ':');
 	  _options.extadmvsa[numargs].attr_vsa = i[0];
 	  _options.extadmvsa[numargs].attr = i[1];
 	  if (idx) *idx = 0;
-	  safe_strncpy(_options.extadmvsa[numargs].script, 
+	  safe_strncpy(_options.extadmvsa[numargs].script,
 		       s, sizeof(_options.extadmvsa[numargs].script)-1);
 	  if (idx) {
-	    safe_strncpy(_options.extadmvsa[numargs].data, 
+	    safe_strncpy(_options.extadmvsa[numargs].data,
 			 idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
 	  }
-	} else if (sscanf(args_info.extadmvsa_arg[numargs], 
+	} else if (sscanf(args_info.extadmvsa_arg[numargs],
 			  "%u:%s", &i[0], s) == 2) {
 	  char *idx = strchr(s, ':');
 	  _options.extadmvsa[numargs].attr = i[0];
 	  if (idx) *idx = 0;
-	  safe_strncpy(_options.extadmvsa[numargs].script, 
+	  safe_strncpy(_options.extadmvsa[numargs].script,
 		       s, sizeof(_options.extadmvsa[numargs].script)-1);
 	  if (idx) {
-	    safe_strncpy(_options.extadmvsa[numargs].data, 
+	    safe_strncpy(_options.extadmvsa[numargs].data,
 			 idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
 	  }
 	} else {
@@ -1251,8 +1251,8 @@ int main(int argc, char **argv) {
 	}
       }
 
-      syslog(LOG_DEBUG, "Extended admin-user attr (%d/%d) data=%s script=%s", 
-	      (int)_options.extadmvsa[numargs].attr_vsa, 
+      syslog(LOG_DEBUG, "Extended admin-user attr (%d/%d) data=%s script=%s",
+	      (int)_options.extadmvsa[numargs].attr_vsa,
 	      (int)_options.extadmvsa[numargs].attr,
 	      _options.extadmvsa[numargs].data,
 	      _options.extadmvsa[numargs].script);
@@ -1315,6 +1315,7 @@ int main(int argc, char **argv) {
 #ifdef ENABLE_PROXYVSA
   _options.locationupdate = STRDUP(args_info.locationupdate_arg);
 #endif
+  _options.nochallenge = args_info.nochallenge_flag;
 #ifdef EX_OPT_MAIN
 #include EX_OPT_MAIN
 #endif
@@ -1329,7 +1330,7 @@ int main(int argc, char **argv) {
   }
 
   if (args_info.reload_flag) {
-    if (execl(SBINDIR "/chilli_query", "chilli_query", 
+    if (execl(SBINDIR "/chilli_query", "chilli_query",
 	      args_info.cmdsocket_arg, "reload", (char *) 0) != 0) {
       syslog(LOG_ERR, "%s: execl() did not return 0!", strerror(errno));
       exit(2);

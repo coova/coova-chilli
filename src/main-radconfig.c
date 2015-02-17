@@ -1,22 +1,22 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
- * Copyright (C) 2003-2005 Mondru AB., 
+/*
+ * Copyright (C) 2003-2005 Mondru AB.,
  * Copyright (C) 2006 PicoPoint B.V.
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #define MAIN_FILE
@@ -34,12 +34,12 @@ static int chilliauth_cb(struct radius_t *radius,
   /*char attrs[RADIUS_ATTR_VLEN+1];*/
   size_t offset = 0;
 
-  if (!pack) { 
+  if (!pack) {
     syslog(LOG_ERR, "Radius request timed out");
     return 0;
   }
 
-  if ((pack->code != RADIUS_CODE_ACCESS_REJECT) && 
+  if ((pack->code != RADIUS_CODE_ACCESS_REJECT) &&
       (pack->code != RADIUS_CODE_ACCESS_CHALLENGE) &&
       (pack->code != RADIUS_CODE_ACCESS_ACCEPT)) {
     syslog(LOG_ERR, "Unknown radius access reply code %d", pack->code);
@@ -52,14 +52,14 @@ static int chilliauth_cb(struct radius_t *radius,
     return 0;
   }
 
-  while (!radius_getnextattr(pack, &attr, 
+  while (!radius_getnextattr(pack, &attr,
 			     RADIUS_ATTR_VENDOR_SPECIFIC,
 			     RADIUS_VENDOR_CHILLISPOT,
-			     RADIUS_ATTR_CHILLISPOT_CONFIG, 
+			     RADIUS_ATTR_CHILLISPOT_CONFIG,
 			     0, &offset)) {
     printf("%.*s\n", attr->l - 2, (const char *)attr->v.t);
   }
-  
+
   return 0;
 }
 
@@ -104,25 +104,25 @@ int static chilliauth() {
 #endif
 
   radius_set(radius, hwaddr, (_options.debug & DEBUG_RADIUS));
-  radius_set_cb_auth_conf(radius, chilliauth_cb); 
+  radius_set_cb_auth_conf(radius, chilliauth_cb);
 
   ret = chilli_auth_radius(radius);
 
   if (radius->fd <= 0) {
     syslog(LOG_ERR, "not a valid socket!");
     return ret;
-  } 
+  }
 
   maxfd = radius->fd;
 
   now = time(NULL);
-  endtime = now + ADMIN_TIMEOUT; 
+  endtime = now + ADMIN_TIMEOUT;
 
   while (endtime > now) {
 
     FD_ZERO(&fds);
     FD_SET(radius->fd, &fds);
-    
+
     idleTime.tv_sec = 0;
     idleTime.tv_usec = REDIR_RADIUS_SELECT_TIME;
     radius_timeleft(radius, &idleTime);
@@ -130,7 +130,7 @@ int static chilliauth() {
     switch (status = select(maxfd + 1, &fds, NULL, NULL, &idleTime)) {
     case -1:
       syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
-      break;  
+      break;
     case 0:
       radius_timeout(radius);
     default:
@@ -150,7 +150,7 @@ int static chilliauth() {
     }
 
     now = time(NULL);
-  }  
+  }
 
   radius_free(radius);
   return ret;
@@ -165,7 +165,7 @@ int main(int argc, char **argv)
     syslog(LOG_ERR, "%s: Exiting...", strerror(errno));
     exit(1);
   }
-  
+
   ret = chilliauth();
   options_cleanup();
   return ret;

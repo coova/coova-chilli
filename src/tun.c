@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 /*
@@ -61,7 +61,7 @@ net_interface * tun_nextif(struct tun_t *tun) {
 
 net_interface * tun_newif(struct tun_t *tun, net_interface *netif) {
   net_interface *newif = tun_nextif(tun);
-      
+
   if (newif) {
     int idx = newif->idx;
     memcpy(newif, netif, sizeof(net_interface));
@@ -95,7 +95,7 @@ void tun_delif(struct tun_t *tun, int ifindex) {
 int tun_name2idx(struct tun_t *tun, char *name) {
   int i;
 
-  for (i=0; i<TUN_MAX_INTERFACES; i++) 
+  for (i=0; i<TUN_MAX_INTERFACES; i++)
     if (!strcmp(name, tun->_interfaces[i].devname))
       return tun->_interfaces[i].idx;
 
@@ -116,7 +116,7 @@ int tun_name2idx(struct tun_t *tun, char *name) {
       netif.devflags = rti->devflags;
       netif.mtu = rti->mtu;
       netif.ifindex = rti->index;
-      
+
       newif = tun_newif(tun, &netif);
       if (newif) {
 
@@ -124,12 +124,12 @@ int tun_name2idx(struct tun_t *tun, char *name) {
 	  syslog(LOG_ERR, "%s: net_init", strerror(errno));
 	}
 	else {
-	  net_select_reg(tun->sctx, 
+	  net_select_reg(tun->sctx,
 			 newif->fd,
-			 SELECT_READ, (select_callback) tun_decaps, 
+			 SELECT_READ, (select_callback) tun_decaps,
 			 tun, newif->idx);
 	}
-	
+
 	return newif->idx;
       }
     }
@@ -169,7 +169,7 @@ int tun_discover(struct tun_t *this) {
     close(fd);
     return -1;
   }
-    
+
   len = (ic.ifc_len / sizeof(struct ifreq));
 
   for (i=0; i<len; ++i) {
@@ -211,10 +211,10 @@ int tun_discover(struct tun_t *this) {
       case  ARPHRD_PPP:
 	netif.flags |= NET_PPPHDR | NET_ETHHDR;
 	break;
-      case  ARPHRD_NETROM:  
-      case  ARPHRD_ETHER:  
-      case  ARPHRD_EETHER:  
-      case  ARPHRD_IEEE802: 
+      case  ARPHRD_NETROM:
+      case  ARPHRD_ETHER:
+      case  ARPHRD_EETHER:
+      case  ARPHRD_IEEE802:
 	{
 	  unsigned char *u = (unsigned char *)&ifr->ifr_addr.sa_data;
 
@@ -262,21 +262,21 @@ int tun_discover(struct tun_t *this) {
     /* broadcast address */
     if (netif.devflags & IFF_BROADCAST) {
       if (-1 < ioctl(fd, SIOCGIFBRDADDR, (caddr_t)ifr)) {
-	
+
 	netif.broadcast = inaddr(ifr_addr);
 	syslog(LOG_DEBUG, "\tBroadcast:\t%s", inet_ntoa(inaddr(ifr_addr)));
-	
+
       } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFBRDADDR)", strerror(errno));
     }
 
     /* mtu */
     if (-1 < ioctl(fd, SIOCGIFMTU, (caddr_t)ifr)) {
-      
+
       netif.mtu = ifr->ifr_mtu;
       syslog(LOG_DEBUG, "\tMTU:      \t%u",  ifr->ifr_mtu);
-      
+
     } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFMTU)", strerror(errno));
-    
+
     /* if (0 == ioctl(fd, SIOCGIFMETRIC, ifr)) */
 
     if (netif.address.s_addr == htonl(INADDR_LOOPBACK) ||
@@ -286,13 +286,13 @@ int tun_discover(struct tun_t *this) {
 
     {
       net_interface *newif = tun_newif(tun, &netif);
-      
+
       if (newif) {
 
 	if (net_init(newif, 0, ETH_P_ALL, 1, 0) < 0) {
 	  syslog(LOG_ERR, "%s: net_init", strerror(errno));
 	}
-	
+
 	if (!strcmp(_options.routeif, netif.devname))
 	  tun->routeidx = newif->idx;
 
@@ -356,11 +356,11 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
     struct ifaddrmsg 	i;
     char buf[TUN_NLBUFSIZE];
   } req;
-  
+
   struct sockaddr_nl local;
   size_t addr_len;
   int fd;
-  
+
   struct sockaddr_nl nladdr;
   struct iovec iov;
   struct msghdr msg;
@@ -397,7 +397,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   memset(&local, 0, sizeof(local));
   local.nl_family = AF_NETLINK;
   local.nl_groups = 0;
-  
+
   if (bind(fd, (struct sockaddr*)&local, sizeof(local)) < 0) {
     syslog(LOG_ERR, "%s: bind() failed", strerror(errno));
     close(fd);
@@ -422,7 +422,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
     close(fd);
     return -1;
   }
-  
+
   iov.iov_base = (void*)&req.n;
   iov.iov_len = req.n.nlmsg_len;
 
@@ -445,7 +445,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   if (sendmsg(fd, &msg, 0) < 0)
     syslog(LOG_ERR, "%s: sendmsg()", strerror(errno));
 
-  dev_set_flags(tuntap(this).devname, IFF_UP | IFF_RUNNING); 
+  dev_set_flags(tuntap(this).devname, IFF_UP | IFF_RUNNING);
 
   close(fd);
   this->addrs++;
@@ -484,7 +484,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
     syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
     return -1;
   }
-  
+
   if (ioctl(fd, SIOCAIFADDR, (void *) &areq) < 0) {
     syslog(LOG_ERR, "%s: ioctl(SIOCAIFADDR) failed", strerror(errno));
     close(fd);
@@ -496,10 +496,10 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   return 0;
 
 #elif defined (__sun__)
-  
+
   if (!this->addrs) /* Use ioctl for first addr to make ping work */
     return tun_setaddr(this, addr, dstaddr, netmask);
-  
+
   syslog(LOG_ERR, "%s: Setting multiple addresses not possible on Solaris", strerror(errno));
   return -1;
 
@@ -510,7 +510,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
 
 int tun_setaddr(struct tun_t *this, struct in_addr *addr, struct in_addr *dstaddr, struct in_addr *netmask) {
   net_set_address(&tuntap(this), addr, dstaddr, netmask);
-  
+
 #if defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   net_add_route(dstaddr, addr, netmask);
   this->routes = 1;
@@ -552,7 +552,7 @@ int tuntap_interface(struct _net_interface *netif) {
 
   ndelay_on(netif->fd);
   coe(netif->fd);
-  
+
   /* Set device flags. For some weird reason this is also the method
      used to obtain the network interface name */
 
@@ -563,8 +563,8 @@ int tuntap_interface(struct _net_interface *netif) {
 #ifdef ENABLE_TAP
 		   _options.usetap ? IFF_TAP :
 #endif
-		   IFF_TUN) | IFF_NO_PI; 
-  
+		   IFF_TUN) | IFF_NO_PI;
+
   ifr.ifr_flags = ifr.ifr_flags
 #ifdef IFF_MULTICAST
      | IFF_MULTICAST
@@ -580,7 +580,7 @@ int tuntap_interface(struct _net_interface *netif) {
 #endif
     ;
 
-  if (_options.tundev && *_options.tundev && 
+  if (_options.tundev && *_options.tundev &&
       strcmp(_options.tundev, "tap") && strcmp(_options.tundev, "tun"))
     safe_strncpy(ifr.ifr_name, _options.tundev, IFNAMSIZ);
 
@@ -588,8 +588,8 @@ int tuntap_interface(struct _net_interface *netif) {
     syslog(LOG_ERR, "%s: ioctl() failed", strerror(errno));
     close(netif->fd);
     return -1;
-  } 
-  
+  }
+
 #if defined(IFF_ONE_QUEUE) && defined(SIOCSIFTXQLEN)
   {
     struct ifreq nifr;
@@ -598,10 +598,10 @@ int tuntap_interface(struct _net_interface *netif) {
     if ((nfd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) {
       safe_strncpy(nifr.ifr_name, ifr.ifr_name, IFNAMSIZ);
       nifr.ifr_qlen = _options.txqlen;
-      
-      if (ioctl(nfd, SIOCSIFTXQLEN, (void *) &nifr) >= 0) 
+
+      if (ioctl(nfd, SIOCSIFTXQLEN, (void *) &nifr) >= 0)
 	syslog(LOG_INFO, "TX queue length set to %d", _options.txqlen);
-      else 
+      else
 	syslog(LOG_ERR, "%s: Cannot set tx queue length on %s", strerror(errno), ifr.ifr_name);
 
       close (nfd);
@@ -610,9 +610,9 @@ int tuntap_interface(struct _net_interface *netif) {
     }
   }
 #endif
-  
+
   safe_strncpy(netif->devname, ifr.ifr_name, IFNAMSIZ);
-  
+
   ioctl(netif->fd, TUNSETNOCSUM, 1); /* Disable checksums */
 
   /* Get the MAC address of our tap interface */
@@ -636,17 +636,17 @@ int tuntap_interface(struct _net_interface *netif) {
 #endif
 
   net_set_mtu(netif, _options.mtu);
-  
+
   return 0;
-  
+
 #elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 
   /* Find suitable device */
-  for (devnum = 0; devnum < 255; devnum++) { 
+  for (devnum = 0; devnum < 255; devnum++) {
     safe_snprintf(devname, sizeof(devname), "/dev/tun%d", devnum);
     if ((netif->fd = open(devname, O_RDWR)) >= 0) break;
     if (errno != EBUSY) break;
-  } 
+  }
 
   if (netif->fd < 0) {
     syslog(LOG_ERR, "%s: Can't find tunnel device", strerror(errno));
@@ -668,7 +668,7 @@ int tuntap_interface(struct _net_interface *netif) {
     syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
     return -1;
   }
-  
+
   /* Delete any IP addresses until SIOCDIFADDR fails */
   while (ioctl(fd, SIOCDIFADDR, (void *) &areq) != -1);
 
@@ -681,18 +681,18 @@ int tuntap_interface(struct _net_interface *netif) {
     syslog(LOG_ERR, "%s: Can't open /dev/udp", strerror(errno));
     return -1;
   }
-  
+
   if ((netif->fd = open("/dev/tun", O_RDWR, 0)) < 0) {
     syslog(LOG_ERR, "%s: Can't open /dev/tun", strerror(errno));
     return -1;
   }
-  
+
   /* Assign a new PPA and get its unit number. */
   if ((ppa = ioctl(netif->fd, TUNNEWPPA, -1)) < 0) {
     syslog(LOG_ERR, "%s: Can't assign new interface", strerror(errno));
     return -1;
   }
-  
+
   if ((if_fd = open("/dev/tun", O_RDWR, 0)) < 0) {
     syslog(LOG_ERR, "%s: Can't open /dev/tun (2)", strerror(errno));
     return -1;
@@ -702,7 +702,7 @@ int tuntap_interface(struct _net_interface *netif) {
     syslog(LOG_ERR, "%d Can't push IP module");
     return -1;
   }
-  
+
   /* Assign ppa according to the unit number returned by tun device */
   if (ioctl(if_fd, IF_UNITSEL, (char *)&ppa) < 0) {
     syslog(LOG_ERR, "%d Can't set PPA %d", ppa);
@@ -716,20 +716,20 @@ int tuntap_interface(struct _net_interface *netif) {
   }
 
   close (if_fd);
-  
+
   safe_snprintf(netif->devname, sizeof(netif->devname),
 		"tun%d", ppa);
 
   memset(&ifr, 0, sizeof(ifr));
   safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   ifr.ifr_ip_muxid = muxid;
-  
+
   if (ioctl(ip_fd, SIOCSIFMUXID, &ifr) < 0) {
     ioctl(ip_fd, I_PUNLINK, muxid);
     syslog(LOG_ERR, "%d Can't set multiplexor id");
     return -1;
   }
-  
+
   /*  if (fcntl (fd, F_SETFL, O_NONBLOCK) < 0)
       msg (M_ERR, "Set file descriptor to non-blocking failed"); */
 
@@ -775,7 +775,7 @@ int tun_free(struct tun_t *tun) {
   return 0;
 }
 
-int tun_set_cb_ind(struct tun_t *this, 
+int tun_set_cb_ind(struct tun_t *this,
 		   int (*cb_ind) (struct tun_t *tun, struct pkt_buffer *pb, int idx)) {
   this->cb_ind = cb_ind;
   return 0;
@@ -806,17 +806,17 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
     return -1;
 
   if (ethhdr) {
-    
+
     if (length < PKT_IP_HLEN + PKT_ETH_HLEN)
       return -1;
-    
+
     ethsize = PKT_ETH_HLEN;
     iph = pkt_iphdr(packet);
-    
+
   } else {
-    
+
     iph = (struct pkt_iphdr_t *)packet;
-    
+
   }
 
 #if defined(HAVE_NETFILTER_QUEUE) || defined(HAVE_NETFILTER_COOVA)
@@ -852,8 +852,8 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
 #endif
       return -1;
     }
-  } 
-  
+  }
+
   if (!_options.usetap) {
     if (iph->version_ihl != PKT_IP_VER_HLEN) {
 #if(_debug_)
@@ -861,7 +861,7 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
 #endif
       return -1;
     }
-    
+
     if ((int)ntohs(iph->tot_len) + ethsize > length) {
       syslog(LOG_DEBUG, "dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
 	      (int)ntohs(iph->tot_len),
@@ -875,23 +875,23 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
 
 int tun_decaps(struct tun_t *this, int idx) {
 
-#if defined(__linux__) 
+#if defined(__linux__)
   ssize_t length;
   struct tundecap c;
-  
+
   c.this = this;
   c.idx = idx;
 
-  if (idx > 0) 
+  if (idx > 0)
     length = net_read_dispatch_eth(&tun(this, idx), tun_decaps_cb, &c);
   else
     length = net_read_dispatch(&tun(this, idx), tun_decaps_cb, &c);
 
-  if (length < 0) 
+  if (length < 0)
     return -1;
-  
+
   return length;
-  
+
 #elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   struct tundecap c;
   struct pkt_buffer pb;
@@ -899,19 +899,19 @@ int tun_decaps(struct tun_t *this, int idx) {
   ssize_t length;
 
   pkt_buffer_init(&pb, packet, sizeof(packet), PKT_BUFFER_IPOFF);
-  
+
   c.this = this;
   c.idx = idx;
-  
-  if ((length = safe_read(tun(this, idx).fd, 
-			  pkt_buffer_head(&pb), 
+
+  if ((length = safe_read(tun(this, idx).fd,
+			  pkt_buffer_head(&pb),
 			  pkt_buffer_size(&pb))) <= 0) {
     syslog(LOG_ERR, "%s: read() failed", strerror(errno));
     return -1;
   }
 
   pb.length = length;
-  
+
   /*
     syslog(LOG_DEBUG, "tun_decaps(%d) %s",length,tun(tun,idx).devname);
   */
@@ -936,7 +936,7 @@ int tun_decaps(struct tun_t *this, int idx) {
   int f = 0;
 
   pkt_buffer_init(&pb, packet, sizeof(packet), 4);
-  
+
   sbuf.maxlen = pkt_buffer_size(&pb);
   sbuf.buf = pkt_buffer_head(&pb);
   if (getmsg(tun(this, idx).fd, NULL, &sbuf, &f) < 0) {
@@ -949,7 +949,7 @@ int tun_decaps(struct tun_t *this, int idx) {
   if (this->cb_ind)
     return this->cb_ind(this, &pb);
   return 0;
-  
+
 #endif
 }
 
@@ -993,7 +993,7 @@ int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 #elif defined (__sun__)
 
   struct strbuf sbuf;
-  sbuf.len = len;      
+  sbuf.len = len;
   sbuf.buf = pack;
   return putmsg(tun(tun, idx).fd, NULL, &sbuf, 0);
 
@@ -1056,12 +1056,12 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
      * TODO: When using ieee8021q, the vlan tag has to be stripped
      * off for the non-vlan WAN.
      */
-    if (gwaddr[0] == 0 && gwaddr[1] == 0 && gwaddr[2] == 0 && 
+    if (gwaddr[0] == 0 && gwaddr[1] == 0 && gwaddr[2] == 0 &&
 	gwaddr[3] == 0 && gwaddr[4] == 0 && gwaddr[5] == 0) {
-      /*  
+      /*
        *  If there isn't a 'nexthop' (gwaddr) for the interface,
        *  default to the tap interface's MAC instead, so that the kernel
-       *  will route it. 
+       *  will route it.
        */
       if (idx == 0) {
 	gwaddr = tun(tun, idx).hwaddr;
@@ -1081,7 +1081,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 	    ethh->dst[0],ethh->dst[1],ethh->dst[2],
 	    ethh->dst[3],ethh->dst[4],ethh->dst[5], len);
 #endif
-    
+
   } else {
     size_t ethlen = sizeofeth(pack);
     pack += ethlen;
@@ -1105,7 +1105,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
   struct in_addr net;
   pid_t pid;
   char b[56];
-  
+
   syslog(LOG_DEBUG, "Running %s", script);
 
   net.s_addr = tuntap(tun).address.s_addr & tuntap(tun).netmask.s_addr;
@@ -1114,7 +1114,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
     syslog(LOG_ERR, "%s: fork() returned -1!", strerror(errno));
     return 0;
   }
-  
+
   if (pid > 0) { /* Parent */
     if (wait) {
       int status = 0;
@@ -1126,7 +1126,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
     }
     return 0;
   }
-  
+
   set_env("DHCPIF", VAL_STRING, _options.dhcpif ? _options.dhcpif : "", 0);
   set_env("DEV", VAL_STRING, tun(tun, 0).devname, 0);
   set_env("ADDR", VAL_IN_ADDR, &tuntap(tun).address, 0);
@@ -1134,7 +1134,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
   set_env("NET", VAL_IN_ADDR, &net, 0);
 
   set_env("UAMLISTEN", VAL_IN_ADDR, &_options.uamlisten, 0);
-  if (_options.dhcplisten.s_addr && 
+  if (_options.dhcplisten.s_addr &&
       _options.dhcplisten.s_addr != _options.uamlisten.s_addr) {
     set_env("DHCPLISTEN", VAL_IN_ADDR, &_options.dhcplisten, 0);
   }
@@ -1171,32 +1171,32 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
 
   if (execl(
 #ifdef ENABLE_CHILLISCRIPT
-	    SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig, 
+	    SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig,
 #else
 	    script,
 #endif
 	    script, tuntap(tun).devname, (char *) 0) != 0) {
-    
+
     syslog(LOG_ERR, "%s: execl(%s) did not return 0!", strerror(errno), script);
     exit(0);
   }
-  
+
   exit(0);
 }
 
 
-/* Currently unused 
+/* Currently unused
 int tun_addroute2(struct tun_t *this,
 		  struct in_addr *dst,
 		  struct in_addr *gateway,
 		  struct in_addr *mask) {
-  
+
   struct {
     struct nlmsghdr 	n;
     struct rtmsg 	r;
     char buf[TUN_NLBUFSIZE];
   } req;
-  
+
   struct sockaddr_nl local;
   int addr_len;
   int fd;
@@ -1216,7 +1216,7 @@ int tun_addroute2(struct tun_t *this,
   req.r.rtm_type  = RTN_UNICAST;
   tun_nlattr(&req.n, sizeof(req), RTA_DST, dst, 4);
   tun_nlattr(&req.n, sizeof(req), RTA_GATEWAY, gateway, 4);
-  
+
   if ((fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE)) < 0) {
     syslog(LOG_ERR, "%s: %s %d socket() failed", strerror(errno), __FILE__, __LINE__);
     return -1;
@@ -1225,7 +1225,7 @@ int tun_addroute2(struct tun_t *this,
   memset(&local, 0, sizeof(local));
   local.nl_family = AF_NETLINK;
   local.nl_groups = 0;
-  
+
   if (bind(fd, (struct sockaddr*)&local, sizeof(local)) < 0) {
     syslog(LOG_ERR, "%s: %s %d  bind() failed", strerror(errno), __FILE__, __LINE__);
     close(fd);
@@ -1250,7 +1250,7 @@ int tun_addroute2(struct tun_t *this,
     close(fd);
     return -1;
   }
-  
+
   iov.iov_base = (void*)&req.n;
   iov.iov_len = req.n.nlmsg_len;
 

@@ -23,7 +23,7 @@ static int acc(void *nullData, int sock) {
 
 static int module_initialize(char *conf, char isReload) {
   struct sockaddr_un local;
-  
+
   syslog(LOG_DEBUG, "%s('%s', %d)", __FUNCTION__, conf, (int) isReload);
 
   if ((fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1) {
@@ -37,7 +37,7 @@ static int module_initialize(char *conf, char isReload) {
     strcpy(local.sun_path, SOCK_PATH);
     unlink(local.sun_path);
 
-    if (bind(fd, (struct sockaddr *)&local, 
+    if (bind(fd, (struct sockaddr *)&local,
 	     sizeof(struct sockaddr_un)) == -1) {
       syslog(LOG_ERR, "%s: could bind UNIX Socket!", strerror(errno));
       close(fd);
@@ -54,20 +54,20 @@ static int module_net_select(select_ctx *sctx) {
   return CHILLI_MOD_OK;
 }
 
-static int module_redir_login(struct redir_t *redir, 
+static int module_redir_login(struct redir_t *redir,
 			      struct redir_conn_t *conn,
 			      struct redir_socket_t *sock) {
   syslog(LOG_DEBUG, "%s", __FUNCTION__);
   return CHILLI_MOD_OK;
 }
 
-static int module_dhcp_connect(struct app_conn_t *appconn, 
+static int module_dhcp_connect(struct app_conn_t *appconn,
 			       struct dhcp_conn_t *dhcpconn) {
   syslog(LOG_DEBUG, "%s", __FUNCTION__);
   return CHILLI_MOD_OK;
 }
 
-static int module_dhcp_disconnect(struct app_conn_t *appconn, 
+static int module_dhcp_disconnect(struct app_conn_t *appconn,
 				  struct dhcp_conn_t *dhcpconn) {
   syslog(LOG_DEBUG, "%s", __FUNCTION__);
   return CHILLI_MOD_OK;
@@ -88,7 +88,7 @@ static int module_session_stop(struct app_conn_t *appconn) {
   return CHILLI_MOD_OK;
 }
 
-static int module_dns_handler (struct app_conn_t *appconn, 
+static int module_dns_handler (struct app_conn_t *appconn,
 			       struct dhcp_conn_t *dhcpconn,
 			       uint8_t *pack, size_t *plen, int isReq) {
   syslog(LOG_DEBUG, "%s", __FUNCTION__);
@@ -105,7 +105,7 @@ static int module_destroy(char isReload) {
 
 struct chilli_module sample_module = {
   CHILLI_MODULE_INIT,
-  module_initialize, 
+  module_initialize,
   module_net_select,
   module_redir_login,
   module_dhcp_connect,

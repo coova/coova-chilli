@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2013 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #include "chilli.h"
@@ -43,7 +43,7 @@ static int default_rcvbuf = 0;
 int dev_set_flags(char const *dev, int flags) {
   struct ifreq ifr;
   int fd;
-  
+
   memset(&ifr, 0, sizeof(ifr));
   ifr.ifr_flags = flags;
   safe_strncpy(ifr.ifr_name, dev, IFNAMSIZ);
@@ -67,7 +67,7 @@ int dev_set_flags(char const *dev, int flags) {
 int dev_get_flags(char const *dev, int *flags) {
   struct ifreq ifr;
   int fd;
-  
+
   memset(&ifr, 0, sizeof(ifr));
   safe_strncpy(ifr.ifr_name, dev, IFNAMSIZ);
 
@@ -89,7 +89,7 @@ int dev_get_flags(char const *dev, int *flags) {
   return 0;
 }
 
-int dev_set_address(char const *devname, struct in_addr *address, 
+int dev_set_address(char const *devname, struct in_addr *address,
 		    struct in_addr *dstaddr, struct in_addr *netmask) {
 #if defined(__linux__)
   struct ifreq ifr;
@@ -133,7 +133,7 @@ int dev_set_address(char const *devname, struct in_addr *address,
     if (ioctl(fd, SIOCSIFDSTADDR, (caddr_t) &ifr) < 0) {
       syslog(LOG_ERR, "%s: ioctl(SIOCSIFDSTADDR) failed", strerror(errno));
       close(fd);
-      return -1; 
+      return -1;
     }
   }
 
@@ -146,7 +146,7 @@ int dev_set_address(char const *devname, struct in_addr *address,
     }
   }
 
-  
+
 #elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   strncpy(ifr.ifra_name, devname, IFNAMSIZ);
   ifr.ifra_name[IFNAMSIZ-1] = 0; /* Make sure to terminate */
@@ -180,11 +180,11 @@ int dev_set_address(char const *devname, struct in_addr *address,
 #endif
 
   close(fd);
-  
-  return dev_set_flags(devname, IFF_UP | IFF_RUNNING); 
+
+  return dev_set_flags(devname, IFF_UP | IFF_RUNNING);
 }
 
-int net_init(net_interface *netif, char *ifname, 
+int net_init(net_interface *netif, char *ifname,
 	     uint16_t protocol, int promisc, uint8_t *mac) {
 
   if (ifname) {
@@ -197,12 +197,12 @@ int net_init(net_interface *netif, char *ifname,
   if (promisc) {
     netif->flags |= NET_PROMISC;
   }
-  
+
   if (mac) {
     netif->flags |= NET_USEMAC;
     memcpy(netif->hwaddr, mac, PKT_ETH_ALEN);
   }
-  
+
   return net_open(netif);
 }
 
@@ -247,10 +247,10 @@ int net_reopen(net_interface *netif) {
 
   option = (int)(default_sndbuf * 1.1);
   net_setsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &option, sizeof(option));
-  
+
   option = (int)(default_rcvbuf * 1.1);
   net_setsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
-  
+
   len = sizeof(default_sndbuf);
   getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
   syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
@@ -269,7 +269,7 @@ int net_close(net_interface *netif) {
 #ifdef USING_PCAP
   if (netif->pd) pcap_close(netif->pd);
   netif->pd = 0;
-#endif  
+#endif
   if (netif->fd) close(netif->fd);
   netif->fd = 0;
   return 0;
@@ -282,7 +282,7 @@ int net_select_init(select_ctx *sctx) {
     syslog(LOG_ERR, "%s: !! could not create epoll !!", strerror(errno));
     return -1;
   }
-#endif  
+#endif
   return 0;
 }
 
@@ -294,10 +294,10 @@ int net_select_prepare(select_ctx *sctx) {
     for (i=0; i < MAX_MODULES; i++) {
       if (!_options.modules[i].name[0]) break;
       if (_options.modules[i].ctx) {
-	struct chilli_module *m = 
+	struct chilli_module *m =
 	(struct chilli_module *)_options.modules[i].ctx;
 	if (m->net_select)
-	  m->net_select(sctx); 
+	  m->net_select(sctx);
       }
     }
   }
@@ -366,7 +366,7 @@ int net_select_rereg(select_ctx *sctx, int oldfd, int newfd) {
 #if defined(USING_POLL) && defined(HAVE_SYS_EPOLL_H)
       {
 	struct epoll_event event;
-	
+
 	memset(&event, 0, sizeof(event));
 	event.data.fd = oldfd;
 	event.events = EPOLLIN | EPOLLOUT;
@@ -387,7 +387,7 @@ int net_select_rereg(select_ctx *sctx, int oldfd, int newfd) {
   return -1;
 }
 
-int net_select_reg(select_ctx *sctx, int fd, char evts, 
+int net_select_reg(select_ctx *sctx, int fd, char evts,
 		   select_callback cb, void *ctx, int idx) {
   if (!evts) return -3;
   if (fd <= 0) return -2;
@@ -401,7 +401,7 @@ int net_select_reg(select_ctx *sctx, int fd, char evts,
 #ifdef HAVE_SYS_EPOLL_H
   {
     struct epoll_event event;
-    
+
     memset(&event, 0, sizeof(event));
     event.events = 0;
     if (evts & SELECT_READ) event.events |= EPOLLIN;
@@ -455,7 +455,7 @@ int net_select_rmfd(select_ctx *sctx, int fd) {
   /*
    */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, fd, &event))
-    syslog(LOG_ERR, "%d Failed to remove fd %d (%d)", 
+    syslog(LOG_ERR, "%d Failed to remove fd %d (%d)",
 	    errno, fd, sctx->efd);
 #endif
   return 0;
@@ -535,13 +535,13 @@ int net_select(select_ctx *sctx) {
 #else
     sctx->idleTime.tv_sec = 1;
     sctx->idleTime.tv_usec = 0;
-    
-    status = select(sctx->maxfd + 1, 
-		    &sctx->rfds, 
-		    &sctx->wfds, 
-		    &sctx->efds, 
+
+    status = select(sctx->maxfd + 1,
+		    &sctx->rfds,
+		    &sctx->wfds,
+		    &sctx->efds,
 		    &sctx->idleTime);
-    
+
 #if(0)
     if (status) syslog(LOG_DEBUG, "select() == %d", status);
     {int i;
@@ -556,7 +556,7 @@ int net_select(select_ctx *sctx) {
 	  syslog(LOG_DEBUG, "efds[%d]",i);
     }
 #endif
-    
+
     if (status == -1) net_select_prepare(sctx); /* reset */
 #endif
   } while (status == -1 && errno == EINTR);
@@ -639,12 +639,12 @@ int net_run_selected(select_ctx *sctx, int status) {
   return 0;
 }
 
-int net_set_address(net_interface *netif, struct in_addr *address, 
+int net_set_address(net_interface *netif, struct in_addr *address,
 		    struct in_addr *dstaddr, struct in_addr *netmask) {
   netif->address.s_addr = address->s_addr;
   netif->gateway.s_addr = dstaddr->s_addr;
   netif->netmask.s_addr = netmask->s_addr;
-  
+
   return dev_set_address(netif->devname, address, dstaddr, netmask);
 }
 
@@ -656,8 +656,8 @@ struct netpcap {
   net_handler func;
 };
 
-static void 
-net_pcap_read(u_char *user, const struct pcap_pkthdr *hdr, 
+static void
+net_pcap_read(u_char *user, const struct pcap_pkthdr *hdr,
 	      const u_char *bytes) {
   struct netpcap *np = (struct netpcap *)user;
   if (!bytes || hdr->caplen < sizeof(struct pkt_ethhdr_t) ||
@@ -669,7 +669,7 @@ net_pcap_read(u_char *user, const struct pcap_pkthdr *hdr,
   }
 }
 
-static void 
+static void
 net_pcap_handler(u_char *user, const struct pcap_pkthdr *hdr,
 		 const u_char *bytes) {
   struct netpcap *np = (struct netpcap *)user;
@@ -683,24 +683,24 @@ net_pcap_handler(u_char *user, const struct pcap_pkthdr *hdr,
 }
 #endif
 
-ssize_t 
+ssize_t
 net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx) {
 
 #if defined(USING_PCAP)
   if (netif->pd) {
-    struct netpcap np; 
+    struct netpcap np;
     int cnt;
-    
+
     np.func = func;
     np.d = ctx;
     np.dlen = 0;
     np.read = 0;
 
     cnt = pcap_dispatch(netif->pd, 1, net_pcap_handler, (u_char *)&np);
-    
+
     return cnt ? np.read : -1;
   }
-#endif  
+#endif
 
 #ifdef USING_MMAP
   if (netif->rx_ring.frames) {
@@ -712,8 +712,8 @@ net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx) {
     uint8_t packet[PKT_MAX_LEN];
     ssize_t length;
     pkt_buffer_init(&pb, packet, sizeof(packet), PKT_BUFFER_IPOFF);
-    length = net_read_eth(netif, 
-			  pkt_buffer_head(&pb), 
+    length = net_read_eth(netif,
+			  pkt_buffer_head(&pb),
 			  pkt_buffer_size(&pb));
     if (length <= 0) return length;
     pb.length = length;
@@ -721,35 +721,35 @@ net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx) {
   }
 }
 
-ssize_t 
+ssize_t
 net_read_dispatch(net_interface *netif, net_handler func, void *ctx) {
   struct pkt_buffer pb;
   uint8_t packet[PKT_MAX_LEN];
   ssize_t length;
   pkt_buffer_init(&pb, packet, sizeof(packet), PKT_BUFFER_IPOFF);
-  length = safe_read(netif->fd, 
-		     pkt_buffer_head(&pb), 
+  length = safe_read(netif->fd,
+		     pkt_buffer_head(&pb),
 		     pkt_buffer_size(&pb));
   if (length <= 0) return length;
   pb.length = length;
   return func(ctx, &pb);
 }
 
-ssize_t 
+ssize_t
 net_read_eth(net_interface *netif, void *d, size_t dlen) {
   ssize_t len = 0;
 
 #if defined(USING_PCAP)
   if (netif->pd) {
-    struct netpcap np; 
-    int cnt; 
+    struct netpcap np;
+    int cnt;
 
     np.d = d;
     np.dlen = dlen;
     np.read = 0;
 
     cnt = pcap_dispatch(netif->pd, 1, net_pcap_read, (u_char *)&np);
-    
+
     return cnt ? np.read : -1;
   }
 #endif
@@ -758,7 +758,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
   if (netif->rx_ring.frames) {
     syslog(LOG_ERR, "shouldn't be reading a mmap'ed interface this way, use dispatch");
     return -1;
-  } else 
+  } else
 #endif
 
   if (netif->fd) {
@@ -776,8 +776,8 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
     } cmsg_buf;
 #ifdef ENABLE_IEEE8021Q
     struct vlan_tag {
-      u_int16_t tpid; 
-      u_int16_t tci; 
+      u_int16_t tpid;
+      u_int16_t tci;
     };
 #endif
     msg.msg_name = &s_addr;
@@ -787,7 +787,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
     msg.msg_control = &cmsg_buf;
     msg.msg_controllen = sizeof(cmsg_buf);
     msg.msg_flags = 0;
-    
+
     iov.iov_len = dlen;
     iov.iov_base = d;
 #else
@@ -796,7 +796,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 
     memset (&s_addr, 0, sizeof (struct sockaddr_ll));
 
-#if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI) 
+#if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI)
 
     len = safe_recvmsg(netif->fd, &msg, MSG_TRUNC);
 
@@ -805,8 +805,8 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
     addr_len = sizeof (s_addr);
 
     len = safe_recvfrom(netif->fd, d, dlen,
-			MSG_DONTWAIT | MSG_TRUNC, 
-			(struct sockaddr *) &s_addr, 
+			MSG_DONTWAIT | MSG_TRUNC,
+			(struct sockaddr *) &s_addr,
 			(socklen_t *) &addr_len);
 
 #endif
@@ -819,9 +819,9 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
       if (len == 0) {
 	syslog(LOG_DEBUG, "read zero, enable ieee8021q?");
       }
-      
+
       if (len > dlen) {
-	syslog(LOG_WARNING, "data truncated %zu/%zd, sending ICMP error", 
+	syslog(LOG_WARNING, "data truncated %zu/%zd, sending ICMP error",
 		 len, dlen);
 	return -1;
       }
@@ -838,7 +838,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 #endif
 
     if (len < 0) {
-      syslog(LOG_ERR, "%d net_read_eth(fd=%d, len=%zu, mtu=%d) == %zd", 
+      syslog(LOG_ERR, "%d net_read_eth(fd=%d, len=%zu, mtu=%d) == %zd",
 	      errno, netif->fd, dlen, netif->mtu, len);
       return -1;
     }
@@ -849,16 +849,16 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 	struct tpacket_auxdata *aux;
 	struct vlan_tag *tag;
 	unsigned int ulen;
-	
+
 	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct tpacket_auxdata)) ||
 	    cmsg->cmsg_level != SOL_PACKET ||
 	    cmsg->cmsg_type != PACKET_AUXDATA)
 	  continue;
-	
+
 	aux = (struct tpacket_auxdata *)CMSG_DATA(cmsg);
 	if (aux->tp_vlan_tci == 0)
 	  continue;
-	
+
 	ulen = len > iov.iov_len ? iov.iov_len : len;
 
 	if (ulen < 2 * PKT_ETH_ALEN ||
@@ -867,15 +867,15 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 		  ulen, len);
 	  break;
 	}
-	
+
 #if(_debug_ > 1)
 	syslog(LOG_DEBUG, "adding 8021q header from auxdata");
 #endif
-	
-	memmove(d + (2 * PKT_ETH_ALEN) + 4, 
-		d + (2 * PKT_ETH_ALEN), 
+
+	memmove(d + (2 * PKT_ETH_ALEN) + 4,
+		d + (2 * PKT_ETH_ALEN),
 		len - (2 * PKT_ETH_ALEN));
-	
+
 	tag = (struct vlan_tag *)(d + 2 * PKT_ETH_ALEN);
 	tag->tpid = htons(ETH_P_8021Q);
 	tag->tci = htons(aux->tp_vlan_tci);
@@ -884,7 +884,7 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
     }
 #endif
   }
-  
+
   return len;
 }
 
@@ -893,7 +893,7 @@ ssize_t net_write(int sock, void *d, size_t dlen) {
   int w, off = 0;
 
   while (left > 0) {
-    w = safe_send(sock, d + off, left, 
+    w = safe_send(sock, d + off, left,
 #ifdef MSG_NOSIGNAL
 		  MSG_NOSIGNAL
 #else
@@ -921,10 +921,10 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
     return tx_ring(netif, d, dlen);
 #endif
 
-  len = safe_sendto(fd, d, dlen, 0, 
-		    (struct sockaddr *)dest, 
+  len = safe_sendto(fd, d, dlen, 0,
+		    (struct sockaddr *)dest,
 		    sizeof(struct sockaddr_ll));
-  
+
   if (len < 0) {
     switch (errno) {
     case EWOULDBLOCK:
@@ -932,7 +932,7 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
       if (!_options.uid)
 	net_reopen(netif);
       break;
-      
+
 #ifdef ENETDOWN
     case ENETDOWN:
       net_reopen(netif);
@@ -950,7 +950,7 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
       break;
 #endif
     }
-    
+
     syslog(LOG_ERR, "%s: net_write_eth(fd=%d, len=%zu) failed", strerror(errno), netif->fd, dlen);
     return -1;
   }
@@ -978,7 +978,7 @@ int net_set_mtu(net_interface *netif, size_t mtu) {
   return 0;
 }
 
-int net_route(struct in_addr *dst, struct in_addr *gateway, 
+int net_route(struct in_addr *dst, struct in_addr *gateway,
 	      struct in_addr *mask, int delete) {
 
   /* TODO: solaris!  */
@@ -1002,7 +1002,7 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
   ((struct sockaddr_in *) &r.rt_dst)->sin_addr.s_addr = dst->s_addr;
   ((struct sockaddr_in *) &r.rt_gateway)->sin_addr.s_addr = gateway->s_addr;
   ((struct sockaddr_in *) &r.rt_genmask)->sin_addr.s_addr = mask->s_addr;
-  
+
   if (delete) {
     if (ioctl(fd, SIOCDELRT, (void *) &r) < 0) {
       syslog(LOG_ERR, "%s: ioctl(SIOCDELRT) failed", strerror(errno));
@@ -1019,7 +1019,7 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
   }
   close(fd);
   return 0;
-  
+
 #elif defined(__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 
   struct {
@@ -1028,19 +1028,19 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
     struct sockaddr_in gate;
     struct sockaddr_in mask;
   } req;
-  
+
   int fd;
   struct rt_msghdr *rtm;
-  
+
   if ((fd = socket(AF_ROUTE, SOCK_RAW, 0)) == -1) {
     syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
     return -1;
   }
-  
+
   memset(&req, 0, sizeof(req));
-  
+
   rtm  = &req.rt;
-  
+
   rtm->rtm_msglen = sizeof(req);
   rtm->rtm_version = RTM_VERSION;
   if (delete) {
@@ -1051,20 +1051,20 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
   }
   rtm->rtm_flags = RTF_UP | RTF_GATEWAY | RTF_STATIC;  /* TODO */
   rtm->rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
-  rtm->rtm_pid = getpid();      
+  rtm->rtm_pid = getpid();
   rtm->rtm_seq = 0044;                                 /* TODO */
-  
+
   req.dst.sin_family       = AF_INET;
   req.dst.sin_len          = sizeof(req.dst);
   req.mask.sin_family      = AF_INET;
   req.mask.sin_len         = sizeof(req.mask);
   req.gate.sin_family      = AF_INET;
   req.gate.sin_len         = sizeof(req.gate);
-  
+
   req.dst.sin_addr.s_addr  = dst->s_addr;
   req.mask.sin_addr.s_addr = mask->s_addr;
   req.gate.sin_addr.s_addr = gateway->s_addr;
-  
+
   if (safe_write(fd, rtm, rtm->rtm_msglen) < 0) {
     syslog(LOG_ERR, "%s: write() failed", strerror(errno));
     close(fd);
@@ -1072,7 +1072,7 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
   }
   close(fd);
   return 0;
-  
+
 #elif defined(__sun__)
   syslog(LOG_ERR, "%s: Could not set up routing on Solaris. Please add route manually.", strerror(errno));
   return 0;
@@ -1086,7 +1086,7 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
   netif->h = nfq_open();
 
   syslog(LOG_DEBUG, "netif nfqueue %d", (int)q);
-  
+
   if (!netif->h) {
     syslog(LOG_ERR, "%s: nfq_open() failed", strerror(errno));
     return -1;
@@ -1095,23 +1095,23 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
   if (nfq_unbind_pf(netif->h, AF_INET) < 0) {
     syslog(LOG_ERR, "%s: error during nfq_unbind_pf()", strerror(errno));
   }
-  
+
   if (nfq_bind_pf(netif->h, AF_INET) < 0) {
     syslog(LOG_ERR, "%s: error during nfq_bind_pf()", strerror(errno));
     return -1;
   }
-  
+
   netif->qh = nfq_create_queue(netif->h,  q, cb, NULL);
   if (!netif->qh) {
     syslog(LOG_ERR, "%s: error during nfq_create_queue(%d)", strerror(errno), (int)q);
     return -1;
   }
-  
+
   if (nfq_set_mode(netif->qh, NFQNL_COPY_PACKET, 21 /*0xffff*/) < 0) {
     syslog(LOG_ERR, "%s: error during nfq_set_mode()", strerror(errno));
     return -1;
   }
-  
+
   netif->fd = nfq_fd(netif->h);
 
   return 0;
@@ -1140,7 +1140,7 @@ int net_getip6(char *dev, struct in6_addr *addr) {
   int ret = -1;
   struct ifaddrs *ifaddr, *ifa;
   int family;
-  
+
   if (getifaddrs(&ifaddr) == 0) {
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
       if (ifa->ifa_addr) {
@@ -1232,8 +1232,8 @@ int net_open_eth(net_interface *netif) {
   memset(&ifr, 0, sizeof(ifr));
 
   /* Create socket */
-  if ((netif->fd = socket(PF_PACKET, 
-			  /*XXX netif->idx ? SOCK_DGRAM : */SOCK_RAW, 
+  if ((netif->fd = socket(PF_PACKET,
+			  /*XXX netif->idx ? SOCK_DGRAM : */SOCK_RAW,
 			  htons(netif->protocol))) < 0) {
     if (errno == EPERM) {
       syslog(LOG_ERR, "%s: Cannot create raw socket. Must be root.", strerror(errno));
@@ -1252,28 +1252,28 @@ int net_open_eth(net_interface *netif) {
     /* Let's make this non-blocking */
     ndelay_on(netif->fd);
     coe(netif->fd);
-    
+
     option = 1;
-    if (net_setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY, 
+    if (net_setsockopt(netif->fd, SOL_SOCKET, TCP_NODELAY,
 		       &option, sizeof(option)) < 0)
       return -1;
-    
+
     /* Enable reception and transmission of broadcast frames */
     option = 1;
-    if (net_setsockopt(netif->fd, SOL_SOCKET, SO_BROADCAST, 
+    if (net_setsockopt(netif->fd, SOL_SOCKET, SO_BROADCAST,
 		       &option, sizeof(option)) < 0)
       return -1;
-    
+
     if (_options.sndbuf > 0) {
       option = _options.sndbuf;
       net_setsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &option, sizeof(option));
     }
-    
+
     if (_options.rcvbuf > 0) {
       option = _options.rcvbuf;
       net_setsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &option, sizeof(option));
     }
-    
+
     {
       socklen_t len;
       len = sizeof(default_sndbuf);
@@ -1307,12 +1307,12 @@ int net_open_eth(net_interface *netif) {
       }
     }
   }
-  
+
   if (netif->hwaddr[0] & 0x01) {
     syslog(LOG_ERR, "Ethernet has broadcast or multicast address: %.16s",
 	    netif->devname);
   }
-  
+
   /* Get the current interface address, network, and any destination address */
   /* Get the IP address of our interface */
 
@@ -1323,19 +1323,19 @@ int net_open_eth(net_interface *netif) {
     return -1;
   }
   if (ifr.ifr_mtu > PKT_BUFFER) {
-    syslog(LOG_ERR, "MTU is larger than PKT_BUFFER: %d > %d", 
+    syslog(LOG_ERR, "MTU is larger than PKT_BUFFER: %d > %d",
 	    ifr.ifr_mtu, PKT_BUFFER);
     return -1;
   }
   netif->mtu = ifr.ifr_mtu;
-  
+
   /* Get ifindex */
   safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   if (ioctl(netif->fd, SIOCGIFINDEX, (caddr_t)&ifr) < 0) {
     syslog(LOG_ERR, "%s: ioctl(SIOCFIGINDEX) failed", strerror(errno));
   }
   netif->ifindex = ifr.ifr_ifindex;
-  
+
   syslog(LOG_DEBUG, "device %s ifindex %d", netif->devname, netif->ifindex);
 
 #ifdef ENABLE_IPV6
@@ -1357,10 +1357,10 @@ int net_open_eth(net_interface *netif) {
 	if (/*family == AF_INET || */family == AF_INET6 &&
 	    !strcmp(netif->devname, ifa->ifa_name)) {
 	  struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)ifa->ifa_addr;
-	  memcpy(&netif->address_v6, &in6->sin6_addr, 
+	  memcpy(&netif->address_v6, &in6->sin6_addr,
 		 sizeof(struct in6_addr));
 	  s = getnameinfo(ifa->ifa_addr,
-			  /*(family == AF_INET) ? 
+			  /*(family == AF_INET) ?
 			    sizeof(struct sockaddr_in) :*/
 			  sizeof(struct sockaddr_in6),
 			  host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
@@ -1379,15 +1379,15 @@ int net_open_eth(net_interface *netif) {
 #ifdef USING_MMAP
   if (_options.mmapring) {
     setup_rings(netif,
-		_options.ringsize ? _options.ringsize : DEF_RING_SIZE, 
+		_options.ringsize ? _options.ringsize : DEF_RING_SIZE,
 		netif->mtu + 20);
-  } 
+  }
 #endif
-    
+
   /* Set interface in promisc mode */
   if (netif->flags & NET_PROMISC) {
     struct packet_mreq mr;
-    
+
     memset(&ifr, 0, sizeof(ifr));
     safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
     if (ioctl(netif->fd, SIOCGIFFLAGS, (caddr_t)&ifr) == -1) {
@@ -1399,12 +1399,12 @@ int net_open_eth(net_interface *netif) {
 	syslog(LOG_ERR, "%s: Could not set flag IFF_PROMISC", strerror(errno));
       }
     }
-    
+
     memset(&mr,0,sizeof(mr));
     mr.mr_ifindex = netif->ifindex;
     mr.mr_type = PACKET_MR_PROMISC;
-    
-    if (net_setsockopt(netif->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP, 
+
+    if (net_setsockopt(netif->fd, SOL_PACKET, PACKET_ADD_MEMBERSHIP,
 		       (char *)&mr, sizeof(mr)) < 0)
       return -1;
   }
@@ -1427,7 +1427,7 @@ int net_open_eth(net_interface *netif) {
   netif->dest.sll_ifindex = netif->ifindex;
 #endif
 
-#if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI) 
+#if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI)
   option = 1;
   if (setsockopt(netif->fd, SOL_PACKET, PACKET_AUXDATA, &option,
 		 sizeof(option)) == -1 && errno != ENOPROTOOPT) {
@@ -1439,10 +1439,10 @@ int net_open_eth(net_interface *netif) {
   if (_options.mmapring) {
     setup_rings2(netif);
     /*setup_filter(netif);*/
-    
+
     if (_options.sndbuf > 0)
       set_buffer(netif, SO_SNDBUF, _options.sndbuf * 1024);
-    
+
     if (_options.rcvbuf > 0)
       set_buffer(netif, SO_RCVBUF, _options.rcvbuf * 1024);
   }
@@ -1489,7 +1489,7 @@ int net_getmac(const char *ifname, char *macaddr) {
       return 0;
     }
     ifa = ifa->ifa_next;
-  }  
+  }
   freeifaddrs(ifap);
   return -1;
 }
@@ -1529,11 +1529,11 @@ int net_open_eth(net_interface *netif) {
   unsigned int value;
 
   /* Find suitable device */
-  for (devnum = 0; devnum < 255; devnum++) { /* TODO 255 */ 
+  for (devnum = 0; devnum < 255; devnum++) { /* TODO 255 */
     safe_snprintf(devname, sizeof(devname), "/dev/bpf%d", devnum);
     if ((netif->fd = open(devname, O_RDWR)) >= 0) break;
     if (errno != EBUSY) break;
-  } 
+  }
   if (netif->fd < 0) {
     syslog(LOG_ERR, "%s: Can't find bpf device", strerror(errno));
     return -1;
@@ -1551,7 +1551,7 @@ int net_open_eth(net_interface *netif) {
   if (ioctl(netif->fd, BIOCVERSION, &bv) < 0) {
     syslog(LOG_ERR, "%s: ioctl() failed!", strerror(errno));
     return -1;
-  }  
+  }
   if (bv.bv_major != BPF_MAJOR_VERSION ||
       bv.bv_minor < BPF_MINOR_VERSION) {
     syslog(LOG_ERR, "%s: wrong BPF version!", strerror(errno));
@@ -1565,9 +1565,9 @@ int net_open_eth(net_interface *netif) {
   else {
     netif->flags |= NET_ETHHDR;
   }
-  
+
   if (netif->hwaddr[0] & 0x01) {
-    syslog(LOG_ERR, "Ethernet has broadcast or multicast address: %.16s", 
+    syslog(LOG_ERR, "Ethernet has broadcast or multicast address: %.16s",
 	    netif->devname);
     return -1;
   }
@@ -1578,19 +1578,19 @@ int net_open_eth(net_interface *netif) {
     if (ioctl(netif->fd, BIOCPROMISC, NULL) < 0) {
       syslog(LOG_ERR, "%s: ioctl() failed!", strerror(errno));
       return -1;
-    }  
+    }
     value = 1;
     if (ioctl(netif->fd, BIOCSHDRCMPLT, &value) < 0) {
       syslog(LOG_ERR, "%s: ioctl() failed!", strerror(errno));
       return -1;
-    }  
+    }
   }
   else {
     value = 0;
     if (ioctl(netif->fd, BIOCSHDRCMPLT, &value) < 0) {
       syslog(LOG_ERR, "%s: ioctl() failed!", strerror(errno));
       return -1;
-    }  
+    }
   }
 
   /* Make sure reads return as soon as packet has been received */
@@ -1598,7 +1598,7 @@ int net_open_eth(net_interface *netif) {
   if (ioctl(netif->fd, BIOCIMMEDIATE, &value) < 0) {
     syslog(LOG_ERR, "%s: ioctl() failed!", strerror(errno));
     return -1;
-  }  
+  }
 
   return 0;
 }
@@ -1609,12 +1609,12 @@ void net_run(net_interface *iface) {
 #ifdef USING_MMAP
   if (iface->is_active) {
     int ret = send(iface->fd, NULL, 0, MSG_DONTWAIT | MSG_NOSIGNAL);
-    
+
     if (ret == -1 && errno != EAGAIN)
       syslog(LOG_ERR, "Async write error");
     else
       ++iface->stats.tx_runs;
-    
+
     iface->is_active = 0;
   }
 #endif
@@ -1635,21 +1635,21 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
 
     if (!h->tp_status)
       break;
-    
+
     if (++iface->rx_ring.idx >= iface->rx_ring.cnt)
       iface->rx_ring.idx = 0;
-    
+
     if (h->tp_snaplen < (int)sizeof(struct pkt_ethhdr_t)) {
       syslog(LOG_ERR, "Packet too short");
       ++iface->stats.dropped;
       goto next;
     }
-    
+
     /* Use the receiving time of the packet as the start time of
-     * the request 
+     * the request
     tv.tv_sec = h->tp_sec;
     tv.tv_nsec = h->tp_nsec;*/
-    
+
     if (_options.debug > 100)
       syslog(LOG_DEBUG, "RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
 
@@ -1659,18 +1659,18 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
     func(ctx, &pb);
 
     was_drop |= h->tp_status & TP_STATUS_LOSING;
-    
+
   next:
     h->tp_status = TP_STATUS_KERNEL;
   }
 
   if (cnt >= iface->rx_ring.cnt)
     ++iface->stats.rx_buffers_full;
-  
+
   if (was_drop) {
     struct tpacket_stats stats;
     socklen_t len;
-    
+
     len = sizeof(stats);
     if (!getsockopt(iface->fd, SOL_PACKET, PACKET_STATISTICS, &stats, &len))
       iface->stats.dropped += stats.tp_drops;
@@ -1678,7 +1678,7 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
     if (_options.logfacility > 100)
       syslog(LOG_DEBUG, "RX drops %d", iface->stats.dropped);
   }
-  
+
   ++iface->stats.rx_runs;
 
   return 1;
@@ -1700,7 +1700,7 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
     /*return -1;*/
   }
 #endif
-  
+
   for (cnt = 0; cnt < iface->tx_ring.cnt; ++cnt) {
     h = iface->tx_ring.frames[iface->tx_ring.idx++];
     if (iface->tx_ring.idx >= iface->tx_ring.cnt)
@@ -1721,24 +1721,24 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
     syslog(LOG_WARNING, "dropped packet, buffer full");
     return -1;
   }
-  
+
   /* Should not happen */
   if (h->tp_status == TP_STATUS_WRONG_FORMAT)
     syslog(LOG_ERR, "Bad packet format on send");
-  
+
   /* Fill the frame */
   data = (void *)h + iface->tp_hdrlen;
   memcpy(data, packet, length);
   h->tp_len = length;
-  
+
   iface->stats.tx_bytes += h->tp_len;
   ++iface->stats.tx_cnt;
-  
+
   h->tp_status = TP_STATUS_SEND_REQUEST;
 
   if (_options.debug > 100)
     syslog(LOG_DEBUG, "TX sent=%d (idx %d)", length, iface->ifindex);
-  
+
   if (!iface->is_active) {
     iface->is_active = 1;
   }
@@ -1752,15 +1752,15 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   struct ring *ring;
   const char *name;
   int ret;
-  
+
   name = what == PACKET_RX_RING ? "RX" : "TX";
   ring = what == PACKET_RX_RING ? &iface->rx_ring : &iface->tx_ring;
 
   page_size = sysconf(_SC_PAGESIZE);
 
-  syslog(LOG_DEBUG, "Creating %s ring: ring_size=%d; page_size=%d; mtu=%d", 
+  syslog(LOG_DEBUG, "Creating %s ring: ring_size=%d; page_size=%d; mtu=%d",
 	  name, ring_size, page_size, mtu);
-  
+
   /* For RX, the frame looks like:
    * - struct tpacket2_hdr
    * - padding to 16-byte boundary (this is included in iface->tp_hdrlen)
@@ -1776,28 +1776,28 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
    * - struct tpacket2_hdr
    * - padding to 16-byte boundary (this is included in iface->tp_hdrlen)
    * - raw packet
-   * - padding to 16-byte boundary 
+   * - padding to 16-byte boundary
    */
   ring->frame_size = TPACKET_ALIGN(iface->tp_hdrlen) + TPACKET_ALIGN(mtu);
 
   if (what == PACKET_RX_RING)
     ring->frame_size += TPACKET_ALIGNMENT;
-  
+
   if (what == PACKET_TX_RING && tx_ring_bug) {
     unsigned maxsect;
-    
+
     /* Kernel 2.6.31 has a bug and it requires a larger frame size
      * than what is in fact used */
     maxsect = (mtu - sizeof(struct pkt_ethhdr_t)) / 512;
     ring->frame_size = TPACKET_ALIGN(sizeof(struct pkt_ethhdr_t) +
 				     maxsect * 512 + /*576 + 32*/1000);
   }
-  
+
   req.tp_frame_size = ring->frame_size;
-  
+
   /* The number of blocks is limited by the kernel implementation */
   max_blocks = page_size / sizeof(void *);
-  
+
   /* Start with a large block size and if that fails try to lower it */
 #ifdef ENABLE_LARGELIMITS
   req.tp_block_size = 64 * 1024;
@@ -1811,9 +1811,9 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
 
     if (req.tp_block_nr > max_blocks)
       req.tp_block_nr = max_blocks;
-    
+
     req.tp_frame_nr = (req.tp_block_size / req.tp_frame_size) * req.tp_block_nr;
-    
+
     ret = net_setsockopt(iface->fd, SOL_PACKET, what, &req, sizeof(req));
     if (!ret)
       break;
@@ -1833,16 +1833,16 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   ring->cnt = req.tp_frame_nr;
   ring->frames = calloc(sizeof(void *), req.tp_frame_nr);
 
-  syslog(LOG_INFO, "Created %s ring: len=%d; block size=%d; frame size=%d, cnt=%d", 
+  syslog(LOG_INFO, "Created %s ring: len=%d; block size=%d; frame size=%d, cnt=%d",
 	   name, ring->len, req.tp_block_size, req.tp_frame_size, ring->cnt);
 }
 
 static void destroy_one_ring(net_interface *iface, int what) {
   struct tpacket_req req;
   struct ring *ring;
-  
+
   ring = what == PACKET_RX_RING ? &iface->rx_ring : &iface->tx_ring;
-  
+
   memset(&req, 0, sizeof(req));
   net_setsockopt(iface->fd, SOL_PACKET, what, &req, sizeof(req));
   free(ring->frames);
@@ -1852,12 +1852,12 @@ static void destroy_one_ring(net_interface *iface, int what) {
 /* Set up pointers to the individual frames */
 static void setup_frames(struct ring *ring, void *data) {
   unsigned i, j, cnt, blocks, frames;
-  
+
   /* Number of blocks in the ring */
   blocks = ring->len / ring->block_size;
   /* Number of frames in a block */
   frames = ring->block_size / ring->frame_size;
-  
+
   for (i = cnt = 0; i < blocks; i++)
     for (j = 0; j < frames; j++)
       ring->frames[cnt++] = data + i * ring->block_size + j * ring->frame_size;
@@ -1867,7 +1867,7 @@ static void setup_frames(struct ring *ring, void *data) {
 static void setup_rings(net_interface *iface, unsigned size, int mtu) {
   socklen_t len;
   int ret, val;
-  
+
   /* The function can be called on MTU change, so destroy the previous ring
    * if any */
   if (iface->ring_ptr) {
@@ -1877,10 +1877,10 @@ static void setup_rings(net_interface *iface, unsigned size, int mtu) {
     destroy_one_ring(iface, PACKET_RX_RING);
     destroy_one_ring(iface, PACKET_TX_RING);
   }
-  
+
   if (!size)
     return;
-  
+
   /* We want version 2 ring buffers to avoid 64-bit uncleanness */
   val = TPACKET_V2;
   ret = net_setsockopt(iface->fd, SOL_PACKET, PACKET_VERSION, &val, sizeof(val));
@@ -1889,7 +1889,7 @@ static void setup_rings(net_interface *iface, unsigned size, int mtu) {
     syslog(LOG_ERR, "%s: Failed to set version 2 ring buffer format", strerror(errno));
     return;
   }
-  
+
   val = TPACKET_V2;
   len = sizeof(val);
   ret = getsockopt(iface->fd, SOL_PACKET, PACKET_HDRLEN, &val, &len);
@@ -1900,19 +1900,19 @@ static void setup_rings(net_interface *iface, unsigned size, int mtu) {
   }
 
   iface->tp_hdrlen = TPACKET_ALIGN(val);
-  
+
   /* Drop badly formatted packets */
   val = 1;
   ret = net_setsockopt(iface->fd, SOL_PACKET, PACKET_LOSS, &val, sizeof(val));
 
   if (ret)
     syslog(LOG_ERR, "%s: Failed to set packet drop mode", strerror(errno));
-  
+
   /* The RX and TX rings share the memory mapped area, so give
    * half the requested size to each */
   setup_one_ring(iface, size * 1024 / 2, mtu, PACKET_RX_RING);
   setup_one_ring(iface, size * 1024 / 2, mtu, PACKET_TX_RING);
-  
+
   /* Both rings must be mapped using a single mmap() call */
   iface->ring_len = iface->rx_ring.len + iface->tx_ring.len;
 }
@@ -1934,7 +1934,7 @@ static void setup_rings2(net_interface *iface) {
     iface->ring_len = 0;
     return;
   }
-  
+
   len = 0;
 
   if (iface->rx_ring.len) {
@@ -1944,7 +1944,7 @@ static void setup_rings2(net_interface *iface) {
 
   if (iface->tx_ring.len)
     setup_frames(&iface->tx_ring, iface->ring_ptr + len);
-  
+
   /*len = human_format(iface->ring_len, &unit);*/
   syslog(LOG_INFO, "Set up ring buffer (%u RX/%u TX packets)",
 	   iface->rx_ring.cnt, iface->tx_ring.cnt);
@@ -1955,14 +1955,14 @@ static void setup_rings2(net_interface *iface) {
 static void set_buffer(net_interface *iface, int what, int size) {
   socklen_t len;
   int ret, val;
-  
+
   ret = net_setsockopt(iface->fd, SOL_SOCKET, what, &size, sizeof(size));
   if (ret) {
     syslog(LOG_ERR, "%d Failed to set the %s buffer size",
 	    errno, what == SO_SNDBUF ? "send" : "receive");
     return;
   }
-  
+
   len = sizeof(val);
   if (getsockopt(iface->fd, SOL_SOCKET, what, &val, &len))
     val = size;
@@ -2012,12 +2012,12 @@ static void setup_filter(net_interface *iface) {
       /* INVALID: return 0 (ignore the packet) */
       /*BPF_STMT(BPF_RET+BPF_K, 0),*/
     };
-    
+
     static struct sock_fprog prog = {
       .filter = filter,
       .len = sizeof(filter) / sizeof(struct sock_filter)
     };
-    
+
     if (net_setsockopt(iface->fd, SOL_SOCKET, SO_ATTACH_FILTER, &prog, sizeof(prog)))
       syslog(LOG_ERR, "%s: Failed to set up the socket filter", strerror(errno));
   }

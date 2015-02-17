@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #include "chilli.h"
@@ -25,11 +25,11 @@
 
 #define deeplog 0
 
-static int 
-radius_authcheck(struct radius_t *this, struct radius_packet_t *pack, 
+static int
+radius_authcheck(struct radius_t *this, struct radius_packet_t *pack,
 		 struct radius_packet_t *pack_req);
 
-static int 
+static int
 radius_acctcheck(struct radius_t *this, struct radius_packet_t *pack);
 
 void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
@@ -45,12 +45,12 @@ void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
 
   if (!paddr)
     paddr = &_options.uamlisten;
-    
-  radius_addattr(radius, pack, RADIUS_ATTR_NAS_IP_ADDRESS, 
-		 0, 0, ntohl(paddr->s_addr), NULL, 0); 
+
+  radius_addattr(radius, pack, RADIUS_ATTR_NAS_IP_ADDRESS,
+		 0, 0, ntohl(paddr->s_addr), NULL, 0);
 }
 
-void radius_addcalledstation(struct radius_t *radius, 
+void radius_addcalledstation(struct radius_t *radius,
 			     struct radius_packet_t *pack,
 			     struct session_state *state)  {
   uint8_t b[32];
@@ -58,20 +58,20 @@ void radius_addcalledstation(struct radius_t *radius,
 
 #ifdef ENABLE_PROXYVSA
   if (state->redir.calledlen) {
-    radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, 
-		   state->redir.called, state->redir.calledlen); 
+    radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
+		   state->redir.called, state->redir.calledlen);
     return;
   }
 #endif
 
   if (_options.nasmac)
     mac = (uint8_t *) _options.nasmac;
-  else 
-    safe_snprintf((char*)(mac = b), sizeof(b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X", 
+  else
+    safe_snprintf((char*)(mac = b), sizeof(b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 		  radius->nas_hwaddr[0], radius->nas_hwaddr[1], radius->nas_hwaddr[2],
 		  radius->nas_hwaddr[3], radius->nas_hwaddr[4], radius->nas_hwaddr[5]);
-  
-  radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen((char*)mac)); 
+
+  radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen((char*)mac));
 }
 
 int radius_printqueue(int fd, struct radius_t *this) {
@@ -82,16 +82,16 @@ int radius_printqueue(int fd, struct radius_t *this) {
   if (this->qsize)
     mx = this->qsize;
 
-  safe_snprintf(line, sizeof(line), "next %d, first %d, last %d\n", 
+  safe_snprintf(line, sizeof(line), "next %d, first %d, last %d\n",
 		this->qnext, this->first, this->last);
-  
+
   safe_write(fd, line, strlen(line));
-  
+
   for(n=0; n < mx; n++) {
     if (this->queue[n].state) {
-      safe_snprintf(line, sizeof(line), 
+      safe_snprintf(line, sizeof(line),
 		    "n=%3d id=%3d state=%3d next=%3d prev=%3d %8d %8d %d\n",
-		    n, 
+		    n,
 		    RADIUS_QUEUE_PKT(this->queue[n].p,id),
 		    this->queue[n].state,
 		    this->queue[n].next,
@@ -102,15 +102,15 @@ int radius_printqueue(int fd, struct radius_t *this) {
       safe_write(fd, line, strlen(line));
     }
   }
-  
+
   return 0;
 }
 
-/* 
+/*
  * radius_hmac_md5()
- * Calculate HMAC MD5 on a radius packet. 
+ * Calculate HMAC MD5 on a radius packet.
  */
-int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack, 
+int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack,
 		    char *secret, int secretlen, uint8_t *dst) {
   unsigned char digest[RADIUS_MD5LEN];
   size_t length;
@@ -158,13 +158,13 @@ int radius_hmac_md5(struct radius_t *this, struct radius_packet_t *pack,
   MD5Update(&context, k_opad, 64);
   MD5Update(&context, digest, 16);
   MD5Final(digest, &context);
-  
+
   memcpy(dst, digest, RADIUS_MD5LEN);
 
   return 0;
 }
 
-/* 
+/*
  * radius_acctreq_authenticator()
  * Update a packet with an accounting request authenticator
  */
@@ -174,7 +174,7 @@ int radius_acctreq_authenticator(struct radius_t *this,
   /* From RFC 2866: Authenticator is the MD5 hash of:
      Code + Identifier + Length + 16 zero octets + request attributes +
      shared secret */
-  
+
   MD5_CTX context;
 
   memset(pack->authenticator, 0, RADIUS_AUTHLEN);
@@ -184,11 +184,11 @@ int radius_acctreq_authenticator(struct radius_t *this,
   MD5Update(&context, (void*) pack, ntohs(pack->length));
   MD5Update(&context, (uint8_t*) this->secret, this->secretlen);
   MD5Final(pack->authenticator, &context);
-  
+
   return 0;
 }
 
-/* 
+/*
  * radius_authresp_authenticator()
  * Update a packet with an authentication response authenticator
  */
@@ -200,7 +200,7 @@ int radius_authresp_authenticator(struct radius_t *this,
   /* From RFC 2865: Authenticator is the MD5 hash of:
      Code + Identifier + Length + request authenticator + request attributes +
      shared secret */
-  
+
   MD5_CTX context;
 
   memcpy(pack->authenticator, req_auth, RADIUS_AUTHLEN);
@@ -210,16 +210,16 @@ int radius_authresp_authenticator(struct radius_t *this,
   MD5Update(&context, (void*) pack, ntohs(pack->length));
   MD5Update(&context, (uint8_t*) secret, secretlen);
   MD5Final(pack->authenticator, &context);
-  
+
   return 0;
 }
 
 static int radius_queue_next(struct radius_t *this) {
   int attempt = 0;
   int qnext;
-  
+
  try_again:
-  
+
   qnext = this->qnext;
 
 #if(_debug_ > 1)
@@ -227,25 +227,25 @@ static int radius_queue_next(struct radius_t *this) {
 #endif
 
   if (this->queue[qnext].state == 1) {
-    
-    syslog(LOG_DEBUG, "skipping over active idx %d radius-id=%d", 
+
+    syslog(LOG_DEBUG, "skipping over active idx %d radius-id=%d",
 	    qnext, RADIUS_QUEUE_PKT(this->queue[qnext].p,id));
-    
+
     if (attempt++ < (this->qsize ? this->qsize : 256)) {
       this->qnext++;
-      
-      if (this->qsize) 
+
+      if (this->qsize)
 	this->qnext %= this->qsize;
-      
+
       goto try_again;
     }
-    
+
     syslog(LOG_ERR, "radius queue is full! qnext=%d qsize=%d",
 	    qnext, this->qsize);
-    
+
     return -1;
   }
-  
+
   return qnext;
 }
 
@@ -256,7 +256,7 @@ static int radius_queue_idx(struct radius_t *this, int id) {
   if (id < 0 || id >= RADIUS_QUEUESIZE) {
     return -1;
   }
-  
+
   if (this->qsize) {
     sz = cnt = this->qsize;
   } else {
@@ -267,7 +267,7 @@ static int radius_queue_idx(struct radius_t *this, int id) {
     idx %= sz;
     if (RADIUS_QUEUE_HASPKT(this->queue[idx].p)) {
 #if(_debug_ > 1)
-      syslog(LOG_DEBUG, "idx %d pid %d id %d", idx, 
+      syslog(LOG_DEBUG, "idx %d pid %d id %d", idx,
 	      RADIUS_QUEUE_PKT(this->queue[idx].p,id), id);
 #endif
       if (RADIUS_QUEUE_PKT(this->queue[idx].p,id) == id)
@@ -275,15 +275,15 @@ static int radius_queue_idx(struct radius_t *this, int id) {
     }
     idx++;
   }
-  
+
   return -1;
 }
 
-/* 
+/*
  * radius_queue_in()
  * Place data in queue for later retransmission.
  */
-int radius_queue_in(struct radius_t *this, 
+int radius_queue_in(struct radius_t *this,
 		    struct radius_packet_t *pack,
 		    void *cbp) {
   struct radius_attr_t *ma = NULL; /* Message authenticator */
@@ -299,20 +299,20 @@ int radius_queue_in(struct radius_t *this,
 
   if (qnext == -1)
     return -1;
-  
+
 #if(_debug_ > 1)
   syslog(LOG_DEBUG, "RADIUS queue-in id=%d idx=%d", pack->id, qnext);
 #endif
-  
+
   /* If packet contains message authenticator: Calculate it! */
-  if (!radius_getattr(pack, &ma, 
-		      RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 
+  if (!radius_getattr(pack, &ma,
+		      RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
 		      0,0,0)) {
-    radius_hmac_md5(this, pack, 
-		    this->secret, this->secretlen, 
+    radius_hmac_md5(this, pack,
+		    this->secret, this->secretlen,
 		    ma->v.t);
   }
-  
+
   /* If accounting request: Calculate authenticator */
   if (pack->code == RADIUS_CODE_ACCOUNTING_REQUEST) {
     radius_acctreq_authenticator(this, pack);
@@ -339,15 +339,15 @@ int radius_queue_in(struct radius_t *this,
 
   if (this->last != -1) {
     /* Link previous to us */
-    this->queue[this->last].next = qnext; 
+    this->queue[this->last].next = qnext;
   }
 
   /* End of queue */
-  this->last = qnext;  
+  this->last = qnext;
 
   if (this->first == -1) {
     /* First and last */
-    this->first = qnext; 
+    this->first = qnext;
   }
 
   this->qnext++;
@@ -355,11 +355,11 @@ int radius_queue_in(struct radius_t *this,
   if (this->qsize) {
     /*
      *  Note that if this value isn't set, then we are using the full 255.
-     *  We don't need to mod 255 since qnext is uint8_t and will simply rollover. 
+     *  We don't need to mod 255 since qnext is uint8_t and will simply rollover.
      */
     this->qnext %= this->qsize;
   }
-  
+
 #if(_debug_ > 1)
   if (_options.debug) {
     syslog(LOG_DEBUG, "sending radius packet (code=%d, id=%d, len=%d)\n",
@@ -372,11 +372,11 @@ int radius_queue_in(struct radius_t *this,
   return 0;
 }
 
-/* 
+/*
  * radius_queue_out()
  * Remove data from queue.
  */
-static int 
+static int
 radius_queue_out(struct radius_t *this, int idx,
 		 struct radius_packet_t *pack_in,
 		 struct radius_packet_t *pack_out,
@@ -387,18 +387,18 @@ radius_queue_out(struct radius_t *this, int idx,
     id = pack_in->id;
     idx = radius_queue_idx(this, id);
   }
-  
+
   if (idx < 0) {
     syslog(LOG_ERR, "bad idx (%d)", idx);
     return -1;
   }
-  
+
   if (this->queue[idx].state != 1) {
-    syslog(LOG_ERR, "RADIUS id=%d idx=%d with state != 1", 
+    syslog(LOG_ERR, "RADIUS id=%d idx=%d with state != 1",
 	    id, idx);
     return -1;
   }
-  
+
 #if(_debug_ > 1)
   if (_options.debug) {
     syslog(LOG_DEBUG, "radius_queue_out");
@@ -408,22 +408,22 @@ radius_queue_out(struct radius_t *this, int idx,
 
   if (RADIUS_QUEUE_HASPKT(this->queue[idx].p)) {
     if (pack_in &&
-	radius_authcheck(this, pack_in, 
+	radius_authcheck(this, pack_in,
 			 RADIUS_QUEUE_PKTPTR(this->queue[idx].p))) {
-      syslog(LOG_WARNING, "Authenticator does not match! req-id=%d res-id=%d", 
-	       RADIUS_QUEUE_PKT(this->queue[idx].p,id), 
+      syslog(LOG_WARNING, "Authenticator does not match! req-id=%d res-id=%d",
+	       RADIUS_QUEUE_PKT(this->queue[idx].p,id),
 	       pack_in->id);
       return -1;
     }
-    
-    memcpy(pack_out, 
+
+    memcpy(pack_out,
 	   RADIUS_QUEUE_PKTPTR(this->queue[idx].p), RADIUS_PACKSIZE);
 
     RADIUS_QUEUE_PKTFREE(this->queue[idx].p);
   }
 
   *cbp = this->queue[idx].cbp;
-  
+
   syslog(LOG_DEBUG, "RADIUS queue-out id=%d idx=%d", pack_out->id, idx);
 
   this->queue[idx].state = 0;
@@ -433,12 +433,12 @@ radius_queue_out(struct radius_t *this, int idx,
     this->last = this->queue[idx].prev;
   else
     this->queue[this->queue[idx].next].prev = this->queue[idx].prev;
-    
+
   if (this->queue[idx].prev == -1) /* Are we the first in queue? */
     this->first = this->queue[idx].next;
   else
     this->queue[this->queue[idx].prev].next = this->queue[idx].next;
-  
+
 #if(_debug_ > 1)
   if (_options.debug) {
     syslog(LOG_DEBUG, "radius_queue_out end");
@@ -449,7 +449,7 @@ radius_queue_out(struct radius_t *this, int idx,
   return 0;
 }
 
-/* 
+/*
  * radius_queue_reschedule()
  * Recalculate the timeout value of a packet in the queue.
  */
@@ -470,67 +470,67 @@ static int radius_queue_reschedule(struct radius_t *this, int idx) {
     radius_printqueue(0, this);
   }
 #endif
-  
+
   this->queue[idx].retrans++;
-  
+
   tv = &this->queue[idx].timeout;
   gettimeofday(tv, NULL);
-  
+
   tv->tv_sec += _options.radiustimeout;
-  
+
   /* Remove from linked list */
   if (this->queue[idx].next == -1) /* Are we the last in queue? */
     this->last = this->queue[idx].prev;
   else
     this->queue[this->queue[idx].next].prev = this->queue[idx].prev;
-  
+
   if (this->queue[idx].prev == -1) /* Are we the first in queue? */
     this->first = this->queue[idx].next;
   else
     this->queue[this->queue[idx].prev].next = this->queue[idx].next;
-  
+
   /* Insert in linked list for handling timeouts */
   this->queue[idx].next = -1;         /* Last in queue */
   this->queue[idx].prev = this->last; /* Link to previous (could be -1) */
-  
+
   if (this->last != -1) {
     this->queue[this->last].next = idx; /* If not empty: link previous to us */
   }
-  
+
   this->last = idx; /* End of queue */
-  
+
   if (this->first == -1) {
     this->first = idx;  /* First and last */
   }
-  
+
 #if(deeplog)
   if (_options.debug) {
     radius_printqueue(0, this);
   }
 #endif
-  
+
   return 0;
 }
 
 
-/* 
+/*
  * radius_cmptv()
  * Returns an integer less than, equal to or greater than zero if tv1
  * is found, respectively, to be less than, to match or be greater than tv2.
  */
-int 
+int
 radius_cmptv(struct timeval *tv1, struct timeval *tv2)
 {
   struct timeval diff;
 
   /*
   if (0) {
-    printf("tv1 %8d %8d tv2 %8d %8d\n", 
-	   (int) tv1->tv_sec, (int) tv1->tv_usec, 
+    printf("tv1 %8d %8d tv2 %8d %8d\n",
+	   (int) tv1->tv_sec, (int) tv1->tv_usec,
 	   (int) tv2->tv_sec, (int) tv2->tv_usec);
   }
   */
-  
+
   /* First take the difference with |usec| < 1000000 */
   diff.tv_sec = (tv1->tv_usec  - tv2->tv_usec) / 1000000 +
                 (tv1->tv_sec   - tv2->tv_sec);
@@ -539,9 +539,9 @@ radius_cmptv(struct timeval *tv1, struct timeval *tv2)
 
   /*
   if (0) {
-    printf("tv1 %8d %8d tv2 %8d %8d diff %8d %8d\n", 
-	   (int) tv1->tv_sec, (int) tv1->tv_usec, 
-	   (int) tv2->tv_sec, (int) tv2->tv_usec, 
+    printf("tv1 %8d %8d tv2 %8d %8d diff %8d %8d\n",
+	   (int) tv1->tv_sec, (int) tv1->tv_usec,
+	   (int) tv2->tv_sec, (int) tv2->tv_usec,
 	   (int) diff.tv_sec, (int) diff.tv_usec);
   }
   */
@@ -558,20 +558,20 @@ radius_cmptv(struct timeval *tv1, struct timeval *tv2)
 
   /*
   if (0) {
-    printf("tv1 %8d %8d tv2 %8d %8d diff %8d %8d\n", 
-	   (int) tv1->tv_sec, (int) tv1->tv_usec, 
-	   (int) tv2->tv_sec, (int) tv2->tv_usec, 
+    printf("tv1 %8d %8d tv2 %8d %8d diff %8d %8d\n",
+	   (int) tv1->tv_sec, (int) tv1->tv_usec,
+	   (int) tv2->tv_sec, (int) tv2->tv_usec,
 	   (int) diff.tv_sec, (int) diff.tv_usec);
   }
   */
 
   if (diff.tv_sec < 0) {
     /*if (0) printf("-1\n"); */
-    return -1; 
+    return -1;
   }
   if (diff.tv_sec > 0) {
     /*if (0) printf("1\n"); */
-    return  1; 
+    return  1;
   }
   if (diff.tv_usec < 0) {
     /*if (0) printf("-1\n"); */
@@ -587,14 +587,14 @@ radius_cmptv(struct timeval *tv1, struct timeval *tv2)
 }
 
 
-/* 
+/*
  * radius_timeleft()
- * Determines how nuch time is left until we need to call 
+ * Determines how nuch time is left until we need to call
  * radius_timeout().
  * Only modifies timeout if new value is lower than current value.
  */
-int 
-radius_timeleft(struct radius_t *this, struct timeval *timeout) 
+int
+radius_timeleft(struct radius_t *this, struct timeval *timeout)
 {
   struct timeval now, later, diff;
 
@@ -627,7 +627,7 @@ radius_timeleft(struct radius_t *this, struct timeval *timeout)
   }
 
   /* If original was smaller do nothing */
-  if (radius_cmptv(timeout, &diff) <=0) 
+  if (radius_cmptv(timeout, &diff) <=0)
     return 0;
 
   timeout->tv_sec = diff.tv_sec;
@@ -635,10 +635,10 @@ radius_timeleft(struct radius_t *this, struct timeval *timeout)
   return 0;
 }
 
-/* 
+/*
  * radius_timeout()
  * Retransmit any outstanding packets. This function should be called at
- * regular intervals. Use radius_timeleft() to determine how much time is 
+ * regular intervals. Use radius_timeleft() to determine how much time is
  * left before this function should be called.
  */
 int radius_timeout(struct radius_t *this) {
@@ -653,20 +653,20 @@ int radius_timeout(struct radius_t *this) {
 
 #if(_debug_ > 1)
   if (_options.debug) {
-    syslog(LOG_DEBUG, "radius_timeout(%d) %8d %8d", this->first, 
+    syslog(LOG_DEBUG, "radius_timeout(%d) %8d %8d", this->first,
 	    (int)now.tv_sec, (int)now.tv_usec);
     radius_printqueue(0, this);
   }
 #endif
-  
-  if (this->first != -1 && 
+
+  if (this->first != -1 &&
       radius_cmptv(&now, &this->queue[this->first].timeout) >= 0) {
-    
+
     if (this->queue[this->first].retrans < _options.radiusretry) {
 
       memset(&addr, 0, sizeof(addr));
       addr.sin_family = AF_INET;
-      
+
       if (this->queue[this->first].retrans == (_options.radiusretrysec - 1)) {
 	/* Use the other server for next retransmission */
 	if (this->queue[this->first].lastsent) {
@@ -677,7 +677,7 @@ int radius_timeout(struct radius_t *this) {
 	  addr.sin_addr = this->hisaddr1;
 	  this->queue[this->first].lastsent = 1;
 	}
-      } 
+      }
       else {
 	/* Use the same server for next retransmission */
 	if (this->queue[this->first].lastsent) {
@@ -687,7 +687,7 @@ int radius_timeout(struct radius_t *this) {
 	  addr.sin_addr = this->hisaddr0;
 	}
       }
-      
+
       if (RADIUS_QUEUE_HASPKT(this->queue[this->first].p)) {
 
 	/* Use the correct port for accounting and authentication */
@@ -696,12 +696,12 @@ int radius_timeout(struct radius_t *this) {
 	  addr.sin_port = htons(this->acctport);
 	else
 	  addr.sin_port = htons(this->authport);
-	
-	if (sendto(this->fd, 
+
+	if (sendto(this->fd,
 		   RADIUS_QUEUE_PKTPTR(this->queue[this->first].p),
 		   ntohs(RADIUS_QUEUE_PKT(this->queue[this->first].p, length)),
 		   0, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-	  
+
 	  syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
 	  radius_queue_reschedule(this, this->first);
 	  return -1;
@@ -716,28 +716,28 @@ int radius_timeout(struct radius_t *this) {
     else { /* Finished retrans */
       if (radius_queue_out(this, this->first,
 			   0, &pack_req, &cbp)) {
-	syslog(LOG_WARNING, "RADIUS idx=%d was not found in queue!", 
+	syslog(LOG_WARNING, "RADIUS idx=%d was not found in queue!",
 		 this->first);
 	return -1;
       }
-      
+
       if ((pack_req.code == RADIUS_CODE_ACCOUNTING_REQUEST) &&
 	  (this->cb_acct_conf))
 	  return this->cb_acct_conf(this, NULL, &pack_req, cbp);
-      
+
       if ((pack_req.code == RADIUS_CODE_ACCESS_REQUEST) &&
 	  (this->cb_auth_conf))
 	return this->cb_auth_conf(this, NULL, &pack_req, cbp);
-    }    
+    }
   }
-  
+
 #if(_debug_ > 1)
   if (_options.debug) {
     syslog(LOG_DEBUG, "radius_timeout");
     if (this->first > 0) {
-      syslog(LOG_DEBUG, "first %d, timeout %8d %8d", this->first, 
-	     (int) this->queue[this->first].timeout.tv_sec, 
-	     (int) this->queue[this->first].timeout.tv_usec); 
+      syslog(LOG_DEBUG, "first %d, timeout %8d %8d", this->first,
+	     (int) this->queue[this->first].timeout.tv_sec,
+	     (int) this->queue[this->first].timeout.tv_usec);
     }
     radius_printqueue(0, this);
   }
@@ -748,14 +748,14 @@ int radius_timeout(struct radius_t *this) {
 
 
 
-/* 
+/*
  * radius_addattr()
- * Add an attribute to a packet. The packet length is modified 
+ * Add an attribute to a packet. The packet length is modified
  * accordingly.
  * If data==NULL and dlen!=0 insert null attribute.
  */
-int 
-radius_addattr(struct radius_t *this, struct radius_packet_t *pack, 
+int
+radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
 	       uint8_t type, uint32_t vendor_id, uint8_t vendor_type,
 	       uint32_t value, uint8_t *data, uint16_t dlen) {
   struct radius_attr_t *a;
@@ -767,10 +767,10 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
   a = (struct radius_attr_t *)((uint8_t*)pack + length);
 
   if (type == RADIUS_ATTR_USER_PASSWORD) {
-    radius_pwencode(this, 
-		    (uint8_t*) passwd, RADIUS_PWSIZE, 
-		    &pwlen, 
-		    data, dlen, 
+    radius_pwencode(this,
+		    (uint8_t*) passwd, RADIUS_PWSIZE,
+		    &pwlen,
+		    data, dlen,
 		    pack->authenticator,
 		    this->secret, this->secretlen);
     data = (uint8_t *)passwd;
@@ -784,9 +784,9 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     else {
       vlen = 4; /* address, integer or time */
     }
-    
+
     if (vlen > RADIUS_ATTR_VLEN) {
-      syslog(LOG_WARNING, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d bytes [%s]", 
+      syslog(LOG_WARNING, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d bytes [%s]",
 	       type, vendor_id, vendor_type, vlen, RADIUS_ATTR_VLEN, data);
       vlen = RADIUS_ATTR_VLEN;
     }
@@ -819,12 +819,12 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     }
 
     if (vlen > RADIUS_ATTR_VLEN-8) {
-      syslog(LOG_WARNING, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d [%s]", 
+      syslog(LOG_WARNING, "Truncating RADIUS attribute (type:%d/%d/%d) from %d to %d [%s]",
 	       type, vendor_id, vendor_type, vlen, RADIUS_ATTR_VLEN-8, data);
       vlen = RADIUS_ATTR_VLEN-8;
     }
 
-    if ((length+vlen+2) > RADIUS_PACKSIZE) { 
+    if ((length+vlen+2) > RADIUS_PACKSIZE) {
       syslog(LOG_ERR, "No more space!");
       return -1;
     }
@@ -843,7 +843,7 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
     if (data)
       memcpy(a->v.vv.v.t, data, dlen);
     else if (dlen)
-      memset(a->v.vv.v.t, 0, dlen); 
+      memset(a->v.vv.v.t, 0, dlen);
     else
       a->v.vv.v.i = htonl(value);
   }
@@ -866,7 +866,7 @@ radius_addvsa(struct radius_packet_t *pack, struct redir_state *state) {
 }
 #endif
 
-/* 
+/*
  * radius_getattr()
  * Search for an attribute in a packet. Returns -1 if attribute is not found.
  * The first instance matching attributes will be skipped
@@ -891,7 +891,7 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
   /*
   if (0) {
     printf("radius_getattr payload(len=%d,off=%d) %.2x %.2x %.2x %.2x\n",
-	   len, offset, pack->payload[offset], pack->payload[offset+1], 
+	   len, offset, pack->payload[offset], pack->payload[offset+1],
 	   pack->payload[offset+2], pack->payload[offset+3]);
   }
   */
@@ -901,7 +901,7 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 
     /*
     if (0) {
-      printf("radius_getattr %d %d %d %.2x %.2x \n", t->t, t->l, 
+      printf("radius_getattr %d %d %d %.2x %.2x \n", t->t, t->l,
 	     ntohl(t->v.vv.i), (int) t->v.vv.t, (int) t->v.vv.l);
     }
     */
@@ -910,16 +910,16 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
 
     if (t->t == 0 || t->l < 2)
       return -1;
-    
-    if (t->t != type) 
+
+    if (t->t != type)
       continue;
-    
+
     if (t->t == RADIUS_ATTR_VENDOR_SPECIFIC && vendor_id &&
 	(ntohl(t->v.vv.i) != vendor_id || t->v.vv.t != vendor_type))
       continue;
-    
+
     if (count == instance) {
-      
+
       if (type == RADIUS_ATTR_VENDOR_SPECIFIC && vendor_id)
 	*attr = (struct radius_attr_t *) &t->v.vv.t;
       else
@@ -928,7 +928,7 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
       /*
       if (0) printf("Found %.*s\n", (*attr)->l - 2, (char *)(*attr)->v.t);
       */
-      
+
       *roffset = offset;
       return 0;
     }
@@ -936,15 +936,15 @@ radius_getnextattr(struct radius_packet_t *pack, struct radius_attr_t **attr,
       count++;
     }
   }
-  
+
   return -1; /* Not found */
 }
 
-/* 
+/*
  * radius_cmpattr()
  * Compare two attributes to see if they are the same.
  */
-int 
+int
 radius_cmpattr(struct radius_attr_t *t1, struct radius_attr_t *t2) {
   if (t1->t != t2->t) return -1;
   if (t1->l != t2->l) return -1;
@@ -966,10 +966,10 @@ radius_cmpattr(struct radius_attr_t *t1, struct radius_attr_t *t2) {
 
    *src points to the first byte of "Salt".
  */
-int radius_keydecode(struct radius_t *this, 
-		     uint8_t *dst, size_t dstsize, size_t *dstlen, 
+int radius_keydecode(struct radius_t *this,
+		     uint8_t *dst, size_t dstsize, size_t *dstlen,
 		     uint8_t *src, size_t srclen,
-		     uint8_t *authenticator, 
+		     uint8_t *authenticator,
 		     char *secret, size_t secretlen) {
   MD5_CTX context;
   unsigned char b[RADIUS_MD5LEN];
@@ -980,7 +980,7 @@ int radius_keydecode(struct radius_t *this,
     syslog(LOG_ERR, "radius_keydecode MPPE attribute content len must be at least 18, len=%zd", srclen);
     return -1;
   }
- 
+
   blocks = ((int)srclen - 2) / RADIUS_MD5LEN;
 
   if ((blocks * RADIUS_MD5LEN + 2) != (int)srclen) {
@@ -997,15 +997,15 @@ int radius_keydecode(struct radius_t *this,
 
   /* First byte of the plainstring is the length of the key */
   *dstlen = (size_t)(src[2] ^ b[0]);
-  
+
   if (*dstlen > (srclen - 3)) {
     syslog(LOG_ERR,"radius_keydecode not enough encrypted data bytes for indicated key length = %zd (bytes)", *dstlen);
-    return -1; 
+    return -1;
   }
 
   if (*dstlen > dstsize) {
     syslog(LOG_ERR,"radius_keydecode output buffer for plaintext key is too small");
-    return -1; 
+    return -1;
   }
 
   /* Note: first byte is used for len, only 15 bytes of key */
@@ -1031,14 +1031,14 @@ int radius_keydecode(struct radius_t *this,
   return 0;
 }
 
-/* 
+/*
  * radius_keyencode()
  * Encode an MPPE key using MD5.
  */
-int radius_keyencode(struct radius_t *this, 
-		     uint8_t *dst, size_t dstsize, size_t *dstlen, 
+int radius_keyencode(struct radius_t *this,
+		     uint8_t *dst, size_t dstsize, size_t *dstlen,
 		     uint8_t *src, size_t srclen,
-		     uint8_t *authenticator, 
+		     uint8_t *authenticator,
 		     char *secret, size_t secretlen) {
   MD5_CTX context;
   unsigned char b[RADIUS_MD5LEN];
@@ -1047,7 +1047,7 @@ int radius_keyencode(struct radius_t *this,
 
   blocks = ((int)srclen + 1) / RADIUS_MD5LEN;
   if ((blocks * RADIUS_MD5LEN) < ((int)srclen + 1)) blocks++;
-  
+
   if (((blocks * RADIUS_MD5LEN) + 2) > (int)dstsize) {
     syslog(LOG_ERR, "radius_keyencode dstsize too small");
     return -1;
@@ -1091,14 +1091,14 @@ int radius_keyencode(struct radius_t *this,
 }
 
 
-/* 
+/*
  * radius_pwdecode()
  * Decode a password using MD5. Also used for MSCHAPv1 MPPE keys.
  */
-int radius_pwdecode(struct radius_t *this, 
-		    uint8_t *dst, size_t dstsize, size_t *dstlen, 
-		    uint8_t *src, size_t srclen, 
-		    uint8_t *authenticator, 
+int radius_pwdecode(struct radius_t *this,
+		    uint8_t *dst, size_t dstsize, size_t *dstlen,
+		    uint8_t *src, size_t srclen,
+		    uint8_t *authenticator,
 		    char *secret, size_t secretlen) {
   int i, n;
   MD5_CTX context;
@@ -1158,7 +1158,7 @@ int radius_pwdecode(struct radius_t *this,
     MD5Final(output, &context);
     for (i = 0; i < RADIUS_MD5LEN; i++)
       dst[i + n] = src[i + n] ^ output[i];
-  }    
+  }
 
   /*
   if (_options.debug) {
@@ -1176,15 +1176,15 @@ int radius_pwdecode(struct radius_t *this,
 }
 
 
-/* 
+/*
  * radius_pwencode()
  * Encode a password using MD5.
  */
-int radius_pwencode(struct radius_t *this, 
+int radius_pwencode(struct radius_t *this,
 		    uint8_t *dst, size_t dstsize,
-		    size_t *dstlen, 
-		    uint8_t *src, size_t srclen, 
-		    uint8_t *authenticator, 
+		    size_t *dstlen,
+		    uint8_t *src, size_t srclen,
+		    uint8_t *authenticator,
 		    char *secret, size_t secretlen) {
 
   unsigned char output[RADIUS_MD5LEN];
@@ -1198,7 +1198,7 @@ int radius_pwencode(struct radius_t *this,
   memset(dst, 0, dstsize);
 
   /* Make dstlen multiple of 16 */
-  if (srclen & 0x0f) 
+  if (srclen & 0x0f)
     *dstlen = (srclen & 0xf0) + 0x10; /* Padding 1 to 15 zeros */
   else
     *dstlen = srclen;                 /* No padding */
@@ -1210,7 +1210,7 @@ int radius_pwencode(struct radius_t *this,
   }
 
   /* Copy first 128 octets of src into dst */
-  if (srclen > 128) 
+  if (srclen > 128)
     memcpy(dst, src, 128);
   else
     memcpy(dst, src, srclen);
@@ -1233,19 +1233,19 @@ int radius_pwencode(struct radius_t *this,
     MD5Final(output, &context);
     for (i = 0; i < RADIUS_MD5LEN; i++)
       dst[i + n] ^= output[i];
-  }    
+  }
 
   return 0;
 }
 
 
-/* 
+/*
  * radius_new()
  * Allocate a new radius instance.
  */
 int radius_new(struct radius_t **this,
-	       struct in_addr *listen, uint16_t port, 
-	       int coanocheck, 
+	       struct in_addr *listen, uint16_t port,
+	       int coanocheck,
 	       int proxy) {
   struct sockaddr_in addr;
   struct radius_t *new_radius;
@@ -1267,7 +1267,7 @@ int radius_new(struct radius_t **this,
     if (_options.proxyport && _options.proxysecret) {
       new_radius->proxylisten.s_addr = _options.proxylisten.s_addr;
       new_radius->proxyport = _options.proxyport;
-      
+
       if (_options.proxyaddr.s_addr) {
 	new_radius->proxyaddr.s_addr = _options.proxyaddr.s_addr;
 	if (_options.proxymask.s_addr)
@@ -1278,10 +1278,10 @@ int radius_new(struct radius_t **this,
 	new_radius->proxyaddr.s_addr = ~0;
 	new_radius->proxymask.s_addr = 0;
       }
-      
-      if ((new_radius->proxysecretlen = 
+
+      if ((new_radius->proxysecretlen =
 	   strlen(_options.proxysecret)) < RADIUS_SECRETSIZE) {
-	memcpy(new_radius->proxysecret, _options.proxysecret, 
+	memcpy(new_radius->proxysecret, _options.proxysecret,
 	       new_radius->proxysecretlen);
       } else {
 	new_radius->proxysecretlen = 0;
@@ -1297,7 +1297,7 @@ int radius_new(struct radius_t **this,
   new_radius->qnext = 0;
   new_radius->first = -1;
   new_radius->last = -1;
-  
+
   /* Initialise radius socket */
   if ((new_radius->fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
     syslog(LOG_ERR, "%s: socket() failed!", strerror(errno));
@@ -1305,7 +1305,7 @@ int radius_new(struct radius_t **this,
     free(new_radius);
     return -1;
   }
-  
+
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
   addr.sin_addr = new_radius->ouraddr;
@@ -1314,7 +1314,7 @@ int radius_new(struct radius_t **this,
   syslog(LOG_DEBUG, "RADIUS client %s:%d",
 	  inet_ntoa(new_radius->ouraddr),
 	  new_radius->ourport);
-  
+
   if (bind(new_radius->fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
     syslog(LOG_ERR, "%s: bind() failed!", strerror(errno));
     fclose(new_radius->urandom_fp);
@@ -1327,7 +1327,7 @@ int radius_new(struct radius_t **this,
     syslog(LOG_ERR, "%s: fopen(/dev/urandom, r) failed", strerror(errno));
     return -1;
   }
-  
+
 #ifdef ENABLE_RADPROXY
   if (proxy) {     /* Initialise proxy socket */
 
@@ -1338,12 +1338,12 @@ int radius_new(struct radius_t **this,
       free(new_radius);
       return -1;
     }
-    
+
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr = new_radius->proxylisten;
     addr.sin_port = htons(new_radius->proxyport);
-    
+
     if (bind(new_radius->proxyfd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
       syslog(LOG_ERR, "%s: bind() failed for proxylisten!", strerror(errno));
       fclose(new_radius->urandom_fp);
@@ -1369,18 +1369,18 @@ int radius_init_q(struct radius_t *this, int size) {
   } else {
     this->qsize = size;
   }
-  
+
   if (!(this->queue = calloc(sizeof(struct radius_queue_t), size)))
     return -1;
 
   return 0;
 }
 
-/* 
+/*
  * radius_free()
- * Free a radius instance. (Undo radius_new() 
+ * Free a radius instance. (Undo radius_new()
  */
-int 
+int
 radius_free(struct radius_t *this) {
   if (this->queue) {
     free(this->queue);
@@ -1410,13 +1410,13 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
   } else {
     this->hisaddr0.s_addr = _options.radiusserver1.s_addr;
     this->hisaddr1.s_addr = _options.radiusserver2.s_addr;
-    
+
     if ((this->secretlen = strlen(_options.radiussecret)) > RADIUS_SECRETSIZE) {
-      syslog(LOG_ERR, "Radius secret too long. Truncating to %d characters", 
+      syslog(LOG_ERR, "Radius secret too long. Truncating to %d characters",
 	      RADIUS_SECRETSIZE);
       this->secretlen = RADIUS_SECRETSIZE;
     }
-    
+
     memcpy(this->secret, _options.radiussecret, this->secretlen);
   }
 
@@ -1426,7 +1426,7 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
   else {
     this->authport = RADIUS_AUTHPORT;
   }
-  
+
   if (_options.radiusacctport) {
     this->acctport = _options.radiusacctport;
   }
@@ -1438,12 +1438,12 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
     memcpy(this->nas_hwaddr, hwaddr, sizeof(this->nas_hwaddr));
   }
 
-  this->lastreply = 0; /* Start out using server 0 */  
+  this->lastreply = 0; /* Start out using server 0 */
   return;
 }
 
 
-/* 
+/*
  * radius_set_cb_ind()
  * Set callback function received requests
  */
@@ -1456,7 +1456,7 @@ int radius_set_cb_ind(struct radius_t *this,
 }
 
 
-/* 
+/*
  * radius_set_cb_auth_conf()
  * Set callback function for responses to access request
  */
@@ -1469,7 +1469,7 @@ int (*cb_auth_conf) (struct radius_t *radius, struct radius_packet_t *pack,
   return 0;
 }
 
-/* 
+/*
  * radius_set_cb_acct_conf()
  * Set callback function for responses to accounting request
  */
@@ -1482,7 +1482,7 @@ int (*cb_acct_conf) (struct radius_t *radius, struct radius_packet_t *pack,
   return 0;
 }
 
-/* 
+/*
  * radius_set_cb_coa_ind()
  * Set callback function for coa and disconnect request
  */
@@ -1496,7 +1496,7 @@ int (*cb_coa_ind) (struct radius_t *radius, struct radius_packet_t *pack,
 }
 
 
-/* 
+/*
  * radius_req()
  * Send of a packet and place it in the retransmit queue
  */
@@ -1506,46 +1506,46 @@ int radius_req(struct radius_t *this,
 {
   struct sockaddr_in addr;
   size_t len = ntohs(pack->length);
-  
+
   /* Place packet in queue */
   if (radius_queue_in(this, pack, cbp)) {
     syslog(LOG_ERR, "could not put in queue");
     return -1;
   }
-  
+
   memset(&addr, 0, sizeof(addr));
   addr.sin_family = AF_INET;
-  
+
   if (!this->lastreply) {
     addr.sin_addr = this->hisaddr0;
   }
   else {
     addr.sin_addr = this->hisaddr1;
   }
-  
+
   if (pack->code == RADIUS_CODE_ACCOUNTING_REQUEST)
     addr.sin_port = htons(this->acctport);
   else
     addr.sin_port = htons(this->authport);
-  
+
 #if(_debug_ > 1)
-    syslog(LOG_DEBUG, "RADIUS id=%d sent to %s:%d", 
+    syslog(LOG_DEBUG, "RADIUS id=%d sent to %s:%d",
 	    pack->id,
-	    inet_ntoa(addr.sin_addr), 
+	    inet_ntoa(addr.sin_addr),
 	    ntohs(addr.sin_port));
 #endif
-  
+
   if (sendto(this->fd, pack, len, 0,
 	     (struct sockaddr *) &addr, sizeof(addr)) < 0) {
     syslog(LOG_ERR, "%s: sendto(%s) failed!", strerror(errno), inet_ntoa(addr.sin_addr));
     return -1;
-  } 
-    
+  }
+
   return 0;
 }
 
 #ifdef ENABLE_RADPROXY
-/* 
+/*
  * radius_resp()
  * Send of a packet (no retransmit queue)
  */
@@ -1565,22 +1565,22 @@ int radius_resp(struct radius_t *this,
     radius_hmac_md5(this, pack, this->proxysecret, this->proxysecretlen, ma->v.t);
   }
 
-  radius_authresp_authenticator(this, pack, req_auth, 
+  radius_authresp_authenticator(this, pack, req_auth,
 				this->proxysecret,
 				this->proxysecretlen);
-  
+
   if (sendto(this->proxyfd, pack, len, 0,
 	     (struct sockaddr *) peer, sizeof(struct sockaddr_in)) < 0) {
     syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
     return -1;
-  } 
-  
+  }
+
   return 0;
 }
 #endif
 
 #ifdef ENABLE_COA
-/* 
+/*
  * radius_coaresp()
  * Send of a packet (no retransmit queue)
  */
@@ -1603,25 +1603,25 @@ int radius_coaresp(struct radius_t *this,
   radius_authresp_authenticator(this, pack, req_auth,
 				this->secret,
 				this->secretlen);
-  
+
   if (sendto(this->fd, pack, len, 0,
 	     (struct sockaddr *) peer, sizeof(struct sockaddr_in)) < 0) {
     syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
     return -1;
-  } 
-  
+  }
+
   return 0;
 }
 #endif
 
-/* 
+/*
  * radius_default_pack()
- * Return an empty packet which can be used in subsequent to 
+ * Return an empty packet which can be used in subsequent to
  * radius_addattr()
  */
 int
 radius_default_pack(struct radius_t *this,
-		    struct radius_packet_t *pack, 
+		    struct radius_packet_t *pack,
 		    int code)
 {
   memset(pack, 0, RADIUS_PACKSIZE);
@@ -1643,7 +1643,7 @@ radius_default_pack(struct radius_t *this,
       pack->id = this->nextid++;
   }
 
-  if (fread(pack->authenticator, 1, RADIUS_AUTHLEN, 
+  if (fread(pack->authenticator, 1, RADIUS_AUTHLEN,
 	    this->urandom_fp) != RADIUS_AUTHLEN) {
     syslog(LOG_ERR, "%s: fread() failed", strerror(errno));
     return -1;
@@ -1658,8 +1658,8 @@ radius_default_pack(struct radius_t *this,
   case RADIUS_CODE_ACCOUNTING_REQUEST:
 
     radius_addattr(this, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT, 
-		   RADIUS_ATTR_CHILLISPOT_VERSION, 
+		   RADIUS_VENDOR_CHILLISPOT,
+		   RADIUS_ATTR_CHILLISPOT_VERSION,
 		   0, (uint8_t*)VERSION, strlen(VERSION));
 
     if (code == RADIUS_CODE_ACCOUNTING_REQUEST) {
@@ -1668,37 +1668,37 @@ radius_default_pack(struct radius_t *this,
        * For accounting, always indicate the "direction" of accounting
        * up / down data measurements.
        */
-      
-      uint32_t v = _options.swapoctets ? 
+
+      uint32_t v = _options.swapoctets ?
 	RADIUS_VALUE_CHILLISPOT_NAS_VIEWPOINT :
 	RADIUS_VALUE_CHILLISPOT_CLIENT_VIEWPOINT;
-      
-      radius_addattr(this, pack, 
+
+      radius_addattr(this, pack,
 		     RADIUS_ATTR_VENDOR_SPECIFIC,
 		     RADIUS_VENDOR_CHILLISPOT,
-		     RADIUS_ATTR_CHILLISPOT_ACCT_VIEW_POINT, 
+		     RADIUS_ATTR_CHILLISPOT_ACCT_VIEW_POINT,
 		     v, 0, 0);
 
-      radius_addattr(this, pack, RADIUS_ATTR_EVENT_TIMESTAMP, 0, 0, 
-		     mainclock_wall(), NULL, 0); 
-      
+      radius_addattr(this, pack, RADIUS_ATTR_EVENT_TIMESTAMP, 0, 0,
+		     mainclock_wall(), NULL, 0);
+
     }
     break;
 
   default:
     break;
   }
-  
+
   return 0;
 }
 
 
-/* 
+/*
  * radius_authcheck()
  * Check that the authenticator on a reply is correct.
  */
-static int 
-radius_authcheck(struct radius_t *this, struct radius_packet_t *pack, 
+static int
+radius_authcheck(struct radius_t *this, struct radius_packet_t *pack,
 		 struct radius_packet_t *pack_req)
 {
   uint8_t auth[RADIUS_AUTHLEN];
@@ -1708,105 +1708,105 @@ radius_authcheck(struct radius_t *this, struct radius_packet_t *pack,
   MD5Init(&context);
   MD5Update(&context, (uint8_t *) pack, RADIUS_HDRSIZE-RADIUS_AUTHLEN);
   MD5Update(&context, pack_req->authenticator, RADIUS_AUTHLEN);
-  MD5Update(&context, ((uint8_t *) pack) + RADIUS_HDRSIZE, 
+  MD5Update(&context, ((uint8_t *) pack) + RADIUS_HDRSIZE,
 	    ntohs(pack->length) - RADIUS_HDRSIZE);
   MD5Update(&context, (uint8_t *)this->secret, this->secretlen);
   MD5Final(auth, &context);
 
   res = memcmp(pack->authenticator, auth, RADIUS_AUTHLEN);
-  if (res) 
+  if (res)
     syslog(LOG_WARNING, "Authenticator "
 	     AUTH_FMT"(pkt) != "AUTH_FMT"(calc)",
 	     AUTH_ARG(pack->authenticator),
 	     AUTH_ARG(auth));
-  
+
   return res;
 }
 
-/* 
+/*
  * radius_acctcheck()
  * Check that the authenticator on an accounting request is correct.
  */
-static int 
+static int
 radius_acctcheck(struct radius_t *this, struct radius_packet_t *pack)
 {
   uint8_t auth[RADIUS_AUTHLEN];
   uint8_t padd[RADIUS_AUTHLEN] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
   MD5_CTX context;
-  
+
   MD5Init(&context);
   MD5Update(&context, (uint8_t *)pack, RADIUS_HDRSIZE-RADIUS_AUTHLEN);
   MD5Update(&context, (uint8_t *)padd, RADIUS_AUTHLEN);
-  MD5Update(&context, ((uint8_t *)pack) + RADIUS_HDRSIZE, 
+  MD5Update(&context, ((uint8_t *)pack) + RADIUS_HDRSIZE,
 	    ntohs(pack->length) - RADIUS_HDRSIZE);
   MD5Update(&context, (uint8_t *)this->secret, this->secretlen);
   MD5Final(auth, &context);
-  
+
   return memcmp(pack->authenticator, auth, RADIUS_AUTHLEN);
 }
 
 #ifdef ENABLE_EXTADMVSA
 static void chilli_extadmvsa(struct radius_t *radius,
-			     struct app_conn_t *appconn, 
+			     struct app_conn_t *appconn,
 			     struct radius_packet_t *req,
 			     struct radius_packet_t *resp) {
   uint32_t service_type = 0;
   struct radius_attr_t *attr = 0;
-  
-  if (!radius_getattr(req, &attr, RADIUS_ATTR_SERVICE_TYPE, 
+
+  if (!radius_getattr(req, &attr, RADIUS_ATTR_SERVICE_TYPE,
 		      0, 0, 0)) {
     service_type = ntohl(attr->v.i);
   }
-  
-  if (_options.extadmvsa[0].attr && 
+
+  if (_options.extadmvsa[0].attr &&
       service_type == RADIUS_SERVICE_TYPE_ADMIN_USER) {
-    
+
     if (req && !resp) {
       struct stat statbuf;
       uint8_t b[256];
       int i, fd, len;
-      
+
       memset(&statbuf, 0, sizeof(statbuf));
-      
+
       for (i=0; i < EXTADMVSA_ATTR_CNT; i++) {
-	if (!_options.extadmvsa[i].attr_vsa && 
+	if (!_options.extadmvsa[i].attr_vsa &&
 	    !_options.extadmvsa[i].attr)
 	  break;
-	
+
 	if (!_options.extadmvsa[i].data[0])
 	  continue;
-	
+
 	if (stat(_options.extadmvsa[i].data, &statbuf)) {
 	  syslog(LOG_DEBUG, "Skipping %s, does not exist",
 		  _options.extadmvsa[i].data);
 	  continue;
 	}
-	
+
 	if (statbuf.st_size > 127) {
-	  syslog(LOG_ERR, "%d File %s too big", 
+	  syslog(LOG_ERR, "%d File %s too big",
 		  errno, _options.extadmvsa[i].data);
 	  continue;
 	}
-	
+
 	if ((fd = open(_options.extadmvsa[i].data, O_RDONLY)) < 0) {
 	  syslog(LOG_ERR, "%s: Failed to open %s", strerror(errno), _options.extadmvsa[i].data);
 	  continue;
 	}
-	
+
 	syslog(LOG_DEBUG, "Reading %s", _options.extadmvsa[i].data);
-	
+
 	len = read(fd, b, sizeof(b));
 	close(fd);
-	
+
 	if (len > 0 && len < sizeof(b)-1) {
 	  while (len > 1 && isspace(b[len-1])) len--;
 	  if (!_options.extadmvsa[i].attr_vsa) {
-	    radius_addattr(radius, req, _options.extadmvsa[i].attr, 
+	    radius_addattr(radius, req, _options.extadmvsa[i].attr,
 			   0, 0, 0, b, len);
 	  } else {
 	    radius_addattr(radius, req,
-			   RADIUS_ATTR_VENDOR_SPECIFIC, 
-			   _options.extadmvsa[i].attr_vsa, 
+			   RADIUS_ATTR_VENDOR_SPECIFIC,
+			   _options.extadmvsa[i].attr_vsa,
 			   _options.extadmvsa[i].attr, 0, b, len);
 	  }
 	}
@@ -1814,30 +1814,30 @@ static void chilli_extadmvsa(struct radius_t *radius,
     } else if (req && resp) {
       int i;
       for (i=0; i < EXTADMVSA_ATTR_CNT; i++) {
-	
-	if (!_options.extadmvsa[i].attr_vsa && 
+
+	if (!_options.extadmvsa[i].attr_vsa &&
 	    !_options.extadmvsa[i].attr)
 	  break;
-	
+
 	if (!_options.extadmvsa[i].attr_vsa) {
 #if(_debug_)
 	  syslog(LOG_DEBUG, "looking for attr %d", _options.extadmvsa[i].attr);
 #endif
-	  if (radius_getattr(resp, &attr, _options.extadmvsa[i].attr, 
+	  if (radius_getattr(resp, &attr, _options.extadmvsa[i].attr,
 			     0, 0, 0)) {
 	    syslog(LOG_DEBUG, "didn't find attr %d", _options.extadmvsa[i].attr);
 	    attr = 0;
 	  }
 	} else {
 #if(_debug_)
-	  syslog(LOG_DEBUG, "looking for attr %d/%d", _options.extadmvsa[i].attr_vsa, 
+	  syslog(LOG_DEBUG, "looking for attr %d/%d", _options.extadmvsa[i].attr_vsa,
 		  _options.extadmvsa[i].attr);
 #endif
-	  if (radius_getattr(resp, &attr, 
-			     RADIUS_ATTR_VENDOR_SPECIFIC, 
-			     _options.extadmvsa[i].attr_vsa, 
+	  if (radius_getattr(resp, &attr,
+			     RADIUS_ATTR_VENDOR_SPECIFIC,
+			     _options.extadmvsa[i].attr_vsa,
 			     _options.extadmvsa[i].attr, 0)) {
-	    syslog(LOG_DEBUG, "didn't find attr %d/%d", _options.extadmvsa[i].attr_vsa, 
+	    syslog(LOG_DEBUG, "didn't find attr %d/%d", _options.extadmvsa[i].attr_vsa,
 		    _options.extadmvsa[i].attr);
 	    attr = 0;
 	  }
@@ -1847,18 +1847,18 @@ static void chilli_extadmvsa(struct radius_t *radius,
 	  memset(v, 0, sizeof(v));
 	  memcpy(v, attr->v.t, attr->l - 2);
 	  syslog(LOG_DEBUG, "Running script %s %d",
-		  _options.extadmvsa[i].script, 
+		  _options.extadmvsa[i].script,
 		  attr->l - 2);
-	  if (chilli_fork(CHILLI_PROC_SCRIPT, 	 
+	  if (chilli_fork(CHILLI_PROC_SCRIPT,
 			  _options.extadmvsa[i].script) == 0) {
 	    if (execl(
 #ifdef ENABLE_CHILLISCRIPT
-		      SBINDIR "/chilli_script", SBINDIR "/chilli_script", 
-		      _options.binconfig, 
+		      SBINDIR "/chilli_script", SBINDIR "/chilli_script",
+		      _options.binconfig,
 #else
 		      _options.extadmvsa[i].script,
 #endif
-		      _options.extadmvsa[i].script, 
+		      _options.extadmvsa[i].script,
 		      v, (char *) 0) != 0) {
 	      syslog(LOG_ERR, "%d exec %s failed",
 		      errno, _options.extadmvsa[i].script);
@@ -1874,7 +1874,7 @@ static void chilli_extadmvsa(struct radius_t *radius,
 }
 #endif
 
-/* 
+/*
  * radius_decaps()
  * Read and process a received radius packet.
  */
@@ -1886,7 +1886,7 @@ int radius_decaps(struct radius_t *this, int idx) {
   struct sockaddr_in addr;
   socklen_t fromlen = sizeof(addr);
 
-  if ((status = recvfrom(this->fd, &pack, sizeof(pack), 0, 
+  if ((status = recvfrom(this->fd, &pack, sizeof(pack), 0,
 			 (struct sockaddr *) &addr, &fromlen)) <= 0) {
     syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
     return -1;
@@ -1899,14 +1899,14 @@ int radius_decaps(struct radius_t *this, int idx) {
   }
 
   if (ntohs(pack.length) != (uint16_t)status) {
-    syslog(LOG_WARNING, 
+    syslog(LOG_WARNING,
 	"%d Received radius packet with wrong length field %d !=%zd!",
 	     errno, ntohs(pack.length), status);
     return -1;
   }
 
   syslog(LOG_DEBUG, "Received RADIUS packet id=%d", pack.id);
-  
+
   switch (pack.code) {
   case RADIUS_CODE_DISCONNECT_REQUEST:
   case RADIUS_CODE_COA_REQUEST:
@@ -1919,13 +1919,13 @@ int radius_decaps(struct radius_t *this, int idx) {
 	return -1;
       }
     }
-    
+
     if (radius_acctcheck(this, &pack)) {
       syslog(LOG_WARNING, "RADIUS id=%d Authenticator did not match!", pack.id);
       return -1;
     }
     break;
-    
+
   default:
     /* Check that reply is from correct address */
     if ((addr.sin_addr.s_addr != this->hisaddr0.s_addr) &&
@@ -1934,7 +1934,7 @@ int radius_decaps(struct radius_t *this, int idx) {
 	       inet_ntoa(addr.sin_addr));
       return -1;
     }
-    
+
     /* Check that UDP source port is correct */
     if ((addr.sin_port != htons(this->authport)) &&
 	(addr.sin_port != htons(this->acctport))) {
@@ -1942,9 +1942,9 @@ int radius_decaps(struct radius_t *this, int idx) {
 	       ntohs(addr.sin_port));
       return -1;
     }
-    
+
     if (radius_queue_out(this, -1, &pack, &pack_req, &cbp)) {
-      syslog(LOG_WARNING, "RADIUS id %d was not found in queue!", 
+      syslog(LOG_WARNING, "RADIUS id %d was not found in queue!",
 	       (int) pack.id);
       return -1;
     }
@@ -1954,10 +1954,10 @@ int radius_decaps(struct radius_t *this, int idx) {
       this->lastreply = 0;
     else
       this->lastreply = 1;
-    
+
     break;
   }
-  
+
   /* TODO: Check consistency of attributes vs packet length */
 
 #ifdef ENABLE_EXTADMVSA
@@ -1970,7 +1970,7 @@ int radius_decaps(struct radius_t *this, int idx) {
     for (i=0; i < MAX_MODULES; i++) {
       if (!_options.modules[i].name[0]) break;
       if (_options.modules[i].ctx) {
-	struct chilli_module *m = 
+	struct chilli_module *m =
 	  (struct chilli_module *)_options.modules[i].ctx;
 	if (m->radius_handler) {
 	  int res = m->radius_handler(this, (struct app_conn_t *)cbp,
@@ -2019,13 +2019,13 @@ int radius_decaps(struct radius_t *this, int idx) {
     syslog(LOG_WARNING, "Received unknown RADIUS packet %d!", pack.code);
     return -1;
   }
-  
+
   syslog(LOG_WARNING, "Received unknown RADIUS packet %d!", pack.code);
   return -1;
 }
 
 #ifdef ENABLE_RADPROXY
-/* 
+/*
  * radius_proxy_ind()
  * Read and process a received radius packet.
  */
@@ -2035,7 +2035,7 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
   struct sockaddr_in addr;
   socklen_t fromlen = sizeof(addr);
 
-  if ((status = recvfrom(this->proxyfd, &pack, sizeof(pack), 0, 
+  if ((status = recvfrom(this->proxyfd, &pack, sizeof(pack), 0,
 			 (struct sockaddr *) &addr, &fromlen)) <= 0) {
     syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
     return -1;
@@ -2061,7 +2061,7 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
        (pack.code == RADIUS_CODE_DISCONNECT_REQUEST) ||
        (pack.code == RADIUS_CODE_STATUS_REQUEST))) {
 
-    if ( (addr.sin_addr.s_addr   & this->proxymask.s_addr) != 
+    if ( (addr.sin_addr.s_addr   & this->proxymask.s_addr) !=
 	 (this->proxyaddr.s_addr & this->proxymask.s_addr) ) {
 
       syslog(LOG_WARNING, "Received RADIUS proxy request from wrong address %s",
@@ -2069,10 +2069,10 @@ int radius_proxy_ind(struct radius_t *this, int idx) {
 
       return -1;
     }
-    
+
     return this->cb_ind(this, &pack, &addr);
   }
-  
+
   syslog(LOG_WARNING, "Received unknown RADIUS proxy packet %d!", pack.code);
   return -1;
 }

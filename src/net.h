@@ -1,20 +1,20 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 
@@ -50,7 +50,7 @@
 #define TP_STATUS_SEND_REQUEST	0x1
 #define TP_STATUS_SENDING	0x2
 #define TP_STATUS_WRONG_FORMAT	0x4
-#endif 
+#endif
 
 struct device_stats
 {
@@ -133,9 +133,9 @@ struct queue_item
   void			*buf;
   unsigned		bufsize;
   unsigned		length;
-  
+
   unsigned long long	offset;
-  
+
   unsigned		hdrlen;
   union
   {
@@ -293,7 +293,7 @@ int net_select_write_fd(select_ctx *sctx, int fd);
 ssize_t net_read_eth(net_interface *netif, void *d, size_t slen);
 
 #if defined(__linux__)
-ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, 
+ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen,
 		      struct sockaddr_ll *dest);
 #endif
 
@@ -302,7 +302,7 @@ ssize_t net_read_dispatch_eth(net_interface *netif, net_handler func, void *ctx)
 
 int net_open_nfqueue(net_interface *netif, uint16_t q, int (*cb)());
 
-int net_select_reg(select_ctx *sctx, int fd, char evts, 
+int net_select_reg(select_ctx *sctx, int fd, char evts,
 		   select_callback cb, void *ctx, int idx);
 int net_select_rereg(select_ctx *sctx, int oldfd, int newfd);
 int net_select_dereg(select_ctx *sctx, int oldfd);
@@ -346,10 +346,10 @@ int net_close(net_interface *netif);
 
 int dev_set_flags(char const *dev, int flags);
 int dev_get_flags(char const *dev, int *flags);
-int dev_set_addr(char const *devname, struct in_addr *addr, 
+int dev_set_addr(char const *devname, struct in_addr *addr,
 		 struct in_addr *gateway, struct in_addr *netmask);
 
-int net_set_address(net_interface *netif, struct in_addr *address, 
+int net_set_address(net_interface *netif, struct in_addr *address,
 		    struct in_addr *gateway, struct in_addr *netmask);
 
 void net_run(net_interface *iface);

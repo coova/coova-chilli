@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #include "chilli.h"
@@ -50,7 +50,7 @@ int option_aton(struct in_addr *addr, struct in_addr *mask,
   c = sscanf(pool, "%u.%u.%u.%u/%u.%u.%u.%u",
 	     &a1, &a2, &a3, &a4,
 	     &m1, &m2, &m3, &m4);
-  
+
   switch (c) {
   case 4:
     mask->s_addr = htonl(0xffffff00);
@@ -119,7 +119,7 @@ static int opt_run(int argc, char **argv, int reload) {
     syslog(LOG_ERR, "%s: fork() returned -1!", strerror(errno));
     return -1;
   }
-  
+
   if (status > 0) { /* Parent */
     return status;
   }
@@ -169,14 +169,14 @@ int options_load(int argc, char **argv, bstring bt) {
 	if (offline) {
 	  execl(
 #ifdef ENABLE_CHILLISCRIPT
-		SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig, 
+		SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig,
 #else
 		offline,
 #endif
 		offline, (char *) 0);
 
 	  break;
-	} 
+	}
 
 	syslog(LOG_WARNING, "could not generate configuration (%s), sleeping one second", file);
 	sleep(1);
@@ -227,7 +227,7 @@ int options_fromfd(int fd, bstring bt) {
 #ifdef ENABLE_MODULES
   char isReload[MAX_MODULES];
 #endif
-  
+
   int rd = safe_read(fd, &o, sizeof(o));
 
   if (rd == sizeof(o)) {
@@ -249,7 +249,7 @@ int options_fromfd(int fd, bstring bt) {
       }
     }
   }
-  
+
   close(fd);
 
   if (has_error) {
@@ -257,7 +257,7 @@ int options_fromfd(int fd, bstring bt) {
 	    errno, fd, SBINDIR);
     return 0;
   }
-  
+
   if (!option_s_l(bt, &o.binconfig)) return 0;
   if (!option_s_l(bt, &o.pidfile)) return 0;
   if (!option_s_l(bt, &o.statedir)) return 0;
@@ -291,7 +291,7 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.radiuslocationname)) return 0;
   if (!option_s_l(bt, &o.locationname)) return 0;
   if (!option_s_l(bt, &o.proxysecret)) return 0;
-  
+
   if (!option_s_l(bt, &o.dhcpif)) return 0;
 #ifdef ENABLE_MULTILAN
   for (i=0; i < MAX_MOREIF; i++) {
@@ -363,7 +363,7 @@ int options_fromfd(int fd, bstring bt) {
 #endif
 
   for (i=0; i < MAX_UAM_DOMAINS; i++) {
-    if (!option_s_l(bt, &o.uamdomains[i])) 
+    if (!option_s_l(bt, &o.uamdomains[i]))
       return 0;
   }
 
@@ -394,7 +394,7 @@ int options_fromfd(int fd, bstring bt) {
     if (!_options.modules[i].name[0]) break;
     if (!_options.modules[i].ctx) continue;
     else {
-      struct chilli_module *m = 
+      struct chilli_module *m =
 	(struct chilli_module *)_options.modules[i].ctx;
       if (!strcmp(_options.modules[i].name, o.modules[i].name))
 	isReload[i]=1;
@@ -415,18 +415,18 @@ int options_fromfd(int fd, bstring bt) {
   for (i=0; i < MAX_MODULES; i++) {
     if (!_options.modules[i].name[0]) break;
     syslog(LOG_DEBUG, "Loading module %s",_options.modules[i].name);
-    chilli_module_load(&_options.modules[i].ctx, 
+    chilli_module_load(&_options.modules[i].ctx,
 		       _options.modules[i].name);
     if (_options.modules[i].ctx) {
-      struct chilli_module *m = 
+      struct chilli_module *m =
 	(struct chilli_module *)_options.modules[i].ctx;
       if (m->initialize)
-	m->initialize(_options.modules[i].conf, isReload[i]); 
+	m->initialize(_options.modules[i].conf, isReload[i]);
     }
   }
 #endif
 
-  /* 
+  /*
    *  We took the buffer and this bt will be destroyed.
    *  Give the bstring a bogus buffer so that bdestroy() works.
    */
@@ -561,7 +561,7 @@ int options_save(char *file, bstring bt) {
 #endif
 
   for (i = 0; i < MAX_UAM_DOMAINS; i++) {
-    if (!option_s_s(bt, &o.uamdomains[i])) 
+    if (!option_s_s(bt, &o.uamdomains[i]))
       return 0;
   }
 
@@ -602,7 +602,7 @@ int options_save(char *file, bstring bt) {
 
     if (_options.uid) {
       if (chown(file, _options.uid, _options.gid)) {
-	syslog(LOG_ERR, "%d could not chown() %s", 
+	syslog(LOG_ERR, "%d could not chown() %s",
 		errno, _options.binconfig);
       }
     }
@@ -629,7 +629,7 @@ int process_options(int argc, char **argv, int minimal) {
   /*
    *  If ran with arguments besides the load file, then pass
    *  off the arguments to chilli_opt for processing. If chilli_opt
-   *  returns true, then we'll also start the server. 
+   *  returns true, then we'll also start the server.
    *
    */
 
@@ -643,7 +643,7 @@ int process_options(int argc, char **argv, int minimal) {
       }
     }
   }
-  
+
   umask(process_mask);
   return !reload_options(argc, argv);
 }
@@ -661,7 +661,7 @@ int reload_options(int argc, char **argv) {
 }
 
 void options_destroy() {
-  if (_options._data) 
+  if (_options._data)
     free(_options._data);
 }
 
@@ -674,7 +674,7 @@ void options_cleanup() {
     if (!_options.modules[i].name[0]) break;
     if (!_options.modules[i].ctx) continue;
     else {
-      struct chilli_module *m = 
+      struct chilli_module *m =
 	(struct chilli_module *)_options.modules[i].ctx;
       if (m->destroy)
 	m->destroy(0);

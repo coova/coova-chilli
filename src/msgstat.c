@@ -30,7 +30,7 @@ main()
 					buf->msg_perm.uid, buf->msg_perm.gid,
 					buf->msg_perm.mode);
 				printf("cbytes: %d, qnum: %d, qbytes %d\n",
-					buf->msg_cbytes, buf->msg_qnum, 
+					buf->msg_cbytes, buf->msg_qnum,
 					buf->msg_qbytes);
 			}
 			break;

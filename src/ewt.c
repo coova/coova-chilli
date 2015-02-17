@@ -1,20 +1,20 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 #include "chilli.h"
@@ -91,13 +91,13 @@ static int chilli_sessions(bstring b) {
 
   while (conn) {
     struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
-    
+
     if (appconn && appconn->s_state.authenticated) {
-      
+
     } else {
       state = "<font color=red>Redirect</font>";
     }
-    
+
     bassignformat(s,
 		  "{"
 		  "\"state\":\"%s\","
@@ -118,7 +118,7 @@ static int chilli_sessions(bstring b) {
     bcatcstr(s, "},");
     bconcat(b, s);
   }
-  
+
   bcatcstr(b, "]} ]}");
   return 0;
 }
@@ -159,8 +159,8 @@ static void json_walk(bstring prefix, struct json_object *obj) {
   }
 }
 
-int ewtapi(struct redir_t *redir, 
-	   struct redir_socket_t *sock, 
+int ewtapi(struct redir_t *redir,
+	   struct redir_socket_t *sock,
 	   struct redir_conn_t *conn,
 	   struct redir_httpreq_t *httpreq) {
   char path[1024];
@@ -178,7 +178,7 @@ int ewtapi(struct redir_t *redir,
   if (httpreq->qs) {
     http_parse_input(httpreq->qs, strlen(httpreq->qs), 0);
   }
-  
+
   if (httpreq->clen) {
     struct json_object *obj = 0;
     bblk_fromfd(b, 0, httpreq->clen);
@@ -202,7 +202,7 @@ int ewtapi(struct redir_t *redir,
 		"Expires: Fri, 01 Jan 1971 00:00:00 GMT\r\n"
 		"Cache-Control: no-cache, must-revalidate\r\n"
 		"Content-type: application/json\r\n\r\n");
-  
+
   if (safe_write(1, b->data, b->slen) < 0) {
     syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
   }
@@ -223,11 +223,11 @@ int ewtapi(struct redir_t *redir,
       bdestroy(res);
       return 0;
     }
-  } 
+  }
 
   setenv("EWTAPI", "1", 1);
   syslog(LOG_DEBUG, "EWT API Running %s", *binqqargs);
-  
+
   execv(*binqqargs, binqqargs);
   syslog(LOG_ERR, "%s: count not exec %s", strerror(errno), *binqqargs);
   return -1;

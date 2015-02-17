@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 
@@ -30,8 +30,8 @@
  */
 #define PKT_ETH_PROTO_IP     0x0800
 #define PKT_ETH_PROTO_ARP    0x0806
-#define PKT_ETH_PROTO_WOL    0x0842	
-#define PKT_ETH_PROTO_ETHBR  0x6558 
+#define PKT_ETH_PROTO_WOL    0x0842
+#define PKT_ETH_PROTO_ETHBR  0x6558
 #define PKT_ETH_PROTO_8021Q  0x8100
 #define PKT_ETH_PROTO_IPX    0x8137
 #define PKT_ETH_PROTO_IPv6   0x86dd
@@ -42,7 +42,7 @@
 #define PKT_ETH_PROTO_CHILLI 0xbeef
 
 #define PKT_IP_PLEN            1500 /* IP Payload Length */
-#define PKT_IP_VER_HLEN        0x45 
+#define PKT_IP_VER_HLEN        0x45
 #define PKT_IP_ALEN               4
 #define PKT_IP_HLEN              20
 #define PKT_IPv6_HLEN            40
@@ -266,18 +266,18 @@ struct pkt_icmphdr_t {
 
 
 /*
-  0      7 8     15 16    23 24    31  
-  +--------+--------+--------+--------+ 
-  |     Source      |   Destination   | 
-  |      Port       |      Port       | 
-  +--------+--------+--------+--------+ 
-  |                 |                 | 
-  |     Length      |    Checksum     | 
-  +--------+--------+--------+--------+ 
-  |                                     
-  |          data octets ...            
-  +---------------- ...                 
-  
+  0      7 8     15 16    23 24    31
+  +--------+--------+--------+--------+
+  |     Source      |   Destination   |
+  |      Port       |      Port       |
+  +--------+--------+--------+--------+
+  |                 |                 |
+  |     Length      |    Checksum     |
+  +--------+--------+--------+--------+
+  |
+  |          data octets ...
+  +---------------- ...
+
   User Datagram Header Format
 */
 
@@ -291,8 +291,8 @@ struct pkt_udphdr_t {
 /*
   TCP Header Format
 
-    0                   1                   2                   3   
-    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |          Source Port          |       Destination Port        |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
