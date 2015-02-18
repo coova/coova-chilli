@@ -253,8 +253,8 @@ int options_fromfd(int fd, bstring bt) {
   close(fd);
 
   if (has_error) {
-    syslog(LOG_ERR, "%d could not read configuration, some kind of mismatch fd=%d %s",
-	    errno, fd, SBINDIR);
+    syslog(LOG_ERR, "could not read configuration, "
+           "some kind of mismatch fd=%d %s", fd, SBINDIR);
     return 0;
   }
 

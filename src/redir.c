@@ -2331,14 +2331,24 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       }
       else if (!redir_getparam(redir, httpreq->qs, "password", bt)) {
 	conn->authdata.type = REDIR_AUTH_PAP;
-	conn->authdata.v.papmsg.len = bt->slen / 2;
+        if (_options.nochallenge) {
+          /* Not using the challenge, therefore we expect the
+           * password in "plain" text.
+          */
+          bstrtocstr(bt, (char*)conn->authdata.v.papmsg.password,
+                     sizeof(conn->authdata.v.papmsg.password));
+          conn->authdata.v.papmsg.len =
+              strlen((char*)conn->authdata.v.papmsg.password);
+        } else {
+          conn->authdata.v.papmsg.len = bt->slen / 2;
 
-	if (conn->authdata.v.papmsg.len > RADIUS_PWSIZE)
-	  conn->authdata.v.papmsg.len = RADIUS_PWSIZE;
+          if (conn->authdata.v.papmsg.len > RADIUS_PWSIZE)
+            conn->authdata.v.papmsg.len = RADIUS_PWSIZE;
 
-	redir_hextochar(bt->data, bt->slen,
-			conn->authdata.v.papmsg.password,
-			conn->authdata.v.papmsg.len);
+          redir_hextochar(bt->data, bt->slen,
+                          conn->authdata.v.papmsg.password,
+                          conn->authdata.v.papmsg.len);
+        }
       }
       else {
 	if ((conn->s_state.redir.uamprotocol == REDIR_UAMPROT_WISPR2) &&
@@ -2694,18 +2704,22 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   switch (conn->authdata.type) {
 
   case REDIR_AUTH_PAP:
-
-    for (m=0; m < RADIUS_PWSIZE;) {
-      for (n=0; n < REDIR_MD5LEN; m++, n++) {
-	user_password[m] =
-	  conn->authdata.v.papmsg.password[m] ^ chap_challenge[n];
+    if (_options.nochallenge) {
+      safe_strncpy((char*)user_password,
+                   (char*)conn->authdata.v.papmsg.password,
+                   sizeof(user_password));
+    } else {
+      for (m=0; m < RADIUS_PWSIZE;) {
+        for (n=0; n < REDIR_MD5LEN; m++, n++) {
+          user_password[m] =
+              conn->authdata.v.papmsg.password[m] ^ chap_challenge[n];
+        }
       }
     }
-
     user_password[conn->authdata.v.papmsg.len] = 0;
 
     syslog(LOG_DEBUG, "User password %d [%s]",
-	    conn->authdata.v.papmsg.len, user_password);
+           conn->authdata.v.papmsg.len, user_password);
 
 #ifdef HAVE_OPENSSL
     if (_options.mschapv2) {
@@ -2996,7 +3010,9 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
     }
   }
 
-  syslog(LOG_DEBUG, "user %s %s", conn->s_state.redir.username, match ? "found" : "not found");
+  syslog(LOG_DEBUG, "user %s %s",
+         conn->s_state.redir.username,
+         match ? "found" : "not found");
 
   fclose(f);
   free(line);
