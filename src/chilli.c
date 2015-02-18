@@ -7134,10 +7134,16 @@ int chilli_main(int argc, char **argv) {
   int keep_going = 1;
   int reload_config = 0;
 
+  int syslog_options = LOG_PID;
+  int syslog_debug_options = 0;
+
+#ifdef LOG_PERROR
+  syslog_debug_options = LOG_PERROR;
+#endif
+
   i = 0;
-  /* open a connection to the syslog daemon */
-  /*openlog(PACKAGE, LOG_PID, LOG_DAEMON);*/
-  openlog(PACKAGE, (LOG_PID | LOG_PERROR), LOG_DAEMON);
+  /* Start out also logging to stderr until we load options. */
+  openlog(PACKAGE, syslog_options|syslog_debug_options, LOG_DAEMON);
 
   options_init();
 
@@ -7223,7 +7229,9 @@ int chilli_main(int argc, char **argv) {
 
   closelog();
 
-  openlog(PACKAGE, LOG_PID, (_options.logfacility<<3));
+  if (_options.debug)
+    syslog_options |= syslog_debug_options;
+  openlog(PACKAGE, syslog_options, (_options.logfacility<<3));
 
   chilli_signals(&keep_going, &reload_config);
 
