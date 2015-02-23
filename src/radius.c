@@ -824,7 +824,7 @@ radius_addattr(struct radius_t *this, struct radius_packet_t *pack,
       vlen = RADIUS_ATTR_VLEN-8;
     }
 
-    if ((length+vlen+2) > RADIUS_PACKSIZE) {
+    if ((length+vlen+8) > RADIUS_PACKSIZE) {
       syslog(LOG_ERR, "No more space!");
       return -1;
     }
