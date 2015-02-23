@@ -19,7 +19,6 @@
 #define MAIN_FILE
 
 #include "chilli.h"
-#include "debug.h"
 
 struct options_t _options;
 

@@ -22,6 +22,7 @@
 #define _CHILLI_H
 
 #include "system.h"
+#include "debug.h"
 #include "chilli_limits.h"
 #include "tun.h"
 #include "ippool.h"

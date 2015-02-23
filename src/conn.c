@@ -18,7 +18,6 @@
  */
 
 #include "chilli.h"
-#include "debug.h"
 
 #if defined(ENABLE_CHILLIPROXY) || defined(ENABLE_CHILLIRADSEC) || defined(ENABLE_CHILLIREDIR)
 

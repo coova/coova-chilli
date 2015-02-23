@@ -21,7 +21,6 @@
 #define MAIN_FILE
 
 #include "chilli.h"
-#include "debug.h"
 
 #ifdef USING_CURL
 #include <curl/curl.h>

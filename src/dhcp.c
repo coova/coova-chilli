@@ -23,7 +23,6 @@
 #ifdef ENABLE_MODULES
 #include "chilli_module.h"
 #endif
-#include "debug.h"
 
 const uint32_t DHCP_OPTION_MAGIC = 0x63825363;
 static uint8_t bmac[PKT_ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};

@@ -19,7 +19,6 @@
  */
 
 #include "chilli.h"
-#include "debug.h"
 
 #ifdef HAVE_PATRICIA
 struct node_pass_through_list {
