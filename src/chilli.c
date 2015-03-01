@@ -4456,7 +4456,6 @@ int cb_radius_auth_conf(struct radius_t *radius,
     hisip.s_addr = appconn->reqip.s_addr;
   }
 
-#ifdef ENABLE_DHCPRADIUS
   if (force_ip) {
     if (appconn->uplink) {
       struct ippoolm_t *ipm = (struct ippoolm_t *)appconn->uplink;
@@ -4485,6 +4484,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
     }
   }
 
+#ifdef ENABLE_DHCPRADIUS
   if (_options.dhcpradius) {
     struct radius_attr_t *attr = NULL;
     if (dhcpconn) {
