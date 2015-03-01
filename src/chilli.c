@@ -7232,6 +7232,8 @@ int chilli_main(int argc, char **argv) {
   if (_options.debug)
     syslog_options |= syslog_debug_options;
   openlog(PACKAGE, syslog_options, (_options.logfacility<<3));
+  if (!_options.debug)
+    setlogmask(LOG_UPTO(_options.loglevel));
 
   chilli_signals(&keep_going, &reload_config);
 

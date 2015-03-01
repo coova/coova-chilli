@@ -20,6 +20,7 @@ option  "reload"        r "Send reload after reconfigure" flag off
 option  "forgiving"     F "Forgiving of many configuration errors" flag off
 option  "debugfacility" - "Which modules to print debug messages for" int default="1" no
 option  "logfacility"   - "Syslog facility to be used for logging" int default="-1" no
+option  "loglevel"      - "Syslog log level to use in setlogmask (0 emerg, 7 debug)" int default="6" no
 
 option  "conf"        c "Read configuration file"       string no
 option  "interval"    - "Re-read configuration file at this interval"  int default="3600" no

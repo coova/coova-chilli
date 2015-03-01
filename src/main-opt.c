@@ -322,6 +322,8 @@ int main(int argc, char **argv) {
     syslog(LOG_WARNING, "tap not implemented. build with --enable-tap");
 #endif
   _options.foreground = args_info.fg_flag;
+  _options.logfacility = args_info.logfacility_arg;
+  _options.loglevel = args_info.loglevel_arg;
   _options.interval = args_info.interval_arg;
   _options.lease = args_info.lease_arg;
   _options.leaseplus = args_info.leaseplus_arg;
@@ -333,7 +335,6 @@ int main(int argc, char **argv) {
     syslog(LOG_WARNING, "EAPOL not implemented. build with --enable-eapol");
 #endif
   _options.swapoctets = args_info.swapoctets_flag;
-  _options.logfacility = args_info.logfacility_arg;
   _options.chillixml = args_info.chillixml_flag;
   _options.macauth = args_info.macauth_flag;
   _options.macreauth = args_info.macreauth_flag;
