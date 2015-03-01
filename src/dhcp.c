@@ -282,6 +282,7 @@ dhcp_get_appconn_pkt(struct dhcp_conn_t *conn,
   return (struct app_conn_t *) conn ? conn->peer : 0;
 }
 
+#ifdef ENABLE_UAMANYIP
 static struct app_conn_t *
 dhcp_get_appconn_addr(struct dhcp_conn_t *conn, struct in_addr *dst) {
 #ifdef ENABLE_LAYER3
@@ -295,6 +296,7 @@ dhcp_get_appconn_addr(struct dhcp_conn_t *conn, struct in_addr *dst) {
 
   return (struct app_conn_t *) conn->peer;
 }
+#endif
 
 /**
  * dhcp_sendGARP()

@@ -2571,6 +2571,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
 	/*memcpy(packet_arp->sha, appconn->hismac, PKT_ETH_ALEN);*/
 	memcpy(packet_arp->sha, dhcp->rawif[0].hwaddr, PKT_ETH_ALEN);
 
+#ifdef ENABLE_UAMANYIP
 	/*
 	 * ARP replies need to tell the NATed ip address,
 	 * when client is an anyip client.
@@ -2585,9 +2586,9 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
 	    syslog(LOG_DEBUG, "SNAT anyip in ARP response from %s to %s",
 		    ip, snatip);
 	  }
-	} else {
-	  memcpy(packet_arp->spa, &appconn->hisip.s_addr, PKT_IP_ALEN);
-	}
+	} else
+#endif
+        memcpy(packet_arp->spa, &appconn->hisip.s_addr, PKT_IP_ALEN);
 
 	/* Target address */
 	memcpy(packet_arp->tha, p_arp->sha, PKT_ETH_ALEN);
