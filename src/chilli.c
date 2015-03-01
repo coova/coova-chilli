@@ -7224,7 +7224,7 @@ int chilli_main(int argc, char **argv) {
 
 #ifdef LOG_NFACILITIES
   if (_options.logfacility < 0 || _options.logfacility > LOG_NFACILITIES)
-    _options.logfacility= LOG_FAC(LOG_LOCAL6);
+    _options.logfacility= LOG_FAC(LOG_DAEMON);
 #endif
 
   closelog();
