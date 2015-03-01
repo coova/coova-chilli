@@ -768,12 +768,12 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
 #if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI)
     struct iovec iov;
     struct msghdr msg;
-    struct cmsghdr *cmsg;
     union {
       struct cmsghdr cmsg;
       char buf[CMSG_SPACE(sizeof(struct tpacket_auxdata))];
     } cmsg_buf;
 #ifdef ENABLE_IEEE8021Q
+    struct cmsghdr *cmsg;
     struct vlan_tag {
       u_int16_t tpid;
       u_int16_t tci;

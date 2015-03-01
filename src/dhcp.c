@@ -5498,8 +5498,6 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
 
 #ifdef ENABLE_IEEE8021Q
   uint16_t tag = conn->tag8021q;
-#else
-  uint16_t tag = 0;
 #endif
 
   char do_checksum = 0;
