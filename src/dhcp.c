@@ -1926,10 +1926,10 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	}
 	while (*p++ != 0); /* TODO */
 
-	for (n=0; n<4; n++) {
-	  if (query_len < 256)
-	    query[query_len++] = *p++;
-	}
+        for (n=0; n<4; n++) {
+          if (query_len < 256)
+            query[query_len++] = *p++;
+        }
 
 	query[query_len++] = 0xc0;
 	query[query_len++] = 0x0c;
@@ -2869,12 +2869,6 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
 
   pack_ethh = pkt_ethhdr(pack);
   pack_iph  = pkt_iphdr(pack);
-  pack_udph = pkt_udphdr(pack);
-  pack_dhcp = pkt_dhcppkt(pack);
-
-  pack_dhcp->op     = DHCP_BOOTREPLY;
-  pack_dhcp->htype  = DHCP_HTYPE_ETH;
-  pack_dhcp->hlen   = PKT_ETH_ALEN;
 
   /* IP header */
   pack_iph->version_ihl = PKT_IP_VER_HLEN;
@@ -2886,6 +2880,13 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
   pack_iph->ttl = 0x10;
   pack_iph->protocol = 0x11;
   pack_iph->check = 0; /* Calculate at end of packet */
+
+  pack_udph = pkt_udphdr(pack);
+  pack_dhcp = pkt_dhcppkt(pack);
+
+  pack_dhcp->op     = DHCP_BOOTREPLY;
+  pack_dhcp->htype  = DHCP_HTYPE_ETH;
+  pack_dhcp->hlen   = PKT_ETH_ALEN;
 
   if (is_req_dhcp) {
     pack_dhcp->xid      = req_dhcp->xid;
@@ -3694,7 +3695,6 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #endif
     return 0;
   }
-
 
   /*
    *  Check to see if we know MAC address
