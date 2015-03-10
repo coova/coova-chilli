@@ -114,3 +114,11 @@ miniportal/wispr.sh
 
 src/cmdline.[ch]
 autom4te.cache
+
+debian/coova-chilli.debhelper.log
+debian/coova-chilli.postinst.debhelper
+debian/coova-chilli.postrm.debhelper
+debian/coova-chilli.prerm.debhelper
+debian/coova-chilli.substvars
+debian/coova-chilli/
+debian/files
