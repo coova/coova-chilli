@@ -100,8 +100,10 @@ int main(int argc, char **argv) {
     chap_ident = atoi(argv[idx+4]);
 
   /* challenge - argv 1 */
+  if (strlen(argv[idx+1]) >= sizeof(buffer))
+    return usage(argv[0]);
   memset(buffer, 0, sizeof(buffer));
-  strcpy(buffer, argv[idx+1]);
+  safe_strncpy(buffer, argv[idx+1], sizeof(buffer));
   hextochar(buffer, challenge, MD5LEN);
 
   /* uamsecret - argv 2 */
