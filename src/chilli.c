@@ -105,6 +105,7 @@ CHILD *child_create(uint8_t type, pid_t pid, char *name) {
 
 CHILD *child_insert_head(CHILD *list, uint8_t type, pid_t pid, char *name) {
   CHILD *newnode = child_create(type, pid, name);
+  if (!newnode) return 0;
   newnode->next = list;
   return newnode;
 }
@@ -113,8 +114,10 @@ int child_add_pid(uint8_t type, pid_t pid, char *name) {
   if (!children) {
     /* Create the list head, the main process */
     children = child_create(CHILLI_PROC, getpid(), "[chilli]");
+    if (!children) return -1;
   }
   children->next = child_insert_head(children->next, type, pid, name);
+  if (!children->next) return -1;
   return 0;
 }
 
@@ -293,9 +296,10 @@ pid_t chilli_fork(uint8_t type, char *name) {
   pid = safe_fork();
 
   if (pid > 0) {
-    if (child_add_pid(type, pid, name) == 0)
-      child_count++;
-    child_count_tot++;
+    if (child_add_pid(type, pid, name) == 0) {
+      ++child_count;
+      ++child_count_tot;
+    }
   }
 
   return pid;
