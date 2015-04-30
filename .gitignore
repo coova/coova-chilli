@@ -46,6 +46,7 @@ www/Makefile
 www/Makefile.in
 
 aclocal.m4
+compile
 conf/CoovaChilliLib.py
 conf/chilli
 conf/chilli.conf
@@ -61,6 +62,7 @@ config.log
 config.status
 configure
 depcomp
+distro/nethserver/coova-chilli.spec
 distro/redhat/coova-chilli.spec
 distro/suse/coova-chilli.spec
 doc/chilli-radius.5
@@ -77,8 +79,10 @@ doc/chilli_rtmon.1
 doc/chilli_script.1
 install-sh
 libtool
+ltmain.sh
 m4/
 missing
+stamp-h1
 
 src/chilli
 src/chilli_opt
@@ -110,3 +114,11 @@ miniportal/wispr.sh
 
 src/cmdline.[ch]
 autom4te.cache
+
+debian/coova-chilli.debhelper.log
+debian/coova-chilli.postinst.debhelper
+debian/coova-chilli.postrm.debhelper
+debian/coova-chilli.prerm.debhelper
+debian/coova-chilli.substvars
+debian/coova-chilli/
+debian/files

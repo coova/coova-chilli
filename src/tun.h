@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2002, 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
+ * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 
@@ -53,7 +53,7 @@ struct tun_t {
   for (i=0; i<(tun)->_interface_count; i++) {\
     if (net_issetR(&(tun)->_interfaces[i], (fds)) &&\
         tun_decaps((tun), i) < 0)\
-      log_err(0, "tun_decaps()"); } }
+      syslog(LOG_ERR, "tun_decaps()"); } }
 
 #define tun_close(tun) { int i; \
     for (i=0; i<(tun)->_interface_count; i++) \
@@ -67,7 +67,7 @@ struct tun_t {
 #define tun_fdsetR(tun,fds) net_fdsetR(&(tun)->_tuntap, (fds))
 #define tun_ckread(tun,fds) \
   if (net_issetR(&(tun)->_tuntap, (fds)) && tun_decaps((tun), i) < 0)\
-    log_err(0, "tun_decaps()"))
+    syslog(LOG_ERR, "tun_decaps()"))
 #define tun_close(tun) net_close(&(tun)->_tuntap)
 #endif
 

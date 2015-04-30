@@ -138,10 +138,10 @@ static void
 ChallengeResponse(u_char *challenge, u_char *pwHash, u_char *response)
 {
   u_char  ZPasswordHash[21];
-  
+
   memset(ZPasswordHash, '\0', sizeof ZPasswordHash);
   memcpy(ZPasswordHash, pwHash, 16);
-  
+
   DesEncrypt(challenge, ZPasswordHash +  0, response + 0);
   DesEncrypt(challenge, ZPasswordHash +  7, response + 8);
   DesEncrypt(challenge, ZPasswordHash + 14, response + 16);
@@ -152,9 +152,9 @@ u_char *to_unicode(u_char *non_uni) {
   int i;
 
   retUni = (u_char *)calloc(1, (strlen((char *)non_uni)+1)*2);
-  
+
   if (!retUni) return NULL;
-  
+
   for (i = 0; i < strlen((char *)non_uni); i++) {
     retUni[(2*i)] = non_uni[i];
   }
@@ -172,11 +172,11 @@ NtPasswordHash(u_char *Password, int len, u_char *hash)
     u_char *uniPassword = to_unicode(Password);
 
     len *= 2;
-    
+
     MD4_Init(&MD4context);
     MD4_Update(&MD4context, uniPassword, len);
     MD4_Final(hash, &MD4context);
-    
+
     free(uniPassword);
   }
 }
@@ -216,10 +216,10 @@ ChallengeHash(u_char *PeerChallenge, u_char *AuthenticatorChallenge,
 }
 
 void
-GenerateNTResponse(u_char *AuthenticatorChallenge, 
+GenerateNTResponse(u_char *AuthenticatorChallenge,
 		   u_char *PeerChallenge,
-                   u_char *UserName, int UserNameLen, 
-		   u_char *Password, int PasswordLen, 
+                   u_char *UserName, int UserNameLen,
+		   u_char *Password, int PasswordLen,
 		   u_char *Response)
 {
   u_char Challenge[8];

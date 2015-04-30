@@ -1,20 +1,20 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
+ * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,17 +40,17 @@ char *get_ip_str(const struct sockaddr *sa, char *s, size_t maxlen)
     inet_ntop(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr),
 	      s, maxlen);
     break;
- 
+
   case AF_INET6:
     inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)sa)->sin6_addr),
 	      s, maxlen);
     break;
- 
+
   default:
     strncpy(s, "Unknown AF", maxlen);
     break;
   }
- 
+
   return s;
 }
 
@@ -118,28 +118,28 @@ int main(void)
 	       u[0], u[1], u[2], u[3], u[4], u[5]);
       }
     }
-    
+
     if (0 == ioctl(sockfd, SIOCGIFNETMASK, ifr) &&
 	strcmp("255.255.255.255", inet_ntoa(inaddrr(ifr_addr.sa_data)))) {
       printf("Netmask:    %s\n", inet_ntoa(inaddrr(ifr_addr.sa_data)));
     }
-    
+
     if (ifr->ifr_flags & IFF_BROADCAST) {
       if (0 == ioctl(sockfd, SIOCGIFBRDADDR, ifr) &&
 	  strcmp("0.0.0.0", inet_ntoa(inaddrr(ifr_addr.sa_data)))) {
         printf("Broadcast:  %s\n", inet_ntoa(inaddrr(ifr_addr.sa_data)));
       }
     }
-    
+
     if (0 == ioctl(sockfd, SIOCGIFMTU, ifr)) {
       printf("MTU:        %u\n",  ifr->ifr_mtu);
     }
-    
+
     if (0 == ioctl(sockfd, SIOCGIFMETRIC, ifr)) {
       printf("Metric:     %u\n",  ifr->ifr_metric);
     } printf("\n");
   }
-  
+
   close(sockfd);
   return EXIT_SUCCESS;
 }

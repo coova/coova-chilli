@@ -1,21 +1,21 @@
 /* -*- mode: c; c-basic-offset: 2 -*- */
-/* 
+/*
  * Copyright (C) 2003, 2004, 2005 Mondru AB.
  * Copyright (C) 2007-2012 David Bird (Coova Technologies) <support@coova.com>
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
+ * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- * 
+ *
  */
 
 
@@ -113,12 +113,12 @@ struct authdata_t {
     struct papmsg_t  papmsg;
     struct chapmsg_t chapmsg;
     struct eapmsg_t  eapmsg;
-  } v; 
+  } v;
 };
 
 struct redir_conn_t {
-  /* 
-   *  Parameters from HTTP request 
+  /*
+   *  Parameters from HTTP request
    */
   unsigned short type;                 /* REDIR_LOGOUT, LOGIN, PRELOGIN, CHALLENGE, MSDOWNLOAD */
   unsigned char format;                /* REDIR_FMT_DEFAULT, REDIR_FMT_JSON */
@@ -131,9 +131,9 @@ struct redir_conn_t {
    */
   struct authdata_t  authdata;  /* Contains the data for the authentication, password, EAP msg, etc ... */
   int response; /* 0: No radius response yet; 1:Reject; 2:Accept; 3:Timeout */
-  
-  /* 
-   *  RADIUS session parameters 
+
+  /*
+   *  RADIUS session parameters
    */
   struct in_addr nasip;
   uint32_t nasport;
@@ -189,7 +189,7 @@ typedef struct _redir_request {
   char write_closed:1;
 
   int clen;
-  
+
   /*bstring url;*/
   /*bstring data;*/
   /*bstring post;*/
@@ -201,9 +201,9 @@ typedef struct _redir_request {
   time_t last_active;
 
   struct sockaddr_in baddr;
-  
+
   struct conn_t conn;
-  
+
 #ifdef HAVE_SSL
   openssl_con *sslcon;
 #endif
@@ -242,9 +242,9 @@ struct redir_t {
 #ifdef ENABLE_UAMUIPORT
   int uiport;
 #endif
-  
+
   int starttime;
-  
+
   char *url;
   char *homepage;
   char *secret;
@@ -255,17 +255,17 @@ struct redir_t {
   struct in_addr radiuslisten;
 
   unsigned char nas_hwaddr[6];   /* Hardware address of NAS */
-  
-  int (*cb_getstate) (struct redir_t *redir, 
+
+  int (*cb_getstate) (struct redir_t *redir,
 		      struct sockaddr_in *address,
 		      struct sockaddr_in *baddress,
 		      struct redir_conn_t *conn);
 
-  int (*cb_handle_url) (struct redir_t *redir, 
+  int (*cb_handle_url) (struct redir_t *redir,
 			struct redir_conn_t *conn,
 			struct redir_httpreq_t *httpreq,
 			struct redir_socket_t *socket,
-			struct sockaddr_in *peer, 
+			struct sockaddr_in *peer,
 			redir_request *rreq);
 };
 
@@ -297,17 +297,17 @@ int redir_accept(struct redir_t *redir, int idx);
 int redir_setchallenge(struct redir_t *redir, struct in_addr *addr, uint8_t *challenge);
 
 int redir_set_cb_getstate(struct redir_t *redir,
-  int (*cb_getstate) (struct redir_t *redir, 
+  int (*cb_getstate) (struct redir_t *redir,
 		      struct sockaddr_in *address,
 		      struct sockaddr_in *baddress,
 		      struct redir_conn_t *conn));
 
-int redir_main(struct redir_t *redir, int infd, int outfd, 
-	       struct sockaddr_in *address, 
+int redir_main(struct redir_t *redir, int infd, int outfd,
+	       struct sockaddr_in *address,
 	       struct sockaddr_in *baddress,
 	       int isui, redir_request *rreq);
 
-int redir_json_fmt_redir(struct redir_conn_t *conn, bstring json, 
+int redir_json_fmt_redir(struct redir_conn_t *conn, bstring json,
 			 char *userurl, char *redirurl, uint8_t *hismac,
 			 struct in_addr *hisip);
 
@@ -342,12 +342,12 @@ int session_json_fmt(struct session_state *state,
 
 
 int session_redir_json_fmt(bstring json, char *userurl, char *redirurl,
-                           bstring logouturl, uint8_t *hismac, 
+                           bstring logouturl, uint8_t *hismac,
 			   struct in_addr *hisip);
 
-int redir_reply(struct redir_t *redir, struct redir_socket_t *sock, 
+int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 		struct redir_conn_t *conn, int res, bstring url,
-		long int timeleft, char* hexchal, char* uid, 
+		long int timeleft, char* hexchal, char* uid,
 		char* userurl, char* reply, char* redirurl,
 		uint8_t *hismac, struct in_addr *hisip, char *qs);
 
