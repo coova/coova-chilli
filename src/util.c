@@ -20,12 +20,6 @@
 
 #include "chilli.h"
 
-char *safe_strncpy(char *dst, const char *src, size_t size) {
-  if (!size) return dst;
-  dst[--size] = '\0';
-  return strncpy(dst, src, size);
-}
-
 int statedir_file(char *dst, int dlen, char *file, char *deffile) {
   char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
   if (!file && deffile) {
