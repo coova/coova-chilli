@@ -93,7 +93,7 @@ int static chilliauth() {
     int fd;
     if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) >= 0) {
       memset(&ifr, 0, sizeof(ifr));
-      safe_strncpy(ifr.ifr_name, _options.dhcpif, IFNAMSIZ);
+      strlcpy(ifr.ifr_name, _options.dhcpif, IFNAMSIZ);
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
 	syslog(LOG_ERR, "%s: ioctl(d=%d, request=%d) failed", strerror(errno), fd, SIOCGIFHWADDR);
       }

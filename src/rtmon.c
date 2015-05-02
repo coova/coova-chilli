@@ -406,7 +406,7 @@ void rtmon_check_updates(struct rtmon_t *rtmon) {
 	      sin->sin_family = AF_INET;
 	      sin->sin_addr.s_addr = rtmon->_routes[i].gateway.s_addr;
 
-	      safe_strncpy(areq.arp_dev, rtmon->_ifaces[j].devname, sizeof(areq.arp_dev));
+	      strlcpy(areq.arp_dev, rtmon->_ifaces[j].devname, sizeof(areq.arp_dev));
 
 	      while (attempt < retries) {
 		struct sockaddr_in addr;
@@ -531,7 +531,7 @@ void rtmon_discover_ifaces(struct rtmon_t *rtmon) {
     memset(&ri, 0, sizeof(ri));
 
     /* device name and address */
-    safe_strncpy(ri.devname, ifr->ifr_name, sizeof(ri.devname));
+    strlcpy(ri.devname, ifr->ifr_name, sizeof(ri.devname));
     ri.address = inaddr(ifr_addr);
 
     /* index */

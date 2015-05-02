@@ -318,7 +318,7 @@ static int process_args(int argc, char *argv[], int argidx) {
 	  parse_mac(((uint8_t *)args[i].field), argv[argidx+1]);
 	  break;
 	case CMDSOCK_FIELD_STRING:
-	  safe_strncpy(((char *)args[i].field), argv[argidx+1], args[i].length);
+	  strlcpy(((char *)args[i].field), argv[argidx+1], args[i].length);
 	  break;
 	case CMDSOCK_FIELD_INTEGER:
 	  switch(args[i].length) {

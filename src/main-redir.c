@@ -548,12 +548,12 @@ redir_handle_url(struct redir_t *redir,
 #ifdef ENABLE_REDIRINJECT
   char hasInject = 0;
   if (conn->s_params.flags & UAM_INJECT_URL) {
-    safe_strncpy((char *) req->inject_url,
+    strlcpy((char *) req->inject_url,
 		 (char *) conn->s_params.url,
 		 REDIRINJECT_MAX);
     matches = hasInject = 1;
   } else if (_options.inject && *_options.inject) {
-    safe_strncpy((char *) req->inject_url,
+    strlcpy((char *) req->inject_url,
 		 (char *) _options.inject,
 		 REDIRINJECT_MAX);
     matches = hasInject = 1;
@@ -821,7 +821,7 @@ int main(int argc, char **argv) {
 
   process_options(argc, argv, 1);
 
-  safe_strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
+  strlcpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
 
 #ifdef SIOCGIFHWADDR
   if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {

@@ -205,7 +205,7 @@ static int bstrtocstr(bstring src, char *dst, unsigned int len) {
     return 0;
   }
 
-  safe_strncpy(dst, (char*)src->data, len);
+  strlcpy(dst, (char*)src->data, len);
   return 0;
 }
 
@@ -1776,7 +1776,7 @@ int redir_ipc(struct redir_t *redir) {
 
     local.sun_family = AF_UNIX;
 
-    safe_strncpy(local.sun_path, filedest,
+    strlcpy(local.sun_path, filedest,
 		 sizeof(local.sun_path));
     unlink(local.sun_path);
 
@@ -2107,7 +2107,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	if (!p2) { syslog(LOG_ERR, "parse error"); return -1; }
 	*p2 = 0;
 
-	safe_strncpy(path, p1, sizeof(httpreq->path));
+	strlcpy(path, p1, sizeof(httpreq->path));
 
 	syslog(LOG_DEBUG, "The path: %s", path);
 
@@ -2160,7 +2160,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  if (p2) {
 	    *p2 = 0;
 
-	    safe_strncpy(httpreq->qs, p1, sizeof(httpreq->qs));
+	    strlcpy(httpreq->qs, p1, sizeof(httpreq->qs));
 
 #if(_debug_ > 1)
 	    syslog(LOG_DEBUG, "Query string: %s", httpreq->qs);
@@ -2183,7 +2183,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	if (!strncasecmp(buffer,"Host:",5)) {
 	  p = buffer + 5;
 	  while (*p && isspace((int) *p)) p++;
-	  safe_strncpy(httpreq->host, p, sizeof(httpreq->host));
+	  strlcpy(httpreq->host, p, sizeof(httpreq->host));
 #if(_debug_ > 1)
 	  syslog(LOG_DEBUG, "Host: %s",httpreq->host);
 #endif
@@ -2201,7 +2201,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	else if (!strncasecmp(buffer,"User-Agent:",11)) {
 	  p = buffer + 11;
 	  while (*p && isspace((int) *p)) p++;
-	  safe_strncpy(conn->s_state.redir.useragent,
+	  strlcpy(conn->s_state.redir.useragent,
 		       p, sizeof(conn->s_state.redir.useragent));
 #if(_debug_)
 	  syslog(LOG_DEBUG, "User-Agent: %s",conn->s_state.redir.useragent);
@@ -2212,7 +2212,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	else if (!strncasecmp(buffer,"Accept-Language:",16)) {
 	  p = buffer + 16;
 	  while (*p && isspace((int) *p)) p++;
-	  safe_strncpy(conn->s_state.redir.acceptlanguage,
+	  strlcpy(conn->s_state.redir.acceptlanguage,
 		       p, sizeof(conn->s_state.redir.acceptlanguage));
 #if(_debug_ > 1)
 	  syslog(LOG_DEBUG, "Accept-Language: %s",conn->s_state.redir.acceptlanguage);
@@ -2222,7 +2222,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	else if (!strncasecmp(buffer,"Cookie:",7)) {
 	  p = buffer + 7;
 	  while (*p && isspace((int) *p)) p++;
-	  safe_strncpy(conn->httpcookie, p, sizeof(conn->httpcookie));
+	  strlcpy(conn->httpcookie, p, sizeof(conn->httpcookie));
 #if(_debug_ > 1)
 	  syslog(LOG_DEBUG, "Cookie: %s",conn->httpcookie);
 #endif
@@ -2704,7 +2704,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   case REDIR_AUTH_PAP:
     if (_options.nochallenge) {
-      safe_strncpy((char*)user_password,
+      strlcpy((char*)user_password,
                    (char*)conn->authdata.v.papmsg.password,
                    sizeof(user_password));
     } else {
@@ -2932,7 +2932,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   switch (conn->authdata.type){
   case REDIR_AUTH_PAP:
     if (_options.nochallenge) {
-      safe_strncpy((char*)user_password,
+      strlcpy((char*)user_password,
                    (char*)conn->authdata.v.papmsg.password,
                    sizeof(user_password));
     } else {
@@ -3146,7 +3146,7 @@ int redir_send_msg(struct redir_t *this, struct redir_msg_t *msg) {
   }
 
   remote.sun_family = AF_UNIX;
-  safe_strncpy(remote.sun_path, filedest,
+  strlcpy(remote.sun_path, filedest,
 	       sizeof(remote.sun_path));
 
 #if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)

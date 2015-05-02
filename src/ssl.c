@@ -241,7 +241,7 @@ _openssl_env_init(openssl_env *env, char *engine, int server) {
 
 #ifdef HAVE_OPENSSL
 static int _openssl_passwd(char *buf, int size, int rwflag, void *ud) {
-  safe_strncpy(buf, _options.sslkeypass, size);
+  strlcpy(buf, _options.sslkeypass, size);
   memset(_options.sslkeypass,'x',strlen(_options.sslkeypass));
   return 0;
 }

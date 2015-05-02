@@ -37,7 +37,7 @@ void garden_print_list(int fd, pass_through *ptlist, int ptcnt) {
   for (i = 0; i < ptcnt; i++) {
     pt = &ptlist[i];
 
-    safe_strncpy(mask, inet_ntoa(pt->mask), sizeof(mask));
+    strlcpy(mask, inet_ntoa(pt->mask), sizeof(mask));
 
     safe_snprintf(line, sizeof(line),
 		  "host=%-16s mask=%-16s proto=%-3d port=%-3d"
@@ -603,15 +603,15 @@ int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen,
       if (is_negate) p++;
       switch (stage) {
       case 0:
-	safe_strncpy(pt.regex_host, p, sizeof(pt.regex_host));
+	strlcpy(pt.regex_host, p, sizeof(pt.regex_host));
 	pt.neg_host = is_negate;
 	break;
       case 1:
-	safe_strncpy(pt.regex_path, p, sizeof(pt.regex_path));
+	strlcpy(pt.regex_path, p, sizeof(pt.regex_path));
 	pt.neg_path = is_negate;
 	break;
       case 2:
-	safe_strncpy(pt.regex_qs, p, sizeof(pt.regex_qs));
+	strlcpy(pt.regex_qs, p, sizeof(pt.regex_qs));
 	pt.neg_qs   = is_negate;
 	break;
       }

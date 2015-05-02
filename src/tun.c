@@ -106,7 +106,7 @@ int tun_name2idx(struct tun_t *tun, char *name) {
       net_interface netif;
       syslog(LOG_DEBUG, "Discoving TUN %s", name);
       memset(&netif, 0, sizeof(netif));
-      safe_strncpy(netif.devname, rti->devname, sizeof(netif.devname));
+      strlcpy(netif.devname, rti->devname, sizeof(netif.devname));
       memcpy(netif.hwaddr, rti->hwaddr, sizeof(netif.hwaddr));
       netif.address = rti->address;
       netif.netmask = rti->netmask;
@@ -177,7 +177,7 @@ int tun_discover(struct tun_t *this) {
     memset(&netif, 0, sizeof(netif));
 
     /* device name and address */
-    safe_strncpy(netif.devname, ifr->ifr_name, sizeof(netif.devname));
+    strlcpy(netif.devname, ifr->ifr_name, sizeof(netif.devname));
     netif.address = inaddr(ifr_addr);
 
     syslog(LOG_DEBUG, "Interface: %s", ifr->ifr_name);
@@ -331,7 +331,7 @@ int tun_gifindex(struct tun_t *this, uint32_t *index) {
   ifr.ifr_addr.sa_family = AF_INET;
   ifr.ifr_dstaddr.sa_family = AF_INET;
   ifr.ifr_netmask.sa_family = AF_INET;
-  safe_strncpy(ifr.ifr_name, tuntap(this).devname, IFNAMSIZ);
+  strlcpy(ifr.ifr_name, tuntap(this).devname, IFNAMSIZ);
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
     syslog(LOG_ERR, "%s: socket() failed", strerror(errno));
   }
@@ -463,7 +463,7 @@ int tun_addaddr(struct tun_t *this, struct in_addr *addr,
   memset(&areq, 0, sizeof(areq));
 
   /* Set up interface name */
-  safe_strncpy(areq.ifra_name, tuntap(this).devname, IFNAMSIZ);
+  strlcpy(areq.ifra_name, tuntap(this).devname, IFNAMSIZ);
 
   ((struct sockaddr_in*) &areq.ifra_addr)->sin_family = AF_INET;
   ((struct sockaddr_in*) &areq.ifra_addr)->sin_len = sizeof(areq.ifra_addr);
@@ -581,7 +581,7 @@ int tuntap_interface(struct _net_interface *netif) {
 
   if (_options.tundev && *_options.tundev &&
       strcmp(_options.tundev, "tap") && strcmp(_options.tundev, "tun"))
-    safe_strncpy(ifr.ifr_name, _options.tundev, IFNAMSIZ);
+    strlcpy(ifr.ifr_name, _options.tundev, IFNAMSIZ);
 
   if (ioctl(netif->fd, TUNSETIFF, (void *) &ifr) < 0) {
     syslog(LOG_ERR, "%s: ioctl() failed", strerror(errno));
@@ -595,7 +595,7 @@ int tuntap_interface(struct _net_interface *netif) {
     int nfd;
     memset(&nifr, 0, sizeof(nifr));
     if ((nfd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) {
-      safe_strncpy(nifr.ifr_name, ifr.ifr_name, IFNAMSIZ);
+      strlcpy(nifr.ifr_name, ifr.ifr_name, IFNAMSIZ);
       nifr.ifr_qlen = _options.txqlen;
 
       if (ioctl(nfd, SIOCSIFTXQLEN, (void *) &nifr) >= 0)
@@ -610,7 +610,7 @@ int tuntap_interface(struct _net_interface *netif) {
   }
 #endif
 
-  safe_strncpy(netif->devname, ifr.ifr_name, IFNAMSIZ);
+  strlcpy(netif->devname, ifr.ifr_name, IFNAMSIZ);
 
   ioctl(netif->fd, TUNSETNOCSUM, 1); /* Disable checksums */
 
@@ -621,7 +621,7 @@ int tuntap_interface(struct _net_interface *netif) {
     netif->flags |= NET_ETHHDR;
     if ((fd = socket (AF_INET, SOCK_DGRAM, 0)) >= 0) {
       memset(&ifr, 0, sizeof(ifr));
-      safe_strncpy(ifr.ifr_name, netif->devname, IFNAMSIZ);
+      strlcpy(ifr.ifr_name, netif->devname, IFNAMSIZ);
       if (ioctl(fd, SIOCGIFHWADDR, &ifr) < 0) {
 	syslog(LOG_ERR, "%s: ioctl(d=%d, request=%d) failed", strerror(errno), fd, SIOCGIFHWADDR);
       }
@@ -660,7 +660,7 @@ int tuntap_interface(struct _net_interface *netif) {
   memset(&areq, 0, sizeof(areq));
 
   /* Set up interface name */
-  safe_strncpy(areq.ifra_name, netif->devname, sizeof(areq.ifra_name));
+  strlcpy(areq.ifra_name, netif->devname, sizeof(areq.ifra_name));
 
   /* Create a channel to the NET kernel. */
   if ((fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
@@ -720,7 +720,7 @@ int tuntap_interface(struct _net_interface *netif) {
 		"tun%d", ppa);
 
   memset(&ifr, 0, sizeof(ifr));
-  safe_strncpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
+  strlcpy(ifr.ifr_name, netif->devname, sizeof(ifr.ifr_name));
   ifr.ifr_ip_muxid = muxid;
 
   if (ioctl(ip_fd, SIOCSIFMUXID, &ifr) < 0) {

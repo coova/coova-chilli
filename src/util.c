@@ -113,7 +113,7 @@ int get_urlparts(char *src, char *host, int hostsize, int *port, int *uripos) {
     return -1;
   }
 
-  safe_strncpy(host, slashslash, hostsize);
+  strlcpy(host, slashslash, hostsize);
   host[hostlen] = 0;
 
   if (uripos) {

@@ -3588,7 +3588,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
 #endif
 
   if (!conn->domain[0] && _options.domain) {
-    safe_strncpy(conn->domain, _options.domain, DHCP_DOMAIN_LEN);
+    strlcpy(conn->domain, _options.domain, DHCP_DOMAIN_LEN);
   }
 
 #if defined(ENABLE_TAP) && defined(SIOCSARP)
@@ -3613,7 +3613,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
 	      inet_ntoa(conn->hisip),
 	      MAC_ARG(conn->hismac));
 
-      safe_strncpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
+      strlcpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
 
       if (ioctl(sockfd, SIOCSARP, &req) < 0) {
 	perror("ioctrl()");

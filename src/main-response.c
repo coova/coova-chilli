@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
   if (strlen(argv[idx+1]) >= sizeof(buffer))
     return usage(argv[0]);
   memset(buffer, 0, sizeof(buffer));
-  safe_strncpy(buffer, argv[idx+1], sizeof(buffer));
+  strlcpy(buffer, argv[idx+1], sizeof(buffer));
   hextochar(buffer, challenge, MD5LEN);
 
   /* uamsecret - argv 2 */
@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
     int m, n, plen = strlen(argv[idx+3]);
 
     memset(p, 0, sizeof(p));
-    safe_strncpy((char *)p, argv[idx+3], RADIUS_PWSIZE);
+    strlcpy((char *)p, argv[idx+3], RADIUS_PWSIZE);
 
     for (m=0; m < plen;) {
       for (n=0; n < REDIR_MD5LEN; m++, n++) {

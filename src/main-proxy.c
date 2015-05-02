@@ -1113,7 +1113,7 @@ int main(int argc, char **argv) {
 
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
 
-    safe_strncpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
+    strlcpy(ifr.ifr_name, _options.dhcpif, sizeof(ifr.ifr_name));
 
     if (ioctl(fd, SIOCGIFHWADDR, (caddr_t)&ifr) == 0) {
       memcpy(nas_hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
