@@ -263,7 +263,6 @@
 #include <errno.h>
 
 #define safe_snprintf portable_snprintf
-char *safe_strncpy(char *dst, const char *src, size_t size);
 
 int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr);
 int safe_select(int nfds, fd_set *readfds, fd_set *writefds,
