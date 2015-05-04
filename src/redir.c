@@ -3520,6 +3520,7 @@ int redir_main(struct redir_t *redir,
 	else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
 	else if (!strcmp(filename + (namelen - 4), ".chi")){ ctype = "text/html"; parse = 1; }
 	else if (!strcmp(filename + (namelen - 4), ".cjs")){ ctype = "text/javascript"; parse = 1; }
+	else if (!strcmp(filename + (namelen - 5), ".json")) ctype = "application/json";
 	else if (!strcmp(filename + (namelen - 4), ".dat")){ ctype = "application/x-ns-proxy-autoconfig";
 #ifdef ENABLE_WPAD
 	  if (isWPAD && _options.wpadpacfile) {
