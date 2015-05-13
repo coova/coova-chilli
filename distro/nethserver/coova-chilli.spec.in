@@ -6,7 +6,6 @@ URL:       http://www.coova.org/
 Source0:   %{name}-%{version}.tar.gz
 License:   GPL
 Group:     System Environment/Daemons
-BuildRoot: %{_tmppath}/%{name}-root
 
 %if %{!?_without_ssl:1}0
 BuildRequires: openssl-devel libtool gengetopt
@@ -92,6 +91,9 @@ fi
 %{_mandir}/man8/*.8*
 
 %changelog
+* Tue May 13 2015 Giovanni Bezicheri <giovanni.bezicheri@nethesis.it>
+* Add support for json uri.
+
 * Fri Nov 14 2014 Giovanni Bezicheri <giovanni.bezicheri@nethesis.it>
 - Add HS_LANIF_KEEPADDR option in chilli sysconfig.
 
