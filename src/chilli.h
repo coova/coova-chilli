@@ -36,6 +36,10 @@
 #include "md5.h"
 #include "dns.h"
 
+#ifndef HAVE_STRLCPY
+size_t strlcpy(char *dst, const char *src, size_t dsize);
+#endif
+
 /*#define XXX_IO_DAEMON 1*/
 
 /* Authtype defs */
