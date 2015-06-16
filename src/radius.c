@@ -1406,7 +1406,7 @@ void radius_set(struct radius_t *this, unsigned char *hwaddr, int debug) {
     this->hisaddr1.s_addr = this->hisaddr0.s_addr;
 
     this->secretlen = 6;
-    safe_strncpy(this->secret, "radsec", sizeof(this->secret));
+    strlcpy(this->secret, "radsec", sizeof(this->secret));
   } else {
     this->hisaddr0.s_addr = _options.radiusserver1.s_addr;
     this->hisaddr1.s_addr = _options.radiusserver2.s_addr;

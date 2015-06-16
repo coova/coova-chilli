@@ -110,7 +110,7 @@ AC_FUNC_MEMCMP
 AC_FUNC_SELECT_ARGTYPES
 AC_CHECK_FUNCS([gethostbyname getprotoent gettimeofday inet_ntoa \
 memset select socket strdup strerror strstr strtol getline dirname \
-glob getaddrinfo getnameinfo getifaddrs sysinfo])
+glob getaddrinfo getnameinfo getifaddrs sysinfo strlcpy])
 AC_CHECK_LIB(resolv, res_init)
 
 AC_ARG_ENABLE(chilliquery, [AC_HELP_STRING([--disable-chilliquery],[Disable chilli_query])], 
@@ -777,6 +777,8 @@ fi
 
 
 AC_CHECK_LIB(rt, clock_gettime)
+
+AM_CONDITIONAL([HAVE_STRLCPY], [test "x$ac_cv_func_strlcpy" = xyes])
 
 AC_ARG_ENABLE(config,
  [  --enable-config=file],

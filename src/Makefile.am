@@ -175,6 +175,10 @@ chilliinclude_HEADERS += chilli_module.h
 AM_CFLAGS += -DDEFLIBDIR='"$(libdir)/coova-chilli"'
 endif
 
+if !HAVE_STRLCPY
+libchilli_la_SOURCES += ../extern/strlcpy.c
+endif
+
 CMDLINE = cmdline.ggo
 if WITH_CONFIG
 CMDLINE += `[ -e ../../cmdline.ggo ] && echo ../../cmdline.ggo`

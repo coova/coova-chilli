@@ -720,7 +720,7 @@ void set_env(char *name, char type, void *value, int len) {
   switch(type) {
 
   case VAL_IN_ADDR:
-    safe_strncpy(s, inet_ntoa(*(struct in_addr *)value), sizeof(s));
+    strlcpy(s, inet_ntoa(*(struct in_addr *)value), sizeof(s));
     v = s;
     break;
 
@@ -1553,11 +1553,11 @@ int static auth_radius(struct app_conn_t *appconn,
 
     service_type = RADIUS_SERVICE_TYPE_FRAMED;
 
-    safe_strncpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
+    strlcpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
 
     if (_options.macsuffix) {
       size_t ulen = strlen(appconn->s_state.redir.username);
-      safe_strncpy(appconn->s_state.redir.username + ulen,
+      strlcpy(appconn->s_state.redir.username + ulen,
 		   _options.macsuffix, USERNAMESIZE - ulen);
     }
 
@@ -1565,7 +1565,7 @@ int static auth_radius(struct app_conn_t *appconn,
 
   } else {
 
-    safe_strncpy(appconn->s_state.redir.username, username, USERNAMESIZE);
+    strlcpy(appconn->s_state.redir.username, username, USERNAMESIZE);
 
   }
 
@@ -2120,7 +2120,7 @@ int dnprot_reject(struct app_conn_t *appconn) {
   case DNPROT_MAC:
     /* remove the username since we're not logged in */
     if (!appconn->s_state.authenticated)
-      safe_strncpy(appconn->s_state.redir.username, "-", USERNAMESIZE);
+      strlcpy(appconn->s_state.redir.username, "-", USERNAMESIZE);
 
     if (!(dhcpconn = (struct dhcp_conn_t *)appconn->dnlink)) {
       syslog(LOG_ERR, "No downlink protocol");
@@ -3783,7 +3783,7 @@ session_disconnect(struct app_conn_t *appconn,
 	  appconn->hisip.s_addr;
 	req.arp_flags = ATF_PERM | ATF_PUBL;
 
-	safe_strncpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
+	strlcpy(req.arp_dev, tuntap(tun).devname, sizeof(req.arp_dev));
 
 	if (ioctl(sockfd, SIOCDARP, &req) < 0) {
 	  perror("ioctrl()");
@@ -4958,11 +4958,11 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 
 	  safe_snprintf(mac, sizeof(mac), MAC_FMT, MAC_ARG(conn->hismac));
 
-	  safe_strncpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
+	  strlcpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
 
 	  if (_options.macsuffix) {
 	    size_t ulen = strlen(appconn->s_state.redir.username);
-	    safe_strncpy(appconn->s_state.redir.username + ulen,
+	    strlcpy(appconn->s_state.redir.username + ulen,
 			 _options.macsuffix, USERNAMESIZE - ulen);
 	  }
 
@@ -6538,7 +6538,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	  for (i = 0; i < appconn->s_params.pass_through_count; i++) {
 	    pt = &appconn->s_params.pass_throughs[i];
 
-	    safe_strncpy(mask, inet_ntoa(pt->mask), sizeof(mask));
+	    strlcpy(mask, inet_ntoa(pt->mask), sizeof(mask));
 
 	    bassignformat(tmp,
 			  "%20s: host=%-16s mask=%-16s proto=%-3d port=%-3d"
@@ -6772,7 +6772,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	for (i=0; !err && i<tun->_interface_count; i++) {
 	  char gw[56];
 
-	  safe_strncpy(gw, inet_ntoa(tun->_interfaces[i].gateway), sizeof(gw));
+	  strlcpy(gw, inet_ntoa(tun->_interfaces[i].gateway), sizeof(gw));
 
 	  bassignformat(b, "idx: %d dev: %s %s "MAC_FMT" "
 			"%s "MAC_FMT"%s\n",
@@ -6828,7 +6828,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	       sizeof(req->d.sess.params));
 
 	if (uname[0])
-	  safe_strncpy(appconn->s_state.redir.username,
+	  strlcpy(appconn->s_state.redir.username,
 		       uname, USERNAMESIZE);
 
 	session_param_defaults(&appconn->s_params);
@@ -7472,7 +7472,7 @@ int chilli_main(int argc, char **argv) {
 
   if (_options.adminuser) {
     admin_session.is_adminsession = 1;
-    safe_strncpy(admin_session.s_state.redir.username,
+    strlcpy(admin_session.s_state.redir.username,
 		 _options.adminuser,
 		 sizeof(admin_session.s_state.redir.username));
     set_sessionid(&admin_session, 0);

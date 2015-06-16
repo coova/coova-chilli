@@ -1229,10 +1229,10 @@ int main(int argc, char **argv) {
 	  _options.extadmvsa[numargs].attr_vsa = i[0];
 	  _options.extadmvsa[numargs].attr = i[1];
 	  if (idx) *idx = 0;
-	  safe_strncpy(_options.extadmvsa[numargs].script,
+	  strlcpy(_options.extadmvsa[numargs].script,
 		       s, sizeof(_options.extadmvsa[numargs].script)-1);
 	  if (idx) {
-	    safe_strncpy(_options.extadmvsa[numargs].data,
+	    strlcpy(_options.extadmvsa[numargs].data,
 			 idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
 	  }
 	} else if (sscanf(args_info.extadmvsa_arg[numargs],
@@ -1240,10 +1240,10 @@ int main(int argc, char **argv) {
 	  char *idx = strchr(s, ':');
 	  _options.extadmvsa[numargs].attr = i[0];
 	  if (idx) *idx = 0;
-	  safe_strncpy(_options.extadmvsa[numargs].script,
+	  strlcpy(_options.extadmvsa[numargs].script,
 		       s, sizeof(_options.extadmvsa[numargs].script)-1);
 	  if (idx) {
-	    safe_strncpy(_options.extadmvsa[numargs].data,
+	    strlcpy(_options.extadmvsa[numargs].data,
 			 idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
 	  }
 	} else {
