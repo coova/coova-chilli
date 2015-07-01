@@ -1,12 +1,11 @@
 Summary:   Coova-Chilli is a Wireless LAN Access Point Controller
-Name:      @PACKAGE@
-Version:   @VERSION@
+Name:      coova-chilli
+Version:   1.3.1.3
 Release:   1%{?dist}
 URL:       http://www.coova.org/
 Source0:   %{name}-%{version}.tar.gz
 License:   GPL
 Group:     System Environment/Daemons
-BuildRoot: %{_tmppath}/%{name}-root
 
 %if %{!?_without_ssl:1}0
 BuildRequires: openssl-devel libtool gengetopt
@@ -35,6 +34,7 @@ sh bootstrap
 	--enable-chilliproxy \
         --enable-chilliscript \
 	--with-poll \
+    --enable-libjson \
 %if %{!?_without_ssl:1}0
 	--with-openssl \
 	--enable-chilliradsec \
@@ -92,6 +92,12 @@ fi
 %{_mandir}/man8/*.8*
 
 %changelog
+* Fri Jun 26 2015 Giovanni Bezicheri <giovanni.bezicheri@nethesis.it>
+* Fix json encoding for radius reply.
+
+* Tue May 13 2015 Giovanni Bezicheri <giovanni.bezicheri@nethesis.it>
+* Add support for json uri.
+
 * Fri Nov 14 2014 Giovanni Bezicheri <giovanni.bezicheri@nethesis.it>
 - Add HS_LANIF_KEEPADDR option in chilli sysconfig.
 
