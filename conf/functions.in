@@ -2,7 +2,7 @@
 #
 # Copyright (c) 2006-2012 David Bird (Coova Technologies)
 # Licensed under Gnu General Public License. 
-# http://www.coova.org/
+# http://coova.github.io/
 #
 
 IPTABLES=/sbin/iptables

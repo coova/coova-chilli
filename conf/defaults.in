@@ -181,7 +181,7 @@ HS_WWWBIN=@ETCCHILLI@/wwwsh
 #   Some configurations used in certain user interfaces
 #
 HS_PROVIDER=Coova
-HS_PROVIDER_LINK=http://www.coova.org/
+HS_PROVIDER_LINK=http://coova.github.io/
 
 
 ###

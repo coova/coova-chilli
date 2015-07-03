@@ -7272,11 +7272,11 @@ int chilli_main(int argc, char **argv) {
   ssdp.s_addr = inet_addr(SSDP_MCAST_ADDR);
 #endif
 
-  syslog(LOG_INFO, "CoovaChilli(ChilliSpot) %s. "
+  syslog(LOG_INFO, "CoovaChilli %s. "
 	 "Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006-2013 David Bird (Coova Technologies) <support@coova.com>. "
+	 "Copyright 2006-2015 David Bird (Coova Technologies). "
 	 "Licensed under GPL. "
-	 "See http://www.coova.org/ for details.", VERSION);
+	 "See http://coova.github.io/ for details.", VERSION);
 
   memset(&sctx, 0, sizeof(sctx));
 

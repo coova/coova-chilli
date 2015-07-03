@@ -33,11 +33,11 @@ static int optionsdebug = 0; /* TODO: Should be changed to instance */
 static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
 
 char credits[] =
-"<H1>CoovaChilli(ChilliSpot) " VERSION "</H1>"
+"<H1>CoovaChilli " VERSION "</H1>"
 "<p>Copyright 2002-2005 Mondru AB</p>"
-"<p>Copyright 2006-2012 David Bird (Coova Technologies)</p>"
+"<p>Copyright 2006-2015 David Bird (Coova Technologies)</p>"
 "ChilliSpot is an Open Source captive portal or wireless LAN access point "
-"controller developed by the community at <a href=\"http://www.coova.org\">www.coova.org</a>. "
+"controller developed by the community at <a href=\"http://coova.github.io\">coova.github.io</a>. "
 "It is licensed under the GNU General Public License (GPL). ";
 
 static uint8_t radius_packet_id = 0;

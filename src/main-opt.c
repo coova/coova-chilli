@@ -29,7 +29,7 @@ struct options_t _options;
 static const char *description =
   "CoovaChilli - A Wireless LAN Access Point Controller.\n"
   "  For more information on this project, visit: \n"
-  "  http://www.coova.org/\n";
+  "  http://coova.github.io/\n";
 
 static const char *copyright =
   "2006-2013 David Bird (Coova Technologies), Copyright (c) 2003-2005 Mondru AB.\n"

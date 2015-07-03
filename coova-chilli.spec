@@ -2,7 +2,7 @@ Summary:   Coova-Chilli is a Wireless LAN Access Point Controller
 Name:      coova-chilli
 Version:   1.3.1.3
 Release:   1%{?dist}
-URL:       http://www.coova.org/
+URL:       http://coova.github.io/
 Source0:   %{name}-%{version}.tar.gz
 License:   GPL
 Group:     System Environment/Daemons
@@ -18,7 +18,7 @@ portal or wireless LAN access point controller. It supports web based login
 (Universal Access Method, or UAM), standard for public HotSpots, and it
 supports Wireless Protected Access (WPA), the standard for secure roamable
 networks. Authentication, Authorization and Accounting (AAA) is handled by
-your favorite radius server. Read more at http://www.coova.org/.
+your favorite radius server. Read more at http://coova.github.io/.
 
 %prep
 %setup

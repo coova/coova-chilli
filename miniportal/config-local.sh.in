@@ -23,7 +23,7 @@ COOVA_USERURL=$COOKIE_COOVA_USERURL
 COOVA_SESSIONID=$CHI_SESSION_ID
 COOVA_CHALLENGE=$CHI_CHALLENGE
 PORTAL_SESSIONID=${COOKIE_PORTAL_SESSIONID:-$SESSIONID}
-FORM_userurl=${FORM_userurl:-http://www.coova.org/}
+FORM_userurl=${FORM_userurl:-http://coova.github.io/}
     
 http_redirect2() {
 cat <<EOF
@@ -212,7 +212,7 @@ domail() {
     (uamfile "$file" 0
 	echo
 	echo "-------------------------------------------------"
-	echo "Powered by Coova - http://www.coova.org/"
+	echo "Powered by Coova - http://coova.github.io/"
 	echo) | /usr/sbin/sendmail -t -f "$from" && return 0
     return 1;
 }

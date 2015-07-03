@@ -21,5 +21,5 @@ HS_TYPE=chillispot
 HS_WWWDIR=/usr/local/etc/chilli/www
 HS_WWWBIN=/usr/local/etc/chilli/wwwsh
 HS_PROVIDER=Coova
-HS_PROVIDER_LINK=http://www.coova.org/
+HS_PROVIDER_LINK=http://coova.github.io/
 HS_LOC_NAME="Openmoko HotSpot"

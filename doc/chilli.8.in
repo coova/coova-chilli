@@ -43,7 +43,7 @@ Universal Access Method (UAM) as well as Wireless Protected Access
 (WPA). This version of 
 .B chilli
 is called CoovaChilli, a fork of the original ChilliSpot. See
-.I http://www.coova.org/
+.I http://coova.github.io/
 for more information.
 
 .B chilli
@@ -275,7 +275,7 @@ The above configuration options can only be changed by restarting the daemon.
 .LP
 
 See
-.I http://www.coova.org/
+.I http://coova.github.io/
 for further documentation and community support.
 The original ChilliSpot project homepage is/was at www.chillispot.org.
 
