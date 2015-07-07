@@ -30,6 +30,7 @@
 #include <linux/bitops.h>
 #include <linux/skbuff.h>
 #include <linux/inet.h>
+#include <linux/version.h>
 #include <net/net_namespace.h>
 
 #include <linux/netfilter/x_tables.h>
@@ -334,9 +335,11 @@ static int coova_mt_check(const struct xt_mtchk_param *par)
 		ret = -ENOMEM;
 		goto out;
 	}
-#ifdef LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
+	
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 	uid = make_kuid(&init_user_ns, ip_list_uid);
-	gid = make_kgid(&init_user_nd, ip_list_gid);
+	gid = make_kgid(&init_user_ns, ip_list_gid);
+    proc_set_user(pde, uid, gid);
 #else
 	pde->uid = ip_list_uid;
 	pde->gid = ip_list_gid;
@@ -476,7 +479,7 @@ coova_mt_proc_write(struct file *file, const char __user *input,
 		    size_t size, loff_t *loff)
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
-	struct coova_table *t = PDE_DATA(inode);
+	struct coova_table *t = PDE_DATA(file_inode(file));
 #else
 	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	struct coova_table *t = pde->data;
