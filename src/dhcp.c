@@ -4869,14 +4869,14 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 		l, p + sizeof(struct pkt_pppoe_taghdr_t));
 	break;
       case PPPoE_TAG_HostUniq:
-	syslog(LOG_DEBUG, "PPPoE Host-Uniq: %.*x",
+	syslog(LOG_DEBUG, "PPPoE Host-Uniq: %.*s",
 		l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
 	if (l > sizeof(host_uniq)) break;
 	host_uniq_len = l;
 	memcpy(host_uniq, p + sizeof(struct pkt_pppoe_taghdr_t), l);
 	break;
       default:
-	syslog(LOG_DEBUG, "PPPoE Tag Type 0x%.4x = (%d)[%.*x]",
+	syslog(LOG_DEBUG, "PPPoE Tag Type 0x%.4x = (%d)[%.*s]",
 		t, l, l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
 	break;
       }
