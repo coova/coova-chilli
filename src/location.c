@@ -30,7 +30,7 @@ void location_close_conn(struct app_conn_t *conn, int close) {
 
   syslog(LOG_DEBUG, "removing(%s) one of %d sessions from %s",
 	  close ? "closing" : "roaming out",
-	  conn->loc_search_node->total_sess_count,
+	  (int)conn->loc_search_node->total_sess_count,
 	  conn->loc_search_node->value);
 
   conn->loc_search_node->total_sess_count--;
@@ -137,7 +137,7 @@ void location_add_conn(struct app_conn_t *appconn, char *loc) {
 
   appconn->loc_search_node=loc_search;
   syslog(LOG_DEBUG, "location '%s' now has %d sessions attached",
-	  loc,loc_search->total_sess_count);
+	  loc,(int)loc_search->total_sess_count);
 }
 
 void location_printlist(bstring s, char *loc, int json, int list) {
@@ -166,11 +166,11 @@ void location_printlist(bstring s, char *loc, int json, int list) {
     if (timespan >= 1) {
 
       syslog(LOG_DEBUG, "roamed_in_session_count %d, out %d",
-	      loc_search->roamed_in_sess_count,
-	      loc_search->roamed_out_sess_count);
+	      (int)loc_search->roamed_in_sess_count,
+	      (int)loc_search->roamed_out_sess_count);
       syslog(LOG_DEBUG, "new_session_count %d, closed %d",
-	      loc_search->new_sess_count,
-	      loc_search->closed_sess_count);
+	      (int)loc_search->new_sess_count,
+	      (int)loc_search->closed_sess_count);
 
       bassignformat(tmp,json ?
 		    ",\"sessions_roamed_in\":%d,"
@@ -197,8 +197,8 @@ void location_printlist(bstring s, char *loc, int json, int list) {
 #endif
 	int last_sent;
 
-	syslog(LOG_DEBUG, "location has %d sessions attached! ",loc_search->total_sess_count);
-	syslog(LOG_DEBUG, "(last queried %d seconds ago)\n",(act_mainclock-loc_search->last_queried));
+	syslog(LOG_DEBUG, "location has %d sessions attached! ",(int)loc_search->total_sess_count);
+	syslog(LOG_DEBUG, "(last queried %d seconds ago)\n",(int)(act_mainclock-loc_search->last_queried));
 
 	bassignformat(tmp,json ?
 		      ",\"session_count\":%d,\"seconds_elapsed\":%d" :
