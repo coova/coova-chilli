@@ -99,7 +99,7 @@
 * Added ''uamanyipex'' that defines a subnet to exclude from ''uamanyip''
 * Changed the name of ''anyipexclude'' to ''uamnatanyipex'' to be more accurate, see http://lists.coova.org/pipermail/chilli/2011-March/001616.html
 * Support for Framed-IP-Netmask in RADIUS macauth replies
-* Added new attributes for DHCP parameter setting in RADIUS macauth replies, see dictionary.chillispot
+* Added new attributes for DHCP parameter setting in RADIUS macauth replies, see dictionary.coovachilli
 * Added compile time option ''--disable-coa'' to optionally remove CoA support
 * Added compile time option ''--disable-tcpreset'' to optionally disable TCP session resetting
 * Fixups for BSD based systems
