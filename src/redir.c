@@ -3301,7 +3301,7 @@ int redir_main(struct redir_t *redir,
   memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
   if (msgsnd(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0) < 0) { \
-    syslog(LOG_ERR, "%s: msgsnd() failed! msgid=%d type=%d len=%d",     \
+    syslog(LOG_ERR, "%s: msgsnd() failed! msgid=%d type=%ld len=%d",     \
            strerror(errno), redir->msgid, msg.mtype, (int)sizeof(msg.mdata)); \
     return redir_main_exit(&socket, forked, rreq); \
   }
