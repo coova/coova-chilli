@@ -177,7 +177,7 @@
 
 #include "radius_pkt.h"
 #include "radius_wispr.h"
-#include "radius_chillispot.h"
+#include "radius_coovachilli.h"
 
 struct radius_queue_t {      /* Holder for queued packets */
   int state;                 /* 0=empty, 1=full */

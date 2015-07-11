@@ -10,7 +10,7 @@ chilliincludedir = $(includedir)/chilli
 chilliinclude_HEADERS = \
 chilli.h session.h garden.h radius.h options.h \
 tun.h ippool.h md5.h redir.h dhcp.h iphash.h \
-radius_wispr.h radius_chillispot.h ssl.h dns.h net.h \
+radius_wispr.h radius_coovachilli.h ssl.h dns.h net.h \
 pkt.h conn.h lookup.h chilli_limits.h cmdline.h debug.h \
 radius_pkt.h ../bstring/bstrlib.h ../config.h system.h 
 

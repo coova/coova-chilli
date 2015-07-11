@@ -74,7 +74,7 @@ fi
 %{_libdir}/*.so*
 %{_libdir}/python/CoovaChilliLib.py
 %{_sysconfdir}/init.d/chilli
-%doc AUTHORS COPYING ChangeLog INSTALL README doc/dictionary.chillispot doc/hotspotlogin.cgi
+%doc AUTHORS COPYING ChangeLog INSTALL README doc/dictionary.coovachilli doc/hotspotlogin.cgi
 %config %{_sysconfdir}/chilli.conf
 %config %{_sysconfdir}/chilli/gui-config-default.ini
 %config(noreplace) %{_sysconfdir}/chilli/defaults
