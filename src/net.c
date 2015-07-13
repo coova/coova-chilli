@@ -213,6 +213,9 @@ int net_open(net_interface *netif) {
 #ifdef ENABLE_LAYER3
       !_options.layer3 &&
 #endif
+#ifdef HAVE_NETFILTER_COOVA
+      (_options.uamlisten.s_addr == _options.dhcplisten.s_addr) && 
+#endif
       ( !(netif->devflags & IFF_UP) || !(netif->devflags & IFF_RUNNING) )) {
     struct in_addr noaddr;
     net_sflags(netif, netif->devflags | IFF_NOARP);
