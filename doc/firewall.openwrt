@@ -1,13 +1,13 @@
 #!/bin/sh
 #
-# Firewall script for ChilliSpot on OpenWRT
+# Firewall script for CoovaChilli on OpenWRT
 #
 # Uses $WANIF (vlan1) as the external interface (Internet or intranet) and
 # $WLANIF (eth1) as the internal interface (access point).
 # $LANIF is used as a trusted management interface.
 #
 # SUMMARY
-# * All connections originating from ChilliSpot are allowed.
+# * All connections originating from CoovaChilli are allowed.
 # * Nothing is allowed in on WAN interface.
 # * Nothing is allowed in on WLAN interface.
 # * Everything is allowed in on LAN interface.

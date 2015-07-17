@@ -106,7 +106,7 @@ switch ($_GET['stage']) {
      do_auth_reject(array( // Attribute allowed in access-reject
 			  'Reply-Message' => $attrs['Reply-Message'],
 			  'WISPr-Redirection-URL' => $attrs['WISPr-Redirection-URL'],
-			  'ChilliSpot-Config' => $attrs['ChilliSpot-Config'],
+			  'CoovaChilli-Config' => $attrs['CoovaChilli-Config'],
 			  ));
    }
    break;
@@ -134,22 +134,22 @@ function set_reply_message     (&$a, $v, $o = true) { set_attribute('Reply-Messa
 function set_session_time      (&$a, $v, $o = true) { set_attribute('Acct-Session-Time',$a,$v,$o); } 
 function set_session_timeout   (&$a, $v, $o = true) { set_attribute('Session-Timeout',$a,$v,$o); } 
 function set_interim_interval  (&$a, $v, $o = true) { set_attribute('Acct-Interim-Interval',$a,$v,$o); } 
-function set_max_total_octets  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Total-Octets',$a,$v,$o); } 
-function set_max_input_octets  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Input-Octets',$a,$v,$o); } 
-function set_max_output_octets (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Output-Octets',$a,$v,$o); } 
-function set_max_total_kbytes  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Total-Octets',$a,($v*1000),$o); } 
-function set_max_input_kbytes  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Input-Octets',$a,($v*1000),$o); } 
-function set_max_output_kbytes (&$a, $v, $o = true) { set_attribute('ChilliSpot-Max-Output-Octets',$a,($v*1000),$o); } 
+function set_max_total_octets  (&$a, $v, $o = true) { set_attribute('CoovaChilli-Max-Total-Octets',$a,$v,$o); } 
+function set_max_input_octets  (&$a, $v, $o = true) { set_attribute('CoovaChilli-Max-Input-Octets',$a,$v,$o); } 
+function set_max_output_octets (&$a, $v, $o = true) { set_attribute('CoovaChilli-Max-Output-Octets',$a,$v,$o); } 
+function set_max_total_kbytes  (&$a, $v, $o = true) { set_attribute('CoovaChilli-Max-Total-Octets',$a,($v*1000),$o); } 
+function set_max_input_kbytes  (&$a, $v, $o = true) { set_attribute('CoovaChilli-Max-Input-Octets',$a,($v*1000),$o); } 
+function set_max_output_kbytes (&$a, $v, $o = true) { set_attribute('CoovaChilli-Max-Output-Octets',$a,($v*1000),$o); } 
 function set_redirection_url   (&$a, $v, $o = true) { set_attribute('WISPr-Redirection-URL',$a,$v,$o); } 
 
 #function set_max_bandwidth_up_bit_sec     (&$a, $v, $o = true) { set_attribute('WISPr-Bandwidth-Max-Up',$a,$v,$o); } 
 #function set_max_bandwidth_down_bit_sec   (&$a, $v, $o = true) { set_attribute('WISPr-Bandwidth-Max-Down',$a,$v,$o); } 
-function set_max_bandwidth_up_kbit_sec    (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Up',$a,$v,$o); } 
-function set_max_bandwidth_down_kbit_sec  (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Down',$a,$v,$o); } 
-function set_max_bandwidth_up_kbyte_sec   (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Up',$a,($v*8),$o); } 
-function set_max_bandwidth_down_kbyte_sec (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Down',$a,($v*8),$o); } 
-function set_max_bandwidth_up_mbyte_sec   (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Up',$a,($v*8000),$o); } 
-function set_max_bandwidth_down_mbyte_sec (&$a, $v, $o = true) { set_attribute('ChilliSpot-Bandwidth-Max-Down',$a,($v*8000),$o); } 
+function set_max_bandwidth_up_kbit_sec    (&$a, $v, $o = true) { set_attribute('CoovaChilli-Bandwidth-Max-Up',$a,$v,$o); } 
+function set_max_bandwidth_down_kbit_sec  (&$a, $v, $o = true) { set_attribute('CoovaChilli-Bandwidth-Max-Down',$a,$v,$o); } 
+function set_max_bandwidth_up_kbyte_sec   (&$a, $v, $o = true) { set_attribute('CoovaChilli-Bandwidth-Max-Up',$a,($v*8),$o); } 
+function set_max_bandwidth_down_kbyte_sec (&$a, $v, $o = true) { set_attribute('CoovaChilli-Bandwidth-Max-Down',$a,($v*8),$o); } 
+function set_max_bandwidth_up_mbyte_sec   (&$a, $v, $o = true) { set_attribute('CoovaChilli-Bandwidth-Max-Up',$a,($v*8000),$o); } 
+function set_max_bandwidth_down_mbyte_sec (&$a, $v, $o = true) { set_attribute('CoovaChilli-Bandwidth-Max-Down',$a,($v*8000),$o); } 
 
 function set_limit_interval(&$a, $v, $o = true) { set_attribute('Meta-Interval',$a,$v,$o); }
 function set_limit_value(&$a, $v, $o = true) { set_attribute('Meta-Interval-Value',$a,$v,$o); }
@@ -242,7 +242,7 @@ function proc_attributes(&$a) {
   $swap = $aaa_config['using_swapoctets'];
 
   # Down
-  $n = 'ChilliSpot-Max-'.($swap ? 'Out' : 'In').'put-Octets'; 
+  $n = 'CoovaChilli-Max-'.($swap ? 'Out' : 'In').'put-Octets'; 
   $v = $a[$n]; 
   if (isset($v) && $v > 0 && $sum['bytes_down'] > 0) {
     $s = $v - $sum['bytes_down'];
@@ -256,7 +256,7 @@ function proc_attributes(&$a) {
   }
 
   # Up
-  $n = 'ChilliSpot-Max-'.($swap ? 'In' : 'Out').'put-Octets'; 
+  $n = 'CoovaChilli-Max-'.($swap ? 'In' : 'Out').'put-Octets'; 
   $v = $a[$n]; 
   if (isset($v) && $v > 0 && $sum['bytes_up'] > 0) {
     $s = $v - $sum['bytes_up'];
@@ -270,7 +270,7 @@ function proc_attributes(&$a) {
   }
 
   # Total
-  $n = 'ChilliSpot-Max-Total-Octets'; 
+  $n = 'CoovaChilli-Max-Total-Octets'; 
   $v = $a[$n]; 
   if (isset($v) && $v > 0 && ($sum['bytes_up'] > 0 || $sum['bytes_down'] > 0)) {
     $s = $v;
@@ -364,7 +364,7 @@ function do_macauth_service(&$attrs) {
 
 #  echo "Auth: 1\n";
 #  echo "Acct-Interim-Interval:3600\n";
-#  echo "ChilliSpot-Config:splash\n";
+#  echo "CoovaChilli-Config:splash\n";
 #exit;
 
   if ($device['always_reject']) {
@@ -457,15 +457,15 @@ function do_admin_service(&$attrs) {
 
   echo "Auth: 1\n";
   echo "Acct-Interim-Interval:120\n";
-  echo "ChilliSpot-Config:uamanyip\n";
-  echo "ChilliSpot-Config:uamnatanyip\n";
-  //echo "ChilliSpot-Config:seskeepalive\n";
-  //echo "ChilliSpot-Config:usestatusfile=chilli.status\n";
-  echo "ChilliSpot-Config:statip 5.0.0.0/24\n";
-  //echo "ChilliSpot-Config:txqlen 1000\n";
-  //echo "ChilliSpot-Config:tcpmss 1460\n";
-  echo "ChilliSpot-Config:acctupdate\n";
-  //echo "ChilliSpot-Config:macreauth\n";
+  echo "CoovaChilli-Config:uamanyip\n";
+  echo "CoovaChilli-Config:uamnatanyip\n";
+  //echo "CoovaChilli-Config:seskeepalive\n";
+  //echo "CoovaChilli-Config:usestatusfile=chilli.status\n";
+  echo "CoovaChilli-Config:statip 5.0.0.0/24\n";
+  //echo "CoovaChilli-Config:txqlen 1000\n";
+  //echo "CoovaChilli-Config:tcpmss 1460\n";
+  echo "CoovaChilli-Config:acctupdate\n";
+  //echo "CoovaChilli-Config:macreauth\n";
   exit;
 
   return do_auth_accept($attrs);

@@ -1,4 +1,4 @@
-# chilli - ChilliSpot.org. A Wireless LAN Access Point Controller
+# CoovaChilli - http://coova.github.io/. A Wireless LAN Access Point Controller
 # Copyright (C) 2003, 2004, 2005 Mondru AB.
 # Copyright (c) 2006-2012 David Bird (Coova Technologies)
 #
@@ -190,7 +190,7 @@ option "uamui"       - "Program in inetd style to handle all uam requests" strin
 # Centralized Configuration
 option "adminuser"   - "RADIUS administrative user login username" string no
 option "adminpasswd" - "RADIUS administrative user login password" string no
-option "adminupdatefile" - "File for administrative user ChilliSpot-Config settings" string no
+option "adminupdatefile" - "File for administrative user CoovaChilli-Config settings" string no
 option "rtmonfile" - "File to update with routing settings" string no
 
 option "ethers" - "File containing a mapping of MAC addresses to static IP addresses" string no
@@ -207,7 +207,7 @@ option "only8021q"   - "Support 802.1Q VLAN tagged traffic only" flag off
 option "cmdsocket"   - "path to the command unix socket" string no
 option "cmdsocketport" - "Port of command socket. Only used if cmdsocket is not defined." int default="42424" no
 
-option "radiusoriginalurl" - "Turn on the sending of ChilliSpot-OriginalURL in Access-Request" flag off
+option "radiusoriginalurl" - "Turn on the sending of CoovaChilli-OriginalURL in Access-Request" flag off
 option "swapoctets"    - "Swap the meaning of input/output octets/packets" flag   off
 option "usestatusfile" - "Use the status file to keep track of sessions" string no
 option "statusfilesave" - "Aggressively save the status of sessions to status file" flag off
@@ -219,7 +219,7 @@ option "wpaguests"     - "Allow WPA 'Guest' access" flag off
 option "openidauth"    - "Allow OpenID authentication" flag off
 option "papalwaysok"   - "Always allow 'PAP' authentication (depreciated; always on)" flag off
 option "mschapv2"      - "Use MSCHAPv2 authentication where possible" flag off
-option "chillixml"     - "Use ChilliSpot XML in WISPr blocks" flag   off
+option "chillixml"     - "Use CoovaChilli XML in WISPr blocks" flag   off
 option "acctupdate"    - "Allow updating of session attributes in Accounting-Response" flag off
 option "dnsparanoia"   - "Inspect DNS packets and drop responses with any non- A, CNAME, SOA, or MX records (to prevent dns tunnels)" flag off
 option "seskeepalive"  - "Keep sessions 'alive' after a restart of the server" flag off

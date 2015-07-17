@@ -132,13 +132,13 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 # HS_RADCONF=url	   # requires curl
 # HS_RADCONF_URL=https://coova.org/app/ap/config
 
-# HS_RADCONF=on		   # gather the ChilliSpot-Config attributes in
+# HS_RADCONF=on		   # gather the CoovaChilli-Config attributes in
 #			   # Administrative-User login
 # HS_RADCONF_SERVER=rad01.coova.org		 # RADIUS Server
 # HS_RADCONF_SECRET=coova-anonymous		 # RADIUS Shared Secret 
 # HS_RADCONF_AUTHPORT=1812			 # Auth port
-# HS_RADCONF_USER=chillispot			 # Username
-# HS_RADCONF_PWD=chillispot			 # Password
+# HS_RADCONF_USER=coovachilli			 # Username
+# HS_RADCONF_PWD=coovachilli			 # Password
 
 
 ###
@@ -154,11 +154,11 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 #   Standard configurations
 #
 HS_MODE=hotspot
-HS_TYPE=chillispot
+HS_TYPE=coovachilli
 # HS_RADAUTH=1812
 # HS_RADACCT=1813
-# HS_ADMUSR=chillispot
-# HS_ADMPWD=chillispot
+# HS_ADMUSR=coovachilli
+# HS_ADMPWD=coovachilli
 
 
 ###

@@ -35,8 +35,8 @@ static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
 char credits[] =
 "<H1>CoovaChilli " VERSION "</H1>"
 "<p>Copyright 2002-2005 Mondru AB</p>"
-"<p>Copyright 2006-2015 David Bird (Coova Technologies)</p>"
-"ChilliSpot is an Open Source captive portal or wireless LAN access point "
+"<p>Copyright 2006-2012 David Bird (Coova Technologies)</p>"
+"CoovaChilli is an Open Source captive portal or wireless LAN access point "
 "controller developed by the community at <a href=\"http://coova.github.io\">coova.github.io</a>. "
 "It is licensed under the GNU General Public License (GPL). ";
 
@@ -662,7 +662,7 @@ static void redir_xmlchilli_reply (struct redir_t *redir, struct redir_conn_t *c
 				   char* reply, char* redirurl, bstring b) {
   bstring bt = bfromcstr("");;
 
-  bcatcstr(b, "<ChilliSpotSession>\r\n");
+  bcatcstr(b, "<CoovaChilliSession>\r\n");
   switch (res) {
   case REDIR_NOTYET:
     bassignformat(bt, "<Challenge>%s</Challenge>\r\n", hexchal);
@@ -761,7 +761,7 @@ static void redir_xmlchilli_reply (struct redir_t *redir, struct redir_conn_t *c
   default:
     syslog(LOG_ERR, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
   }
-  bcatcstr(b, "</ChilliSpotSession>\r\n"
+  bcatcstr(b, "</CoovaChilliSession>\r\n"
 	   "-->\r\n");
   bdestroy(bt);
 }
@@ -2684,7 +2684,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   if(conn->lang[0])
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_LANG,
+		   RADIUS_VENDOR_COOVACHILLI, RADIUS_ATTR_COOVACHILLI_LANG,
 		   0, (uint8_t*) conn->lang, strlen(conn->lang));
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
@@ -2838,7 +2838,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   if (_options.openidauth)
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG,
+		   RADIUS_VENDOR_COOVACHILLI, RADIUS_ATTR_COOVACHILLI_CONFIG,
 		   0, (uint8_t*)"allow-openidauth", 16);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR,

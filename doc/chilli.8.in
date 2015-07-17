@@ -1,4 +1,4 @@
-.\" * chilli - ChilliSpot.org. A Wireless LAN Access Point Controller
+.\" * CoovaChilli - http://coova.github.io/. A Wireless LAN Access Point Controller
 .\" * Copyright (C) 2002, 2003, 2004, 2005 Mondru AB.
 .\" * Copyright (C) 2007-2012 David Bird (Coova Technologies)
 .\" *
@@ -42,7 +42,7 @@ supports of two different access methods for a Wireless LAN HotSpot:
 Universal Access Method (UAM) as well as Wireless Protected Access
 (WPA). This version of 
 .B chilli
-is called CoovaChilli, a fork of the original ChilliSpot. See
+is called CoovaChilli. See
 .I http://coova.github.io/
 for more information.
 
@@ -277,7 +277,6 @@ The above configuration options can only be changed by restarting the daemon.
 See
 .I http://coova.github.io/
 for further documentation and community support.
-The original ChilliSpot project homepage is/was at www.chillispot.org.
 
 Besides the long options documented in this man page
 .B chilli

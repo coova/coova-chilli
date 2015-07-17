@@ -6,7 +6,7 @@
 /* Define to enable Accounting-On and Accounting-Off */
 #undef ENABLE_ACCOUNTING_ONOFF
 
-/* Define to enable the use of the ChilliSpot-AP-Session-Id attribute */
+/* Define to enable the use of the CoovaChilli-AP-Session-Id attribute */
 #undef ENABLE_APSESSIONID
 
 /* Define to include Authenticated Garden */
@@ -30,9 +30,6 @@
 /* Define to enable chilli_script helper */
 #undef ENABLE_CHILLISCRIPT
 
-/* Define to enable the use of the ChilliSpot-Config attribute */
-#undef ENABLE_CHILLISPOTCONFIG
-
 /* Define to enable Chilli XML */
 #undef ENABLE_CHILLIXML
 
@@ -44,6 +41,9 @@
 
 /* none */
 #undef ENABLE_CONFIG
+
+/* Define to enable the use of the CoovaChilli-Config attribute */
+#undef ENABLE_COOVACHILLICONFIG
 
 /* Define to enable debugging */
 #undef ENABLE_DEBUG
@@ -159,10 +159,10 @@
 /* Define to enable Chilli session walled garden */
 #undef ENABLE_SESSGARDEN
 
-/* Define to enable the use of the ChilliSpot-Session-Id attribute */
+/* Define to enable the use of the CoovaChilli-Session-Id attribute */
 #undef ENABLE_SESSIONID
 
-/* Define to enable extended use of the ChilliSpot-Session-State attribute */
+/* Define to enable extended use of the CoovaChilli-Session-State attribute */
 #undef ENABLE_SESSIONSTATE
 
 /* Define to enable per session postauth proxy */

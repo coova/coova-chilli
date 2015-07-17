@@ -583,32 +583,32 @@ fi
 
 AM_CONDITIONAL(WITH_CLUSTER, [test x"$enable_cluster" = xyes])
 
-AC_ARG_ENABLE(sessionstate, [AC_HELP_STRING([--enable-sessionstate],[Enable extended use of the ChilliSpot-Session-State attribute])], 
+AC_ARG_ENABLE(sessionstate, [AC_HELP_STRING([--enable-sessionstate],[Enable extended use of the CoovaChilli-Session-State attribute])], 
   enable_sessionstate=$enableval, enable_sessionstate=no)
 
 if test x"$enable_sessionstate" = xyes; then
-   AC_DEFINE(ENABLE_SESSIONSTATE,1,[Define to enable extended use of the ChilliSpot-Session-State attribute])
+   AC_DEFINE(ENABLE_SESSIONSTATE,1,[Define to enable extended use of the CoovaChilli-Session-State attribute])
 fi
 
-AC_ARG_ENABLE(sessionid, [AC_HELP_STRING([--enable-sessionid],[Enable the use of the ChilliSpot-Session-Id attribute])], 
+AC_ARG_ENABLE(sessionid, [AC_HELP_STRING([--enable-sessionid],[Enable the use of the CoovaChilli-Session-Id attribute])], 
   enable_sessionid=$enableval, enable_sessionid=no)
 
 if test x"$enable_sessionid" = xyes; then
-   AC_DEFINE(ENABLE_SESSIONID,1,[Define to enable the use of the ChilliSpot-Session-Id attribute])
+   AC_DEFINE(ENABLE_SESSIONID,1,[Define to enable the use of the CoovaChilli-Session-Id attribute])
 fi
 
-AC_ARG_ENABLE(apsessionid, [AC_HELP_STRING([--enable-apsessionid],[Enable the use of the ChilliSpot-AP-Session-Id attribute])], 
+AC_ARG_ENABLE(apsessionid, [AC_HELP_STRING([--enable-apsessionid],[Enable the use of the CoovaChilli-AP-Session-Id attribute])], 
   enable_apsessionid=$enableval, enable_apsessionid=no)
 
 if test x"$enable_apsessionid" = xyes; then
-   AC_DEFINE(ENABLE_APSESSIONID,1,[Define to enable the use of the ChilliSpot-AP-Session-Id attribute])
+   AC_DEFINE(ENABLE_APSESSIONID,1,[Define to enable the use of the CoovaChilli-AP-Session-Id attribute])
 fi
 
-AC_ARG_ENABLE(chillispotconfig, [AC_HELP_STRING([--disable-chillispotconfig],[Disable the use of the ChilliSpot-Config attribute])], 
-  enable_chillispotconfig=$enableval, enable_chillispotconfig=yes)
+AC_ARG_ENABLE(coovachilliconfig, [AC_HELP_STRING([--disable-coovachilliconfig],[Disable the use of the CoovaChilli-Config attribute])], 
+  enable_coovachilliconfig=$enableval, enable_coovachilliconfig=yes)
 
-if test x"$enable_chillispotconfig" = xyes; then
-   AC_DEFINE(ENABLE_CHILLISPOTCONFIG,1,[Define to enable the use of the ChilliSpot-Config attribute])
+if test x"$enable_coovachilliconfig" = xyes; then
+   AC_DEFINE(ENABLE_COOVACHILLICONFIG,1,[Define to enable the use of the CoovaChilli-Config attribute])
 fi
 
 AC_ARG_ENABLE(mdns, [AC_HELP_STRING([--enable-mdns],[Enable support for MDNS])], 

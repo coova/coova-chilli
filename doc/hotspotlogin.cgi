@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# chilli - coova.org. A Wireless LAN Access Point Controller
+# CoovaChilli - http://coova.github.io/. A Wireless LAN Access Point Controller
 # Copyright (C) 2003, 2004 Mondru AB.
 # Copyright (C) 2006-2012 David Bird <david@coova.com>
 #
@@ -211,8 +211,8 @@ if ($result != 6)
     }
 
     function popUp(URL) {
-      if (self.name != \"chillispot_popup\") {
-        chillispot_popup = window.open(URL, 'chillispot_popup', 'toolbar=0,scrollbars=0,location=0,statusbar=0,menubar=0,resizable=0,width=500,height=375');
+      if (self.name != \"coovachilli_popup\") {
+        coovachilli_popup = window.open(URL, 'coovachilli_popup', 'toolbar=0,scrollbars=0,location=0,statusbar=0,menubar=0,resizable=0,width=500,height=375');
       }
     }
 
@@ -220,20 +220,20 @@ if ($result != 6)
       if (timeleft) {
         mytimeleft = timeleft;
       }
-      if ((result == 1) && (self.name == \"chillispot_popup\")) {
+      if ((result == 1) && (self.name == \"coovachilli_popup\")) {
         doTime();
       }
-      if ((result == 1) && (self.name != \"chillispot_popup\")) {
-        chillispot_popup = window.open(URL, 'chillispot_popup', 'toolbar=0,scrollbars=0,location=0,statusbar=0,menubar=0,resizable=0,width=500,height=375');
+      if ((result == 1) && (self.name != \"coovachilli_popup\")) {
+        coovachilli_popup = window.open(URL, 'coovachilli_popup', 'toolbar=0,scrollbars=0,location=0,statusbar=0,menubar=0,resizable=0,width=500,height=375');
       }
       if ((result == 2) || result == 5) {
         document.form1.UserName.focus()
       }
-      if ((result == 2) && (self.name != \"chillispot_popup\")) {
-        chillispot_popup = window.open('', 'chillispot_popup', 'toolbar=0,scrollbars=0,location=0,statusbar=0,menubar=0,resizable=0,width=400,height=200');
-        chillispot_popup.close();
+      if ((result == 2) && (self.name != \"coovachilli_popup\")) {
+        coovachilli_popup = window.open('', 'coovachilli_popup', 'toolbar=0,scrollbars=0,location=0,statusbar=0,menubar=0,resizable=0,width=400,height=200');
+        coovachilli_popup.close();
       }
-      if ((result == 12) && (self.name == \"chillispot_popup\")) {
+      if ((result == 12) && (self.name == \"coovachilli_popup\")) {
         doTime();
         if (redirurl) {
           opener.location = redirurl;
@@ -247,14 +247,14 @@ if ($result != 6)
         self.focus();
         blur = 0;
       }
-      if ((result == 13) && (self.name == \"chillispot_popup\")) {
+      if ((result == 13) && (self.name == \"coovachilli_popup\")) {
         self.focus();
         blur = 1;
       }
     }
 
     function doOnBlur(result) {
-      if ((result == 12) && (self.name == \"chillispot_popup\")) {
+      if ((result == 12) && (self.name == \"coovachilli_popup\")) {
         if (blur == 0) {
           blur = 1;
           self.focus();

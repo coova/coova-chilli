@@ -217,7 +217,7 @@ struct options_t {
   uint8_t macreauth:1;              /* Use MAC re-authentication on /prelogin */
   uint8_t macauthdeny:1;            /* Deny any access to those given Access-Reject */
   uint8_t macallowlocal:1;          /* Do not use RADIUS for authenticating the macallowed */
-  uint8_t radiusoriginalurl:1;      /* Send ChilliSpot-OriginalURL in AccessRequest */
+  uint8_t radiusoriginalurl:1;      /* Send CoovaChilli-OriginalURL in AccessRequest */
   uint8_t dhcpradius:1;             /* Send certain DHCP options in RADIUS attributes */
   uint8_t has_nexthop:1;            /* Has a nexthop entry */
   uint8_t dhcp_broadcast:1;         /* always broadcast DHCP (when not relaying) */

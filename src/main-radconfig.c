@@ -54,8 +54,8 @@ static int chilliauth_cb(struct radius_t *radius,
 
   while (!radius_getnextattr(pack, &attr,
 			     RADIUS_ATTR_VENDOR_SPECIFIC,
-			     RADIUS_VENDOR_CHILLISPOT,
-			     RADIUS_ATTR_CHILLISPOT_CONFIG,
+			     RADIUS_VENDOR_COOVACHILLI,
+			     RADIUS_ATTR_COOVACHILLI_CONFIG,
 			     0, &offset)) {
     printf("%.*s\n", attr->l - 2, (const char *)attr->v.t);
   }

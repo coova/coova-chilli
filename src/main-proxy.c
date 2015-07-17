@@ -292,36 +292,36 @@ static int http_aaa_finish(proxy_request *req) {
 	  { "Session-Timeout:", RADIUS_ATTR_SESSION_TIMEOUT, 0, 0, 0 },
 	  { "Acct-Interim-Interval:", RADIUS_ATTR_ACCT_INTERIM_INTERVAL, 0, 0, 0 },
 	  { "EAP-Message:", RADIUS_ATTR_EAP_MESSAGE, 0, 0, 2 },
-	  { "ChilliSpot-Version:",
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT,
-	    RADIUS_ATTR_CHILLISPOT_VERSION, 1 },
-	  { "ChilliSpot-Config:",
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT,
-	    RADIUS_ATTR_CHILLISPOT_CONFIG, 1 },
-	  { "ChilliSpot-Bandwidth-Max-Up:",
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT,
-	    RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0 },
-	  { "ChilliSpot-Bandwidth-Max-Down:",
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT,
-	    RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0 },
-	  { "ChilliSpot-Max-Input-Octets:",
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT,
-	    RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0 },
-	  { "ChilliSpot-Max-Output-Octets:",
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT,
-	    RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0 },
-	  { "ChilliSpot-Max-Total-Octets:",
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT,
-	    RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0 },
-	  { "ChilliSpot-Max-Input-Gigawords:",
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT,
-	    RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS, 0 },
-	  { "ChilliSpot-Max-Output-Gigawords:",
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT,
-	    RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS, 0 },
-	  { "ChilliSpot-Max-Total-Gigawords:",
-	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_CHILLISPOT,
-	    RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS, 0 },
+	  { "CoovaChilli-Version:",
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_COOVACHILLI,
+	    RADIUS_ATTR_COOVACHILLI_VERSION, 1 },
+	  { "CoovaChilli-Config:",
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_COOVACHILLI,
+	    RADIUS_ATTR_COOVACHILLI_CONFIG, 1 },
+	  { "CoovaChilli-Bandwidth-Max-Up:",
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_COOVACHILLI,
+	    RADIUS_ATTR_COOVACHILLI_BANDWIDTH_MAX_UP, 0 },
+	  { "CoovaChilli-Bandwidth-Max-Down:",
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_COOVACHILLI,
+	    RADIUS_ATTR_COOVACHILLI_BANDWIDTH_MAX_DOWN, 0 },
+	  { "CoovaChilli-Max-Input-Octets:",
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_COOVACHILLI,
+	    RADIUS_ATTR_COOVACHILLI_MAX_INPUT_OCTETS, 0 },
+	  { "CoovaChilli-Max-Output-Octets:",
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_COOVACHILLI,
+	    RADIUS_ATTR_COOVACHILLI_MAX_OUTPUT_OCTETS, 0 },
+	  { "CoovaChilli-Max-Total-Octets:",
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_COOVACHILLI,
+	    RADIUS_ATTR_COOVACHILLI_MAX_TOTAL_OCTETS, 0 },
+	  { "CoovaChilli-Max-Input-Gigawords:",
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_COOVACHILLI,
+	    RADIUS_ATTR_COOVACHILLI_MAX_INPUT_GIGAWORDS, 0 },
+	  { "CoovaChilli-Max-Output-Gigawords:",
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_COOVACHILLI,
+	    RADIUS_ATTR_COOVACHILLI_MAX_OUTPUT_GIGAWORDS, 0 },
+	  { "CoovaChilli-Max-Total-Gigawords:",
+	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_COOVACHILLI,
+	    RADIUS_ATTR_COOVACHILLI_MAX_TOTAL_GIGAWORDS, 0 },
 	  { "WISPr-Bandwidth-Max-Up:",
 	    RADIUS_ATTR_VENDOR_SPECIFIC, RADIUS_VENDOR_WISPR,
 	    RADIUS_ATTR_WISPR_BANDWIDTH_MAX_UP, 0 },
@@ -944,8 +944,8 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
     }
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-			RADIUS_VENDOR_CHILLISPOT,
-			RADIUS_ATTR_CHILLISPOT_VLAN_ID, 0)) {
+			RADIUS_VENDOR_COOVACHILLI,
+			RADIUS_ATTR_COOVACHILLI_VLAN_ID, 0)) {
       uint32_t val = ntohl(attr->v.i);
       bassignformat(tmp, "&vlan=%ld", (long) val);
       bconcat(req->url, tmp);
@@ -986,8 +986,8 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
     }
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-			RADIUS_VENDOR_CHILLISPOT,
-			RADIUS_ATTR_CHILLISPOT_DHCP_HOSTNAME, 0)) {
+			RADIUS_VENDOR_COOVACHILLI,
+			RADIUS_ATTR_COOVACHILLI_DHCP_HOSTNAME, 0)) {
       bcatcstr(req->url, "&dhcp_host=");
       bassignblk(tmp, attr->v.t, attr->l-2);
       redir_urlencode(tmp, tmp2);
@@ -995,8 +995,8 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
     }
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-			RADIUS_VENDOR_CHILLISPOT,
-			RADIUS_ATTR_CHILLISPOT_DHCP_PARAMETER_REQUEST_LIST, 0)) {
+			RADIUS_VENDOR_COOVACHILLI,
+			RADIUS_ATTR_COOVACHILLI_DHCP_PARAMETER_REQUEST_LIST, 0)) {
       uint8_t l = attr->l;
       if (l > 2) {
 	uint8_t *p = attr->v.t;
@@ -1010,8 +1010,8 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
     }
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-			RADIUS_VENDOR_CHILLISPOT,
-			RADIUS_ATTR_CHILLISPOT_DHCP_VENDOR_CLASS_ID, 0)) {
+			RADIUS_VENDOR_COOVACHILLI,
+			RADIUS_ATTR_COOVACHILLI_DHCP_VENDOR_CLASS_ID, 0)) {
       uint8_t l = attr->l;
       if (l > 2) {
 	uint8_t *p = attr->v.t;
@@ -1025,8 +1025,8 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
     }
 
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-			RADIUS_VENDOR_CHILLISPOT,
-			RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_ID, 0)) {
+			RADIUS_VENDOR_COOVACHILLI,
+			RADIUS_ATTR_COOVACHILLI_DHCP_CLIENT_ID, 0)) {
       uint8_t l = attr->l;
       if (l > 2) {
 	uint8_t *p = attr->v.t;

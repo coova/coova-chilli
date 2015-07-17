@@ -14,8 +14,8 @@ BuildRequires: openssl-devel
 
 %description 
 
-Coova-Chilli is a fork of the ChilliSpot project - an open source captive
-portal or wireless LAN access point controller. It supports web based login
+Coova-Chilli is an open source captive portal or wireless LAN access point
+controller. It supports web based login
 (Universal Access Method, or UAM), standard for public HotSpots, and it
 supports Wireless Protected Access (WPA), the standard for secure roamable
 networks. Authentication, Authorization and Accounting (AAA) is handled by

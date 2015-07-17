@@ -810,9 +810,9 @@ int runscript(struct app_conn_t *appconn, char* script,
   set_env("WISPR_BANDWIDTH_MAX_UP", VAL_ULONG, &appconn->s_params.bandwidthmaxup, 0);
   set_env("WISPR_BANDWIDTH_MAX_DOWN", VAL_ULONG, &appconn->s_params.bandwidthmaxdown, 0);
   /*set_env("WISPR-SESSION_TERMINATE_TIME", VAL_USHORT, &appconn->sessionterminatetime, 0);*/
-  set_env("CHILLISPOT_MAX_INPUT_OCTETS", VAL_ULONG64, &appconn->s_params.maxinputoctets, 0);
-  set_env("CHILLISPOT_MAX_OUTPUT_OCTETS", VAL_ULONG64, &appconn->s_params.maxoutputoctets, 0);
-  set_env("CHILLISPOT_MAX_TOTAL_OCTETS", VAL_ULONG64, &appconn->s_params.maxtotaloctets, 0);
+  set_env("COOVACHILLI_MAX_INPUT_OCTETS", VAL_ULONG64, &appconn->s_params.maxinputoctets, 0);
+  set_env("COOVACHILLI_MAX_OUTPUT_OCTETS", VAL_ULONG64, &appconn->s_params.maxoutputoctets, 0);
+  set_env("COOVACHILLI_MAX_TOTAL_OCTETS", VAL_ULONG64, &appconn->s_params.maxtotaloctets, 0);
   set_env("INPUT_OCTETS", VAL_ULONG64, &appconn->s_state.input_octets, 0);
   set_env("OUTPUT_OCTETS", VAL_ULONG64, &appconn->s_state.output_octets, 0);
   sessiontime = mainclock_diffu(appconn->s_state.start_time);
@@ -1100,7 +1100,7 @@ void session_interval(struct app_conn_t *conn) {
 	(sessiontime > conn->s_params.sessiontimeout)) {
 #ifdef ENABLE_SESSIONSTATE
       conn->s_state.session_state =
-	RADIUS_VALUE_CHILLISPOT_SESSION_TIMEOUT_REACHED;
+	RADIUS_VALUE_COOVACHILLI_SESSION_TIMEOUT_REACHED;
 #endif
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
     }
@@ -1108,7 +1108,7 @@ void session_interval(struct app_conn_t *conn) {
 	     (mainclock_rtdiff(conn->s_params.sessionterminatetime) > 0)) {
 #ifdef ENABLE_SESSIONSTATE
       conn->s_state.session_state =
-	RADIUS_VALUE_CHILLISPOT_SESSION_LOGOUT_TIME_REACHED;
+	RADIUS_VALUE_COOVACHILLI_SESSION_LOGOUT_TIME_REACHED;
 #endif
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
     }
@@ -1116,7 +1116,7 @@ void session_interval(struct app_conn_t *conn) {
 	     (idletime > conn->s_params.idletimeout)) {
 #ifdef ENABLE_SESSIONSTATE
       conn->s_state.session_state =
-	RADIUS_VALUE_CHILLISPOT_SESSION_IDLE_TIMEOUT_REACHED;
+	RADIUS_VALUE_COOVACHILLI_SESSION_IDLE_TIMEOUT_REACHED;
 #endif
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_IDLE_TIMEOUT);
     }
@@ -1124,7 +1124,7 @@ void session_interval(struct app_conn_t *conn) {
 	     (conn->s_state.input_octets > conn->s_params.maxinputoctets)) {
 #ifdef ENABLE_SESSIONSTATE
       conn->s_state.session_state =
-	RADIUS_VALUE_CHILLISPOT_SESSION_IN_DATALIMIT_REACHED;
+	RADIUS_VALUE_COOVACHILLI_SESSION_IN_DATALIMIT_REACHED;
 #endif
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
     }
@@ -1132,7 +1132,7 @@ void session_interval(struct app_conn_t *conn) {
 	     (conn->s_state.output_octets > conn->s_params.maxoutputoctets)) {
 #ifdef ENABLE_SESSIONSTATE
       conn->s_state.session_state =
-	RADIUS_VALUE_CHILLISPOT_SESSION_OUT_DATALIMIT_REACHED;
+	RADIUS_VALUE_COOVACHILLI_SESSION_OUT_DATALIMIT_REACHED;
 #endif
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
     }
@@ -1141,7 +1141,7 @@ void session_interval(struct app_conn_t *conn) {
 	      conn->s_params.maxtotaloctets)) {
 #ifdef ENABLE_SESSIONSTATE
       conn->s_state.session_state =
-	RADIUS_VALUE_CHILLISPOT_SESSION_TOTAL_DATALIMIT_REACHED;
+	RADIUS_VALUE_COOVACHILLI_SESSION_TOTAL_DATALIMIT_REACHED;
 #endif
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
     }
@@ -1292,16 +1292,16 @@ int chilli_req_attrs(struct radius_t *radius,
     if (_options.radiusoriginalurl) {
       if (state->redir.userurl[0])
 	radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		       RADIUS_VENDOR_CHILLISPOT,
-		       RADIUS_ATTR_CHILLISPOT_ORIGINALURL,
+		       RADIUS_VENDOR_COOVACHILLI,
+		       RADIUS_ATTR_COOVACHILLI_ORIGINALURL,
 		       0, (uint8_t *) state->redir.userurl,
 		       strlen(state->redir.userurl));
 
 #ifdef ENABLE_USERAGENT
       if (state->redir.useragent[0])
 	radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		       RADIUS_VENDOR_CHILLISPOT,
-		       RADIUS_ATTR_CHILLISPOT_USER_AGENT,
+		       RADIUS_VENDOR_COOVACHILLI,
+		       RADIUS_ATTR_COOVACHILLI_USER_AGENT,
 		       0, (uint8_t *) state->redir.useragent,
 		       strlen(state->redir.useragent));
 #endif
@@ -1309,8 +1309,8 @@ int chilli_req_attrs(struct radius_t *radius,
 #ifdef ENABLE_ACCEPTLANGUAGE
       if (state->redir.acceptlanguage[0])
 	radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		       RADIUS_VENDOR_CHILLISPOT,
-		       RADIUS_ATTR_CHILLISPOT_ACCEPT_LANGUAGE,
+		       RADIUS_VENDOR_COOVACHILLI,
+		       RADIUS_ATTR_COOVACHILLI_ACCEPT_LANGUAGE,
 		       0, (uint8_t *) state->redir.acceptlanguage,
 		       strlen(state->redir.acceptlanguage));
 #endif
@@ -1332,7 +1332,7 @@ int chilli_req_attrs(struct radius_t *radius,
 #ifdef ENABLE_IEEE8021Q
   if (_options.ieee8021q && state->tag8021q) {
     radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_VLAN_ID,
+		   RADIUS_VENDOR_COOVACHILLI, RADIUS_ATTR_COOVACHILLI_VLAN_ID,
 		   (uint32_t)ntohs(state->tag8021q & PKT_8021Q_MASK_VID), 0, 0);
   }
 #endif
@@ -1356,8 +1356,8 @@ int chilli_req_attrs(struct radius_t *radius,
 #ifdef ENABLE_SESSIONID
   if (state->chilli_sessionid[0]) {
     radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT,
-		   RADIUS_ATTR_CHILLISPOT_SESSION_ID,
+		   RADIUS_VENDOR_COOVACHILLI,
+		   RADIUS_ATTR_COOVACHILLI_SESSION_ID,
 		   0, (uint8_t *) state->chilli_sessionid,
 		   strlen(state->chilli_sessionid));
   }
@@ -1366,8 +1366,8 @@ int chilli_req_attrs(struct radius_t *radius,
 #ifdef ENABLE_APSESSIONID
   if (state->ap_sessionid[0]) {
     radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT,
-		   RADIUS_ATTR_CHILLISPOT_AP_SESSION_ID,
+		   RADIUS_VENDOR_COOVACHILLI,
+		   RADIUS_ATTR_COOVACHILLI_AP_SESSION_ID,
 		   0, (uint8_t *) state->ap_sessionid,
 		   strlen(state->ap_sessionid));
   }
@@ -1443,14 +1443,14 @@ int chilli_req_attrs(struct radius_t *radius,
 #ifdef ENABLE_LOCATION
   if (state->location[0]) {
     radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT,
-		   RADIUS_ATTR_CHILLISPOT_LOCATION,
+		   RADIUS_VENDOR_COOVACHILLI,
+		   RADIUS_ATTR_COOVACHILLI_LOCATION,
 		   0, (uint8_t *) state->location,
 		   strlen(state->location));
     if (state->location_changes) {
       radius_addattr(radius, pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		     RADIUS_VENDOR_CHILLISPOT,
-		     RADIUS_ATTR_CHILLISPOT_LOCATION_CHANGE_COUNT,
+		     RADIUS_VENDOR_COOVACHILLI,
+		     RADIUS_ATTR_COOVACHILLI_LOCATION_CHANGE_COUNT,
 		     (uint32_t) state->location_changes, 0, 0);
     }
   }
@@ -1593,21 +1593,21 @@ int static auth_radius(struct app_conn_t *appconn,
 #define maptag(OPT,VSA) tag=0; \
 if (!dhcp_gettag(dhcppkt, ntohs(udph->len)-PKT_UDP_HLEN, &tag, OPT)) { \
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,	\
-		 RADIUS_VENDOR_CHILLISPOT, VSA, 0, \
+		 RADIUS_VENDOR_COOVACHILLI, VSA, 0, \
 		 (uint8_t *) tag->v, tag->l); }
     /*
      *  Mapping of DHCP options to RADIUS Vendor Specific Attributes
      */
     maptag( DHCP_OPTION_PARAMETER_REQUEST_LIST,
-	    RADIUS_ATTR_CHILLISPOT_DHCP_PARAMETER_REQUEST_LIST );
+	    RADIUS_ATTR_COOVACHILLI_DHCP_PARAMETER_REQUEST_LIST );
     maptag( DHCP_OPTION_VENDOR_CLASS_IDENTIFIER,
-	    RADIUS_ATTR_CHILLISPOT_DHCP_VENDOR_CLASS_ID );
+	    RADIUS_ATTR_COOVACHILLI_DHCP_VENDOR_CLASS_ID );
     maptag( DHCP_OPTION_CLIENT_IDENTIFIER,
-	    RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_ID );
+	    RADIUS_ATTR_COOVACHILLI_DHCP_CLIENT_ID );
     maptag( DHCP_OPTION_CLIENT_FQDN,
-	    RADIUS_ATTR_CHILLISPOT_DHCP_CLIENT_FQDN );
+	    RADIUS_ATTR_COOVACHILLI_DHCP_CLIENT_FQDN );
     maptag( DHCP_OPTION_HOSTNAME,
-	    RADIUS_ATTR_CHILLISPOT_DHCP_HOSTNAME );
+	    RADIUS_ATTR_COOVACHILLI_DHCP_HOSTNAME );
 #undef maptag
   }
 #endif
@@ -1876,13 +1876,13 @@ static int acct_req(acct_type type,
 	  fav[2]=((float)the_info.loads[2])/shiftfloat;
 
 	  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-			 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_SYS_UPTIME,
+			 RADIUS_VENDOR_COOVACHILLI, RADIUS_ATTR_COOVACHILLI_SYS_UPTIME,
 			 (uint32_t) the_info.uptime, NULL, 0);
 
 	  safe_snprintf(b, sizeof(b), "%f %f %f",fav[0],fav[1],fav[2]);
 
 	  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-			 RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_SYS_LOADAVG,
+			 RADIUS_VENDOR_COOVACHILLI, RADIUS_ATTR_COOVACHILLI_SYS_LOADAVG,
 			 0, (uint8_t *) b, strlen(b));
 
 	  safe_snprintf(b, sizeof(b), "%ld %ld %ld %ld",
@@ -1893,8 +1893,8 @@ static int acct_req(acct_type type,
 
 	  radius_addattr(radius, &radius_pack,
 			 RADIUS_ATTR_VENDOR_SPECIFIC,
-			 RADIUS_VENDOR_CHILLISPOT,
-			 RADIUS_ATTR_CHILLISPOT_SYS_MEMORY,
+			 RADIUS_VENDOR_COOVACHILLI,
+			 RADIUS_ATTR_COOVACHILLI_SYS_MEMORY,
 			 0, (uint8_t *) b, strlen(b));
 	}
       }
@@ -1946,47 +1946,47 @@ static int acct_req(acct_type type,
     if (incl_garden && _options.uamgardendata) {
       radius_addattr(radius, &radius_pack,
 		     RADIUS_ATTR_VENDOR_SPECIFIC,
-		     RADIUS_VENDOR_CHILLISPOT,
-		     RADIUS_ATTR_CHILLISPOT_GARDEN_INPUT_OCTETS,
+		     RADIUS_VENDOR_COOVACHILLI,
+		     RADIUS_ATTR_COOVACHILLI_GARDEN_INPUT_OCTETS,
 		     (uint32_t) conn->s_state.garden_input_octets, NULL, 0);
       radius_addattr(radius, &radius_pack,
 		     RADIUS_ATTR_VENDOR_SPECIFIC,
-		     RADIUS_VENDOR_CHILLISPOT,
-		     RADIUS_ATTR_CHILLISPOT_GARDEN_OUTPUT_OCTETS,
+		     RADIUS_VENDOR_COOVACHILLI,
+		     RADIUS_ATTR_COOVACHILLI_GARDEN_OUTPUT_OCTETS,
 		     (uint32_t) conn->s_state.garden_output_octets, NULL, 0);
 
       radius_addattr(radius, &radius_pack,
 		     RADIUS_ATTR_VENDOR_SPECIFIC,
-		     RADIUS_VENDOR_CHILLISPOT,
-		     RADIUS_ATTR_CHILLISPOT_GARDEN_INPUT_GIGAWORDS,
+		     RADIUS_VENDOR_COOVACHILLI,
+		     RADIUS_ATTR_COOVACHILLI_GARDEN_INPUT_GIGAWORDS,
 		     (uint32_t) (conn->s_state.garden_input_octets >> 32), NULL, 0);
       radius_addattr(radius, &radius_pack,
 		     RADIUS_ATTR_VENDOR_SPECIFIC,
-		     RADIUS_VENDOR_CHILLISPOT,
-		     RADIUS_ATTR_CHILLISPOT_GARDEN_OUTPUT_GIGAWORDS,
+		     RADIUS_VENDOR_COOVACHILLI,
+		     RADIUS_ATTR_COOVACHILLI_GARDEN_OUTPUT_GIGAWORDS,
 		     (uint32_t) (conn->s_state.garden_output_octets >> 32), NULL, 0);
 
       if (_options.uamotherdata) {
 	radius_addattr(radius, &radius_pack,
 		       RADIUS_ATTR_VENDOR_SPECIFIC,
-		       RADIUS_VENDOR_CHILLISPOT,
-		       RADIUS_ATTR_CHILLISPOT_OTHER_INPUT_OCTETS,
+		       RADIUS_VENDOR_COOVACHILLI,
+		       RADIUS_ATTR_COOVACHILLI_OTHER_INPUT_OCTETS,
 		       (uint32_t) conn->s_state.other_input_octets, NULL, 0);
 	radius_addattr(radius, &radius_pack,
 		       RADIUS_ATTR_VENDOR_SPECIFIC,
-		       RADIUS_VENDOR_CHILLISPOT,
-		       RADIUS_ATTR_CHILLISPOT_OTHER_OUTPUT_OCTETS,
+		       RADIUS_VENDOR_COOVACHILLI,
+		       RADIUS_ATTR_COOVACHILLI_OTHER_OUTPUT_OCTETS,
 		       (uint32_t) conn->s_state.other_output_octets, NULL, 0);
 
 	radius_addattr(radius, &radius_pack,
 		       RADIUS_ATTR_VENDOR_SPECIFIC,
-		       RADIUS_VENDOR_CHILLISPOT,
-		       RADIUS_ATTR_CHILLISPOT_OTHER_INPUT_GIGAWORDS,
+		       RADIUS_VENDOR_COOVACHILLI,
+		       RADIUS_ATTR_COOVACHILLI_OTHER_INPUT_GIGAWORDS,
 		       (uint32_t) (conn->s_state.other_input_octets >> 32), NULL, 0);
 	radius_addattr(radius, &radius_pack,
 		       RADIUS_ATTR_VENDOR_SPECIFIC,
-		       RADIUS_VENDOR_CHILLISPOT,
-		       RADIUS_ATTR_CHILLISPOT_OTHER_OUTPUT_GIGAWORDS,
+		       RADIUS_VENDOR_COOVACHILLI,
+		       RADIUS_ATTR_COOVACHILLI_OTHER_OUTPUT_GIGAWORDS,
 		       (uint32_t) (conn->s_state.other_output_octets >> 32), NULL, 0);
       }
     }
@@ -2012,8 +2012,8 @@ static int acct_req(acct_type type,
   if (conn->s_state.session_state) {
     radius_addattr(radius, &radius_pack,
 		   RADIUS_ATTR_VENDOR_SPECIFIC,
-		   RADIUS_VENDOR_CHILLISPOT,
-		   RADIUS_ATTR_CHILLISPOT_SESSION_STATE,
+		   RADIUS_VENDOR_COOVACHILLI,
+		   RADIUS_ATTR_COOVACHILLI_SESSION_STATE,
 		   conn->s_state.session_state, 0, 0);
   }
 #endif
@@ -2307,7 +2307,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
 
 #ifdef ENABLE_SESSIONSTATE
     appconn->s_state.session_state =
-      RADIUS_VALUE_CHILLISPOT_SESSION_AUTH;
+      RADIUS_VALUE_COOVACHILLI_SESSION_AUTH;
 #endif
 
 #ifdef HAVE_NETFILTER_COOVA
@@ -2944,7 +2944,7 @@ chilli_learn_location(uint8_t *loc, int loclen,
 
 #ifdef ENABLE_SESSIONSTATE
     appconn->s_state.session_state =
-      RADIUS_VALUE_CHILLISPOT_SESSION_LOCATION_CHANGE;
+      RADIUS_VALUE_COOVACHILLI_SESSION_LOCATION_CHANGE;
 #endif
 
     if (appconn->s_state.authenticated == 1)
@@ -2958,7 +2958,7 @@ chilli_learn_location(uint8_t *loc, int loclen,
 
 #ifdef ENABLE_SESSIONSTATE
     appconn->s_state.session_state =
-      RADIUS_VALUE_CHILLISPOT_SESSION_LOCATION_CHANGE;
+      RADIUS_VALUE_COOVACHILLI_SESSION_LOCATION_CHANGE;
 #endif
 
     acct_req(ACCT_GARDEN, appconn, RADIUS_STATUS_TYPE_STOP);
@@ -3026,7 +3026,7 @@ chilli_learn_location(uint8_t *loc, int loclen,
     int old_state = appconn->s_state.session_state;
 
     appconn->s_state.session_state =
-      RADIUS_VALUE_CHILLISPOT_SESSION_LOCATION_CHANGE;
+      RADIUS_VALUE_COOVACHILLI_SESSION_LOCATION_CHANGE;
 #endif
 
     if (appconn->s_state.authenticated == 1)
@@ -3566,7 +3566,7 @@ int access_request(struct radius_packet_t *pack,
   }
 #endif
 
-  /* ChilliSpot Notes:
+  /* CoovaChilli Notes:
      Dublicate logins should be allowed as it might be the terminal
      moving from one access point to another. It is however
      unacceptable to login with another username on top of an allready
@@ -3663,7 +3663,7 @@ int access_request(struct radius_packet_t *pack,
   if (resplen) {
     if (_options.wpaguests)
       radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
-		     RADIUS_VENDOR_CHILLISPOT, RADIUS_ATTR_CHILLISPOT_CONFIG,
+		     RADIUS_VENDOR_COOVACHILLI, RADIUS_ATTR_COOVACHILLI_CONFIG,
 		     0, (uint8_t*)"allow-wpa-guests", 16);
   }
 
@@ -3947,42 +3947,42 @@ config_radius_session(struct session_params *params,
   else if (!reconfig)
     params->bandwidthmaxdown = 0;
 
-#ifdef RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP
+#ifdef RADIUS_ATTR_COOVACHILLI_BANDWIDTH_MAX_UP
   /* Bandwidth up */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_UP, 0))
+		      RADIUS_VENDOR_COOVACHILLI,
+		      RADIUS_ATTR_COOVACHILLI_BANDWIDTH_MAX_UP, 0))
     params->bandwidthmaxup = ntohl(attr->v.i) * 1000;
 #endif
 
-#ifdef RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN
+#ifdef RADIUS_ATTR_COOVACHILLI_BANDWIDTH_MAX_DOWN
   /* Bandwidth down */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_BANDWIDTH_MAX_DOWN, 0))
+		      RADIUS_VENDOR_COOVACHILLI,
+		      RADIUS_ATTR_COOVACHILLI_BANDWIDTH_MAX_DOWN, 0))
     params->bandwidthmaxdown = ntohl(attr->v.i) * 1000;
 #endif
 
   /* Max input octets */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_INPUT_OCTETS, 0))
+		      RADIUS_VENDOR_COOVACHILLI,
+		      RADIUS_ATTR_COOVACHILLI_MAX_INPUT_OCTETS, 0))
     params->maxinputoctets = ntohl(attr->v.i);
   else if (!reconfig)
     params->maxinputoctets = 0;
 
   /* Max output octets */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_OCTETS, 0))
+		      RADIUS_VENDOR_COOVACHILLI,
+		      RADIUS_ATTR_COOVACHILLI_MAX_OUTPUT_OCTETS, 0))
     params->maxoutputoctets = ntohl(attr->v.i);
   else if (!reconfig)
     params->maxoutputoctets = 0;
 
   /* Max total octets */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_OCTETS, 0))
+		      RADIUS_VENDOR_COOVACHILLI,
+		      RADIUS_ATTR_COOVACHILLI_MAX_TOTAL_OCTETS, 0))
     params->maxtotaloctets = ntohl(attr->v.i);
   else if (!reconfig)
     params->maxtotaloctets = 0;
@@ -3990,33 +3990,33 @@ config_radius_session(struct session_params *params,
 
   /* Max input gigawords */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_INPUT_GIGAWORDS, 0))
+		      RADIUS_VENDOR_COOVACHILLI,
+		      RADIUS_ATTR_COOVACHILLI_MAX_INPUT_GIGAWORDS, 0))
     params->maxinputoctets |= ((uint64_t)ntohl(attr->v.i) & 0xffffffff) << 32;
 
   /* Max output gigawords */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_OUTPUT_GIGAWORDS, 0))
+		      RADIUS_VENDOR_COOVACHILLI,
+		      RADIUS_ATTR_COOVACHILLI_MAX_OUTPUT_GIGAWORDS, 0))
     params->maxoutputoctets |= ((uint64_t)ntohl(attr->v.i) & 0xffffffff) << 32;
 
   /* Max total octets */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_MAX_TOTAL_GIGAWORDS, 0))
+		      RADIUS_VENDOR_COOVACHILLI,
+		      RADIUS_ATTR_COOVACHILLI_MAX_TOTAL_GIGAWORDS, 0))
     params->maxtotaloctets |= ((uint64_t)ntohl(attr->v.i) & 0xffffffff) << 32;
 
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_REQUIRE_UAM, 0)) {
+		      RADIUS_VENDOR_COOVACHILLI,
+		      RADIUS_ATTR_COOVACHILLI_REQUIRE_UAM, 0)) {
     memcpy(params->url, attr->v.t, attr->l-2);
     params->url[attr->l-2] = 0;
   }
 
 #ifdef ENABLE_REDIRINJECT
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-		      RADIUS_VENDOR_CHILLISPOT,
-		      RADIUS_ATTR_CHILLISPOT_INJECT_URL, 0)) {
+		      RADIUS_VENDOR_COOVACHILLI,
+		      RADIUS_ATTR_COOVACHILLI_INJECT_URL, 0)) {
     memcpy(params->url, attr->v.t, attr->l-2);
     params->url[attr->l-2] = 0;
     params->flags |= UAM_INJECT_URL | REQUIRE_UAM_AUTH;
@@ -4031,8 +4031,8 @@ config_radius_session(struct session_params *params,
   if (tun) {
     /* Route Index, look-up by interface name */
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC,
-			RADIUS_VENDOR_CHILLISPOT,
-			RADIUS_ATTR_CHILLISPOT_ROUTE_TO_INTERFACE, 0)) {
+			RADIUS_VENDOR_COOVACHILLI,
+			RADIUS_ATTR_COOVACHILLI_ROUTE_TO_INTERFACE, 0)) {
       char name[256];
       memcpy(name, attr->v.t, attr->l-2);
       name[attr->l-2] = 0;
@@ -4044,10 +4044,10 @@ config_radius_session(struct session_params *params,
   }
 #endif
 
-#ifdef ENABLE_CHILLISPOTCONFIG
+#ifdef ENABLE_COOVACHILLICONFIG
   {
     /*
-     *  Looking for ChilliSpot-Config attributes with
+     *  Looking for CoovaChilli-Config attributes with
      *  special messages.
      */
     const char *adminreset = "admin-reset";
@@ -4062,8 +4062,8 @@ config_radius_session(struct session_params *params,
 
     while (!radius_getnextattr(pack, &attr,
 			       RADIUS_ATTR_VENDOR_SPECIFIC,
-			       RADIUS_VENDOR_CHILLISPOT,
-			       RADIUS_ATTR_CHILLISPOT_CONFIG,
+			       RADIUS_VENDOR_COOVACHILLI,
+			       RADIUS_ATTR_COOVACHILLI_CONFIG,
 			       0, &offset)) {
       size_t len = (size_t) attr->l - 2;
       char *val = (char *) attr->v.t;
@@ -4241,8 +4241,8 @@ static int chilliauth_cb(struct radius_t *radius,
 
     if (!radius_getnextattr(pack, &attr,
 			    RADIUS_ATTR_VENDOR_SPECIFIC,
-			    RADIUS_VENDOR_CHILLISPOT,
-			    RADIUS_ATTR_CHILLISPOT_CONFIG,
+			    RADIUS_VENDOR_COOVACHILLI,
+			    RADIUS_ATTR_COOVACHILLI_CONFIG,
 			    0, &offset)) {
 
       char template[] = "/tmp/hs.conf.XXXXXX";
@@ -4269,8 +4269,8 @@ static int chilliauth_cb(struct radius_t *radius,
 	}
 	while (!radius_getnextattr(pack, &attr,
 				   RADIUS_ATTR_VENDOR_SPECIFIC,
-				   RADIUS_VENDOR_CHILLISPOT,
-				   RADIUS_ATTR_CHILLISPOT_CONFIG,
+				   RADIUS_VENDOR_COOVACHILLI,
+				   RADIUS_ATTR_COOVACHILLI_CONFIG,
 				   0, &offset));
 	safe_close(fd);
       }
@@ -4426,8 +4426,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #ifdef ENABLE_DHCPRADIUS
       || !radius_getattr(pack, &hisipattr,
 			 RADIUS_ATTR_VENDOR_SPECIFIC,
-			 RADIUS_VENDOR_CHILLISPOT,
-			 RADIUS_ATTR_CHILLISPOT_DHCP_IP_ADDRESS, 0)
+			 RADIUS_VENDOR_COOVACHILLI,
+			 RADIUS_ATTR_COOVACHILLI_DHCP_IP_ADDRESS, 0)
 #endif
       ) {
     if ((hisipattr->l-2) != sizeof(struct in_addr)) {
@@ -4443,8 +4443,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
 #ifdef ENABLE_DHCPRADIUS
 	|| !radius_getattr(pack, &hisipattr,
 			   RADIUS_ATTR_VENDOR_SPECIFIC,
-			   RADIUS_VENDOR_CHILLISPOT,
-			   RADIUS_ATTR_CHILLISPOT_DHCP_IP_NETMASK, 0)
+			   RADIUS_VENDOR_COOVACHILLI,
+			   RADIUS_ATTR_COOVACHILLI_DHCP_IP_NETMASK, 0)
 #endif
 	) {
       if ((hisipattr->l-2) != sizeof(struct in_addr)) {
@@ -4494,30 +4494,30 @@ int cb_radius_auth_conf(struct radius_t *radius,
     if (dhcpconn) {
       if (!radius_getattr(pack, &attr,
 			  RADIUS_ATTR_VENDOR_SPECIFIC,
-			  RADIUS_VENDOR_CHILLISPOT,
-			  RADIUS_ATTR_CHILLISPOT_DHCP_SERVER_NAME, 0)) {
+			  RADIUS_VENDOR_COOVACHILLI,
+			  RADIUS_ATTR_COOVACHILLI_DHCP_SERVER_NAME, 0)) {
 	memcpy(dhcpconn->dhcp_opts.sname, attr->v.t, attr->l-2);
       }
 
       if (!radius_getattr(pack, &attr,
 			  RADIUS_ATTR_VENDOR_SPECIFIC,
-			  RADIUS_VENDOR_CHILLISPOT,
-			  RADIUS_ATTR_CHILLISPOT_DHCP_FILENAME, 0)) {
+			  RADIUS_VENDOR_COOVACHILLI,
+			  RADIUS_ATTR_COOVACHILLI_DHCP_FILENAME, 0)) {
 	memcpy(dhcpconn->dhcp_opts.file, attr->v.t, attr->l-2);
       }
 
       if (!radius_getattr(pack, &attr,
 			  RADIUS_ATTR_VENDOR_SPECIFIC,
-			  RADIUS_VENDOR_CHILLISPOT,
-			  RADIUS_ATTR_CHILLISPOT_DHCP_OPTION, 0)) {
+			  RADIUS_VENDOR_COOVACHILLI,
+			  RADIUS_ATTR_COOVACHILLI_DHCP_OPTION, 0)) {
 	memcpy(dhcpconn->dhcp_opts.options, attr->v.t,
 	       dhcpconn->dhcp_opts.option_length = attr->l-2);
       }
 
       if (!radius_getattr(pack, &attr,
 			  RADIUS_ATTR_VENDOR_SPECIFIC,
-			  RADIUS_VENDOR_CHILLISPOT,
-			  RADIUS_ATTR_CHILLISPOT_DHCP_DNS1, 0)) {
+			  RADIUS_VENDOR_COOVACHILLI,
+			  RADIUS_ATTR_COOVACHILLI_DHCP_DNS1, 0)) {
 	if ((attr->l-2) == sizeof(struct in_addr)) {
 	  appconn->dns1.s_addr = attr->v.i;
 	  dhcpconn->dns1.s_addr = attr->v.i;
@@ -4526,8 +4526,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
       if (!radius_getattr(pack, &attr,
 			  RADIUS_ATTR_VENDOR_SPECIFIC,
-			  RADIUS_VENDOR_CHILLISPOT,
-			  RADIUS_ATTR_CHILLISPOT_DHCP_DNS2, 0)) {
+			  RADIUS_VENDOR_COOVACHILLI,
+			  RADIUS_ATTR_COOVACHILLI_DHCP_DNS2, 0)) {
 	if ((attr->l-2) == sizeof(struct in_addr)) {
 	  appconn->dns2.s_addr = attr->v.i;
 	  dhcpconn->dns2.s_addr = attr->v.i;
@@ -4536,8 +4536,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
       if (!radius_getattr(pack, &attr,
 			  RADIUS_ATTR_VENDOR_SPECIFIC,
-			  RADIUS_VENDOR_CHILLISPOT,
-			  RADIUS_ATTR_CHILLISPOT_DHCP_GATEWAY, 0)) {
+			  RADIUS_VENDOR_COOVACHILLI,
+			  RADIUS_ATTR_COOVACHILLI_DHCP_GATEWAY, 0)) {
 	if ((attr->l-2) == sizeof(struct in_addr)) {
 	  appconn->ourip.s_addr = attr->v.i;
 	  dhcpconn->ourip.s_addr = attr->v.i;
@@ -4546,8 +4546,8 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
       if (!radius_getattr(pack, &attr,
 			  RADIUS_ATTR_VENDOR_SPECIFIC,
-			  RADIUS_VENDOR_CHILLISPOT,
-			  RADIUS_ATTR_CHILLISPOT_DHCP_DOMAIN, 0)) {
+			  RADIUS_VENDOR_COOVACHILLI,
+			  RADIUS_ATTR_COOVACHILLI_DHCP_DOMAIN, 0)) {
 	if (attr->l-2 < DHCP_DOMAIN_LEN) {
 	  strncpy(dhcpconn->domain, (char *)attr->v.t, attr->l-2);
 	  dhcpconn->domain[attr->l-2]=0;
@@ -4829,15 +4829,15 @@ int cb_radius_coa_ind(struct radius_t *radius, struct radius_packet_t *pack,
 	/* Session state */
 	if (!radius_getattr(pack, &attr,
 			    RADIUS_ATTR_VENDOR_SPECIFIC,
-			    RADIUS_VENDOR_CHILLISPOT,
-			    RADIUS_ATTR_CHILLISPOT_SESSION_STATE, 0)) {
+			    RADIUS_VENDOR_COOVACHILLI,
+			    RADIUS_ATTR_COOVACHILLI_SESSION_STATE, 0)) {
 	  uint32_t v = ntohl(attr->v.i);
 	  switch (v) {
-	  case RADIUS_VALUE_CHILLISPOT_SESSION_AUTH:
+	  case RADIUS_VALUE_COOVACHILLI_SESSION_AUTH:
 	    if (!appconn->s_state.authenticated)
 	      authorize = 1;
 	    break;
-	  case RADIUS_VALUE_CHILLISPOT_SESSION_NOAUTH:
+	  case RADIUS_VALUE_COOVACHILLI_SESSION_NOAUTH:
 	    if (appconn->s_state.authenticated)
 	      terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
 	    break;
@@ -6047,7 +6047,7 @@ int static uam_msg(struct redir_msg_t *msg) {
     if (appconn->s_state.authenticated == 1) {
 #ifdef ENABLE_SESSIONSTATE
       appconn->s_state.session_state =
-	RADIUS_VALUE_CHILLISPOT_SESSION_USER_LOGOUT_URL;
+	RADIUS_VALUE_COOVACHILLI_SESSION_USER_LOGOUT_URL;
 #endif
       terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
       appconn->s_params.sessiontimeout = 0;
@@ -7274,7 +7274,7 @@ int chilli_main(int argc, char **argv) {
 
   syslog(LOG_INFO, "CoovaChilli %s. "
 	 "Copyright 2002-2005 Mondru AB. Licensed under GPL. "
-	 "Copyright 2006-2015 David Bird (Coova Technologies). "
+	 "Copyright 2006-2012 David Bird (Coova Technologies). "
 	 "Licensed under GPL. "
 	 "See http://coova.github.io/ for details.", VERSION);
 
