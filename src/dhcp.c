@@ -865,7 +865,7 @@ int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
   struct nfqnl_msg_packet_hdr *ph;
   struct nfqnl_msg_packet_hw *hw;
   u_int32_t id = 0;
-  unsigned char *data;
+  char *data;
   int ret;
 
   int result = NF_DROP;
@@ -928,7 +928,7 @@ int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 		   struct nfq_data *nfa, void *cbdata) {
   struct nfqnl_msg_packet_hdr *ph;
   u_int32_t id = 0;
-  unsigned char *data;
+  char *data;
   int ret;
 
   int result = NF_DROP;
