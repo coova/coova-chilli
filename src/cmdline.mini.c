@@ -29,7 +29,9 @@
 
 #include <getopt.h>
 
-#define _debug_ 0
+#ifndef _debug_
+  #define _debug_ 0
+#endif
 
 #define OPT_string  0
 #define OPT_integer 1
