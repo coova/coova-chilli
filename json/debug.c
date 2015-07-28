@@ -42,19 +42,27 @@ void mc_abort(const char *msg, ...)
 {
   va_list ap;
   va_start(ap, msg);
-  if(_syslog) vsyslog(LOG_ERR, msg, ap);
-  else vprintf(msg, ap);
+  if(_syslog) {
+    vsyslog(LOG_ERR, msg, ap);
+  } else {
+    vprintf(msg, ap);
+  }
+  va_end(ap);
   exit(1);
 }
 
 
 void mc_debug(const char *msg, ...)
 {
-  va_list ap;
   if(_debug) {
+    va_list ap;
     va_start(ap, msg);
-    if(_syslog) vsyslog(LOG_DEBUG, msg, ap);
-    else vprintf(msg, ap);
+    if(_syslog) {
+      vsyslog(LOG_DEBUG, msg, ap);
+    } else {
+      vprintf(msg, ap);
+    }
+    va_end(ap);
   }
 }
 
@@ -62,14 +70,22 @@ void mc_error(const char *msg, ...)
 {
   va_list ap;
   va_start(ap, msg);
-  if(_syslog) vsyslog(LOG_ERR, msg, ap);
-  else vfprintf(stderr, msg, ap);
+  if(_syslog) {
+    vsyslog(LOG_ERR, msg, ap);
+  } else {
+    vfprintf(stderr, msg, ap);
+  }
+  va_end(ap);
 }
 
 void mc_info(const char *msg, ...)
 {
   va_list ap;
   va_start(ap, msg);
-  if(_syslog) vsyslog(LOG_INFO, msg, ap);
-  else vfprintf(stderr, msg, ap);
+  if(_syslog) {
+    vsyslog(LOG_INFO, msg, ap);
+  } else {
+    vfprintf(stderr, msg, ap);
+  }
+  va_end(ap);
 }

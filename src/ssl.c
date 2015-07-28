@@ -461,6 +461,7 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
 
   if (!env || !env->ready) {
     syslog(LOG_ERR, "SSL not available!");
+	openssl_free(c);
     return 0;
   }
 
