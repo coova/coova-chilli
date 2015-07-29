@@ -19,7 +19,7 @@ static u_int32_t print_pkt (struct nfq_data *tb) {
   ph = nfq_get_msg_packet_hdr(tb);
   if (ph){
     id = ntohl(ph->packet_id);
-    printf("hw_protocol=0x%04x hook=%u id=%u ",
+    printf("hw_protocol=0x%04x hook=%u id=%i ",
 	   ntohs(ph->hw_protocol), ph->hook, id);
   }
 

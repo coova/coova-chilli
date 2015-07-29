@@ -2953,6 +2953,7 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   default:
     syslog(LOG_ERR, "Authentication method not supported for locally authenticated users: %d",
 	    conn->authdata.type);
+	fclose(f);
     return 0;
   }
 

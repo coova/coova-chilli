@@ -2439,20 +2439,16 @@ static int fwd_layer3(struct app_conn_t *appconn,
       } else
 #endif
 	{
-	static uint8_t bmac[PKT_ETH_ALEN] =
-	  {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-
 	struct pkt_ethhdr_t *ethh;
 	uint8_t packet[PKT_MAX_LEN];
 	size_t length = pkt_buffer_length(pb);
 	size_t hdrlen = PKT_ETH_HLEN;
-	uint8_t *dstmac = bmac;
 
 	memset(packet, 0, hdrlen);
 
 	ethh = pkt_ethhdr(packet);
 
-	dstmac = pdhcp->chaddr;
+	uint8_t *dstmac = pdhcp->chaddr;
 
 	memcpy(packet + hdrlen,
 	       pkt_buffer_head(pb),
@@ -7158,11 +7154,25 @@ int chilli_main(int argc, char **argv) {
   /* foreground                                                   */
   /* If flag not given run as a daemon                            */
   if (!_options.foreground) {
-    /* Close the standard file descriptors. */
-    /* Is this really needed ? */
-    if (!freopen("/dev/null", "w", stdout)) syslog(LOG_ERR, "freopen()");
-    if (!freopen("/dev/null", "w", stderr)) syslog(LOG_ERR, "freopen()");
-    if (!freopen("/dev/null", "r", stdin))  syslog(LOG_ERR, "freopen()");
+    FILE *fp = NULL;
+    if (!(fp = freopen("/dev/null", "w", stdout))) {
+		syslog(LOG_ERR, "freopen()");
+	} else {
+		fclose(fp);
+    fp = NULL;
+	}
+    if (!(fp = freopen("/dev/null", "w", stderr))) {
+		syslog(LOG_ERR, "freopen()");
+	} else {
+		fclose(fp);
+    fp = NULL;
+	}
+    if (!(fp = freopen("/dev/null", "r", stdin))) {
+		syslog(LOG_ERR, "freopen()");
+	} else {
+		fclose(fp);
+    fp = NULL;
+	}
 #if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
     if (fork() > 0) {
       exit(0);

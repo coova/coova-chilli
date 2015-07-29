@@ -574,8 +574,8 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap) {
       char length_modifier = '\0';            /* allowed values: \0, h, l, L */
       char tmp[32];/* temporary buffer for simple numeric->string conversion */
 
-      const char *str_arg;      /* string address in case of string argument */
-      size_t str_arg_l;         /* natural field width of arg without padding
+      const char *str_arg = NULL;/* string address in case of string argument */
+      size_t str_arg_l;          /* natural field width of arg without padding
                                    and sign */
       unsigned char uchar_arg;
         /* unsigned char argument value - only defined for c conversion.
@@ -592,8 +592,6 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap) {
       char fmt_spec = '\0';
         /* current conversion specifier character */
 
-      str_arg = credits;/* just to make compiler happy (defined but not used)*/
-      str_arg = NULL;
       starting_p = p; p++;  /* skip '%' */
    /* parse flags */
       while (*p == '0' || *p == '-' || *p == '+' ||

@@ -3250,8 +3250,6 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct pkt_udphdr_t *packet_udph;
   struct dhcp_packet_t *packet_dhcp;
 
-  uint16_t length = 576 + 4; /* Maximum length */
-  uint16_t udp_len = 576 - 20; /* Maximum length */
   size_t pos = 0;
 
   /* Get packet default values */
@@ -3267,12 +3265,12 @@ int dhcp_sendOFFER(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   pos = dhcp_handler(CHILLI_DHCP_OFFER,
 		     conn, pack, len, packet, pos);
 
-  udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
+  uint16_t udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
   packet_udph->len = htons(udp_len);
   packet_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
   chksum(packet_iph);
 
-  length = udp_len + sizeofip(packet);
+  uint16_t length = udp_len + sizeofip(packet);
 
   OTHER_SENDING(conn, packet_iph);
   return dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, packet, length);
@@ -3292,8 +3290,6 @@ int dhcp_sendACK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct pkt_udphdr_t *packet_udph;
   struct dhcp_packet_t *packet_dhcp;
 
-  uint16_t length = 576 + 4; /* Maximum length */
-  uint16_t udp_len = 576 - 20; /* Maximum length */
   size_t pos = 0;
 
   /* Get packet default values */
@@ -3309,12 +3305,12 @@ int dhcp_sendACK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   pos = dhcp_handler(CHILLI_DHCP_ACK,
 		     conn, pack, len, packet, pos);
 
-  udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
+  uint16_t udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
   packet_udph->len = htons(udp_len);
   packet_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
   chksum(packet_iph);
 
-  length = udp_len + sizeofip(packet);
+  uint16_t length = udp_len + sizeofip(packet);
 
   OTHER_SENDING(conn, packet_iph);
   return dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, packet, length);
@@ -3335,8 +3331,6 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct pkt_udphdr_t *packet_udph;
   struct dhcp_packet_t *packet_dhcp;
 
-  uint16_t length = 576 + 4; /* Maximum length */
-  uint16_t udp_len = 576 - 20; /* Maximum length */
   size_t pos = 0;
 
   /* Get packet default values */
@@ -3357,12 +3351,12 @@ int dhcp_sendNAK(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   pos = dhcp_handler(CHILLI_DHCP_NAK,
 		     conn, pack, len, packet, pos);
 
-  udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
+  uint16_t udp_len = pos + DHCP_MIN_LEN + PKT_UDP_HLEN;
   packet_udph->len = htons(udp_len);
   packet_iph->tot_len = htons(udp_len + PKT_IP_HLEN);
 
   chksum(packet_iph);
-  length = udp_len + sizeofip(packet);
+  uint16_t length = udp_len + sizeofip(packet);
 
   OTHER_SENDING(conn, packet_iph);
   return dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, packet, length);
