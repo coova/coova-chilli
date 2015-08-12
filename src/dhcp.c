@@ -3016,30 +3016,46 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
     uint16_t udph_len = ntohs(req_udph->len);
 
     if (!dhcp_gettag(req_dhcp, udph_len - PKT_UDP_HLEN,
-		     &param_list, DHCP_OPTION_PARAMETER_REQUEST_LIST)) {
-
+                     &param_list, DHCP_OPTION_PARAMETER_REQUEST_LIST)) {
       uint8_t *lhead = _options.dhcp_options;
       struct dhcp_tag_t *opt = (struct dhcp_tag_t *)lhead;
       while (opt && opt->t && opt->l) {
-	int param_count = param_list->l;
-	int i;
+        int param_count = param_list->l;
+        int i;
 
-	syslog(LOG_DEBUG, "DHCP Type: %d Length: %d", (int)opt->t, (int)opt->l);
+        syslog(LOG_DEBUG, "DHCP Type: %d Length: %d", (int)opt->t, (int)opt->l);
 
-	/* for each configured option, iterate the param_list */
-	for (i=0; i < param_count; i++) {
-	  if (param_list->v[i] == opt->t) {
-	    if (pos + opt->l + 2 < DHCP_OPTIONS_LEN) {
-	      memcpy(&pack_dhcp->options[pos], opt,
-		     opt->l + 2);
-	      pos += opt->l + 2;
-	    }
-	    break;
-	  }
-	}
+        /* for each configured option, iterate the param_list */
+        for (i=0; i < param_count; i++) {
+          if (param_list->v[i] == opt->t) {
+            if (pos + opt->l + 2 < DHCP_OPTIONS_LEN) {
+              memcpy(&pack_dhcp->options[pos], opt,
+                opt->l + 2);
+              pos += opt->l + 2;
+            }
+            break;
+          }
+        }
 
-	lhead += opt->l + 2;
-	opt = (struct dhcp_tag_t *)lhead;
+        lhead += opt->l + 2;
+        opt = (struct dhcp_tag_t *)lhead;
+      }
+    }
+    if (!dhcp_gettag(req_dhcp, udph_len - PKT_UDP_HLEN,
+                     &param_list, DHCP_OPTION_VENDOR_CLASS_IDENTIFIER)) {
+      uint8_t *lhead = _options.dhcp_options;
+      struct dhcp_tag_t *opt = (struct dhcp_tag_t *)lhead;
+      while (opt && opt->t && opt->l) {
+        syslog(LOG_DEBUG, "DHCP Type: %d Length: %d", (int)opt->t, (int)opt->l);
+        /* for each configured option, check if it's option 43 */
+        if (opt->t == DHCP_OPTION_VENDOR_SPECIFIC_INFORMATION) {
+          if (pos + opt->l + 2 < DHCP_OPTIONS_LEN) {
+            memcpy(&pack_dhcp->options[pos], opt,opt->l + 2);
+            pos += opt->l + 2;
+          }
+        }
+        lhead += opt->l + 2;
+        opt = (struct dhcp_tag_t *)lhead;
       }
     }
   }
