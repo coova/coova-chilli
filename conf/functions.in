@@ -146,6 +146,7 @@ writeconfig() {
     addconfig1 ${HS_TCPMSS:+"tcpmss \"$HS_TCPMSS\""}
     addconfig1 ${HS_DHCPOPT:+"dhcpopt \"$HS_DHCPOPT\""}
 
+    [ "$HS_LOCATIONOPT82" = "on" ] && addconfig1 "locationopt82"
     [ "$HS_UAMHOMEPAGE" = "none" ] && HS_UAMHOMEPAGE=
     addconfig1 ${HS_UAMHOMEPAGE:+"uamhomepage $(eval echo $HS_UAMHOMEPAGE)"}
     addconfig1 ${HS_WISPRLOGIN:+"wisprlogin $HS_WISPRLOGIN"}
