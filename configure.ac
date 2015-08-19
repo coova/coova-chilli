@@ -172,7 +172,7 @@ if test x"$enable_radproxy" = xyes; then
 fi
 
 AC_ARG_ENABLE(json, [AC_HELP_STRING([--disable-json],[Disable support for JSON])], 
-  enable_json=$enableval, enable_json=no)
+  enable_json=$enableval, enable_json=yes)
 
 if test x"$enable_json" = xyes; then
    AC_DEFINE(ENABLE_JSON,1,[Define to enable Chilli JSON])
