@@ -5431,14 +5431,16 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
 
   {
     struct pkt_iphdr_t *fullpack_iph = pkt_iphdr(fullpack);
-    struct pkt_udphdr_t *fullpack_udph = pkt_udphdr(fullpack);
+    struct pkt_udphdr_t *fullpack_udph = NULL;
 
     fullpack_iph->version_ihl = PKT_IP_VER_HLEN;
     fullpack_iph->tot_len = htons(length + PKT_UDP_HLEN + PKT_IP_HLEN);
     fullpack_iph->ttl = 0x10;
     fullpack_iph->protocol = 0x11;
-
     fullpack_iph->saddr = _options.dhcplisten.s_addr;
+
+    /* init udph here because pkt_udphdr needs the ip version to get the correct offset */
+    fullpack_udph = pkt_udphdr(fullpack);
     fullpack_udph->src = htons(DHCP_BOOTPS);
     fullpack_udph->len = htons(length + PKT_UDP_HLEN);
 
