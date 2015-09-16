@@ -149,6 +149,7 @@ HS_UAMHOMEPAGE=http://\$HS_UAMLISTEN:\$HS_UAMPORT/www/coova.html
 # is to block all unwanted traffic to the tun/tap. 
 #
 # HS_TCP_PORTS="80 443"
+# HS_UDP_PORTS="1701"
 
 ###
 #   Standard configurations
