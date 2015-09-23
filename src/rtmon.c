@@ -186,12 +186,12 @@ static int rtmon_add_route(struct rtmon_t *rtmon, struct rtmon_route *rt) {
   if (!dst) {
     if (sz) {
       rtmon->_routes =
-	(struct rtmon_route *)realloc(rtmon->_routes,
-				      (sz + 1) * sizeof(struct rtmon_route));
+          (struct rtmon_route *)realloc(rtmon->_routes,
+                                        (sz + 1) * sizeof(struct rtmon_route));
       dst = &rtmon->_routes[sz];
     } else {
       dst = rtmon->_routes =
-	(struct rtmon_route *)malloc(sizeof(struct rtmon_route));
+          (struct rtmon_route *)malloc(sizeof(struct rtmon_route));
     }
 
     rtmon->_route_sz++;
@@ -203,8 +203,8 @@ static int rtmon_add_route(struct rtmon_t *rtmon, struct rtmon_route *rt) {
 }
 
 /**
-* Extract each route table entry and print
-*/
+ * Extract each route table entry and print
+ */
 static void netlink_parse_routes(struct rtmon_t *rtmon, char *b, int blen) {
   struct nlmsghdr *hdr = (struct nlmsghdr *) b;
   struct rtattr * attr;
@@ -224,16 +224,16 @@ static void netlink_parse_routes(struct rtmon_t *rtmon, char *b, int blen) {
 
     for (;RTA_OK(attr, payload); attr = RTA_NEXT(attr, payload)) {
       switch(attr->rta_type) {
-      case RTA_DST:
-	rt.destination = *(struct in_addr *)RTA_DATA(attr);
-	break;
-      case RTA_GATEWAY:
-	rt.gateway = *(struct in_addr *)RTA_DATA(attr);
-	break;
-      case RTA_OIF:
-	rt.if_index = *((int *) RTA_DATA(attr));
-      default:
-	break;
+        case RTA_DST:
+          rt.destination = *(struct in_addr *)RTA_DATA(attr);
+          break;
+        case RTA_GATEWAY:
+          rt.gateway = *(struct in_addr *)RTA_DATA(attr);
+          break;
+        case RTA_OIF:
+          rt.if_index = *((int *) RTA_DATA(attr));
+        default:
+          break;
       }
     }
 
@@ -477,12 +477,12 @@ static int rtmon_add_iface(struct rtmon_t *rtmon, struct rtmon_iface *ri) {
 
     if (sz) {
       rtmon->_ifaces =
-	(struct rtmon_iface *)realloc(rtmon->_ifaces,
-				      (sz + 1) * sizeof(struct rtmon_iface));
+          (struct rtmon_iface *)realloc(rtmon->_ifaces,
+                                        (sz + 1) * sizeof(struct rtmon_iface));
       dst = &rtmon->_ifaces[sz];
     } else {
       dst = rtmon->_ifaces =
-	(struct rtmon_iface *)malloc(sizeof(struct rtmon_iface));
+          (struct rtmon_iface *)malloc(sizeof(struct rtmon_iface));
     }
 
     rtmon->_iface_sz++;
@@ -550,17 +550,17 @@ void rtmon_discover_ifaces(struct rtmon_t *rtmon) {
 #ifdef SIOCGIFHWADDR
     if (-1 < ioctl(fd, SIOCGIFHWADDR, (caddr_t)ifr)) {
       switch (ifr->ifr_hwaddr.sa_family) {
-      case  ARPHRD_PPP:
-	break;
-      case  ARPHRD_NETROM:
-      case  ARPHRD_ETHER:
-      case  ARPHRD_EETHER:
-      case  ARPHRD_IEEE802:
-	{
-	  unsigned char *u = (unsigned char *)&ifr->ifr_addr.sa_data;
-	  memcpy(ri.hwaddr, u, 6);
-	}
-	break;
+        case  ARPHRD_PPP:
+          break;
+        case  ARPHRD_NETROM:
+        case  ARPHRD_ETHER:
+        case  ARPHRD_EETHER:
+        case  ARPHRD_IEEE802:
+          {
+            unsigned char *u = (unsigned char *)&ifr->ifr_addr.sa_data;
+            memcpy(ri.hwaddr, u, 6);
+          }
+          break;
       }
     }
 #else

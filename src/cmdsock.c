@@ -49,7 +49,7 @@ cmdsock_init() {
 	if (_options.uid) {
 	  if (chown(_options.cmdsocket, _options.uid, _options.gid)) {
 	    syslog(LOG_ERR, "%d could not chown() %s",
-		    errno, _options.cmdsocket);
+                   errno, _options.cmdsocket);
 	  }
 	}
       }

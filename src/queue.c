@@ -110,8 +110,8 @@ int main(int argc, char **argv) {
   nfq_destroy_queue(qh);
 
 #ifdef INSANE
-        /* normally, applications SHOULD NOT issue this command, since
-         * it detaches other programs/sockets from AF_INET, too ! */
+  /* normally, applications SHOULD NOT issue this command, since
+   * it detaches other programs/sockets from AF_INET, too ! */
   printf("unbinding from AF_INET\n");
   nfq_unbind_pf(h, AF_INET);
 #endif

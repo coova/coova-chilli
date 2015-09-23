@@ -297,10 +297,10 @@ int redir_accept(struct redir_t *redir, int idx);
 int redir_setchallenge(struct redir_t *redir, struct in_addr *addr, uint8_t *challenge);
 
 int redir_set_cb_getstate(struct redir_t *redir,
-  int (*cb_getstate) (struct redir_t *redir,
-		      struct sockaddr_in *address,
-		      struct sockaddr_in *baddress,
-		      struct redir_conn_t *conn));
+                          int (*cb_getstate) (struct redir_t *redir,
+                                              struct sockaddr_in *address,
+                                              struct sockaddr_in *baddress,
+                                              struct redir_conn_t *conn));
 
 int redir_main(struct redir_t *redir, int infd, int outfd,
 	       struct sockaddr_in *address,

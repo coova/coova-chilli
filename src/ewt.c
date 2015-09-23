@@ -71,7 +71,7 @@ int http_parse_input(char *src, int len, int is_cookie) {
 }
 
 /*
-static int chilli_status(bstring s) {
+  static int chilli_status(bstring s) {
   return 0;
   }*/
 
@@ -138,22 +138,22 @@ static void json_walk(bstring prefix, struct json_object *obj) {
   json_object_object_foreach(obj, key, val) {
     bstring tmp = bfromcstr("");
     switch(json_object_get_type(val)) {
-    case json_type_object:
-      bassign(tmp, prefix);
-      bcatcstr(tmp, key);
-      bcatcstr(tmp, "_0_");
-      json_walk(tmp, val);
-      break;
-    case json_type_array:
-      bassign(tmp, prefix);
-      bcatcstr(tmp, key);
-      syslog(LOG_DEBUG, "a %s=%s", tmp->data, json_object_to_json_string(val));
-      break;
-    default:
-      bassign(tmp, prefix);
-      bcatcstr(tmp, key);
-      syslog(LOG_DEBUG, "%s=%s", tmp->data, json_object_to_json_string(val));
-      break;
+      case json_type_object:
+        bassign(tmp, prefix);
+        bcatcstr(tmp, key);
+        bcatcstr(tmp, "_0_");
+        json_walk(tmp, val);
+        break;
+      case json_type_array:
+        bassign(tmp, prefix);
+        bcatcstr(tmp, key);
+        syslog(LOG_DEBUG, "a %s=%s", tmp->data, json_object_to_json_string(val));
+        break;
+      default:
+        bassign(tmp, prefix);
+        bcatcstr(tmp, key);
+        syslog(LOG_DEBUG, "%s=%s", tmp->data, json_object_to_json_string(val));
+        break;
     }
     bdestroy(tmp);
   }

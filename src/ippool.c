@@ -72,7 +72,7 @@ int ippool_print(int fd, struct ippool_t *this) {
 	  (this->member[n].is_static ? this->laststat : this->lastdyn) != &this->member[n]) {
 	st[ERR]++;
       } else if (this->member[n].prev == 0 &&
-	  (this->member[n].is_static ? this->firststat : this->firstdyn) != &this->member[n]) {
+                 (this->member[n].is_static ? this->firststat : this->firstdyn) != &this->member[n]) {
 	st[ERR]++;
       } else {
 	st[FREE]++;
@@ -103,7 +103,7 @@ int ippool_print(int fd, struct ippool_t *this) {
     } else {
       safe_snprintf(useLine, sizeof(useLine), "%3d/%3d",
 		    this->member[n].prev ? (int)(this->member[n].prev - this->member) : -1,
-	       this->member[n].next ? (int)(this->member[n].next - this->member) : -1);
+                    this->member[n].next ? (int)(this->member[n].next - this->member) : -1);
     }
 
     safe_snprintf(line, sizeof(line),
@@ -235,7 +235,7 @@ int ippool_new(struct ippool_t **this,
     if ( ((ntohl(addr.s_addr) + start) & m) != (ntohl(addr.s_addr) & m) ) {
       addr.s_addr = htonl(ntohl(addr.s_addr) + start);
       syslog(LOG_ERR, "Invalid dhcpstart=%d (%s) (outside of subnet)!",
-	      start, inet_ntoa(addr));
+             start, inet_ntoa(addr));
       return -1;
     }
 
@@ -253,7 +253,7 @@ int ippool_new(struct ippool_t **this,
 
       if ((end - start) > dynsize) {
 	syslog(LOG_ERR, "Too many IPs between dhcpstart=%d and dhcpend=%d",
-		start, end);
+               start, end);
 	return -1;
       }
 
@@ -335,7 +335,7 @@ int ippool_new(struct ippool_t **this,
        (*this)->hashlog++);
 
   syslog(LOG_DEBUG, "Hashlog %d %d %d", (*this)->hashlog, listsize,
-	  (1 << (*this)->hashlog));
+         (1 << (*this)->hashlog));
 
   /* Determine hashsize */
   (*this)->hashsize = 1 << (*this)->hashlog; /* Fails if mask=0: All Internet*/
@@ -443,7 +443,7 @@ int ippool_getip(struct ippool_t *this,
  * check to see if the given address is available. If available within
  * dynamic address space allocate it there, otherwise allocate within static
  * address space.
-**/
+ **/
 int ippool_newip(struct ippool_t *this,
 		 struct ippoolm_t **member,
 		 struct in_addr *addr,
@@ -453,7 +453,7 @@ int ippool_newip(struct ippool_t *this,
   uint32_t hash;
 
   syslog(LOG_DEBUG, "Requesting new %s ip: %s",
-	  statip ? "static" : "dynamic", inet_ntoa(*addr));
+         statip ? "static" : "dynamic", inet_ntoa(*addr));
 
   /* If static:
    *   Look in dynaddr.
@@ -512,7 +512,7 @@ int ippool_newip(struct ippool_t *this,
   /* if anyip is set and statip return the same ip */
   if (statip && _options.uamanyip && p2 && p2->is_static) {
     syslog(LOG_DEBUG, "Found already allocated static ip %s",
-	    inet_ntoa(p2->addr));
+           inet_ntoa(p2->addr));
     *member = p2;
     return 0;
   }

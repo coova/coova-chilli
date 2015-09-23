@@ -36,19 +36,19 @@
 char *get_ip_str(const struct sockaddr *sa, char *s, size_t maxlen)
 {
   switch(sa->sa_family) {
-  case AF_INET:
-    inet_ntop(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr),
-	      s, maxlen);
-    break;
+    case AF_INET:
+      inet_ntop(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr),
+                s, maxlen);
+      break;
 
-  case AF_INET6:
-    inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)sa)->sin6_addr),
-	      s, maxlen);
-    break;
+    case AF_INET6:
+      inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)sa)->sin6_addr),
+                s, maxlen);
+      break;
 
-  default:
-    strncpy(s, "Unknown AF", maxlen);
-    break;
+    default:
+      strncpy(s, "Unknown AF", maxlen);
+      break;
   }
 
   return s;
@@ -63,7 +63,7 @@ int main(void)
   struct sockaddr_in sa;
 
   if (0 > (sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP))) {
-   fprintf(stderr, "Cannot open socket.\n");
+    fprintf(stderr, "Cannot open socket.\n");
     exit(EXIT_FAILURE);
   }
 
@@ -104,11 +104,11 @@ int main(void)
     if (0 == ioctl(sockfd, SIOCGIFHWADDR, ifr)) {
 
       switch (ifr->ifr_hwaddr.sa_family) {
-      default:
-	printf("\n");
-	continue;
-      case  ARPHRD_NETROM:  case  ARPHRD_ETHER:  case  ARPHRD_PPP:
-      case  ARPHRD_EETHER:  case  ARPHRD_IEEE802: break;
+        default:
+          printf("\n");
+          continue;
+        case  ARPHRD_NETROM:  case  ARPHRD_ETHER:  case  ARPHRD_PPP:
+        case  ARPHRD_EETHER:  case  ARPHRD_IEEE802: break;
       }
 
       u = (unsigned char *) &ifr->ifr_addr.sa_data;

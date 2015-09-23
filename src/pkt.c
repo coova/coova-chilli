@@ -22,7 +22,7 @@
 int pkt_shape_tcpwin(struct pkt_iphdr_t *iph, uint16_t win) {
   if (iph->protocol == PKT_IP_PROTO_TCP) {
     struct pkt_tcphdr_t *tcph =
-      (struct pkt_tcphdr_t *)(((uint8_t *)iph) + PKT_IP_HLEN);
+        (struct pkt_tcphdr_t *)(((uint8_t *)iph) + PKT_IP_HLEN);
     /*log_dbg("TCP Window %d", ntohs(tcph->win));*/
     if (ntohs(tcph->win) > win) {
 #if(_debug_ > 1)
@@ -62,51 +62,51 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
 
       while (!done && (i / 4) < words) {
 	switch(type = opts[i++]) {
-	case 0:
-	  done = 1;
-	  break;
+          case 0:
+            done = 1;
+            break;
 
-	case 1:
+          case 1:
 #if(0)
-	  syslog(LOG_DEBUG, "TCP OPTIONS: NOP");
+            syslog(LOG_DEBUG, "TCP OPTIONS: NOP");
 #endif
-	  break;
+            break;
 
-	default:
-	  len = (int) opts[i++];
-	  if (len < 2 || len > TCP_MAX_OPTION_LEN) {
-	    syslog(LOG_ERR, "bad TCP option during parse, len=%d", len);
-	    return -1;
-	  }
-	  if (type == 2 && len == 4) {
+          default:
+            len = (int) opts[i++];
+            if (len < 2 || len > TCP_MAX_OPTION_LEN) {
+              syslog(LOG_ERR, "bad TCP option during parse, len=%d", len);
+              return -1;
+            }
+            if (type == 2 && len == 4) {
 #if(1)
-	    syslog(LOG_DEBUG, "TCP OPTIONS: MSS %d",
-		    ntohs(*((uint16_t *)&opts[i])));
+              syslog(LOG_DEBUG, "TCP OPTIONS: MSS %d",
+                     ntohs(*((uint16_t *)&opts[i])));
 #endif
-	    if (ntohs(*((uint16_t *)&opts[i])) > optval) {
+              if (ntohs(*((uint16_t *)&opts[i])) > optval) {
 
-	      syslog(LOG_DEBUG, "Rewriting TCP MSS to %d", optval);
+                syslog(LOG_DEBUG, "Rewriting TCP MSS to %d", optval);
 
-	      *((uint16_t *)&opts[i]) = htons(optval);
-	      chksum(iph);
-	    }
-	    hasmss = 1;
+                *((uint16_t *)&opts[i]) = htons(optval);
+                chksum(iph);
+              }
+              hasmss = 1;
 #ifdef ENABLE_LEAKYBUCKET
-	  } else if (_options.scalewin && type == 3 && len == 3) {
-	    syslog(LOG_DEBUG, "TCP OPTIONS: window scale was %d",
-		    (int) opts[i]);
-	    if (opts[i] > 0) {
-	      opts[i]=0;
-	      chksum(iph);
-	    }
+            } else if (_options.scalewin && type == 3 && len == 3) {
+              syslog(LOG_DEBUG, "TCP OPTIONS: window scale was %d",
+                     (int) opts[i]);
+              if (opts[i] > 0) {
+                opts[i]=0;
+                chksum(iph);
+              }
 #endif
-	  } else {
+            } else {
 #if(0)
-	    syslog(LOG_DEBUG, "TCP OPTIONS: type %d len %d", type, len);
+              syslog(LOG_DEBUG, "TCP OPTIONS: type %d len %d", type, len);
 #endif
-	  }
-	  i += len - 2;
-	  break;
+            }
+            i += len - 2;
+            break;
 	}
       }
     }

@@ -53,7 +53,7 @@ void garden_print_list(int fd, pass_through *ptlist, int ptcnt) {
 		  );
 
     if (!safe_write(fd, line, strlen(line))) /* error */
-	;
+      ;
   }
 }
 
@@ -64,7 +64,7 @@ int garden_print_appconn(struct app_conn_t *appconn, void *d) {
 #ifdef HAVE_PATRICIA
   void cb (prefix_t *prefix, void *data) {
     struct node_pass_through_list *nd =
-      (struct node_pass_through_list *)data;
+        (struct node_pass_through_list *)data;
     garden_print_list(fd, nd->ptlist, nd->ptcnt);
   }
 #endif
@@ -94,7 +94,7 @@ void garden_print(int fd) {
 #ifdef HAVE_PATRICIA
   void cb (prefix_t *prefix, void *data) {
     struct node_pass_through_list *nd =
-      (struct node_pass_through_list *)data;
+        (struct node_pass_through_list *)data;
     garden_print_list(fd, nd->ptlist, nd->ptcnt);
   }
 #endif
@@ -104,7 +104,7 @@ void garden_print(int fd) {
 		_options.num_pass_throughs,
 		MAX_PASS_THROUGHS);
   if (!safe_write(fd, line, strlen(line))) /* error */
-	;
+    ;
 
 #ifdef HAVE_PATRICIA
   if (dhcp->ptree) {
@@ -120,7 +120,7 @@ void garden_print(int fd) {
 		dhcp->num_pass_throughs,
 		MAX_PASS_THROUGHS);
   if (!safe_write(fd, line, strlen(line))) /* error */
-	;
+    ;
 
 #ifdef HAVE_PATRICIA
   if (dhcp->ptree_dyn) {
@@ -173,19 +173,19 @@ int garden_patricia_check(patricia_tree_t *ptree,
   pfx = patricia_search_best(ptree, prefix);
   if (pfx) {
     struct node_pass_through_list *
-      nd = PATRICIA_DATA_GET(pfx, struct node_pass_through_list);
+        nd = PATRICIA_DATA_GET(pfx, struct node_pass_through_list);
 
     if (nd) {
       pass_through *pt=0;
       switch (garden_check(nd->ptlist, &nd->ptcnt,
 			   &pt, ipph, dst, ptree)) {
-      case 1:
-	found = 1;
-	break;
-      case -1:
-	if (pt)
-	  pass_through_rem(ptlist, ptcnt, pt, ptree);
-	break;
+        case 1:
+          found = 1;
+          break;
+        case -1:
+          if (pt)
+            pass_through_rem(ptlist, ptcnt, pt, ptree);
+          break;
       }
     }
   }
@@ -213,11 +213,11 @@ int garden_patricia_add(pass_through *pt, patricia_tree_t *ptree) {
 
   if (pfx != NULL) {
     struct node_pass_through_list *
-      nd = PATRICIA_DATA_GET(pfx, struct node_pass_through_list);
+        nd = PATRICIA_DATA_GET(pfx, struct node_pass_through_list);
 
     if (nd == NULL) {
       nd = (struct node_pass_through_list *)
-	malloc(sizeof(struct node_pass_through_list)+sizeof(pass_through));
+          malloc(sizeof(struct node_pass_through_list)+sizeof(pass_through));
       if (nd) {
 	nd->ptcnt = 1;
 	memcpy(nd->ptlist, pt, sizeof(*pt));
@@ -226,8 +226,9 @@ int garden_patricia_add(pass_through *pt, patricia_tree_t *ptree) {
       int i;
       for (i=0; i < nd->ptcnt; i++) {
 	if (pt_equal(&nd->ptlist[i], pt)) {
-	  syslog(LOG_DEBUG, "(Patricia)Uamallowed already exists #%d:%d: proto=%d host=%s port=%d",
-		  i, nd->ptcnt, pt->proto, inet_ntoa(pt->host), pt->port);
+          if (_options.debug)
+            syslog(LOG_DEBUG, "(Patricia)Uamallowed already exists #%d:%d: proto=%d host=%s port=%d",
+                   i, nd->ptcnt, pt->proto, inet_ntoa(pt->host), pt->port);
 	  break;
 	}
       }
@@ -265,17 +266,18 @@ int garden_patricia_rem(pass_through *pt, patricia_tree_t *ptree) {
   pfx = patricia_search_exact (ptree, prefix);
   if (pfx != NULL) {
     struct node_pass_through_list *
-      nd = PATRICIA_DATA_GET(pfx, struct node_pass_through_list);
+        nd = PATRICIA_DATA_GET(pfx, struct node_pass_through_list);
 
     if (nd != NULL) {
       int i;
 
       for (i=0; i < nd->ptcnt; i++) {
 	if (pt_equal(&nd->ptlist[i], pt)) {
-	  syslog(LOG_DEBUG, "(Patricia)Uamallowed removing #%d:%d: proto=%d host=%s port=%d",
-		  i, nd->ptcnt, pt->proto, inet_ntoa(pt->host), pt->port);
-
-	  syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, nd->ptcnt);
+          if (_options.debug) {
+            syslog(LOG_DEBUG, "(Patricia)Uamallowed removing #%d:%d: proto=%d host=%s port=%d",
+                   i, nd->ptcnt, pt->proto, inet_ntoa(pt->host), pt->port);
+            syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, nd->ptcnt);
+          }
 
 	  for (; i < nd->ptcnt-1; i++)
 	    memcpy(&nd->ptlist[i], &nd->ptlist[i+1], sizeof(pass_through));
@@ -377,9 +379,11 @@ int pass_through_rem(pass_through *ptlist, uint32_t *ptcnt,
 
   for (i=0; i < cnt; i++) {
     if (pt_equal(&ptlist[i], pt)) {
-      syslog(LOG_DEBUG, "Uamallowed removing #%d: proto=%d host=%s port=%d",
-	      i, pt->proto, inet_ntoa(pt->host), pt->port);
-      syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, cnt);
+      if (_options.debug) {
+        syslog(LOG_DEBUG, "Uamallowed removing #%d: proto=%d host=%s port=%d",
+               i, pt->proto, inet_ntoa(pt->host), pt->port);
+        syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, cnt);
+      }
       for (; i < cnt-1; i++)
 	memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
       *ptcnt = *ptcnt - 1;
@@ -407,10 +411,12 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
 
   for (i=0; i < cnt; i++) {
     if (pt_equal(&ptlist[i], pt)) {
-      syslog(LOG_DEBUG, "Uamallowed already exists #%d:%d: proto=%d host=%s port=%d",
-	      i, ptlen, pt->proto, inet_ntoa(pt->host), pt->port);
+      if (_options.debug)
+        syslog(LOG_DEBUG, "Uamallowed already exists #%d:%d: proto=%d host=%s port=%d",
+               i, ptlen, pt->proto, inet_ntoa(pt->host), pt->port);
       if (is_dyn) {
-	syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, cnt);
+        if (_options.debug)
+          syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, cnt);
 	for (; i<cnt-1; i++)
 	  memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
 	cnt = *ptcnt = *ptcnt - 1;
@@ -423,19 +429,22 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
 
   if (cnt == ptlen) {
     if (!is_dyn) {
-      syslog(LOG_DEBUG, "No more room for walled garden entries");
+      if (_options.debug)
+        syslog(LOG_DEBUG, "No more room for walled garden entries");
       return -1;
     }
 
-    syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, ptlen);
+    if (_options.debug)
+      syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, ptlen);
     for (i=0; i<ptlen-1; i++)
       memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
 
     cnt = *ptcnt = *ptcnt - 1;
   }
 
-  syslog(LOG_DEBUG, "Uamallowed IP address #%d:%d: proto=%d host=%s port=%d",
-	  cnt, ptlen, pt->proto, inet_ntoa(pt->host), pt->port);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Uamallowed IP address #%d:%d: proto=%d host=%s port=%d",
+           cnt, ptlen, pt->proto, inet_ntoa(pt->host), pt->port);
 
   memcpy(&ptlist[cnt], pt, sizeof(pass_through));
   *ptcnt = cnt + 1;
@@ -602,18 +611,18 @@ int regex_pass_throughs_from_string(regex_pass_through *ptlist, uint32_t ptlen,
       int is_negate = (*p == '!');
       if (is_negate) p++;
       switch (stage) {
-      case 0:
-	strlcpy(pt.regex_host, p, sizeof(pt.regex_host));
-	pt.neg_host = is_negate;
-	break;
-      case 1:
-	strlcpy(pt.regex_path, p, sizeof(pt.regex_path));
-	pt.neg_path = is_negate;
-	break;
-      case 2:
-	strlcpy(pt.regex_qs, p, sizeof(pt.regex_qs));
-	pt.neg_qs   = is_negate;
-	break;
+        case 0:
+          strlcpy(pt.regex_host, p, sizeof(pt.regex_host));
+          pt.neg_host = is_negate;
+          break;
+        case 1:
+          strlcpy(pt.regex_path, p, sizeof(pt.regex_path));
+          pt.neg_path = is_negate;
+          break;
+        case 2:
+          strlcpy(pt.regex_qs, p, sizeof(pt.regex_qs));
+          pt.neg_qs   = is_negate;
+          break;
       }
     }
   }
@@ -658,7 +667,7 @@ void garden_load_domainfile() {
     fp = fopen(_options.uamdomainfile, "r");
     if (!fp) {
       syslog(LOG_ERR, "%d could not open file %s",
-	      errno, _options.uamdomainfile);
+             errno, _options.uamdomainfile);
       return;
     }
 
@@ -669,7 +678,7 @@ void garden_load_domainfile() {
       else {
 
 	uamdomain_regex * uam_re = (uamdomain_regex *)
-	  calloc(sizeof(uamdomain_regex), 1);
+            calloc(sizeof(uamdomain_regex), 1);
 
 	char * pline = line;
 
@@ -681,7 +690,8 @@ void garden_load_domainfile() {
 	  pline++;
 	}
 
-	syslog(LOG_DEBUG, "compiling %s", pline);
+        if (_options.debug)
+          syslog(LOG_DEBUG, "compiling %s", pline);
 	if (regcomp(&uam_re->re, pline, REG_EXTENDED | REG_NOSUB)) {
 	  syslog(LOG_ERR, "could not compile regex %s", line);
 	  free(uam_re);
@@ -712,7 +722,8 @@ int garden_check_domainfile(char *question) {
 
 #if(_debug_)
     if (match)
-      syslog(LOG_DEBUG, "matched DNS name %s", question);
+      if (_options.debug)
+        syslog(LOG_DEBUG, "matched DNS name %s", question);
 #endif
 
     if (match) return uam_re->neg ? 0 : 1;

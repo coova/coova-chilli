@@ -72,8 +72,8 @@ int main(int argc, char **argv) {
   }
 
   syslog(LOG_DEBUG, "USER %s(%d/%d), GROUP %s(%d/%d) CHILLI[UID %d, GID %d]",
-	  pwd->pw_name, uid, euid, grp->gr_name, gid, egid,
-	  _options.uid, _options.gid);
+         pwd->pw_name, uid, euid, grp->gr_name, gid, egid,
+         _options.uid, _options.gid);
 
   if (stat(argv[2], &statbuf)) {
     syslog(LOG_ERR, "%s: %s does not exist", strerror(errno), argv[2]);

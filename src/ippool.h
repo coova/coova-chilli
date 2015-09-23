@@ -92,7 +92,7 @@ extern int ippool_free(struct ippool_t *this);
 
 /* Find an IP address in the pool */
 extern int ippool_getip(struct ippool_t *this, struct ippoolm_t **member,
-		 struct in_addr *addr);
+                        struct in_addr *addr);
 
 /* Get an IP address. If addr = 0.0.0.0 get a dynamic IP address. Otherwise
    check to see if the given address is available */

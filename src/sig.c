@@ -55,18 +55,18 @@ int ndelay_off (int fd) {
 }
 
 int coe (int fd) {
-   register int flags = fcntl(fd, F_GETFD, 0);
-   if (flags == -1) return -1;
-   return fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+  register int flags = fcntl(fd, F_GETFD, 0);
+  if (flags == -1) return -1;
+  return fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
 }
 
 int selfpipe_init (void) {
   if (selfpipe[0] >= 0) return (errno = EBUSY, -1);
   if (pipe(selfpipe) == -1) return -1;
   if ((ndelay_on(selfpipe[1]) == -1)
-   || (coe(selfpipe[1]) == -1)
-   || (ndelay_on(selfpipe[0]) == -1)
-   || (coe(selfpipe[0]) == -1))
+      || (coe(selfpipe[1]) == -1)
+      || (ndelay_on(selfpipe[0]) == -1)
+      || (coe(selfpipe[0]) == -1))
     selfpipe_close();
   return selfpipe[0];
 }

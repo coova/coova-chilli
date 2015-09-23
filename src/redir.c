@@ -33,21 +33,21 @@ static int optionsdebug = 0; /* TODO: Should be changed to instance */
 static int termstate = REDIR_TERM_INIT;    /* When we were terminated */
 
 char credits[] =
-"<H1>CoovaChilli " VERSION "</H1>"
-"<p>Copyright 2002-2005 Mondru AB</p>"
-"<p>Copyright 2006-2012 David Bird (Coova Technologies)</p>"
-"CoovaChilli is an Open Source captive portal or wireless LAN access point "
-"controller developed by the community at <a href=\"http://coova.github.io\">coova.github.io</a>. "
-"It is licensed under the GNU General Public License (GPL). ";
+    "<H1>CoovaChilli " VERSION "</H1>"
+    "<p>Copyright 2002-2005 Mondru AB</p>"
+    "<p>Copyright 2006-2012 David Bird (Coova Technologies)</p>"
+    "CoovaChilli is an Open Source captive portal or wireless LAN access point "
+    "controller developed by the community at <a href=\"http://coova.github.io\">"
+    "coova.github.io</a>. It is licensed under the GNU General Public License (GPL). ";
 
 static uint8_t radius_packet_id = 0;
 extern time_t mainclock;
 
 /* Termination handler for clean shutdown
-static void redir_termination(int signum) {
-  syslog(LOG_DEBUG, "Terminating redir client!");
-  exit(0);
-}*/
+   static void redir_termination(int signum) {
+   syslog(LOG_DEBUG, "Terminating redir client!");
+   exit(0);
+   }*/
 
 /* Alarm handler for ensured shutdown */
 static void redir_alarm(int signum) {
@@ -90,11 +90,12 @@ int redir_hextochar(unsigned char *src, int slen, unsigned char * dst, int len) 
       x[1] = src[i+1];
       x[2] = 0;
       switch (sscanf(x, "%2x", &y)) {
-      case 0:  y = 0;
-      case 1:  break;
-      default:
-	syslog(LOG_ERR, "%s: HEX conversion failed (src='%s', len=%d, n=%d, y=%d)!", strerror(errno), src, len, n, y);
-	return -1;
+        case 0:  y = 0;
+        case 1:  break;
+        default:
+          syslog(LOG_ERR, "%s: HEX conversion failed (src='%s', len=%d, n=%d, y=%d)!",
+                 strerror(errno), src, len, n, y);
+          return -1;
       }
     }
     dst[n] = (unsigned char) y;
@@ -119,7 +120,8 @@ int redir_chartohex(unsigned char *src, char *dst, size_t len) {
   return 0;
 }
 
-static int bytetohex(uint8_t *src, const size_t IN_LEN, char *dst, const int MAX_OUT_SIZE) {
+static int bytetohex(uint8_t *src, const size_t IN_LEN, char *dst,
+                     const int MAX_OUT_SIZE) {
   char x[3];
   int n = 0;
 
@@ -160,32 +162,32 @@ static int bytetosphex(uint8_t *src, const size_t IN_LEN, char *dst,
 }
 
 /*
-static int redir_xmlencode(char *src, int srclen, char *dst, int dstsize) {
+  static int redir_xmlencode(char *src, int srclen, char *dst, int dstsize) {
   char *x;
   int n;
   int i = 0;
 
   for (n=0; n<srclen; n++) {
-    x=0;
-    switch(src[n]) {
-    case '&':  x = "&amp;";  break;
-    case '\"': x = "&quot;"; break;
-    case '<':  x = "&lt;";   break;
-    case '>':  x = "&gt;";   break;
-    default:
-      if (i < dstsize - 1) dst[i++] = src[n];
-      break;
-    }
-    if (x) {
-      if (i < dstsize - strlen(x)) {
-        memcpy(dst + i, x, strlen(x));
-	i += strlen(x);
-      }
-    }
+  x=0;
+  switch(src[n]) {
+  case '&':  x = "&amp;";  break;
+  case '\"': x = "&quot;"; break;
+  case '<':  x = "&lt;";   break;
+  case '>':  x = "&gt;";   break;
+  default:
+  if (i < dstsize - 1) dst[i++] = src[n];
+  break;
+  }
+  if (x) {
+  if (i < dstsize - strlen(x)) {
+  memcpy(dst + i, x, strlen(x));
+  i += strlen(x);
+  }
+  }
   }
   dst[i] = 0;
   return 0;
-}
+  }
 */
 
 static void redir_http(bstring s, char *code) {
@@ -536,23 +538,23 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
   } else
 #endif
 #ifdef ENABLE_MULTILAN
-  if (conn->s_state.lanidx > 0) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "vlan=");
-    bassignformat(bt, "%s",
-		  _options.moreif[conn->s_state.lanidx-1].vlan ?
-		  _options.moreif[conn->s_state.lanidx-1].vlan :
-		  _options.moreif[conn->s_state.lanidx-1].dhcpif);
-    bconcat(str, bt);
-  } else
+    if (conn->s_state.lanidx > 0) {
+      bcatcstr(str, amp);
+      bcatcstr(str, "vlan=");
+      bassignformat(bt, "%s",
+                    _options.moreif[conn->s_state.lanidx-1].vlan ?
+                    _options.moreif[conn->s_state.lanidx-1].vlan :
+                    _options.moreif[conn->s_state.lanidx-1].dhcpif);
+      bconcat(str, bt);
+    } else
 #endif
-  if (redir->vlan) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "vlan=");
-    bassigncstr(bt, redir->vlan);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
-  }
+      if (redir->vlan) {
+        bcatcstr(str, amp);
+        bcatcstr(str, "vlan=");
+        bassigncstr(bt, redir->vlan);
+        redir_urlencode(bt, bt2);
+        bconcat(str, bt2);
+      }
 
 #ifdef ENABLE_LOCATION
   if (conn->s_state.location[0]) {
@@ -561,8 +563,9 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
     bassigncstr(bt, conn->s_state.location);
     redir_urlencode(bt, bt2);
 
-    syslog(LOG_DEBUG, "found %.*s",
-	    bt->slen, bt->data);
+    if (_options.debug)
+      syslog(LOG_DEBUG, "found %.*s",
+             bt->slen, bt->data);
 
     bconcat(str, bt2);
   }
@@ -664,102 +667,102 @@ static void redir_xmlchilli_reply (struct redir_t *redir, struct redir_conn_t *c
 
   bcatcstr(b, "<CoovaChilliSession>\r\n");
   switch (res) {
-  case REDIR_NOTYET:
-    bassignformat(bt, "<Challenge>%s</Challenge>\r\n", hexchal);
-    bconcat(b, bt);
-    break;
-  case REDIR_STATUS:
-    if (conn->s_state.authenticated == 1) {
-      time_t timenow = time(0);
-      uint32_t sessiontime;
-
-      sessiontime = timenow - conn->s_state.start_time;
-
-      bcatcstr(b, "<State>1</State>\r\n");
-
-      bassignformat(bt, "<StartTime>%d</StartTime>\r\n" ,
-		    conn->s_state.start_time);
+    case REDIR_NOTYET:
+      bassignformat(bt, "<Challenge>%s</Challenge>\r\n", hexchal);
       bconcat(b, bt);
+      break;
+    case REDIR_STATUS:
+      if (conn->s_state.authenticated == 1) {
+        time_t timenow = time(0);
+        uint32_t sessiontime;
 
-      bassignformat(bt, "<SessionTime>%d</SessionTime>\r\n",
-		    sessiontime);
-      bconcat(b, bt);
+        sessiontime = timenow - conn->s_state.start_time;
 
-      if (timeleft) {
-	bassignformat(bt, "<TimeLeft>%d</TimeLeft>\r\n",
-		      timeleft);
-	bconcat(b, bt);
+        bcatcstr(b, "<State>1</State>\r\n");
+
+        bassignformat(bt, "<StartTime>%d</StartTime>\r\n" ,
+                      conn->s_state.start_time);
+        bconcat(b, bt);
+
+        bassignformat(bt, "<SessionTime>%d</SessionTime>\r\n",
+                      sessiontime);
+        bconcat(b, bt);
+
+        if (timeleft) {
+          bassignformat(bt, "<TimeLeft>%d</TimeLeft>\r\n",
+                        timeleft);
+          bconcat(b, bt);
+        }
+
+        bassignformat(bt, "<Timeout>%d</Timeout>\r\n",
+                      conn->s_params.sessiontimeout);
+        bconcat(b, bt);
+
+        bassignformat(bt, "<InputOctets>%d</InputOctets>\r\n",
+                      conn->s_state.input_octets);
+        bconcat(b, bt);
+
+        bassignformat(bt, "<OutputOctets>%d</OutputOctets>\r\n",
+                      conn->s_state.output_octets);
+        bconcat(b, bt);
+
+        bassignformat(bt, "<MaxInputOctets>%d</MaxInputOctets>\r\n",
+                      conn->s_params.maxinputoctets);
+        bconcat(b, bt);
+
+        bassignformat(bt, "<MaxOutputOctets>%d</MaxOutputOctets>\r\n",
+                      conn->s_params.maxoutputoctets);
+        bconcat(b, bt);
+
+        bassignformat(bt, "<MaxTotalOctets>%d</MaxTotalOctets>\r\n",
+                      conn->s_params.maxtotaloctets);
+        bconcat(b, bt);
+      }
+      else {
+        bcatcstr(b, "<State>0</State>\r\n");
       }
 
-      bassignformat(bt, "<Timeout>%d</Timeout>\r\n",
-		    conn->s_params.sessiontimeout);
-      bconcat(b, bt);
+      break;
 
-      bassignformat(bt, "<InputOctets>%d</InputOctets>\r\n",
-		    conn->s_state.input_octets);
-      bconcat(b, bt);
+    case REDIR_ALREADY:
+      bcatcstr(b, "<Already>1</Already>\r\n");
+      break;
 
-      bassignformat(bt, "<OutputOctets>%d</OutputOctets>\r\n",
-		    conn->s_state.output_octets);
-      bconcat(b, bt);
-
-      bassignformat(bt, "<MaxInputOctets>%d</MaxInputOctets>\r\n",
-		    conn->s_params.maxinputoctets);
-      bconcat(b, bt);
-
-      bassignformat(bt, "<MaxOutputOctets>%d</MaxOutputOctets>\r\n",
-		    conn->s_params.maxoutputoctets);
-      bconcat(b, bt);
-
-      bassignformat(bt, "<MaxTotalOctets>%d</MaxTotalOctets>\r\n",
-		    conn->s_params.maxtotaloctets);
-      bconcat(b, bt);
-    }
-    else {
+    case REDIR_ERROR_PROTOCOL:
+    case REDIR_FAILED_NOROUTE:
+    case REDIR_FAILED_MTU:
+    case REDIR_FAILED_TIMEOUT:
+    case REDIR_FAILED_REJECT:
+    case REDIR_FAILED_OTHER:
+      if (reply) {
+        bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        bconcat(b, bt);
+      }
       bcatcstr(b, "<State>0</State>\r\n");
-    }
 
-    break;
+      break;
+    case REDIR_SUCCESS:
+      if (reply) {
+        bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        bconcat(b, bt);
+      }
+      bcatcstr(b, "<State>1</State>\r\n");
+      break;
+    case REDIR_LOGOFF:
+      bcatcstr(b, "<State>0</State>\r\n");
+      break;
+    case REDIR_ABORT_ACK:
+      bcatcstr(b, "<Abort_ack>1</Abort_ack>\r\n");
+      break;
+    case REDIR_ABORT_NAK:
+      bcatcstr(b, "<Abort_nak>1</Abort_nak>\r\n");
+      break;
 
-  case REDIR_ALREADY:
-    bcatcstr(b, "<Already>1</Already>\r\n");
-    break;
+    case REDIR_REQERROR:
+      break;
 
-  case REDIR_ERROR_PROTOCOL:
-  case REDIR_FAILED_NOROUTE:
-  case REDIR_FAILED_MTU:
-  case REDIR_FAILED_TIMEOUT:
-  case REDIR_FAILED_REJECT:
-  case REDIR_FAILED_OTHER:
-    if (reply) {
-      bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-      bconcat(b, bt);
-    }
-    bcatcstr(b, "<State>0</State>\r\n");
-
-    break;
-  case REDIR_SUCCESS:
-    if (reply) {
-      bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-      bconcat(b, bt);
-    }
-    bcatcstr(b, "<State>1</State>\r\n");
-    break;
-  case REDIR_LOGOFF:
-    bcatcstr(b, "<State>0</State>\r\n");
-    break;
-  case REDIR_ABORT_ACK:
-    bcatcstr(b, "<Abort_ack>1</Abort_ack>\r\n");
-    break;
-  case REDIR_ABORT_NAK:
-    bcatcstr(b, "<Abort_nak>1</Abort_nak>\r\n");
-    break;
-
-  case REDIR_REQERROR:
-    break;
-
-  default:
-    syslog(LOG_ERR, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
+    default:
+      syslog(LOG_ERR, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
   }
   bcatcstr(b, "</CoovaChilliSession>\r\n"
 	   "-->\r\n");
@@ -776,7 +779,8 @@ void redir_wispr1_reply (struct redir_t *redir, struct redir_conn_t *conn,
 			 char* reply, char* redirurl, bstring b) {
   bstring bt = bfromcstr("");;
 
-  syslog(LOG_DEBUG, "%s", __FUNCTION__);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "%s", __FUNCTION__);
 
   bcatcstr(b,
 	   "<!--\r\n"
@@ -786,171 +790,171 @@ void redir_wispr1_reply (struct redir_t *redir, struct redir_conn_t *conn,
 	   "  xsi:noNamespaceSchemaLocation=\"http://www.wballiance.net/wispr_2_0.xsd\""
 	   ">\r\n");
   switch (res) {
-  case REDIR_ALREADY:
-    bcatcstr(b,
-	     "<AuthenticationPollReply>\r\n"
-	     "<MessageType>140</MessageType>\r\n"  /* response to authentication notification*/
-	     "<ResponseCode>102</ResponseCode>\r\n"  /* RADIUS serveur error/timeout */
-	     "<ReplyMessage>Already logged on</ReplyMessage>\r\n"
-	     "</AuthenticationPollReply>\r\n");
-    break;
-
-  case REDIR_NOTYET:
-    bcatcstr(b,
-	     "<Redirect>\r\n"
-	     "<MessageType>100</MessageType>\r\n"
-	     "<ResponseCode>0</ResponseCode>\r\n" /* no error */
-	     "<AccessProcedure>1.0</AccessProcedure>\r\n");
-
-    if (_options.radiuslocationid) {
-      bassignformat(bt, "<AccessLocation>%s</AccessLocation>\r\n", _options.radiuslocationid);
-      bconcat(b, bt);
-    }
-
-    if (_options.radiuslocationname) {
-      bassignformat(bt, "<LocationName>%s</LocationName>\r\n", _options.radiuslocationname);
-      bconcat(b, bt);
-    }
-
-    bassignformat(bt, "<LoginURL>%s%sres=wispr&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
-		  _options.wisprlogin ? _options.wisprlogin : redir->url,
-		  strchr(_options.wisprlogin ? _options.wisprlogin : redir->url, '?') ? "&amp;" : "?",
-		  inet_ntoa(redir->addr), redir->port, hexchal);
-    bconcat(b, bt);
-
-    bassignformat(bt, "<AbortLoginURL>http://%s:%d/abort</AbortLoginURL>\r\n",
-		  inet_ntoa(redir->addr), redir->port);
-    bconcat(b, bt);
-
-    bcatcstr(b,
-	     "</Redirect>\r\n");
-    break;
-
-  case REDIR_FAILED_REJECT:
-    bcatcstr(b,
-	     "<AuthenticationPollReply>\r\n"
-	     "<MessageType>140</MessageType>\r\n"  /* response to authentication notification */
-	     "<ResponseCode>100</ResponseCode>\r\n");  /* login failed (Access REJECT) */
-
-    if (reply) {
-      bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-      bconcat(b, bt);
-    }else {
-      bcatcstr(b, "<ReplyMessage>Invalid Username/Password</ReplyMessage>\r\n");
-    }
-
-    bcatcstr(b, "</AuthenticationPollReply>\r\n");
-    break;
-
-  case REDIR_FAILED_NOROUTE:
-    bcatcstr(b,
-	     "<AuthenticationPollReply>\r\n"
-	     "<MessageType>140</MessageType>\r\n" /* response to authentication notification */
-	     "<ResponseCode>105</ResponseCode>\r\n"); /* RADIUS serveur error/timeout */
-
-    bcatcstr(b, "<ReplyMessage>no route for realm</ReplyMessage>\r\n");
-
-    bcatcstr(b, "</AuthenticationPollReply>\r\n");
-    break;
-
-  case REDIR_ERROR_PROTOCOL:
-  case REDIR_FAILED_MTU:
-  case REDIR_FAILED_TIMEOUT:
-  case REDIR_FAILED_OTHER:
-    bcatcstr(b,
-	     "<AuthenticationPollReply>\r\n"
-	     "<MessageType>140</MessageType>\r\n" /* response to authentication notification */
-	     "<ResponseCode>102</ResponseCode>\r\n"); /* RADIUS serveur error/timeout */
-
-    if (reply) {
-      bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-      bconcat(b, bt);
-    } else {
-      bcatcstr(b, "<ReplyMessage>Radius error</ReplyMessage>\r\n");
-    }
-
-    bcatcstr(b, "</AuthenticationPollReply>\r\n");
-    break;
-
-  case REDIR_SUCCESS:
-    bcatcstr(b,
-	     "<AuthenticationPollReply>\r\n"
-	     "<MessageType>140</MessageType>\r\n"  /* response to authentication notification */
-	     "<ResponseCode>50</ResponseCode>\r\n"); /* login succeeded */
-
-    if (reply) {
-      bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-      bconcat(b, bt);
-    }
-
-    /* Add the logoff URL */
-    bassignformat(bt, "<LogoffURL>http://%s:%d/logoff</LogoffURL>\r\n",
-		  inet_ntoa(redir->addr), redir->port);
-    bconcat(b, bt);
-
-    /* Add the status URL */
-    bassignformat(bt, "<StatusURL>http://%s:%d/status</StatusURL>\r\n",
-		  inet_ntoa(redir->addr), redir->port);
-    bconcat(b, bt);
-
-    if (redirurl) {
-      bassignformat(bt, "<RedirectionURL>%s</RedirectionURL>\r\n", redirurl);
-      bconcat(b, bt);
-    }
-    bcatcstr(b,
-	     "<MaxSessionTime>3600</MaxSessionTime>\r\n"); /* Max time of the session in seconds */
-
-    bcatcstr(b, "</AuthenticationPollReply>\r\n");
-    break;
-
-  case REDIR_LOGOFF:
-    bcatcstr(b,
-	     "<LogoffReply>\r\n"
-	     "<MessageType>130</MessageType>\r\n"  /* logoff notification */
-	     "<ResponseCode>150</ResponseCode>\r\n" /* logoff succeeded */
-	     "</LogoffReply>\r\n");
-    break;
-
-  case REDIR_ABORT_ACK:
-    bcatcstr(b,
-	     "<AbortLoginReply>\r\n"
-	     "<MessageType>150</MessageType>\r\n"  /* response to abord login */
-	     "<ResponseCode>151</ResponseCode>\r\n" /* login aborded */
-	     "</AbortLoginReply>\r\n");
-    break;
-
-  case REDIR_ABORT_NAK:
-    bcatcstr(b,
-	     "<AbortLoginReply>\r\n"
-	     "<MessageType>150</MessageType>\r\n"  /* response to abord login */
-	     "<ResponseCode>50</ResponseCode>\r\n");   /* login succeeded */
-    bassignformat(bt, "<LogoffURL>http://%s:%d/logoff</LogoffURL>\r\n",
-		  inet_ntoa(redir->addr), redir->port);
-    bconcat(b, bt);
-    bcatcstr(b, "</AbortLoginReply>\r\n");
-    break;
-
-  case REDIR_STATUS:
-    bcatcstr(b,
-	     "<AuthenticationPollReply>\r\n"
-	     "<MessageType>140</MessageType>\r\n"); /* response to authentication Poll */
-    if (conn->s_state.authenticated != 1) {
+    case REDIR_ALREADY:
       bcatcstr(b,
-	       "<ResponseCode>150</ResponseCode>\r\n"  /*logoff succeeded */
-	       "<ReplyMessage>Not logged on</ReplyMessage>\r\n");
-    } else {
+               "<AuthenticationPollReply>\r\n"
+               "<MessageType>140</MessageType>\r\n"  /* response to authentication notification*/
+               "<ResponseCode>102</ResponseCode>\r\n"  /* RADIUS serveur error/timeout */
+               "<ReplyMessage>Already logged on</ReplyMessage>\r\n"
+               "</AuthenticationPollReply>\r\n");
+      break;
+
+    case REDIR_NOTYET:
       bcatcstr(b,
-	       "<ResponseCode>50</ResponseCode>\r\n" /* login succeeded */
-	       "<ReplyMessage>Already logged on</ReplyMessage>\r\n");
-    }
-    bcatcstr(b, "</AuthenticationPollReply>\r\n");
-    break;
+               "<Redirect>\r\n"
+               "<MessageType>100</MessageType>\r\n"
+               "<ResponseCode>0</ResponseCode>\r\n" /* no error */
+               "<AccessProcedure>1.0</AccessProcedure>\r\n");
 
-  case REDIR_REQERROR:
-    break;
+      if (_options.radiuslocationid) {
+        bassignformat(bt, "<AccessLocation>%s</AccessLocation>\r\n", _options.radiuslocationid);
+        bconcat(b, bt);
+      }
 
-  default:
-    syslog(LOG_ERR, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
+      if (_options.radiuslocationname) {
+        bassignformat(bt, "<LocationName>%s</LocationName>\r\n", _options.radiuslocationname);
+        bconcat(b, bt);
+      }
+
+      bassignformat(bt, "<LoginURL>%s%sres=wispr&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
+                    _options.wisprlogin ? _options.wisprlogin : redir->url,
+                    strchr(_options.wisprlogin ? _options.wisprlogin : redir->url, '?') ? "&amp;" : "?",
+                    inet_ntoa(redir->addr), redir->port, hexchal);
+      bconcat(b, bt);
+
+      bassignformat(bt, "<AbortLoginURL>http://%s:%d/abort</AbortLoginURL>\r\n",
+                    inet_ntoa(redir->addr), redir->port);
+      bconcat(b, bt);
+
+      bcatcstr(b,
+               "</Redirect>\r\n");
+      break;
+
+    case REDIR_FAILED_REJECT:
+      bcatcstr(b,
+               "<AuthenticationPollReply>\r\n"
+               "<MessageType>140</MessageType>\r\n"  /* response to authentication notification */
+               "<ResponseCode>100</ResponseCode>\r\n");  /* login failed (Access REJECT) */
+
+      if (reply) {
+        bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        bconcat(b, bt);
+      }else {
+        bcatcstr(b, "<ReplyMessage>Invalid Username/Password</ReplyMessage>\r\n");
+      }
+
+      bcatcstr(b, "</AuthenticationPollReply>\r\n");
+      break;
+
+    case REDIR_FAILED_NOROUTE:
+      bcatcstr(b,
+               "<AuthenticationPollReply>\r\n"
+               "<MessageType>140</MessageType>\r\n" /* response to authentication notification */
+               "<ResponseCode>105</ResponseCode>\r\n"); /* RADIUS serveur error/timeout */
+
+      bcatcstr(b, "<ReplyMessage>no route for realm</ReplyMessage>\r\n");
+
+      bcatcstr(b, "</AuthenticationPollReply>\r\n");
+      break;
+
+    case REDIR_ERROR_PROTOCOL:
+    case REDIR_FAILED_MTU:
+    case REDIR_FAILED_TIMEOUT:
+    case REDIR_FAILED_OTHER:
+      bcatcstr(b,
+               "<AuthenticationPollReply>\r\n"
+               "<MessageType>140</MessageType>\r\n" /* response to authentication notification */
+               "<ResponseCode>102</ResponseCode>\r\n"); /* RADIUS serveur error/timeout */
+
+      if (reply) {
+        bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        bconcat(b, bt);
+      } else {
+        bcatcstr(b, "<ReplyMessage>Radius error</ReplyMessage>\r\n");
+      }
+
+      bcatcstr(b, "</AuthenticationPollReply>\r\n");
+      break;
+
+    case REDIR_SUCCESS:
+      bcatcstr(b,
+               "<AuthenticationPollReply>\r\n"
+               "<MessageType>140</MessageType>\r\n"  /* response to authentication notification */
+               "<ResponseCode>50</ResponseCode>\r\n"); /* login succeeded */
+
+      if (reply) {
+        bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        bconcat(b, bt);
+      }
+
+      /* Add the logoff URL */
+      bassignformat(bt, "<LogoffURL>http://%s:%d/logoff</LogoffURL>\r\n",
+                    inet_ntoa(redir->addr), redir->port);
+      bconcat(b, bt);
+
+      /* Add the status URL */
+      bassignformat(bt, "<StatusURL>http://%s:%d/status</StatusURL>\r\n",
+                    inet_ntoa(redir->addr), redir->port);
+      bconcat(b, bt);
+
+      if (redirurl) {
+        bassignformat(bt, "<RedirectionURL>%s</RedirectionURL>\r\n", redirurl);
+        bconcat(b, bt);
+      }
+      bcatcstr(b,
+               "<MaxSessionTime>3600</MaxSessionTime>\r\n"); /* Max time of the session in seconds */
+
+      bcatcstr(b, "</AuthenticationPollReply>\r\n");
+      break;
+
+    case REDIR_LOGOFF:
+      bcatcstr(b,
+               "<LogoffReply>\r\n"
+               "<MessageType>130</MessageType>\r\n"  /* logoff notification */
+               "<ResponseCode>150</ResponseCode>\r\n" /* logoff succeeded */
+               "</LogoffReply>\r\n");
+      break;
+
+    case REDIR_ABORT_ACK:
+      bcatcstr(b,
+               "<AbortLoginReply>\r\n"
+               "<MessageType>150</MessageType>\r\n"  /* response to abord login */
+               "<ResponseCode>151</ResponseCode>\r\n" /* login aborded */
+               "</AbortLoginReply>\r\n");
+      break;
+
+    case REDIR_ABORT_NAK:
+      bcatcstr(b,
+               "<AbortLoginReply>\r\n"
+               "<MessageType>150</MessageType>\r\n"  /* response to abord login */
+               "<ResponseCode>50</ResponseCode>\r\n");   /* login succeeded */
+      bassignformat(bt, "<LogoffURL>http://%s:%d/logoff</LogoffURL>\r\n",
+                    inet_ntoa(redir->addr), redir->port);
+      bconcat(b, bt);
+      bcatcstr(b, "</AbortLoginReply>\r\n");
+      break;
+
+    case REDIR_STATUS:
+      bcatcstr(b,
+               "<AuthenticationPollReply>\r\n"
+               "<MessageType>140</MessageType>\r\n"); /* response to authentication Poll */
+      if (conn->s_state.authenticated != 1) {
+        bcatcstr(b,
+                 "<ResponseCode>150</ResponseCode>\r\n"  /*logoff succeeded */
+                 "<ReplyMessage>Not logged on</ReplyMessage>\r\n");
+      } else {
+        bcatcstr(b,
+                 "<ResponseCode>50</ResponseCode>\r\n" /* login succeeded */
+                 "<ReplyMessage>Already logged on</ReplyMessage>\r\n");
+      }
+      bcatcstr(b, "</AuthenticationPollReply>\r\n");
+      break;
+
+    case REDIR_REQERROR:
+      break;
+
+    default:
+      syslog(LOG_ERR, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
   }
   bcatcstr(b, "</WISPAccessGatewayParam>\r\n"
 	   "-->\r\n");
@@ -986,7 +990,8 @@ void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn,
   bstring bt = bfromcstr("");
   char eap64str [MAX_EAP_LEN*2];
 
-  syslog(LOG_DEBUG, "%s", __FUNCTION__);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "%s", __FUNCTION__);
 
   bcatcstr(b,
 	   "<!--\r\n"
@@ -997,261 +1002,265 @@ void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn,
 	   ">\r\n");
 
   switch (res) {
-  case REDIR_ALREADY:
-    /* TO-DO need to verify when this can happen and what to return */
-    bcatcstr(b,
-	     "<AuthenticationReply>\r\n"
-	     "<MessageType>140</MessageType>\r\n"  /* response to authentication notification*/
-	     "<ResponseCode>102</ResponseCode>\r\n"  /* RADIUS serveur error/timeout */
-	     "<ReplyMessage>Already logged on</ReplyMessage>\r\n"
-	     "</AuthenticationReply>\r\n");
-    break;
-
-  case REDIR_NOTYET:
-    bcatcstr(b,
-	     "<Redirect>\r\n"
-	     "<MessageType>100</MessageType>\r\n"
-	     "<ResponseCode>0</ResponseCode>\r\n"
-	     "<VersionHigh>2.0</VersionHigh>\r\n");
-
-    if (!_options.no_wispr1)
+    case REDIR_ALREADY:
+      /* TO-DO need to verify when this can happen and what to return */
       bcatcstr(b,
-	       "<VersionLow>1.0</VersionLow>\r\n"
-	       "<AccessProcedure>1.0</AccessProcedure>\r\n"); /* Indicate support for WISPr 1.0 */
-    else
+               "<AuthenticationReply>\r\n"
+               "<MessageType>140</MessageType>\r\n"  /* response to authentication notification*/
+               "<ResponseCode>102</ResponseCode>\r\n"  /* RADIUS serveur error/timeout */
+               "<ReplyMessage>Already logged on</ReplyMessage>\r\n"
+               "</AuthenticationReply>\r\n");
+      break;
+
+    case REDIR_NOTYET:
       bcatcstr(b,
-	       "<VersionLow>2.0</VersionLow>\r\n");  /* Indicate only support for WISPr 2.0 */
+               "<Redirect>\r\n"
+               "<MessageType>100</MessageType>\r\n"
+               "<ResponseCode>0</ResponseCode>\r\n"
+               "<VersionHigh>2.0</VersionHigh>\r\n");
 
-    if (_options.radiuslocationid) {
-      bassignformat(bt, "<AccessLocation>CDATA[[%s]]</AccessLocation>\r\n", _options.radiuslocationid);
-      bconcat(b, bt);
-    }
+      if (!_options.no_wispr1)
+        bcatcstr(b,
+                 "<VersionLow>1.0</VersionLow>\r\n"
+                 "<AccessProcedure>1.0</AccessProcedure>\r\n"); /* Indicate support for WISPr 1.0 */
+      else
+        bcatcstr(b,
+                 "<VersionLow>2.0</VersionLow>\r\n");  /* Indicate only support for WISPr 2.0 */
 
-    if (_options.radiuslocationname) {
-      bassignformat(bt, "<LocationName>CDATA[[%s]]</LocationName>\r\n", _options.radiuslocationname);
-      bconcat(b, bt);
-    }
-
-    bassignformat(bt, "<LoginURL>%s%sres=wispr&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
-		  _options.wisprlogin ? _options.wisprlogin : redir->url,
-		  strchr(_options.wisprlogin ? _options.wisprlogin : redir->url, '?') ? "&amp;" : "?",
-		  inet_ntoa(redir->addr), redir->port, hexchal);
-    bconcat(b, bt);
-
-    bassignformat(bt, "<AbortLoginURL>http://%s:%d/abort</AbortLoginURL>\r\n",
-		  inet_ntoa(redir->addr), redir->port);
-    bconcat(b, bt);
-
-    /* Create an EAP identity message */
-    eapidentityreq(&(conn->authdata.v.eapmsg),
-		   ++conn->s_state.redir.eap_identity);
-
-    if (!base64encoder(&(conn->authdata.v.eapmsg),
-		       eap64str, MAX_EAP_LEN*2)){
-      /*	syslog(LOG_DEBUG, "Encoded radius eap msg: %s", eap64str);  */
-      bassignformat(bt, "<EAPMsg>%s</EAPMsg>\r\n", eap64str);
-      bconcat(b, bt);
-    } else {
-      syslog(LOG_DEBUG, "Base64 encoding of eap identity request failed");
-    }
-    bcatcstr(b, "</Redirect>\r\n");
-    break;
-
-  case REDIR_FAILED_REJECT:
-    write_authentication_msg_header(conn,b);
-
-    bcatcstr(b,
-	     "<ResponseCode>100</ResponseCode>\r\n"); /* login failed (Access REJECT) */
-
-    if (reply) {
-      bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-      bconcat(b, bt);
-    }
-    else {
-      bcatcstr(b, "<ReplyMessage>Invalid Password</ReplyMessage>\r\n");
-    }
-
-    write_authentication_msg_footer(conn,b);
-    break;
-
-  case REDIR_FAILED_NOROUTE:
-    write_authentication_msg_header(conn,b);
-
-    bcatcstr(b,
-	     "<ResponseCode>105</ResponseCode>\r\n"); /* RADIUS serveur error/timeout */
-
-    bcatcstr(b, "<ReplyMessage>no route for realm</ReplyMessage>\r\n");
-
-    write_authentication_msg_footer(conn,b);
-    break;
-
-  case REDIR_FAILED_MTU:
-    write_authentication_msg_header(conn,b);
-
-    bcatcstr(b,
-	     "<ResponseCode>253</ResponseCode>\r\n"); /* MTU is too big */
-
-    bcatcstr(b, "<ReplyMessage>AAA MTU is too big</ReplyMessage>\r\n");
-
-    write_authentication_msg_footer(conn,b);
-    break;
-
-  case REDIR_FAILED_TIMEOUT:
-    write_authentication_msg_header(conn,b);
-
-    bcatcstr(b,
-	     "<ResponseCode>102</ResponseCode>\r\n"); /* RADIUS serveur timeout */
-
-    if (reply) {
-      bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-      bconcat(b, bt);
-    } else {
-      bcatcstr(b, "<ReplyMessage>Radius timeout</ReplyMessage>\r\n");
-    }
-
-    write_authentication_msg_footer(conn,b);
-    break;
-
-  case REDIR_ERROR_PROTOCOL:
-    write_authentication_msg_header(conn,b);
-
-    bcatcstr(b,
-	     "<ResponseCode>254</ResponseCode>\r\n"); /* WISPr 2.0 protocol error */
-
-    if (reply) {
-      bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-      bconcat(b, bt);
-    } else {
-      bcatcstr(b, "<ReplyMessage>WISPr 2.0 protocol error</ReplyMessage>\r\n");
-    }
-
-    write_authentication_msg_footer(conn,b);
-    break;
-
-  case REDIR_FAILED_OTHER:
-    write_authentication_msg_header(conn,b);
-
-    bcatcstr(b,
-	     "<ResponseCode>255</ResponseCode>\r\n"); /* RADIUS serveur error */
-
-    if (reply) {
-      bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
-      bconcat(b, bt);
-    } else {
-      bcatcstr(b, "<ReplyMessage>Radius error</ReplyMessage>\r\n");
-    }
-
-    write_authentication_msg_footer(conn,b);
-    break;
-
-  case REDIR_CHALLENGE:
-
-    bcatcstr(b,
-	     "<EAPAuthenticationReply>\r\n"
-	     "<MessageType>121</MessageType>\r\n"
-	     "<ResponseCode>10</ResponseCode>\r\n");
-
-    if (!base64encoder(&(conn->authdata.v.eapmsg),
-		       eap64str, MAX_EAP_LEN*2)){
-      bassignformat(bt, "<EAPMsg>%s</EAPMsg>\r\n", eap64str);
-      bconcat(b, bt);
-    } else {
-      syslog(LOG_DEBUG, "Base64 encoding of radius eap message failed");
-    }
-
-    bassignformat(bt, "<LoginURL>%s%sres=wispr&amp;uamip=%s&amp;continue=1&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
-		  _options.wisprlogin ? _options.wisprlogin : redir->url,
-		  strchr(_options.wisprlogin ? _options.wisprlogin : redir->url, '?') ? "&amp;" : "?",
-		  inet_ntoa(redir->addr), redir->port, hexchal);
-    bconcat(b, bt);
-
-    bcatcstr(b, "</EAPAuthenticationReply>\r\n");
-    break;
-
-  case REDIR_SUCCESS:
-    write_authentication_msg_header(conn,b);
-
-    bcatcstr(b,
-	     "<ResponseCode>50</ResponseCode>\r\n");
-
-    if (conn->authdata.type == REDIR_AUTH_EAP) {
-      if (!base64encoder(&(conn->authdata.v.eapmsg),
-			 eap64str, MAX_EAP_LEN*2)){
-	syslog(LOG_DEBUG, "Encoded radius eap msg: %s", eap64str);
-	bassignformat(bt, "<EAPMsg>%s</EAPMsg>\r\n", eap64str);
-	bconcat(b, bt);
-      } else {
-	syslog(LOG_DEBUG, "Base64 encoding of radius eap message failed");
+      if (_options.radiuslocationid) {
+        bassignformat(bt, "<AccessLocation>CDATA[[%s]]</AccessLocation>\r\n", _options.radiuslocationid);
+        bconcat(b, bt);
       }
-    }
 
-    /* Add the logoff URL */
-    bassignformat(bt, "<LogoffURL>http://%s:%d/logoff</LogoffURL>\r\n",
-		  inet_ntoa(redir->addr), redir->port);
-    bconcat(b, bt);
+      if (_options.radiuslocationname) {
+        bassignformat(bt, "<LocationName>CDATA[[%s]]</LocationName>\r\n", _options.radiuslocationname);
+        bconcat(b, bt);
+      }
 
-    /* Add the status URL */
-    bassignformat(bt, "<StatusURL>http://%s:%d/status</StatusURL>\r\n",
-		  inet_ntoa(redir->addr), redir->port);
-    bconcat(b, bt);
-
-    /* Add the maximum session time */
-    bassignformat(bt,
-		  "<MaxSessionTime>%d</MaxSessionTime>\r\n", conn->s_params.sessiontimeout); /* Max time of the session in seconds */
-    bconcat(b, bt);
-
-    /* Add the redirection URL if present */
-    if (redirurl) {
-      bassignformat(bt, "<RedirectionURL>%s</RedirectionURL>\r\n", redirurl);
+      bassignformat(bt, "<LoginURL>%s%sres=wispr&amp;uamip=%s&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
+                    _options.wisprlogin ? _options.wisprlogin : redir->url,
+                    strchr(_options.wisprlogin ? _options.wisprlogin : redir->url, '?') ? "&amp;" : "?",
+                    inet_ntoa(redir->addr), redir->port, hexchal);
       bconcat(b, bt);
-    }
 
-    write_authentication_msg_footer(conn,b);
-    break;
+      bassignformat(bt, "<AbortLoginURL>http://%s:%d/abort</AbortLoginURL>\r\n",
+                    inet_ntoa(redir->addr), redir->port);
+      bconcat(b, bt);
 
-  case REDIR_LOGOFF:
-    bcatcstr(b,
-	     "<LogoffReply>\r\n"
-	     "<MessageType>130</MessageType>\r\n"  /* logoff notification */
-	     "<ResponseCode>150</ResponseCode>\r\n" /* logoff succeeded */
-	     "</LogoffReply>\r\n");
-    break;
+      /* Create an EAP identity message */
+      eapidentityreq(&(conn->authdata.v.eapmsg),
+                     ++conn->s_state.redir.eap_identity);
 
-  case REDIR_ABORT_ACK:
-    bcatcstr(b,
-	     "<AbortLoginReply>\r\n"
-	     "<MessageType>150</MessageType>\r\n"  /* response to abord login */
-	     "<ResponseCode>151</ResponseCode>\r\n" /* login aborded */
-	     "</AbortLoginReply>\r\n");
-    break;
+      if (!base64encoder(&(conn->authdata.v.eapmsg),
+                         eap64str, MAX_EAP_LEN*2)){
+        /*	syslog(LOG_DEBUG, "Encoded radius eap msg: %s", eap64str);  */
+        bassignformat(bt, "<EAPMsg>%s</EAPMsg>\r\n", eap64str);
+        bconcat(b, bt);
+      } else {
+        if (_options.debug)
+          syslog(LOG_DEBUG, "Base64 encoding of eap identity request failed");
+      }
+      bcatcstr(b, "</Redirect>\r\n");
+      break;
 
-  case REDIR_ABORT_NAK:
-    bcatcstr(b,
-	     "<AbortLoginReply>\r\n"
-	     "<MessageType>150</MessageType>\r\n"     /* response to abord login */
-	     "<ResponseCode>50</ResponseCode>\r\n"     /* login succeeded */
-	     "</AbortLoginReply>\r\n");
-    break;
+    case REDIR_FAILED_REJECT:
+      write_authentication_msg_header(conn,b);
 
-  case REDIR_STATUS:
-    bcatcstr(b,
-	     "<StatusReply>\r\n"
-	     "<MessageType>160</MessageType>\r\n"	/* response to authentication Poll */
-	     "<ResponseCode>0</ResponseCode>\r\n");  /* no error*/
+      bcatcstr(b,
+               "<ResponseCode>100</ResponseCode>\r\n"); /* login failed (Access REJECT) */
 
-    if (conn->s_state.authenticated != 1) {
-      bcatcstr(b, "<Status>1</Status>\r\n");
-    } else {
-      bcatcstr(b, "<Status>0</Status>\r\n");
-    }
-    bcatcstr(b, "</StatusReply>\r\n");
-    break;
+      if (reply) {
+        bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        bconcat(b, bt);
+      }
+      else {
+        bcatcstr(b, "<ReplyMessage>Invalid Password</ReplyMessage>\r\n");
+      }
 
-  case REDIR_REQERROR:
-    break;
+      write_authentication_msg_footer(conn,b);
+      break;
 
-  default:
-    syslog(LOG_ERR, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
+    case REDIR_FAILED_NOROUTE:
+      write_authentication_msg_header(conn,b);
+
+      bcatcstr(b,
+               "<ResponseCode>105</ResponseCode>\r\n"); /* RADIUS serveur error/timeout */
+
+      bcatcstr(b, "<ReplyMessage>no route for realm</ReplyMessage>\r\n");
+
+      write_authentication_msg_footer(conn,b);
+      break;
+
+    case REDIR_FAILED_MTU:
+      write_authentication_msg_header(conn,b);
+
+      bcatcstr(b,
+               "<ResponseCode>253</ResponseCode>\r\n"); /* MTU is too big */
+
+      bcatcstr(b, "<ReplyMessage>AAA MTU is too big</ReplyMessage>\r\n");
+
+      write_authentication_msg_footer(conn,b);
+      break;
+
+    case REDIR_FAILED_TIMEOUT:
+      write_authentication_msg_header(conn,b);
+
+      bcatcstr(b,
+               "<ResponseCode>102</ResponseCode>\r\n"); /* RADIUS serveur timeout */
+
+      if (reply) {
+        bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        bconcat(b, bt);
+      } else {
+        bcatcstr(b, "<ReplyMessage>Radius timeout</ReplyMessage>\r\n");
+      }
+
+      write_authentication_msg_footer(conn,b);
+      break;
+
+    case REDIR_ERROR_PROTOCOL:
+      write_authentication_msg_header(conn,b);
+
+      bcatcstr(b,
+               "<ResponseCode>254</ResponseCode>\r\n"); /* WISPr 2.0 protocol error */
+
+      if (reply) {
+        bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        bconcat(b, bt);
+      } else {
+        bcatcstr(b, "<ReplyMessage>WISPr 2.0 protocol error</ReplyMessage>\r\n");
+      }
+
+      write_authentication_msg_footer(conn,b);
+      break;
+
+    case REDIR_FAILED_OTHER:
+      write_authentication_msg_header(conn,b);
+
+      bcatcstr(b,
+               "<ResponseCode>255</ResponseCode>\r\n"); /* RADIUS serveur error */
+
+      if (reply) {
+        bassignformat(bt, "<ReplyMessage>%s</ReplyMessage>\r\n", reply);
+        bconcat(b, bt);
+      } else {
+        bcatcstr(b, "<ReplyMessage>Radius error</ReplyMessage>\r\n");
+      }
+
+      write_authentication_msg_footer(conn,b);
+      break;
+
+    case REDIR_CHALLENGE:
+
+      bcatcstr(b,
+               "<EAPAuthenticationReply>\r\n"
+               "<MessageType>121</MessageType>\r\n"
+               "<ResponseCode>10</ResponseCode>\r\n");
+
+      if (!base64encoder(&(conn->authdata.v.eapmsg),
+                         eap64str, MAX_EAP_LEN*2)){
+        bassignformat(bt, "<EAPMsg>%s</EAPMsg>\r\n", eap64str);
+        bconcat(b, bt);
+      } else {
+        if (_options.debug)
+          syslog(LOG_DEBUG, "Base64 encoding of radius eap message failed");
+      }
+
+      bassignformat(bt, "<LoginURL>%s%sres=wispr&amp;uamip=%s&amp;continue=1&amp;uamport=%d&amp;challenge=%s</LoginURL>\r\n",
+                    _options.wisprlogin ? _options.wisprlogin : redir->url,
+                    strchr(_options.wisprlogin ? _options.wisprlogin : redir->url, '?') ? "&amp;" : "?",
+                    inet_ntoa(redir->addr), redir->port, hexchal);
+      bconcat(b, bt);
+
+      bcatcstr(b, "</EAPAuthenticationReply>\r\n");
+      break;
+
+    case REDIR_SUCCESS:
+      write_authentication_msg_header(conn,b);
+
+      bcatcstr(b,
+               "<ResponseCode>50</ResponseCode>\r\n");
+
+      if (conn->authdata.type == REDIR_AUTH_EAP) {
+        if (!base64encoder(&(conn->authdata.v.eapmsg),
+                           eap64str, MAX_EAP_LEN*2)){
+          if (_options.debug)
+            syslog(LOG_DEBUG, "Encoded radius eap msg: %s", eap64str);
+          bassignformat(bt, "<EAPMsg>%s</EAPMsg>\r\n", eap64str);
+          bconcat(b, bt);
+        } else {
+          if (_options.debug)
+            syslog(LOG_DEBUG, "Base64 encoding of radius eap message failed");
+        }
+      }
+
+      /* Add the logoff URL */
+      bassignformat(bt, "<LogoffURL>http://%s:%d/logoff</LogoffURL>\r\n",
+                    inet_ntoa(redir->addr), redir->port);
+      bconcat(b, bt);
+
+      /* Add the status URL */
+      bassignformat(bt, "<StatusURL>http://%s:%d/status</StatusURL>\r\n",
+                    inet_ntoa(redir->addr), redir->port);
+      bconcat(b, bt);
+
+      /* Add the maximum session time */
+      bassignformat(bt,
+                    "<MaxSessionTime>%d</MaxSessionTime>\r\n", conn->s_params.sessiontimeout); /* Max time of the session in seconds */
+      bconcat(b, bt);
+
+      /* Add the redirection URL if present */
+      if (redirurl) {
+        bassignformat(bt, "<RedirectionURL>%s</RedirectionURL>\r\n", redirurl);
+        bconcat(b, bt);
+      }
+
+      write_authentication_msg_footer(conn,b);
+      break;
+
+    case REDIR_LOGOFF:
+      bcatcstr(b,
+               "<LogoffReply>\r\n"
+               "<MessageType>130</MessageType>\r\n"  /* logoff notification */
+               "<ResponseCode>150</ResponseCode>\r\n" /* logoff succeeded */
+               "</LogoffReply>\r\n");
+      break;
+
+    case REDIR_ABORT_ACK:
+      bcatcstr(b,
+               "<AbortLoginReply>\r\n"
+               "<MessageType>150</MessageType>\r\n"  /* response to abord login */
+               "<ResponseCode>151</ResponseCode>\r\n" /* login aborded */
+               "</AbortLoginReply>\r\n");
+      break;
+
+    case REDIR_ABORT_NAK:
+      bcatcstr(b,
+               "<AbortLoginReply>\r\n"
+               "<MessageType>150</MessageType>\r\n"     /* response to abord login */
+               "<ResponseCode>50</ResponseCode>\r\n"     /* login succeeded */
+               "</AbortLoginReply>\r\n");
+      break;
+
+    case REDIR_STATUS:
+      bcatcstr(b,
+               "<StatusReply>\r\n"
+               "<MessageType>160</MessageType>\r\n"	/* response to authentication Poll */
+               "<ResponseCode>0</ResponseCode>\r\n");  /* no error*/
+
+      if (conn->s_state.authenticated != 1) {
+        bcatcstr(b, "<Status>1</Status>\r\n");
+      } else {
+        bcatcstr(b, "<Status>0</Status>\r\n");
+      }
+      bcatcstr(b, "</StatusReply>\r\n");
+      break;
+
+    case REDIR_REQERROR:
+      break;
+
+    default:
+      syslog(LOG_ERR, "redir_wispr1_reply: Unhandled response code in switch: %d", res);
   }
 
   bcatcstr(b, "</WISPAccessGatewayParam>\r\n"
@@ -1286,50 +1295,50 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   }
 
   switch (res) {
-  case REDIR_ALREADY:
-    flg |= FLG_sess;
-    break;
-
-  case REDIR_FAILED_REJECT:
-  case REDIR_FAILED_OTHER:
-    flg |= FLG_chlg;
-    flg |= FLG_redir;
-    break;
-
-  case REDIR_SUCCESS:
-    flg |= FLG_sess;
-    flg |= FLG_redir;
-    state = 1;
-    break;
-
-  case REDIR_LOGOFF:
-    flg |= FLG_sess | FLG_chlg;
-    break;
-
-  case REDIR_SPLASH:
-  case REDIR_NOTYET:
-    flg |= FLG_chlg;
-    flg |= FLG_loc;
-    flg |= FLG_redir;
-    break;
-
-  case REDIR_ABORT_ACK:
-  case REDIR_ABORT_NAK:
-  case REDIR_ABOUT:
-    break;
-
-  case REDIR_STATUS:
-    if (state && !splash) {
+    case REDIR_ALREADY:
       flg |= FLG_sess;
-    } else {
+      break;
+
+    case REDIR_FAILED_REJECT:
+    case REDIR_FAILED_OTHER:
+      flg |= FLG_chlg;
+      flg |= FLG_redir;
+      break;
+
+    case REDIR_SUCCESS:
+      flg |= FLG_sess;
+      flg |= FLG_redir;
+      state = 1;
+      break;
+
+    case REDIR_LOGOFF:
+      flg |= FLG_sess | FLG_chlg;
+      break;
+
+    case REDIR_SPLASH:
+    case REDIR_NOTYET:
       flg |= FLG_chlg;
       flg |= FLG_loc;
-    }
-    flg |= FLG_redir;
-    break;
+      flg |= FLG_redir;
+      break;
 
-  default:
-    break;
+    case REDIR_ABORT_ACK:
+    case REDIR_ABORT_NAK:
+    case REDIR_ABOUT:
+      break;
+
+    case REDIR_STATUS:
+      if (state && !splash) {
+        flg |= FLG_sess;
+      } else {
+        flg |= FLG_chlg;
+        flg |= FLG_loc;
+      }
+      flg |= FLG_redir;
+      break;
+
+    default:
+      break;
   }
 
   if (state && splash)
@@ -1350,9 +1359,9 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   }
 
   if ((flg & FLG_chlg) && hexchal) {
-      bcatcstr(json, ",\"challenge\":\"");
-      bcatcstr(json, hexchal);
-      bcatcstr(json, "\"");
+    bcatcstr(json, ",\"challenge\":\"");
+    bcatcstr(json, hexchal);
+    bcatcstr(json, "\"");
   }
 
   if (flg & FLG_loc) {
@@ -1396,7 +1405,8 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   bconcat(s, json);
 
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "sending json: %s\n", json->data);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "sending json: %s\n", json->data);
 #endif
 
   bdestroy(json);
@@ -1443,7 +1453,7 @@ tcp_write_timeout(int timeout, struct redir_socket_t *sock, char *buf, size_t le
 #if WIN32
     return send(fd, buf, len, 0);
 #else
-    return safe_write(fd, buf, len);
+  return safe_write(fd, buf, len);
 #endif
 
   return -1;
@@ -1457,7 +1467,8 @@ redir_write(struct redir_socket_t *sock, char *buf, size_t len) {
   size_t r = 0;
 
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "redir_write(%d)",len);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "redir_write(%d)",len);
 #endif
 
   while (r < len) {
@@ -1487,55 +1498,55 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   bstring buffer;
 
   switch (res) {
-  case REDIR_ALREADY:
-    resp = "already";
-    break;
-  case REDIR_FAILED_REJECT:
-    resp = "failed&reason=reject";
-    break;
-  case REDIR_FAILED_TIMEOUT:
-    resp = "failed&reason=timeout";
-    break;
-  case REDIR_FAILED_MTU:
-    resp = "failed&reason=mtu";
-    break;
-  case REDIR_FAILED_OTHER:
-  case REDIR_ERROR_PROTOCOL:
-    resp = "failed&reason=other";
-    break;
-  case REDIR_REQERROR:
-    resp = "failed";
-    break;
-  case REDIR_SUCCESS:
-    resp = "success";
-    break;
-  case REDIR_LOGOFF:
-    resp = "logoff";
-    break;
-  case REDIR_NOTYET:
-    resp = "notyet";
-    break;
-  case REDIR_SPLASH:
-    resp = "splash";
-    break;
-  case REDIR_ABORT_ACK:
-    resp = "logoff";
-    break;
-  case REDIR_ABORT_NAK:
-    resp = "already";
-    break;
-  case REDIR_ABOUT:
-  case REDIR_ABORT:
-    break;
-  case REDIR_STATUS:
-    resp = conn->s_state.authenticated == 1 ? "already" : "notyet";
-    break;
-  case REDIR_CHALLENGE:
-    resp = "challenge";
-    break;
-  default:
-    syslog(LOG_ERR, "Unknown res in switch");
-    return -1;
+    case REDIR_ALREADY:
+      resp = "already";
+      break;
+    case REDIR_FAILED_REJECT:
+      resp = "failed&reason=reject";
+      break;
+    case REDIR_FAILED_TIMEOUT:
+      resp = "failed&reason=timeout";
+      break;
+    case REDIR_FAILED_MTU:
+      resp = "failed&reason=mtu";
+      break;
+    case REDIR_FAILED_OTHER:
+    case REDIR_ERROR_PROTOCOL:
+      resp = "failed&reason=other";
+      break;
+    case REDIR_REQERROR:
+      resp = "failed";
+      break;
+    case REDIR_SUCCESS:
+      resp = "success";
+      break;
+    case REDIR_LOGOFF:
+      resp = "logoff";
+      break;
+    case REDIR_NOTYET:
+      resp = "notyet";
+      break;
+    case REDIR_SPLASH:
+      resp = "splash";
+      break;
+    case REDIR_ABORT_ACK:
+      resp = "logoff";
+      break;
+    case REDIR_ABORT_NAK:
+      resp = "already";
+      break;
+    case REDIR_ABOUT:
+    case REDIR_ABORT:
+      break;
+    case REDIR_STATUS:
+      resp = conn->s_state.authenticated == 1 ? "already" : "notyet";
+      break;
+    case REDIR_CHALLENGE:
+      resp = "challenge";
+      break;
+    default:
+      syslog(LOG_ERR, "Unknown res in switch");
+      return -1;
   }
 
   buffer = bfromcstralloc(1024, "");
@@ -1548,81 +1559,81 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 
   } else
 #endif
-  if (resp) {
-    bstring bt;
-    bstring bbody;
+    if (resp) {
+      bstring bt;
+      bstring bbody;
 
-    redir_http(buffer, "302 Moved Temporarily");
-    bcatcstr(buffer, "Location: ");
+      redir_http(buffer, "302 Moved Temporarily");
+      bcatcstr(buffer, "Location: ");
 
-    if (url) {
+      if (url) {
 
-      bconcat(buffer, url);
+        bconcat(buffer, url);
 
-    } else if (!_options.redirurl && redirurl && *redirurl) {
+      } else if (!_options.redirurl && redirurl && *redirurl) {
 	bcatcstr(buffer, redirurl);
-    } else {
-      bt = bfromcstralloc(1024,"");
-      redir_buildurl(conn, bt, redir, resp, timeleft, hexchal,
-		     uid, userurl, reply, redirurl, hismac, hisip);
+      } else {
+        bt = bfromcstralloc(1024,"");
+        redir_buildurl(conn, bt, redir, resp, timeleft, hexchal,
+                       uid, userurl, reply, redirurl, hismac, hisip);
+        bconcat(buffer, bt);
+        bdestroy(bt);
+      }
+
+      bcatcstr(buffer, "\r\nContent-Type: text/html; charset=UTF-8\r\n");
+
+      bbody = bfromcstralloc(512,
+                             "<HTML><BODY><H2>Browser error!</H2>"
+                             "Browser does not support redirects!</BODY>\r\n");
+
+      if (res == REDIR_NOTYET) {
+
+        if (!_options.no_wispr1 && _options.no_wispr2)
+          redir_wispr1_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
+
+        else if (!_options.no_wispr2)
+          redir_wispr2_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
+
+#ifdef ENABLE_CHILLIXML
+        if (_options.chillixml)
+          redir_xmlchilli_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
+#endif
+
+      } else {
+
+        if (conn->s_state.redir.uamprotocol & REDIR_UAMPROT_WISPR2)
+          redir_wispr2_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
+        else
+          redir_wispr1_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
+
+#ifdef ENABLE_CHILLIXML
+        if (conn->s_state.redir.uamprotocol == REDIR_UAMPROT_CHILLI)
+          redir_xmlchilli_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
+#endif
+      }
+
+      /*redir_xmlreply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);*/
+
+      bcatcstr(bbody, "\r\n</HTML>\r\n");
+
+      bt = bfromcstralloc(128, "");
+      bassignformat(bt, "Content-Length: %d\r\n", blength(bbody));
       bconcat(buffer, bt);
+
+      bcatcstr(buffer, "\r\n"); /* end of headers */
+      bconcat(buffer, bbody);
+
+      bdestroy(bbody);
       bdestroy(bt);
-    }
-
-    bcatcstr(buffer, "\r\nContent-Type: text/html; charset=UTF-8\r\n");
-
-    bbody = bfromcstralloc(512,
-			   "<HTML><BODY><H2>Browser error!</H2>"
-			   "Browser does not support redirects!</BODY>\r\n");
-
-    if (res == REDIR_NOTYET) {
-
-      if (!_options.no_wispr1 && _options.no_wispr2)
-	redir_wispr1_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
-
-      else if (!_options.no_wispr2)
-	redir_wispr2_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
-
-#ifdef ENABLE_CHILLIXML
-      if (_options.chillixml)
-	redir_xmlchilli_reply(redir, conn, REDIR_NOTYET, timeleft, hexchal, reply, redirurl, bbody);
-#endif
 
     } else {
-
-      if (conn->s_state.redir.uamprotocol & REDIR_UAMPROT_WISPR2)
-	redir_wispr2_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
-      else
-	redir_wispr1_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
-
-#ifdef ENABLE_CHILLIXML
-      if (conn->s_state.redir.uamprotocol == REDIR_UAMPROT_CHILLI)
-	redir_xmlchilli_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
-#endif
+      redir_http(buffer, "200 OK");
+      bcatcstr(buffer,
+               "Content-type: text/html\r\n\r\n"
+               "<HTML><HEAD><TITLE>CoovaChilli</TITLE></HEAD><BODY>");
+      bcatcstr(buffer, credits);
+      bcatcstr(buffer, "</BODY></HTML>\r\n");
     }
-
-    /*redir_xmlreply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);*/
-
-    bcatcstr(bbody, "\r\n</HTML>\r\n");
-
-    bt = bfromcstralloc(128, "");
-    bassignformat(bt, "Content-Length: %d\r\n", blength(bbody));
-    bconcat(buffer, bt);
-
-    bcatcstr(buffer, "\r\n"); /* end of headers */
-    bconcat(buffer, bbody);
-
-    bdestroy(bbody);
-    bdestroy(bt);
-
-  } else {
-    redir_http(buffer, "200 OK");
-    bcatcstr(buffer,
-	     "Content-type: text/html\r\n\r\n"
-	     "<HTML><HEAD><TITLE>CoovaChilli</TITLE></HEAD><BODY>");
-    bcatcstr(buffer, credits);
-    bcatcstr(buffer, "</BODY></HTML>\r\n");
-  }
 
   if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
     syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
@@ -1687,15 +1698,15 @@ int redir_listen(struct redir_t *redir) {
 
     address.sin_addr.s_addr = redir->addr.s_addr;
     switch(n) {
-    case 0:
-      address.sin_port = htons(redir->port);
-      break;
+      case 0:
+        address.sin_port = htons(redir->port);
+        break;
 #ifdef ENABLE_UAMUIPORT
-    case 1:
-      /* XXX: binding to 0.0.0.0:uiport (should be configurable?) */
-      /*address.sin_addr.s_addr = INADDR_ANY;*/
-      address.sin_port = htons(redir->uiport);
-      break;
+      case 1:
+        /* XXX: binding to 0.0.0.0:uiport (should be configurable?) */
+        /*address.sin_addr.s_addr = INADDR_ANY;*/
+        address.sin_port = htons(redir->uiport);
+        break;
 #endif
     }
 
@@ -1712,13 +1723,15 @@ int redir_listen(struct redir_t *redir) {
     if (setsockopt(redir->fd[n], SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval))) {
       syslog(LOG_ERR, "%s: setsockopt(SO_REUSEPORT)", strerror(errno));
       if (errno != ENOPROTOOPT) {
-	syslog(LOG_DEBUG, "setsockopt(SO_REUSEPORT) failed hard, aborting.");
+        if (_options.debug)
+          syslog(LOG_DEBUG, "setsockopt(SO_REUSEPORT) failed hard, aborting.");
 	safe_close(redir->fd[n]);
 	redir->fd[n]=0;
 	return -1;
       } else {
-	syslog(LOG_DEBUG, "setsockopt(SO_REUSEPORT) failed due to proto not available "
-		 "(probably compiled with newer header files), continueing anyways...");
+        if (_options.debug)
+          syslog(LOG_DEBUG, "setsockopt(SO_REUSEPORT) failed due to proto not available "
+                 "(probably compiled with newer header files), continueing anyways...");
       }
     }
 #endif
@@ -1726,7 +1739,7 @@ int redir_listen(struct redir_t *redir) {
     while (bind(redir->fd[n], (struct sockaddr *)&address, sizeof(address)) == -1) {
       if ((EADDRINUSE == errno) && (10 > tries++)) {
 	syslog(LOG_WARNING, "%d IP: %s Port: %d - Waiting for retry.",
-		 errno, inet_ntoa(address.sin_addr), ntohs(address.sin_port));
+               errno, inet_ntoa(address.sin_addr), ntohs(address.sin_port));
 	if (sleep(5)) { /* In case we got killed */
 	  safe_close(redir->fd[n]);
 	  redir->fd[n]=0;
@@ -1735,7 +1748,7 @@ int redir_listen(struct redir_t *redir) {
       }
       else {
 	syslog(LOG_ERR, "%d bind() failed for %s:%d",
-		errno, inet_ntoa(address.sin_addr), ntohs(address.sin_port));
+               errno, inet_ntoa(address.sin_addr), ntohs(address.sin_port));
 	if (n == 0 && address.sin_addr.s_addr != INADDR_ANY) {
 	  syslog(LOG_WARNING, "trying INADDR_ANY instead");
 	  address.sin_addr.s_addr = INADDR_ANY;
@@ -1750,7 +1763,7 @@ int redir_listen(struct redir_t *redir) {
     if (redir->fd[n]) {
       if (listen(redir->fd[n], REDIR_MAXLISTEN)) {
 	syslog(LOG_ERR, "%d listen() failed for %s:%d",
-		errno, inet_ntoa(address.sin_addr), ntohs(address.sin_port));
+               errno, inet_ntoa(address.sin_addr), ntohs(address.sin_port));
 	safe_close(redir->fd[n]);
 	redir->fd[n]=0;
 	break;
@@ -1781,7 +1794,7 @@ int redir_ipc(struct redir_t *redir) {
     local.sun_family = AF_UNIX;
 
     strlcpy(local.sun_path, filedest,
-		 sizeof(local.sun_path));
+            sizeof(local.sun_path));
     unlink(local.sun_path);
 
     if (bind(sock, (struct sockaddr *)&local,
@@ -1885,7 +1898,8 @@ int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
   safe_snprintf(sstr, sizeof(sstr), "&%s=", param);
 
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "getparam(%s)", sstr);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "getparam(%s)", sstr);
 #endif
 
   len = strlen(sstr);
@@ -1911,7 +1925,8 @@ int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
   } else
     bassigncstr(dst, "");
 
-  syslog(LOG_DEBUG, "The parameter %s is: [%.*s]", param, dst->slen, dst->data);/**/
+  if (_options.debug)
+    syslog(LOG_DEBUG, "The parameter %s is: [%.*s]", param, dst->slen, dst->data);/**/
 
   return 0;
 }
@@ -1970,19 +1985,19 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
       } while (status == -1 && errno == EINTR);
 
       switch(status) {
-      case -1:
-	syslog(LOG_ERR, "%s: select(%d)", strerror(errno), fd);
-	return -1;
+        case -1:
+          syslog(LOG_ERR, "%s: select(%d)", strerror(errno), fd);
+          return -1;
 
-	/*
-      case 0:
-	syslog(LOG_DEBUG, "HTTP request timeout!");
-	done = 1;
-	break;
-	*/
+          /*
+            case 0:
+            syslog(LOG_DEBUG, "HTTP request timeout!");
+            done = 1;
+            break;
+          */
 
-      default:
-	break;
+        default:
+          break;
       }
 
       if ((status > 0) && FD_ISSET(fd, &fds)) {
@@ -2013,23 +2028,25 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 			       0);
       } else
 #endif
-      recvlen = recv(fd, buffer + buflen,
-		     httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 0);
+        recvlen = recv(fd, buffer + buflen,
+                       httpreq->allow_post ? 1 : sizeof(buffer) - 1 - buflen, 0);
 
       if (recvlen < 0) {
 	recvlen = 0;
 	if (errno == EWOULDBLOCK && !forked) {
 #if(_debug_ > 1)
-	  syslog(LOG_DEBUG, "Continue... (would block)");
+          if (_options.debug)
+            syslog(LOG_DEBUG, "Continue... (would block)");
 #endif
 	  wblock = 1;
 	} else {
 #if(_debug_ > 1)
-	  syslog(LOG_DEBUG, "%s_read(%d) failed!",
+          if (_options.debug)
+            syslog(LOG_DEBUG, "%s_read(%d) failed!",
 #ifdef HAVE_SSL
-		  sock->sslcon ? "SSL" :
+                   sock->sslcon ? "SSL" :
 #endif
-		  "redir", fd);
+                   "redir", fd);
 #endif
 	  return -1;
 	}
@@ -2067,7 +2084,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
     }
 
     if (buflen == 0) {
-      syslog(LOG_DEBUG, "No data in HTTP request!");
+      if (_options.debug)
+        syslog(LOG_DEBUG, "No data in HTTP request!");
       if (!forked && wblock) return 1;
       return -1;
     }
@@ -2087,8 +2105,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  p1 += 5;
 	  httpreq->is_post = 1;
 	} else {
-	  syslog(LOG_DEBUG, "Unhandled http request: %s %d", p1,
-		  _options.uamallowpost);
+          if (_options.debug)
+            syslog(LOG_DEBUG, "Unhandled http request: %s %d", p1,
+                   _options.uamallowpost);
 	  return -1;
 	}
 
@@ -2113,7 +2132,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
 	strlcpy(path, p1, sizeof(httpreq->path));
 
-	syslog(LOG_DEBUG, "The path: %s", path);
+        if (_options.debug)
+          syslog(LOG_DEBUG, "The path: %s", path);
 
 	/* TODO: Should also check the Host: to make sure we are talking directly to uamlisten */
 
@@ -2128,7 +2148,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
 	  path[last]=0;
 
-	  syslog(LOG_DEBUG, "The (json format) path: %s", path);
+          if (_options.debug)
+            syslog(LOG_DEBUG, "The (json format) path: %s", path);
 	}
 #endif
 
@@ -2141,13 +2162,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	else if (!strcmp(path, "status"))
 	  conn->type = REDIR_STATUS;
 	else if (!strncmp(path, "msdownload", 10))
-	  { conn->type = REDIR_MSDOWNLOAD; return 0; }
+        { conn->type = REDIR_MSDOWNLOAD; return 0; }
 	else if (!strcmp(path, "prelogin"))
-	  { conn->type = REDIR_PRELOGIN; return 0; }
+        { conn->type = REDIR_PRELOGIN; return 0; }
 	else if (!strcmp(path, "macreauth"))
-	  { conn->type = REDIR_MACREAUTH; return 0; }
+        { conn->type = REDIR_MACREAUTH; return 0; }
 	else if (!strcmp(path, "abort"))
-	  { conn->type = REDIR_ABORT; return 0; }
+        { conn->type = REDIR_ABORT; return 0; }
 #ifdef ENABLE_EWTAPI
 	else if (!strncmp(path, "ewt/json", 8))
 	  conn->type = REDIR_EWTAPI;
@@ -2167,14 +2188,16 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    strlcpy(httpreq->qs, p1, sizeof(httpreq->qs));
 
 #if(_debug_ > 1)
-	    syslog(LOG_DEBUG, "Query string: %s", httpreq->qs);
+            if (_options.debug)
+              syslog(LOG_DEBUG, "Query string: %s", httpreq->qs);
 #endif
 	  }
 	}
       } else if (linelen == 0) {
 	/* end of headers */
 #if(_debug_ > 1)
-	syslog(LOG_DEBUG, "end of http-request");
+        if (_options.debug)
+          syslog(LOG_DEBUG, "end of http-request");
 #endif
 	done = 1;
 	eoh = 1;
@@ -2189,7 +2212,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  while (*p && isspace((int) *p)) p++;
 	  strlcpy(httpreq->host, p, sizeof(httpreq->host));
 #if(_debug_ > 1)
-	  syslog(LOG_DEBUG, "Host: %s",httpreq->host);
+          if (_options.debug)
+            syslog(LOG_DEBUG, "Host: %s",httpreq->host);
 #endif
 	}
 	else if (!strncasecmp(buffer,"Content-Length:",15)) {
@@ -2198,7 +2222,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  len = strlen(p);
 	  if (len > 0) httpreq->clen = atoi(p);
 #if(_debug_ > 1)
-	  syslog(LOG_DEBUG, "Content-Length: %s",p);
+          if (_options.debug)
+            syslog(LOG_DEBUG, "Content-Length: %s",p);
 #endif
 	}
 #ifdef ENABLE_USERAGENT
@@ -2206,9 +2231,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  p = buffer + 11;
 	  while (*p && isspace((int) *p)) p++;
 	  strlcpy(conn->s_state.redir.useragent,
-		       p, sizeof(conn->s_state.redir.useragent));
+                  p, sizeof(conn->s_state.redir.useragent));
 #if(_debug_)
-	  syslog(LOG_DEBUG, "User-Agent: %s",conn->s_state.redir.useragent);
+          if (_options.debug)
+            syslog(LOG_DEBUG, "User-Agent: %s",conn->s_state.redir.useragent);
 #endif
 	}
 #endif
@@ -2217,9 +2243,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  p = buffer + 16;
 	  while (*p && isspace((int) *p)) p++;
 	  strlcpy(conn->s_state.redir.acceptlanguage,
-		       p, sizeof(conn->s_state.redir.acceptlanguage));
+                  p, sizeof(conn->s_state.redir.acceptlanguage));
 #if(_debug_ > 1)
-	  syslog(LOG_DEBUG, "Accept-Language: %s",conn->s_state.redir.acceptlanguage);
+          if (_options.debug)
+            syslog(LOG_DEBUG, "Accept-Language: %s",conn->s_state.redir.acceptlanguage);
 #endif
 	}
 #endif
@@ -2228,7 +2255,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  while (*p && isspace((int) *p)) p++;
 	  strlcpy(conn->httpcookie, p, sizeof(conn->httpcookie));
 #if(_debug_ > 1)
-	  syslog(LOG_DEBUG, "Cookie: %s",conn->httpcookie);
+          if (_options.debug)
+            syslog(LOG_DEBUG, "Cookie: %s",conn->httpcookie);
 #endif
 	}
       }
@@ -2244,7 +2272,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
     if (!forked && !eoh && wblock) {
 #if(_debug_ > 1)
-      syslog(LOG_DEBUG, "Didn't see end of headers, continue...");
+      if (_options.debug)
+        syslog(LOG_DEBUG, "Didn't see end of headers, continue...");
 #endif
       /*syslog(LOG_DEBUG, "%.*s",httpreq->data_in->slen,httpreq->data_in->data);*/
       return 1;
@@ -2253,203 +2282,215 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
   switch(conn->type) {
 
-  case REDIR_STATUS:
-    return 0;
+    case REDIR_STATUS:
+      return 0;
 
 #ifdef ENABLE_EWTAPI
-  case REDIR_EWTAPI:
+    case REDIR_EWTAPI:
 #ifdef HAVE_SSL
-    syslog(LOG_DEBUG, "EWT API pre-process");
-    if (sock->sslcon) {
-    }
+      if (_options.debug)
+        syslog(LOG_DEBUG, "EWT API pre-process");
+      if (sock->sslcon) {
+      }
 #endif
-    return 0;
+      return 0;
 #endif
 
-  case REDIR_LOGIN:
-    {
-      bstring bt = bfromcstr("");
+    case REDIR_LOGIN:
+      {
+        bstring bt = bfromcstr("");
 
-      if (!redir_getparam(redir, httpreq->qs, "lang", bt))
-	bstrtocstr(bt, conn->lang, sizeof(conn->lang));
+        if (!redir_getparam(redir, httpreq->qs, "lang", bt))
+          bstrtocstr(bt, conn->lang, sizeof(conn->lang));
 
-      if (redir_getparam(redir, httpreq->qs, "username", bt)) {
-	syslog(LOG_ERR, "No username found in login request");
-	conn->response = REDIR_ERROR_PROTOCOL;
-	bdestroy(bt);
-	return -1;
-      }
-
-      bstrtocstr(bt, conn->s_state.redir.username,
-		 sizeof(conn->s_state.redir.username));
-
-      syslog(LOG_DEBUG, "-->> Setting username=[%s]",conn->s_state.redir.username);
-
-      if (!redir_getparam(redir, httpreq->qs, "userurl", bt)) {
-	bstring bt2 = bfromcstr("");
-	redir_urldecode(bt, bt2);
-	bstrtocstr(bt2, conn->s_state.redir.userurl,
-		   sizeof(conn->s_state.redir.userurl));
-	syslog(LOG_DEBUG, "-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
-	bdestroy(bt2);
-      }
-
-      /* Indicates the reply to a challenge */
-      if (!redir_getparam(redir, httpreq->qs, "continue", bt)) {
-	conn->type = REDIR_LOGIN_CONTINUE;
-      }
-
-      if (!redir_getparam(redir, httpreq->qs, "WISPrVersion", bt)) {
-	char rxversion[10];
-	btrimws(bt);
-	bstrtocstr(bt, rxversion, sizeof(rxversion));
-	if (!strcmp(rxversion, "2.0")) {
-	  conn->s_state.redir.uamprotocol = REDIR_UAMPROT_WISPR2;
-	  syslog(LOG_DEBUG, "using uamprotocol: WISPr 2.0 (%d)", conn->s_state.redir.uamprotocol);
-	} else {
-	  conn->s_state.redir.uamprotocol = REDIR_UAMPROT_WISPR1;
-	  syslog(LOG_DEBUG, "using uamprotocol: WISPr 1.0 (%d)", conn->s_state.redir.uamprotocol);
-	}
-      } else {
-	conn->s_state.redir.uamprotocol = REDIR_UAMPROT_WISPR1;
-	syslog(LOG_DEBUG, "using uamprotocol: WISPr 1.0 (%d)", conn->s_state.redir.uamprotocol);
-      }
-
-      if (!redir_getparam(redir, httpreq->qs, "ntresponse", bt)) {
-	conn->authdata.type = REDIR_AUTH_MSCHAPv2;
-	redir_hextochar(bt->data, bt->slen,
-			conn->authdata.v.chapmsg.password,
-			RADIUS_CHAPSIZE);
-      }
-      else if (!redir_getparam(redir, httpreq->qs, "response", bt)) {
-	conn->authdata.type = REDIR_AUTH_CHAP;
-	redir_hextochar(bt->data, bt->slen,
-			conn->authdata.v.chapmsg.password,
-			RADIUS_CHAPSIZE);
-
-	if (!redir_getparam(redir, httpreq->qs, "ident", bt) && bt->slen)
-	  conn->authdata.v.chapmsg.identity = atoi((char*)bt->data);
-	else
-	  conn->authdata.v.chapmsg.identity = 0;
-      }
-      else if (!redir_getparam(redir, httpreq->qs, "password", bt)) {
-	conn->authdata.type = REDIR_AUTH_PAP;
-        if (_options.nochallenge) {
-          /* Not using the challenge, therefore we expect the
-           * password in "plain" text.
-          */
-          bstrtocstr(bt, (char*)conn->authdata.v.papmsg.password,
-                     sizeof(conn->authdata.v.papmsg.password));
-          conn->authdata.v.papmsg.len =
-              strlen((char*)conn->authdata.v.papmsg.password);
-        } else {
-          conn->authdata.v.papmsg.len = bt->slen / 2;
-
-          if (conn->authdata.v.papmsg.len > RADIUS_PWSIZE)
-            conn->authdata.v.papmsg.len = RADIUS_PWSIZE;
-
-          redir_hextochar(bt->data, bt->slen,
-                          conn->authdata.v.papmsg.password,
-                          conn->authdata.v.papmsg.len);
+        if (redir_getparam(redir, httpreq->qs, "username", bt)) {
+          syslog(LOG_ERR, "No username found in login request");
+          conn->response = REDIR_ERROR_PROTOCOL;
+          bdestroy(bt);
+          return -1;
         }
+
+        bstrtocstr(bt, conn->s_state.redir.username,
+                   sizeof(conn->s_state.redir.username));
+
+        if (_options.debug)
+          syslog(LOG_DEBUG, "-->> Setting username=[%s]",conn->s_state.redir.username);
+
+        if (!redir_getparam(redir, httpreq->qs, "userurl", bt)) {
+          bstring bt2 = bfromcstr("");
+          redir_urldecode(bt, bt2);
+          bstrtocstr(bt2, conn->s_state.redir.userurl,
+                     sizeof(conn->s_state.redir.userurl));
+          if (_options.debug)
+            syslog(LOG_DEBUG, "-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
+          bdestroy(bt2);
+        }
+
+        /* Indicates the reply to a challenge */
+        if (!redir_getparam(redir, httpreq->qs, "continue", bt)) {
+          conn->type = REDIR_LOGIN_CONTINUE;
+        }
+
+        if (!redir_getparam(redir, httpreq->qs, "WISPrVersion", bt)) {
+          char rxversion[10];
+          btrimws(bt);
+          bstrtocstr(bt, rxversion, sizeof(rxversion));
+          if (!strcmp(rxversion, "2.0")) {
+            conn->s_state.redir.uamprotocol = REDIR_UAMPROT_WISPR2;
+            if (_options.debug)
+              syslog(LOG_DEBUG, "using uamprotocol: WISPr 2.0 (%d)", conn->s_state.redir.uamprotocol);
+          } else {
+            conn->s_state.redir.uamprotocol = REDIR_UAMPROT_WISPR1;
+            if (_options.debug)
+              syslog(LOG_DEBUG, "using uamprotocol: WISPr 1.0 (%d)", conn->s_state.redir.uamprotocol);
+          }
+        } else {
+          conn->s_state.redir.uamprotocol = REDIR_UAMPROT_WISPR1;
+          if (_options.debug)
+            syslog(LOG_DEBUG, "using uamprotocol: WISPr 1.0 (%d)", conn->s_state.redir.uamprotocol);
+        }
+
+        if (!redir_getparam(redir, httpreq->qs, "ntresponse", bt)) {
+          conn->authdata.type = REDIR_AUTH_MSCHAPv2;
+          redir_hextochar(bt->data, bt->slen,
+                          conn->authdata.v.chapmsg.password,
+                          RADIUS_CHAPSIZE);
+        }
+        else if (!redir_getparam(redir, httpreq->qs, "response", bt)) {
+          conn->authdata.type = REDIR_AUTH_CHAP;
+          redir_hextochar(bt->data, bt->slen,
+                          conn->authdata.v.chapmsg.password,
+                          RADIUS_CHAPSIZE);
+
+          if (!redir_getparam(redir, httpreq->qs, "ident", bt) && bt->slen)
+            conn->authdata.v.chapmsg.identity = atoi((char*)bt->data);
+          else
+            conn->authdata.v.chapmsg.identity = 0;
+        }
+        else if (!redir_getparam(redir, httpreq->qs, "password", bt)) {
+          conn->authdata.type = REDIR_AUTH_PAP;
+          if (_options.nochallenge) {
+            /* Not using the challenge, therefore we expect the
+             * password in "plain" text.
+             */
+            bstrtocstr(bt, (char*)conn->authdata.v.papmsg.password,
+                       sizeof(conn->authdata.v.papmsg.password));
+            conn->authdata.v.papmsg.len =
+                strlen((char*)conn->authdata.v.papmsg.password);
+          } else {
+            conn->authdata.v.papmsg.len = bt->slen / 2;
+
+            if (conn->authdata.v.papmsg.len > RADIUS_PWSIZE)
+              conn->authdata.v.papmsg.len = RADIUS_PWSIZE;
+
+            redir_hextochar(bt->data, bt->slen,
+                            conn->authdata.v.papmsg.password,
+                            conn->authdata.v.papmsg.len);
+          }
+        }
+        else {
+          if ((conn->s_state.redir.uamprotocol == REDIR_UAMPROT_WISPR2) &&
+              !redir_getparam(redir, httpreq->qs, "WISPrEAPMsg", bt)){
+            int rc;
+
+            if (conn->authdata.type != REDIR_AUTH_NONE){
+              syslog(LOG_ERR, "Request contains both password and eap message");
+              conn->response = REDIR_ERROR_PROTOCOL;
+              bdestroy(bt);
+              return 0;
+            }
+
+            rc = base64decoder((char *)  bt->data,
+                               &(conn->authdata.v.eapmsg));
+
+            if (rc == 1) {
+              syslog(LOG_ERR, "EAP message is too big, max allowed 1265 bytes");
+              conn->response = REDIR_FAILED_MTU;
+              bdestroy(bt);
+              return 0;
+            }
+
+            if (rc == 2) {
+              syslog(LOG_ERR, "Invalid EAP message encoding");
+              conn->response = REDIR_ERROR_PROTOCOL;
+              bdestroy(bt);
+              return 0;
+            }
+
+            if (_options.debug) {
+              char buffer[conn->authdata.v.eapmsg.len*2+1];
+              bytetohex(conn->authdata.v.eapmsg.data,
+                        conn->authdata.v.eapmsg.len, buffer,
+                        conn->authdata.v.eapmsg.len*2+1);
+              if (_options.debug)
+                syslog(LOG_DEBUG, "decoded eap message from WISPr request (%d): %s",
+                       conn->authdata.v.eapmsg.len, buffer);
+            }
+
+            conn->authdata.type = REDIR_AUTH_EAP;
+          }
+        }
+
+        if (conn->authdata.type == REDIR_AUTH_NONE) {
+          if (_options.debug)
+            syslog(LOG_DEBUG, "No password found!");
+          bdestroy(bt);
+          return -1;
+        }
+        bdestroy(bt);
       }
-      else {
-	if ((conn->s_state.redir.uamprotocol == REDIR_UAMPROT_WISPR2) &&
-	    !redir_getparam(redir, httpreq->qs, "WISPrEAPMsg", bt)){
-	  int rc;
+      break;
 
-	  if (conn->authdata.type != REDIR_AUTH_NONE){
-	    syslog(LOG_ERR, "Request contains both password and eap message");
-	    conn->response = REDIR_ERROR_PROTOCOL;
-	    bdestroy(bt);
-	    return 0;
-	  }
-
-	  rc = base64decoder((char *)  bt->data,
-			     &(conn->authdata.v.eapmsg));
-
-	  if (rc == 1) {
-	    syslog(LOG_ERR, "EAP message is too big, max allowed 1265 bytes");
-	    conn->response = REDIR_FAILED_MTU;
-	    bdestroy(bt);
-	    return 0;
-	  }
-
-	  if (rc == 2) {
-	    syslog(LOG_ERR, "Invalid EAP message encoding");
-	    conn->response = REDIR_ERROR_PROTOCOL;
-	    bdestroy(bt);
-	    return 0;
-	  }
-
-	  if (_options.debug) {
-	    char buffer[conn->authdata.v.eapmsg.len*2+1];
-	    bytetohex(conn->authdata.v.eapmsg.data,
-		      conn->authdata.v.eapmsg.len, buffer,
-		      conn->authdata.v.eapmsg.len*2+1);
-	    syslog(LOG_DEBUG, "decoded eap message from WISPr request (%d): %s",
-		    conn->authdata.v.eapmsg.len, buffer);
-	  }
-
-	  conn->authdata.type = REDIR_AUTH_EAP;
-	}
+    case REDIR_PRELOGIN:
+    case REDIR_LOGOUT:
+      {
+        bstring bt = bfromcstr("");
+        if (!redir_getparam(redir, httpreq->qs, "userurl", bt)) {
+          bstring bt2 = bfromcstr("");
+          redir_urldecode(bt, bt2);
+          bstrtocstr(bt2, conn->s_state.redir.userurl,
+                     sizeof(conn->s_state.redir.userurl));
+          if (_options.debug)
+            syslog(LOG_DEBUG, "-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
+          bdestroy(bt2);
+        }
+        bdestroy(bt);
       }
+      break;
 
-      if (conn->authdata.type == REDIR_AUTH_NONE) {
-	syslog(LOG_DEBUG, "No password found!");
-	bdestroy(bt);
-	return -1;
+    case REDIR_WWW:
+      {
+        bstring bt = bfromcstr(path+4);
+        bstring bt2 = bfromcstr("");
+        redir_urldecode(bt, bt2);
+        bstrtocstr(bt2, conn->wwwfile, sizeof(conn->wwwfile));
+        if (_options.debug)
+          syslog(LOG_DEBUG, "Serving file %s", conn->wwwfile);
+        bdestroy(bt2);
+        bdestroy(bt);
       }
-      bdestroy(bt);
-    }
-    break;
-
-  case REDIR_PRELOGIN:
-  case REDIR_LOGOUT:
-    {
-      bstring bt = bfromcstr("");
-      if (!redir_getparam(redir, httpreq->qs, "userurl", bt)) {
-	bstring bt2 = bfromcstr("");
-	redir_urldecode(bt, bt2);
-	bstrtocstr(bt2, conn->s_state.redir.userurl,
-		   sizeof(conn->s_state.redir.userurl));
-	syslog(LOG_DEBUG, "-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
-	bdestroy(bt2);
-      }
-      bdestroy(bt);
-    }
-    break;
-
-  case REDIR_WWW:
-    {
-      bstring bt = bfromcstr(path+4);
-      bstring bt2 = bfromcstr("");
-      redir_urldecode(bt, bt2);
-      bstrtocstr(bt2, conn->wwwfile, sizeof(conn->wwwfile));
-      syslog(LOG_DEBUG, "Serving file %s", conn->wwwfile);
-      bdestroy(bt2);
-      bdestroy(bt);
-    }
-    break;
+      break;
 
 #ifdef ENABLE_WPAD
-  case REDIR_WPAD:
-    syslog(LOG_DEBUG, "WPAD %s:%d", __FUNCTION__, __LINE__);
-    break;
+    case REDIR_WPAD:
+      if (_options.debug)
+        syslog(LOG_DEBUG, "WPAD %s:%d", __FUNCTION__, __LINE__);
+      break;
 #endif
 
-  default:
-    {
-      safe_snprintf(conn->s_state.redir.userurl,
+    default:
+      {
+        safe_snprintf(conn->s_state.redir.userurl,
 		      sizeof(conn->s_state.redir.userurl),
 		      "http://%s/%s%s%s",
 		      httpreq->host, httpreq->path,
 		      httpreq->qs[0] ? "?" : "",
 		      httpreq->qs[0] ? httpreq->qs : "");
 
-      syslog(LOG_DEBUG, "-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
-    }
-    break;
+        if (_options.debug)
+          syslog(LOG_DEBUG, "-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
+      }
+      break;
 
   }
 
@@ -2465,11 +2506,11 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   char attrs[RADIUS_ATTR_VLEN+1];
   int instance = 0;
 
-  syslog(LOG_DEBUG, "Received RADIUS response");
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Received RADIUS response");
 
   if (!conn) {
     syslog(LOG_ERR, "No peer protocol defined");
-    conn->response = REDIR_FAILED_OTHER;
     return 0;
   }
 
@@ -2512,7 +2553,8 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     if (_options.debug) {
       char buffer[conn->s_state.redir.classlen*2+1];
       bytetohex(conn->s_state.redir.classbuf,conn->s_state.redir.classlen,buffer, conn->s_state.redir.classlen*2+1);
-      syslog(LOG_DEBUG, "+attribute Class (%zu bytes): %s", conn->s_state.redir.classlen, buffer);
+      if (_options.debug)
+        syslog(LOG_DEBUG, "+attribute Class (%zu bytes): %s", conn->s_state.redir.classlen, buffer);
     }
   } else {
     conn->s_state.redir.classlen = 0;
@@ -2525,7 +2567,8 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
     if (_options.debug){
       char buffer[conn->s_state.redir.cuilen*2+1];
       bytetohex(conn->s_state.redir.cuibuf,conn->s_state.redir.cuilen,buffer, conn->s_state.redir.cuilen*2+1);
-      syslog(LOG_DEBUG, "+attribute CUI (%zu bytes): %s", conn->s_state.redir.cuilen, buffer);
+      if (_options.debug)
+        syslog(LOG_DEBUG, "+attribute CUI (%zu bytes): %s", conn->s_state.redir.cuilen, buffer);
     }
   } else {
     conn->s_state.redir.cuilen = 0;
@@ -2535,7 +2578,8 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_STATE, 0, 0, 0)) {
     conn->s_state.redir.statelen = attr->l-2;
     memcpy(conn->s_state.redir.statebuf, attr->v.t, attr->l-2);
-    syslog(LOG_DEBUG, "+attribute State (%d bytes)", conn->s_state.redir.statelen);
+    if (_options.debug)
+      syslog(LOG_DEBUG, "+attribute State (%d bytes)", conn->s_state.redir.statelen);
   } else {
     conn->s_state.redir.statelen = 0;
   }
@@ -2569,7 +2613,7 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 	      conn->authdata.v.eapmsg.len,buffer,
 	      conn->authdata.v.eapmsg.len*2+1);
     syslog(LOG_DEBUG, "+attribute EAP msg (%d bytes): %s",
-	    conn->authdata.v.eapmsg.len, buffer);
+           conn->authdata.v.eapmsg.len, buffer);
   }
 
   /* Get sendkey */
@@ -2589,9 +2633,11 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 			    pack_req->authenticator, radius->secret,
 			    radius->secretlen) != 0) {
 	bytetosphex(dstbuffer, dstlen, hexString, sizeof(hexString));
-	syslog(LOG_DEBUG, "plainstring MPPE_SEND_KEY: len %zu key %s", dstlen, hexString);
+        if (_options.debug)
+          syslog(LOG_DEBUG, "plainstring MPPE_SEND_KEY: len %zu key %s", dstlen, hexString);
       } else {
-	syslog(LOG_DEBUG, "received radius MPPE_SEND_KEY attribute (%d bytes): %s", attr->l, hexString);
+        if (_options.debug)
+          syslog(LOG_DEBUG, "received radius MPPE_SEND_KEY attribute (%d bytes): %s", attr->l, hexString);
 	syslog(LOG_ERR, "Decryption of MPPE_SEND_KEY failed");
       }
     }
@@ -2607,9 +2653,11 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
 			    pack_req->authenticator, radius->secret,
 			    radius->secretlen) != 0) {
 	bytetosphex(dstbuffer, dstlen, hexString, sizeof(hexString));
-	syslog(LOG_DEBUG, "plainstring MPPE_RECV_KEY: len %zu key %s", dstlen, hexString);
+        if (_options.debug)
+          syslog(LOG_DEBUG, "plainstring MPPE_RECV_KEY: len %zu key %s", dstlen, hexString);
       } else {
-	syslog(LOG_DEBUG, "received radius MPPE_RECV_KEY attribute (%d bytes): %s", attr->l, hexString);
+        if (_options.debug)
+          syslog(LOG_DEBUG, "received radius MPPE_RECV_KEY attribute (%d bytes): %s", attr->l, hexString);
 	syslog(LOG_ERR, "Decryption of MPPE_RECV_KEY failed");
       }
     }
@@ -2625,18 +2673,18 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   }
 
   switch (pack->code){
-  case RADIUS_CODE_ACCESS_ACCEPT:
-    conn->response = REDIR_SUCCESS;
-    break;
-  case RADIUS_CODE_ACCESS_CHALLENGE:
-    conn->response = REDIR_CHALLENGE;
-    break;
-  case RADIUS_CODE_ACCESS_REJECT:
-    conn->response = REDIR_FAILED_REJECT;
-    break;
-  default:
-    syslog(LOG_ERR, "Unsupported radius access reply code %d", pack->code);
-    return -1;
+    case RADIUS_CODE_ACCESS_ACCEPT:
+      conn->response = REDIR_SUCCESS;
+      break;
+    case RADIUS_CODE_ACCESS_CHALLENGE:
+      conn->response = REDIR_CHALLENGE;
+      break;
+    case RADIUS_CODE_ACCESS_REJECT:
+      conn->response = REDIR_FAILED_REJECT;
+      break;
+    default:
+      syslog(LOG_ERR, "Unsupported radius access reply code %d", pack->code);
+      return -1;
   }
   return 0;
 }
@@ -2679,8 +2727,9 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   radius_default_pack(radius, &radius_pack, RADIUS_CODE_ACCESS_REQUEST);
 
-  syslog(LOG_DEBUG, "created radius packet (code=%d, id=%d, len=%d)\n",
-	  radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
+  if (_options.debug)
+    syslog(LOG_DEBUG, "created radius packet (code=%d, id=%d, len=%d)\n",
+           radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
 
   if(conn->lang[0])
     radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
@@ -2706,119 +2755,121 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   switch (conn->authdata.type) {
 
-  case REDIR_AUTH_PAP:
-    if (_options.nochallenge) {
-      strlcpy((char*)user_password,
-                   (char*)conn->authdata.v.papmsg.password,
-                   sizeof(user_password));
-    } else {
-      for (m=0; m < RADIUS_PWSIZE;) {
-        for (n=0; n < REDIR_MD5LEN; m++, n++) {
-          user_password[m] =
-              conn->authdata.v.papmsg.password[m] ^ chap_challenge[n];
+    case REDIR_AUTH_PAP:
+      if (_options.nochallenge) {
+        strlcpy((char*)user_password,
+                (char*)conn->authdata.v.papmsg.password,
+                sizeof(user_password));
+      } else {
+        for (m=0; m < RADIUS_PWSIZE;) {
+          for (n=0; n < REDIR_MD5LEN; m++, n++) {
+            user_password[m] =
+                conn->authdata.v.papmsg.password[m] ^ chap_challenge[n];
+          }
         }
       }
-    }
-    user_password[conn->authdata.v.papmsg.len] = 0;
+      user_password[conn->authdata.v.papmsg.len] = 0;
 
-    syslog(LOG_DEBUG, "User password %d [%s]",
-           conn->authdata.v.papmsg.len, user_password);
+      if (_options.debug)
+        syslog(LOG_DEBUG, "User password %d [%s]",
+               conn->authdata.v.papmsg.len, user_password);
 
 #ifdef HAVE_OPENSSL
-    if (_options.mschapv2) {
-      uint8_t response[50];
-      uint8_t ntresponse[24];
+      if (_options.mschapv2) {
+        uint8_t response[50];
+        uint8_t ntresponse[24];
 
-      GenerateNTResponse(chap_challenge, chap_challenge,
-			 (u_char *)conn->s_state.redir.username,
-			 strlen(conn->s_state.redir.username),
-			 user_password, strlen((char *)user_password),
-			 ntresponse);
+        GenerateNTResponse(chap_challenge, chap_challenge,
+                           (u_char *)conn->s_state.redir.username,
+                           strlen(conn->s_state.redir.username),
+                           user_password, strlen((char *)user_password),
+                           ntresponse);
 
-      /* peer challenge - same as auth challenge */
-      memset(&response[0], 0, sizeof(response));
-      memcpy(&response[2], chap_challenge, 16);
-      memcpy(&response[26], ntresponse, 24);
+        /* peer challenge - same as auth challenge */
+        memset(&response[0], 0, sizeof(response));
+        memcpy(&response[2], chap_challenge, 16);
+        memcpy(&response[26], ntresponse, 24);
 
-      radius_addattr(radius, &radius_pack,
-		     RADIUS_ATTR_VENDOR_SPECIFIC,
-		     RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP_CHALLENGE, 0,
-		     chap_challenge, 16);
+        radius_addattr(radius, &radius_pack,
+                       RADIUS_ATTR_VENDOR_SPECIFIC,
+                       RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP_CHALLENGE, 0,
+                       chap_challenge, 16);
 
-      radius_addattr(radius, &radius_pack,
-		     RADIUS_ATTR_VENDOR_SPECIFIC,
-		     RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP2_RESPONSE, 0,
-		     response, 50);
-    } else {
+        radius_addattr(radius, &radius_pack,
+                       RADIUS_ATTR_VENDOR_SPECIFIC,
+                       RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP2_RESPONSE, 0,
+                       response, 50);
+      } else {
 #endif
-      radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
-		     (uint8_t*)user_password, conn->authdata.v.papmsg.len);
+        radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
+                       (uint8_t*)user_password, conn->authdata.v.papmsg.len);
 #ifdef HAVE_OPENSSL
-    }
+      }
 #endif
-    break;
-  case REDIR_AUTH_CHAP:
-    chap_password[0] = conn->authdata.v.chapmsg.identity; /* Chap ident found on logon url */
-    memcpy(chap_password+1, conn->authdata.v.chapmsg.password, REDIR_MD5LEN);
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CHAP_CHALLENGE, 0, 0, 0,
-		   chap_challenge, REDIR_MD5LEN);
-    radius_addattr(radius, &radius_pack, RADIUS_ATTR_CHAP_PASSWORD, 0, 0, 0,
-		   chap_password, REDIR_MD5LEN+1);
-    break;
-  case REDIR_AUTH_MSCHAPv2:
-    {
-      uint8_t response[50];
+      break;
+    case REDIR_AUTH_CHAP:
+      chap_password[0] = conn->authdata.v.chapmsg.identity; /* Chap ident found on logon url */
+      memcpy(chap_password+1, conn->authdata.v.chapmsg.password, REDIR_MD5LEN);
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_CHAP_CHALLENGE, 0, 0, 0,
+                     chap_challenge, REDIR_MD5LEN);
+      radius_addattr(radius, &radius_pack, RADIUS_ATTR_CHAP_PASSWORD, 0, 0, 0,
+                     chap_password, REDIR_MD5LEN+1);
+      break;
+    case REDIR_AUTH_MSCHAPv2:
+      {
+        uint8_t response[50];
 
-      /* peer challenge - same as auth challenge */
-      memcpy(response + 2, chap_challenge, 16);
-      memcpy(response + 26, conn->authdata.v.chapmsg.password, 24);
+        /* peer challenge - same as auth challenge */
+        memcpy(response + 2, chap_challenge, 16);
+        memcpy(response + 26, conn->authdata.v.chapmsg.password, 24);
 
-      radius_addattr(radius, &radius_pack,
-		     RADIUS_ATTR_VENDOR_SPECIFIC,
-		     RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP_CHALLENGE, 0,
-		     chap_challenge, 16);
+        radius_addattr(radius, &radius_pack,
+                       RADIUS_ATTR_VENDOR_SPECIFIC,
+                       RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP_CHALLENGE, 0,
+                       chap_challenge, 16);
 
-      radius_addattr(radius, &radius_pack,
-		     RADIUS_ATTR_VENDOR_SPECIFIC,
-		     RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP2_RESPONSE, 0,
-		     response, 50);
-    }
-    break;
-  case REDIR_AUTH_EAP:
-    /* Add one or more EAP-MSG attribute in Radius packet  */
-    {
-      size_t offset = 0;
-      while (offset < conn->authdata.v.eapmsg.len) {
-	size_t eaplen = 0;
-	if ((conn->authdata.v.eapmsg.len - offset) > RADIUS_ATTR_VLEN)
-	  eaplen = RADIUS_ATTR_VLEN;
-	else
-	  eaplen = conn->authdata.v.eapmsg.len - offset;
-
-	if (radius_addattr(radius, &radius_pack,
-			   RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
-			   conn->authdata.v.eapmsg.data + offset, eaplen)) {
-	  syslog(LOG_ERR, "EAP message segmentation in EAP attributes failed");
-	  radius_free(radius);
-	  return -1;
-	}
-	offset += eaplen;
+        radius_addattr(radius, &radius_pack,
+                       RADIUS_ATTR_VENDOR_SPECIFIC,
+                       RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP2_RESPONSE, 0,
+                       response, 50);
       }
-      if (_options.debug) {
-	char buffer[conn->authdata.v.eapmsg.len*2+1];
-	bytetohex(conn->authdata.v.eapmsg.data,
-		  conn->authdata.v.eapmsg.len,buffer,
-		  conn->authdata.v.eapmsg.len*2+1);
-	syslog(LOG_DEBUG, "+attribute EAP msg (%d bytes): %s",
-		conn->authdata.v.eapmsg.len, buffer);
+      break;
+    case REDIR_AUTH_EAP:
+      /* Add one or more EAP-MSG attribute in Radius packet  */
+      {
+        size_t offset = 0;
+        while (offset < conn->authdata.v.eapmsg.len) {
+          size_t eaplen = 0;
+          if ((conn->authdata.v.eapmsg.len - offset) > RADIUS_ATTR_VLEN)
+            eaplen = RADIUS_ATTR_VLEN;
+          else
+            eaplen = conn->authdata.v.eapmsg.len - offset;
+
+          if (radius_addattr(radius, &radius_pack,
+                             RADIUS_ATTR_EAP_MESSAGE, 0, 0, 0,
+                             conn->authdata.v.eapmsg.data + offset, eaplen)) {
+            syslog(LOG_ERR, "EAP message segmentation in EAP attributes failed");
+            radius_free(radius);
+            return -1;
+          }
+          offset += eaplen;
+        }
+        if (_options.debug) {
+          char buffer[conn->authdata.v.eapmsg.len*2+1];
+          bytetohex(conn->authdata.v.eapmsg.data,
+                    conn->authdata.v.eapmsg.len,buffer,
+                    conn->authdata.v.eapmsg.len*2+1);
+          if (_options.debug)
+            syslog(LOG_DEBUG, "+attribute EAP msg (%d bytes): %s",
+                   conn->authdata.v.eapmsg.len, buffer);
+        }
       }
-    }
-    break;
-  default:
-    syslog(LOG_ERR, "Invalid authentication type: %d",
-	    conn->authdata.type);
-    radius_free(radius);
-    return -1;
+      break;
+    default:
+      syslog(LOG_ERR, "Invalid authentication type: %d",
+             conn->authdata.type);
+      radius_free(radius);
+      return -1;
   }
 
   chilli_req_attrs(radius, &radius_pack,
@@ -2830,7 +2881,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   &conn->s_state);
 
   safe_snprintf(url, sizeof(url), "http://%s:%d/logoff",
-		  inet_ntoa(redir->addr), redir->port);
+                inet_ntoa(redir->addr), redir->port);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 		 RADIUS_VENDOR_WISPR, RADIUS_ATTR_WISPR_LOGOFF_URL, 0,
@@ -2844,8 +2895,9 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
 		 0, 0, 0, NULL, RADIUS_MD5LEN);
 
-  syslog(LOG_DEBUG, "sending radius packet (code=%d, id=%d, len=%d)\n",
-	  radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
+  if (_options.debug)
+    syslog(LOG_DEBUG, "sending radius packet (code=%d, id=%d, len=%d)\n",
+           radius_pack.code, radius_pack.id, ntohs(radius_pack.length));
 
   radius_req(radius, &radius_pack, conn);
 
@@ -2862,14 +2914,14 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
     radius_timeleft(radius, &idleTime);
 
     switch (status = select(maxfd + 1, &fds, NULL, NULL, &idleTime)) {
-    case -1:
-      syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
-      break;
-    case 0:
-      radius_timeout(radius);
-      break;
-    default:
-      break;
+      case -1:
+        syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
+        break;
+      case 0:
+        radius_timeout(radius);
+        break;
+      default:
+        break;
     }
 
     if (status > 0) {
@@ -2904,7 +2956,8 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 
   if (!_options.localusers) return 0;
 
-  syslog(LOG_DEBUG, "checking %s for user %s", _options.localusers, conn->s_state.redir.username);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "checking %s for user %s", _options.localusers, conn->s_state.redir.username);
 
   if (!(f = fopen(_options.localusers, "r"))) {
     syslog(LOG_ERR, "%s: fopen() failed opening %s!", strerror(errno), _options.localusers);
@@ -2914,7 +2967,8 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   if (_options.debug) {/*debug*/
     char buffer[64];
     redir_chartohex(conn->s_state.redir.uamchal, buffer, REDIR_MD5LEN);
-    syslog(LOG_DEBUG, "challenge: %s", buffer);
+    if (_options.debug)
+      syslog(LOG_DEBUG, "challenge: %s", buffer);
   }/**/
 
   if (redir->secret && *redir->secret) {
@@ -2930,44 +2984,46 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
   if (_options.debug) {/*debug*/
     char buffer[64];
     redir_chartohex(chap_challenge, buffer, REDIR_MD5LEN);
-    syslog(LOG_DEBUG, "chap challenge: %s", buffer);
+    if (_options.debug)
+      syslog(LOG_DEBUG, "chap challenge: %s", buffer);
   }/**/
 
   switch (conn->authdata.type){
-  case REDIR_AUTH_PAP:
-    if (_options.nochallenge) {
-      strlcpy((char*)user_password,
-                   (char*)conn->authdata.v.papmsg.password,
-                   sizeof(user_password));
-    } else {
-      int n, m;
-      for (m=0; m < RADIUS_PWSIZE;)
-	for (n=0; n < REDIR_MD5LEN; m++, n++)
-	  user_password[m] =
-	    conn->authdata.v.papmsg.password[m] ^ chap_challenge[n];
-    }
-    break;
-  case REDIR_AUTH_CHAP:
-    memcpy(user_password, conn->authdata.v.chapmsg.password, REDIR_MD5LEN);
-    break;
-  default:
-    syslog(LOG_ERR, "Authentication method not supported for locally authenticated users: %d",
-	    conn->authdata.type);
-	fclose(f);
-    return 0;
+    case REDIR_AUTH_PAP:
+      if (_options.nochallenge) {
+        strlcpy((char*)user_password,
+                (char*)conn->authdata.v.papmsg.password,
+                sizeof(user_password));
+      } else {
+        int n, m;
+        for (m=0; m < RADIUS_PWSIZE;)
+          for (n=0; n < REDIR_MD5LEN; m++, n++)
+            user_password[m] =
+                conn->authdata.v.papmsg.password[m] ^ chap_challenge[n];
+      }
+      break;
+    case REDIR_AUTH_CHAP:
+      memcpy(user_password, conn->authdata.v.chapmsg.password, REDIR_MD5LEN);
+      break;
+    default:
+      syslog(LOG_ERR, "Authentication method not supported for locally authenticated users: %d",
+             conn->authdata.type);
+      fclose(f);
+      return 0;
   }
 
   user_password[RADIUS_PWSIZE] = 0;
 
-  syslog(LOG_DEBUG, "looking for %s", conn->s_state.redir.username);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "looking for %s", conn->s_state.redir.username);
   usernamelen = strlen(conn->s_state.redir.username);
 
   line=(char*)malloc(sz);
   while ((len = getline(&line, &sz, f)) > 0) {
     if (len > 3 && len < sizeof(u) && line[0] != '#') {
       char *pl=line,  /* pointer to current line */
-	   *pu=u,     /* pointer to username     */
-  	   *pp=p;     /* pointer to password     */
+          *pu=u,     /* pointer to username     */
+          *pp=p;     /* pointer to password     */
 
       /* username until the first ':' */
       while (*pl && *pl != ':')	*pu++ = *pl++;
@@ -2988,7 +3044,8 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
       if (usernamelen == strlen(u) &&
 	  !strncmp(conn->s_state.redir.username, u, usernamelen)) {
 
-	syslog(LOG_DEBUG, "found %s, checking password", u);
+        if (_options.debug)
+          syslog(LOG_DEBUG, "found %s, checking password", u);
 
 	if (conn->authdata.type == REDIR_AUTH_PAP) {
 	  if (!strcmp((char*)user_password, p))
@@ -3005,7 +3062,8 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 	  if (!memcmp(user_password, tmp,  REDIR_MD5LEN))
 	    match = 1;
 	  else {
-	    syslog(LOG_DEBUG, "bad password for %s", u);
+            if (_options.debug)
+              syslog(LOG_DEBUG, "bad password for %s", u);
 	  }
 	}
 
@@ -3014,9 +3072,10 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
     }
   }
 
-  syslog(LOG_DEBUG, "user %s %s",
-         conn->s_state.redir.username,
-         match ? "found" : "not found");
+  if (_options.debug)
+    syslog(LOG_DEBUG, "user %s %s",
+           conn->s_state.redir.username,
+           match ? "found" : "not found");
 
   fclose(f);
   free(line);
@@ -3024,25 +3083,25 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
 }
 
 /* redir_accept() does the following:
- 1) forks a child process
- 2) Accepts the tcp connection
- 3) Analyses a HTTP get request
- 4) GET request can be one of the following:
-    a) Logon request with username and challenge response
-       - Does a radius request
-       - If OK send result to parent and redirect to welcome page
-       - Else redirect to error login page
-    b) Logoff request
-       - Send logoff request to parent
-       - Redirect to login page?
-    c) Request for another server
-       - Redirect to login server.
+   1) forks a child process
+   2) Accepts the tcp connection
+   3) Analyses a HTTP get request
+   4) GET request can be one of the following:
+   a) Logon request with username and challenge response
+   - Does a radius request
+   - If OK send result to parent and redirect to welcome page
+   - Else redirect to error login page
+   b) Logoff request
+   - Send logoff request to parent
+   - Redirect to login page?
+   c) Request for another server
+   - Redirect to login server.
 
- Incoming requests are identified only by their IP address. No MAC
- address information is obtained. The main security problem is denial
- of service attacks by malicious hosts sending logoff requests for
- clients. This can be prevented by checking incoming packets for
- matching MAC and src IP addresses.
+   Incoming requests are identified only by their IP address. No MAC
+   address information is obtained. The main security problem is denial
+   of service attacks by malicious hosts sending logoff requests for
+   clients. This can be prevented by checking incoming packets for
+   matching MAC and src IP addresses.
 */
 
 int redir_accept(struct redir_t *redir, int idx) {
@@ -3110,13 +3169,13 @@ int redir_accept(struct redir_t *redir, int idx) {
 
 static int _redir_close(int infd, int outfd) {
   /*
-  char b[128];
-  int max = 1000;
-  if (shutdown(outfd, SHUT_WR) != 0)
+    char b[128];
+    int max = 1000;
+    if (shutdown(outfd, SHUT_WR) != 0)
     syslog(LOG_DEBUG, "shutdown socket for writing");
-  if (!ndelay_on(infd))
+    if (!ndelay_on(infd))
     while(safe_read(infd, b, sizeof(b)) > 0 && max--);
-  if (shutdown(infd, SHUT_RD) != 0)
+    if (shutdown(infd, SHUT_RD) != 0)
     syslog(LOG_DEBUG, "shutdown socket for reading");
   */
   safe_close(outfd);
@@ -3126,7 +3185,8 @@ static int _redir_close(int infd, int outfd) {
 
 static int _redir_close_exit(int infd, int outfd) {
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "close_exit");
+  if (_options.debug)
+    syslog(LOG_DEBUG, "close_exit");
 #endif
   _redir_close(infd,outfd);
   chilli_freeconn();
@@ -3152,7 +3212,7 @@ int redir_send_msg(struct redir_t *this, struct redir_msg_t *msg) {
 
   remote.sun_family = AF_UNIX;
   strlcpy(remote.sun_path, filedest,
-	       sizeof(remote.sun_path));
+          sizeof(remote.sun_path));
 
 #if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
   remote.sun_len = strlen(remote.sun_path) + 1;
@@ -3214,22 +3274,23 @@ pid_t redir_fork(int in, int out) {
 }
 
 int redir_main_exit(struct redir_socket_t *socket, int forked, redir_request *rreq) {
-    /* if (httpreq->data_in) bdestroy(httpreq->data_in); */
-    /* if (!forked) return 0; XXXX*/
+  /* if (httpreq->data_in) bdestroy(httpreq->data_in); */
+  /* if (!forked) return 0; XXXX*/
 #ifdef HAVE_SSL
-    if (socket->sslcon) {
+  if (socket->sslcon) {
 #if(_debug_ > 1)
+    if (_options.debug)
       syslog(LOG_DEBUG, "Shutting down SSL");
 #endif
-      openssl_shutdown(socket->sslcon, 2);
-      openssl_free(socket->sslcon);
-      socket->sslcon = 0;
-      if (rreq)
-        rreq->sslcon = 0;
-    }
+    openssl_shutdown(socket->sslcon, 2);
+    openssl_free(socket->sslcon);
+    socket->sslcon = 0;
+    if (rreq)
+      rreq->sslcon = 0;
+  }
 #endif
-    if (forked) _redir_close_exit(socket->fd[0], socket->fd[1]);
-    return _redir_close(socket->fd[0], socket->fd[1]);
+  if (forked) _redir_close_exit(socket->fd[0], socket->fd[1]);
+  return _redir_close(socket->fd[0], socket->fd[1]);
 }
 
 int redir_main(struct redir_t *redir,
@@ -3275,36 +3336,36 @@ int redir_main(struct redir_t *redir,
     httpreq.data_in = rreq->wbuf;
   }
 
-#define redir_memcopy(msgtype) \
-  redir_challenge(challenge); \
-  redir_chartohex(challenge, hexchal, REDIR_MD5LEN); \
-  msg.mtype = msgtype; \
-  memcpy(conn.s_state.redir.uamchal, challenge, REDIR_MD5LEN); \
-  syslog(LOG_DEBUG, "---->>> resetting challenge: %s", hexchal)
+#define redir_memcopy(msgtype)                                          \
+  redir_challenge(challenge);                                           \
+  redir_chartohex(challenge, hexchal, REDIR_MD5LEN);                    \
+  msg.mtype = msgtype;                                                  \
+  memcpy(conn.s_state.redir.uamchal, challenge, REDIR_MD5LEN);          \
+  if (_options.debug) syslog(LOG_DEBUG, "---->>> resetting challenge: %s", hexchal)
 
 #ifdef USING_IPC_UNIX
-#define redir_msg_send(msgopt) \
-  msg.mdata.opt = msgopt; \
-  memcpy(&msg.mdata.address, address, sizeof(msg.mdata.address)); \
-  memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress)); \
-  memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
+#define redir_msg_send(msgopt)                                          \
+  msg.mdata.opt = msgopt;                                               \
+  memcpy(&msg.mdata.address, address, sizeof(msg.mdata.address));       \
+  memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress));    \
+  memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params));  \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
-  if (redir_send_msg(redir, &msg) < 0) { \
+  if (redir_send_msg(redir, &msg) < 0) {                                \
     syslog(LOG_ERR, "%s: write() failed! msgfd=%d type=%ld len=%d",     \
            strerror(errno), redir->msgfd, msg.mtype, (int)sizeof(msg.mdata)); \
-    return redir_main_exit(&socket, forked, rreq); \
+    return redir_main_exit(&socket, forked, rreq);                      \
   }
 #else
-#define redir_msg_send(msgopt) \
-  msg.mdata.opt = msgopt; \
-  memcpy(&msg.mdata.address, address, sizeof(msg.mdata.address)); \
-  memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress)); \
-  memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params)); \
+#define redir_msg_send(msgopt)                                          \
+  msg.mdata.opt = msgopt;                                               \
+  memcpy(&msg.mdata.address, address, sizeof(msg.mdata.address));       \
+  memcpy(&msg.mdata.baddress, baddress, sizeof(msg.mdata.baddress));    \
+  memcpy(&msg.mdata.params, &conn.s_params, sizeof(msg.mdata.params));  \
   memcpy(&msg.mdata.redir, &conn.s_state.redir, sizeof(msg.mdata.redir)); \
-  if (msgsnd(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0) < 0) { \
-    syslog(LOG_ERR, "%s: msgsnd() failed! msgid=%d type=%ld len=%d",     \
+  if (msgsnd(redir->msgid, (void *)&msg, sizeof(msg.mdata), 0) < 0) {   \
+    syslog(LOG_ERR, "%s: msgsnd() failed! msgid=%d type=%ld len=%d",    \
            strerror(errno), redir->msgid, msg.mtype, (int)sizeof(msg.mdata)); \
-    return redir_main_exit(&socket, forked, rreq); \
+    return redir_main_exit(&socket, forked, rreq);                      \
   }
 #endif
 
@@ -3322,14 +3383,15 @@ int redir_main(struct redir_t *redir,
   redir->starttime = mainclock_now();
 
   /*
-  if (ndelay_on(socket.fd[0])) {
+    if (ndelay_on(socket.fd[0])) {
     syslog(LOG_ERR, "%s: fcntl() failed", strerror(errno));
     return redir_main_exit(&socket, forked, rreq);
-  }
+    }
   */
 
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "Calling redir_getstate()");
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Calling redir_getstate()");
 #endif
 
   /*
@@ -3348,7 +3410,8 @@ int redir_main(struct redir_t *redir,
 
   if (state == -1) {
 #if(_debug_ > 1)
-    syslog(LOG_DEBUG, "getstate() session not found");
+    if (_options.debug)
+      syslog(LOG_DEBUG, "getstate() session not found");
 #endif
 
 #ifdef ENABLE_EWTAPI
@@ -3358,7 +3421,8 @@ int redir_main(struct redir_t *redir,
        *  always under SSL.
        */
 #if(_debug_ > 1)
-      syslog(LOG_DEBUG, "redir connection is SSL");
+      if (_options.debug)
+        syslog(LOG_DEBUG, "redir connection is SSL");
 #endif
       conn.flags |= USING_SSL;
     } else
@@ -3374,7 +3438,8 @@ int redir_main(struct redir_t *redir,
    *  Parse the request, updating the status
    */
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "Receiving HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Receiving HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
 #endif
 
 #ifdef HAVE_SSL
@@ -3395,30 +3460,34 @@ int redir_main(struct redir_t *redir,
     }
 
 #if(_debug_ > 1)
-    syslog(LOG_DEBUG, "SSL loop %d", loop);
+    if (_options.debug)
+      syslog(LOG_DEBUG, "SSL loop %d", loop);
 #endif
 
     while (!done) {
       switch(openssl_check_accept(socket.sslcon, &conn)) {
-      case -1:
+        case -1:
 #if(_debug_ > 1)
-	syslog(LOG_DEBUG, "redir error, redir_main_exit");
+          if (_options.debug)
+            syslog(LOG_DEBUG, "redir error, redir_main_exit");
 #endif
-	return redir_main_exit(&socket, forked, rreq);
-      case 1:
-	if (!loop) {
-	  syslog(LOG_DEBUG, "Continue... SSL pending");
-	  return 1;
-	}
-	break;
-      case 0: done = 1;
-      default: break;
+          return redir_main_exit(&socket, forked, rreq);
+        case 1:
+          if (!loop) {
+            if (_options.debug)
+              syslog(LOG_DEBUG, "Continue... SSL pending");
+            return 1;
+          }
+          break;
+        case 0: done = 1;
+        default: break;
       }
       if (!loop) done = 1;
     }
 
 #if(_debug_ > 1)
-    syslog(LOG_DEBUG, "HTTPS Accepted");
+    if (_options.debug)
+      syslog(LOG_DEBUG, "HTTPS Accepted");
 #endif
   }
 #endif
@@ -3426,361 +3495,375 @@ int redir_main(struct redir_t *redir,
 
   termstate = REDIR_TERM_GETREQ;
   switch (err = redir_getreq(redir, &socket, &conn, &httpreq, rreq)) {
-  case 0:
-    break;
-  case 1:
+    case 0:
+      break;
+    case 1:
 #if(_debug_ > 1)
-    syslog(LOG_DEBUG, "Continue...");
+      if (_options.debug)
+        syslog(LOG_DEBUG, "Continue...");
 #endif
-    return 1;
-  default:
-    syslog(LOG_DEBUG, "Error calling get_req. Terminating %d", err);
-    return redir_main_exit(&socket, forked, rreq);
+      return 1;
+    default:
+      if (_options.debug)
+        syslog(LOG_DEBUG, "Error calling get_req. Terminating %d", err);
+      return redir_main_exit(&socket, forked, rreq);
   }
 
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "Processing HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Processing HTTP%s Request", (conn.flags & USING_SSL) ? "S" : "");
 #endif
 
   switch (conn.type) {
 #ifdef ENABLE_WPAD
-  case REDIR_WPAD:
+    case REDIR_WPAD:
 #endif
 #ifdef ENABLE_EWTAPI
-  case REDIR_EWTAPI:
+    case REDIR_EWTAPI:
 #endif
-  case REDIR_WWW:
-    {
+    case REDIR_WWW:
+      {
 #ifdef ENABLE_EWTAPI
-      char isEWT = conn.type == REDIR_EWTAPI;
+        char isEWT = conn.type == REDIR_EWTAPI;
 #endif
 #ifdef ENABLE_WPAD
-      char isWPAD = conn.type == REDIR_WPAD;
+        char isWPAD = conn.type == REDIR_WPAD;
 #endif
-      pid_t forkpid;
-      int fd = -1;
+        pid_t forkpid;
+        int fd = -1;
 
-      if (_options.wwwdir && ((conn.wwwfile && *conn.wwwfile)
+        if (_options.wwwdir && ((conn.wwwfile && *conn.wwwfile)
 #ifdef ENABLE_EWTAPI
-			      || isEWT
+                                || isEWT
 #endif
 #ifdef ENABLE_WPAD
-			      || isWPAD
+                                || isWPAD
 #endif
-			      )) {
-	char *ctype = "text/plain";
-	char *filename = conn.wwwfile;
-	size_t namelen = strlen(filename);
-	int parse = 0;
+                                )) {
+          char *ctype = "text/plain";
+          char *filename = conn.wwwfile;
+          size_t namelen = strlen(filename);
+          int parse = 0;
 
-	/* check filename */
+          /* check filename */
 #ifdef ENABLE_EWTAPI
-	if (isEWT) {
-	  if (!(conn.s_params.flags & ADMIN_LOGIN)) {
-	    syslog(LOG_WARNING, "Permission denied to EWT API");
-	    return redir_main_exit(&socket, forked, rreq);
-	  }
-	} else
+          if (isEWT) {
+            if (!(conn.s_params.flags & ADMIN_LOGIN)) {
+              syslog(LOG_WARNING, "Permission denied to EWT API");
+              return redir_main_exit(&socket, forked, rreq);
+            }
+          } else
 #endif
 #ifdef ENABLE_WPAD
-	if (isWPAD) {
-	    filename = "wpad.dat";
-	    namelen = strlen(filename);
-	} else
+            if (isWPAD) {
+              filename = "wpad.dat";
+              namelen = strlen(filename);
+            } else
 #endif
-	{
-	  char *p;
-	  int cnt = 0;
-	  for (p=filename; *p; p++) {
-	    if (*p == '.' || *p == '_'|| *p == '-' || *p == '/') {
-	      cnt++;
-	      if (cnt == 1)
-		continue; /*ok*/
-	    } else {
-	      cnt = 0;
-	    }
-	    if (*p >= 'a' && *p <= 'z') continue;
-	    if (*p >= 'A' && *p <= 'Z') continue;
-	    if (*p >= '0' && *p <= '9') continue;
-	    /* invalid file name! */
-	    syslog(LOG_ERR, "invalid www request [%s]!", filename);
-	    return redir_main_exit(&socket, forked, rreq);
-	  }
-	}
+            {
+              char *p;
+              int cnt = 0;
+              for (p=filename; *p; p++) {
+                if (*p == '.' || *p == '_'|| *p == '-' || *p == '/') {
+                  cnt++;
+                  if (cnt == 1)
+                    continue; /*ok*/
+                } else {
+                  cnt = 0;
+                }
+                if (*p >= 'a' && *p <= 'z') continue;
+                if (*p >= 'A' && *p <= 'Z') continue;
+                if (*p >= '0' && *p <= '9') continue;
+                /* invalid file name! */
+                syslog(LOG_ERR, "invalid www request [%s]!", filename);
+                return redir_main_exit(&socket, forked, rreq);
+              }
+            }
 
-	/* serve the local content */
+          /* serve the local content */
 
 #ifdef ENABLE_EWTAPI
-	if (isEWT) { ctype = "application/json"; parse = 1; } else
+          if (isEWT) { ctype = "application/json"; parse = 1; } else
 #endif
 
-	if      (!strcmp(filename + (namelen - 5), ".html")) ctype = "text/html";
-	else if (!strcmp(filename + (namelen - 4), ".gif"))  ctype = "image/gif";
-	else if (!strcmp(filename + (namelen - 3), ".js"))   ctype = "text/javascript";
-	else if (!strcmp(filename + (namelen - 4), ".css"))  ctype = "text/css";
-	else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
-	else if (!strcmp(filename + (namelen - 4), ".mp4"))  ctype = "video/mp4";
-	else if (!strcmp(filename + (namelen - 4), ".ogv"))  ctype = "video/ogg";
-	else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
-	else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
-	else if (!strcmp(filename + (namelen - 4), ".chi")){ ctype = "text/html"; parse = 1; }
-	else if (!strcmp(filename + (namelen - 4), ".cjs")){ ctype = "text/javascript"; parse = 1; }
-	else if (!strcmp(filename + (namelen - 5), ".json")) ctype = "application/json";
-	else if (!strcmp(filename + (namelen - 4), ".dat")){ ctype = "application/x-ns-proxy-autoconfig";
+            if      (!strcmp(filename + (namelen - 5), ".html")) ctype = "text/html";
+            else if (!strcmp(filename + (namelen - 4), ".gif"))  ctype = "image/gif";
+            else if (!strcmp(filename + (namelen - 3), ".js"))   ctype = "text/javascript";
+            else if (!strcmp(filename + (namelen - 4), ".css"))  ctype = "text/css";
+            else if (!strcmp(filename + (namelen - 4), ".jpg"))  ctype = "image/jpeg";
+            else if (!strcmp(filename + (namelen - 4), ".mp4"))  ctype = "video/mp4";
+            else if (!strcmp(filename + (namelen - 4), ".ogv"))  ctype = "video/ogg";
+            else if (!strcmp(filename + (namelen - 4), ".png"))  ctype = "image/png";
+            else if (!strcmp(filename + (namelen - 4), ".swf"))  ctype = "application/x-shockwave-flash";
+            else if (!strcmp(filename + (namelen - 4), ".chi")){ ctype = "text/html"; parse = 1; }
+            else if (!strcmp(filename + (namelen - 4), ".cjs")){ ctype = "text/javascript"; parse = 1; }
+            else if (!strcmp(filename + (namelen - 5), ".json")) ctype = "application/json";
+            else if (!strcmp(filename + (namelen - 4), ".dat")){ ctype = "application/x-ns-proxy-autoconfig";
 #ifdef ENABLE_WPAD
-	  if (isWPAD && _options.wpadpacfile) {
-	    struct stat statbuf;
-	    if (stat(_options.wpadpacfile, &statbuf) == 0)
-	      if (statbuf.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH))
-		parse = 1;
-	  }
+              if (isWPAD && _options.wpadpacfile) {
+                struct stat statbuf;
+                if (stat(_options.wpadpacfile, &statbuf) == 0)
+                  if (statbuf.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH))
+                    parse = 1;
+              }
 #endif
-	}
-	else {
-	  /* we do not serve it! */
-	  syslog(LOG_ERR, "invalid file extension! [%s]", filename);
-	  return redir_main_exit(&socket, forked, rreq);
-	}
+            }
+            else {
+              /* we do not serve it! */
+              syslog(LOG_ERR, "invalid file extension! [%s]", filename);
+              return redir_main_exit(&socket, forked, rreq);
+            }
 
-	if (!forked) {
-	  /*
-	   *  If not forked off the main process already, fork now
-	   *  before doing the chroot(), chrdir(), and so on..
-	   */
-	  forkpid = redir_fork(infd, outfd);
-	  if (forkpid) { /* parent or error */
-	    return redir_main_exit(&socket, forked, rreq);
-	  }
-	}
+          if (!forked) {
+            /*
+             *  If not forked off the main process already, fork now
+             *  before doing the chroot(), chrdir(), and so on..
+             */
+            forkpid = redir_fork(infd, outfd);
+            if (forkpid) { /* parent or error */
+              return redir_main_exit(&socket, forked, rreq);
+            }
+          }
 
-	if (parse) {
+          if (parse) {
 
-	  if (!_options.wwwbin) {
-	    syslog(LOG_ERR, "the 'wwwbin' setting must be configured for CGI use");
-	    return redir_main_exit(&socket, forked, rreq);
-	  }
+            if (!_options.wwwbin) {
+              syslog(LOG_ERR, "the 'wwwbin' setting must be configured for CGI use");
+              return redir_main_exit(&socket, forked, rreq);
+            }
 
-	  if (ndelay_off(socket.fd[0])) {
-	    syslog(LOG_ERR, "%s: fcntl() failed", strerror(errno));
-	  }
+            if (ndelay_off(socket.fd[0])) {
+              syslog(LOG_ERR, "%s: fcntl() failed", strerror(errno));
+            }
 
 #ifdef HAVE_SSL
-	  if (socket.sslcon) {
+            if (socket.sslcon) {
 
-	    /*
-	     * If the connection is SSL, we need to fork again. The child will do the exec
-	     * while the parent will provide the SSL wrapping.
-	     */
-	    int ptoc[2];
-	    int ctop[2];
+              /*
+               * If the connection is SSL, we need to fork again. The child will do the exec
+               * while the parent will provide the SSL wrapping.
+               */
+              int ptoc[2];
+              int ctop[2];
 
-	    if (pipe(ptoc) == -1 || pipe(ctop) == -1) {
-	      syslog(LOG_ERR, "%s: pipe() failed", strerror(errno));
-	      return redir_main_exit(&socket, forked, rreq);
-	    }
+              if (pipe(ptoc) == -1 || pipe(ctop) == -1) {
+                syslog(LOG_ERR, "%s: pipe() failed", strerror(errno));
+                return redir_main_exit(&socket, forked, rreq);
+              }
 
-	    forkpid = redir_fork(ptoc[0], ctop[1]);
+              forkpid = redir_fork(ptoc[0], ctop[1]);
 
-	    if (forkpid < 0) {
-	      syslog(LOG_ERR, "%s: fork() failed", strerror(errno));
-	      return redir_main_exit(&socket, forked, rreq);
-	    }
+              if (forkpid < 0) {
+                syslog(LOG_ERR, "%s: fork() failed", strerror(errno));
+                return redir_main_exit(&socket, forked, rreq);
+              }
 
-	    forked = 1;
-	    if (forkpid > 0) {
-	      /* parent */
+              forked = 1;
+              if (forkpid > 0) {
+                /* parent */
 
-	      int rd, clen = httpreq.clen;
+                int rd, clen = httpreq.clen;
 
-	      safe_close(ptoc[0]);
-	      safe_close(ctop[1]);
-
-#if(_debug_ > 1)
-	      syslog(LOG_DEBUG, "ssl_wrapper(%d)", getpid());
-#endif
-
-	      while (clen > 0) {
-		rd = clen > bufsize ? bufsize : clen;
-#if(_debug_ > 1)
-		syslog(LOG_DEBUG, "reading(%d)", rd);
-#endif
-		if ((buflen = openssl_read(socket.sslcon, buffer, rd, 0)) > 0) {
-		  if (safe_write(ptoc[1], buffer, (size_t) buflen) < 0) {
-		    syslog(LOG_ERR, "%s: error", strerror(errno));
-		    return redir_main_exit(&socket, forked, rreq);
-		  }
-		  clen -= buflen;
-		}
-	      }
-
-	      while (1) {
-#if(_debug_ > 1)
-		syslog(LOG_DEBUG, "script_read");
-#endif
-		if ((buflen = safe_read(ctop[0], buffer, bufsize)) > 0) {
-#if(_debug_ > 1)
-		  syslog(LOG_DEBUG, "script_read(%d)",buflen);
-#endif
-		  if (redir_write(&socket, buffer, (size_t) buflen) < 0) {
-		    syslog(LOG_ERR, "%s: redir_write() failed!", strerror(errno));
-		    break;
-		  }
-#if(_debug_ > 1)
-		  syslog(LOG_DEBUG, "ssl_write(%d)",buflen);
-#endif
-		} else {
-#if(_debug_ > 1)
-		  syslog(LOG_DEBUG, "done");
-#endif
-		  break;
-		}
-	      }
+                safe_close(ptoc[0]);
+                safe_close(ctop[1]);
 
 #if(_debug_ > 1)
-	      syslog(LOG_DEBUG, "ssl_wrapper(%d) done", getpid());
+                if (_options.debug)
+                  syslog(LOG_DEBUG, "ssl_wrapper(%d)", getpid());
 #endif
 
-	      safe_close(ptoc[1]);
-	      safe_close(ctop[0]);
+                while (clen > 0) {
+                  rd = clen > bufsize ? bufsize : clen;
+#if(_debug_ > 1)
+                  if (_options.debug)
+                    syslog(LOG_DEBUG, "reading(%d)", rd);
+#endif
+                  if ((buflen = openssl_read(socket.sslcon, buffer, rd, 0)) > 0) {
+                    if (safe_write(ptoc[1], buffer, (size_t) buflen) < 0) {
+                      syslog(LOG_ERR, "%s: error", strerror(errno));
+                      return redir_main_exit(&socket, forked, rreq);
+                    }
+                    clen -= buflen;
+                  }
+                }
 
-	      return redir_main_exit(&socket, forked, rreq);
-
-	    } else {
-	      /* child */
-
-	      safe_close(ptoc[1]);
-	      safe_close(ctop[0]);
+                while (1) {
+#if(_debug_ > 1)
+                  if (_options.debug)
+                    syslog(LOG_DEBUG, "script_read");
+#endif
+                  if ((buflen = safe_read(ctop[0], buffer, bufsize)) > 0) {
+#if(_debug_ > 1)
+                    if (_options.debug)
+                      syslog(LOG_DEBUG, "script_read(%d)",buflen);
+#endif
+                    if (redir_write(&socket, buffer, (size_t) buflen) < 0) {
+                      syslog(LOG_ERR, "%s: redir_write() failed!", strerror(errno));
+                      break;
+                    }
+#if(_debug_ > 1)
+                    if (_options.debug)
+                      syslog(LOG_DEBUG, "ssl_write(%d)",buflen);
+#endif
+                  } else {
+#if(_debug_ > 1)
+                    if (_options.debug)
+                      syslog(LOG_DEBUG, "done");
+#endif
+                    break;
+                  }
+                }
 
 #if(_debug_ > 1)
-	      syslog(LOG_DEBUG, "script(%d)", getpid());
+                if (_options.debug)
+                  syslog(LOG_DEBUG, "ssl_wrapper(%d) done", getpid());
 #endif
-	    }
-	  }
+
+                safe_close(ptoc[1]);
+                safe_close(ctop[0]);
+
+                return redir_main_exit(&socket, forked, rreq);
+
+              } else {
+                /* child */
+
+                safe_close(ptoc[1]);
+                safe_close(ctop[0]);
+
+#if(_debug_ > 1)
+                if (_options.debug)
+                  syslog(LOG_DEBUG, "script(%d)", getpid());
+#endif
+              }
+            }
 #endif
 
 #ifdef HAVE_SSL
-	  if (socket.sslcon) {
-	    setenv("HTTPS", "on", 1);
-	    sleep(1);
-	  }
+            if (socket.sslcon) {
+              setenv("HTTPS", "on", 1);
+              sleep(1);
+            }
 #endif
 
-	  safe_snprintf(buffer, sizeof(buffer), "%d", httpreq.clen > 0 ? httpreq.clen : 0);
-	  setenv("CONTENT_LENGTH", buffer, 1);
+            safe_snprintf(buffer, sizeof(buffer), "%d", httpreq.clen > 0 ? httpreq.clen : 0);
+            setenv("CONTENT_LENGTH", buffer, 1);
 
-	  setenv("REQUEST_METHOD", httpreq.is_post ? "POST" : "GET", 1);
-	  setenv("REQUEST_URI", httpreq.path, 1);
-	  setenv("QUERY_STRING", httpreq.qs, 1);
-	  setenv("SERVER_NAME", httpreq.host, 1);
-	  setenv("HTTP_COOKIE", conn.httpcookie, 1);
+            setenv("REQUEST_METHOD", httpreq.is_post ? "POST" : "GET", 1);
+            setenv("REQUEST_URI", httpreq.path, 1);
+            setenv("QUERY_STRING", httpreq.qs, 1);
+            setenv("SERVER_NAME", httpreq.host, 1);
+            setenv("HTTP_COOKIE", conn.httpcookie, 1);
 
-	  safe_snprintf(buffer, sizeof(buffer), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-			conn.hismac[0], conn.hismac[1], conn.hismac[2],
-			conn.hismac[3], conn.hismac[4], conn.hismac[5]);
-	  setenv("REMOTE_MAC", buffer, 1);
+            safe_snprintf(buffer, sizeof(buffer), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+                          conn.hismac[0], conn.hismac[1], conn.hismac[2],
+                          conn.hismac[3], conn.hismac[4], conn.hismac[5]);
+            setenv("REMOTE_MAC", buffer, 1);
 
-	  setenv("AUTHENTICATED", conn.s_state.authenticated &&
-		 (conn.s_params.flags&REQUIRE_UAM_SPLASH)==0 ? "1" : "0", 1);
+            setenv("AUTHENTICATED", conn.s_state.authenticated &&
+                   (conn.s_params.flags&REQUIRE_UAM_SPLASH)==0 ? "1" : "0", 1);
 
-	  setenv("CHI_SESSION_ID", conn.s_state.sessionid, 1);
-	  setenv("CHI_USERNAME", conn.s_state.redir.username, 1);
-	  setenv("CHI_USERURL", conn.s_state.redir.userurl, 1);
-	  safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.input_octets);
-	  setenv("CHI_INPUT_BYTES", buffer, 1);
-	  safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.output_octets);
-	  setenv("CHI_OUTPUT_BYTES", buffer, 1);
-	  safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_params.sessiontimeout);
-	  setenv("CHI_SESSION_TIMEOUT", buffer, 1);
+            setenv("CHI_SESSION_ID", conn.s_state.sessionid, 1);
+            setenv("CHI_USERNAME", conn.s_state.redir.username, 1);
+            setenv("CHI_USERURL", conn.s_state.redir.userurl, 1);
+            safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.input_octets);
+            setenv("CHI_INPUT_BYTES", buffer, 1);
+            safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.output_octets);
+            setenv("CHI_OUTPUT_BYTES", buffer, 1);
+            safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_params.sessiontimeout);
+            setenv("CHI_SESSION_TIMEOUT", buffer, 1);
 
-	  redir_chartohex(conn.s_state.redir.uamchal, buffer, REDIR_MD5LEN);
-	  setenv("CHI_CHALLENGE", buffer, 1);
+            redir_chartohex(conn.s_state.redir.uamchal, buffer, REDIR_MD5LEN);
+            setenv("CHI_CHALLENGE", buffer, 1);
 
-	  switch (conn.type) {
+            switch (conn.type) {
 #ifdef ENABLE_EWTAPI
-	  case REDIR_EWTAPI:
-	    {
-	      ewtapi(redir, &socket, &conn, &httpreq);
-	    }
-	    break;
+              case REDIR_EWTAPI:
+                {
+                  ewtapi(redir, &socket, &conn, &httpreq);
+                }
+                break;
 #endif
 #ifdef ENABLE_WPAD
-	  case REDIR_WPAD:
-	    if (isWPAD && _options.wpadpacfile) {
-	      char *binqqargs[3] = { _options.wpadpacfile, 0 } ;
-	      syslog(LOG_DEBUG, "Running: %s", _options.wpadpacfile);
-	      execv(*binqqargs, binqqargs);
-	      break;
-	    }
+              case REDIR_WPAD:
+                if (isWPAD && _options.wpadpacfile) {
+                  char *binqqargs[3] = { _options.wpadpacfile, 0 } ;
+                  if (_options.debug)
+                    syslog(LOG_DEBUG, "Running: %s", _options.wpadpacfile);
+                  execv(*binqqargs, binqqargs);
+                  break;
+                }
 #endif
-	  case REDIR_WWW:
-	    /* XXX: Todo: look for malicious content! */
-	    {
-	      char *binqqargs[3] = { _options.wwwbin, buffer, 0 } ;
+              case REDIR_WWW:
+                /* XXX: Todo: look for malicious content! */
+                {
+                  char *binqqargs[3] = { _options.wwwbin, buffer, 0 } ;
 
-	      syslog(LOG_DEBUG, "Running: %s %s/%s",_options.wwwbin, _options.wwwdir, filename);
-	      safe_snprintf(buffer, sizeof(buffer), "%s/%s", _options.wwwdir, filename);
+                  if (_options.debug)
+                    syslog(LOG_DEBUG, "Running: %s %s/%s",_options.wwwbin, _options.wwwdir, filename);
+                  safe_snprintf(buffer, sizeof(buffer), "%s/%s", _options.wwwdir, filename);
 
-	      execv(*binqqargs, binqqargs);
-	    }
-	    break;
-	  }
+                  execv(*binqqargs, binqqargs);
+                }
+                break;
+            }
 
-	  return redir_main_exit(&socket, forked, rreq);
-	}
+            return redir_main_exit(&socket, forked, rreq);
+          }
 
-	if ( (_options.uid == 0 && !chroot(_options.wwwdir) && !chdir("/")) ||
-	     (_options.uid != 0 && !chdir(_options.wwwdir)) ) {
-	  int gzip = 1;
-	  char filebuff[1024];
+          if ( (_options.uid == 0 && !chroot(_options.wwwdir) && !chdir("/")) ||
+               (_options.uid != 0 && !chdir(_options.wwwdir)) ) {
+            int gzip = 1;
+            char filebuff[1024];
 
-	  safe_snprintf(filebuff, sizeof(filebuff), "%s.gz", filename);
+            safe_snprintf(filebuff, sizeof(filebuff), "%s.gz", filename);
 
-	  fd = open(filebuff, O_RDONLY);
+            fd = open(filebuff, O_RDONLY);
 
-	  if (fd < 0) {
-	    gzip = 0;
-	    fd = open(filename, O_RDONLY);
-	  }
+            if (fd < 0) {
+              gzip = 0;
+              fd = open(filename, O_RDONLY);
+            }
 
-	  if (fd > 0) {
+            if (fd > 0) {
 
-	    if (ndelay_off(socket.fd[0])) {
-	      syslog(LOG_ERR, "%s: fcntl() failed", strerror(errno));
-	    }
+              if (ndelay_off(socket.fd[0])) {
+                syslog(LOG_ERR, "%s: fcntl() failed", strerror(errno));
+              }
 
-	    safe_snprintf(buffer, bufsize,
-			  "HTTP/1.1 200 OK\r\n%s"
-			  "Connection: close\r\n"
-			  "Content-type: %s\r\n\r\n",
-			  gzip ? "Content-Encoding: gzip\r\n" : "",
-			  ctype);
+              safe_snprintf(buffer, bufsize,
+                            "HTTP/1.1 200 OK\r\n%s"
+                            "Connection: close\r\n"
+                            "Content-type: %s\r\n\r\n",
+                            gzip ? "Content-Encoding: gzip\r\n" : "",
+                            ctype);
 
-	    if (redir_write(&socket, buffer, strlen(buffer)) < 0) {
-	      syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
-	    }
+              if (redir_write(&socket, buffer, strlen(buffer)) < 0) {
+                syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
+              }
 
-	    while ((buflen = safe_read(fd, buffer, bufsize)) > 0)
-	      if (redir_write(&socket, buffer, (size_t) buflen) < 0)
-		syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
+              while ((buflen = safe_read(fd, buffer, bufsize)) > 0)
+                if (redir_write(&socket, buffer, (size_t) buflen) < 0)
+                  syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
 
-	    safe_close(fd);
-	  }
-	  else syslog(LOG_ERR, "could not open local content file %s!", filename);
-	}
-	else syslog(LOG_ERR, "chroot/chdir to %s was not successful\n", _options.wwwdir);
+              safe_close(fd);
+            }
+            else syslog(LOG_ERR, "could not open local content file %s!", filename);
+          }
+          else syslog(LOG_ERR, "chroot/chdir to %s was not successful\n", _options.wwwdir);
 
-	return _redir_close_exit(infd, outfd); /* which exits */
+          return _redir_close_exit(infd, outfd); /* which exits */
+        }
+        else syslog(LOG_ERR, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param");
+
+        return redir_main_exit(&socket, forked, rreq);
       }
-      else syslog(LOG_ERR, "Required: 'wwwdir' (in chilli.conf) and 'file' query-string param");
-
-      return redir_main_exit(&socket, forked, rreq);
-    }
   }
 
   termstate = REDIR_TERM_PROCESS;
 
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "Processing received request");
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Processing received request");
 #endif
 
   /* default hexchal for use in replies */
@@ -3788,297 +3871,307 @@ int redir_main(struct redir_t *redir,
 
   switch (conn.type) {
 
-  case REDIR_LOGIN: {
-    char reauth = 0;
+    case REDIR_LOGIN: {
+      char reauth = 0;
 
-    /* Was client was already logged on? */
-    if (state == 1) {
+      /* Was client was already logged on? */
+      if (state == 1) {
 
-      if (splash) {
+        if (splash) {
 
-	syslog(LOG_DEBUG, "redir_accept: SPLASH reauth");
-	reauth = 1;
+          if (_options.debug)
+            syslog(LOG_DEBUG, "redir_accept: SPLASH reauth");
+          reauth = 1;
 
-      } else {
+        } else {
 
-	syslog(LOG_DEBUG, "redir_accept: already logged on");
+          if (_options.debug)
+            syslog(LOG_DEBUG, "redir_accept: already logged on");
 
-	redir_reply(redir, &socket, &conn, REDIR_ALREADY, NULL, 0,
-		    NULL, NULL, conn.s_state.redir.userurl, NULL,
-		    (char *)conn.s_params.url, conn.hismac,
-		    &conn.hisip, httpreq.qs);
+          redir_reply(redir, &socket, &conn, REDIR_ALREADY, NULL, 0,
+                      NULL, NULL, conn.s_state.redir.userurl, NULL,
+                      (char *)conn.s_params.url, conn.hismac,
+                      &conn.hisip, httpreq.qs);
 
-	return redir_main_exit(&socket, forked, rreq);
+          return redir_main_exit(&socket, forked, rreq);
+        }
       }
-    }
 
-    /* Did the challenge expire? */
-    if (_options.challengetimeout2 &&
-	(conn.s_state.uamtime + _options.challengetimeout2) <
-	mainclock_now()) {
-      syslog(LOG_DEBUG, "redir_accept: challenge expired: %ld : %ld",
-	      (long) conn.s_state.uamtime, (long) mainclock_now());
+      /* Did the challenge expire? */
+      if (_options.challengetimeout2 &&
+          (conn.s_state.uamtime + _options.challengetimeout2) <
+          mainclock_now()) {
+        if (_options.debug)
+          syslog(LOG_DEBUG, "redir_accept: challenge expired: %ld : %ld",
+                 (long) conn.s_state.uamtime, (long) mainclock_now());
 
-      redir_memcopy(REDIR_CHALLENGE);
-      redir_msg_send(REDIR_MSG_OPT_REDIR);
+        redir_memcopy(REDIR_CHALLENGE);
+        redir_msg_send(REDIR_MSG_OPT_REDIR);
 
-      redir_reply(redir, &socket, &conn, REDIR_FAILED_OTHER, NULL,
-		  0, hexchal, NULL, NULL, NULL,
-		  0, conn.hismac, &conn.hisip, httpreq.qs);
+        redir_reply(redir, &socket, &conn, REDIR_FAILED_OTHER, NULL,
+                    0, hexchal, NULL, NULL, NULL,
+                    0, conn.hismac, &conn.hisip, httpreq.qs);
 
-      return redir_main_exit(&socket, forked, rreq);
-    }
+        return redir_main_exit(&socket, forked, rreq);
+      }
 
-    if (is_local_user(redir, &conn)) {
-      session_param_defaults(&conn.s_params);
-      conn.response = REDIR_SUCCESS;
-    }
-    else {
+      if (is_local_user(redir, &conn)) {
+        session_param_defaults(&conn.s_params);
+        conn.response = REDIR_SUCCESS;
+      }
+      else {
 
 #ifdef ENABLE_MODULES
-      int i;
-      int flags = 0;
+        int i;
+        int flags = 0;
 #endif
 
-      if (!forked) {
-	/*
-	 *  When waiting for RADIUS, we need to be forked.
-	 *  TODO: make redir_radius asynchronous.
-	 */
-	pid_t forkpid = redir_fork(infd, outfd);
-	if (forkpid) { /* parent or error */
-	  return redir_main_exit(&socket, forked, rreq);
-	}
-      }
+        if (!forked) {
+          /*
+           *  When waiting for RADIUS, we need to be forked.
+           *  TODO: make redir_radius asynchronous.
+           */
+          pid_t forkpid = redir_fork(infd, outfd);
+          if (forkpid) { /* parent or error */
+            return redir_main_exit(&socket, forked, rreq);
+          }
+        }
 
 #ifdef ENABLE_MODULES
-      syslog(LOG_DEBUG, "checking modules...");
-      for (i=0; i < MAX_MODULES; i++) {
-	if (!_options.modules[i].name[0]) break;
-	if (_options.modules[i].ctx) {
-	  struct chilli_module *m =
-	    (struct chilli_module *)_options.modules[i].ctx;
-	  if (m->redir_login) {
-	    int modresult = m->redir_login(redir, &conn, &socket);
-	    flags |= modresult;
-	    switch(chilli_mod_state(modresult)) {
-	    case CHILLI_MOD_ERROR:
-	      return redir_main_exit(&socket, forked, rreq);
-	    default:
-	      break;
-	    }
-	  }
-	}
-      }
-      if (flags & CHILLI_MOD_REDIR_SKIP_RADIUS) {
-	syslog(LOG_DEBUG, "Skipping RADIUS authentication");
-      } else {
+        if (_options.debug)
+          syslog(LOG_DEBUG, "checking modules...");
+        for (i=0; i < MAX_MODULES; i++) {
+          if (!_options.modules[i].name[0]) break;
+          if (_options.modules[i].ctx) {
+            struct chilli_module *m =
+                (struct chilli_module *)_options.modules[i].ctx;
+            if (m->redir_login) {
+              int modresult = m->redir_login(redir, &conn, &socket);
+              flags |= modresult;
+              switch(chilli_mod_state(modresult)) {
+                case CHILLI_MOD_ERROR:
+                  return redir_main_exit(&socket, forked, rreq);
+                default:
+                  break;
+              }
+            }
+          }
+        }
+        if (flags & CHILLI_MOD_REDIR_SKIP_RADIUS) {
+          if (_options.debug)
+            syslog(LOG_DEBUG, "Skipping RADIUS authentication");
+        } else {
 #endif
 
-      termstate = REDIR_TERM_RADIUS;
+          termstate = REDIR_TERM_RADIUS;
 
-      if (optionsdebug)
-	syslog(LOG_DEBUG, "redir_accept: Sending RADIUS request");
+          if (optionsdebug)
+            syslog(LOG_DEBUG, "redir_accept: Sending RADIUS request");
 
-      redir_radius(redir, &address->sin_addr, &conn, reauth);
-      termstate = REDIR_TERM_REPLY;
+          redir_radius(redir, &address->sin_addr, &conn, reauth);
+          termstate = REDIR_TERM_REPLY;
 
 #ifdef ENABLE_MODULES
-      }
+        }
 #endif
 
 #if(_debug_ > 1)
-      syslog(LOG_DEBUG, "Received RADIUS reply");
+        if (_options.debug)
+          syslog(LOG_DEBUG, "Received RADIUS reply");
 #endif
-    }
-
-    if (conn.response == REDIR_SUCCESS) { /* Accept-Accept */
-
-      conn.s_params.flags &= ~REQUIRE_UAM_SPLASH;
-
-      if (reauth) {
-	conn.s_params.flags |= IS_UAM_REAUTH;
       }
 
-      msg.mtype = REDIR_LOGIN;
+      if (conn.response == REDIR_SUCCESS) { /* Accept-Accept */
 
-      syslog(LOG_DEBUG, "%s handling Access-Accept",__FUNCTION__);
+        conn.s_params.flags &= ~REQUIRE_UAM_SPLASH;
 
-      redir_reply(redir, &socket, &conn, REDIR_SUCCESS, NULL,
-		  conn.s_params.sessiontimeout, NULL,
-		  conn.s_state.redir.username,
-		  conn.s_state.redir.userurl, conn.reply,
-		  (char *)conn.s_params.url,
-		  conn.hismac, &conn.hisip, httpreq.qs);
+        if (reauth) {
+          conn.s_params.flags |= IS_UAM_REAUTH;
+        }
 
-      /* set params and redir data */
-      redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS);
+        msg.mtype = REDIR_LOGIN;
 
-    } else { /* Access-Reject */
+        if (_options.debug)
+          syslog(LOG_DEBUG, "%s handling Access-Accept",__FUNCTION__);
 
-      int hasnexturl = (strlen((char *)conn.s_params.url) > 5);
+        redir_reply(redir, &socket, &conn, REDIR_SUCCESS, NULL,
+                    conn.s_params.sessiontimeout, NULL,
+                    conn.s_state.redir.username,
+                    conn.s_state.redir.userurl, conn.reply,
+                    (char *)conn.s_params.url,
+                    conn.hismac, &conn.hisip, httpreq.qs);
 
-      syslog(LOG_DEBUG, "%s handling Access-Reject",__FUNCTION__);
+        /* set params and redir data */
+        redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS);
 
-      if (!hasnexturl) {
-	if (_options.challengetimeout)
-	  redir_memcopy(REDIR_CHALLENGE);
-      } else {
-	msg.mtype = REDIR_NOTYET;
+      } else { /* Access-Reject */
+
+        int hasnexturl = (strlen((char *)conn.s_params.url) > 5);
+
+        if (_options.debug)
+          syslog(LOG_DEBUG, "%s handling Access-Reject",__FUNCTION__);
+
+        if (!hasnexturl) {
+          if (_options.challengetimeout)
+            redir_memcopy(REDIR_CHALLENGE);
+        } else {
+          msg.mtype = REDIR_NOTYET;
+        }
+
+        redir_reply(redir, &socket, &conn, conn.response,
+                    NULL,
+                    0, hexchal, NULL, conn.s_state.redir.userurl, conn.reply,
+                    (char *)conn.s_params.url, conn.hismac,
+                    &conn.hisip, httpreq.qs);
+
+        /* set params, redir data, and reset session-id */
+        redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS |
+                       (conn.response == REDIR_CHALLENGE ? 0 : REDIR_MSG_NSESSIONID));
       }
 
-      redir_reply(redir, &socket, &conn, conn.response,
-		  NULL,
-		  0, hexchal, NULL, conn.s_state.redir.userurl, conn.reply,
-		  (char *)conn.s_params.url, conn.hismac,
-		  &conn.hisip, httpreq.qs);
-
-      /* set params, redir data, and reset session-id */
-      redir_msg_send(REDIR_MSG_OPT_REDIR | REDIR_MSG_OPT_PARAMS |
-	     (conn.response == REDIR_CHALLENGE ? 0 : REDIR_MSG_NSESSIONID));
-    }
-
-    syslog(LOG_DEBUG, "-->> Msg userurl=[%s]\n",conn.s_state.redir.userurl);
-    return redir_main_exit(&socket, forked, rreq);
-  }
-
-  case REDIR_LOGOUT:
-    {
-      redir_memcopy(REDIR_LOGOUT);
-      redir_msg_send(REDIR_MSG_OPT_REDIR);
-
-      conn.s_state.authenticated=0;
-
-      redir_reply(redir, &socket, &conn, REDIR_LOGOFF, NULL, 0,
-		  hexchal, NULL, conn.s_state.redir.userurl, NULL,
-		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
-
+      if (_options.debug)
+        syslog(LOG_DEBUG, "-->> Msg userurl=[%s]\n",conn.s_state.redir.userurl);
       return redir_main_exit(&socket, forked, rreq);
     }
 
-  case REDIR_MACREAUTH:
-    if (_options.macauth) {
-      msg.mtype = REDIR_MACREAUTH;
-      redir_msg_send(0);
-    }
-    /* drop down */
+    case REDIR_LOGOUT:
+      {
+        redir_memcopy(REDIR_LOGOUT);
+        redir_msg_send(REDIR_MSG_OPT_REDIR);
 
-  case REDIR_PRELOGIN:
-    /* Did the challenge expire? */
-    if (!conn.s_state.uamtime ||
-	(_options.challengetimeout &&
-	 (conn.s_state.uamtime + _options.challengetimeout) <
-	 mainclock_now())) {
-      redir_memcopy(REDIR_CHALLENGE);
-      redir_msg_send(REDIR_MSG_OPT_REDIR);
-    }
+        conn.s_state.authenticated=0;
 
-    if (state == 1) {
-      redir_reply(redir, &socket, &conn, REDIR_ALREADY,
-		  NULL, 0, NULL, NULL, conn.s_state.redir.userurl, NULL,
-		  (char *)conn.s_params.url, conn.hismac,
-		  &conn.hisip, httpreq.qs);
-    }
-    else {
-      redir_reply(redir, &socket, &conn, REDIR_NOTYET,
-		  NULL, 0, hexchal, NULL, conn.s_state.redir.userurl, NULL,
-		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
-    }
-    return redir_main_exit(&socket, forked, rreq);
+        redir_reply(redir, &socket, &conn, REDIR_LOGOFF, NULL, 0,
+                    hexchal, NULL, conn.s_state.redir.userurl, NULL,
+                    NULL, conn.hismac, &conn.hisip, httpreq.qs);
 
-  case REDIR_ABORT:
-    if (state == 1) {
-      redir_reply(redir, &socket, &conn, REDIR_ABORT_NAK,
-		  NULL, 0, NULL, NULL, conn.s_state.redir.userurl, NULL,
-		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
-    }
-    else {
-      redir_memcopy(REDIR_ABORT);
-      redir_msg_send(0);
+        return redir_main_exit(&socket, forked, rreq);
+      }
 
-      redir_reply(redir, &socket, &conn, REDIR_ABORT_ACK,
-		  NULL, 0, hexchal, NULL, conn.s_state.redir.userurl, NULL,
-		  NULL, conn.hismac, &conn.hisip, httpreq.qs);
-    }
-    return redir_main_exit(&socket, forked, rreq);
+    case REDIR_MACREAUTH:
+      if (_options.macauth) {
+        msg.mtype = REDIR_MACREAUTH;
+        redir_msg_send(0);
+      }
+      /* drop down */
 
-  case REDIR_ABOUT:
-    redir_reply(redir, &socket, &conn, REDIR_ABOUT, NULL,
-		0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, httpreq.qs);
-    return redir_main_exit(&socket, forked, rreq);
-
-  case REDIR_STATUS:
-    {
-      uint32_t sessiontime;
-      uint32_t timeleft;
-      time_t timenow = mainclock_now();
-
+    case REDIR_PRELOGIN:
       /* Did the challenge expire? */
-      if (_options.challengetimeout &&
-	  (conn.s_state.uamtime + _options.challengetimeout) < timenow) {
-	redir_memcopy(REDIR_CHALLENGE);
-	redir_msg_send(REDIR_MSG_OPT_REDIR);
+      if (!conn.s_state.uamtime ||
+          (_options.challengetimeout &&
+           (conn.s_state.uamtime + _options.challengetimeout) <
+           mainclock_now())) {
+        redir_memcopy(REDIR_CHALLENGE);
+        redir_msg_send(REDIR_MSG_OPT_REDIR);
       }
 
-      sessiontime = timenow - conn.s_state.start_time;
-
-      if (conn.s_params.sessiontimeout)
-	timeleft = conn.s_params.sessiontimeout - sessiontime;
-      else
-	timeleft = 0;
-
-      redir_reply(redir, &socket, &conn, REDIR_STATUS, NULL, timeleft,
-		  hexchal, conn.s_state.redir.username,
-		  conn.s_state.redir.userurl, conn.reply,
-		  0, conn.hismac, &conn.hisip, httpreq.qs);
-
+      if (state == 1) {
+        redir_reply(redir, &socket, &conn, REDIR_ALREADY,
+                    NULL, 0, NULL, NULL, conn.s_state.redir.userurl, NULL,
+                    (char *)conn.s_params.url, conn.hismac,
+                    &conn.hisip, httpreq.qs);
+      }
+      else {
+        redir_reply(redir, &socket, &conn, REDIR_NOTYET,
+                    NULL, 0, hexchal, NULL, conn.s_state.redir.userurl, NULL,
+                    NULL, conn.hismac, &conn.hisip, httpreq.qs);
+      }
       return redir_main_exit(&socket, forked, rreq);
-    }
 
-  case REDIR_MSDOWNLOAD:
-    safe_snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
-    redir_write(&socket, buffer, strlen(buffer));
-    return redir_main_exit(&socket, forked, rreq);
+    case REDIR_ABORT:
+      if (state == 1) {
+        redir_reply(redir, &socket, &conn, REDIR_ABORT_NAK,
+                    NULL, 0, NULL, NULL, conn.s_state.redir.userurl, NULL,
+                    NULL, conn.hismac, &conn.hisip, httpreq.qs);
+      }
+      else {
+        redir_memcopy(REDIR_ABORT);
+        redir_msg_send(0);
+
+        redir_reply(redir, &socket, &conn, REDIR_ABORT_ACK,
+                    NULL, 0, hexchal, NULL, conn.s_state.redir.userurl, NULL,
+                    NULL, conn.hismac, &conn.hisip, httpreq.qs);
+      }
+      return redir_main_exit(&socket, forked, rreq);
+
+    case REDIR_ABOUT:
+      redir_reply(redir, &socket, &conn, REDIR_ABOUT, NULL,
+                  0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, httpreq.qs);
+      return redir_main_exit(&socket, forked, rreq);
+
+    case REDIR_STATUS:
+      {
+        uint32_t sessiontime;
+        uint32_t timeleft;
+        time_t timenow = mainclock_now();
+
+        /* Did the challenge expire? */
+        if (_options.challengetimeout &&
+            (conn.s_state.uamtime + _options.challengetimeout) < timenow) {
+          redir_memcopy(REDIR_CHALLENGE);
+          redir_msg_send(REDIR_MSG_OPT_REDIR);
+        }
+
+        sessiontime = timenow - conn.s_state.start_time;
+
+        if (conn.s_params.sessiontimeout)
+          timeleft = conn.s_params.sessiontimeout - sessiontime;
+        else
+          timeleft = 0;
+
+        redir_reply(redir, &socket, &conn, REDIR_STATUS, NULL, timeleft,
+                    hexchal, conn.s_state.redir.username,
+                    conn.s_state.redir.userurl, conn.reply,
+                    0, conn.hismac, &conn.hisip, httpreq.qs);
+
+        return redir_main_exit(&socket, forked, rreq);
+      }
+
+    case REDIR_MSDOWNLOAD:
+      safe_snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
+      redir_write(&socket, buffer, strlen(buffer));
+      return redir_main_exit(&socket, forked, rreq);
 
 #if(0)
-  {
-    char * hdr =
-      "HTTP/1.0 200 OK\r\n"
-      "Content-Type: application/x-ns-proxy-autoconfig\r\n"
-      "Content-Length: %d\r\n"
-      "\r\n";
+      {
+        char * hdr =
+            "HTTP/1.0 200 OK\r\n"
+            "Content-Type: application/x-ns-proxy-autoconfig\r\n"
+            "Content-Length: %d\r\n"
+            "\r\n";
 
-    char * cnt =
-      "function FindProxyForURL(url, host) {\r\n"
-      "debugPAC =\"PAC Debug Information\\n\";\r\n"
-      "debugPAC +=\"-----------------------------------\\n\";\r\n"
-      "debugPAC +=\"Machine IP: \" + myIpAddress() + \"\\n\";\r\n"
-      "debugPAC +=\"Hostname: \" + host + \"\\n\";\r\n"
-      "if (isResolvable(host)) {resolvableHost = \"True\"} else {resolvableHost = \"False\"};\r\n"
-      "debugPAC +=\"Host Resolvable: \" + resolvableHost + \"\\n\";\r\n"
-      "debugPAC +=\"Hostname IP: \" + dnsResolve(host) + \"\\n\";\r\n"
-      "if (isPlainHostName(host)) {plainHost = \"True\"} else {plainHost = \"False\"};\r\n"
-      "debugPAC +=\"Plain Hostname: \" + plainHost + \"\\n\";\r\n"
-      "debugPAC +=\"Domain Levels: \" + dnsDomainLevels(host) + \"\\n\";\r\n"
-      "debugPAC +=\"URL: \" + url + \"\\n\";\r\n"
-      "if (url.substring(0,5)==\"http:\") {protocol=\"HTTP\";} else\r\n"
-      "if (url.substring(0,6)==\"https:\") {protocol=\"HTTPS\";} else\r\n"
-      "if (url.substring(0,4)==\"ftp:\") {protocol=\"FTP\";}\r\n"
-      "else {protocol=\"Unknown\";}\r\n"
-      "debugPAC +=\"Protocol: \" + protocol + \"\\n\";\r\n"
-      "if (!shExpMatch(url,\"*.(js|xml|ico|gif|png|jpg|jpeg|css|swf)*\")) {alert(debugPAC);}\r\n"
-      "return \"PROXY 1.2.3.4:8080\";\r\n"
-      "}\r\n";
+        char * cnt =
+            "function FindProxyForURL(url, host) {\r\n"
+            "debugPAC =\"PAC Debug Information\\n\";\r\n"
+            "debugPAC +=\"-----------------------------------\\n\";\r\n"
+            "debugPAC +=\"Machine IP: \" + myIpAddress() + \"\\n\";\r\n"
+            "debugPAC +=\"Hostname: \" + host + \"\\n\";\r\n"
+            "if (isResolvable(host)) {resolvableHost = \"True\"} else {resolvableHost = \"False\"};\r\n"
+            "debugPAC +=\"Host Resolvable: \" + resolvableHost + \"\\n\";\r\n"
+            "debugPAC +=\"Hostname IP: \" + dnsResolve(host) + \"\\n\";\r\n"
+            "if (isPlainHostName(host)) {plainHost = \"True\"} else {plainHost = \"False\"};\r\n"
+            "debugPAC +=\"Plain Hostname: \" + plainHost + \"\\n\";\r\n"
+            "debugPAC +=\"Domain Levels: \" + dnsDomainLevels(host) + \"\\n\";\r\n"
+            "debugPAC +=\"URL: \" + url + \"\\n\";\r\n"
+            "if (url.substring(0,5)==\"http:\") {protocol=\"HTTP\";} else\r\n"
+            "if (url.substring(0,6)==\"https:\") {protocol=\"HTTPS\";} else\r\n"
+            "if (url.substring(0,4)==\"ftp:\") {protocol=\"FTP\";}\r\n"
+            "else {protocol=\"Unknown\";}\r\n"
+            "debugPAC +=\"Protocol: \" + protocol + \"\\n\";\r\n"
+            "if (!shExpMatch(url,\"*.(js|xml|ico|gif|png|jpg|jpeg|css|swf)*\")) {alert(debugPAC);}\r\n"
+            "return \"PROXY 1.2.3.4:8080\";\r\n"
+            "}\r\n";
 
-    syslog(LOG_DEBUG, "WPAD %s:%d", __FUNCTION__, __LINE__);
+        if (_options.debug)
+          syslog(LOG_DEBUG, "WPAD %s:%d", __FUNCTION__, __LINE__);
 
-    safe_snprintf(buffer, bufsize, hdr, strlen(cnt));
-    redir_write(&socket, buffer, strlen(buffer));
+        safe_snprintf(buffer, bufsize, hdr, strlen(cnt));
+        redir_write(&socket, buffer, strlen(buffer));
 
-    safe_snprintf(buffer, bufsize, cnt);
-    redir_write(&socket, buffer, strlen(buffer));
-    return redir_main_exit(&socket, forked, rreq);
-  }
+        safe_snprintf(buffer, bufsize, cnt);
+        redir_write(&socket, buffer, strlen(buffer));
+        return redir_main_exit(&socket, forked, rreq);
+      }
 #endif
 
   }
@@ -4087,7 +4180,8 @@ int redir_main(struct redir_t *redir,
    *  It was not a request for a known path.
    *  It must be an original request
    */
-  syslog(LOG_DEBUG, "redir_accept: Original request host=%s", httpreq.host);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "redir_accept: Original request host=%s", httpreq.host);
 
 #ifdef ENABLE_REDIRDNSREQ
   if (_options.redirdnsreq && tun) {
@@ -4163,8 +4257,8 @@ int redir_main(struct redir_t *redir,
     memcpy(&answer_iph->saddr, &conn.hisip.s_addr, PKT_IP_ALEN);
 
     /* Ethernet header
-    memcpy(answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
-    memcpy(answer_ethh->src, &ethh->dst, PKT_ETH_ALEN);
+       memcpy(answer_ethh->dst, &ethh->src, PKT_ETH_ALEN);
+       memcpy(answer_ethh->src, &ethh->dst, PKT_ETH_ALEN);
     */
 
     /* Work out checksums */
@@ -4183,12 +4277,12 @@ int redir_main(struct redir_t *redir,
   if (redir->cb_handle_url) {
     switch (redir->cb_handle_url(redir, &conn, &httpreq,
 				 &socket, address, rreq)) {
-    case -1:
-      return -1;
-    case 0:
-      return 1;
-    default:
-      break;
+      case -1:
+        return -1;
+      case 0:
+        return 1;
+      default:
+        break;
     }
   }
 
@@ -4206,7 +4300,8 @@ int redir_main(struct redir_t *redir,
   }
 
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "---->>> challenge: %s", hexchal);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "---->>> challenge: %s", hexchal);
 #endif
 
   if (_options.macreauth && !conn.s_state.authenticated) {
@@ -4218,8 +4313,8 @@ int redir_main(struct redir_t *redir,
 			    ((conn.s_params.flags & REQUIRE_REDIRECT) && conn.s_params.url[0])) {*/
 
     char * base_url = /*(conn.s_params.flags & REQUIRE_REDIRECT &&
-		       conn.s_params.url[0]) ?
-		       (char *)conn.s_params.url : */ redir->homepage;
+                        conn.s_params.url[0]) ?
+                        (char *)conn.s_params.url : */ redir->homepage;
 
     bstring url = bfromcstralloc(1024,"");
     bstring urlenc = bfromcstralloc(1024,"");
@@ -4263,10 +4358,10 @@ int redir_main(struct redir_t *redir,
 
 /* Set callback to determine state information for the connection */
 int redir_set_cb_getstate(struct redir_t *redir,
-  int (*cb_getstate) (struct redir_t *redir,
-		      struct sockaddr_in *address,
-		      struct sockaddr_in *baddress,
-		      struct redir_conn_t *conn)) {
+                          int (*cb_getstate) (struct redir_t *redir,
+                                              struct sockaddr_in *address,
+                                              struct sockaddr_in *baddress,
+                                              struct redir_conn_t *conn)) {
   redir->cb_getstate = cb_getstate;
   return 0;
 }

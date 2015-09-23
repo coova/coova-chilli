@@ -28,8 +28,8 @@
 /*
  *   I do not like this here, but otherwise
  *   __u64 is not defined. Set by -ansi
-#undef __STRICT_ANSI__
- */
+ #undef __STRICT_ANSI__
+*/
 
 #include <ctype.h>
 #include <stdint.h>
@@ -242,12 +242,12 @@
 #undef BIG_ENDIAN
 
 #if (defined(__BYTE_ORDER) && defined(__LITTLE_ENDIAN) && __BYTE_ORDER == __LITTLE_ENDIAN) || \
-    (defined(i386) || defined(__i386__) || defined(__i486__) || \
-     defined(__i586__) || defined(__i686__) || defined(vax) || defined(MIPSEL))
+  (defined(i386) || defined(__i386__) || defined(__i486__) ||           \
+   defined(__i586__) || defined(__i686__) || defined(vax) || defined(MIPSEL))
 # define LITTLE_ENDIAN 1
 # define BIG_ENDIAN 0
 #elif (defined(__BYTE_ORDER) && defined(__BIG_ENDIAN) && __BYTE_ORDER == __BIG_ENDIAN) || \
-      (defined(sparc) || defined(POWERPC) || defined(mc68000) || defined(sel))
+  (defined(sparc) || defined(POWERPC) || defined(mc68000) || defined(sel))
 # define LITTLE_ENDIAN 0
 # define BIG_ENDIAN 1
 #else
@@ -290,18 +290,18 @@ int safe_close (int fd);
 pid_t safe_fork();
 
 #ifndef TEMP_FAILURE_RETRY
-#define TEMP_FAILURE_RETRY(expression) \
-    ({ \
-        long int _result; \
-        do _result = (long int) (expression); \
-        while (_result == -1L && errno == EINTR); \
-        _result; \
-    })
+#define TEMP_FAILURE_RETRY(expression)          \
+  ({                                            \
+    long int _result;                           \
+    do _result = (long int) (expression);       \
+    while (_result == -1L && errno == EINTR);   \
+    _result;                                    \
+  })
 #endif
 
 #define SET_SA_FAMILY(addr, family)			\
-    memset ((char *) &(addr), '\0', sizeof(addr));	\
-    addr.sa_family = (family);
+  memset ((char *) &(addr), '\0', sizeof(addr));	\
+  addr.sa_family = (family);
 
 void copy_mac6(uint8_t *, uint8_t *);
 

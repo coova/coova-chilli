@@ -80,11 +80,11 @@ int loadstatus() {
 
   rtoffset = wall - rt;
   syslog(LOG_DEBUG, "now: wall = %d, rt = %d, wall at rt=0 %d",
-	  (int)wall, (int)rt, (int)rtoffset);
+         (int)wall, (int)rt, (int)rtoffset);
 
   r_rtoffset = r_wall - r_rt;
   syslog(LOG_DEBUG, "file: wall = %d, rt = %d, wall at rt=0 %d",
-	  (int)r_wall, (int)r_rt, (int)r_rtoffset);
+         (int)r_wall, (int)r_rt, (int)r_rtoffset);
 
   while (fread(&dhcpconn, sizeof(struct dhcp_conn_t), 1, file) == 1) {
     struct dhcp_conn_t *conn = 0;
@@ -102,9 +102,9 @@ int loadstatus() {
     if (dhcp_hashget(dhcp, &conn, dhcpconn.hismac)) {
 
       syslog(LOG_INFO, "Loading dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	       dhcpconn.hismac[0], dhcpconn.hismac[1],
-	       dhcpconn.hismac[2], dhcpconn.hismac[3],
-	       dhcpconn.hismac[4], dhcpconn.hismac[5]);
+             dhcpconn.hismac[0], dhcpconn.hismac[1],
+             dhcpconn.hismac[2], dhcpconn.hismac[3],
+             dhcpconn.hismac[4], dhcpconn.hismac[5]);
 
       /* not already known */
       dhcp_lnkconn(dhcp, &conn);
@@ -122,12 +122,12 @@ int loadstatus() {
        *  lasttime
        */
 
-#define localizetime(t) \
-      /* to it's local real time */ \
-      t = r_rtoffset + t; \
-      /* now to our local rt offset */ \
-      t = t - rtoffset; \
-      if (t < 0) t = 0;
+#define localizetime(t)                         \
+      /* to it's local real time */             \
+          t = r_rtoffset + t;                   \
+          /* now to our local rt offset */      \
+          t = t - rtoffset;                     \
+          if (t < 0) t = 0;
 
       localizetime(dhcpconn.lasttime);
 
@@ -222,9 +222,9 @@ int loadstatus() {
     } else {
 
       syslog(LOG_INFO, "Known dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-	       dhcpconn.hismac[0], dhcpconn.hismac[1],
-	       dhcpconn.hismac[2], dhcpconn.hismac[3],
-	       dhcpconn.hismac[4], dhcpconn.hismac[5]);
+             dhcpconn.hismac[0], dhcpconn.hismac[1],
+             dhcpconn.hismac[2], dhcpconn.hismac[3],
+             dhcpconn.hismac[4], dhcpconn.hismac[5]);
 
       conn->authstate = dhcpconn.authstate;
 
@@ -340,27 +340,27 @@ int printstatus() {
   while (dhcpconn) {
 
     switch(dhcpconn->authstate) {
-    case DHCP_AUTH_DROP:
-    case DHCP_AUTH_PASS:
-    case DHCP_AUTH_DNAT:
-    case DHCP_AUTH_SPLASH:
+      case DHCP_AUTH_DROP:
+      case DHCP_AUTH_PASS:
+      case DHCP_AUTH_DNAT:
+      case DHCP_AUTH_SPLASH:
 #ifdef ENABLE_LAYER3
-    case DHCP_AUTH_ROUTER:
+      case DHCP_AUTH_ROUTER:
 #endif
-      syslog(LOG_DEBUG, "Saving dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s",
-	      dhcpconn->hismac[0], dhcpconn->hismac[1],
-	      dhcpconn->hismac[2], dhcpconn->hismac[3],
-	      dhcpconn->hismac[4], dhcpconn->hismac[5],
-	      inet_ntoa(dhcpconn->hisip));
+        syslog(LOG_DEBUG, "Saving dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s",
+               dhcpconn->hismac[0], dhcpconn->hismac[1],
+               dhcpconn->hismac[2], dhcpconn->hismac[3],
+               dhcpconn->hismac[4], dhcpconn->hismac[5],
+               inet_ntoa(dhcpconn->hisip));
 
-      fwrite(dhcpconn, sizeof(struct dhcp_conn_t), 1, file);
-      fputc(MARK_NEXT, file);
-      appconn = (struct app_conn_t *)dhcpconn->peer;
-      if (appconn) {
-	fwrite(appconn, sizeof(struct app_conn_t), 1, file);
-	fputc(MARK_NEXT, file);
-      }
-      break;
+        fwrite(dhcpconn, sizeof(struct dhcp_conn_t), 1, file);
+        fputc(MARK_NEXT, file);
+        appconn = (struct app_conn_t *)dhcpconn->peer;
+        if (appconn) {
+          fwrite(appconn, sizeof(struct app_conn_t), 1, file);
+          fputc(MARK_NEXT, file);
+        }
+        break;
     }
 
     dhcpconn = dhcpconn->next;

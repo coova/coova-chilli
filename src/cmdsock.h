@@ -52,8 +52,8 @@ typedef enum {
   CMDSOCK_INSPECT,
 #endif
 #if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
- CMDSOCK_LISTLOC,
- CMDSOCK_LISTLOCSUM,
+  CMDSOCK_LISTLOC,
+  CMDSOCK_LISTLOCSUM,
 #endif
 } chilli_cmdtype;
 #define  CMDSOCK_OPT_JSON      (1)

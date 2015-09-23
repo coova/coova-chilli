@@ -47,8 +47,8 @@
 #define SSL_SOCKET_CLOSE_NOTIFY  0x0002
 #define	SOCKET_ERROR -1
 
-#define socketAssert(C) if (C) ; else {printf("%s:%d sslAssert(%s)\n",\
-						__FILE__, __LINE__, #C);  }
+#define socketAssert(C) if (C) ; else {printf("%s:%d sslAssert(%s)\n",  \
+                                              __FILE__, __LINE__, #C);  }
 #ifndef min
 #define min(a, b)  ( (a) < (b) ) ? (a) : (b)
 #endif /* min */
@@ -76,11 +76,11 @@ SSL * SSL_new(sslKeys_t *keys, int flags) {
 
   ssl->insock.size = 1024;
   ssl->insock.buf = ssl->insock.start = ssl->insock.end =
-    (unsigned char *)malloc(ssl->insock.size);
+      (unsigned char *)malloc(ssl->insock.size);
 
   ssl->outsock.size = 1024;
   ssl->outsock.buf = ssl->outsock.start = ssl->outsock.end =
-    (unsigned char *)malloc(ssl->outsock.size);
+      (unsigned char *)malloc(ssl->outsock.size);
 
   ssl->inbuf.size = 0;
   ssl->inbuf.buf = ssl->inbuf.start = ssl->inbuf.end = NULL;
@@ -102,7 +102,7 @@ int SSL_accept(SSL *ssl) {
   syslog(LOG_DEBUG, "MatrixSSL_accept()");
 #endif
 
- readMore:
+readMore:
   rc = _ssl_read(ssl, buf, sizeof(buf));
   if (rc == 0) {
     if (ssl->status == SSL_SOCKET_EOF || ssl->status == SSL_SOCKET_CLOSE_NOTIFY) {
@@ -166,7 +166,7 @@ void SSL_set_fd(SSL *ssl, int fd) {
 
 int SSL_read(SSL *ssl, char *buf, int len) {
   int rc;
- readMore:
+readMore:
   rc = _ssl_read(ssl, buf, len);
   syslog(LOG_DEBUG, "SSL_read(%d) = %d", len, rc);
   if (rc <= 0) {
@@ -182,7 +182,7 @@ int SSL_read(SSL *ssl, char *buf, int len) {
 
 int SSL_write(SSL *ssl, char *buf, int len) {
   int rc;
- writeMore:
+writeMore:
   rc = _ssl_write(ssl, buf, len);
   if (rc <= 0) {
     if (rc < 0) {
@@ -195,13 +195,13 @@ int SSL_write(SSL *ssl, char *buf, int len) {
 
 int SSL_pending(SSL *ssl) {
   unsigned long available =
-    ssl->inbuf.buf ?
-    ((unsigned long)(ssl->inbuf.end) -
-     (unsigned long)(ssl->inbuf.start)) :
-    ssl->insock.buf ?
-    ((unsigned long)(ssl->insock.end) -
-     (unsigned long)(ssl->insock.start)) :
-    0;
+      ssl->inbuf.buf ?
+      ((unsigned long)(ssl->inbuf.end) -
+       (unsigned long)(ssl->inbuf.start)) :
+      ssl->insock.buf ?
+      ((unsigned long)(ssl->insock.end) -
+       (unsigned long)(ssl->insock.start)) :
+      0;
   if (ssl->pending && !available) {
     available = 1;
     ssl->pending=0;
@@ -258,8 +258,8 @@ int SSL_connect(SSL *ssl, int (*certValidator)(sslCertInfo_t *t, void *arg), voi
 
 /******************************************************************************/
 /*
-	Construct the initial HELLO message to send to the server and initiate
-	the SSL handshake.  Can be used in the re-handshake scenario as well.
+  Construct the initial HELLO message to send to the server and initiate
+  the SSL handshake.  Can be used in the re-handshake scenario as well.
 */
 int _ssl_doHandshake(SSL *ssl) {
   char	buf[1024];
@@ -298,21 +298,21 @@ int _ssl_doHandshake(SSL *ssl) {
     data back, so the finished case is simply when the handshake is
     complete.
   */
- readMore:
+readMore:
   rc = _ssl_read(ssl, buf, 1024);
 
   /*
     Reading handshake records should always return 0 bytes, we aren't
-	expecting any data yet.
+    expecting any data yet.
   */
   if(rc > 0 || (rc == 0 && matrixSslHandshakeIsComplete(ssl->ssl) == 0))
-    {
-      goto readMore;
-    }
+  {
+    goto readMore;
+  }
   if(rc < 0)
-    {
-      return -1;
-    }
+  {
+    return -1;
+  }
 
   return 0;
 
@@ -416,7 +416,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
     if we can.
   */
   performRead = 0;
- readMore:
+readMore:
   if (ssl->insock.end == ssl->insock.start || performRead) {
     performRead = 1;
     bytes = recv(ssl->fd, (char *)ssl->insock.end,
@@ -446,7 +446,7 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
   /*
     Decode the data we just read from the socket
   */
- decodeMore:
+decodeMore:
   error = 0;
   alertLevel = 0;
   alertDescription = 0;
@@ -457,143 +457,143 @@ static int _ssl_read(SSL *ssl, char *buf, int len) {
     /*
       Successfully decoded a record that did not return data or require a response.
     */
-  case SSL_SUCCESS:
-syslog(LOG_DEBUG, "SSL_SUCCESS");
-		return 0;
-		/*
-		  Successfully decoded an application data record, and placed in tmp buf
-		*/
-  case SSL_PROCESS_DATA:
-syslog(LOG_DEBUG, "SSL_PROCESS_DATA");
-    /*
-      Copy as much as we can from the temp buffer into the caller's buffer
-      and leave the remainder in conn->inbuf until the next call to read
-      It is possible that len > data in buffer if the encoded record
-      was longer than len, but the decoded record isn't!
-    */
-    rc = (int)(ssl->inbuf.end - ssl->inbuf.start);
-    rc = min(rc, len);
-    memcpy(buf, ssl->inbuf.start, rc);
-    ssl->inbuf.start += rc;
-    return rc;
-    /*
-      We've decoded a record that requires a response into tmp
-      If there is no data to be flushed in the out buffer, we can write out
-      the contents of the tmp buffer.  Otherwise, we need to append the data
-      to the outgoing data buffer and flush it out.
-    */
-  case SSL_SEND_RESPONSE:
-syslog(LOG_DEBUG, "SSL_SEND_RESPONSE");
-    bytes = send(ssl->fd, (char *)ssl->inbuf.start,
-		 (int)(ssl->inbuf.end - ssl->inbuf.start), MSG_NOSIGNAL);
-    if (bytes == -1) {
-      ssl->status = errno;
-      if (ssl->status != EAGAIN) {
-	goto readError;
-      }
-      ssl->status = 0;
-    }
-    ssl->inbuf.start += bytes;
-    if (ssl->inbuf.start < ssl->inbuf.end) {
+    case SSL_SUCCESS:
+      syslog(LOG_DEBUG, "SSL_SUCCESS");
+      return 0;
       /*
-	This must be a non-blocking socket since it didn't all get sent
-	out and there was no error.  We want to finish the send here
-	simply because we are likely in the SSL handshake.
+        Successfully decoded an application data record, and placed in tmp buf
       */
-      _ssl_setSocketBlock(ssl->fd);
+    case SSL_PROCESS_DATA:
+      syslog(LOG_DEBUG, "SSL_PROCESS_DATA");
+      /*
+        Copy as much as we can from the temp buffer into the caller's buffer
+        and leave the remainder in conn->inbuf until the next call to read
+        It is possible that len > data in buffer if the encoded record
+        was longer than len, but the decoded record isn't!
+      */
+      rc = (int)(ssl->inbuf.end - ssl->inbuf.start);
+      rc = min(rc, len);
+      memcpy(buf, ssl->inbuf.start, rc);
+      ssl->inbuf.start += rc;
+      return rc;
+      /*
+        We've decoded a record that requires a response into tmp
+        If there is no data to be flushed in the out buffer, we can write out
+        the contents of the tmp buffer.  Otherwise, we need to append the data
+        to the outgoing data buffer and flush it out.
+      */
+    case SSL_SEND_RESPONSE:
+      syslog(LOG_DEBUG, "SSL_SEND_RESPONSE");
       bytes = send(ssl->fd, (char *)ssl->inbuf.start,
-		   (int)(ssl->inbuf.end - ssl->inbuf.start), MSG_NOSIGNAL);
+                   (int)(ssl->inbuf.end - ssl->inbuf.start), MSG_NOSIGNAL);
       if (bytes == -1) {
-	ssl->status = errno;
-	goto readError;
+        ssl->status = errno;
+        if (ssl->status != EAGAIN) {
+          goto readError;
+        }
+        ssl->status = 0;
       }
       ssl->inbuf.start += bytes;
-      /*
-	Can safely set back to non-blocking because we wouldn't
-	have got here if this socket wasn't non-blocking to begin with.
-      */
-      _ssl_setSocketNonblock(ssl->fd);
-    }
-    ssl->inbuf.start = ssl->inbuf.end = ssl->inbuf.buf;
-    return 0;
-    /*
-      There was an error decoding the data, or encoding the out buffer.
-      There may be a response data in the out buffer, so try to send.
-      We try a single hail-mary send of the data, and then close the socket.
-      Since we're closing on error, we don't worry too much about a clean flush.
-    */
-  case SSL_ERROR:
-syslog(LOG_DEBUG, "SSL_ERROR");
-    syslog(LOG_DEBUG, "ssl error");
-    if (ssl->inbuf.start < ssl->inbuf.end) {
-      _ssl_setSocketNonblock(ssl->fd);
-      bytes = send(ssl->fd, (char *)ssl->inbuf.start,
-		   (int)(ssl->inbuf.end - ssl->inbuf.start), MSG_NOSIGNAL);
-    }
-    goto readError;
-    /*
-      We've decoded an alert.  The level and description passed into
-      matrixSslDecode are filled in with the specifics.
-    */
-  case SSL_ALERT:
-syslog(LOG_DEBUG, "SSL_ALERT");
-    syslog(LOG_DEBUG, "ssl alert");
-    if (alertDescription == SSL_ALERT_CLOSE_NOTIFY) {
-      ssl->status = SSL_SOCKET_CLOSE_NOTIFY;
-      goto readZero;
-    }
-    goto readError;
-    /*
-      We have a partial record, we need to read more data off the socket.
-      If we have a completely full conn->insock buffer, we'll need to grow it
-      here so that we CAN read more data when called the next time.
-    */
-  case SSL_PARTIAL:
-syslog(LOG_DEBUG, "SSL_PARTIAL");
-    if (ssl->insock.start == ssl->insock.buf && ssl->insock.end ==
-	(ssl->insock.buf + ssl->insock.size)) {
-      if (ssl->insock.size > SSL_MAX_BUF_SIZE) {
-	goto readError;
+      if (ssl->inbuf.start < ssl->inbuf.end) {
+        /*
+          This must be a non-blocking socket since it didn't all get sent
+          out and there was no error.  We want to finish the send here
+          simply because we are likely in the SSL handshake.
+        */
+        _ssl_setSocketBlock(ssl->fd);
+        bytes = send(ssl->fd, (char *)ssl->inbuf.start,
+                     (int)(ssl->inbuf.end - ssl->inbuf.start), MSG_NOSIGNAL);
+        if (bytes == -1) {
+          ssl->status = errno;
+          goto readError;
+        }
+        ssl->inbuf.start += bytes;
+        /*
+          Can safely set back to non-blocking because we wouldn't
+          have got here if this socket wasn't non-blocking to begin with.
+        */
+        _ssl_setSocketNonblock(ssl->fd);
       }
-      ssl->insock.size *= 2;
-      ssl->insock.start = ssl->insock.buf =
-	(unsigned char *)realloc(ssl->insock.buf, ssl->insock.size);
-      ssl->insock.end = ssl->insock.buf + (ssl->insock.size / 2);
-    }
-    if (!performRead) {
-      performRead = 1;
-      free(ssl->inbuf.buf);
-      ssl->inbuf.buf = NULL;
-      goto readMore;
-    } else {
-      goto readZero;
-    }
-    /*
-      The out buffer is too small to fit the decoded or response
-      data.  Increase the size of the buffer and call decode again
-    */
-  case SSL_FULL:
-syslog(LOG_DEBUG, "SSL_FULL");
-    ssl->inbuf.size *= 2;
-    if (ssl->inbuf.buf != (unsigned char*)buf) {
-      free(ssl->inbuf.buf);
-      ssl->inbuf.buf = NULL;
-    }
-    ssl->inbuf.start = ssl->inbuf.end = ssl->inbuf.buf =
-      (unsigned char *)malloc(ssl->inbuf.size);
-		goto decodeMore;
+      ssl->inbuf.start = ssl->inbuf.end = ssl->inbuf.buf;
+      return 0;
+      /*
+        There was an error decoding the data, or encoding the out buffer.
+        There may be a response data in the out buffer, so try to send.
+        We try a single hail-mary send of the data, and then close the socket.
+        Since we're closing on error, we don't worry too much about a clean flush.
+      */
+    case SSL_ERROR:
+      syslog(LOG_DEBUG, "SSL_ERROR");
+      syslog(LOG_DEBUG, "ssl error");
+      if (ssl->inbuf.start < ssl->inbuf.end) {
+        _ssl_setSocketNonblock(ssl->fd);
+        bytes = send(ssl->fd, (char *)ssl->inbuf.start,
+                     (int)(ssl->inbuf.end - ssl->inbuf.start), MSG_NOSIGNAL);
+      }
+      goto readError;
+      /*
+        We've decoded an alert.  The level and description passed into
+        matrixSslDecode are filled in with the specifics.
+      */
+    case SSL_ALERT:
+      syslog(LOG_DEBUG, "SSL_ALERT");
+      syslog(LOG_DEBUG, "ssl alert");
+      if (alertDescription == SSL_ALERT_CLOSE_NOTIFY) {
+        ssl->status = SSL_SOCKET_CLOSE_NOTIFY;
+        goto readZero;
+      }
+      goto readError;
+      /*
+        We have a partial record, we need to read more data off the socket.
+        If we have a completely full conn->insock buffer, we'll need to grow it
+        here so that we CAN read more data when called the next time.
+      */
+    case SSL_PARTIAL:
+      syslog(LOG_DEBUG, "SSL_PARTIAL");
+      if (ssl->insock.start == ssl->insock.buf && ssl->insock.end ==
+          (ssl->insock.buf + ssl->insock.size)) {
+        if (ssl->insock.size > SSL_MAX_BUF_SIZE) {
+          goto readError;
+        }
+        ssl->insock.size *= 2;
+        ssl->insock.start = ssl->insock.buf =
+            (unsigned char *)realloc(ssl->insock.buf, ssl->insock.size);
+        ssl->insock.end = ssl->insock.buf + (ssl->insock.size / 2);
+      }
+      if (!performRead) {
+        performRead = 1;
+        free(ssl->inbuf.buf);
+        ssl->inbuf.buf = NULL;
+        goto readMore;
+      } else {
+        goto readZero;
+      }
+      /*
+        The out buffer is too small to fit the decoded or response
+        data.  Increase the size of the buffer and call decode again
+      */
+    case SSL_FULL:
+      syslog(LOG_DEBUG, "SSL_FULL");
+      ssl->inbuf.size *= 2;
+      if (ssl->inbuf.buf != (unsigned char*)buf) {
+        free(ssl->inbuf.buf);
+        ssl->inbuf.buf = NULL;
+      }
+      ssl->inbuf.start = ssl->inbuf.end = ssl->inbuf.buf =
+          (unsigned char *)malloc(ssl->inbuf.size);
+      goto decodeMore;
   }
   /*
     We consolidated some of the returns here because we must ensure
     that conn->inbuf is cleared if pointing at caller's buffer, otherwise
     it will be freed later on.
   */
- readZero:
+readZero:
   if (ssl->inbuf.buf == (unsigned char*)buf) {
     ssl->inbuf.buf = NULL;
   }
   return 0;
- readError:
+readError:
   if (ssl->inbuf.buf == (unsigned char*)buf) {
     ssl->inbuf.buf = NULL;
   }
@@ -622,7 +622,7 @@ int _ssl_write(SSL *ssl, char *buf, int len)
     If there is buffered output data, the caller must be trying to
     send the same amount of data as last time.  We don't support
     sending additional data until the original buffered request has
-	been completely sent.
+    been completely sent.
   */
   if (ssl->outBufferCount > 0 && len != ssl->outBufferCount) {
     return -1;
@@ -631,22 +631,22 @@ int _ssl_write(SSL *ssl, char *buf, int len)
     If we don't have buffered data, encode the caller's data
   */
   if (ssl->outBufferCount == 0) {
-  retryEncode:
+ retryEncode:
     rc = matrixSslEncode(ssl->ssl, (unsigned char *)buf, len, &ssl->outsock);
     switch (rc) {
-    case SSL_ERROR:
-      return -1;
-    case SSL_FULL:
+      case SSL_ERROR:
+        return -1;
+      case SSL_FULL:
 
-      if (ssl->outsock.size > SSL_MAX_BUF_SIZE) {
-	return -1;
-      }
-      ssl->outsock.size *= 2;
-      ssl->outsock.buf =
-	(unsigned char *)realloc(ssl->outsock.buf, ssl->outsock.size);
-      ssl->outsock.end = ssl->outsock.buf + (ssl->outsock.end - ssl->outsock.start);
-      ssl->outsock.start = ssl->outsock.buf;
-      goto retryEncode;
+        if (ssl->outsock.size > SSL_MAX_BUF_SIZE) {
+          return -1;
+        }
+        ssl->outsock.size *= 2;
+        ssl->outsock.buf =
+            (unsigned char *)realloc(ssl->outsock.buf, ssl->outsock.size);
+        ssl->outsock.end = ssl->outsock.buf + (ssl->outsock.end - ssl->outsock.start);
+        ssl->outsock.start = ssl->outsock.buf;
+        goto retryEncode;
     }
   }
   /*
@@ -670,4 +670,3 @@ int _ssl_write(SSL *ssl, char *buf, int len)
   ssl->outBufferCount = len;
   return 0;
 }
-

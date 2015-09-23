@@ -52,32 +52,32 @@ int option_aton(struct in_addr *addr, struct in_addr *mask,
 	     &m1, &m2, &m3, &m4);
 
   switch (c) {
-  case 4:
-    mask->s_addr = htonl(0xffffff00);
-    break;
-  case 5:
-    if (m1 > 32) {
+    case 4:
+      mask->s_addr = htonl(0xffffff00);
+      break;
+    case 5:
+      if (m1 > 32) {
+        syslog(LOG_ERR, "Invalid mask");
+        return -1; /* Invalid mask */
+      }
+      mask->s_addr = m1 > 0 ? htonl(0xffffffff << (32 - m1)) : 0;
+      break;
+    case 8:
+      if (m1 >= 256 ||  m2 >= 256 || m3 >= 256 || m4 >= 256) {
+        syslog(LOG_ERR, "Invalid mask");
+        return -1; /* Wrong mask format */
+      }
+      m = m1 * 0x1000000 + m2 * 0x10000 + m3 * 0x100 + m4;
+      for (masklog = 0; ((1 << masklog) < ((~m)+1)); masklog++);
+      if (((~m)+1) != (1 << masklog)) {
+        syslog(LOG_ERR, "Invalid mask");
+        return -1; /* Wrong mask format (not all ones followed by all zeros)*/
+      }
+      mask->s_addr = htonl(m);
+      break;
+    default:
       syslog(LOG_ERR, "Invalid mask");
       return -1; /* Invalid mask */
-    }
-    mask->s_addr = m1 > 0 ? htonl(0xffffffff << (32 - m1)) : 0;
-    break;
-  case 8:
-    if (m1 >= 256 ||  m2 >= 256 || m3 >= 256 || m4 >= 256) {
-      syslog(LOG_ERR, "Invalid mask");
-      return -1; /* Wrong mask format */
-    }
-    m = m1 * 0x1000000 + m2 * 0x10000 + m3 * 0x100 + m4;
-    for (masklog = 0; ((1 << masklog) < ((~m)+1)); masklog++);
-    if (((~m)+1) != (1 << masklog)) {
-      syslog(LOG_ERR, "Invalid mask");
-      return -1; /* Wrong mask format (not all ones followed by all zeros)*/
-    }
-    mask->s_addr = htonl(m);
-    break;
-  default:
-    syslog(LOG_ERR, "Invalid mask");
-    return -1; /* Invalid mask */
   }
 
   if (a1 >= 256 ||  a2 >= 256 || a3 >= 256 || a4 >= 256) {
@@ -169,11 +169,11 @@ int options_load(int argc, char **argv, bstring bt) {
 	if (offline) {
 	  execl(
 #ifdef ENABLE_CHILLISCRIPT
-		SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig,
+              SBINDIR "/chilli_script", SBINDIR "/chilli_script", _options.binconfig,
 #else
-		offline,
+              offline,
 #endif
-		offline, (char *) 0);
+              offline, (char *) 0);
 
 	  break;
 	}
@@ -195,17 +195,17 @@ int options_mkdir(char *path) {
 
   if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO)) {
     switch (errno) {
-    case EEXIST:
-      /* not necessarily a directory */
-      unlink(path);
-      if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO)) {
-	syslog(LOG_ERR, "%s: mkdir %s", strerror(errno), path);
-	return -1;
-      }
-      break;
-    default:
-      syslog(LOG_ERR, "%s: mkdir %s", strerror(errno), path);
-      return -1;
+      case EEXIST:
+        /* not necessarily a directory */
+        unlink(path);
+        if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO)) {
+          syslog(LOG_ERR, "%s: mkdir %s", strerror(errno), path);
+          return -1;
+        }
+        break;
+      default:
+        syslog(LOG_ERR, "%s: mkdir %s", strerror(errno), path);
+        return -1;
     }
   }
 
@@ -397,7 +397,7 @@ int options_fromfd(int fd, bstring bt) {
     if (!_options.modules[i].ctx) continue;
     else {
       struct chilli_module *m =
-	(struct chilli_module *)_options.modules[i].ctx;
+          (struct chilli_module *)_options.modules[i].ctx;
       if (!strcmp(_options.modules[i].name, o.modules[i].name))
 	isReload[i]=1;
       if (m->destroy)
@@ -421,7 +421,7 @@ int options_fromfd(int fd, bstring bt) {
 		       _options.modules[i].name);
     if (_options.modules[i].ctx) {
       struct chilli_module *m =
-	(struct chilli_module *)_options.modules[i].ctx;
+          (struct chilli_module *)_options.modules[i].ctx;
       if (m->initialize)
 	m->initialize(_options.modules[i].conf, isReload[i]);
     }
@@ -607,7 +607,7 @@ int options_save(char *file, bstring bt) {
     if (_options.uid) {
       if (chown(file, _options.uid, _options.gid)) {
 	syslog(LOG_ERR, "%d could not chown() %s",
-		errno, _options.binconfig);
+               errno, _options.binconfig);
       }
     }
   }
@@ -679,7 +679,7 @@ void options_cleanup() {
     if (!_options.modules[i].ctx) continue;
     else {
       struct chilli_module *m =
-	(struct chilli_module *)_options.modules[i].ctx;
+          (struct chilli_module *)_options.modules[i].ctx;
       if (m->destroy)
 	m->destroy(0);
     }

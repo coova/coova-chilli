@@ -45,7 +45,7 @@ int conn_sock(struct conn_t *conn, struct in_addr *addr, int port) {
 		     sizeof(server)) < 0) {
       if (errno != EINPROGRESS) {
 	syslog(LOG_ERR, "%d could not connect to %s:%d",
-		errno, inet_ntoa(server.sin_addr), port);
+               errno, inet_ntoa(server.sin_addr), port);
 	close(sock);
 	return -1;
       }
@@ -68,7 +68,7 @@ int conn_setup(struct conn_t *conn, char *hostname,
 
   if (!(host = gethostbyname(hostname)) || !host->h_addr_list[0]) {
     syslog(LOG_ERR, "Could not resolve IP address of uamserver: %s! [%s]",
-	    hostname, strerror(errno));
+           hostname, strerror(errno));
     return -1;
   }
 
@@ -153,15 +153,15 @@ int conn_update_write(struct conn_t *conn) {
 int conn_select_update(struct conn_t *conn, select_ctx *sctx) {
   if (conn->sock) {
     switch (net_select_read_fd(sctx, conn->sock)) {
-    case -1:
-      syslog(LOG_DEBUG, "exception");
-      conn_finish(conn);
-      return -1;
+      case -1:
+        syslog(LOG_DEBUG, "exception");
+        conn_finish(conn);
+        return -1;
 
-    case 1:
-      if (conn->read_handler)
-	conn->read_handler(conn, conn->read_handler_ctx);
-      break;
+      case 1:
+        if (conn->read_handler)
+          conn->read_handler(conn, conn->read_handler_ctx);
+        break;
     }
 
     if (net_select_write_fd(sctx, conn->sock)==1)

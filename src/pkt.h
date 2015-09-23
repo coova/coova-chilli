@@ -202,39 +202,39 @@ struct pkt_dhcp6hdr_t {
 } __attribute__((packed));
 
 #define ICMPv6_NEXT_HEADER 58
-#define ipv6_version(x)  /*lazy!*/ \
-((((1<<31)|(1<<30)|(1<<29)|(1<<28))&(ntohl((x)->ver_class_label)))>>28)
-#define ipv6_class(x) \
-((((1<<27)|(1<<26)|(1<<25)|(1<<24)|(1<<23)|(1<<22)|(1<<21)|(1<<20))&(ntohl((x)->ver_class_label)))>>20)
+#define ipv6_version(x)  /*lazy!*/                                      \
+  ((((1<<31)|(1<<30)|(1<<29)|(1<<28))&(ntohl((x)->ver_class_label)))>>28)
+#define ipv6_class(x)                                                   \
+  ((((1<<27)|(1<<26)|(1<<25)|(1<<24)|(1<<23)|(1<<22)|(1<<21)|(1<<20))&(ntohl((x)->ver_class_label)))>>20)
 
 #define IPv6_ADDR_FMT "%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x"
-#define ipv6_exlode_addr(x) \
+#define ipv6_exlode_addr(x)                                             \
   (int) x[0], (int) x[1], (int) x[2], (int) x[3], (int) x[4], (int) x[5], \
-  (int) x[6], (int) x[7], (int) x[8], (int) x[9], (int) x[10], (int) x[11],\
-  (int) x[12], (int) x[13], (int) x[14], (int) x[15]
+    (int) x[6], (int) x[7], (int) x[8], (int) x[9], (int) x[10], (int) x[11], \
+    (int) x[12], (int) x[13], (int) x[14], (int) x[15]
 
-#define ipv6_nat64_pack(d, p) \
-  *(d)++ = 0x11; *(d)++ = 0x12; *(d)++ = 0; *(d)++ = 0; \
-  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
-  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
+#define ipv6_nat64_pack(d, p)                                           \
+  *(d)++ = 0x11; *(d)++ = 0x12; *(d)++ = 0; *(d)++ = 0;                 \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0;                       \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0;                       \
   *(d)++ = (p)[0]; *(d)++ = (p)[1]; *(d)++ = (p)[2] ;*(d)++ = (p)[3]
 
-#define ipv6_nat64_prefix(d) \
+#define ipv6_nat64_prefix(d)                            \
   *(d)++ = 0x11; *(d)++ = 0x12; *(d)++ = 0; *(d)++ = 0; \
-  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
-  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0;       \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0;       \
   *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0
 
-#define ipv6_eui64_pack(d, p) \
-  *(d)++ = 0x11; *(d)++ = 0x11; *(d)++ = 0; *(d)++ = 0; \
-  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
-  *(d)++ = (p)[0]; *(d)++ = (p)[1]; *(d)++ = (p)[2] ;*(d)++ = 0xff; \
+#define ipv6_eui64_pack(d, p)                                           \
+  *(d)++ = 0x11; *(d)++ = 0x11; *(d)++ = 0; *(d)++ = 0;                 \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0;                       \
+  *(d)++ = (p)[0]; *(d)++ = (p)[1]; *(d)++ = (p)[2] ;*(d)++ = 0xff;     \
   *(d)++ = 0xfe; *(d)++ = (p)[3]; *(d)++ = (p)[4] ;*(d)++ = (p)[5]
 
-#define ipv6_eui64_prefix(d) \
+#define ipv6_eui64_prefix(d)                            \
   *(d)++ = 0x11; *(d)++ = 0x11; *(d)++ = 0; *(d)++ = 0; \
-  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
-  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0;       \
+  *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0;       \
   *(d)++ = 0; *(d)++ = 0; *(d)++ = 0; *(d)++ = 0
 
 #endif
@@ -291,25 +291,25 @@ struct pkt_udphdr_t {
 /*
   TCP Header Format
 
-    0                   1                   2                   3
-    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |          Source Port          |       Destination Port        |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                        Sequence Number                        |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                    Acknowledgment Number                      |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |  Data |           |U|A|P|R|S|F|                               |
-   | Offset| Reserved  |R|C|S|S|Y|I|            Window             |
-   |       |           |G|K|H|T|N|N|                               |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |           Checksum            |         Urgent Pointer        |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                    Options                    |    Padding    |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |                             data                              |
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |          Source Port          |       Destination Port        |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                        Sequence Number                        |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                    Acknowledgment Number                      |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |  Data |           |U|A|P|R|S|F|                               |
+  | Offset| Reserved  |R|C|S|S|Y|I|            Window             |
+  |       |           |G|K|H|T|N|N|                               |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |           Checksum            |         Urgent Pointer        |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                    Options                    |    Padding    |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  |                             data                              |
+  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 */
 
 struct pkt_tcphdr_t {
@@ -338,37 +338,37 @@ struct pkt_tcphdr_t {
 #define tcphdr_ack(hdr) (((hdr)->flags & TCPHDR_FLAG_ACK)==TCPHDR_FLAG_ACK)
 #define tcphdr_psh(hdr) (((hdr)->flags & TCPHDR_FLAG_PSH)==TCPHDR_FLAG_PSH)
 
-/*
-  0                   1                   2                   3
-   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-   |     op (1)    |   htype (1)   |   hlen (1)    |   hops (1)    |
-   +---------------+---------------+---------------+---------------+
-   |                            xid (4)                            |
-   +-------------------------------+-------------------------------+
-   |           secs (2)            |           flags (2)           |
-   +-------------------------------+-------------------------------+
-   |                          ciaddr  (4)                          |
-   +---------------------------------------------------------------+
-   |                          yiaddr  (4)                          |
-   +---------------------------------------------------------------+
-   |                          siaddr  (4)                          |
-   +---------------------------------------------------------------+
-   |                          giaddr  (4)                          |
-   +---------------------------------------------------------------+
-   |                          chaddr  (16)                         |
-   |                             (cont)                            |
-   +---------------------------------------------------------------+
-   |                          sname   (64)                         |
-   |                             (cont)                            |
-   +---------------------------------------------------------------+
-   |                          file    (128)                        |
-   |                             (cont)                            |
-   +---------------------------------------------------------------+
-   |                          options (variable)                   |
-   |                             (cont)                            |
-   +---------------------------------------------------------------+
-*/
+    /*
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+      |     op (1)    |   htype (1)   |   hlen (1)    |   hops (1)    |
+      +---------------+---------------+---------------+---------------+
+      |                            xid (4)                            |
+      +-------------------------------+-------------------------------+
+      |           secs (2)            |           flags (2)           |
+      +-------------------------------+-------------------------------+
+      |                          ciaddr  (4)                          |
+      +---------------------------------------------------------------+
+      |                          yiaddr  (4)                          |
+      +---------------------------------------------------------------+
+      |                          siaddr  (4)                          |
+      +---------------------------------------------------------------+
+      |                          giaddr  (4)                          |
+      +---------------------------------------------------------------+
+      |                          chaddr  (16)                         |
+      |                             (cont)                            |
+      +---------------------------------------------------------------+
+      |                          sname   (64)                         |
+      |                             (cont)                            |
+      +---------------------------------------------------------------+
+      |                          file    (128)                        |
+      |                             (cont)                            |
+      +---------------------------------------------------------------+
+      |                          options (variable)                   |
+      |                             (cont)                            |
+      +---------------------------------------------------------------+
+    */
 
 struct dhcp_packet_t { /* From RFC 2131 */
   uint8_t op;       /* 1 Message op code / message type.  1 = BOOTREQUEST, 2 = BOOTREPLY */
@@ -402,21 +402,21 @@ struct dhcp_tag_t {
 
 struct arp_packet_t { /* From RFC 826 */
   uint16_t hrd; /* 16.bit: (ar$hrd) Hardware address space (e.g.,
-		    Ethernet, Packet Radio Net.) */
+                   Ethernet, Packet Radio Net.) */
   uint16_t pro; /* 16.bit: (ar$pro) Protocol address space.  For
-		    Ethernet hardware, this is from the set of type
-		    fields ether_typ$<protocol>. */
+                   Ethernet hardware, this is from the set of type
+                   fields ether_typ$<protocol>. */
   uint8_t hln;  /* 8.bit: (ar$hln) byte length of each hardware address */
   uint8_t pln;  /* 8.bit: (ar$pln) byte length of each protocol address */
   uint16_t op;  /* 16.bit: (ar$op)  opcode (ares_op$REQUEST | ares_op$REPLY) */
   uint8_t sha[PKT_ETH_ALEN]; /* nbytes: (ar$sha) Hardware address of
-		    sender of this packet, n from the ar$hln field. */
+                                sender of this packet, n from the ar$hln field. */
   uint8_t spa[PKT_IP_ALEN];  /* mbytes: (ar$spa) Protocol address of
-		    sender of this packet, m from the ar$pln field. */
+                                sender of this packet, m from the ar$pln field. */
   uint8_t tha[PKT_ETH_ALEN]; /* nbytes: (ar$tha) Hardware address of
-		  target of this packet (if known). */
+                                target of this packet (if known). */
   uint8_t tpa[PKT_IP_ALEN]; /* mbytes: (ar$tpa) Protocol address of
-				 target.*/
+                               target.*/
 } __attribute__((packed));
 
 
@@ -468,12 +468,12 @@ struct pkt_chillihdr_t {
 #define sizeofeth(pkt)   (sizeofeth2(is_8021q(pkt)))
 #define ethhdr8021q(pkt) ((struct pkt_ethhdr8021q_t *)pkt)
 
-#define copy_ethproto(o,n)  \
-  if (is_8021q(o)) { \
+#define copy_ethproto(o,n)                                              \
+  if (is_8021q(o)) {                                                    \
     ((struct pkt_ethhdr8021q_t *)n)->tpid = htons(PKT_ETH_PROTO_8021Q); \
     ((struct pkt_ethhdr8021q_t *)n)->pcp_cfi_vid = ((struct pkt_ethhdr8021q_t *)o)->pcp_cfi_vid; \
     ((struct pkt_ethhdr8021q_t *)n)->prot = ((struct pkt_ethhdr8021q_t *)o)->prot; \
-  } else { \
+  } else {                                                              \
     ((struct pkt_ethhdr_t *)n)->prot = ((struct pkt_ethhdr_t *)o)->prot; \
   }
 
@@ -481,7 +481,7 @@ struct pkt_chillihdr_t {
 
 #define sizeofeth2(x)     (PKT_ETH_HLEN)
 #define sizeofeth(pkt)    (PKT_ETH_HLEN)
-#define copy_ethproto(o,n) { \
+#define copy_ethproto(o,n) {                                            \
     ((struct pkt_ethhdr_t *)n)->prot = ((struct pkt_ethhdr_t *)o)->prot; \
   }
 
@@ -541,16 +541,16 @@ struct pkt_buffer {
 };
 
 #define pkt_buffer_init(pb, b, blen, off)	\
-      (pb)->buf = (b);				\
-      (pb)->buflen = (blen);			\
-      (pb)->offset = (off);			\
-      (pb)->length = 0
+  (pb)->buf = (b);				\
+  (pb)->buflen = (blen);			\
+  (pb)->offset = (off);                         \
+  (pb)->length = 0
 
 #define pkt_buffer_init2(pb, b, blen, off, len)	\
-      (pb)->buf = (b);				\
-      (pb)->buflen = (blen);			\
-      (pb)->offset = (off);			\
-      (pb)->length = (len)
+  (pb)->buf = (b);				\
+  (pb)->buflen = (blen);			\
+  (pb)->offset = (off);                         \
+  (pb)->length = (len)
 
 #define pkt_buffer_head(pb)    ((pb)->buf + (pb)->offset)
 #define pkt_buffer_length(pb)  ((pb)->length)

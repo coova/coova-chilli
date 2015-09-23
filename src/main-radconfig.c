@@ -128,13 +128,13 @@ int static chilliauth() {
     radius_timeleft(radius, &idleTime);
 
     switch (status = select(maxfd + 1, &fds, NULL, NULL, &idleTime)) {
-    case -1:
-      syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
-      break;
-    case 0:
-      radius_timeout(radius);
-    default:
-      break;
+      case -1:
+        syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
+        break;
+      case 0:
+        radius_timeout(radius);
+      default:
+        break;
     }
 
     if (status > 0) {

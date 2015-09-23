@@ -41,15 +41,15 @@ int session_redir_json_fmt(bstring json, char *userurl, char *redirurl,
 #ifdef ENABLE_LAYER3
   if (!_options.layer3) {
 #endif
-  bcatcstr(json,"\",\"macAddress\":\"");
-  if (hismac) {
-    char mac[REDIR_MACSTRLEN+1];
-    safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		  (unsigned int)hismac[0], (unsigned int)hismac[1],
-		  (unsigned int)hismac[2], (unsigned int)hismac[3],
-		  (unsigned int)hismac[4], (unsigned int)hismac[5]);
-    bcatcstr(json, mac);
-  }
+    bcatcstr(json,"\",\"macAddress\":\"");
+    if (hismac) {
+      char mac[REDIR_MACSTRLEN+1];
+      safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+                    (unsigned int)hismac[0], (unsigned int)hismac[1],
+                    (unsigned int)hismac[2], (unsigned int)hismac[3],
+                    (unsigned int)hismac[4], (unsigned int)hismac[5]);
+      bcatcstr(json, mac);
+    }
 #ifdef ENABLE_LAYER3
   }
 #endif
@@ -107,8 +107,8 @@ int session_json_params(struct session_state *state,
 }
 
 int session_json_acct(struct session_state *state,
-		     struct session_params *params,
-		     bstring json, int init) {
+                      struct session_params *params,
+                      bstring json, int init) {
   bstring tmp = bfromcstr("");
   uint32_t inoctets = state->input_octets;
   uint32_t outoctets = state->output_octets;

@@ -30,7 +30,7 @@
 #include <getopt.h>
 
 #ifndef _debug_
-  #define _debug_ 0
+#define _debug_ 0
 #endif
 
 #define OPT_string  0
@@ -83,65 +83,65 @@ static int OPT_generic(struct gengetopt_args_info *args_info, int o,
 
   switch(opt->opt_type) {
 
-  case OPT_integer:
-    if (opt->offset_arg > 0) {
+    case OPT_integer:
+      if (opt->offset_arg > 0) {
 #if(_debug_)
-      if (opt->multi_opt) fprintf(stderr, "NOT SUPPORTED %s %s %d\n", __FUNCTION__, __FILE__, __LINE__);
+        if (opt->multi_opt) fprintf(stderr, "NOT SUPPORTED %s %s %d\n", __FUNCTION__, __FILE__, __LINE__);
 #endif
-      *((int *)(((char *)args_info) + opt->offset_arg)) = atoi((char *)d);
-    }
-    *given = 1;
-    break;
-
-  case OPT_flag:
-    if (opt->offset_arg > 0) {
-#if(_debug_)
-      if (opt->multi_opt) fprintf(stderr, "NOT SUPPORTED %s %s %d\n", __FUNCTION__, __FILE__, __LINE__);
-#endif
-      *((int *)(((char *)args_info) + opt->offset_arg)) = 1;
-    }
-    *given = 1;
-    break;
-
-  case OPT_string:
-    if (opt->offset_arg > 0) {
-      if (d) {
-	if (opt->multi_opt) {
-	  char ***p = (char ***) (((char *)args_info) + opt->offset_arg);
-	  char **lp = *p;
-	  int idx = *given;
-
-	  *given = *given + 1;
-
-	  if (lp) {
-	    lp = (char **)realloc(lp, *given * sizeof(char *));
-	  } else {
-	    lp = (char **)malloc(*given * sizeof(char *));
-	  }
-
-	  lp[idx] = strdup((char *)d);
-
-	  *p = lp;
-
-	} else {
-	  char **p = (char **) (((char *)args_info) + opt->offset_arg);
-	  if (*p) free(*p);
-	  *p = strdup((char *)d);
-	  *given = 1;
-	}
+        *((int *)(((char *)args_info) + opt->offset_arg)) = atoi((char *)d);
       }
-    }
-    break;
-
-  case OPT_long:
-    if (opt->offset_arg > 0) {
-#if(_debug_)
-      if (opt->multi_opt) fprintf(stderr, "NOT SUPPORTED %s %s %d\n", __FUNCTION__, __FILE__, __LINE__);
-      printf("long offset %d\n", opt->offset_arg);
-#endif
-      *((long *)(((char *)args_info) + opt->offset_arg)) = (long) atol((char *)d);
+      *given = 1;
       break;
-    }
+
+    case OPT_flag:
+      if (opt->offset_arg > 0) {
+#if(_debug_)
+        if (opt->multi_opt) fprintf(stderr, "NOT SUPPORTED %s %s %d\n", __FUNCTION__, __FILE__, __LINE__);
+#endif
+        *((int *)(((char *)args_info) + opt->offset_arg)) = 1;
+      }
+      *given = 1;
+      break;
+
+    case OPT_string:
+      if (opt->offset_arg > 0) {
+        if (d) {
+          if (opt->multi_opt) {
+            char ***p = (char ***) (((char *)args_info) + opt->offset_arg);
+            char **lp = *p;
+            int idx = *given;
+
+            *given = *given + 1;
+
+            if (lp) {
+              lp = (char **)realloc(lp, *given * sizeof(char *));
+            } else {
+              lp = (char **)malloc(*given * sizeof(char *));
+            }
+
+            lp[idx] = strdup((char *)d);
+
+            *p = lp;
+
+          } else {
+            char **p = (char **) (((char *)args_info) + opt->offset_arg);
+            if (*p) free(*p);
+            *p = strdup((char *)d);
+            *given = 1;
+          }
+        }
+      }
+      break;
+
+    case OPT_long:
+      if (opt->offset_arg > 0) {
+#if(_debug_)
+        if (opt->multi_opt) fprintf(stderr, "NOT SUPPORTED %s %s %d\n", __FUNCTION__, __FILE__, __LINE__);
+        printf("long offset %d\n", opt->offset_arg);
+#endif
+        *((long *)(((char *)args_info) + opt->offset_arg)) = (long) atol((char *)d);
+        break;
+      }
   }
 
   return 0;
@@ -174,7 +174,7 @@ int mini_cmdline_file(char *filename, struct gengetopt_args_info *args_info,
     str_index  = linebuf + next_token;
 
     if (str_index[0] == '\0' || str_index[0] == '#')
-        continue;
+      continue;
 
     fopt = str_index;
     next_token = strcspn(fopt, " \t\r\n=");
@@ -199,8 +199,8 @@ int mini_cmdline_file(char *filename, struct gengetopt_args_info *args_info,
       str_index = strchr(++farg, str_index[0]);
       if (!str_index) {
 	fprintf(stderr,
-	       "%s:%s:%d: unterminated string in configuration file\n",
-	       PACKAGE, filename, line_num);
+                "%s:%s:%d: unterminated string in configuration file\n",
+                PACKAGE, filename, line_num);
 	result = -1;
 	break;
       }
@@ -214,14 +214,14 @@ int mini_cmdline_file(char *filename, struct gengetopt_args_info *args_info,
       str_index += strspn(str_index, " \t\r\n");
       if (*str_index != '\0' && *str_index != '#') {
 	fprintf(stderr,
-                 "%s:%s:%d: malformed string in configuration file\n",
-                 PACKAGE, filename, line_num);
+                "%s:%s:%d: malformed string in configuration file\n",
+                PACKAGE, filename, line_num);
 	result = -1;
 	break;
       }
     }
 
-  noarg:
+ noarg:
     if (!strcmp(fopt,"include")) {
       if (farg && *farg) {
 	result = mini_cmdline_file(farg, args_info, 0, 0, 0);
@@ -259,27 +259,27 @@ int mini_cmdline_free(struct gengetopt_args_info *args_info) {
   for (i=0; i < opts_cnt; i++) {
     struct opt_def_t * opt = &opts[i];
     switch (opt->opt_type) {
-    case OPT_string:
-      if (opt->offset_arg) {
-	if (opt->multi_opt) {
-	  char ***v = (char ***) (((char *)args_info) + opt->offset_arg);
-	  unsigned int * given = (unsigned int *)(((char *)args_info) + opt->offset_given);
-	  int cnt = *given;
-	  int j;
+      case OPT_string:
+        if (opt->offset_arg) {
+          if (opt->multi_opt) {
+            char ***v = (char ***) (((char *)args_info) + opt->offset_arg);
+            unsigned int * given = (unsigned int *)(((char *)args_info) + opt->offset_given);
+            int cnt = *given;
+            int j;
 
-	  if (*v && cnt) {
-	    char **lp = *v;
-	    for (j=0; j<cnt; j++) {
-	      free(lp[j]);
-	    }
-	    free(*v);
-	  }
-	} else {
-	  char **v = (char **) (((char *)args_info) + opt->offset_arg);
-	  if (*v) free(*v);
-	}
-      }
-      break;
+            if (*v && cnt) {
+              char **lp = *v;
+              for (j=0; j<cnt; j++) {
+                free(lp[j]);
+              }
+              free(*v);
+            }
+          } else {
+            char **v = (char **) (((char *)args_info) + opt->offset_arg);
+            if (*v) free(*v);
+          }
+        }
+        break;
     }
   }
 
@@ -299,26 +299,26 @@ int mini_cmdline_parser2(int argc, char **argv,
 
   getopt_DEFAULTS
 
-  while(1) {
-    int option_index = 0;
-    c = getopt_long(argc, argv, getopt_OPTIONS, long_options, &option_index);
-    if (c == -1) break;
-    switch(c) {
-      getopt_CHECKS
+      while(1) {
+        int option_index = 0;
+        c = getopt_long(argc, argv, getopt_OPTIONS, long_options, &option_index);
+        if (c == -1) break;
+        switch(c) {
+          getopt_CHECKS
 
-    case 0:
-      OPT_generic(args_info, option_index, optarg, 1);
-      break;
+          case 0:
+          OPT_generic(args_info, option_index, optarg, 1);
+          break;
 
-    case '?':
-      fprintf(stderr,"invlid option %s\n", argv[optind-1]);
-      ret = -1;
-      break;
+          case '?':
+            fprintf(stderr,"invlid option %s\n", argv[optind-1]);
+            ret = -1;
+            break;
 
-    default:
-      break;
-    }
-  }
+          default:
+            break;
+        }
+      }
 
   if (optind < argc) {
     fprintf(stderr, "non-option ARGV-elements: ");

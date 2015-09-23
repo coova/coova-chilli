@@ -317,23 +317,23 @@ int net_getmac(const char *ifname, char *macaddr);
 int net_close(net_interface *netif);
 
 /*
-#ifdef USING_POLL
-#define fd_setR(sfd,fds)   if ((sfd) > 0) { (fds)->pfds[(fds)->count].fd = (sfd); (fds)->pfds[(fds)->count++].events = POLLIN; }
-#define fd_setW(sfd,fds)   if ((sfd) > 0) { (fds)->pfds[(fds)->count].fd = (sfd); (fds)->pfds[(fds)->count++].events = POLLOUT; }
-#define fd_issetR(fd,fds)  ((fd) > 0 && (fds)->rfds & (1<<fd))
-#else
-#define net_maxfd(this,max)  fd_max((this)->fd,(max))
-#endif
-#define net_fdsetR(this,fds) fd_setR((this)->fd, (fds))
-#define net_fdsetW(this,fds) fd_setW((this)->fd, (fds))
-#define net_issetR(this,fds) fd_issetR((this)->fd, (fds))
-#define net_issetW(this,fds) fd_issetW((this)->fd, (fds))
+  #ifdef USING_POLL
+  #define fd_setR(sfd,fds)   if ((sfd) > 0) { (fds)->pfds[(fds)->count].fd = (sfd); (fds)->pfds[(fds)->count++].events = POLLIN; }
+  #define fd_setW(sfd,fds)   if ((sfd) > 0) { (fds)->pfds[(fds)->count].fd = (sfd); (fds)->pfds[(fds)->count++].events = POLLOUT; }
+  #define fd_issetR(fd,fds)  ((fd) > 0 && (fds)->rfds & (1<<fd))
+  #else
+  #define net_maxfd(this,max)  fd_max((this)->fd,(max))
+  #endif
+  #define net_fdsetR(this,fds) fd_setR((this)->fd, (fds))
+  #define net_fdsetW(this,fds) fd_setW((this)->fd, (fds))
+  #define net_issetR(this,fds) fd_issetR((this)->fd, (fds))
+  #define net_issetW(this,fds) fd_issetW((this)->fd, (fds))
 
-#if defined(USING_PCAP)
-#define net_close(this)     if ((this)->pd) pcap_close((this)->pd); (this)->pd=0; (this)->fd=0
-#else
-#define net_close(this)     if ((this)->fd > 0) close((this)->fd); (this)->fd=0
-#endif
+  #if defined(USING_PCAP)
+  #define net_close(this)     if ((this)->pd) pcap_close((this)->pd); (this)->pd=0; (this)->fd=0
+  #else
+  #define net_close(this)     if ((this)->fd > 0) close((this)->fd); (this)->fd=0
+  #endif
 */
 
 #define fd_zero(fds)       FD_ZERO((fds));

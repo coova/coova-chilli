@@ -94,11 +94,11 @@ static void print_requests() {
   for (i=0; i < max_requests; i++) {
     req = &requests[i];
     syslog(LOG_INFO, "%.3d. inuse=%d prev=%.3d next=%.3d url=%s fd=%d",
-	     req->index, req->inuse ? 1 : 0,
-	     req->prev ? req->prev->index : -1,
-	     req->next ? req->next->index : -1,
-	     req->url ? (char *)req->url->data : "",
-	     req->conn.sock);
+           req->index, req->inuse ? 1 : 0,
+           req->prev ? req->prev->index : -1,
+           req->next ? req->next->index : -1,
+           req->url ? (char *)req->url->data : "",
+           req->conn.sock);
   }
 }
 
@@ -196,10 +196,10 @@ static void close_request(proxy_request *req) {
   if (req->dbuf) bdestroy(req->dbuf);
 
   req->url =
-    req->data =
-    req->post =
-    req->dbuf =
-    req->wbuf = 0;
+      req->data =
+      req->post =
+      req->dbuf =
+      req->wbuf = 0;
 
   req->authorized = 0;
   req->challenge = 0;
@@ -247,27 +247,27 @@ static int http_aaa_finish(proxy_request *req) {
 
   /* initialize response packet */
   switch(req->radius_req.code) {
-  case RADIUS_CODE_ACCOUNTING_REQUEST:
+    case RADIUS_CODE_ACCOUNTING_REQUEST:
 #if(_debug_)
-    syslog(LOG_DEBUG, "Accounting-Response");
+      syslog(LOG_DEBUG, "Accounting-Response");
 #endif
-    radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCOUNTING_RESPONSE);
-    break;
+      radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCOUNTING_RESPONSE);
+      break;
 
-  case RADIUS_CODE_ACCESS_REQUEST:
+    case RADIUS_CODE_ACCESS_REQUEST:
 #if(_debug_)
-    syslog(LOG_DEBUG, "Access-%s", req->authorized ? "Accept" :
-	    req->challenge ? "Challenge" : "Reject");
+      syslog(LOG_DEBUG, "Access-%s", req->authorized ? "Accept" :
+             req->challenge ? "Challenge" : "Reject");
 #endif
-    radius_default_pack(radius, &req->radius_res,
-			req->authorized ? RADIUS_CODE_ACCESS_ACCEPT :
-			req->challenge ? RADIUS_CODE_ACCESS_CHALLENGE :
-			RADIUS_CODE_ACCESS_REJECT);
-    break;
+      radius_default_pack(radius, &req->radius_res,
+                          req->authorized ? RADIUS_CODE_ACCESS_ACCEPT :
+                          req->challenge ? RADIUS_CODE_ACCESS_CHALLENGE :
+                          RADIUS_CODE_ACCESS_REJECT);
+      break;
 
-  default:
-    radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCESS_REJECT);
-    break;
+    default:
+      radius_default_pack(radius, &req->radius_res, RADIUS_CODE_ACCESS_REJECT);
+      break;
   }
 
   req->radius_res.id = req->radius_req.id;
@@ -338,64 +338,64 @@ static int http_aaa_finish(proxy_request *req) {
 	for (i=0; attrs[i].n; i++) {
 	  if (!strncmp(ptr,attrs[i].n,strlen(attrs[i].n))) {
 	    switch(attrs[i].t) {
-	    case 0: /*integer*/
-	      {
-		uint32_t v = (uint32_t) atoi(ptr+strlen(attrs[i].n));
-		if (v > 0) {
-		  radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, v, NULL, 0);
+              case 0: /*integer*/
+                {
+                  uint32_t v = (uint32_t) atoi(ptr+strlen(attrs[i].n));
+                  if (v > 0) {
+                    radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, v, NULL, 0);
 #if(_debug_)
-		  syslog(LOG_DEBUG, "Setting %s = %d", attrs[i].n, v);
+                    syslog(LOG_DEBUG, "Setting %s = %d", attrs[i].n, v);
 #endif
-		}
-	      }
-	      break;
-	    case 1: /*string*/
-	      {
-		radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, 0,
-			       (uint8_t *)ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
+                  }
+                }
+                break;
+              case 1: /*string*/
+                {
+                  radius_addattr(radius, &req->radius_res, attrs[i].a, attrs[i].v, attrs[i].va, 0,
+                                 (uint8_t *)ptr+strlen(attrs[i].n), strlen(ptr)-strlen(attrs[i].n));
 #if(_debug_)
-		syslog(LOG_DEBUG, "Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
+                  syslog(LOG_DEBUG, "Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
 #endif
-	      }
-	      break;
-	    case 2: /*binary*/
-	      {
-		bstring tmp = bfromcstr("");
-		bstring tmp2 = bfromcstr("");
+                }
+                break;
+              case 2: /*binary*/
+                {
+                  bstring tmp = bfromcstr("");
+                  bstring tmp2 = bfromcstr("");
 
-		uint8_t *resp;
-		size_t offset = 0;
-		size_t resplen;
-		size_t eaplen;
+                  uint8_t *resp;
+                  size_t offset = 0;
+                  size_t resplen;
+                  size_t eaplen;
 
-		bassignblk(tmp,
-			   (uint8_t *)ptr+strlen(attrs[i].n),
-			   strlen(ptr)-strlen(attrs[i].n));
+                  bassignblk(tmp,
+                             (uint8_t *)ptr+strlen(attrs[i].n),
+                             strlen(ptr)-strlen(attrs[i].n));
 
-		bunhex(tmp, tmp2);
+                  bunhex(tmp, tmp2);
 
-		resp = tmp2->data;
-		resplen = tmp2->slen;
+                  resp = tmp2->data;
+                  resplen = tmp2->slen;
 
-		while (offset < resplen) {
+                  while (offset < resplen) {
 
-		  if ((resplen - offset) > RADIUS_ATTR_VLEN)
-		    eaplen = RADIUS_ATTR_VLEN;
-		  else
-		    eaplen = resplen - offset;
+                    if ((resplen - offset) > RADIUS_ATTR_VLEN)
+                      eaplen = RADIUS_ATTR_VLEN;
+                    else
+                      eaplen = resplen - offset;
 
-		  radius_addattr(radius, &req->radius_res, attrs[i].a,
-				 attrs[i].v, attrs[i].va, 0,
-				 resp + offset,
-				 eaplen);
-		  offset += eaplen;
-		}
+                    radius_addattr(radius, &req->radius_res, attrs[i].a,
+                                   attrs[i].v, attrs[i].va, 0,
+                                   resp + offset,
+                                   eaplen);
+                    offset += eaplen;
+                  }
 
 #if(_debug_)
-		syslog(LOG_DEBUG, "Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
+                  syslog(LOG_DEBUG, "Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
 #endif
-	      }
-	      break;
+                }
+                break;
 	    }
 	  }
 	}
@@ -406,33 +406,33 @@ static int http_aaa_finish(proxy_request *req) {
   /* finish off RADIUS response */
   switch(req->radius_req.code) {
 
-  case RADIUS_CODE_ACCESS_REQUEST:
-    {
-      struct radius_attr_t *ma = NULL;
+    case RADIUS_CODE_ACCESS_REQUEST:
+      {
+        struct radius_attr_t *ma = NULL;
 
-      radius_addattr(radius, &req->radius_res, RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
-		     0, 0, 0, NULL, RADIUS_MD5LEN);
+        radius_addattr(radius, &req->radius_res, RADIUS_ATTR_MESSAGE_AUTHENTICATOR,
+                       0, 0, 0, NULL, RADIUS_MD5LEN);
 
-      memset(req->radius_res.authenticator, 0, RADIUS_AUTHLEN);
-      memcpy(req->radius_res.authenticator, req->radius_req.authenticator, RADIUS_AUTHLEN);
+        memset(req->radius_res.authenticator, 0, RADIUS_AUTHLEN);
+        memcpy(req->radius_res.authenticator, req->radius_req.authenticator, RADIUS_AUTHLEN);
 
-      if (!radius_getattr(&req->radius_res, &ma, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 0,0,0)) {
-	radius_hmac_md5(radius, &req->radius_res, radius->secret, radius->secretlen, ma->v.t);
+        if (!radius_getattr(&req->radius_res, &ma, RADIUS_ATTR_MESSAGE_AUTHENTICATOR, 0,0,0)) {
+          radius_hmac_md5(radius, &req->radius_res, radius->secret, radius->secretlen, ma->v.t);
+        }
+
+        radius_authresp_authenticator(radius, &req->radius_res,
+                                      req->radius_req.authenticator,
+                                      radius->secret,
+                                      radius->secretlen);
       }
+      break;
 
+    case RADIUS_CODE_ACCOUNTING_REQUEST:
       radius_authresp_authenticator(radius, &req->radius_res,
-				    req->radius_req.authenticator,
-				    radius->secret,
-				    radius->secretlen);
-    }
-    break;
-
-  case RADIUS_CODE_ACCOUNTING_REQUEST:
-    radius_authresp_authenticator(radius, &req->radius_res,
-				  req->radius_req.authenticator,
-				  radius->secret,
-				  radius->secretlen);
-    break;
+                                    req->radius_req.authenticator,
+                                    radius->secret,
+                                    radius->secretlen);
+      break;
   }
 
   radius_reply(req->radius, &req->radius_res, &req->conn.peer);
@@ -563,16 +563,16 @@ static int http_conn_read(struct conn_t *conn, void *ctx) {
   int r = safe_read(conn->sock, c, 1);
   if (r == 1) {
     switch (c[0]) {
-    case '\r': break;
-    case '\n':
-      if (req->nline) {
-	conn_bstring_readhandler(conn, req->data);
-      }
-      req->nline = 1;
-      break;
-    default:
-      req->nline = 0;
-      break;
+      case '\r': break;
+      case '\n':
+        if (req->nline) {
+          conn_bstring_readhandler(conn, req->data);
+        }
+        req->nline = 1;
+        break;
+      default:
+        req->nline = 0;
+        break;
     }
   }
   req->lasttime = time(NULL);
@@ -779,61 +779,61 @@ static void process_radius(struct radius_t *radius, struct radius_packet_t *pack
 		strchr(_options.uamaaaurl, '?') > 0 ? '&' : '?');
 
   switch(req->radius_req.code) {
-  case RADIUS_CODE_ACCESS_REQUEST:
-    bcatcstr(req->url, "stage=login");
-    if (radius_getattr(pack, &attr, RADIUS_ATTR_SERVICE_TYPE, 0,0,0)) {
-      error = "No service-type in RADIUS packet";
-    } else {
-      bcatcstr(req->url, "&service=");
-      switch (ntohl(attr->v.i)) {
-      case RADIUS_SERVICE_TYPE_LOGIN:
-	bcatcstr(req->url, "login");
-	break;
-      case RADIUS_SERVICE_TYPE_FRAMED:
-	bcatcstr(req->url, "framed");
-	break;
-      case RADIUS_SERVICE_TYPE_ADMIN_USER:
-	bcatcstr(req->url, "admin");
-	break;
-      default:
-	bassignformat(tmp, "%d", ntohl(attr->v.i));
-	bconcat(req->url, tmp);
-	break;
+    case RADIUS_CODE_ACCESS_REQUEST:
+      bcatcstr(req->url, "stage=login");
+      if (radius_getattr(pack, &attr, RADIUS_ATTR_SERVICE_TYPE, 0,0,0)) {
+        error = "No service-type in RADIUS packet";
+      } else {
+        bcatcstr(req->url, "&service=");
+        switch (ntohl(attr->v.i)) {
+          case RADIUS_SERVICE_TYPE_LOGIN:
+            bcatcstr(req->url, "login");
+            break;
+          case RADIUS_SERVICE_TYPE_FRAMED:
+            bcatcstr(req->url, "framed");
+            break;
+          case RADIUS_SERVICE_TYPE_ADMIN_USER:
+            bcatcstr(req->url, "admin");
+            break;
+          default:
+            bassignformat(tmp, "%d", ntohl(attr->v.i));
+            bconcat(req->url, tmp);
+            break;
+        }
       }
-    }
-    break;
-  case RADIUS_CODE_ACCOUNTING_REQUEST:
-    bcatcstr(req->url, "stage=counters");
-    if (radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_STATUS_TYPE, 0,0,0)) {
-      error = "No acct-status-type in RADIUS packet";
-    } else {
-      bcatcstr(req->url, "&status=");
-      switch (ntohl(attr->v.i)) {
-      case RADIUS_STATUS_TYPE_START:
-	bcatcstr(req->url, "start");
-	break;
-      case RADIUS_STATUS_TYPE_STOP:
-	bcatcstr(req->url, "stop");
-	break;
-      case RADIUS_STATUS_TYPE_INTERIM_UPDATE:
-	bcatcstr(req->url, "update");
-	break;
-      case RADIUS_STATUS_TYPE_ACCOUNTING_ON:
-	bcatcstr(req->url, "up");
-	break;
-      case RADIUS_STATUS_TYPE_ACCOUNTING_OFF:
-	bcatcstr(req->url, "down");
-	break;
-      default:
-	syslog(LOG_ERR, "unsupported acct-status-type %d", ntohl(attr->v.i));
-	error = "Unsupported acct-status-type";
-	break;
+      break;
+    case RADIUS_CODE_ACCOUNTING_REQUEST:
+      bcatcstr(req->url, "stage=counters");
+      if (radius_getattr(pack, &attr, RADIUS_ATTR_ACCT_STATUS_TYPE, 0,0,0)) {
+        error = "No acct-status-type in RADIUS packet";
+      } else {
+        bcatcstr(req->url, "&status=");
+        switch (ntohl(attr->v.i)) {
+          case RADIUS_STATUS_TYPE_START:
+            bcatcstr(req->url, "start");
+            break;
+          case RADIUS_STATUS_TYPE_STOP:
+            bcatcstr(req->url, "stop");
+            break;
+          case RADIUS_STATUS_TYPE_INTERIM_UPDATE:
+            bcatcstr(req->url, "update");
+            break;
+          case RADIUS_STATUS_TYPE_ACCOUNTING_ON:
+            bcatcstr(req->url, "up");
+            break;
+          case RADIUS_STATUS_TYPE_ACCOUNTING_OFF:
+            bcatcstr(req->url, "down");
+            break;
+          default:
+            syslog(LOG_ERR, "unsupported acct-status-type %d", ntohl(attr->v.i));
+            error = "Unsupported acct-status-type";
+            break;
+        }
       }
-    }
-    break;
-  default:
-    error = "Unsupported RADIUS code";
-    break;
+      break;
+    default:
+      error = "Unsupported RADIUS code";
+      break;
   }
 
   if (!error) {
@@ -1153,12 +1153,12 @@ int main(int argc, char **argv) {
 
   if (_options.gid && setgid(_options.gid)) {
     syslog(LOG_ERR, "%d setgid(%d) failed while running with gid = %d\n",
-	    errno, _options.gid, getgid());
+           errno, _options.gid, getgid());
   }
 
   if (_options.uid && setuid(_options.uid)) {
     syslog(LOG_ERR, "%d setuid(%d) failed while running with uid = %d\n",
-	    errno, _options.uid, getuid());
+           errno, _options.uid, getuid());
   }
 
   while (keep_going) {
@@ -1206,108 +1206,108 @@ int main(int argc, char **argv) {
     status = select(maxfd + 1, &fdread, &fdwrite, &fdexcep, &timeout);
 
     switch (status) {
-    case -1:
-      if (EINTR != errno) {
-	syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
-      }
-      break;
+      case -1:
+        if (EINTR != errno) {
+          syslog(LOG_ERR, "%s: select() returned -1!", strerror(errno));
+        }
+        break;
 
-    case 0:
-    default:
+      case 0:
+      default:
 
-      if (status > 0) {
-	struct sockaddr_in addr;
-	socklen_t fromlen = sizeof(addr);
+        if (status > 0) {
+          struct sockaddr_in addr;
+          socklen_t fromlen = sizeof(addr);
 
-	if (FD_ISSET(selfpipe, &fdread)) {
-	  int signo = chilli_handle_signal(0, 0);
-	  if (signo) {
+          if (FD_ISSET(selfpipe, &fdread)) {
+            int signo = chilli_handle_signal(0, 0);
+            if (signo) {
 #if(_debug_)
-	    syslog(LOG_DEBUG, "main-proxy signal %d", signo);
+              syslog(LOG_DEBUG, "main-proxy signal %d", signo);
 #endif
-	    switch(signo) {
-	    case SIGUSR2: print_requests(); break;
-	    default: break;
-	    }
-	  }
-	}
+              switch(signo) {
+                case SIGUSR2: print_requests(); break;
+                default: break;
+              }
+            }
+          }
 
-	if (FD_ISSET(radius_auth->fd, &fdread)) {
-	  /*
-	   *    ---> Authentication
-	   */
+          if (FD_ISSET(radius_auth->fd, &fdread)) {
+            /*
+             *    ---> Authentication
+             */
 
-	  if ((status = recvfrom(radius_auth->fd,
-				 &radius_pack, sizeof(radius_pack), 0,
-				 (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
+            if ((status = recvfrom(radius_auth->fd,
+                                   &radius_pack, sizeof(radius_pack), 0,
+                                   (struct sockaddr *) &addr, &fromlen)) <= 0) {
+              syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
 
-	    return -1;
-	  }
+              return -1;
+            }
 
-	  process_radius(radius_auth, &radius_pack, &addr);
-	}
+            process_radius(radius_auth, &radius_pack, &addr);
+          }
 
-	if (FD_ISSET(radius_acct->fd, &fdread)) {
-	  /*
-	   *    ---> Accounting
-	   */
+          if (FD_ISSET(radius_acct->fd, &fdread)) {
+            /*
+             *    ---> Accounting
+             */
 
 #if(_debug_)
-	  syslog(LOG_DEBUG, "received accounting");
+            syslog(LOG_DEBUG, "received accounting");
 #endif
 
-	  if ((status = recvfrom(radius_acct->fd,
-				 &radius_pack, sizeof(radius_pack), 0,
-			       (struct sockaddr *) &addr, &fromlen)) <= 0) {
-	    syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
-	    return -1;
-	  }
+            if ((status = recvfrom(radius_acct->fd,
+                                   &radius_pack, sizeof(radius_pack), 0,
+                                   (struct sockaddr *) &addr, &fromlen)) <= 0) {
+              syslog(LOG_ERR, "%s: recvfrom() failed", strerror(errno));
+              return -1;
+            }
 
-	  process_radius(radius_acct, &radius_pack, &addr);
-	}
-      }
+            process_radius(radius_acct, &radius_pack, &addr);
+          }
+        }
 
 #ifdef USING_CURL
-      while(CURLM_CALL_MULTI_PERFORM ==
-	    curl_multi_perform(curl_multi, &still_running));
+        while(CURLM_CALL_MULTI_PERFORM ==
+              curl_multi_perform(curl_multi, &still_running));
 
 #if(_debug_ > 1)
-      syslog(LOG_DEBUG, "curl still running %d", still_running);
+        syslog(LOG_DEBUG, "curl still running %d", still_running);
 #endif
 
-      while ((msg = curl_multi_info_read(curl_multi, &msgs_left))) {
+        while ((msg = curl_multi_info_read(curl_multi, &msgs_left))) {
 
 #if(_debug_ > 1)
-	syslog(LOG_DEBUG, "curl messages left %d", msgs_left);
+          syslog(LOG_DEBUG, "curl messages left %d", msgs_left);
 #endif
 
-	if (msg->msg == CURLMSG_DONE) {
+          if (msg->msg == CURLMSG_DONE) {
 
-	  int found = 0;
+            int found = 0;
 
-	  /* Find out which handle this message is about */
-	  for (idx=0; (!found && (idx < max_requests)); idx++)
-	    found = (msg->easy_handle == requests[idx].curl);
+            /* Find out which handle this message is about */
+            for (idx=0; (!found && (idx < max_requests)); idx++)
+              found = (msg->easy_handle == requests[idx].curl);
 
-	  if (found) {
-	    --idx;
+            if (found) {
+              --idx;
 #if(_debug_)
-	    syslog(LOG_DEBUG, "HTTP completed with status %d\n", msg->data.result);
+              syslog(LOG_DEBUG, "HTTP completed with status %d\n", msg->data.result);
 #endif
-	    http_aaa_finish(&requests[idx]);
-	  } else {
-	    syslog(LOG_ERR, "%s: Could not find request in queue", strerror(errno));
-	  }
-	}
-      }
+              http_aaa_finish(&requests[idx]);
+            } else {
+              syslog(LOG_ERR, "%s: Could not find request in queue", strerror(errno));
+            }
+          }
+        }
 #else
-      for (idx=0; idx < max_requests; idx++) {
-	conn_update(&requests[idx].conn, &fdread, &fdwrite, &fdexcep);
-      }
+        for (idx=0; idx < max_requests; idx++) {
+          conn_update(&requests[idx].conn, &fdread, &fdwrite, &fdexcep);
+        }
 #endif
 
-      break;
+        break;
     }
   }
 

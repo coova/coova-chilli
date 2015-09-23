@@ -120,7 +120,7 @@ int dev_set_address(char const *devname, struct in_addr *address,
       }
       else {
 	syslog(LOG_WARNING, "%d ioctl(SIOCSIFADDR): Address already exists",
-		errno);
+               errno);
       }
       close(fd);
       return -1;
@@ -163,17 +163,17 @@ int dev_set_address(char const *devname, struct in_addr *address,
   ((struct sockaddr_in*) &ifr.ifra_broadaddr)->sin_len = sizeof(ifr.ifra_broadaddr);
   ((struct sockaddr_in*) &ifr.ifra_broadaddr)->sin_addr.s_addr = dstaddr->s_addr;
 
-    if (ioctl(fd, SIOCAIFADDR, (void *) &ifr) < 0) {
-      if (errno != EEXIST) {
-	  syslog(LOG_ERR, "%s: ioctl(SIOCAIFADDR) failed", strerror(errno));
-      }
-      else {
-	  syslog(LOG_WARNING, "%d ioctl(SIOCAIFADDR): Address already exists",
-		errno);
-      }
-      close(fd);
-      return -1;
+  if (ioctl(fd, SIOCAIFADDR, (void *) &ifr) < 0) {
+    if (errno != EEXIST) {
+      syslog(LOG_ERR, "%s: ioctl(SIOCAIFADDR) failed", strerror(errno));
     }
+    else {
+      syslog(LOG_WARNING, "%d ioctl(SIOCAIFADDR): Address already exists",
+             errno);
+    }
+    close(fd);
+    return -1;
+  }
 #else
 #error  "Unknown platform!"
 #endif
@@ -211,16 +211,17 @@ int net_open(net_interface *netif) {
 
   if (
 #ifdef ENABLE_LAYER3
-      !_options.layer3 &&
+          !_options.layer3 &&
 #endif
 #ifdef HAVE_NETFILTER_COOVA
-      (_options.uamlisten.s_addr == _options.dhcplisten.s_addr) && 
+          (_options.uamlisten.s_addr == _options.dhcplisten.s_addr) && 
 #endif
-      ( !(netif->devflags & IFF_UP) || !(netif->devflags & IFF_RUNNING) )) {
+          ( !(netif->devflags & IFF_UP) || !(netif->devflags & IFF_RUNNING) )) {
     struct in_addr noaddr;
     net_sflags(netif, netif->devflags | IFF_NOARP);
     memset(&noaddr, 0, sizeof(noaddr));
-    syslog(LOG_DEBUG, "removing ip address from %s", netif->devname);
+    if (_options.debug)
+      syslog(LOG_DEBUG, "removing ip address from %s", netif->devname);
     dev_set_address(netif->devname, &noaddr, NULL, NULL);
   }
 
@@ -231,7 +232,7 @@ static int net_setsockopt(int s, int l, int op, void *v, socklen_t vl) {
 
   if (setsockopt(s, l, op, v, vl) < 0) {
     syslog(LOG_ERR, "%d setsockopt(s=%d, level=%d, optname=%d, optlen=%d) failed",
-	    errno, s, l, op, (int) vl);
+           errno, s, l, op, (int) vl);
     return -1;
   }
 
@@ -243,7 +244,8 @@ int net_reopen(net_interface *netif) {
   int option;
   socklen_t len;
 
-  syslog(LOG_DEBUG, "net_reopen(%s)", netif->devname);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "net_reopen(%s)", netif->devname);
 
   net_open(netif);
 
@@ -255,11 +257,13 @@ int net_reopen(net_interface *netif) {
 
   len = sizeof(default_sndbuf);
   getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
-  syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
 
   len = sizeof(default_sndbuf);
   getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
-  syslog(LOG_DEBUG, "Net RCVBUF %d", default_rcvbuf);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Net RCVBUF %d", default_rcvbuf);
 
   if (netif->sctx)
     net_select_rereg(netif->sctx, previous_fd, netif->fd);
@@ -297,7 +301,7 @@ int net_select_prepare(select_ctx *sctx) {
       if (!_options.modules[i].name[0]) break;
       if (_options.modules[i].ctx) {
 	struct chilli_module *m =
-	(struct chilli_module *)_options.modules[i].ctx;
+            (struct chilli_module *)_options.modules[i].ctx;
 	if (m->net_select)
 	  m->net_select(sctx);
       }
@@ -417,7 +421,8 @@ int net_select_reg(select_ctx *sctx, int fd, char evts,
   if (fd > sctx->maxfd) sctx->maxfd = fd;
 #endif
   sctx->count++;
-  syslog(LOG_DEBUG, "net select count: %d", sctx->count);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "net select count: %d", sctx->count);
   return 0;
 }
 
@@ -453,12 +458,13 @@ int net_select_rmfd(select_ctx *sctx, int fd) {
   struct epoll_event event;
   memset(&event, 0, sizeof(event));
   event.data.fd = fd;
-  syslog(LOG_DEBUG, "epoll rm %d", fd);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "epoll rm %d", fd);
   /*
    */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, fd, &event))
     syslog(LOG_ERR, "%d Failed to remove fd %d (%d)",
-	    errno, fd, sctx->efd);
+           errno, fd, sctx->efd);
 #endif
   return 0;
 }
@@ -470,12 +476,13 @@ int net_select_addfd(select_ctx *sctx, int fd, int evts) {
   event.data.fd = fd;
   if (evts & SELECT_READ) event.events |= EPOLLIN;
   if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
-  syslog(LOG_DEBUG, "epoll add %d (%d)", fd, sctx->efd);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "epoll add %d (%d)", fd, sctx->efd);
   /*
    */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_ADD, fd, &event))
     syslog(LOG_ERR, "%d Failed to add fd %d (%d)",
-	    errno, fd, sctx->efd);
+           errno, fd, sctx->efd);
 #endif
   return 0;
 }
@@ -596,7 +603,8 @@ int net_select_write_fd(select_ctx *sctx, int fd) {
   for (idx=0; idx < sctx->count; idx++)
     if (sctx->events[idx].data.fd == fd) {
 #if(_debug_ > 1)
-      syslog(LOG_DEBUG, "write %d", (sctx->events[idx].events & EPOLLOUT) != 0);
+      if (_options.debug)
+        syslog(LOG_DEBUG, "write %d", (sctx->events[idx].events & EPOLLOUT) != 0);
 #endif
       if (sctx->events[idx].events & EPOLLOUT)
 	return 1;
@@ -763,129 +771,131 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
   } else
 #endif
 
-  if (netif->fd) {
+    if (netif->fd) {
 
 #if defined(__linux__)
-    struct sockaddr_ll s_addr;
+      struct sockaddr_ll s_addr;
 
 #if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI)
-    struct iovec iov;
-    struct msghdr msg;
-    union {
-      struct cmsghdr cmsg;
-      char buf[CMSG_SPACE(sizeof(struct tpacket_auxdata))];
-    } cmsg_buf;
+      struct iovec iov;
+      struct msghdr msg;
+      union {
+        struct cmsghdr cmsg;
+        char buf[CMSG_SPACE(sizeof(struct tpacket_auxdata))];
+      } cmsg_buf;
 #ifdef ENABLE_IEEE8021Q
-    struct cmsghdr *cmsg;
-    struct vlan_tag {
-      u_int16_t tpid;
-      u_int16_t tci;
-    };
+      struct cmsghdr *cmsg;
+      struct vlan_tag {
+        u_int16_t tpid;
+        u_int16_t tci;
+      };
 #endif
-    msg.msg_name = &s_addr;
-    msg.msg_namelen = sizeof(s_addr);
-    msg.msg_iov = &iov;
-    msg.msg_iovlen = 1;
-    msg.msg_control = &cmsg_buf;
-    msg.msg_controllen = sizeof(cmsg_buf);
-    msg.msg_flags = 0;
+      msg.msg_name = &s_addr;
+      msg.msg_namelen = sizeof(s_addr);
+      msg.msg_iov = &iov;
+      msg.msg_iovlen = 1;
+      msg.msg_control = &cmsg_buf;
+      msg.msg_controllen = sizeof(cmsg_buf);
+      msg.msg_flags = 0;
 
-    iov.iov_len = dlen;
-    iov.iov_base = d;
+      iov.iov_len = dlen;
+      iov.iov_base = d;
 #else
-    int addr_len;
+      int addr_len;
 #endif
 
-    memset (&s_addr, 0, sizeof (struct sockaddr_ll));
+      memset (&s_addr, 0, sizeof (struct sockaddr_ll));
 
 #if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI)
 
-    len = safe_recvmsg(netif->fd, &msg, MSG_TRUNC);
+      len = safe_recvmsg(netif->fd, &msg, MSG_TRUNC);
 
 #else
 
-    addr_len = sizeof (s_addr);
+      addr_len = sizeof (s_addr);
 
-    len = safe_recvfrom(netif->fd, d, dlen,
-			MSG_DONTWAIT | MSG_TRUNC,
-			(struct sockaddr *) &s_addr,
-			(socklen_t *) &addr_len);
+      len = safe_recvfrom(netif->fd, d, dlen,
+                          MSG_DONTWAIT | MSG_TRUNC,
+                          (struct sockaddr *) &s_addr,
+                          (socklen_t *) &addr_len);
 
 #endif
-    if (len < 0) {
+      if (len < 0) {
 
-      syslog(LOG_ERR, "%s: could not read packet", strerror(errno));
+        syslog(LOG_ERR, "%s: could not read packet", strerror(errno));
 
-    } else {
+      } else {
 
-      if (len == 0) {
-	syslog(LOG_DEBUG, "read zero, enable ieee8021q?");
-      }
+        if (len == 0) {
+          if (_options.debug)
+            syslog(LOG_DEBUG, "read zero, enable ieee8021q?");
+        }
 
-      if (len > dlen) {
-	syslog(LOG_WARNING, "data truncated %zu/%zd, sending ICMP error",
+        if (len > dlen) {
+          syslog(LOG_WARNING, "data truncated %zu/%zd, sending ICMP error",
 		 len, dlen);
-	return -1;
+          return -1;
+        }
       }
-    }
 
 #elif defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 
-    len = safe_read(netif->fd, d, dlen);
+      len = safe_read(netif->fd, d, dlen);
 
 #else
 
-    len = safe_read(netif->fd, d, dlen);
+      len = safe_read(netif->fd, d, dlen);
 
 #endif
 
-    if (len < 0) {
-      syslog(LOG_ERR, "%d net_read_eth(fd=%d, len=%zu, mtu=%d) == %zd",
-	      errno, netif->fd, dlen, netif->mtu, len);
-      return -1;
-    }
+      if (len < 0) {
+        syslog(LOG_ERR, "%d net_read_eth(fd=%d, len=%zu, mtu=%d) == %zd",
+               errno, netif->fd, dlen, netif->mtu, len);
+        return -1;
+      }
 
 #if defined(HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI) && defined(ENABLE_IEEE8021Q)
-    if (_options.ieee8021q) {
-      for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-	struct tpacket_auxdata *aux;
-	struct vlan_tag *tag;
-	unsigned int ulen;
+      if (_options.ieee8021q) {
+        for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+          struct tpacket_auxdata *aux;
+          struct vlan_tag *tag;
+          unsigned int ulen;
 
-	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct tpacket_auxdata)) ||
-	    cmsg->cmsg_level != SOL_PACKET ||
-	    cmsg->cmsg_type != PACKET_AUXDATA)
-	  continue;
+          if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct tpacket_auxdata)) ||
+              cmsg->cmsg_level != SOL_PACKET ||
+              cmsg->cmsg_type != PACKET_AUXDATA)
+            continue;
 
-	aux = (struct tpacket_auxdata *)CMSG_DATA(cmsg);
-	if (aux->tp_vlan_tci == 0)
-	  continue;
+          aux = (struct tpacket_auxdata *)CMSG_DATA(cmsg);
+          if (aux->tp_vlan_tci == 0)
+            continue;
 
-	ulen = len > iov.iov_len ? iov.iov_len : len;
+          ulen = len > iov.iov_len ? iov.iov_len : len;
 
-	if (ulen < 2 * PKT_ETH_ALEN ||
-	    len >= (dlen - 4)) {
-	  syslog(LOG_ERR, "bad pkt length to add 802.1q header %d/%zd",
-		  ulen, len);
-	  break;
-	}
+          if (ulen < 2 * PKT_ETH_ALEN ||
+              len >= (dlen - 4)) {
+            syslog(LOG_ERR, "bad pkt length to add 802.1q header %d/%zd",
+                   ulen, len);
+            break;
+          }
 
 #if(_debug_ > 1)
-	syslog(LOG_DEBUG, "adding 8021q header from auxdata");
+          if (_options.debug)
+            syslog(LOG_DEBUG, "adding 8021q header from auxdata");
 #endif
 
-	memmove(d + (2 * PKT_ETH_ALEN) + 4,
-		d + (2 * PKT_ETH_ALEN),
-		len - (2 * PKT_ETH_ALEN));
+          memmove(d + (2 * PKT_ETH_ALEN) + 4,
+                  d + (2 * PKT_ETH_ALEN),
+                  len - (2 * PKT_ETH_ALEN));
 
-	tag = (struct vlan_tag *)(d + 2 * PKT_ETH_ALEN);
-	tag->tpid = htons(ETH_P_8021Q);
-	tag->tci = htons(aux->tp_vlan_tci);
-	len += 4;
+          tag = (struct vlan_tag *)(d + 2 * PKT_ETH_ALEN);
+          tag->tpid = htons(ETH_P_8021Q);
+          tag->tci = htons(aux->tp_vlan_tci);
+          len += 4;
+        }
       }
-    }
 #endif
-  }
+    }
 
   return len;
 }
@@ -929,27 +939,27 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
 
   if (len < 0) {
     switch (errno) {
-    case EWOULDBLOCK:
-      syslog(LOG_ERR, "%s: packet dropped due to congestion", strerror(errno));
-      if (!_options.uid)
-	net_reopen(netif);
-      break;
+      case EWOULDBLOCK:
+        syslog(LOG_ERR, "%s: packet dropped due to congestion", strerror(errno));
+        if (!_options.uid)
+          net_reopen(netif);
+        break;
 
 #ifdef ENETDOWN
-    case ENETDOWN:
-      net_reopen(netif);
-      break;
+      case ENETDOWN:
+        net_reopen(netif);
+        break;
 #endif
 #ifdef ENXIO
-    case ENXIO:
-      net_reopen(netif);
-      break;
+      case ENXIO:
+        net_reopen(netif);
+        break;
 #endif
 #ifdef EMSGSIZE
-    case EMSGSIZE:
-      if (dlen > netif->mtu)
-	net_set_mtu(netif, dlen);
-      break;
+      case EMSGSIZE:
+        if (dlen > netif->mtu)
+          net_set_mtu(netif, dlen);
+        break;
 #endif
     }
 
@@ -971,7 +981,7 @@ int net_set_mtu(net_interface *netif, size_t mtu) {
   ifr.ifr_mtu = mtu;
   if (ioctl(fd, SIOCSIFMTU, &ifr) < 0) {
     syslog(LOG_ERR, "%d could not set MTU of %zu on dev=%s",
-	    errno, mtu, netif->devname);
+           errno, mtu, netif->devname);
     close(fd);
     return -1;
   }
@@ -1087,7 +1097,8 @@ int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
 #ifdef HAVE_NETFILTER_QUEUE
   netif->h = nfq_open();
 
-  syslog(LOG_DEBUG, "netif nfqueue %d", (int)q);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "netif nfqueue %d", (int)q);
 
   if (!netif->h) {
     syslog(LOG_ERR, "%s: nfq_open() failed", strerror(errno));
@@ -1242,7 +1253,7 @@ int net_open_eth(net_interface *netif) {
     }
 
     syslog(LOG_ERR, "%d socket(domain=%d, type=%d, protocol=%d) failed",
-	    errno, PF_PACKET, SOCK_RAW, netif->protocol);
+           errno, PF_PACKET, SOCK_RAW, netif->protocol);
 
     return -1;
   }
@@ -1280,10 +1291,12 @@ int net_open_eth(net_interface *netif) {
       socklen_t len;
       len = sizeof(default_sndbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
-      syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
+      if (_options.debug)
+        syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
       len = sizeof(default_sndbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
-      syslog(LOG_DEBUG, "Net RCVBUF %d", default_rcvbuf);
+      if (_options.debug)
+        syslog(LOG_DEBUG, "Net RCVBUF %d", default_rcvbuf);
     }
 #ifdef USING_MMAP
   }
@@ -1312,7 +1325,7 @@ int net_open_eth(net_interface *netif) {
 
   if (netif->hwaddr[0] & 0x01) {
     syslog(LOG_ERR, "Ethernet has broadcast or multicast address: %.16s",
-	    netif->devname);
+           netif->devname);
   }
 
   /* Get the current interface address, network, and any destination address */
@@ -1326,7 +1339,7 @@ int net_open_eth(net_interface *netif) {
   }
   if (ifr.ifr_mtu > PKT_BUFFER) {
     syslog(LOG_ERR, "MTU is larger than PKT_BUFFER: %d > %d",
-	    ifr.ifr_mtu, PKT_BUFFER);
+           ifr.ifr_mtu, PKT_BUFFER);
     return -1;
   }
   netif->mtu = ifr.ifr_mtu;
@@ -1338,7 +1351,8 @@ int net_open_eth(net_interface *netif) {
   }
   netif->ifindex = ifr.ifr_ifindex;
 
-  syslog(LOG_DEBUG, "device %s ifindex %d", netif->devname, netif->ifindex);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "device %s ifindex %d", netif->devname, netif->ifindex);
 
 #ifdef ENABLE_IPV6
   {
@@ -1350,11 +1364,12 @@ int net_open_eth(net_interface *netif) {
 	if (!ifa->ifa_addr) continue;
 	family = ifa->ifa_addr->sa_family;
 
-	syslog(LOG_DEBUG, "%s  address family: %d%s",
-		ifa->ifa_name, family,
-		(family == AF_PACKET) ? " (AF_PACKET)" :
-		(family == AF_INET) ?   " (AF_INET)" :
-		(family == AF_INET6) ?  " (AF_INET6)" : "");
+        if (_options.debug)
+          syslog(LOG_DEBUG, "%s  address family: %d%s",
+                 ifa->ifa_name, family,
+                 (family == AF_PACKET) ? " (AF_PACKET)" :
+                 (family == AF_INET) ?   " (AF_INET)" :
+                 (family == AF_INET6) ?  " (AF_INET6)" : "");
 
 	if (/*family == AF_INET || */family == AF_INET6 &&
 	    !strcmp(netif->devname, ifa->ifa_name)) {
@@ -1367,9 +1382,11 @@ int net_open_eth(net_interface *netif) {
 			  sizeof(struct sockaddr_in6),
 			  host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
 	  if (s != 0) {
-	    syslog(LOG_DEBUG, "getnameinfo() failed: %s\n", strerror(s));
+            if (_options.debug)
+              syslog(LOG_DEBUG, "getnameinfo() failed: %s\n", strerror(s));
 	  } else {
-	    syslog(LOG_DEBUG, "address: <%s>\n", host);
+            if (_options.debug)
+              syslog(LOG_DEBUG, "address: <%s>\n", host);
 	  }
 	}
       }
@@ -1473,13 +1490,13 @@ int net_getmac(const char *ifname, char *macaddr) {
 	(ifa->ifa_addr->sa_family == AF_LINK)) {
       sdl = (struct sockaddr_dl *)ifa->ifa_addr;
       switch(sdl->sdl_type) {
-      case IFT_ETHER:
+        case IFT_ETHER:
 #ifdef IFT_IEEE80211
-      case IFT_IEEE80211:
+        case IFT_IEEE80211:
 #endif
-	break;
-      default:
-	continue;
+          break;
+        default:
+          continue;
       }
       if (sdl->sdl_alen != PKT_ETH_ALEN) {
 	syslog(LOG_ERR, "%s: Wrong sdl_alen!", strerror(errno));
@@ -1503,20 +1520,20 @@ int net_getmac(const char *ifname, char *macaddr) {
  **/
 
 /* Relevant IOCTLs
-FIONREAD Get the number of bytes in input buffer
-SIOCGIFADDR Get interface address (IP)
-BIOCGBLEN, BIOCSBLEN Get and set required buffer length
-BIOCGDLT Type of underlying data interface
-BIOCPROMISC Set in promisc mode
-BIOCFLUSH Flushes the buffer of incoming packets
-BIOCGETIF, BIOCSETIF Set hardware interface. Uses ift_name
-BIOCSRTIMEOUT, BIOCGRTIMEOUT Set and get timeout for reads
-BIOCGSTATS Return stats for the interface
-BIOCIMMEDIATE Return immediately from reads as soon as packet arrives.
-BIOCSETF Set filter
-BIOCVERSION Return the version of BPF
-BIOCSHDRCMPLT BIOCGHDRCMPLT Set flag of wheather to fill in MAC address
-BIOCSSEESENT BIOCGSEESENT Return locally generated packets */
+   FIONREAD Get the number of bytes in input buffer
+   SIOCGIFADDR Get interface address (IP)
+   BIOCGBLEN, BIOCSBLEN Get and set required buffer length
+   BIOCGDLT Type of underlying data interface
+   BIOCPROMISC Set in promisc mode
+   BIOCFLUSH Flushes the buffer of incoming packets
+   BIOCGETIF, BIOCSETIF Set hardware interface. Uses ift_name
+   BIOCSRTIMEOUT, BIOCGRTIMEOUT Set and get timeout for reads
+   BIOCGSTATS Return stats for the interface
+   BIOCIMMEDIATE Return immediately from reads as soon as packet arrives.
+   BIOCSETF Set filter
+   BIOCVERSION Return the version of BPF
+   BIOCSHDRCMPLT BIOCGHDRCMPLT Set flag of wheather to fill in MAC address
+   BIOCSSEESENT BIOCGSEESENT Return locally generated packets */
 
 int net_open_eth(net_interface *netif) {
   char devname[IFNAMSIZ+5]; /* "/dev/" + ifname */
@@ -1570,7 +1587,7 @@ int net_open_eth(net_interface *netif) {
 
   if (netif->hwaddr[0] & 0x01) {
     syslog(LOG_ERR, "Ethernet has broadcast or multicast address: %.16s",
-	    netif->devname);
+           netif->devname);
     return -1;
   }
 
@@ -1649,8 +1666,8 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
 
     /* Use the receiving time of the packet as the start time of
      * the request
-    tv.tv_sec = h->tp_sec;
-    tv.tv_nsec = h->tp_nsec;*/
+     tv.tv_sec = h->tp_sec;
+     tv.tv_nsec = h->tp_nsec;*/
 
     if (_options.debug > 100)
       syslog(LOG_DEBUG, "RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
@@ -1662,7 +1679,7 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
 
     was_drop |= h->tp_status & TP_STATUS_LOSING;
 
-  next:
+ next:
     h->tp_status = TP_STATUS_KERNEL;
   }
 
@@ -1760,8 +1777,9 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
 
   page_size = sysconf(_SC_PAGESIZE);
 
-  syslog(LOG_DEBUG, "Creating %s ring: ring_size=%d; page_size=%d; mtu=%d",
-	  name, ring_size, page_size, mtu);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Creating %s ring: ring_size=%d; page_size=%d; mtu=%d",
+           name, ring_size, page_size, mtu);
 
   /* For RX, the frame looks like:
    * - struct tpacket2_hdr
@@ -1824,8 +1842,8 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   }
   if (ret) {
     syslog(LOG_ERR, "%d Failed to set up the %s ring buffer; "
-	    "block_sz=%d block_nr=%d frame_sz=%d frame_nr=%d page_size=%d", errno, name,
-	    req.tp_block_size, req.tp_block_nr, req.tp_frame_size, req.tp_frame_nr, page_size);
+           "block_sz=%d block_nr=%d frame_sz=%d frame_nr=%d page_size=%d", errno, name,
+           req.tp_block_size, req.tp_block_nr, req.tp_frame_size, req.tp_frame_nr, page_size);
     memset(ring, 0, sizeof(*ring));
     return;
   }
@@ -1836,7 +1854,7 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   ring->frames = calloc(sizeof(void *), req.tp_frame_nr);
 
   syslog(LOG_INFO, "Created %s ring: len=%d; block size=%d; frame size=%d, cnt=%d",
-	   name, ring->len, req.tp_block_size, req.tp_frame_size, ring->cnt);
+         name, ring->len, req.tp_block_size, req.tp_frame_size, ring->cnt);
 }
 
 static void destroy_one_ring(net_interface *iface, int what) {
@@ -1949,7 +1967,7 @@ static void setup_rings2(net_interface *iface) {
 
   /*len = human_format(iface->ring_len, &unit);*/
   syslog(LOG_INFO, "Set up ring buffer (%u RX/%u TX packets)",
-	   iface->rx_ring.cnt, iface->tx_ring.cnt);
+         iface->rx_ring.cnt, iface->tx_ring.cnt);
 }
 
 /* Setting SO_SNDBUF/SO_RCVBUF is just advisory, so report the real value being
@@ -1961,7 +1979,7 @@ static void set_buffer(net_interface *iface, int what, int size) {
   ret = net_setsockopt(iface->fd, SOL_SOCKET, what, &size, sizeof(size));
   if (ret) {
     syslog(LOG_ERR, "%d Failed to set the %s buffer size",
-	    errno, what == SO_SNDBUF ? "send" : "receive");
+           errno, what == SO_SNDBUF ? "send" : "receive");
     return;
   }
 
@@ -1970,8 +1988,8 @@ static void set_buffer(net_interface *iface, int what, int size) {
     val = size;
 
   /*ret = human_format(val, &unit);
-  syslog(LOG_INFO, "The %s buffer is %d %s",
-  what == SO_SNDBUF ? "send" : "receive", ret, unit);*/
+    syslog(LOG_INFO, "The %s buffer is %d %s",
+    what == SO_SNDBUF ? "send" : "receive", ret, unit);*/
 }
 
 #if(0)
@@ -1981,23 +1999,23 @@ static void setup_filter(net_interface *iface) {
 
     static struct sock_filter filter[] = {
 
-{ 0x28, 0, 0, 0x0000000c },
-{ 0x15, 0, 6, 0x00000800 },
-{ 0x20, 0, 0, 0x0000001e },
-{ 0x54, 0, 0, 0xff000000 },
-{ 0x15, 11, 0, 0x0a000000 },
-{ 0x20, 0, 0, 0x0000001e },
-{ 0x54, 0, 0, 0xff000000 },
-{ 0x15, 8, 9, 0x65000000 },
-{ 0x15, 1, 0, 0x00000806 },
-{ 0x15, 0, 7, 0x00008035 },
-{ 0x20, 0, 0, 0x00000026 },
-{ 0x54, 0, 0, 0xff000000 },
-{ 0x15, 3, 0, 0x0a000000 },
-{ 0x20, 0, 0, 0x00000026 },
-{ 0x54, 0, 0, 0xff000000 },
-{ 0x15, 0, 1, 0x65000000 },
-{ 0x6, 0, 0, 0x00000800 },
+      { 0x28, 0, 0, 0x0000000c },
+      { 0x15, 0, 6, 0x00000800 },
+      { 0x20, 0, 0, 0x0000001e },
+      { 0x54, 0, 0, 0xff000000 },
+      { 0x15, 11, 0, 0x0a000000 },
+      { 0x20, 0, 0, 0x0000001e },
+      { 0x54, 0, 0, 0xff000000 },
+      { 0x15, 8, 9, 0x65000000 },
+      { 0x15, 1, 0, 0x00000806 },
+      { 0x15, 0, 7, 0x00008035 },
+      { 0x20, 0, 0, 0x00000026 },
+      { 0x54, 0, 0, 0xff000000 },
+      { 0x15, 3, 0, 0x0a000000 },
+      { 0x20, 0, 0, 0x00000026 },
+      { 0x54, 0, 0, 0xff000000 },
+      { 0x15, 0, 1, 0x65000000 },
+      { 0x6, 0, 0, 0x00000800 },
 
       /* Load the type into register */
       /*BPF_STMT(BPF_LD+BPF_H+BPF_ABS, 12),*/

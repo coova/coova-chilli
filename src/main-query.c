@@ -312,40 +312,40 @@ static int process_args(int argc, char *argv[], int argidx) {
 	}
 
 	switch(args[i].type) {
-	case CMDSOCK_FIELD_NONE:
-	  break;
-	case CMDSOCK_FIELD_MAC:
-	  parse_mac(((uint8_t *)args[i].field), argv[argidx+1]);
-	  break;
-	case CMDSOCK_FIELD_STRING:
-	  strlcpy(((char *)args[i].field), argv[argidx+1], args[i].length);
-	  break;
-	case CMDSOCK_FIELD_INTEGER:
-	  switch(args[i].length) {
-	  case 1:
-	    *((uint8_t *)args[i].field) |= (uint8_t)atoi(argv[argidx+1]);
-	    break;
-	  case 2:
-	    *((uint16_t *)args[i].field) |= (uint16_t)atoi(argv[argidx+1]);
-	    break;
-	  case 4:
-	    *((uint32_t *)args[i].field) |= (uint32_t)atol(argv[argidx+1]);
-	    break;
-	  case 8:
-	    *((uint64_t *)args[i].field) |= (uint64_t)atol(argv[argidx+1]);
-	    break;
-	  }
-	  break;
-	case CMDSOCK_FIELD_IPV4:
-	  {
-	    struct in_addr ip;
-	    if (!inet_aton(argv[argidx+1], &ip)) {
-	      fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx+1]);
-	      return usage(argv[0]);
-	    }
-	    ((struct in_addr *)args[i].field)->s_addr = ip.s_addr;
-	    break;
-	  }
+          case CMDSOCK_FIELD_NONE:
+            break;
+          case CMDSOCK_FIELD_MAC:
+            parse_mac(((uint8_t *)args[i].field), argv[argidx+1]);
+            break;
+          case CMDSOCK_FIELD_STRING:
+            strlcpy(((char *)args[i].field), argv[argidx+1], args[i].length);
+            break;
+          case CMDSOCK_FIELD_INTEGER:
+            switch(args[i].length) {
+              case 1:
+                *((uint8_t *)args[i].field) |= (uint8_t)atoi(argv[argidx+1]);
+                break;
+              case 2:
+                *((uint16_t *)args[i].field) |= (uint16_t)atoi(argv[argidx+1]);
+                break;
+              case 4:
+                *((uint32_t *)args[i].field) |= (uint32_t)atol(argv[argidx+1]);
+                break;
+              case 8:
+                *((uint64_t *)args[i].field) |= (uint64_t)atol(argv[argidx+1]);
+                break;
+            }
+            break;
+          case CMDSOCK_FIELD_IPV4:
+            {
+              struct in_addr ip;
+              if (!inet_aton(argv[argidx+1], &ip)) {
+                fprintf(stderr, "Invalid IP Address: %s\n", argv[argidx+1]);
+                return usage(argv[0]);
+              }
+              ((struct in_addr *)args[i].field)->s_addr = ip.s_addr;
+              break;
+            }
 	}
 	break;
       }
@@ -371,8 +371,8 @@ static int process_args(int argc, char *argv[], int argidx) {
 }
 
 static int chilli_communicate(int s,
-			       struct cmdsock_request *buffer,
-			       size_t blen) {
+                              struct cmdsock_request *buffer,
+                              size_t blen) {
   char line[1024];
   int len;
 
@@ -481,81 +481,81 @@ int main(int argc, char **argv) {
       switch(request.type) {
 
 #ifdef ENABLE_INSPECT
-      case CMDSOCK_INSPECT:
+        case CMDSOCK_INSPECT:
 #endif
 #if defined(ENABLE_LOCATION) && defined(HAVE_AVL)
-      case CMDSOCK_LISTLOC:
-      case CMDSOCK_LISTLOCSUM:
+        case CMDSOCK_LISTLOC:
+        case CMDSOCK_LISTLOCSUM:
 #endif
-      case CMDSOCK_LIST:
-      case CMDSOCK_LOGIN:
-      case CMDSOCK_LOGOUT:
-      case CMDSOCK_UPDATE:
-      case CMDSOCK_AUTHORIZE:
-      case CMDSOCK_ADD_GARDEN:
-      case CMDSOCK_REM_GARDEN:
-	argidx = process_args(argc, argv, argidx);
-	if (request.type != CMDSOCK_LOGOUT || argidx >= argc)
-	  break;
-	/* else, drop through */
-      case CMDSOCK_DHCP_DROP:
-      case CMDSOCK_DHCP_RELEASE:
-	{
-	  if (argc < argidx+1) {
-	    fprintf(stderr, "%s requires a MAC address argument\n", cmd);
-	    return usage(argv[0]);
-	  }
+        case CMDSOCK_LIST:
+        case CMDSOCK_LOGIN:
+        case CMDSOCK_LOGOUT:
+        case CMDSOCK_UPDATE:
+        case CMDSOCK_AUTHORIZE:
+        case CMDSOCK_ADD_GARDEN:
+        case CMDSOCK_REM_GARDEN:
+          argidx = process_args(argc, argv, argidx);
+          if (request.type != CMDSOCK_LOGOUT || argidx >= argc)
+            break;
+          /* else, drop through */
+        case CMDSOCK_DHCP_DROP:
+        case CMDSOCK_DHCP_RELEASE:
+          {
+            if (argc < argidx+1) {
+              fprintf(stderr, "%s requires a MAC address argument\n", cmd);
+              return usage(argv[0]);
+            }
 
-	  if (parse_mac(request.mac, argv[argidx]))
-	    return usage(argv[0]);
+            if (parse_mac(request.mac, argv[argidx]))
+              return usage(argv[0]);
 
-	  /* do another switch to pick up param configs for authorize */
-	}
-	break;
+            /* do another switch to pick up param configs for authorize */
+          }
+          break;
 #ifdef ENABLE_MULTIROUTE
-      case CMDSOCK_ROUTE:
-      case CMDSOCK_ROUTE_GW:
-	{
-	  unsigned int temp[PKT_ETH_ALEN];
-	  char macstr[RADIUS_ATTR_VLEN];
-	  int macstrlen;
-	  int i;
+        case CMDSOCK_ROUTE:
+        case CMDSOCK_ROUTE_GW:
+          {
+            unsigned int temp[PKT_ETH_ALEN];
+            char macstr[RADIUS_ATTR_VLEN];
+            int macstrlen;
+            int i;
 
-	  if (argc < argidx + 2) {
-	    break;
-	  }
+            if (argc < argidx + 2) {
+              break;
+            }
 
-	  if ((macstrlen = strlen(argv[argidx])) >= (RADIUS_ATTR_VLEN-1)) {
-	    fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
-	    break;
-	  }
+            if ((macstrlen = strlen(argv[argidx])) >= (RADIUS_ATTR_VLEN-1)) {
+              fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
+              break;
+            }
 
-	  memcpy(macstr, argv[argidx], macstrlen);
-	  macstr[macstrlen] = 0;
+            memcpy(macstr, argv[argidx], macstrlen);
+            macstr[macstrlen] = 0;
 
-	  for (i=0; i<macstrlen; i++)
-	    if (!isxdigit((int) macstr[i]))
-	      macstr[i] = 0x20;
+            for (i=0; i<macstrlen; i++)
+              if (!isxdigit((int) macstr[i]))
+                macstr[i] = 0x20;
 
-	  if (sscanf(macstr, "%2x %2x %2x %2x %2x %2x",
-		     &temp[0], &temp[1], &temp[2],
-		     &temp[3], &temp[4], &temp[5]) != 6) {
-	    fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
-	    break;
-	  }
+            if (sscanf(macstr, "%2x %2x %2x %2x %2x %2x",
+                       &temp[0], &temp[1], &temp[2],
+                       &temp[3], &temp[4], &temp[5]) != 6) {
+              fprintf(stderr, "%s: bad MAC address\n", argv[argidx]);
+              break;
+            }
 
-	  for (i = 0; i < PKT_ETH_ALEN; i++)
-	    request.mac[i] = temp[i];
+            for (i = 0; i < PKT_ETH_ALEN; i++)
+              request.mac[i] = temp[i];
 
-	  argidx++;
-	  request.d.sess.params.routeidx = atoi(argv[argidx]);
+            argidx++;
+            request.d.sess.params.routeidx = atoi(argv[argidx]);
 
-	  if (request.type != CMDSOCK_ROUTE_GW)
-	    request.type = CMDSOCK_ROUTE_SET;
+            if (request.type != CMDSOCK_ROUTE_GW)
+              request.type = CMDSOCK_ROUTE_SET;
 
-	  /* do another switch to pick up param configs for authorize */
-	}
-	break;
+            /* do another switch to pick up param configs for authorize */
+          }
+          break;
 #endif
       }
       break;
@@ -650,32 +650,32 @@ int main(int argc, char **argv) {
     }
 #endif
 
-  if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    perror("socket");
-    exit(1);
-  }
+    if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+      perror("socket");
+      exit(1);
+    }
 
-  remote.sun_family = AF_UNIX;
-  strcpy(remote.sun_path, cmdsock);
+    remote.sun_family = AF_UNIX;
+    strcpy(remote.sun_path, cmdsock);
 
 #if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
-  remote.sun_len = strlen(remote.sun_path) + 1;
+    remote.sun_len = strlen(remote.sun_path) + 1;
 #endif
 
-  len = offsetof(struct sockaddr_un, sun_path) + strlen(remote.sun_path);
+    len = offsetof(struct sockaddr_un, sun_path) + strlen(remote.sun_path);
 
-  if (connect(s, (struct sockaddr *)&remote, len) == -1) {
-    perror("connect");
-    exit(1);
-  }
+    if (connect(s, (struct sockaddr *)&remote, len) == -1) {
+      perror("connect");
+      exit(1);
+    }
 
-  if (chilli_communicate(s, &request, sizeof(request)) != 0) {
-    perror("write");
-    exit(1);
-  }
+    if (chilli_communicate(s, &request, sizeof(request)) != 0) {
+      perror("write");
+      exit(1);
+    }
 
-  shutdown(s, 2);
-  close(s);
+    shutdown(s, 2);
+    close(s);
 
 #ifdef HAVE_GLOB
   }

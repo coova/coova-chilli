@@ -35,8 +35,9 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
   if (lvl >= 15) return -1;
 
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "%s dlen=%d reslen=%d olen=%d lvl=%d",
-	  __FUNCTION__, dlen, reslen, olen, lvl);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "%s dlen=%d reslen=%d olen=%d lvl=%d",
+           __FUNCTION__, dlen, reslen, olen, lvl);
 #endif
 
   /* only capture the first name in query */
@@ -52,12 +53,14 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
 	ret++;
 
 	if (offset > olen) {
-	  syslog(LOG_DEBUG, "bad value");
+          if (_options.debug)
+            syslog(LOG_DEBUG, "bad value");
 	  return -1;
 	}
 
 #if(_debug_ > 1)
-	syslog(LOG_DEBUG, "skip[%d] olen=%d", offset, olen);
+        if (_options.debug)
+          syslog(LOG_DEBUG, "skip[%d] olen=%d", offset, olen);
 #endif
 
 	if (dns_fullname(d, dlen,
@@ -70,13 +73,15 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
     }
 
     if (l >= dlen || l >= olen) {
-      syslog(LOG_DEBUG, "bad value %d/%zu/%zu", l, dlen, olen);
+      if (_options.debug)
+        syslog(LOG_DEBUG, "bad value %d/%zu/%zu", l, dlen, olen);
       return -1;
     }
 
 #if(_debug_ > 1)
-    syslog(LOG_DEBUG, "part[%.*s] reslen=%d l=%d dlen=%d",
-	    l, res, reslen, l, dlen);
+    if (_options.debug)
+      syslog(LOG_DEBUG, "part[%.*s] reslen=%d l=%d dlen=%d",
+             l, res, reslen, l, dlen);
 #endif
 
     if (d) {
@@ -130,7 +135,8 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	     uint8_t *question, size_t qsize,
 	     int isReq, int *qmatch, int *modified, int mode) {
 
-#define return_error { syslog(LOG_DEBUG, "failed parsing DNS packet"); return -1; }
+#define return_error {                                                  \
+    if (_options.debug) syslog(LOG_DEBUG, "failed parsing DNS packet"); return -1; }
 
   uint8_t *p_pkt = *pktp;
   size_t len = *left;
@@ -151,8 +157,9 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   uint16_t us;
 
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "%s: left=%d olen=%d qsize=%d",
-	  __FUNCTION__, *left, olen, qsize);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "%s: left=%d olen=%d qsize=%d",
+           __FUNCTION__, *left, olen, qsize);
 #endif
 
   memset(name, 0, sizeof(name));
@@ -183,14 +190,16 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   len -= 2;
 
 #if(_debug_)
-  syslog(LOG_DEBUG, "It was a dns record type: %d class: %d", type, class);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "It was a dns record type: %d class: %d", type, class);
 #endif
 
   if (q) {
     if (dns_fullname((char *)question, qsize, *pktp, *left, opkt, olen, 0) < 0)
       return_error;
 
-    syslog(LOG_DEBUG, "DNS: %s", question);
+    if (_options.debug)
+      syslog(LOG_DEBUG, "DNS: %s", question);
 
     *pktp = p_pkt;
     *left = len;
@@ -205,29 +214,31 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	size_t dom_len = strlen(_options.uamdomains[id]);
 
 #if(_debug_)
-	syslog(LOG_DEBUG, "checking %s [%s]",
-		_options.uamdomains[id], question);
+        if (_options.debug)
+          syslog(LOG_DEBUG, "checking %s [%s]",
+                 _options.uamdomains[id], question);
 #endif
 
 	if ( qst_len && dom_len &&
 	     (
-	      /*
-	       *  Match if question equals the uamdomain
-	       */
-	      ( qst_len == dom_len &&
-		!strcmp(_options.uamdomains[id], (char *)question) ) ||
-	      /*
-	       *  Match if the question is longer than uamdomain,
-	       *  and ends with the '.' followed by uamdomain
-	       */
-	      ( qst_len > dom_len &&
-		(_options.uamdomains[id][0] == '.' ||
-		 question[qst_len - dom_len - 1] == '.') &&
-		!strcmp(_options.uamdomains[id],
-			(char *)question + qst_len - dom_len) )
+                 /*
+                  *  Match if question equals the uamdomain
+                  */
+                 ( qst_len == dom_len &&
+                   !strcmp(_options.uamdomains[id], (char *)question) ) ||
+                 /*
+                  *  Match if the question is longer than uamdomain,
+                  *  and ends with the '.' followed by uamdomain
+                  */
+                 ( qst_len > dom_len &&
+                   (_options.uamdomains[id][0] == '.' ||
+                    question[qst_len - dom_len - 1] == '.') &&
+                   !strcmp(_options.uamdomains[id],
+                           (char *)question + qst_len - dom_len) )
 	      ) ) {
 #if(_debug_)
-	  syslog(LOG_DEBUG, "matched %s [%s]", _options.uamdomains[id], question);
+          if (_options.debug)
+            syslog(LOG_DEBUG, "matched %s [%s]", _options.uamdomains[id], question);
 #endif
 	  *qmatch = 1;
 	  break;
@@ -244,13 +255,15 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 #ifdef ENABLE_IPV6
     if (_options.ipv6) {
       if (isReq && type == 28) {
-	syslog(LOG_DEBUG, "changing AAAA to A request");
+        if (_options.debug)
+          syslog(LOG_DEBUG, "changing AAAA to A request");
 	us = 1;
 	us = htons(us);
 	memcpy(pkt_type, &us, sizeof(us));
 	*modified = 1;
       } else if (!isReq && type == 1) {
-	syslog(LOG_DEBUG, "changing A to AAAA response");
+        if (_options.debug)
+          syslog(LOG_DEBUG, "changing A to AAAA response");
 	us = 28;
 	us = htons(us);
 	memcpy(pkt_type, &us, sizeof(us));
@@ -276,13 +289,15 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   len -= 2;
 
 #if(_debug_ > 1)
-  syslog(LOG_DEBUG, "-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);
+  if (_options.debug)
+    syslog(LOG_DEBUG, "-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);
 #endif
 
   if (*qmatch == 1 && ttl > _options.uamdomain_ttl) {
 #if(_debug_)
-    syslog(LOG_DEBUG, "Rewriting DNS ttl from %d to %d",
-	    (int) ttl, _options.uamdomain_ttl);
+    if (_options.debug)
+      syslog(LOG_DEBUG, "Rewriting DNS ttl from %d to %d",
+             (int) ttl, _options.uamdomain_ttl);
 #endif
     ul = _options.uamdomain_ttl;
     ul = htonl(ul);
@@ -298,74 +313,110 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 
   switch (type) {
 
-  default:
-    syslog(LOG_DEBUG, "Record type %d", type);
-    return_error;
-    break;
+    default:
+      if (_options.debug)
+        syslog(LOG_DEBUG, "Record type %d", type);
+      return_error;
+      break;
 
-  case 1:
+    case 1:
 #if(_debug_ > 1)
-    syslog(LOG_DEBUG, "A record");
+      if (_options.debug)
+        syslog(LOG_DEBUG, "A record");
 #endif
-    required = 1;
+      required = 1;
 
 #ifdef ENABLE_MDNS
-    if (mode == DNS_MDNS_MODE) {
-      size_t offset;
-      for (offset=0; offset < rdlen; offset += 4) {
-	struct in_addr reqaddr;
-	memcpy(&reqaddr.s_addr, p_pkt+offset, 4);
+      if (mode == DNS_MDNS_MODE) {
+        size_t offset;
+        for (offset=0; offset < rdlen; offset += 4) {
+          struct in_addr reqaddr;
+          memcpy(&reqaddr.s_addr, p_pkt+offset, 4);
 #if(_debug_)
-	syslog(LOG_DEBUG, "mDNS %s = %s", name, inet_ntoa(reqaddr));
+          if (_options.debug)
+            syslog(LOG_DEBUG, "mDNS %s = %s", name, inet_ntoa(reqaddr));
 #endif
+        }
+        break;
+      }
+#endif
+
+      if (*qmatch == 1) {
+        size_t offset;
+        for (offset=0; offset < rdlen; offset += 4) {
+          add_A_to_garden(p_pkt+offset);
+        }
       }
       break;
-    }
-#endif
 
-    if (*qmatch == 1) {
-      size_t offset;
-      for (offset=0; offset < rdlen; offset += 4) {
-	add_A_to_garden(p_pkt+offset);
+    case 2: 
+      if (_options.debug)
+        syslog(LOG_DEBUG, "NS record");
+      required = 1;
+      break;
+    case 5: 
+      if (_options.debug)
+        syslog(LOG_DEBUG, "CNAME record %s", name);
+      required = 1;
+      break;
+    case 6: 
+      if (_options.debug)
+        syslog(LOG_DEBUG, "SOA record");
+      break;
+
+    case 12:
+      if (_options.debug)
+        syslog(LOG_DEBUG, "PTR record");
+      break;
+    case 15:
+      if (_options.debug)
+        syslog(LOG_DEBUG, "MX record");
+      required = 1;
+      break;
+
+    case 16:/* TXT */
+      if (_options.debug)
+        syslog(LOG_DEBUG, "TXT record %d", rdlen);
+      if (_options.debug) {
+        char *txt = (char *)p_pkt;
+        int txtlen = rdlen;
+        while (txtlen-- > 0) {
+          uint8_t l = *txt++;
+          if (l == 0) break;
+          if (_options.debug)
+            syslog(LOG_DEBUG, "Text: %.*s", (int) l, txt);
+          txt += l;
+          txtlen -= l;
+        }
       }
-    }
-    break;
+      break;
 
-  case 2: syslog(LOG_DEBUG, "NS record"); required = 1; break;
-  case 5: syslog(LOG_DEBUG, "CNAME record %s", name); required = 1; break;
-  case 6: syslog(LOG_DEBUG, "SOA record"); break;
-
-  case 12: syslog(LOG_DEBUG, "PTR record"); break;
-  case 15: syslog(LOG_DEBUG, "MX record"); required = 1; break;
-
-  case 16:/* TXT */
-    syslog(LOG_DEBUG, "TXT record %d", rdlen);
-    if (_options.debug) {
-      char *txt = (char *)p_pkt;
-      int txtlen = rdlen;
-      while (txtlen-- > 0) {
-	uint8_t l = *txt++;
-	if (l == 0) break;
-	syslog(LOG_DEBUG, "Text: %.*s", (int) l, txt);
-	txt += l;
-	txtlen -= l;
-      }
-    }
-    break;
-
-  case 28:
-    syslog(LOG_DEBUG, "AAAA record");
-    required = 1;
-    break;
-  case 29: syslog(LOG_DEBUG, "LOC record"); break;
-  case 33: syslog(LOG_DEBUG, "SRV record"); break;
-  case 41: syslog(LOG_DEBUG, "EDNS OPT pseudorecord"); break;
-  case 47: syslog(LOG_DEBUG, "NSEC record"); break;
+    case 28:
+      if (_options.debug)
+        syslog(LOG_DEBUG, "AAAA record");
+      required = 1;
+      break;
+    case 29:
+      if (_options.debug)
+        syslog(LOG_DEBUG, "LOC record");
+      break;
+    case 33:
+      if (_options.debug)
+        syslog(LOG_DEBUG, "SRV record");
+      break;
+    case 41:
+      if (_options.debug)
+        syslog(LOG_DEBUG, "EDNS OPT pseudorecord");
+      break;
+    case 47:
+      if (_options.debug)
+        syslog(LOG_DEBUG, "NSEC record");
+      break;
   }
 
   if (antidnstunnel && !required) {
     syslog(LOG_WARNING, "dropping dns for anti-dnstunnel (type %d: length %d)",
-	     type, rdlen);
+           type, rdlen);
     return -1;
   }
 

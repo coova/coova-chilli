@@ -151,16 +151,16 @@ getline (char** lineptr, size_t* n, FILE* stream) {
   int c;
 
   if (*lineptr == NULL && n == NULL)
-    {
-      lptr1 = malloc (GETLINE_BUFSIZE);
-      if (lptr1 == NULL) return EOF;
-      nn = GETLINE_BUFSIZE;
-    }
+  {
+    lptr1 = malloc (GETLINE_BUFSIZE);
+    if (lptr1 == NULL) return EOF;
+    nn = GETLINE_BUFSIZE;
+  }
   else
-    {
-      lptr1 = *lineptr;
-      nn = *n;
-    }
+  {
+    lptr1 = *lineptr;
+    nn = *n;
+  }
   c = fgetc (stream);
   if (c == EOF) return EOF;
   {
@@ -168,19 +168,19 @@ getline (char** lineptr, size_t* n, FILE* stream) {
 
     offset = 0;
     while (c != EOF)
+    {
+      if (offset >= nn - 1)
       {
-        if (offset >= nn - 1)
-          {
-            char* lptr2;
-            lptr2 = realloc (lptr1, 2 * nn);
-            if (lptr2 == NULL) return EOF;
-            lptr1 = lptr2;
-            nn *= 2;
-          }
-        lptr1[offset++] = (char)c;
-        if (c == '\n') break;
-        c = fgetc (stream);
+        char* lptr2;
+        lptr2 = realloc (lptr1, 2 * nn);
+        if (lptr2 == NULL) return EOF;
+        lptr1 = lptr2;
+        nn *= 2;
       }
+      lptr1[offset++] = (char)c;
+      if (c == '\n') break;
+      c = fgetc (stream);
+    }
     lptr1[offset] = '\0';
     *lineptr = lptr1;
     *n = nn;

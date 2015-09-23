@@ -190,7 +190,7 @@ struct radius_queue_t {      /* Holder for queued packets */
 #ifdef RADIUS_QUEUE_PACKET_PTR
   *
 #endif
-                         p;  /* The packet stored */
+  p;  /* The packet stored */
   int next;                  /* Pointer to the next in queue. -1: Last */
   int prev;                  /* Pointer to the previous in queue. -1: First */
 };

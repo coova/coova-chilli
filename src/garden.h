@@ -32,11 +32,11 @@ typedef struct pass_through_t {
 #endif
 } pass_through;
 
-#define pt_equal(a,b) (\
-  (a)->host.s_addr == (b)->host.s_addr && \
-  (a)->mask.s_addr == (b)->mask.s_addr && \
-  (a)->proto       == (b)->proto       && \
-  (a)->port        == (b)->port)
+#define pt_equal(a,b) (                         \
+    (a)->host.s_addr == (b)->host.s_addr &&     \
+    (a)->mask.s_addr == (b)->mask.s_addr &&     \
+    (a)->proto       == (b)->proto       &&     \
+    (a)->port        == (b)->port)
 
 #ifdef ENABLE_CHILLIREDIR
 typedef struct regex_pass_through_t {

@@ -260,7 +260,8 @@ struct dhcp_t {
   /* Call back functions */
   int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
   int (*cb_eap_ind)  (struct dhcp_conn_t *conn, uint8_t *pack, size_t len);
-  int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr, uint8_t *pack, size_t len);
+  int (*cb_request) (struct dhcp_conn_t *conn, struct in_addr *addr,
+                     uint8_t *pack, size_t len);
   int (*cb_connect) (struct dhcp_conn_t *conn);
   int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause);
 };
@@ -305,20 +306,24 @@ int dhcp_receive(struct dhcp_t *this, int idx);
 #endif
 
 int dhcp_set_cb_data_ind(struct dhcp_t *this,
-  int (*cb_data_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len));
+                         int (*cb_data_ind) (struct dhcp_conn_t *conn,
+                                             uint8_t *pack, size_t len));
 
 int dhcp_set_cb_request(struct dhcp_t *this,
-  int (*cb_request) (struct dhcp_conn_t *conn,
-		     struct in_addr *addr, uint8_t *pack, size_t len));
+                        int (*cb_request) (struct dhcp_conn_t *conn,
+                                           struct in_addr *addr,
+                                           uint8_t *pack, size_t len));
 
 int dhcp_set_cb_disconnect(struct dhcp_t *this,
-  int (*cb_disconnect) (struct dhcp_conn_t *conn, int term_cause));
+                           int (*cb_disconnect) (struct dhcp_conn_t *conn,
+                                                 int term_cause));
 
 int dhcp_set_cb_connect(struct dhcp_t *this,
-  int (*cb_connect) (struct dhcp_conn_t *conn));
+                        int (*cb_connect) (struct dhcp_conn_t *conn));
 
 int dhcp_set_cb_eap_ind(struct dhcp_t *this,
-  int (*cb_eap_ind) (struct dhcp_conn_t *conn, uint8_t *pack, size_t len));
+                        int (*cb_eap_ind) (struct dhcp_conn_t *conn,
+                                           uint8_t *pack, size_t len));
 
 int dhcp_hashget(struct dhcp_t *this, struct dhcp_conn_t **conn, uint8_t *hwaddr);
 

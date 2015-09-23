@@ -45,19 +45,19 @@ struct tun_t {
 #define tun(x,i) ((x)->_interfaces[(i)])
 #define tuntap(x) tun((x),0)
 
-#define tun_fdsetR(tun,fds) { int i; \
-  for (i=0; i<(tun)->_interface_count; i++) \
-    net_fdsetR(&(tun)->_interfaces[i], (fds)); }
+#define tun_fdsetR(tun,fds) { int i;                    \
+    for (i=0; i<(tun)->_interface_count; i++)           \
+      net_fdsetR(&(tun)->_interfaces[i], (fds)); }
 
-#define tun_ckread(tun,fds) { int i;\
-  for (i=0; i<(tun)->_interface_count; i++) {\
-    if (net_issetR(&(tun)->_interfaces[i], (fds)) &&\
-        tun_decaps((tun), i) < 0)\
-      syslog(LOG_ERR, "tun_decaps()"); } }
+#define tun_ckread(tun,fds) { int i;                    \
+    for (i=0; i<(tun)->_interface_count; i++) {         \
+      if (net_issetR(&(tun)->_interfaces[i], (fds)) &&  \
+          tun_decaps((tun), i) < 0)                     \
+        syslog(LOG_ERR, "tun_decaps()"); } }
 
-#define tun_close(tun) { int i; \
-    for (i=0; i<(tun)->_interface_count; i++) \
-      net_close(&(tun)->_interfaces[i]);}
+#define tun_close(tun) { int i;                         \
+        for (i=0; i<(tun)->_interface_count; i++)       \
+          net_close(&(tun)->_interfaces[i]);}
 
 #else
   struct _net_interface _tuntap;
@@ -65,8 +65,8 @@ struct tun_t {
 #define tun(x,i) ((x)->_tuntap)
 #define tuntap(x) tun((x),0)
 #define tun_fdsetR(tun,fds) net_fdsetR(&(tun)->_tuntap, (fds))
-#define tun_ckread(tun,fds) \
-  if (net_issetR(&(tun)->_tuntap, (fds)) && tun_decaps((tun), i) < 0)\
+#define tun_ckread(tun,fds)                                             \
+  if (net_issetR(&(tun)->_tuntap, (fds)) && tun_decaps((tun), i) < 0)   \
     syslog(LOG_ERR, "tun_decaps()"))
 #define tun_close(tun) net_close(&(tun)->_tuntap)
 #endif
@@ -81,9 +81,9 @@ int tun_encaps(struct tun_t *this, uint8_t *pack, size_t len, int idx);
 int tun_write(struct tun_t *tun, uint8_t *pack, size_t len, int idx);
 
 /*int tun_addaddr(struct tun_t *this, struct in_addr *addr, struct in_addr *dstaddr, struct in_addr *netmask);
-int tun_setaddr(struct tun_t *this, struct in_addr *our_adr, struct in_addr *his_adr, struct in_addr *net_mask);
-int tun_addroute(struct tun_t *this, struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask);
-int tun_delroute(struct tun_t *this, struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask);*/
+  int tun_setaddr(struct tun_t *this, struct in_addr *our_adr, struct in_addr *his_adr, struct in_addr *net_mask);
+  int tun_addroute(struct tun_t *this, struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask);
+  int tun_delroute(struct tun_t *this, struct in_addr *dst, struct in_addr *gateway, struct in_addr *mask);*/
 
 int tun_set_cb_ind(struct tun_t *this, int (*cb_ind) (struct tun_t *tun, struct pkt_buffer *pb, int idx));
 
