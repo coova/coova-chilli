@@ -160,8 +160,8 @@ struct redir_conn_t {
 
 /* HTTP request parsing context */
 struct redir_httpreq_t {
-  char allow_post:1;
-  char is_post:1;
+  uint8_t allow_post:1;
+  uint8_t is_post:1;
 
   char host[256];
   char path[256];
@@ -179,14 +179,14 @@ typedef struct _redir_request {
 
   struct redir_t *parent;
 
-  char inuse:1;
-  char proxy:1;
-  char headers:1;
-  char html:1;
-  char chunked:1;
-  char gzip:1;
-  char read_closed:1;
-  char write_closed:1;
+  uint8_t inuse:1;
+  uint8_t proxy:1;
+  uint8_t headers:1;
+  uint8_t html:1;
+  uint8_t chunked:1;
+  uint8_t gzip:1;
+  uint8_t read_closed:1;
+  uint8_t write_closed:1;
 
   int clen;
 
