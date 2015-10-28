@@ -146,7 +146,9 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   char required = 0;
 
   uint16_t type;
+  #if(_debug_)
   uint16_t class;
+  #endif
   uint32_t ttl;
   uint16_t rdlen;
 
@@ -185,7 +187,9 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   len -= 2;
 
   memcpy(&us, p_pkt, sizeof(us));
+  #if(_debug_)
   class = ntohs(us);
+  #endif
   p_pkt += 2;
   len -= 2;
 

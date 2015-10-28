@@ -44,12 +44,12 @@ struct options_t _options;
 typedef struct _proxy_request {
   int index;
 
-  char reserved:4;
-  char authorized:1;
-  char challenge:1;
-  char inuse:1;
-  char past_headers:1;
-  char nline:1;
+  uint8_t reserved:4;
+  uint8_t authorized:1;
+  uint8_t challenge:1;
+  uint8_t inuse:1;
+  uint8_t past_headers:1;
+  uint8_t nline:1;
 
   bstring url;
   bstring data;
