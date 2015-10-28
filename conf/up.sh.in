@@ -32,6 +32,8 @@ run_up() {
 	else
 	    if [ "$LAYER3" != "1" ]
 	    then
+		ipt_in --dst $ADDR -j DROP
+		
 		[ -n "$UAMPORT" -a "$UAMPORT" != "0" ] && \
 		    ipt_in -p tcp -m tcp --dport $UAMPORT --dst $ADDR -j ACCEPT
 		
@@ -54,8 +56,6 @@ run_up() {
 		ipt_in -p udp -d $ADDR --destination-port 67:68 -j ACCEPT
 		ipt_in -p udp --dst $ADDR --dport 53 -j ACCEPT
 		ipt_in -p icmp --dst $ADDR -j ACCEPT
-		
-		ipt -A INPUT -i $TUNTAP --dst $ADDR -j DROP
 		
 		if [ "$ONLY8021Q" != "1" ]
 		then
