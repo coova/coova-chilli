@@ -4371,7 +4371,7 @@ static int chilliauth_cb(struct radius_t *radius,
       }
 
       /* unlink(hs_temp); */
-		  safe_clos(fd);
+		  safe_close(fd);
 		}
     }
   }
