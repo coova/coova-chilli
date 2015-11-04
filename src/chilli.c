@@ -4319,8 +4319,6 @@ static int chilliauth_cb(struct radius_t *radius,
                   RADIUS_VENDOR_COOVACHILLI,
                   RADIUS_ATTR_COOVACHILLI_CONFIG,
                   0, &offset));
-        safe_close(fd);
-      }
 
       /*
        *  Check to see if this file is different from the chilli/hs.conf
@@ -4330,6 +4328,7 @@ static int chilliauth_cb(struct radius_t *radius,
 	int oldfd = open(hs_conf, O_RDONLY);
 
 	if (newfd > 0) {
+     lseek(newfd, SEEK_SET, 0);
 	  int differ = (oldfd > 0) ? 0 : 1;
 	  char b1[100], b2[100];
 	  ssize_t r1, r2;
@@ -4356,6 +4355,7 @@ static int chilliauth_cb(struct radius_t *radius,
 	    oldfd = open(hs_conf, O_RDWR | O_TRUNC | O_CREAT, 0644);
 
 	    if (newfd > 0 && oldfd > 0) {
+        lseek(newfd, SEEK_SET, 0);
 
 	      while ((r1 = safe_read(newfd, b1, sizeof(b1))) > 0 &&
 		     safe_write(oldfd, b1, r1) > 0);
@@ -4371,6 +4371,8 @@ static int chilliauth_cb(struct radius_t *radius,
       }
 
       /* unlink(hs_temp); */
+		  safe_clos(fd);
+		}
     }
   }
 
