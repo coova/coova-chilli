@@ -4324,18 +4324,17 @@ static int chilliauth_cb(struct radius_t *radius,
        *  Check to see if this file is different from the chilli/hs.conf
        */
       {
-	int newfd = dup(fd);
 	int oldfd = open(hs_conf, O_RDONLY);
 
-	if (newfd > 0) {
-     lseek(newfd, SEEK_SET, 0);
+	if (fd > 0) {
+     lseek(fd, SEEK_SET, 0);
 	  int differ = (oldfd > 0) ? 0 : 1;
 	  char b1[100], b2[100];
 	  ssize_t r1, r2;
 
 	  if (!differ) {
 	    do {
-	      r1 = safe_read(newfd, b1, sizeof(b1));
+	      r1 = safe_read(fd, b1, sizeof(b1));
 	      r2 = safe_read(oldfd, b2, sizeof(b2));
 
 	      if (r1 != r2 || strncmp(b1, b2, r1))
@@ -4344,29 +4343,25 @@ static int chilliauth_cb(struct radius_t *radius,
 	    while (!differ && r1 > 0 && r2 > 0);
 	  }
 
-	  if (newfd) safe_close(newfd); newfd=0;
 	  if (oldfd) safe_close(oldfd); oldfd=0;
 
 	  if (differ) {
             if (_options.debug)
               syslog(LOG_DEBUG, "Writing out new hs.conf file with administraive-user settings");
 
-	    newfd = dup(fd);
 	    oldfd = open(hs_conf, O_RDWR | O_TRUNC | O_CREAT, 0644);
 
-	    if (newfd > 0 && oldfd > 0) {
-        lseek(newfd, SEEK_SET, 0);
+	    if (fd > 0 && oldfd > 0) {
+        lseek(fd, SEEK_SET, 0);
 
-	      while ((r1 = safe_read(newfd, b1, sizeof(b1))) > 0 &&
+	      while ((r1 = safe_read(fd, b1, sizeof(b1))) > 0 &&
 		     safe_write(oldfd, b1, r1) > 0);
 
-	      safe_close(newfd); newfd=0;
 	      safe_close(oldfd); oldfd=0;
 	      do_interval = 1;
 	    }
 	  }
 	}
-	if (newfd > 0) safe_close(newfd);
 	if (oldfd > 0) safe_close(oldfd);
       }
 
