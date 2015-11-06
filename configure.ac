@@ -390,13 +390,13 @@ AC_ARG_WITH([nfqueue],
 
 AS_IF([test x"$with_nfqueue" != xno],
   [AC_CHECK_LIB([netfilter_queue], [nfq_open],
-              [AC_SUBST([LIBNETFILTER_QUEUE], ["-lnetfilter_queue  -lnfnetlink"])
+              [AC_SUBST([LIBNETFILTER_QUEUE], ["-lnetfilter_queue  -lnfnetlink -lmnl"])
                AC_DEFINE([HAVE_NETFILTER_QUEUE], [1],
                          [Define if you have netfilter_queue])
               ],
               [AC_MSG_FAILURE(
                  [--with-nfqueue was given, but test for netfilter_queue failed])],
-              [-lnetfilter_queue -lnfnetlink])])
+              [-lnetfilter_queue -lnfnetlink -lmnl])])
 
 AM_CONDITIONAL(WITH_NETFILTER_QUEUE, [test x"$with_nfqueue" != xno])
 
@@ -478,13 +478,13 @@ AC_ARG_WITH([curl],
 
 AS_IF([test x"$with_curl" != xno],
   [AC_CHECK_LIB([curl], [curl_global_init],
-              [AC_SUBST([LIBCURL], ["-lcurl -lz"])
+              [AC_SUBST([LIBCURL], ["-lcurl -lz -lssl -lcrypto -lcares"])
                AC_DEFINE([USING_CURL], [1],
                          [Define if you have curl enabled])
               ],
               [AC_MSG_FAILURE(
                  [--with-curl was given, but test for curl failed])],
-              [-lcurl -lz -lssl -lcrypto])])
+              [-lz -lssl -lcrypto -lcares])])
 
 AM_CONDITIONAL(WITH_CURL, [test x"$with_curl" != xno])
 

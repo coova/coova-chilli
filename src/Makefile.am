@@ -132,7 +132,7 @@ sbin_PROGRAMS += chilli_proxy
 chilli_proxy_SOURCES = main-proxy.c 
 chilli_proxy_LDADD = ${LDADD}
 if WITH_CURL
-chilli_proxy_LDADD += -lcurl -lz 
+chilli_proxy_LDADD += ${LIBCURL} 
 endif
 endif
 
@@ -154,7 +154,7 @@ sbin_PROGRAMS += chilli_redir
 chilli_redir_SOURCES = main-redir.c 
 chilli_redir_LDADD = ${LDADD}
 if WITH_CURL
-chilli_redir_LDADD += -lcurl -lz 
+chilli_redir_LDADD += ${LIBCURL} 
 endif
 endif
 

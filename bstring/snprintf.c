@@ -572,7 +572,7 @@ int portable_vsnprintf(char *str, size_t str_m, const char *fmt, va_list ap) {
       int space_for_positive = 1; /* If both the ' ' and '+' flags appear,
                                      the ' ' flag should be ignored. */
       char length_modifier = '\0';            /* allowed values: \0, h, l, L */
-      char tmp[32];/* temporary buffer for simple numeric->string conversion */
+      char tmp[32] = "";/* temporary buffer for simple numeric->string conversion */
 
       const char *str_arg = NULL;/* string address in case of string argument */
       size_t str_arg_l;          /* natural field width of arg without padding

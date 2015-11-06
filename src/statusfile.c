@@ -109,6 +109,13 @@ int loadstatus() {
       /* not already known */
       dhcp_lnkconn(dhcp, &conn);
 
+      /* Check conn */
+      if (!conn) {
+         syslog(LOG_ERR, "unkown connection");
+         fclose(file);
+         return -1;
+      }
+
       /* set/copy all the pointers */
       dhcpconn.nexthash = conn->nexthash;
       dhcpconn.next = conn->next;
