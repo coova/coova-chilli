@@ -151,12 +151,14 @@ int options_load(int argc, char **argv, bstring bt) {
   static char done_before = 0;
   char file[128];
   int fd;
+  int i;
+  const int RETRY = 3;
 
   chilli_binconfig(file, sizeof(file), 0);
 
   fd = open(file, O_RDONLY);
 
-  while (fd < 0) {
+  for (i = 0; i < RETRY && fd < 0; i++) {
     int status = 0;
     int pid = opt_run(argc, argv, 0);
     waitpid(pid, &status, 0);
