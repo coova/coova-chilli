@@ -1349,6 +1349,12 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   bassignformat(tmp, "%d", state);
   bconcat(json, tmp);
 
+  if (_options.radiusnasid) {
+    bcatcstr(json, ",\"nasid\":");
+    bcatcstr(json, _options.radiusnasid);
+    bcatcstr(json, "\"");
+  }
+
   if (reply) {
     struct json_object* reply_json_obj;
     reply_json_obj = json_object_new_string(reply);
