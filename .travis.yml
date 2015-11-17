@@ -1,2 +1,4 @@
 language: c
-before_install: ./bootstrap
+before_install: 
+ - sudo apt-get install gengetopt
+ - ./bootstrap
