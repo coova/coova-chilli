@@ -5,3 +5,6 @@ before_install:
 script:
  - ./configure
  - make
+compiler:
+ - clang
+ - gcc
