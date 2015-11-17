@@ -1,2 +1,2 @@
 language: c
-env: AUTOTOOLS=yes
+before_install: ./bootstrap
