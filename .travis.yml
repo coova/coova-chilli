@@ -1,1 +1,2 @@
 language: c
+env: AUTOTOOLS=yes
