@@ -62,6 +62,7 @@ config.log
 config.status
 config.sub
 configure
+configure.status
 depcomp
 distro/nethserver/coova-chilli.spec
 distro/redhat/coova-chilli.spec
