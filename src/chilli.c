@@ -4297,7 +4297,6 @@ static int chilliauth_cb(struct radius_t *radius,
 
       char template[] = "/tmp/hs.conf.XXXXXX";
       char * hs_conf = _options.adminupdatefile;
-      char * hs_temp = mktemp(template);
 
       /*
        *  We have configurations in the administrative-user session.
@@ -4305,42 +4304,37 @@ static int chilliauth_cb(struct radius_t *radius,
        */
 
       if (_options.debug)
-        syslog(LOG_DEBUG, "using temp: %s", hs_temp);
+        syslog(LOG_DEBUG, "using template temp file: %s", template);
 
-      int fd = open(hs_temp, O_RDWR | O_TRUNC | O_CREAT, 0644);
-
+      int fd = mkstemp(template);
       if (fd > 0) {
-
-	do {
-	  if (safe_write(fd, attr->v.t, attr->l - 2) < 0 ||
-	      safe_write(fd, "\n", 1) < 0) {
-	    syslog(LOG_ERR, "%s: adminupdatefile", strerror(errno));
-	    break;
-	  }
-	}
-	while (!radius_getnextattr(pack, &attr,
-				   RADIUS_ATTR_VENDOR_SPECIFIC,
-				   RADIUS_VENDOR_COOVACHILLI,
-				   RADIUS_ATTR_COOVACHILLI_CONFIG,
-				   0, &offset));
-	safe_close(fd);
-      }
+        do {
+          if (safe_write(fd, attr->v.t, attr->l - 2) < 0 || safe_write(fd, "\n", 1) < 0) {
+            syslog(LOG_ERR, "%s: adminupdatefile", strerror(errno));
+            break;
+           }
+         }
+         while (!radius_getnextattr(pack, &attr,
+                  RADIUS_ATTR_VENDOR_SPECIFIC,
+                  RADIUS_VENDOR_COOVACHILLI,
+                  RADIUS_ATTR_COOVACHILLI_CONFIG,
+                  0, &offset));
 
       /*
        *  Check to see if this file is different from the chilli/hs.conf
        */
       {
-	int newfd = open(hs_temp, O_RDONLY);
 	int oldfd = open(hs_conf, O_RDONLY);
 
-	if (newfd > 0) {
+	if (fd > 0) {
+     lseek(fd, SEEK_SET, 0);
 	  int differ = (oldfd > 0) ? 0 : 1;
 	  char b1[100], b2[100];
 	  ssize_t r1, r2;
 
 	  if (!differ) {
 	    do {
-	      r1 = safe_read(newfd, b1, sizeof(b1));
+	      r1 = safe_read(fd, b1, sizeof(b1));
 	      r2 = safe_read(oldfd, b2, sizeof(b2));
 
 	      if (r1 != r2 || strncmp(b1, b2, r1))
@@ -4349,32 +4343,31 @@ static int chilliauth_cb(struct radius_t *radius,
 	    while (!differ && r1 > 0 && r2 > 0);
 	  }
 
-	  if (newfd) safe_close(newfd); newfd=0;
 	  if (oldfd) safe_close(oldfd); oldfd=0;
 
 	  if (differ) {
             if (_options.debug)
               syslog(LOG_DEBUG, "Writing out new hs.conf file with administraive-user settings");
 
-	    newfd = open(hs_temp, O_RDONLY);
 	    oldfd = open(hs_conf, O_RDWR | O_TRUNC | O_CREAT, 0644);
 
-	    if (newfd > 0 && oldfd > 0) {
+	    if (fd > 0 && oldfd > 0) {
+        lseek(fd, SEEK_SET, 0);
 
-	      while ((r1 = safe_read(newfd, b1, sizeof(b1))) > 0 &&
+	      while ((r1 = safe_read(fd, b1, sizeof(b1))) > 0 &&
 		     safe_write(oldfd, b1, r1) > 0);
 
-	      safe_close(newfd); newfd=0;
 	      safe_close(oldfd); oldfd=0;
 	      do_interval = 1;
 	    }
 	  }
 	}
-	if (newfd > 0) safe_close(newfd);
 	if (oldfd > 0) safe_close(oldfd);
       }
 
-      unlink(hs_temp);
+      /* unlink(hs_temp); */
+		  safe_close(fd);
+		}
     }
   }
 
