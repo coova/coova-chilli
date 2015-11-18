@@ -1,0 +1,11 @@
+language: c
+before_install: 
+ - sudo apt-get update -qq
+ - sudo apt-get install -y gengetopt
+ - ./bootstrap
+script:
+ - ./configure
+ - make
+compiler:
+ - clang
+ - gcc
