@@ -561,7 +561,7 @@ static void set_sessionid(struct app_conn_t *appconn, char full) {
 
   snprintf(appconn->s_state.sessionid,
 		sizeof(appconn->s_state.sessionid),
-		"%.8x%.8x", appconn->rt, appconn->unit);
+		"%.8lx%.8x", appconn->rt, appconn->unit);
 
   appconn->s_state.redir.classlen = 0;
   appconn->s_state.redir.statelen = 0;
