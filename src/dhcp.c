@@ -91,7 +91,7 @@ void print_peers(bstring s) {
         break;
     }
 
-    safe_snprintf(line, sizeof(line),
+    snprintf(line, sizeof(line),
 		  "Peer %d %-4s "MAC_FMT" "
 		  "/ %-16s %-8s %d sec",
 		  i, _options.peerid == i ? "(*)" : "",
@@ -603,7 +603,7 @@ void dhcp_checktag(struct dhcp_conn_t *conn, uint8_t *pack) {
 #ifdef ENABLE_LOCATION
       if (_options.vlanlocation && appconn) {
 	char vid[16];
-	safe_snprintf(vid, sizeof(vid), "%d",
+	snprintf(vid, sizeof(vid), "%d",
 		      (int)ntohs(tag & PKT_8021Q_MASK_VID));
 	chilli_learn_location((uint8_t *)vid, strlen(vid), appconn, 1);
       }
@@ -2033,7 +2033,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	  authenticated = appconn->s_state.authenticated;
 	}
 
-	safe_snprintf(line, sizeof(line),
+	snprintf(line, sizeof(line),
 		      "%d,"MAC_FMT",%s,%s,%d,%s\n",
 		      time(0),
 		      MAC_ARG(conn->hismac),

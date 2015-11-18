@@ -262,8 +262,6 @@
 #include <unistd.h>
 #include <errno.h>
 
-#define safe_snprintf portable_snprintf
-
 int safe_accept(int fd, struct sockaddr *sa, socklen_t *lenptr);
 int safe_select(int nfds, fd_set *readfds, fd_set *writefds,
 		fd_set *exceptfds, struct timeval *timeout);

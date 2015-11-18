@@ -41,7 +41,7 @@ int ippool_print(int fd, struct ippool_t *this) {
   int dyn[4] = { 0, 0, 0, 0};
   int stat[4] = { 0, 0, 0, 0};
 
-  safe_snprintf(line, sizeof(line),
+  snprintf(line, sizeof(line),
 		"DHCP lease time %d sec, grace period %d sec\n"
 		"First available dynamic %d Last %d\n"
 		"First available static %d Last %d\n"
@@ -55,7 +55,7 @@ int ippool_print(int fd, struct ippool_t *this) {
 
   safe_write(fd, line, strlen(line));
 
-  safe_snprintf(line, sizeof(line), sep, "Dynamic Pool");
+  snprintf(line, sizeof(line), sep, "Dynamic Pool");
   safe_write(fd, line, strlen(line));
 
   for (n=0; n < this->listsize; n++) {
@@ -80,14 +80,14 @@ int ippool_print(int fd, struct ippool_t *this) {
     }
 
     if (n == this->dynsize) {
-      safe_snprintf(line, sizeof(line), sep, "Static Pool");
+      snprintf(line, sizeof(line), sep, "Static Pool");
       safe_write(fd, line, strlen(line));
     }
 
     if (this->member[n].peer) {
       struct app_conn_t *appconn = (struct app_conn_t *) this->member[n].peer;
       struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *) appconn->dnlink;
-      safe_snprintf(peerLine, sizeof(peerLine),
+      snprintf(peerLine, sizeof(peerLine),
 		    "%s mac=%.2X-%.2X-%.2X-%.2X-%.2X-%.2X ip=%s age=%d",
 		    dhcpconn ? dhcpconn->is_reserved ? " reserved" : "" : "",
 		    appconn->hismac[0],appconn->hismac[1],appconn->hismac[2],
@@ -99,14 +99,14 @@ int ippool_print(int fd, struct ippool_t *this) {
     }
 
     if (this->member[n].in_use) {
-      safe_snprintf(useLine, sizeof(useLine), "-inuse-");
+      snprintf(useLine, sizeof(useLine), "-inuse-");
     } else {
-      safe_snprintf(useLine, sizeof(useLine), "%3d/%3d",
+      snprintf(useLine, sizeof(useLine), "%3d/%3d",
 		    this->member[n].prev ? (int)(this->member[n].prev - this->member) : -1,
                     this->member[n].next ? (int)(this->member[n].next - this->member) : -1);
     }
 
-    safe_snprintf(line, sizeof(line),
+    snprintf(line, sizeof(line),
 		  "Unit %3d : %7s : %15s :%s%s\n",
 		  n, useLine,
 		  inet_ntoa(this->member[n].addr),
@@ -124,13 +124,13 @@ int ippool_print(int fd, struct ippool_t *this) {
     while (p) { stat[LIST]++; p = p->next; }
   }
 
-  safe_snprintf(line, sizeof(line),
+  snprintf(line, sizeof(line),
 		"Dynamic address: free %d, avail %d, used %d, err %d, sum %d/%d%s\n",
 		dyn[FREE], dyn[LIST], dyn[USED], dyn[ERR], dyn[0]+dyn[1]+dyn[2], this->dynsize,
 		dyn[FREE] != dyn[LIST] ? " - Problem!" : "");
   safe_write(fd, line, strlen(line));
 
-  safe_snprintf(line, sizeof(line),
+  snprintf(line, sizeof(line),
 		"Static address: free %d, avail %d, used %d, err %d, sum %d/%d%s\n",
 		stat[FREE], stat[LIST], stat[USED], stat[ERR], stat[0]+stat[1]+stat[2], this->statsize,
 		stat[FREE] != stat[LIST] ? " - Problem!" : "");

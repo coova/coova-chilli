@@ -816,11 +816,11 @@ int main(int argc, char **argv) {
       if (!sc) sc = strchr(n, ':');
       nlen = sc ? (sc - n) : len;
 
-      safe_snprintf(_options.modules[numargs].name,
+      snprintf(_options.modules[numargs].name,
 		    sizeof(_options.modules[numargs].name),
 		    "%.*s", nlen, n);
       if (sc && len > (nlen + 1)) {
-	safe_snprintf(_options.modules[numargs].conf,
+	snprintf(_options.modules[numargs].conf,
 		      sizeof(_options.modules[numargs].conf),
 		      "%.*s", len - nlen - 1, sc + 1);
       }

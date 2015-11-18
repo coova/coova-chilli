@@ -655,7 +655,7 @@ int tuntap_interface(struct _net_interface *netif) {
 
   /* Find suitable device */
   for (devnum = 0; devnum < 255; devnum++) {
-    safe_snprintf(devname, sizeof(devname), "/dev/tun%d", devnum);
+    snprintf(devname, sizeof(devname), "/dev/tun%d", devnum);
     if ((netif->fd = open(devname, O_RDWR)) >= 0) break;
     if (errno != EBUSY) break;
   }
@@ -665,7 +665,7 @@ int tuntap_interface(struct _net_interface *netif) {
     return -1;
   }
 
-  safe_snprintf(netif->devname, sizeof(netif->devname), "tun%d", devnum);
+  snprintf(netif->devname, sizeof(netif->devname), "tun%d", devnum);
 
   /* The tun device we found might have "old" IP addresses allocated */
   /* We need to delete those. This problem is not present on Linux */
@@ -729,7 +729,7 @@ int tuntap_interface(struct _net_interface *netif) {
 
   close (if_fd);
 
-  safe_snprintf(netif->devname, sizeof(netif->devname),
+  snprintf(netif->devname, sizeof(netif->devname),
 		"tun%d", ppa);
 
   memset(&ifr, 0, sizeof(ifr));
@@ -1159,14 +1159,14 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
     set_env("DHCPLISTEN", VAL_IN_ADDR, &_options.dhcplisten, 0);
   }
 
-  safe_snprintf(b, sizeof(b), "%d", (int)_options.mtu);
+  snprintf(b, sizeof(b), "%d", (int)_options.mtu);
   set_env("MTU", VAL_STRING, b, 0);
 
-  safe_snprintf(b, sizeof(b), "%d", (int)_options.uamport);
+  snprintf(b, sizeof(b), "%d", (int)_options.uamport);
   set_env("UAMPORT", VAL_STRING, b, 0);
 
 #ifdef ENABLE_UAMUIPORT
-  safe_snprintf(b, sizeof(b), "%d", (int)_options.uamuiport);
+  snprintf(b, sizeof(b), "%d", (int)_options.uamuiport);
   set_env("UAMUIPORT", VAL_STRING, b, 0);
 #endif
 

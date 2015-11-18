@@ -434,7 +434,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	      if (clen && !strncasecmp(hdr, "content-length:", 15)) {
 		char tmp[128];
 		if (inject) clen += inject->slen;
-		safe_snprintf(tmp, sizeof(tmp), "Content-Length: %d\r\n", clen);
+		snprintf(tmp, sizeof(tmp), "Content-Length: %d\r\n", clen);
 		bcatcstr(newhdr, tmp);
 		skip = 1;
 	      } else if (!strncasecmp(hdr, "connection:", 11)) {
@@ -467,7 +467,7 @@ static int redir_conn_read(struct conn_t *conn, void *ctx) {
 	  if (req->html) {
 	    if (req->chunked) {
 	      char tmp[56];
-	      safe_snprintf(tmp, sizeof(tmp), "%x\r\n",
+	      snprintf(tmp, sizeof(tmp), "%x\r\n",
 			    inject->slen);
 	      bcatcstr(newhdr, tmp);
 	    }
@@ -742,11 +742,11 @@ int redir_accept2(struct redir_t *redir, int idx) {
       return 0;
     }
 
-    safe_snprintf(buffer,sizeof(buffer),"%s",
+    snprintf(buffer,sizeof(buffer),"%s",
 		  inet_ntoa(address.sin_addr));
     setenv("TCPREMOTEIP",buffer,1);
     setenv("REMOTE_ADDR",buffer,1);
-    safe_snprintf(buffer,sizeof(buffer),"%d",ntohs(address.sin_port));
+    snprintf(buffer,sizeof(buffer),"%d",ntohs(address.sin_port));
     setenv("TCPREMOTEPORT",buffer,1);
     setenv("REMOTE_PORT",buffer,1);
 
@@ -923,7 +923,7 @@ int main(int argc, char **argv) {
 			  &addrlen) >= 0) {
 	    char line[512];
 
-	    safe_snprintf(line, sizeof(line),
+	    snprintf(line, sizeof(line),
 			  "#%d (%d) %d connection from %s %d",
 			  timeout ? -1 : active, fd,
 			  (int) requests[idx].last_active,
@@ -935,7 +935,7 @@ int main(int argc, char **argv) {
 	      if (getpeername(requests[idx].conn.sock,
 			      (struct sockaddr *)&address,
 			      &addrlen) >= 0) {
-		safe_snprintf(line+strlen(line),
+		snprintf(line+strlen(line),
 			      sizeof(line)-strlen(line),
 			      " to %s %d",
 			      inet_ntoa(address.sin_addr),
@@ -944,7 +944,7 @@ int main(int argc, char **argv) {
 	    }
 
 	    if (timeout) {
-	      safe_snprintf(line+strlen(line),
+	      snprintf(line+strlen(line),
 			    sizeof(line)-strlen(line),
 			    " (timeout)");
 	    }
