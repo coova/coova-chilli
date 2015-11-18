@@ -426,9 +426,11 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
 
   if (!_options.nochallenge && hexchal) {
     bcatcstr(str, amp);
-    bassignformat(bt, "challenge=%s", hexchal);
-    bconcat(str, bt);
-    bassigncstr(bt,"");
+    if (bt) {
+       bassignformat(bt, "challenge=%s", hexchal);
+       bconcat(str, bt);
+       bassigncstr(bt,"");
+    }
   }
 
   if (conn->type == REDIR_STATUS) {
@@ -440,191 +442,222 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
       sessiontime = timenow - starttime;
 
       bcatcstr(str, amp);
-      bassignformat(bt, "starttime=%ld", (long) starttime);
-      bconcat(str, bt);
-      bcatcstr(str, amp);
-      bassignformat(bt, "sessiontime=%ld", (long) sessiontime);
-      bconcat(str, bt);
+      if (bt) {
+         bassignformat(bt, "starttime=%ld", (long) starttime);
+         bconcat(str, bt);
+         bcatcstr(str, amp);
+         bassignformat(bt, "sessiontime=%ld", (long) sessiontime);
+         bconcat(str, bt);
+      }
     }
 
     if (conn->s_params.sessiontimeout) {
-      bcatcstr(str, amp);
-      bassignformat(bt, "sessiontimeout=%ld", (long) conn->s_params.sessiontimeout);
-      bconcat(str, bt);
+       if (bt) {
+          bcatcstr(str, amp);
+          bassignformat(bt, "sessiontimeout=%ld", (long) conn->s_params.sessiontimeout);
+          bconcat(str, bt);
+       }
     }
 
     if (conn->s_params.sessionterminatetime) {
-      bcatcstr(str, amp);
-      bassignformat(bt, "stoptime=%ld", (long) conn->s_params.sessionterminatetime);
-      bconcat(str, bt);
+       if (bt) {
+          bcatcstr(str, amp);
+          bassignformat(bt, "stoptime=%ld", (long) conn->s_params.sessionterminatetime);
+          bconcat(str, bt);
+       }
     }
   }
 
-  bcatcstr(str, amp);
-  bcatcstr(str, "called=");
-  if (_options.nasmac)
-    bassigncstr(bt, _options.nasmac);
-  else
-    bassignformat(bt, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		  redir->nas_hwaddr[0], redir->nas_hwaddr[1], redir->nas_hwaddr[2],
-		  redir->nas_hwaddr[3], redir->nas_hwaddr[4], redir->nas_hwaddr[5]);
+  if (bt) {
+     bcatcstr(str, amp);
+     bcatcstr(str, "called=");
+     if (_options.nasmac)
+        bassigncstr(bt, _options.nasmac);
+     else
+        bassignformat(bt, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+              redir->nas_hwaddr[0], redir->nas_hwaddr[1], redir->nas_hwaddr[2],
+              redir->nas_hwaddr[3], redir->nas_hwaddr[4], redir->nas_hwaddr[5]);
 
-  redir_urlencode(bt, bt2);
-  bconcat(str, bt2);
-
-  if (uid) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "uid=");
-    bassigncstr(bt, uid);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
+     if (bt2) {
+        redir_urlencode(bt, bt2);
+        bconcat(str, bt2);
+     }
   }
 
-  if (timeleft) {
-    bcatcstr(str, amp);
-    bassignformat(bt, "timeleft=%ld", timeleft);
-    bconcat(str, bt);
-  }
-
-  if (hismac) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "mac=");
-    bassignformat(bt, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		  hismac[0], hismac[1],
-		  hismac[2], hismac[3],
-		  hismac[4], hismac[5]);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
-  }
-
-  if (hisip) {
-    bcatcstr(str, amp);
-    bassignformat(bt, "ip=%s", inet_ntoa(*hisip));
-    bconcat(str, bt);
-  }
-
-  if (reply) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "reply=");
-    bassigncstr(bt, reply);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
-  }
-
-  if (redir->ssid) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "ssid=");
-    bassigncstr(bt, redir->ssid);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
-  }
-
-  if (_options.radiusnasid) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "nasid=");
-    bassigncstr(bt, _options.radiusnasid);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
-  }
-
-#ifdef ENABLE_IEEE8021Q
-  if (_options.ieee8021q && conn->s_state.tag8021q) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "vlan=");
-    bassignformat(bt, "%d",
-		  (int)ntohs(conn->s_state.tag8021q &
-			     PKT_8021Q_MASK_VID));
-    bconcat(str, bt);
-  } else
-#endif
-#ifdef ENABLE_MULTILAN
-    if (conn->s_state.lanidx > 0) {
+  if (bt) {
+    if (uid) {
       bcatcstr(str, amp);
-      bcatcstr(str, "vlan=");
-      bassignformat(bt, "%s",
-                    _options.moreif[conn->s_state.lanidx-1].vlan ?
-                    _options.moreif[conn->s_state.lanidx-1].vlan :
-                    _options.moreif[conn->s_state.lanidx-1].dhcpif);
+      bcatcstr(str, "uid=");
+      bassigncstr(bt, uid);
+      redir_urlencode(bt, bt2);
+      bconcat(str, bt2);
+    }
+
+    if (timeleft) {
+      bcatcstr(str, amp);
+      bassignformat(bt, "timeleft=%ld", timeleft);
       bconcat(str, bt);
-    } else
-#endif
-      if (redir->vlan) {
-        bcatcstr(str, amp);
-        bcatcstr(str, "vlan=");
-        bassigncstr(bt, redir->vlan);
+    }
+
+    if (hismac) {
+      bcatcstr(str, amp);
+      bcatcstr(str, "mac=");
+      bassignformat(bt, "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+          hismac[0], hismac[1],
+          hismac[2], hismac[3],
+          hismac[4], hismac[5]);
+      if (bt2) {
         redir_urlencode(bt, bt2);
         bconcat(str, bt2);
       }
+    }
+
+    if (hisip) {
+      bcatcstr(str, amp);
+      bassignformat(bt, "ip=%s", inet_ntoa(*hisip));
+      bconcat(str, bt);
+    }
+
+    if (reply) {
+      bcatcstr(str, amp);
+      bcatcstr(str, "reply=");
+      bassigncstr(bt, reply);
+      if (bt2) {
+        redir_urlencode(bt, bt2);
+        bconcat(str, bt2);
+      }
+    }
+
+    if (redir->ssid) {
+      bcatcstr(str, amp);
+      bcatcstr(str, "ssid=");
+      bassigncstr(bt, redir->ssid);
+      if (bt2) {
+        redir_urlencode(bt, bt2);
+        bconcat(str, bt2);
+      }
+    }
+
+    if (_options.radiusnasid) {
+      bcatcstr(str, amp);
+      bcatcstr(str, "nasid=");
+      bassigncstr(bt, _options.radiusnasid);
+      if (bt2) {
+        redir_urlencode(bt, bt2);
+        bconcat(str, bt2);
+      }
+    }
+
+#ifdef ENABLE_IEEE8021Q
+    if (_options.ieee8021q && conn->s_state.tag8021q) {
+      bcatcstr(str, amp);
+      bcatcstr(str, "vlan=");
+      bassignformat(bt, "%d",
+          (int)ntohs(conn->s_state.tag8021q &
+            PKT_8021Q_MASK_VID));
+      bconcat(str, bt);
+    } else
+#endif
+#ifdef ENABLE_MULTILAN
+      if (conn->s_state.lanidx > 0) {
+        bcatcstr(str, amp);
+        bcatcstr(str, "vlan=");
+        bassignformat(bt, "%s",
+            _options.moreif[conn->s_state.lanidx-1].vlan ?
+            _options.moreif[conn->s_state.lanidx-1].vlan :
+            _options.moreif[conn->s_state.lanidx-1].dhcpif);
+        bconcat(str, bt);
+      } else
+#endif
+        if (redir->vlan) {
+          bcatcstr(str, amp);
+          bcatcstr(str, "vlan=");
+          bassigncstr(bt, redir->vlan);
+          if (bt2) {
+            redir_urlencode(bt, bt2);
+            bconcat(str, bt2);
+          }
+        }
 
 #ifdef ENABLE_LOCATION
-  if (conn->s_state.location[0]) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "loc=");
-    bassigncstr(bt, conn->s_state.location);
-    redir_urlencode(bt, bt2);
-
-    if (_options.debug)
-      syslog(LOG_DEBUG, "found %.*s",
-             bt->slen, bt->data);
-
-    bconcat(str, bt2);
-  }
+    if (conn->s_state.location[0]) {
+      bcatcstr(str, amp);
+      bcatcstr(str, "loc=");
+      bassigncstr(bt, conn->s_state.location);
+      if (bt2) {
+        redir_urlencode(bt, bt2);
+        bconcat(str, bt2);
+      }
+      if (_options.debug)
+        syslog(LOG_DEBUG, "found %.*s", bt->slen, bt->data);
+    }
 #endif
 
-  if (conn->lang[0]) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "lang=");
-    bassigncstr(bt, conn->lang);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
-  }
+    if (conn->lang[0]) {
+      bcatcstr(str, amp);
+      bcatcstr(str, "lang=");
+      bassigncstr(bt, conn->lang);
+      if (bt2) {
+        redir_urlencode(bt, bt2);
+        bconcat(str, bt2);
+      }
+    }
 
-  if (conn->s_state.sessionid[0]) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "sessionid=");
-    bassigncstr(bt, conn->s_state.sessionid);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
-  }
+    if (conn->s_state.sessionid[0]) {
+      bcatcstr(str, amp);
+      bcatcstr(str, "sessionid=");
+      bassigncstr(bt, conn->s_state.sessionid);
+      if (bt2) {
+        redir_urlencode(bt, bt2);
+        bconcat(str, bt2);
+      }
+    }
 
 #ifdef ENABLE_UAMUIPORT
-  if (_options.uamuissl && _options.uamuiport) {
-    /*
-     *  When we have uamuissl, a key/cert, and a uamuiport,
-     *  then let's inform the captive portal of an SSL enabled
-     *  services.
-     */
-    bcatcstr(str, amp);
-    bcatcstr(str, "ssl=");
-    if (_options.uamaliasname && _options.domain) {
-      bassignformat(bt, "https://%s.%s:%d/",
-                    _options.uamaliasname,
-                    _options.domain,
-                    _options.uamuiport);
-    } else {
-      bassignformat(bt, "https://%s:%d/",
-                    inet_ntoa(_options.uamalias),
-                    _options.uamuiport);
+    if (_options.uamuissl && _options.uamuiport) {
+      /*
+       *  When we have uamuissl, a key/cert, and a uamuiport,
+       *  then let's inform the captive portal of an SSL enabled
+       *  services.
+       */
+      bcatcstr(str, amp);
+      bcatcstr(str, "ssl=");
+      if (_options.uamaliasname && _options.domain) {
+        bassignformat(bt, "https://%s.%s:%d/",
+            _options.uamaliasname,
+            _options.domain,
+            _options.uamuiport);
+      } else {
+        bassignformat(bt, "https://%s:%d/",
+            inet_ntoa(_options.uamalias),
+            _options.uamuiport);
+      }
+      if (bt2) {
+        redir_urlencode(bt, bt2);
+        bconcat(str, bt2);
+      }
     }
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
-  }
 #endif
 
-  if (_options.redirurl && redirurl) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "redirurl=");
-    bassigncstr(bt, redirurl);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
-  }
+    if (_options.redirurl && redirurl) {
+      bcatcstr(str, amp);
+      bcatcstr(str, "redirurl=");
+      bassigncstr(bt, redirurl);
+      if (bt2) {
+        redir_urlencode(bt, bt2);
+        bconcat(str, bt2);
+      }
+    }
 
-  if (userurl) {
-    bcatcstr(str, amp);
-    bcatcstr(str, "userurl=");
-    bassigncstr(bt, userurl);
-    redir_urlencode(bt, bt2);
-    bconcat(str, bt2);
+    if (userurl) {
+      bcatcstr(str, amp);
+      bcatcstr(str, "userurl=");
+      bassigncstr(bt, userurl);
+      if (bt2) {
+        redir_urlencode(bt, bt2);
+        bconcat(str, bt2);
+      }
+    } 
   }
 
   if (redir->secret && *redir->secret) {
@@ -632,8 +665,8 @@ static void bstring_buildurl(bstring str, struct redir_conn_t *conn,
     redir_md_param(str, redir->secret, amp);
   }
 
-  bdestroy(bt);
-  bdestroy(bt2);
+  if (bt) bdestroy(bt);
+  if (bt2) bdestroy(bt2);
 }
 
 int redir_md_param(bstring str, char *secret, char *amp) {
@@ -1556,6 +1589,10 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   }
 
   buffer = bfromcstralloc(1024, "");
+  if (!buffer) {
+    syslog(LOG_ERR, "Allocation error.");
+    return -1;
+  }
 
 #ifdef ENABLE_JSON
   if (conn->format == REDIR_FMT_JSON) {
@@ -1566,8 +1603,8 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   } else
 #endif
     if (resp) {
-      bstring bt;
-      bstring bbody;
+      bstring bt = NULL;
+      bstring bbody = NULL;
 
       redir_http(buffer, "302 Moved Temporarily");
       bcatcstr(buffer, "Location: ");
@@ -1926,8 +1963,10 @@ int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
 
   if (len) {
     bstring s = blk2bstr(p1, len);
-    redir_urldecode(s, dst);
-    bdestroy(s);
+    if (s) {
+      redir_urldecode(s, dst);
+      bdestroy(s);
+    }
   } else
     bassigncstr(dst, "");
 
@@ -2305,6 +2344,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
     case REDIR_LOGIN:
       {
         bstring bt = bfromcstr("");
+        if (!bt) {
+          syslog(LOG_ERR, "Allocation error.");
+          return -1;
+        }
 
         if (!redir_getparam(redir, httpreq->qs, "lang", bt))
           bstrtocstr(bt, conn->lang, sizeof(conn->lang));
@@ -2451,29 +2494,37 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
     case REDIR_LOGOUT:
       {
         bstring bt = bfromcstr("");
-        if (!redir_getparam(redir, httpreq->qs, "userurl", bt)) {
-          bstring bt2 = bfromcstr("");
-          redir_urldecode(bt, bt2);
-          bstrtocstr(bt2, conn->s_state.redir.userurl,
-                     sizeof(conn->s_state.redir.userurl));
-          if (_options.debug)
-            syslog(LOG_DEBUG, "-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
-          bdestroy(bt2);
+        if (bt) {
+          if (!redir_getparam(redir, httpreq->qs, "userurl", bt)) {
+            bstring bt2 = bfromcstr("");
+            if (bt2) {
+              redir_urldecode(bt, bt2);
+              bstrtocstr(bt2, conn->s_state.redir.userurl,
+                  sizeof(conn->s_state.redir.userurl));
+              if (_options.debug)
+                syslog(LOG_DEBUG, "-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
+              bdestroy(bt2);
+            }
+          }
+          bdestroy(bt);
         }
-        bdestroy(bt);
       }
       break;
 
     case REDIR_WWW:
       {
         bstring bt = bfromcstr(path+4);
-        bstring bt2 = bfromcstr("");
-        redir_urldecode(bt, bt2);
-        bstrtocstr(bt2, conn->wwwfile, sizeof(conn->wwwfile));
-        if (_options.debug)
-          syslog(LOG_DEBUG, "Serving file %s", conn->wwwfile);
-        bdestroy(bt2);
-        bdestroy(bt);
+        if (bt) {
+          bstring bt2 = bfromcstr("");
+          if (bt2) {
+            redir_urldecode(bt, bt2);
+            bstrtocstr(bt2, conn->wwwfile, sizeof(conn->wwwfile));
+            if (_options.debug)
+              syslog(LOG_DEBUG, "Serving file %s", conn->wwwfile);
+            bdestroy(bt2);
+          }
+          bdestroy(bt);
+        }
       }
       break;
 
@@ -2715,10 +2766,14 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   char url[REDIR_URL_LEN];
   int n, m;
 
-  if (radius_new(&radius,
-		 &redir->radiuslisten, 0, 0, 0) ||
-      radius_init_q(radius, 8)) {
+  if (radius_new(&radius, &redir->radiuslisten, 0, 0, 0)) {
     syslog(LOG_ERR, "Failed to create radius");
+    return -1;
+  } 
+  
+  if (radius_init_q(radius, 8)) {
+    syslog(LOG_ERR, "Failed to create radius");
+    radius_free(radius);
     return -1;
   }
 
@@ -2744,7 +2799,8 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_NAME, 0, 0, 0,
 		 (uint8_t*) conn->s_state.redir.username,
-		 strlen(conn->s_state.redir.username));
+     strlen(conn->s_state.redir.username));
+  conn->s_state.redir.username[sizeof(conn->s_state.redir.username)-1] = '\0';
 
   if (redir->secret && *redir->secret) {
     //syslog(LOG_DEBUG, "SECRET: [%s]",redir->secret);
@@ -2784,6 +2840,11 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
       if (_options.mschapv2) {
         uint8_t response[50];
         uint8_t ntresponse[24];
+        uint8_t response[REDIR_MD5LEN + sizeof(ntresponse) + 2];
+
+        /* Init */
+        memset(response, 0, sizeof(response));
+        memset(ntresponse, 0, sizeof(ntresponse));
 
         GenerateNTResponse(chap_challenge, chap_challenge,
                            (u_char *)conn->s_state.redir.username,
@@ -2792,19 +2853,19 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
                            ntresponse);
 
         /* peer challenge - same as auth challenge */
-        memset(&response[0], 0, sizeof(response));
-        memcpy(&response[2], chap_challenge, 16);
-        memcpy(&response[26], ntresponse, 24);
+
+        memcpy(&response[2], chap_challenge, REDIR_MD5LEN);
+        memcpy(&response[REDIR_MD5LEN+2], ntresponse, sizeof(ntresponse));
 
         radius_addattr(radius, &radius_pack,
                        RADIUS_ATTR_VENDOR_SPECIFIC,
                        RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP_CHALLENGE, 0,
-                       chap_challenge, 16);
+                       chap_challenge, REDIR_MD5LEN);
 
         radius_addattr(radius, &radius_pack,
                        RADIUS_ATTR_VENDOR_SPECIFIC,
                        RADIUS_VENDOR_MS, RADIUS_ATTR_MS_CHAP2_RESPONSE, 0,
-                       response, 50);
+                       response, sizeof(response));
       } else {
 #endif
         radius_addattr(radius, &radius_pack, RADIUS_ATTR_USER_PASSWORD, 0, 0, 0,
@@ -3165,11 +3226,12 @@ int redir_accept(struct redir_t *redir, int idx) {
     execv(*binqqargs, binqqargs);
 
   } else {
-
+    safe_close(new_socket);
     return redir_main(redir, 0, 1, &address, &baddress, idx, 0);
 
   }
 
+  safe_close(new_socket);
   return 0;
 }
 

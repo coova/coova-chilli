@@ -1878,7 +1878,7 @@ static int acct_req(acct_type type,
 	} else {
 	  float shiftfloat;
 	  float fav[3];
-	  char b[128];
+	  char b[128] = "";
 
 	  shiftfloat = (float) (1<<SI_LOAD_SHIFT);
 
@@ -3409,10 +3409,10 @@ int access_request(struct radius_packet_t *pack,
 
   struct in_addr hisip;
   char pwd[RADIUS_ATTR_VLEN];
-  size_t pwdlen;
+  size_t pwdlen = 0;
   uint8_t hismac[PKT_ETH_ALEN];
   char macstr[RADIUS_ATTR_VLEN];
-  size_t macstrlen;
+  size_t macstrlen = 0;
   unsigned int temp[PKT_ETH_ALEN];
   int i;
 
@@ -3420,7 +3420,7 @@ int access_request(struct radius_packet_t *pack,
   struct dhcp_conn_t *dhcpconn = NULL;
 
   uint8_t resp[MAX_EAP_LEN];     /* EAP response */
-  size_t resplen;                /* Length of EAP response */
+  size_t resplen = 0;            /* Length of EAP response */
 
   size_t offset = 0;
   size_t eaplen = 0;
@@ -3819,7 +3819,7 @@ session_disconnect(struct app_conn_t *appconn,
        *    USETAP ARP
        */
       int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-      if (sockfd > 0) {
+      if (sockfd != -1) {
 	struct arpreq req;
 
 	memset(&req, 0, sizeof(req));
@@ -4309,7 +4309,7 @@ static int chilliauth_cb(struct radius_t *radius,
 
       int fd = open(hs_temp, O_RDWR | O_TRUNC | O_CREAT, 0644);
 
-      if (fd > 0) {
+      if (fd != -1) {
 
 	do {
 	  if (safe_write(fd, attr->v.t, attr->l - 2) < 0 ||
@@ -4330,48 +4330,48 @@ static int chilliauth_cb(struct radius_t *radius,
        *  Check to see if this file is different from the chilli/hs.conf
        */
       {
-	int newfd = open(hs_temp, O_RDONLY);
-	int oldfd = open(hs_conf, O_RDONLY);
+        int newfd = open(hs_temp, O_RDONLY);
+        int oldfd = open(hs_conf, O_RDONLY);
 
-	if (newfd > 0) {
-	  int differ = (oldfd > 0) ? 0 : 1;
-	  char b1[100], b2[100];
-	  ssize_t r1, r2;
+        if (newfd != -1) {
+          int differ = (oldfd > 0) ? 0 : 1;
+          char b1[100], b2[100];
+          ssize_t r1, r2;
 
-	  if (!differ) {
-	    do {
-	      r1 = safe_read(newfd, b1, sizeof(b1));
-	      r2 = safe_read(oldfd, b2, sizeof(b2));
+          if (!differ) {
+            do {
+              r1 = safe_read(newfd, b1, sizeof(b1));
+              r2 = safe_read(oldfd, b2, sizeof(b2));
 
-	      if (r1 != r2 || strncmp(b1, b2, r1))
-		differ = 1;
-	    }
-	    while (!differ && r1 > 0 && r2 > 0);
-	  }
+              if (r1 != r2 || strncmp(b1, b2, r1))
+                differ = 1;
+            }
+            while (!differ && r1 > 0 && r2 > 0);
+          }
 
-	  if (newfd) safe_close(newfd); newfd=0;
-	  if (oldfd) safe_close(oldfd); oldfd=0;
+          if (newfd != -1) { safe_close(newfd); newfd=-1; }
+          if (oldfd != -1) { safe_close(oldfd); oldfd=-1; }
 
-	  if (differ) {
+          if (differ) {
             if (_options.debug)
               syslog(LOG_DEBUG, "Writing out new hs.conf file with administraive-user settings");
 
-	    newfd = open(hs_temp, O_RDONLY);
-	    oldfd = open(hs_conf, O_RDWR | O_TRUNC | O_CREAT, 0644);
+            newfd = open(hs_temp, O_RDONLY);
+            oldfd = open(hs_conf, O_RDWR | O_TRUNC | O_CREAT, 0644);
 
-	    if (newfd > 0 && oldfd > 0) {
+            if (newfd != -1 && oldfd != -1) {
 
-	      while ((r1 = safe_read(newfd, b1, sizeof(b1))) > 0 &&
-		     safe_write(oldfd, b1, r1) > 0);
+              while ((r1 = safe_read(newfd, b1, sizeof(b1))) > 0 &&
+                  safe_write(oldfd, b1, r1) > 0);
 
-	      safe_close(newfd); newfd=0;
-	      safe_close(oldfd); oldfd=0;
-	      do_interval = 1;
-	    }
-	  }
-	}
-	if (newfd > 0) safe_close(newfd);
-	if (oldfd > 0) safe_close(oldfd);
+              safe_close(newfd); newfd=-1;
+              safe_close(oldfd); oldfd=-1;
+              do_interval = 1;
+            }
+          }
+        }
+        if (newfd != -1) safe_close(newfd);
+        if (oldfd != -1) safe_close(oldfd);
       }
 
       unlink(hs_temp);
@@ -4439,12 +4439,14 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   struct app_conn_t *appconn = (struct app_conn_t*) cbp;
 
-  struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
+  struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)0;
 
   if (!appconn) {
     syslog(LOG_ERR,"No peer protocol defined");
     return 0;
   }
+
+  dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
 
   /* Initialise */
   appconn->s_state.redir.statelen = 0;
@@ -4532,15 +4534,23 @@ int cb_radius_auth_conf(struct radius_t *radius,
             syslog(LOG_DEBUG, "Resetting ip address to %s", inet_ntoa(hisip));
           }
 
-	  dhcp_freeconn(dhcpconn, 0);
-	  dhcp_newconn(dhcp, &dhcpconn, hwaddr);
+          appconn->dnprot = DNPROT_MAC;                                                                                                                                                      
+          appconn->authtype = PAP_PASSWORD;
 
-	  appconn->dnprot = DNPROT_MAC;
-	  appconn->authtype = PAP_PASSWORD;
-	  dhcpconn->authstate = DHCP_AUTH_DNAT;
-
-	  ipm = 0;
-	}
+          {
+            struct dhcp_conn_t *newdhcpconn = NULL;
+            dhcp_newconn(dhcp, &newdhcpconn, hwaddr);
+            if (newdhcpconn) {
+              newdhcpconn->authstate = DHCP_AUTH_DNAT;
+              dhcp_freeconn(dhcpconn, 0);
+              dhcpconn = newdhcpconn;
+            }
+            else {
+              dhcpconn->authstate = DHCP_AUTH_DNAT;
+            }
+          }
+          ipm = 0;
+        }
       }
     }
   }
@@ -4639,13 +4649,19 @@ int cb_radius_auth_conf(struct radius_t *radius,
     do {
       eapattr=NULL;
       if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0, instance++)) {
-	if ((appconn->challen + eapattr->l-2) > MAX_EAP_LEN) {
-	  syslog(LOG_INFO, "EAP message too long %zu %d",
-                 appconn->challen, (int) eapattr->l-2);
-	  return dnprot_reject(appconn);
-	}
-	memcpy(appconn->chal+appconn->challen, eapattr->v.t, eapattr->l-2);
-	appconn->challen += eapattr->l-2;
+        if ((appconn->challen + eapattr->l-2) > MAX_EAP_LEN) {
+          syslog(LOG_INFO, "EAP message too long %zu %d",
+              appconn->challen, (int) eapattr->l-2);
+          return dnprot_reject(appconn);
+        }
+        if (appconn->challen < sizeof(appconn->chal)) {
+          memcpy(&appconn->chal[appconn->challen], eapattr->v.t, eapattr->l-2);
+          appconn->challen += eapattr->l-2;
+        }
+        else {
+          syslog(LOG_INFO, "EAP message too long %zu %d", appconn->challen, (int) eapattr->l-2);
+          return dnprot_reject(appconn);
+        }
       }
     } while (eapattr);
 
@@ -4702,14 +4718,19 @@ int cb_radius_auth_conf(struct radius_t *radius,
     if (!radius_getattr(pack, &eapattr, RADIUS_ATTR_EAP_MESSAGE, 0, 0,
 			instance++)) {
       if ((appconn->challen + eapattr->l-2) > MAX_EAP_LEN) {
-	syslog(LOG_INFO, "EAP message too long %zu %d",
-               appconn->challen, (int) eapattr->l-2);
-	return dnprot_reject(appconn);
+        syslog(LOG_INFO, "EAP message too long %zu %d",
+            appconn->challen, (int) eapattr->l-2);
+        return dnprot_reject(appconn);
       }
-      memcpy(appconn->chal + appconn->challen,
-	     eapattr->v.t, eapattr->l-2);
+      if (appconn->challen < sizeof(appconn->chal)) {
+        memcpy(&appconn->chal[appconn->challen], eapattr->v.t, eapattr->l-2);
 
-      appconn->challen += eapattr->l-2;
+        appconn->challen += eapattr->l-2;
+      }
+      else {
+        syslog(LOG_INFO, "EAP message too long %zu %d", appconn->challen, (int) eapattr->l-2);
+        return dnprot_reject(appconn);
+      }
     }
   } while (eapattr);
 
@@ -6043,9 +6064,9 @@ int cb_dhcp_eap_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
 
 int static uam_msg(struct redir_msg_t *msg) {
 
-  struct ippoolm_t *ipm;
+  struct ippoolm_t *ipm = (struct ippoolm_t *)0;
   struct app_conn_t *appconn = NULL;
-  struct dhcp_conn_t* dhcpconn;
+  struct dhcp_conn_t* dhcpconn = (struct dhcp_conn_t *)0;
 
 #if defined(HAVE_NETFILTER_QUEUE) || defined(HAVE_NETFILTER_COOVA)
   if (_options.uamlisten.s_addr != _options.dhcplisten.s_addr) {
@@ -7031,7 +7052,11 @@ static int cmdsock_accept(void *nullData, int sock) {
   }
 
   s = bfromcstr("");
-  if (!s) return -1;
+  if (!s) {
+    syslog(LOG_ERR, "Allocation error");
+    safe_close(csock);
+    return -1;
+  }
 
   rval = chilli_cmd(&req, s, csock);
 
@@ -7091,7 +7116,7 @@ int static redir_msg(struct redir_t *this) {
   struct sockaddr_un remote;
   socklen_t len = sizeof(remote);
   int socket = safe_accept(this->msgfd, (struct sockaddr *)&remote, &len);
-  if (socket > 0) {
+  if (socket != -1) {
     int msgresult = safe_read(socket, &msg, sizeof(msg));
     if (msgresult == sizeof(msg)) {
       if (msg.mtype == REDIR_MSG_STATUS_TYPE) {
@@ -7270,59 +7295,60 @@ int chilli_main(int argc, char **argv) {
       if (daemon(1, 1)) {
         syslog(LOG_ERR, "daemon() failed!");
 #endif
-      }
-      else {
+    }
+    else {
 
-        /*
-         *  We switched PID when we forked.
-         *  To keep things nice and tity, lets move the
-         *  binary configuration file to the new directory.
-         *
-         *  TODO: This process isn't ideal. But, the goal remains
-         *  that we don't need cmdline.o in the running chilli. We may
-         *  want to move away from gengetopt as it isn't exactly the most
-         *  flexible or light-weight.
-         */
+      /*
+       *  We switched PID when we forked.
+       *  To keep things nice and tity, lets move the
+       *  binary configuration file to the new directory.
+       *
+       *  TODO: This process isn't ideal. But, the goal remains
+       *  that we don't need cmdline.o in the running chilli. We may
+       *  want to move away from gengetopt as it isn't exactly the most
+       *  flexible or light-weight.
+       */
 
-        mode_t process_mask = umask(0077);
-        char file[128];
-        char file2[128];
-        int ok;
+      mode_t process_mask = umask(0077);
+      char file[128];
+      char file2[128];
+      int ok;
 
-        pid_t new_pid = getpid();
+      pid_t new_pid = getpid();
 
+      /*
+       * Format the filename of the current (cpid) and new binconfig files.
+       */
+      chilli_binconfig(file, sizeof(file), cpid);
+      chilli_binconfig(file2, sizeof(file2), new_pid);
+
+      /*
+       * Reset the binconfig option and save current setttings.
+       */
+      {
         bstring bt = bfromcstr("");
+        if (bt) {
+          _options.binconfig = file2;
+          ok = options_save(file2, bt);
+          if (!ok) {
+            syslog(LOG_ERR, "%s: could not save configuration options! [%s]", strerror(errno), file2);
+            exit(1);
+          }
 
-        /*
-         * Format the filename of the current (cpid) and new binconfig files.
-         */
-        chilli_binconfig(file, sizeof(file), cpid);
-        chilli_binconfig(file2, sizeof(file2), new_pid);
+          /*
+           * Reset binconfig (since file2 is a local variable)
+           */
+          _options.binconfig = 0;
+          umask(process_mask);
 
-        /*
-         * Reset the binconfig option and save current setttings.
-         */
-        _options.binconfig = file2;
-        ok = options_save(file2, bt);
-
-        if (!ok) {
-          syslog(LOG_ERR, "%s: could not save configuration options! [%s]", strerror(errno), file2);
-          exit(1);
+          cpid = new_pid;
+          bdestroy(bt);
         }
+      }
 
-        /*
-         * Reset binconfig (since file2 is a local variable)
-         */
-        _options.binconfig = 0;
-        umask(process_mask);
-
-        cpid = new_pid;
-        bdestroy(bt);
-
-        if (!options_binload(file2)) {
-          syslog(LOG_ERR, "%s: could not reload configuration! [%s]", strerror(errno), file2);
-          exit(1);
-        }
+      if (!options_binload(file2)) {
+        syslog(LOG_ERR, "%s: could not reload configuration! [%s]", strerror(errno), file2);
+        exit(1);
       }
     }
 

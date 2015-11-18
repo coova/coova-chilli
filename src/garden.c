@@ -216,8 +216,7 @@ int garden_patricia_add(pass_through *pt, patricia_tree_t *ptree) {
         nd = PATRICIA_DATA_GET(pfx, struct node_pass_through_list);
 
     if (nd == NULL) {
-      nd = (struct node_pass_through_list *)
-          malloc(sizeof(struct node_pass_through_list)+sizeof(pass_through));
+      nd = (struct node_pass_through_list *) malloc(sizeof(struct node_pass_through_list)+sizeof(pass_through));
       if (nd) {
 	nd->ptcnt = 1;
 	memcpy(nd->ptlist, pt, sizeof(*pt));
@@ -472,7 +471,9 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
   if (!s || strlen(s) == 0)
     return 0;
 
-  p3 = malloc(strlen(s)+1);
+  if ((p3 = (char *)calloc(strlen(s)+1), 1) == (char*)0)
+     return 0;
+
   strcpy(p3, s);
   p1 = p3;
 
@@ -677,8 +678,11 @@ void garden_load_domainfile() {
 	       isspace((int) line[0])) continue;
       else {
 
-	uamdomain_regex * uam_re = (uamdomain_regex *)
-            calloc(sizeof(uamdomain_regex), 1);
+	if ((uamdomain_regex *uam_re = (uamdomain_regex *)calloc(sizeof(uamdomain_regex), 1)) == (uamdomain_regex*)0) {
+      syslog(LOG_ERR, "Allocation new regex failed");
+      fclose(fp);
+      return;
+   }
 
 	char * pline = line;
 

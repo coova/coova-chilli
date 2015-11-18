@@ -520,7 +520,7 @@ int dhcp_hashadd(struct dhcp_t *this, struct dhcp_conn_t *conn) {
  **/
 int dhcp_hashdel(struct dhcp_t *this, struct dhcp_conn_t *conn) {
   uint32_t hash;
-  struct dhcp_conn_t *p;
+  struct dhcp_conn_t *p = (struct dhcp_conn_t *)0;
   struct dhcp_conn_t *p_prev = NULL;
 
   /* Find in hash table */
@@ -530,6 +530,11 @@ int dhcp_hashdel(struct dhcp_t *this, struct dhcp_conn_t *conn) {
       break;
     }
     p_prev = p;
+  }
+
+  if ((p == (struct dhcp_conn_t *)0) || (p != conn)) {
+    syslog(LOG_ERR, "Trying to remove element not in hash");
+    retunr -1;
   }
 
   if (!p_prev)
@@ -1136,6 +1141,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
     if (fd > 0) {
       dhcp->relayfd = fd;
     } else {
+      close(fd);
       close(dhcp->rawif[0].fd);
       free(dhcp);
       return -1;
@@ -1253,8 +1259,11 @@ int dhcp_reserve_str(char *b, size_t blen) {
   int newline;
 
   char *bp = b;
-  char *t;
-  int i;
+  char *t = NULL;
+  int i = 0;
+
+  memset(mac, 0, sizeof(mac));
+  memset(tmp, 0, sizeof(tmp));
 
   for (i=0; state >= 0 && i < blen; i++) {
     newline = 0;
@@ -1348,7 +1357,7 @@ int dhcp_set(struct dhcp_t *dhcp, char *ethers, int debug) {
 
   if (ethers && *ethers) {
     int fd = open(ethers, O_RDONLY);
-    if (fd > 0) {
+    if (fd != -1) {
       struct stat buf;
       int r, blen;
       char *b;
@@ -3657,7 +3666,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
      *    USETAP ARP
      */
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd > 0) {
+    if (sockfd != -1) {
       struct arpreq req;
 
       memset(&req, 0, sizeof(req));
