@@ -3771,11 +3771,11 @@ int redir_main(struct redir_t *redir,
             setenv("CHI_SESSION_ID", conn.s_state.sessionid, 1);
             setenv("CHI_USERNAME", conn.s_state.redir.username, 1);
             setenv("CHI_USERURL", conn.s_state.redir.userurl, 1);
-            snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.input_octets);
+            snprintf(buffer, sizeof(buffer), "%lu", conn.s_state.input_octets);
             setenv("CHI_INPUT_BYTES", buffer, 1);
-            snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.output_octets);
+            snprintf(buffer, sizeof(buffer), "%lu", conn.s_state.output_octets);
             setenv("CHI_OUTPUT_BYTES", buffer, 1);
-            snprintf(buffer, sizeof(buffer), "%lld", conn.s_params.sessiontimeout);
+            snprintf(buffer, sizeof(buffer), "%lu", conn.s_params.sessiontimeout);
             setenv("CHI_SESSION_TIMEOUT", buffer, 1);
 
             redir_chartohex(conn.s_state.redir.uamchal, buffer, REDIR_MD5LEN);
