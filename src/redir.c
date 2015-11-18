@@ -3751,7 +3751,7 @@ int redir_main(struct redir_t *redir,
             }
 #endif
 
-            snprintf(buffer, sizeof(buffer), "%d", httpreq.clen > 0 ? httpreq.clen : 0);
+            snprintf(buffer, sizeof(buffer), "%zd", httpreq.clen > 0 ? httpreq.clen : 0);
             setenv("CONTENT_LENGTH", buffer, 1);
 
             setenv("REQUEST_METHOD", httpreq.is_post ? "POST" : "GET", 1);
