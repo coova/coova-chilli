@@ -207,7 +207,7 @@ static int proc_status(char *name, pid_t pid) {
   ssize_t read;
   FILE* fp;
 
-  safe_snprintf(buffer, sizeof(buffer), "/proc/%i/status", pid);
+  snprintf(buffer, sizeof(buffer), "/proc/%i/status", pid);
   fp = fopen(buffer, "r");
   if (!fp) return -1;
 
@@ -236,7 +236,7 @@ static int proc_countfds(pid_t pid) {
 
   struct dirent * d = 0;
 
-  safe_snprintf(buffer, sizeof(buffer), "/proc/%i/fd", pid);
+  snprintf(buffer, sizeof(buffer), "/proc/%i/fd", pid);
   dir = opendir(buffer);
   if (!dir) return -1;
 
@@ -253,7 +253,7 @@ void child_print(bstring s) {
   CHILD *node = children;
   char line[256];
 
-  safe_snprintf(line, sizeof(line), "Children %d Max %d Total %ld\n",
+  snprintf(line, sizeof(line), "Children %d Max %d Total %ld\n",
                 child_count, _options.childmax, child_count_tot);
 
   bcatcstr(s, line);
@@ -266,7 +266,7 @@ void child_print(bstring s) {
       case CHILLI_PROC_REDIR:  n = "Redirect"; break;
       case CHILLI_PROC_SCRIPT: n = "Script";   break;
     }
-    safe_snprintf(line, sizeof(line)-1,
+    snprintf(line, sizeof(line)-1,
 		  "PID %8d %-8s %-20s up %d [Vm Size: %d RSS: %d FDs: %d]\n",
 		  node->pid, n, node->name,
 		  (int)(now - node->started),
@@ -418,7 +418,7 @@ int chilli_binconfig(char *file, size_t flen, pid_t pid) {
   if (pid == 0) {
     char * bc = _options.binconfig;
     if (bc) {
-      safe_snprintf(file, flen, "%s", bc);
+      snprintf(file, flen, "%s", bc);
       return 0;
     } else {
       pid = chilli_pid;
@@ -426,7 +426,7 @@ int chilli_binconfig(char *file, size_t flen, pid_t pid) {
 	pid = getpid();
     }
   }
-  safe_snprintf(file, flen, DEFSTATEDIR "/chilli.%d.cfg.bin", pid);
+  snprintf(file, flen, DEFSTATEDIR "/chilli.%d.cfg.bin", pid);
   return 0;
 }
 
@@ -559,7 +559,7 @@ uint8_t* chilli_called_station(struct session_state *state) {
 static void set_sessionid(struct app_conn_t *appconn, char full) {
   appconn->rt = (int) mainclock_rt();
 
-  safe_snprintf(appconn->s_state.sessionid,
+  snprintf(appconn->s_state.sessionid,
 		sizeof(appconn->s_state.sessionid),
 		"%.8x%.8x", appconn->rt, appconn->unit);
 
@@ -570,7 +570,7 @@ static void set_sessionid(struct app_conn_t *appconn, char full) {
   if (full) {
     uint8_t * his = appconn->hismac;
     uint8_t * called = dhcp_nexthop(dhcp);
-    safe_snprintf(appconn->s_state.chilli_sessionid,
+    snprintf(appconn->s_state.chilli_sessionid,
 		  sizeof(appconn->s_state.chilli_sessionid),
 		  "SES-"
 		  "%.2X%.2X%.2X%.2X%.2X%.2X-"
@@ -732,23 +732,23 @@ void set_env(char *name, char type, void *value, int len) {
     case VAL_MAC_ADDR:
       {
         uint8_t * mac = (uint8_t*)value;
-        safe_snprintf(s, sizeof(s), MAC_FMT, MAC_ARG(mac));
+        snprintf(s, sizeof(s), MAC_FMT, MAC_ARG(mac));
         v = s;
       }
       break;
 
     case VAL_ULONG:
-      safe_snprintf(s, sizeof(s), "%ld", (long int)*(uint32_t *)value);
+      snprintf(s, sizeof(s), "%ld", (long int)*(uint32_t *)value);
       v = s;
       break;
 
     case VAL_ULONG64:
-      safe_snprintf(s, sizeof(s), "%ld", (long int)*(uint64_t *)value);
+      snprintf(s, sizeof(s), "%ld", (long int)*(uint64_t *)value);
       v = s;
       break;
 
     case VAL_USHORT:
-      safe_snprintf(s, sizeof(s), "%d", (int)(*(uint16_t *)value));
+      snprintf(s, sizeof(s), "%d", (int)(*(uint16_t *)value));
       v = s;
       break;
 
@@ -1424,7 +1424,7 @@ int chilli_req_attrs(struct radius_t *radius,
 
   if (port) {
     char portid[16+1];
-    safe_snprintf(portid, sizeof(portid), "%.8d", port);
+    snprintf(portid, sizeof(portid), "%.8d", port);
 
     radius_addattr(radius, pack, RADIUS_ATTR_NAS_PORT, 0, 0,
 		   port, NULL, 0);
@@ -1435,7 +1435,7 @@ int chilli_req_attrs(struct radius_t *radius,
 
   /* Include his MAC address */
   if (hismac) {
-    safe_snprintf(mac, sizeof(mac), MAC_FMT, MAC_ARG(hismac));
+    snprintf(mac, sizeof(mac), MAC_FMT, MAC_ARG(hismac));
 
     radius_addattr(radius, pack, RADIUS_ATTR_CALLING_STATION_ID, 0, 0, 0,
 		   (uint8_t*) mac, MACSTRLEN);
@@ -1557,7 +1557,7 @@ int static auth_radius(struct app_conn_t *appconn,
   }
 
   /* Include his MAC address */
-  safe_snprintf(mac, sizeof(mac), MAC_FMT, MAC_ARG(dhcpconn->hismac));
+  snprintf(mac, sizeof(mac), MAC_FMT, MAC_ARG(dhcpconn->hismac));
 
   if (!username) {
 
@@ -1791,7 +1791,7 @@ static int acct_req(acct_type type,
       switch(type) {
 #ifdef ENABLE_GARDENACCOUNTING
         case ACCT_GARDEN:
-          safe_snprintf(conn->s_state.garden_sessionid,
+          snprintf(conn->s_state.garden_sessionid,
                         sizeof(conn->s_state.garden_sessionid),
                         "UAM-%s-%.8x%.8x", inet_ntoa(conn->hisip),
                         (int) mainclock_rt(), conn->unit);
@@ -1890,13 +1890,13 @@ static int acct_req(acct_type type,
 			 RADIUS_VENDOR_COOVACHILLI, RADIUS_ATTR_COOVACHILLI_SYS_UPTIME,
 			 (uint32_t) the_info.uptime, NULL, 0);
 
-	  safe_snprintf(b, sizeof(b), "%f %f %f",fav[0],fav[1],fav[2]);
+	  snprintf(b, sizeof(b), "%f %f %f",fav[0],fav[1],fav[2]);
 
 	  radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
 			 RADIUS_VENDOR_COOVACHILLI, RADIUS_ATTR_COOVACHILLI_SYS_LOADAVG,
 			 0, (uint8_t *) b, strlen(b));
 
-	  safe_snprintf(b, sizeof(b), "%ld %ld %ld %ld",
+	  snprintf(b, sizeof(b), "%ld %ld %ld %ld",
                         the_info.totalram,
                         the_info.freeram,
                         the_info.sharedram,
@@ -5010,7 +5010,7 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
 	if (_options.macallowlocal) {
 	  char mac[MACSTRLEN+1];
 
-	  safe_snprintf(mac, sizeof(mac), MAC_FMT, MAC_ARG(conn->hismac));
+	  snprintf(mac, sizeof(mac), MAC_FMT, MAC_ARG(conn->hismac));
 
 	  strlcpy(appconn->s_state.redir.username, mac, USERNAMESIZE);
 

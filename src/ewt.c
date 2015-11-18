@@ -207,7 +207,7 @@ int ewtapi(struct redir_t *redir,
     syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
   }
 
-  safe_snprintf(path, sizeof(path),
+  snprintf(path, sizeof(path),
 		"/var/coova/scripts/%s.sh", s->data);
 
   for (i=0; i < NUM_SERVICES; i++) {

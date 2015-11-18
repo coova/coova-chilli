@@ -1549,7 +1549,7 @@ int net_open_eth(net_interface *netif) {
 
   /* Find suitable device */
   for (devnum = 0; devnum < 255; devnum++) { /* TODO 255 */
-    safe_snprintf(devname, sizeof(devname), "/dev/bpf%d", devnum);
+    snprintf(devname, sizeof(devname), "/dev/bpf%d", devnum);
     if ((netif->fd = open(devname, O_RDWR)) >= 0) break;
     if (errno != EBUSY) break;
   }

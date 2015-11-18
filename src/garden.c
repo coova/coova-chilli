@@ -39,7 +39,7 @@ void garden_print_list(int fd, pass_through *ptlist, int ptcnt) {
 
     strlcpy(mask, inet_ntoa(pt->mask), sizeof(mask));
 
-    safe_snprintf(line, sizeof(line),
+    snprintf(line, sizeof(line),
 		  "host=%-16s mask=%-16s proto=%-3d port=%-3d"
 #ifdef ENABLE_GARDENEXT
 		  " expiry=%-3d"
@@ -69,7 +69,7 @@ int garden_print_appconn(struct app_conn_t *appconn, void *d) {
   }
 #endif
   if (appconn->s_params.pass_through_count > 0) {
-    safe_snprintf(line, sizeof line,
+    snprintf(line, sizeof line,
 		  "subscriber %s (%d/%d):\n",
 		  inet_ntoa(appconn->hisip),
 		  appconn->s_params.pass_through_count,
@@ -99,7 +99,7 @@ void garden_print(int fd) {
   }
 #endif
 
-  safe_snprintf(line, sizeof line,
+  snprintf(line, sizeof line,
 		"static garden (%d/%d):\n",
 		_options.num_pass_throughs,
 		MAX_PASS_THROUGHS);
@@ -115,7 +115,7 @@ void garden_print(int fd) {
 		      _options.pass_throughs,
 		      _options.num_pass_throughs);
 
-  safe_snprintf(line, sizeof line,
+  snprintf(line, sizeof line,
 		"dynamic garden (%d/%d):\n",
 		dhcp->num_pass_throughs,
 		MAX_PASS_THROUGHS);
@@ -132,7 +132,7 @@ void garden_print(int fd) {
 		      dhcp->num_pass_throughs);
 
 #ifdef ENABLE_AUTHEDALLOWED
-  safe_snprintf(line, sizeof line,
+  snprintf(line, sizeof line,
 		"authed garden (%d/%d):\n",
 		_options.num_authed_pass_throughs,
 		MAX_PASS_THROUGHS);

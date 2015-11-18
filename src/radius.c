@@ -67,7 +67,7 @@ void radius_addcalledstation(struct radius_t *radius,
   if (_options.nasmac)
     mac = (uint8_t *) _options.nasmac;
   else
-    safe_snprintf((char*)(mac = b), sizeof(b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+    snprintf((char*)(mac = b), sizeof(b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 		  radius->nas_hwaddr[0], radius->nas_hwaddr[1], radius->nas_hwaddr[2],
 		  radius->nas_hwaddr[3], radius->nas_hwaddr[4], radius->nas_hwaddr[5]);
 
@@ -82,14 +82,14 @@ int radius_printqueue(int fd, struct radius_t *this) {
   if (this->qsize)
     mx = this->qsize;
 
-  safe_snprintf(line, sizeof(line), "next %d, first %d, last %d\n",
+  snprintf(line, sizeof(line), "next %d, first %d, last %d\n",
 		this->qnext, this->first, this->last);
 
   safe_write(fd, line, strlen(line));
 
   for(n=0; n < mx; n++) {
     if (this->queue[n].state) {
-      safe_snprintf(line, sizeof(line),
+      snprintf(line, sizeof(line),
 		    "n=%3d id=%3d state=%3d next=%3d prev=%3d %8d %8d %d\n",
 		    n,
 		    RADIUS_QUEUE_PKT(this->queue[n].p,id),

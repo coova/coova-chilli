@@ -29,7 +29,7 @@ int chilli_module_load(void **ctx, char *name) {
   void *sym;
   int len;
 
-  safe_snprintf(path, sizeof(path), "%s/%s.so",
+  snprintf(path, sizeof(path), "%s/%s.so",
 		_options.moddir ? _options.moddir : DEFLIBDIR, name);
 
   lib_handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
@@ -39,7 +39,7 @@ int chilli_module_load(void **ctx, char *name) {
     return -1;
   }
 
-  safe_snprintf(path, sizeof(path), "%s_module", name);
+  snprintf(path, sizeof(path), "%s_module", name);
 
   len = strlen(path);
   while(len-- > 0)

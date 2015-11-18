@@ -673,7 +673,7 @@ static void http_aaa_register(int argc, char **argv, int i) {
     bcatcstr(req.url, _options.nasmac);
   } else {
     char mac[32];
-    safe_snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+    snprintf(mac, sizeof(mac), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
 		  nas_hwaddr[0],nas_hwaddr[1],nas_hwaddr[2],
 		  nas_hwaddr[3],nas_hwaddr[4],nas_hwaddr[5]);
     bcatcstr(req.url, mac);

@@ -111,7 +111,7 @@ int redir_chartohex(unsigned char *src, char *dst, size_t len) {
   int n;
 
   for (n=0; n < len; n++) {
-    safe_snprintf(x, 3, "%.2x", src[n]);
+    snprintf(x, 3, "%.2x", src[n]);
     dst[i++] = x[0];
     dst[i++] = x[1];
   }
@@ -126,7 +126,7 @@ static int bytetohex(uint8_t *src, const size_t IN_LEN, char *dst,
   int n = 0;
 
   while (n < IN_LEN && n*2 < MAX_OUT_SIZE-1) {
-    safe_snprintf(x, 3, "%.2x", src[n]);
+    snprintf(x, 3, "%.2x", src[n]);
     dst[n*2+0] = x[0];
     dst[n*2+1] = x[1];
     n++;
@@ -152,7 +152,7 @@ static int bytetosphex(uint8_t *src, const size_t IN_LEN, char *dst,
       dst[o++] = 0x20;   /* Add a space character */
     }
 
-    safe_snprintf(x, 3, "%.2x", src[i]);
+    snprintf(x, 3, "%.2x", src[i]);
     dst[o++] = x[0];
     dst[o++] = x[1];
   }
@@ -231,7 +231,7 @@ int redir_urlencode(bstring src, bstring dst) {
       bconchar(dst,src->data[n]);
     }
     else {
-      safe_snprintf(x, 3, "%.2x", src->data[n]);
+      snprintf(x, 3, "%.2x", src->data[n]);
       bconchar(dst, '%');
       bconchar(dst, x[0]);
       bconchar(dst, x[1]);
@@ -649,7 +649,7 @@ int redir_md_param(bstring str, char *secret, char *amp) {
 
   hex[0]=0;
   for (i=0; i<16; i++) {
-    safe_snprintf(hex+2*i, 3, "%.2X", cksum[i]);
+    snprintf(hex+2*i, 3, "%.2X", cksum[i]);
   }
 
   bcatcstr(str, amp);
@@ -1901,7 +1901,7 @@ int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
   char sstr[255];
   ssize_t len = 0;
 
-  safe_snprintf(sstr, sizeof(sstr), "&%s=", param);
+  snprintf(sstr, sizeof(sstr), "&%s=", param);
 
 #if(_debug_ > 1)
   if (_options.debug)
@@ -2486,7 +2486,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
     default:
       {
-        safe_snprintf(conn->s_state.redir.userurl,
+        snprintf(conn->s_state.redir.userurl,
 		      sizeof(conn->s_state.redir.userurl),
 		      "http://%s/%s%s%s",
 		      httpreq->host, httpreq->path,
@@ -2886,7 +2886,7 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
 		   &conn->hisip,
 		   &conn->s_state);
 
-  safe_snprintf(url, sizeof(url), "http://%s:%d/logoff",
+  snprintf(url, sizeof(url), "http://%s:%d/logoff",
                 inet_ntoa(redir->addr), redir->port);
 
   radius_addattr(radius, &radius_pack, RADIUS_ATTR_VENDOR_SPECIFIC,
@@ -3151,10 +3151,10 @@ int redir_accept(struct redir_t *redir, int idx) {
     return 0;
   }
 
-  safe_snprintf(buffer,sizeof(buffer),"%s",inet_ntoa(address.sin_addr));
+  snprintf(buffer,sizeof(buffer),"%s",inet_ntoa(address.sin_addr));
   setenv("TCPREMOTEIP",buffer,1);
   setenv("REMOTE_ADDR",buffer,1);
-  safe_snprintf(buffer,sizeof(buffer),"%d",ntohs(address.sin_port));
+  snprintf(buffer,sizeof(buffer),"%d",ntohs(address.sin_port));
   setenv("TCPREMOTEPORT",buffer,1);
   setenv("REMOTE_PORT",buffer,1);
 
@@ -3751,7 +3751,7 @@ int redir_main(struct redir_t *redir,
             }
 #endif
 
-            safe_snprintf(buffer, sizeof(buffer), "%d", httpreq.clen > 0 ? httpreq.clen : 0);
+            snprintf(buffer, sizeof(buffer), "%d", httpreq.clen > 0 ? httpreq.clen : 0);
             setenv("CONTENT_LENGTH", buffer, 1);
 
             setenv("REQUEST_METHOD", httpreq.is_post ? "POST" : "GET", 1);
@@ -3760,7 +3760,7 @@ int redir_main(struct redir_t *redir,
             setenv("SERVER_NAME", httpreq.host, 1);
             setenv("HTTP_COOKIE", conn.httpcookie, 1);
 
-            safe_snprintf(buffer, sizeof(buffer), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+            snprintf(buffer, sizeof(buffer), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
                           conn.hismac[0], conn.hismac[1], conn.hismac[2],
                           conn.hismac[3], conn.hismac[4], conn.hismac[5]);
             setenv("REMOTE_MAC", buffer, 1);
@@ -3771,11 +3771,11 @@ int redir_main(struct redir_t *redir,
             setenv("CHI_SESSION_ID", conn.s_state.sessionid, 1);
             setenv("CHI_USERNAME", conn.s_state.redir.username, 1);
             setenv("CHI_USERURL", conn.s_state.redir.userurl, 1);
-            safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.input_octets);
+            snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.input_octets);
             setenv("CHI_INPUT_BYTES", buffer, 1);
-            safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.output_octets);
+            snprintf(buffer, sizeof(buffer), "%lld", conn.s_state.output_octets);
             setenv("CHI_OUTPUT_BYTES", buffer, 1);
-            safe_snprintf(buffer, sizeof(buffer), "%lld", conn.s_params.sessiontimeout);
+            snprintf(buffer, sizeof(buffer), "%lld", conn.s_params.sessiontimeout);
             setenv("CHI_SESSION_TIMEOUT", buffer, 1);
 
             redir_chartohex(conn.s_state.redir.uamchal, buffer, REDIR_MD5LEN);
@@ -3806,7 +3806,7 @@ int redir_main(struct redir_t *redir,
 
                   if (_options.debug)
                     syslog(LOG_DEBUG, "Running: %s %s/%s",_options.wwwbin, _options.wwwdir, filename);
-                  safe_snprintf(buffer, sizeof(buffer), "%s/%s", _options.wwwdir, filename);
+                  snprintf(buffer, sizeof(buffer), "%s/%s", _options.wwwdir, filename);
 
                   execv(*binqqargs, binqqargs);
                 }
@@ -3821,7 +3821,7 @@ int redir_main(struct redir_t *redir,
             int gzip = 1;
             char filebuff[1024];
 
-            safe_snprintf(filebuff, sizeof(filebuff), "%s.gz", filename);
+            snprintf(filebuff, sizeof(filebuff), "%s.gz", filename);
 
             fd = open(filebuff, O_RDONLY);
 
@@ -3836,7 +3836,7 @@ int redir_main(struct redir_t *redir,
                 syslog(LOG_ERR, "%s: fcntl() failed", strerror(errno));
               }
 
-              safe_snprintf(buffer, bufsize,
+              snprintf(buffer, bufsize,
                             "HTTP/1.1 200 OK\r\n%s"
                             "Connection: close\r\n"
                             "Content-type: %s\r\n\r\n",
@@ -4134,7 +4134,7 @@ int redir_main(struct redir_t *redir,
       }
 
     case REDIR_MSDOWNLOAD:
-      safe_snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
+      snprintf(buffer, bufsize, "HTTP/1.0 403 Forbidden\r\n\r\n");
       redir_write(&socket, buffer, strlen(buffer));
       return redir_main_exit(&socket, forked, rreq);
 
@@ -4171,10 +4171,10 @@ int redir_main(struct redir_t *redir,
         if (_options.debug)
           syslog(LOG_DEBUG, "WPAD %s:%d", __FUNCTION__, __LINE__);
 
-        safe_snprintf(buffer, bufsize, hdr, strlen(cnt));
+        snprintf(buffer, bufsize, hdr, strlen(cnt));
         redir_write(&socket, buffer, strlen(buffer));
 
-        safe_snprintf(buffer, bufsize, cnt);
+        snprintf(buffer, bufsize, cnt);
         redir_write(&socket, buffer, strlen(buffer));
         return redir_main_exit(&socket, forked, rreq);
       }

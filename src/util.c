@@ -23,12 +23,12 @@
 int statedir_file(char *dst, int dlen, char *file, char *deffile) {
   char *statedir = _options.statedir ? _options.statedir : DEFSTATEDIR;
   if (!file && deffile) {
-    safe_snprintf(dst, dlen, "%s/%s", statedir, deffile);
+    snprintf(dst, dlen, "%s/%s", statedir, deffile);
   } else if (file) {
     if (file[0]=='/')
-      safe_snprintf(dst, dlen, "%s", file);
+      snprintf(dst, dlen, "%s", file);
     else
-      safe_snprintf(dst, dlen, "%s/%s", statedir, file);
+      snprintf(dst, dlen, "%s/%s", statedir, file);
   }
   return 0;
 }

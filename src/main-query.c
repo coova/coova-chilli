@@ -641,7 +641,7 @@ int main(int argc, char **argv) {
     if (globbuf.gl_pathc>1) {
       char header[256];
       int headerlen;
-      safe_snprintf(header, sizeof(header), "\nQuerying socket %s\n", cmdsock);
+      snprintf(header, sizeof(header), "\nQuerying socket %s\n", cmdsock);
       headerlen=strlen(header);
       if (write(1, header, strlen(header))!=headerlen) {
         perror("write");

@@ -57,7 +57,7 @@ static int chartohex(unsigned char *src, char *dst, int len) {
   int n;
 
   for (n=0; n < len; n++) {
-    safe_snprintf(x, sizeof(x), "%.2x", src[n]);
+    snprintf(x, sizeof(x), "%.2x", src[n]);
     dst[n*2+0] = x[0];
     dst[n*2+1] = x[1];
   }
