@@ -60,6 +60,7 @@ config.guess
 config.h
 config.log
 config.status
+config.sub
 configure
 depcomp
 distro/nethserver/coova-chilli.spec
