@@ -151,7 +151,7 @@ int safe_close (int fd) {
   return ret;
 }
 
-pid_t safe_fork() {
+pid_t fork() {
   pid_t pid;
   do {
     pid = fork();
