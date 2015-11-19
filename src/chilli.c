@@ -295,7 +295,7 @@ pid_t chilli_fork(uint8_t type, char *name) {
     return -1;
   }
 
-  pid = safe_fork();
+  pid = fork();
 
   if (pid > 0) {
     if (child_add_pid(type, pid, name) == 0) {

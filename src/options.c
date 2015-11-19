@@ -115,7 +115,7 @@ static int opt_run(int argc, char **argv, int reload) {
 
   syslog(LOG_DEBUG, "(Re)processing options [%s]", file);
 
-  if ((status = safe_fork()) < 0) {
+  if ((status = fork()) < 0) {
     syslog(LOG_ERR, "%s: fork() returned -1!", strerror(errno));
     return -1;
   }
