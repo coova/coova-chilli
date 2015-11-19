@@ -150,11 +150,3 @@ int safe_close (int fd) {
   } while (ret == -1 && errno == EINTR);
   return ret;
 }
-
-pid_t fork() {
-  pid_t pid;
-  do {
-    pid = fork();
-  } while (pid == -1 && errno == EINTR);
-  return pid;
-}
