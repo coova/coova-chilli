@@ -39,6 +39,21 @@ static const char *usage =
     "Usage: chilli [OPTIONS]...\n";
 
 static const char *compile_options = "Compiled with "
+#ifdef ENABLE_DEBUG
+    "ENABLE_DEBUG "
+#endif
+#ifdef ENABLE_DEBUG2
+    "ENABLE_DEBUG2 "
+#endif
+#ifdef ENABLE_ACCOUNTING_ONOFF
+    "ENABLE_ACCOUNTING_ONOFF "
+#endif
+#ifdef ENABLE_APSESSIONID
+    "ENABLE_APSESSIONID "
+#endif
+#ifdef ENABLE_ACCEPTLANGUAGE
+    "ENABLE_ACCEPTLANGUAGE "
+#endif
 #ifdef ENABLE_AUTHEDALLOWED
     "ENABLE_AUTHEDALLOWED "
 #endif
@@ -63,6 +78,9 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_CHILLIREDIR
     "ENABLE_CHILLIREDIR "
 #endif
+#ifdef ENABLE_CHILLISCRIPT
+    "ENABLE_CHILLISCRIPT "
+#endif 
 #ifdef ENABLE_CHILLIXML
     "ENABLE_CHILLIXML "
 #endif
@@ -87,8 +105,14 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_EWTAPI
     "ENABLE_EWTAPI "
 #endif
+#ifdef ENABLE_FORCEDNS
+    "ENABLE_FORCEDNS "
+#endif
 #ifdef ENABLE_GARDENACCOUNTING
     "ENABLE_GARDENACCOUNTING "
+#endif
+#ifdef ENABLE_GARDENEXT
+    "ENABLE_GARDENEXT "
 #endif
 #ifdef ENABLE_IEEE8021Q
     "ENABLE_IEEE8021Q "
@@ -96,11 +120,20 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_IEEE8023
     "ENABLE_IEEE8023 "
 #endif
+#ifdef ENABLE_INSPECT
+    "ENABLE_INSPECT "
+#endif
+#ifdef ENABLE_IPV6
+    "ENABLE_IPV6 "
+#endif
 #ifdef ENABLE_IPWHITELIST
     "ENABLE_IPWHITELIST "
 #endif
 #ifdef ENABLE_JSON
     "ENABLE_JSON "
+#endif
+#ifdef ENABLE_L2TP_PPP
+    "ENABLE_L2TP_PPP "
 #endif
 #ifdef ENABLE_LARGELIMITS
     "ENABLE_LARGELIMITS "
@@ -114,14 +147,26 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_LOCATION
     "ENABLE_LOCATION "
 #endif
+#ifdef ENABLE_MDNS
+    "ENABLE_MDNS "
+#endif
+#ifdef ENABLE_MINICONFIG
+    "ENABLE_MINICONFIG "
+#endif
 #ifdef ENABLE_MINIPORTAL
     "ENABLE_MINIPORTAL "
+#endif
+#ifdef ENABLE_MODULES
+    "ENABLE_MODULES "
 #endif
 #ifdef ENABLE_MULTILAN
     "ENABLE_MULTILAN "
 #endif
 #ifdef ENABLE_MULTIROUTE
     "ENABLE_MULTIROUTE "
+#endif
+#ifdef ENABLE_NETBIOS
+    "ENABLE_NETBIOS "
 #endif
 #ifdef ENABLE_NETNAT
     "ENABLE_NETNAT "
@@ -138,6 +183,15 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_REDIRDNSREQ
     "ENABLE_REDIRDNSREQ "
 #endif
+#ifdef ENABLE_REDIRINJECT
+    "ENABLE_REDIRINJECT "
+#endif
+#ifdef ENABLE_SESSDHCP
+    "ENABLE_SESSDHCP "
+#endif
+#ifdef ENABLE_SESSDNS
+    "ENABLE_SESSDNS "
+#endif
 #ifdef ENABLE_SESSGARDEN
     "ENABLE_SESSGARDEN "
 #endif
@@ -147,14 +201,26 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_SESSIONSTATE
     "ENABLE_SESSIONSTATE "
 #endif
+#ifdef ENABLE_SESSPROXY
+    "ENABLE_SESSPROXY "
+#endif
 #ifdef ENABLE_SSDP
     "ENABLE_SSDP "
 #endif
 #ifdef ENABLE_STATFILE
     "ENABLE_STATFILE "
 #endif
+#ifdef ENABLE_TAP
+    "ENABLE_TAP "
+#endif
+#ifdef ENABLE_TCPRESET
+    "ENABLE_TCPRESET "
+#endif
 #ifdef ENABLE_UAMANYIP
     "ENABLE_UAMANYIP "
+#endif
+#ifdef ENABLE_UAMDOMAINFILE
+    "ENABLE_UAMDOMAINFILE "
 #endif
 #ifdef ENABLE_UAMUIPORT
     "ENABLE_UAMUIPORT "
@@ -162,14 +228,29 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_USERAGENT
     "ENABLE_USERAGENT "
 #endif
+#ifdef ENABLE_WPAD
+    "ENABLE_WPAD "
+#endif
 #ifdef HAVE_MATRIXSSL
     "HAVE_MATRIXSSL "
 #endif
 #ifdef HAVE_NETFILTER_COOVA
     "HAVE_NETFILTER_COOVA "
 #endif
+#ifdef HAVE_NETFILTER_QUEUE
+    "HAVE_NETFILTER_QUEUE "
+#endif
 #ifdef HAVE_OPENSSL
     "HAVE_OPENSSL "
+#endif
+#ifdef USING_CURL
+    "USING_CURL "
+#endif
+#ifdef USING_IPC_MSG
+    "USING_IPC_MSG "
+#endif
+#ifdef USING_PCAP
+    "USING_PCAP "
 #endif
 #ifdef USING_MMAP
     "USING_MMAP "
