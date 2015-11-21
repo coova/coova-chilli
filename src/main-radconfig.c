@@ -78,10 +78,15 @@ int static chilliauth() {
     return 1;
   }
 
-  if (radius_new(&radius, &_options.radiuslisten, 0, 0, 0) ||
-      radius_init_q(radius, 4)) {
-    syslog(LOG_ERR, "Failed to create radius");
+  if (radius_new(&radius, &_options.radiuslisten, 0, 0, 0)) {
+    syslog(LOG_ERR, "radius_new: Failed to create radius");
     return ret;
+  }
+
+  if (radius_init_q(radius, 4)) {
+     syslog(LOG_ERR, "radius_init: Failed to initialize radius");
+     radius_free(radius);
+     return ret;
   }
 
   /* get dhcpif mac */

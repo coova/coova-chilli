@@ -22,12 +22,12 @@
 #include <dlfcn.h>
 
 int chilli_module_load(void **ctx, char *name) {
-  struct chilli_module *m;
-  char path[512];
-  void *lib_handle;
-  char *error;
-  void *sym;
-  int len;
+  struct chilli_module *m = (struct chilli_module *)0;
+  char path[512] = "";
+  void *lib_handle = NULL;
+  char *error = (char *)0;
+  void *sym = NULL;
+  int len = 0;
 
   snprintf(path, sizeof(path), "%s/%s.so",
 		_options.moddir ? _options.moddir : DEFLIBDIR, name);
@@ -47,7 +47,7 @@ int chilli_module_load(void **ctx, char *name) {
       path[len] = '_';
 
   sym = dlsym(lib_handle, path);
-  if ((error = dlerror()) != NULL) {
+  if ((sym == NULL) || ((error = dlerror()) != NULL)) {
     dlclose(lib_handle);
     syslog(LOG_ERR, "%s: %s", strerror(errno), error);
     return -1;

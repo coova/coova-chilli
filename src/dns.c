@@ -152,7 +152,9 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   uint32_t ttl;
   uint16_t rdlen;
 
+#ifdef ENABLE_IPV6
   uint8_t *pkt_type=0;
+#endif
   uint8_t *pkt_ttl=0;
 
   uint32_t ul;
@@ -179,8 +181,9 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   }
 
   if (len < 4) return_error;
-
+#ifdef ENABLE_IPV6
   pkt_type = p_pkt;
+#endif
   memcpy(&us, p_pkt, sizeof(us));
   type = ntohs(us);
   p_pkt += 2;
@@ -212,7 +215,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	_options.uamdomains && _options.uamdomains[0]) {
       int id;
 
-      for (id=0; _options.uamdomains[id] && id < MAX_UAM_DOMAINS; id++) {
+      for (id=0; id < MAX_UAM_DOMAINS && _options.uamdomains[id]; id++) {
 
 	size_t qst_len = strlen((char *)question);
 	size_t dom_len = strlen(_options.uamdomains[id]);

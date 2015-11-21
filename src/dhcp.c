@@ -520,8 +520,13 @@ int dhcp_hashadd(struct dhcp_t *this, struct dhcp_conn_t *conn) {
  **/
 int dhcp_hashdel(struct dhcp_t *this, struct dhcp_conn_t *conn) {
   uint32_t hash;
-  struct dhcp_conn_t *p;
+  struct dhcp_conn_t *p = (struct dhcp_conn_t *)0;
   struct dhcp_conn_t *p_prev = NULL;
+  
+  if (conn == (struct dhcp_conn_t *)0) {
+    syslog(LOG_ERR, "%s: Bad input param conn(%p)", __FUNCTION__, conn);
+    return -1;
+  }
 
   /* Find in hash table */
   hash = dhcp_hash(conn->hismac) & this->hashmask;
@@ -530,6 +535,11 @@ int dhcp_hashdel(struct dhcp_t *this, struct dhcp_conn_t *conn) {
       break;
     }
     p_prev = p;
+  }
+
+  if (p != conn) {
+    syslog(LOG_ERR, "trying to remove connection not in hash table");
+    return -1;
   }
 
   if (!p_prev)
@@ -1136,6 +1146,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
     if (fd > 0) {
       dhcp->relayfd = fd;
     } else {
+      close(fd);
       close(dhcp->rawif[0].fd);
       free(dhcp);
       return -1;
@@ -1253,8 +1264,11 @@ int dhcp_reserve_str(char *b, size_t blen) {
   int newline;
 
   char *bp = b;
-  char *t;
-  int i;
+  char *t = (char *)0;
+  int i = 0;
+
+  memset(mac, 0, sizeof(mac));
+  memset(tmp, 0, sizeof(tmp));
 
   for (i=0; state >= 0 && i < blen; i++) {
     newline = 0;

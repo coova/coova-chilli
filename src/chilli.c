@@ -4432,12 +4432,14 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   struct app_conn_t *appconn = (struct app_conn_t*) cbp;
 
-  struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
+  struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)0;
 
   if (!appconn) {
     syslog(LOG_ERR,"No peer protocol defined");
     return 0;
   }
+
+  dhcpconn = (struct dhcp_conn_t *)appconn->dnlink;
 
   /* Initialise */
   appconn->s_state.redir.statelen = 0;
@@ -7024,7 +7026,11 @@ static int cmdsock_accept(void *nullData, int sock) {
   }
 
   s = bfromcstr("");
-  if (!s) return -1;
+  if (s == NULL) {
+    syslog(LOG_ERR, "bfromstr(): memory allocation error");
+    safe_close(csock);
+    return -1;
+  }
 
   rval = chilli_cmd(&req, s, csock);
 

@@ -421,11 +421,11 @@ int main(int argc, char **argv) {
 #ifdef ENABLE_CLUSTER
   int peerid = -1;
 #endif
-
+  char *query_timeout_env = NULL;
   int query_timeout = QUERY_TIMEOUT;
 
-  if (getenv("QUERY_TIMEOUT")) {
-    query_timeout = atoi(getenv("QUERY_TIMEOUT"));
+  if ((query_timeout_env = getenv("QUERY_TIMEOUT"))) {
+    query_timeout = atoi(query_timeout_env);
   }
 
   set_signal(SIGALRM, timeout_alarm);

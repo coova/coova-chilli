@@ -20,7 +20,7 @@
 #ifndef _SYSTEM_H
 #define _SYSTEM_H
 
-#include "../config.h"
+#include "config.h"
 #ifdef ENABLE_CONFIG
 #include ENABLE_CONFIG
 #endif
@@ -318,6 +318,10 @@ void copy_mac6(uint8_t *, uint8_t *);
 #ifdef HAVE_AVL
 #include "avl/avl.h"
 #define HAVE_SEARCH 1
+#endif
+
+#if defined(USING_PCAP)
+#undef USING_MMAP
 #endif
 
 #endif

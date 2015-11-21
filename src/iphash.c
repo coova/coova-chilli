@@ -33,8 +33,8 @@ uint32_t iphash_hash6(struct in6_addr *addr) {
 
 int iphash_hashadd(struct iphash_t *this, struct iphashm_t *member) {
   uint32_t hash;
-  struct iphashm_t *p;
-  struct iphashm_t *p_prev = 0;
+  struct iphashm_t *p = (struct iphashm_t*)0;
+  struct iphashm_t *p_prev = (struct iphashm_t*)0;
 
   hash = iphash_hash4(&member->addr) & this->hashmask;
 
@@ -50,7 +50,7 @@ int iphash_hashadd(struct iphash_t *this, struct iphashm_t *member) {
 }
 
 int iphash_new(struct iphash_t **this, struct iphashm_t **member, int listsize, iphash_callback callback) {
-  struct iphash_t *n;
+  struct iphash_t *n = (struct iphash_t*)0;
   int i;
 
   if (!(n = calloc(sizeof(struct iphash_t), 1))) {
@@ -114,8 +114,14 @@ int iphash_get(struct iphash_t *this, struct iphashm_t **member,  struct in_addr
 
 int iphash_hashdel(struct iphash_t *this, struct iphashm_t *member) {
   uint32_t hash;
-  struct iphashm_t *p;
-  struct iphashm_t *p_prev = 0;
+  struct iphashm_t *p = (struct iphashm_t *)0;
+  struct iphashm_t *p_prev = (struct iphashm_t *)0;
+  
+  if (member == (struct iphashm_t *)0) {
+    syslog(LOG_ERR, "%s: Bad input param member(%p)", __FUNCTION__, member);
+    return -1;
+  }
+
 
   hash = iphash_hash4(&member->addr) & this->hashmask;
   for (p = this->hash[hash]; p; p = p->nexthash) {
@@ -139,7 +145,7 @@ int iphash_hashdel(struct iphash_t *this, struct iphashm_t *member) {
 }
 
 int iphash_add(struct iphash_t *this, struct iphashm_t **member, struct in_addr *addr, uint16_t port) {
-  struct iphashm_t *p;
+  struct iphashm_t *p = (struct iphashm_t *)0;
   /*uint32_t hash;*/
 
   syslog(LOG_DEBUG, "IPHASH IP: %s %d", inet_ntoa(*addr), ntohs(port));
