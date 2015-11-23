@@ -57,8 +57,11 @@ static int open_netlink() {
   addr.nl_pid = getpid();
   addr.nl_groups = MYMGRP;
 
-  if (bind(sock,(struct sockaddr *)&addr,sizeof(addr)) < 0)
+  if (bind(sock,(struct sockaddr *)&addr,sizeof(addr)) < 0) {
+    syslog(LOG_ERR, "Binding on socket(%p) failed.", sock);
+    close(sock);
     return -1;
+  }
 
   return sock;
 }
