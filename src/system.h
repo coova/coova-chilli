@@ -260,7 +260,7 @@
 #endif
 
 #ifndef PRIu64
-#define PRIu64 "llu"
+#define PRIu64 "lu"
 #endif
 
 #include <unistd.h>
