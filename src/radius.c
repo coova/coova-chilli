@@ -1394,6 +1394,11 @@ radius_free(struct radius_t *this) {
   if (close(this->fd)) {
     syslog(LOG_ERR, "%s: close() failed!", strerror(errno));
   }
+#ifdef ENABLE_RADPROXY
+  if (close(this->proxyfd)) {
+     syslog(LOG_ERR, "%s: close() failed!", strerror(errno));
+  }
+#endif
   free(this);
   return 0;
 }
@@ -1885,7 +1890,7 @@ int radius_decaps(struct radius_t *this, int idx) {
   ssize_t status;
   struct radius_packet_t pack;
   struct radius_packet_t pack_req;
-  void *cbp;
+  void *cbp = NULL;
   struct sockaddr_in addr;
   socklen_t fromlen = sizeof(addr);
 

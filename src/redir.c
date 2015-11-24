@@ -1556,6 +1556,10 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   }
 
   buffer = bfromcstralloc(1024, "");
+  if (!buffer) {
+    syslog(LOG_ERR, "%s: bfromcstralloc() memory allocation error.", __FUNCTION__);
+    return -1;
+  }
 
 #ifdef ENABLE_JSON
   if (conn->format == REDIR_FMT_JSON) {
@@ -1898,6 +1902,7 @@ void redir_set(struct redir_t *redir, uint8_t *hwaddr, int debug) {
 int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
   char *p1;
   char *p2;
+  bstring s = (bstring)0;
   char sstr[255];
   ssize_t len = 0;
 
@@ -1924,8 +1929,7 @@ int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
   if (p2) len = p2 - p1;
   else len = strlen(p1);
 
-  if (len) {
-    bstring s = blk2bstr(p1, len);
+  if ((len) && ((s = blk2bstr(p1, len)) != (bstring)0)) {
     redir_urldecode(s, dst);
     bdestroy(s);
   } else
@@ -2715,10 +2719,14 @@ static int redir_radius(struct redir_t *redir, struct in_addr *addr,
   char url[REDIR_URL_LEN];
   int n, m;
 
-  if (radius_new(&radius,
-		 &redir->radiuslisten, 0, 0, 0) ||
-      radius_init_q(radius, 8)) {
-    syslog(LOG_ERR, "Failed to create radius");
+  if (radius_new(&radius, &redir->radiuslisten, 0, 0, 0)) {
+    syslog(LOG_ERR, "radius_new: Failed to create radius");
+    return -1;
+  } 
+  
+  if (radius_init_q(radius, 8)) {
+    syslog(LOG_ERR, "radius_init: Failed to create radius");
+    radius_free(radius);
     return -1;
   }
 
@@ -3165,11 +3173,12 @@ int redir_accept(struct redir_t *redir, int idx) {
     execv(*binqqargs, binqqargs);
 
   } else {
-
+    safe_close(new_socket);
     return redir_main(redir, 0, 1, &address, &baddress, idx, 0);
 
   }
 
+  safe_close(new_socket);
   return 0;
 }
 

@@ -411,7 +411,7 @@ Get_Key(char *InitialSessionKey, char *CurrentSessionKey,
 void
 mschap_NT(u_char *passwordHash, u_char *challenge)
 {
-  u_char response[24];
+  u_char response[24] = "";
 
   ChallengeResponse(challenge, passwordHash, response);
   memcpy(passwordHash, response, 24);
@@ -423,8 +423,10 @@ mschap_LANMan(u_char *digest, u_char *challenge, char *secret)
 {
   static u_char salt[] = "KGS!@#$%";	/* RASAPI32.dll */
 
-  u_char SECRET[14], *ptr, *end;
-  u_char hash[16];
+  u_char SECRET[14] = "";
+  u_char *ptr = (u_char *)0;
+  u_char *end = (u_char *)0;
+  u_char hash[16] = "";
 
   end = SECRET + sizeof SECRET;
 

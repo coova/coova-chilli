@@ -273,7 +273,7 @@ static int http_aaa_finish(proxy_request *req) {
   req->radius_res.id = req->radius_req.id;
 
   /* process attributes */
-  if (req->data->slen) {
+  if (req->data && req->data->slen) {
     char *parse = (char *) req->data->data;
     if (parse) {
       char *ptr;
@@ -394,6 +394,8 @@ static int http_aaa_finish(proxy_request *req) {
 #if(_debug_)
                   syslog(LOG_DEBUG, "Setting %s = %s", attrs[i].n, ptr+strlen(attrs[i].n));
 #endif
+                  bdestroy(tmp);
+                  bdestroy(tmp2);
                 }
                 break;
 	    }

@@ -472,7 +472,10 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
   if (!s || strlen(s) == 0)
     return 0;
 
-  p3 = malloc(strlen(s)+1);
+  p3 = (char *) calloc(strlen(s)+1, 1);
+  if (p3== (char*)0)
+     return 0;
+
   strcpy(p3, s);
   p1 = p3;
 
@@ -679,6 +682,11 @@ void garden_load_domainfile() {
 
 	uamdomain_regex * uam_re = (uamdomain_regex *)
             calloc(sizeof(uamdomain_regex), 1);
+	if (uam_re == (uamdomain_regex *)0) {
+	  syslog(LOG_ERR, "memory allocation for a new regex %s failed", line);
+      fclose(fp);
+	  continue;
+	}
 
 	char * pline = line;
 
