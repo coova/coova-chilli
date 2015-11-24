@@ -78,15 +78,6 @@
 #include <sys/stat.h>
 #endif
 
-#ifdef HAVE_SYS_SYSINFO_H
-#include <sys/sysinfo.h>
-#else
-#ifdef HAVE_LINUX_SYSINFO_H
-#define _LINUX_KERNEL_H
-#include <linux/sysinfo.h>
-#endif
-#endif
-
 #ifdef HAVE_TIME_H
 #include <time.h>
 #endif
@@ -137,6 +128,15 @@
 #include <linux/rtnetlink.h>
 #ifndef HAVE_SYS_UN_H
 #include <linux/un.h>
+#endif
+
+#ifdef HAVE_SYS_SYSINFO_H
+#include <sys/sysinfo.h>
+#else
+#ifdef HAVE_LINUX_SYSINFO_H
+#define _LINUX_KERNEL_H
+#include <linux/sysinfo.h>
+#endif
 #endif
 
 #elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
@@ -257,6 +257,10 @@
 
 #ifndef SI_LOAD_SHIFT
 #define SI_LOAD_SHIFT 16
+#endif
+
+#ifndef PRIu64
+#define PRIu64 "lu"
 #endif
 
 #include <unistd.h>

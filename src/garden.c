@@ -42,7 +42,7 @@ void garden_print_list(int fd, pass_through *ptlist, int ptcnt) {
     snprintf(line, sizeof(line),
 		  "host=%-16s mask=%-16s proto=%-3d port=%-3d"
 #ifdef ENABLE_GARDENEXT
-		  " expiry=%-3d"
+		  " expiry=%-3ld"
 #endif
 		  "\n",
 		  inet_ntoa(pt->host), mask,

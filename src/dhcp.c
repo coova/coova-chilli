@@ -2035,7 +2035,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 
 	snprintf(line, sizeof(line),
 		      "%d,"MAC_FMT",%s,%s,%d,%s\n",
-		      time(0),
+		      (uint32_t)time(0),
 		      MAC_ARG(conn->hismac),
 		      inet_ntoa(conn->hisip),
 		      q, authenticated,
