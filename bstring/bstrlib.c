@@ -1463,7 +1463,10 @@ bstring aux = (bstring) b2;
 	/* Compute the two possible end pointers */
 	d = b1->slen + aux->slen;
 	l = pos + aux->slen;
-	if ((d|l) < 0) return BSTR_ERR;
+	if ((d|l) < 0) {
+		if (aux != b2) bdestroy (aux);
+		return BSTR_ERR;
+	}
 
 	if (l > d) {
 		/* Inserting past the end of the string */
