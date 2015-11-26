@@ -1350,7 +1350,7 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   bconcat(json, tmp);
 
   if (_options.radiusnasid) {
-    bcatcstr(json, ",\"nasid\":");
+    bcatcstr(json, ",\"nasid\":\"");
     bcatcstr(json, _options.radiusnasid);
     bcatcstr(json, "\"");
   }
