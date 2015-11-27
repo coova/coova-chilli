@@ -4392,6 +4392,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
             uint8_t packet[1500];
             struct pkt_ethhdr_t *packet_ethh;
             struct pkt_ip6hdr_t *packet_ip6h;
+            uint16_t data_len;
             uint8_t *payload;
             
             struct pkt_icmphdr_t * packet_icmp = 0;
@@ -4509,7 +4510,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
           struct pkt_ethhdr_t *packet_ethh;
           struct pkt_ip6hdr_t *packet_ip6h;
           uint8_t *payload, *target;
-          
+          uint16_t data_len;
 	  struct pkt_icmphdr_t * packet_icmp = 0;
           
 	  data += 4;
