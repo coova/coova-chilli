@@ -520,7 +520,7 @@ int dhcp_hashadd(struct dhcp_t *this, struct dhcp_conn_t *conn) {
  **/
 int dhcp_hashdel(struct dhcp_t *this, struct dhcp_conn_t *conn) {
   uint32_t hash;
-  struct dhcp_conn_t *p = (struct dhcp_conn_t *)0;
+  struct dhcp_conn_t *p = NULL;
   struct dhcp_conn_t *p_prev = NULL;
   
   if (conn == (struct dhcp_conn_t *)0) {
@@ -1264,7 +1264,7 @@ int dhcp_reserve_str(char *b, size_t blen) {
   int newline;
 
   char *bp = b;
-  char *t = (char *)0;
+  char *t = NULL;
   int i = 0;
 
   memset(mac, 0, sizeof(mac));

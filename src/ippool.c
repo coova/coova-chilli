@@ -141,7 +141,7 @@ int ippool_print(int fd, struct ippool_t *this) {
 
 int ippool_hashadd(struct ippool_t *this, struct ippoolm_t *member) {
   uint32_t hash;
-  struct ippoolm_t *p = (struct ippoolm_t *)0;
+  struct ippoolm_t *p = NULL;
   struct ippoolm_t *p_prev = NULL;
 
   /* Insert into hash table */
@@ -160,10 +160,10 @@ int ippool_hashadd(struct ippool_t *this, struct ippoolm_t *member) {
 
 int ippool_hashdel(struct ippool_t *this, struct ippoolm_t *member) {
   uint32_t hash;
-  struct ippoolm_t *p = (struct ippoolm_t *)0;
+  struct ippoolm_t *p = NULL;
   struct ippoolm_t *p_prev = NULL;
 
-  if (member == (struct ippoolm_t *)0) {
+  if (member == NULL) {
     syslog(LOG_ERR, "%s: Bad input param member(%p)", __FUNCTION__, member);
 	return -1;
   }
@@ -453,7 +453,7 @@ int ippool_newip(struct ippool_t *this,
 		 struct ippoolm_t **member,
 		 struct in_addr *addr,
 		 int statip) {
-  struct ippoolm_t *p = (struct ippoolm_t *)0;
+  struct ippoolm_t *p = NULL;
   struct ippoolm_t *p2 = NULL;
   uint32_t hash;
 
