@@ -1811,12 +1811,10 @@ int redir_ipc(struct redir_t *redir) {
 	     sizeof(struct sockaddr_un)) == -1) {
       syslog(LOG_ERR, "%s: could bind UNIX Socket to %s!", strerror(errno), filedest);
       safe_close(sock);
-      sock = -1;
     } else {
       if (listen(sock, 128) == -1) {
 	syslog(LOG_ERR, "%s: could listen to UNIX Socket!", strerror(errno));
 	safe_close(sock);
-	sock = -1;
       } else {
 	redir->msgfd = sock;
 
