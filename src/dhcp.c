@@ -1868,7 +1868,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
       char *hostname = _options.uamhostname;
       char *aliasname = _options.uamaliasname;
 
-      uint8_t *p = dnsp->records;
+      uint8_t *p;
 
       uint8_t query[256];
       uint8_t reply[4];
