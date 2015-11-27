@@ -1811,12 +1811,10 @@ int redir_ipc(struct redir_t *redir) {
 	     sizeof(struct sockaddr_un)) == -1) {
       syslog(LOG_ERR, "%s: could bind UNIX Socket to %s!", strerror(errno), filedest);
       safe_close(sock);
-      sock = -1;
     } else {
       if (listen(sock, 128) == -1) {
 	syslog(LOG_ERR, "%s: could listen to UNIX Socket!", strerror(errno));
 	safe_close(sock);
-	sock = -1;
       } else {
 	redir->msgfd = sock;
 
@@ -3547,7 +3545,7 @@ int redir_main(struct redir_t *redir,
         pid_t forkpid;
         int fd = -1;
 
-        if (_options.wwwdir && ((conn.wwwfile && *conn.wwwfile)
+        if (_options.wwwdir && (*conn.wwwfile
 #ifdef ENABLE_EWTAPI
                                 || isEWT
 #endif

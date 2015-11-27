@@ -1868,7 +1868,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
       char *hostname = _options.uamhostname;
       char *aliasname = _options.uamaliasname;
 
-      uint8_t *p = dnsp->records;
+      uint8_t *p;
 
       uint8_t query[256];
       uint8_t reply[4];
@@ -4392,7 +4392,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
             uint8_t packet[1500];
             struct pkt_ethhdr_t *packet_ethh;
             struct pkt_ip6hdr_t *packet_ip6h;
-            uint16_t data_len = ntohs(iphdr->data_len);
+            uint16_t data_len;
             uint8_t *payload;
             
             struct pkt_icmphdr_t * packet_icmp = 0;
@@ -4509,9 +4509,8 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
           uint8_t packet[1500];
           struct pkt_ethhdr_t *packet_ethh;
           struct pkt_ip6hdr_t *packet_ip6h;
-          uint16_t data_len = ntohs(iphdr->data_len);
           uint8_t *payload, *target;
-          
+          uint16_t data_len;
 	  struct pkt_icmphdr_t * packet_icmp = 0;
           
 	  data += 4;
@@ -4553,7 +4552,6 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	  *payload++ = 2;
 	  *payload++ = 1;
 	  memcpy(payload, dhcp_nexthop(dhcp), PKT_ETH_ALEN);
-	  payload += PKT_ETH_ALEN;
 
 	  packet_ip6h->ver_class_label = iphdr->ver_class_label;
 	  packet_ip6h->next_header = iphdr->next_header;
@@ -4742,7 +4740,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	      data_len += 4 + 2;
 	      u = htons(8); memcpy(payload, &u, 2); payload+=2;
 	      u = htons(2); memcpy(payload, &u, 2); payload+=2;
-	      u = htons(1); memcpy(payload, &u, 2); payload+=2;
+	      u = htons(1); memcpy(payload, &u, 2);
 
 	      packet_udph->dst = udphdr->src;
 	      packet_udph->src = udphdr->dst;

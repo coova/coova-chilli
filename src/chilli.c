@@ -7315,7 +7315,6 @@ int chilli_main(int argc, char **argv) {
         _options.binconfig = 0;
         umask(process_mask);
 
-        cpid = new_pid;
         bdestroy(bt);
 
         if (!options_binload(file2)) {
