@@ -2408,7 +2408,6 @@ bssplitstrcb(struct bStream *s, const bstring splitStr,
 		bdestroy(buff);
 		return BSTR_OK;
 	} else {
-		p = i = 0;
 		for (p = 0; ;) {
 			ret = binstr(buff, 0, splitStr);
 			if (ret >= 0) {
