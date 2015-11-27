@@ -466,7 +466,10 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 			      ) {
   struct hostent *host;
   pass_through pt;
-  char *t = *p1 = *p2 = *p3 = NULL;
+  char *ti = NULL, 
+       *p1 = NULL, 
+       *p2 = NULL, 
+       *p3 = NULL;
 
   if (!s || strlen(s) == 0)
     return 0;
