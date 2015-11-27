@@ -2342,7 +2342,7 @@ bssplitscb(struct bStream *s, const bstring splitStr,
 		}
 	} else {
 		buildCharField(&chrs, splitStr);
-		ret = p = i = 0;
+		p = i = 0;
 		while (1) {
 			if (i >= buff->slen) {
 				bsreada(buff, s, BSSSC_BUFF_LEN);
@@ -2408,8 +2408,8 @@ bssplitstrcb(struct bStream *s, const bstring splitStr,
 		bdestroy(buff);
 		return BSTR_OK;
 	} else {
-		ret = p = i = 0;
-		for (i = p = 0; ;) {
+		p = i = 0;
+		for (p = 0; ;) {
 			ret = binstr(buff, 0, splitStr);
 			if (ret >= 0) {
 				struct tagbstring t;
