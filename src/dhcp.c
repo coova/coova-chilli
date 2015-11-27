@@ -4740,6 +4740,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	      data_len += 4 + 2;
 	      u = htons(8); memcpy(payload, &u, 2); payload+=2;
 	      u = htons(2); memcpy(payload, &u, 2); payload+=2;
+	      u = htons(1); memcpy(payload, &u, 2);
 
 	      packet_udph->dst = udphdr->src;
 	      packet_udph->src = udphdr->dst;
