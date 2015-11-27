@@ -211,8 +211,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
     *pktp = p_pkt;
     *left = len;
 
-    if (!isReq && *qmatch == -1 &&
-	_options.uamdomains && _options.uamdomains[0]) {
+    if (!isReq && *qmatch == -1 && _options.uamdomains[0]) {
       int id;
 
       for (id=0; id < MAX_UAM_DOMAINS && _options.uamdomains[id]; id++) {
