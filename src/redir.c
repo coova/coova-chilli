@@ -3545,7 +3545,7 @@ int redir_main(struct redir_t *redir,
         pid_t forkpid;
         int fd = -1;
 
-        if (_options.wwwdir && ((conn.wwwfile && *conn.wwwfile)
+        if (_options.wwwdir && (*conn.wwwfile
 #ifdef ENABLE_EWTAPI
                                 || isEWT
 #endif
