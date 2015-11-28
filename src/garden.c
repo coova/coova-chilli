@@ -48,7 +48,7 @@ void garden_print_list(int fd, pass_through *ptlist, int ptcnt) {
 		  inet_ntoa(pt->host), mask,
 		  pt->proto, pt->port
 #ifdef ENABLE_GARDENEXT
-		  , pt->expiry ? pt->expiry - mainclock_now() : 0
+		  , (int)pt->expiry ? (int)(pt->expiry - mainclock_now()) : 0
 #endif
 		  );
 
