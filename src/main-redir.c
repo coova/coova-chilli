@@ -907,7 +907,6 @@ int main(int argc, char **argv) {
 	  redir_conn_finish(&requests[idx].conn, &requests[idx]);
 	} else {
 	  int evt = SELECT_READ;
-	  timeout = 0;
 	  if (conn_write_remaining(&requests[idx].conn))
 	    evt |= SELECT_WRITE;
 	  net_select_fd(&sctx, fd, evt);

@@ -1350,7 +1350,7 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   bconcat(json, tmp);
 
   if (_options.radiusnasid) {
-    bcatcstr(json, ",\"nasid\":");
+    bcatcstr(json, ",\"nasid\":\"");
     bcatcstr(json, _options.radiusnasid);
     bcatcstr(json, "\"");
   }
@@ -1811,12 +1811,10 @@ int redir_ipc(struct redir_t *redir) {
 	     sizeof(struct sockaddr_un)) == -1) {
       syslog(LOG_ERR, "%s: could bind UNIX Socket to %s!", strerror(errno), filedest);
       safe_close(sock);
-      sock = -1;
     } else {
       if (listen(sock, 128) == -1) {
 	syslog(LOG_ERR, "%s: could listen to UNIX Socket!", strerror(errno));
 	safe_close(sock);
-	sock = -1;
       } else {
 	redir->msgfd = sock;
 
@@ -1902,7 +1900,7 @@ void redir_set(struct redir_t *redir, uint8_t *hwaddr, int debug) {
 int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
   char *p1;
   char *p2;
-  bstring s = (bstring)0;
+  bstring s = NULL;
   char sstr[255];
   ssize_t len = 0;
 
@@ -1929,7 +1927,7 @@ int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
   if (p2) len = p2 - p1;
   else len = strlen(p1);
 
-  if ((len) && ((s = blk2bstr(p1, len)) != (bstring)0)) {
+  if ((len) && ((s = blk2bstr(p1, len)) != NULL)) {
     redir_urldecode(s, dst);
     bdestroy(s);
   } else
@@ -3547,7 +3545,7 @@ int redir_main(struct redir_t *redir,
         pid_t forkpid;
         int fd = -1;
 
-        if (_options.wwwdir && ((conn.wwwfile && *conn.wwwfile)
+        if (_options.wwwdir && (*conn.wwwfile
 #ifdef ENABLE_EWTAPI
                                 || isEWT
 #endif

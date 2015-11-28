@@ -466,14 +466,16 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 			      ) {
   struct hostent *host;
   pass_through pt;
-  char *t, *p1 = NULL, *p2 = NULL;
-  char *p3;
+  char *t  = NULL, 
+       *p1 = NULL, 
+       *p2 = NULL, 
+       *p3 = NULL;
 
   if (!s || strlen(s) == 0)
     return 0;
 
   p3 = (char *) calloc(strlen(s)+1, 1);
-  if (p3== (char*)0)
+  if (p3 == NULL)
      return 0;
 
   strcpy(p3, s);
