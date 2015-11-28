@@ -4432,7 +4432,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   struct app_conn_t *appconn = (struct app_conn_t*) cbp;
 
-  struct dhcp_conn_t *dhcpconn = (struct dhcp_conn_t *)0;
+  struct dhcp_conn_t *dhcpconn = NULL;
 
   if (!appconn) {
     syslog(LOG_ERR,"No peer protocol defined");

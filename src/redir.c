@@ -1900,7 +1900,7 @@ void redir_set(struct redir_t *redir, uint8_t *hwaddr, int debug) {
 int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
   char *p1;
   char *p2;
-  bstring s = (bstring)0;
+  bstring s = NULL;
   char sstr[255];
   ssize_t len = 0;
 
@@ -1927,7 +1927,7 @@ int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
   if (p2) len = p2 - p1;
   else len = strlen(p1);
 
-  if ((len) && ((s = blk2bstr(p1, len)) != (bstring)0)) {
+  if ((len) && ((s = blk2bstr(p1, len)) != NULL)) {
     redir_urldecode(s, dst);
     bdestroy(s);
   } else

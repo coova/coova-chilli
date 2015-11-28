@@ -424,8 +424,8 @@ mschap_LANMan(u_char *digest, u_char *challenge, char *secret)
   static u_char salt[] = "KGS!@#$%";	/* RASAPI32.dll */
 
   u_char SECRET[14] = "";
-  u_char *ptr = (u_char *)0;
-  u_char *end = (u_char *)0;
+  u_char *ptr = NULL;
+  u_char *end = NULL;
   u_char hash[16] = "";
 
   end = SECRET + sizeof SECRET;
