@@ -25,7 +25,7 @@ int chilli_module_load(void **ctx, char *name) {
   struct chilli_module *m = (struct chilli_module *)0;
   char path[512] = "";
   void *lib_handle = NULL;
-  char *error = (char *)0;
+  char *error = NULL;
   void *sym = NULL;
   int len = 0;
 

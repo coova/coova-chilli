@@ -1768,8 +1768,8 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
 static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, int what) {
   unsigned page_size, max_blocks;
   struct tpacket_req req;
-  struct ring *ring = (struct ring *)0;
-  const char *name = (const char *)0;
+  struct ring *ring = NULL;
+  const char *name = NULL;
   int ret = -1;
   memset(req, 0, sizeof(struct tpacket_req));
 
