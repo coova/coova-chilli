@@ -575,7 +575,7 @@ static void set_sessionid(struct app_conn_t *appconn, char full) {
 		  "SES-"
 		  "%.2X%.2X%.2X%.2X%.2X%.2X-"
 		  "%.2X%.2X%.2X%.2X%.2X%.2X-"
-		  "%.8x%.8x",
+		  "%.8lx%.8x",
 		  MAC_ARG(his), MAC_ARG(called),
 		  appconn->rt, appconn->unit);
   }
