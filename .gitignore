@@ -58,6 +58,7 @@ conf/up.sh
 conf/wpad.dat
 config.guess
 config.h
+config.h.in
 config.log
 config.status
 config.sub
