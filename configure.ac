@@ -1,8 +1,8 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.57)
-AC_INIT(coova-chilli, 1.3.1.3, support@coova.com)
+AC_PREREQ([2.57])
+AC_INIT([coova-chilli],[1.3.1.3],[support@coova.com])
 AC_CONFIG_SRCDIR([src/chilli.c])
 
 AM_INIT_AUTOMAKE
@@ -12,12 +12,17 @@ AM_CONFIG_HEADER([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
 # Checks for programs.
+AC_PROG_CXX
+AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_CC_C_O
+AC_PROG_CPP
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
 
 #JJAKO Check for libtool
-AC_PROG_LIBTOOL
-AM_PROG_LIBTOOL
+LT_INIT
 AC_ARG_PROGRAM
 
 # Checks for libraries.
@@ -64,9 +69,11 @@ esac
 
 # Checks for header files.
 AC_HEADER_STDC
+AC_HEADER_RESOLV
 AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h dirent.h \
+		  inttypes.h limits.h \
 		  netdb.h netinet/in.h netinet/tcp.h \
-		  stdint.h stddef.h stdlib.h string.h \
+		  stdint.h stddef.h stdlib.h string.h strings.h \
 		  sys/ioctl.h sys/socket.h linux/sysinfo.h sys/sysinfo.h \
 		  sys/param.h sys/time.h time.h \
 		  sys/ipc.h sys/msg.h signal.h \
@@ -74,7 +81,7 @@ AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h dirent.h \
 		  sys/stat.h sys/types.h regex.h \
 		  syslog.h poll.h sys/epoll.h \
 		  unistd.h endian.h libgen.h \
-		  asm/types.h pwd.h grp.h ])
+		  asm/types.h pwd.h grp.h wchar.h])
 
 AC_CHECK_HEADERS([resolv.h net/route.h net/if.h net/if_arp.h net/if_tun.h net/ethernet.h], [], [],
 [
@@ -99,21 +106,40 @@ AC_CHECK_HEADERS([resolv.h net/route.h net/if.h net/if_arp.h net/if_tun.h net/et
 ])
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
+AC_CHECK_HEADER_STDBOOL
+AC_TYPE_UID_T
+AC_C_INLINE
+AC_TYPE_INT16_T
+AC_TYPE_INT32_T
+AC_TYPE_INT8_T
 AC_TYPE_MODE_T
-AC_HEADER_TIME
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_TYPE_SSIZE_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
+AC_TYPE_UINT8_T
+AC_CHECK_TYPES([ptrdiff_t])
+
 
 # Checks for library functions.
+AC_FUNC_CHOWN
 AC_FUNC_FORK
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MEMCMP
 AC_FUNC_SELECT_ARGTYPES
-AC_CHECK_FUNCS([gethostbyname getprotoent gettimeofday inet_ntoa \
-memset select socket strdup strerror strstr strtol getline dirname \
-glob getaddrinfo getnameinfo getifaddrs sysinfo strlcpy])
+AC_FUNC_MALLOC
+AC_FUNC_MKTIME
+AC_FUNC_MMAP
+AC_FUNC_REALLOC
+AC_CHECK_FUNCS([bzero clock_gettime dup2 gethostbyname getprotoent gettimeofday inet_ntoa \
+memchr memmove memset mkdir munmap regcomp select setenv socket strcasecmp \
+strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol getline dirname \
+glob getaddrinfo getnameinfo getifaddrs sysinfo strlcpy tzset])
 AC_CHECK_LIB(resolv, res_init)
 
-AC_ARG_ENABLE(chilliquery, [AC_HELP_STRING([--disable-chilliquery],[Disable chilli_query])], 
+AC_ARG_ENABLE(chilliquery, [AS_HELP_STRING([--disable-chilliquery],[Disable chilli_query])], 
   enable_chilliquery=$enableval, enable_chilliquery=yes)
 
 if test x"$enable_chilliquery" = xyes; then
@@ -122,112 +148,112 @@ fi
 
 AM_CONDITIONAL(WITH_CHILLIQUERY, [test x"$enable_chilliquery" != xno])
 
-AC_ARG_ENABLE(leakybucket, [AC_HELP_STRING([--disable-leakybucket],[disable use of leaky bucket shaping])], 
+AC_ARG_ENABLE(leakybucket, [AS_HELP_STRING([--disable-leakybucket],[disable use of leaky bucket shaping])], 
   enable_leakybucket=$enableval, enable_leakybucket=yes)
 
 if test x"$enable_leakybucket" = xyes; then
    AC_DEFINE(ENABLE_LEAKYBUCKET,1,[Define to enable Chilli Leaky Bucket shaping])
 fi
 
-AC_ARG_ENABLE(uamanyip, [AC_HELP_STRING([--disable-uamanyip],[disable use of uamanyip])], 
+AC_ARG_ENABLE(uamanyip, [AS_HELP_STRING([--disable-uamanyip],[disable use of uamanyip])], 
   enable_uamanyip=$enableval, enable_uamanyip=yes)
 
 if test x"$enable_uamanyip" = xyes; then
    AC_DEFINE(ENABLE_UAMANYIP,1,[Define to enable uamanyip])
 fi
 
-AC_ARG_ENABLE(uamuiport, [AC_HELP_STRING([--disable-uamuiport],[disable use of uamuiport])], 
+AC_ARG_ENABLE(uamuiport, [AS_HELP_STRING([--disable-uamuiport],[disable use of uamuiport])], 
   enable_uamuiport=$enableval, enable_uamuiport=yes)
 
 if test x"$enable_uamuiport" = xyes; then
    AC_DEFINE(ENABLE_UAMUIPORT,1,[Define to enable uamuiport])
 fi
 
-AC_ARG_ENABLE(accounting-onoff, [AC_HELP_STRING([--disable-accounting-onoff],[disable use of Accounting-On and Accounting-Off])], 
+AC_ARG_ENABLE(accounting-onoff, [AS_HELP_STRING([--disable-accounting-onoff],[disable use of Accounting-On and Accounting-Off])], 
   enable_accounting_onoff=$enableval, enable_accounting_onoff=yes)
 
 if test x"$enable_accounting_onoff" = xyes; then
    AC_DEFINE(ENABLE_ACCOUNTING_ONOFF,1,[Define to enable Accounting-On and Accounting-Off])
 fi
 
-AC_ARG_ENABLE(tap, [AC_HELP_STRING([--disable-tap],[Disable support for tap interface (tun only)])], 
+AC_ARG_ENABLE(tap, [AS_HELP_STRING([--disable-tap],[Disable support for tap interface (tun only)])], 
   enable_tap=$enableval, enable_tap=yes)
 
 if test x"$enable_tap" = xyes; then
    AC_DEFINE(ENABLE_TAP,1,[Define to enable Chilli tap support])
 fi
 
-AC_ARG_ENABLE(tcpreset, [AC_HELP_STRING([--disable-tcpreset],[Disable support for TCP reset of filtered connections])], 
+AC_ARG_ENABLE(tcpreset, [AS_HELP_STRING([--disable-tcpreset],[Disable support for TCP reset of filtered connections])], 
   enable_tcpreset=$enableval, enable_tcpreset=yes)
 
 if test x"$enable_tcpreset" = xyes; then
    AC_DEFINE(ENABLE_TCPRESET,1,[Define to enable TCP reset support])
 fi
 
-AC_ARG_ENABLE(radproxy, [AC_HELP_STRING([--disable-radproxy],[Disable support RADIUS (EAP) Proxy])], 
+AC_ARG_ENABLE(radproxy, [AS_HELP_STRING([--disable-radproxy],[Disable support RADIUS (EAP) Proxy])], 
   enable_radproxy=$enableval, enable_radproxy=yes)
 
 if test x"$enable_radproxy" = xyes; then
    AC_DEFINE(ENABLE_RADPROXY,1,[Define to enable Chilli RADIUS (EAP) Proxy support])
 fi
 
-AC_ARG_ENABLE(json, [AC_HELP_STRING([--enable-json],[Enable support for JSON])], 
+AC_ARG_ENABLE(json, [AS_HELP_STRING([--enable-json],[Enable support for JSON])], 
   enable_json=$enableval, enable_json=no)
 
 if test x"$enable_json" = xyes; then
    AC_DEFINE(ENABLE_JSON,1,[Define to enable Chilli JSON])
 fi
 
-AC_ARG_ENABLE(debug, [AC_HELP_STRING([--disable-debug],[Disable debugging messages])], 
+AC_ARG_ENABLE(debug, [AS_HELP_STRING([--disable-debug],[Disable debugging messages])], 
   enable_debug=$enableval, enable_debug=yes)
 
 if test x"$enable_debug" = xyes; then
    AC_DEFINE(ENABLE_DEBUG,1,[Define to enable debugging])
 fi
 
-AC_ARG_ENABLE(dhcpradius, [AC_HELP_STRING([--disable-dhcpradius],[Disable support DHCP/RADIUS integration])], 
+AC_ARG_ENABLE(dhcpradius, [AS_HELP_STRING([--disable-dhcpradius],[Disable support DHCP/RADIUS integration])], 
   enable_dhcpradius=$enableval, enable_dhcpradius=yes)
 
 if test x"$enable_dhcpradius" = xyes; then
    AC_DEFINE(ENABLE_DHCPRADIUS,1,[Define to enable DHCP/RADIUS integration])
 fi
 
-AC_ARG_ENABLE(wpad, [AC_HELP_STRING([--enable-wpad],[Enable support WPAD])], 
+AC_ARG_ENABLE(wpad, [AS_HELP_STRING([--enable-wpad],[Enable support WPAD])], 
   enable_wpad=$enableval, enable_wpad=no)
 
 if test x"$enable_wpad" = xyes; then
    AC_DEFINE(ENABLE_WPAD,1,[Define to enable WPAD])
 fi
 
-AC_ARG_ENABLE(gardenaccounting, [AC_HELP_STRING([--enable-gardenaccounting],[Enable walled garden accounting])], 
+AC_ARG_ENABLE(gardenaccounting, [AS_HELP_STRING([--enable-gardenaccounting],[Enable walled garden accounting])], 
   enable_gardenaccounting=$enableval, enable_gardenaccounting=no)
 
 if test x"$enable_gardenaccounting" = xyes; then
    AC_DEFINE(ENABLE_GARDENACCOUNTING,1,[Define to enable walled garden accounting])
 fi
 
-AC_ARG_ENABLE(gardenext, [AC_HELP_STRING([--enable-gardenext],[Enable extended walled garden features])], 
+AC_ARG_ENABLE(gardenext, [AS_HELP_STRING([--enable-gardenext],[Enable extended walled garden features])], 
   enable_gardenext=$enableval, enable_gardenext=no)
 
 if test x"$enable_gardenext" = xyes; then
    AC_DEFINE(ENABLE_GARDENEXT,1,[Define to enable extended walled garden features])
 fi
 
-AC_ARG_ENABLE(inspect, [AC_HELP_STRING([--enable-inspect],[Enable inspect feature in cmdsock])], 
+AC_ARG_ENABLE(inspect, [AS_HELP_STRING([--enable-inspect],[Enable inspect feature in cmdsock])], 
   enable_inspect=$enableval, enable_inspect=no)
 
 if test x"$enable_inspect" = xyes; then
    AC_DEFINE(ENABLE_INSPECT,1,[Define to enable inspect feature in cmdsock])
 fi
 
-AC_ARG_ENABLE(coa, [AC_HELP_STRING([--disable-coa],[Disable CoA RADIUS support])], 
+AC_ARG_ENABLE(coa, [AS_HELP_STRING([--disable-coa],[Disable CoA RADIUS support])], 
   enable_coa=$enableval, enable_coa=yes)
 
 if test x"$enable_coa" = xyes; then
    AC_DEFINE(ENABLE_COA,1,[Define for CoA RADIUS support])
 fi
 
-AC_ARG_ENABLE(dhcpopt, [AC_HELP_STRING([--enable-dhcpopt],[Enable support for DHCP option setting])], 
+AC_ARG_ENABLE(dhcpopt, [AS_HELP_STRING([--enable-dhcpopt],[Enable support for DHCP option setting])], 
   enable_dhcpopt=$enableval, enable_dhcpopt=no)
 
 if test x"$enable_dhcpopt" = xyes; then
@@ -235,91 +261,91 @@ if test x"$enable_dhcpopt" = xyes; then
 fi
 
 
-AC_ARG_ENABLE(debug2, [AC_HELP_STRING([--enable-debug2],[Enable verbose debugging])], 
+AC_ARG_ENABLE(debug2, [AS_HELP_STRING([--enable-debug2],[Enable verbose debugging])], 
   enable_debug2=$enableval, enable_debug2=no)
 
 if test x"$enable_debug2" = xyes; then
    AC_DEFINE(ENABLE_DEBUG2,1,[Define to enable verbose debugging])
 fi
 
-AC_ARG_ENABLE(sessgarden, [AC_HELP_STRING([--enable-sessgarden],[Enable support for session-based walled garden])], 
+AC_ARG_ENABLE(sessgarden, [AS_HELP_STRING([--enable-sessgarden],[Enable support for session-based walled garden])], 
   enable_sessgarden=$enableval, enable_sessgarden=no)
 
 if test x"$enable_sessgarden" = xyes; then
    AC_DEFINE(ENABLE_SESSGARDEN,1,[Define to enable Chilli session walled garden])
 fi
 
-AC_ARG_ENABLE(sessproxy, [AC_HELP_STRING([--enable-sessproxy],[Enable support for per session postauth proxy])], 
+AC_ARG_ENABLE(sessproxy, [AS_HELP_STRING([--enable-sessproxy],[Enable support for per session postauth proxy])], 
   enable_sessproxy=$enableval, enable_sessproxy=no)
 
 if test x"$enable_sessproxy" = xyes; then
    AC_DEFINE(ENABLE_SESSPROXY,1,[Define to enable per session postauth proxy])
 fi
 
-AC_ARG_ENABLE(sessdhcp, [AC_HELP_STRING([--enable-sessdhcp],[Enable support for per session DHCP relay])], 
+AC_ARG_ENABLE(sessdhcp, [AS_HELP_STRING([--enable-sessdhcp],[Enable support for per session DHCP relay])], 
   enable_sessdhcp=$enableval, enable_sessdhcp=no)
 
 if test x"$enable_sessdhcp" = xyes; then
    AC_DEFINE(ENABLE_SESSDHCP,1,[Define to enable per session DHCP relay])
 fi
 
-AC_ARG_ENABLE(sessdns, [AC_HELP_STRING([--enable-sessdns],[Enable support for per session DNS enforcement])], 
+AC_ARG_ENABLE(sessdns, [AS_HELP_STRING([--enable-sessdns],[Enable support for per session DNS enforcement])], 
   enable_sessdns=$enableval, enable_sessdns=no)
 
 if test x"$enable_sessdns" = xyes; then
    AC_DEFINE(ENABLE_SESSDNS,1,[Define to enable per session DNS enforcement])
 fi
 
-AC_ARG_ENABLE(chillixml, [AC_HELP_STRING([--enable-chillixml],[Enable use of chillixml])], 
+AC_ARG_ENABLE(chillixml, [AS_HELP_STRING([--enable-chillixml],[Enable use of chillixml])], 
   enable_chillixml=$enableval, enable_chillixml=no)
 
 if test x"$enable_chillixml" = xyes; then
    AC_DEFINE(ENABLE_CHILLIXML,1,[Define to enable Chilli XML])
 fi
 
-AC_ARG_ENABLE(proxyvsa, [AC_HELP_STRING([--enable-proxyvsa],[Enable support for VSA attribute proxy])], 
+AC_ARG_ENABLE(proxyvsa, [AS_HELP_STRING([--enable-proxyvsa],[Enable support for VSA attribute proxy])], 
   enable_proxyvsa=$enableval, enable_proxyvsa=no)
 
 if test x"$enable_proxyvsa" = xyes; then
    AC_DEFINE(ENABLE_PROXYVSA,1,[Define to enable VSA proxy])
 fi
 
-AC_ARG_ENABLE(dnslog, [AC_HELP_STRING([--enable-dnslog],[Enable support to log DNS name queries])], 
+AC_ARG_ENABLE(dnslog, [AS_HELP_STRING([--enable-dnslog],[Enable support to log DNS name queries])], 
   enable_dnslog=$enableval, enable_dnslog=no)
 
 if test x"$enable_dnslog" = xyes; then
    AC_DEFINE(ENABLE_DNSLOG,1,[Define to logging of DNS requests])
 fi
 
-AC_ARG_ENABLE(ipwhitelist, [AC_HELP_STRING([--enable-ipwhitelist],[Enable file based IP white list])], 
+AC_ARG_ENABLE(ipwhitelist, [AS_HELP_STRING([--enable-ipwhitelist],[Enable file based IP white list])], 
   enable_ipwhitelist=$enableval, enable_ipwhitelist=no)
 
 if test x"$enable_ipwhitelist" = xyes; then
    AC_DEFINE(ENABLE_IPWHITELIST,1,[Define to support file based whitelists])
 fi
 
-AC_ARG_ENABLE(uamdomainfile, [AC_HELP_STRING([--enable-uamdomainfile],[Enable loading of mass uamdomains from file])], 
+AC_ARG_ENABLE(uamdomainfile, [AS_HELP_STRING([--enable-uamdomainfile],[Enable loading of mass uamdomains from file])], 
   enable_uamdomainfile=$enableval, enable_uamdomainfile=no)
 
 if test x"$enable_uamdomainfile" = xyes; then
    AC_DEFINE(ENABLE_UAMDOMAINFILE,1,[Define to support loading of uamdomains (with regex) from file])
 fi
 
-AC_ARG_ENABLE(redirdnsreq, [AC_HELP_STRING([--enable-redirdnsreq],[Enable the sending of a DNS query on redirect])], 
+AC_ARG_ENABLE(redirdnsreq, [AS_HELP_STRING([--enable-redirdnsreq],[Enable the sending of a DNS query on redirect])], 
   enable_redirdnsreq=$enableval, enable_redirdnsreq=no)
 
 if test x"$enable_redirdnsreq" = xyes; then
    AC_DEFINE(ENABLE_REDIRDNSREQ,1,[Define to DNS query on redirect to pick up dynamic walled garden])
 fi
 
-AC_ARG_ENABLE(ieee8021q, [AC_HELP_STRING([--disable-ieee8021q],[disable support for IEEE 802.1Q])], 
+AC_ARG_ENABLE(ieee8021q, [AS_HELP_STRING([--disable-ieee8021q],[disable support for IEEE 802.1Q])], 
   enable_ieee8021q=$enableval, enable_ieee8021q=yes)
 
 if test x"$enable_ieee8021q" = xyes; then
    AC_DEFINE(ENABLE_IEEE8021Q,1,[Define to enable Chilli IEEE 802.1Q])
 fi
 
-AC_ARG_ENABLE(largelimits, [AC_HELP_STRING([--enable-largelimits],[Enable larger limits for use with non-embedded systems])], 
+AC_ARG_ENABLE(largelimits, [AS_HELP_STRING([--enable-largelimits],[Enable larger limits for use with non-embedded systems])], 
   enable_largelimits=$enableval, enable_largelimits=no)
 
 if test x"$enable_largelimits" = xyes; then
@@ -506,21 +532,21 @@ AC_ARG_WITH([ipc-msg],
 AS_IF([test x"$with_ipcmsg" != xno],
   [AC_DEFINE([USING_IPC_MSG], [1], [Define to use SV IPC message queue])])
 
-AC_ARG_ENABLE(binstatusfile, [AC_HELP_STRING([--enable-binstatusfile],[Enable support for binary status file])], 
+AC_ARG_ENABLE(binstatusfile, [AS_HELP_STRING([--enable-binstatusfile],[Enable support for binary status file])], 
   enable_binstatfile=$enableval, enable_binstatfile=no)
 
 if test x"$enable_binstatfile" = xyes; then
    AC_DEFINE(ENABLE_BINSTATFILE,1,[Define to enable binary status file])
 fi
 
-AC_ARG_ENABLE(statusfile, [AC_HELP_STRING([--enable-statusfile],[Enable support for status file])], 
+AC_ARG_ENABLE(statusfile, [AS_HELP_STRING([--enable-statusfile],[Enable support for status file])], 
   enable_statfile=$enableval, enable_statfile=no)
 
 if test x"$enable_statfile" = xyes || test x"$enable_binstatfile" = xyes; then
    AC_DEFINE(ENABLE_STATFILE,1,[Define to enable status file])
 fi
 
-AC_ARG_ENABLE(chilliproxy, [AC_HELP_STRING([--enable-chilliproxy],[Enable support for HTTP AAA Proxy])], 
+AC_ARG_ENABLE(chilliproxy, [AS_HELP_STRING([--enable-chilliproxy],[Enable support for HTTP AAA Proxy])], 
   enable_chilliproxy=$enableval, enable_chilliproxy=no)
 
 if test x"$enable_chilliproxy" = xyes; then
@@ -529,7 +555,7 @@ fi
 
 AM_CONDITIONAL(WITH_CHILLIPROXY, [test x"$enable_chilliproxy" = xyes])
 
-AC_ARG_ENABLE(multiroute, [AC_HELP_STRING([--enable-multiroute],[Enable support for multiple routes])], 
+AC_ARG_ENABLE(multiroute, [AS_HELP_STRING([--enable-multiroute],[Enable support for multiple routes])], 
   enable_multiroute=$enableval, enable_multiroute=no)
 
 if test x"$enable_multiroute" = xyes; then
@@ -538,7 +564,7 @@ fi
 
 AM_CONDITIONAL(WITH_MULTIROUTE, [test x"$enable_multiroute" = xyes])
 
-AC_ARG_ENABLE(multilan, [AC_HELP_STRING([--enable-multilan],[Enable support for multiple LANs])], 
+AC_ARG_ENABLE(multilan, [AS_HELP_STRING([--enable-multilan],[Enable support for multiple LANs])], 
   enable_multilan=$enableval, enable_multilan=no)
 
 if test x"$enable_multilan" = xyes; then
@@ -547,7 +573,7 @@ fi
 
 AM_CONDITIONAL(WITH_MULTILAN, [test x"$enable_multilan" = xyes])
 
-AC_ARG_ENABLE(chilliradsec, [AC_HELP_STRING([--enable-chilliradsec],[Enable support for RadSec AAA Proxy])], 
+AC_ARG_ENABLE(chilliradsec, [AS_HELP_STRING([--enable-chilliradsec],[Enable support for RadSec AAA Proxy])], 
   enable_chilliradsec=$enableval, enable_chilliradsec=no)
 
 if test x"$enable_chilliradsec" = xyes; then
@@ -556,7 +582,7 @@ fi
 
 AM_CONDITIONAL(WITH_CHILLIRADSEC, [test x"$enable_chilliradsec" = xyes])
 
-AC_ARG_ENABLE(chilliredir, [AC_HELP_STRING([--enable-chilliredir],[Enable support for Redir server])], 
+AC_ARG_ENABLE(chilliredir, [AS_HELP_STRING([--enable-chilliredir],[Enable support for Redir server])], 
   enable_chilliredir=$enableval, enable_chilliredir=no)
 
 if test x"$enable_chilliredir" = xyes; then
@@ -565,7 +591,7 @@ fi
 
 AM_CONDITIONAL(WITH_CHILLIREDIR, [test x"$enable_chilliredir" = xyes])
 
-AC_ARG_ENABLE(chilliscript, [AC_HELP_STRING([--enable-chilliscript],[Enable support for chilli_script helper])], 
+AC_ARG_ENABLE(chilliscript, [AS_HELP_STRING([--enable-chilliscript],[Enable support for chilli_script helper])], 
   enable_chilliscript=$enableval, enable_chilliscript=no)
 
 if test x"$enable_chilliscript" = xyes; then
@@ -574,7 +600,7 @@ fi
 
 AM_CONDITIONAL(WITH_CHILLISCRIPT, [test x"$enable_chilliscript" = xyes])
 
-AC_ARG_ENABLE(cluster, [AC_HELP_STRING([--enable-cluster],[Enable support for clustering])], 
+AC_ARG_ENABLE(cluster, [AS_HELP_STRING([--enable-cluster],[Enable support for clustering])], 
   enable_cluster=$enableval, enable_cluster=no)
 
 if test x"$enable_cluster" = xyes; then
@@ -583,35 +609,35 @@ fi
 
 AM_CONDITIONAL(WITH_CLUSTER, [test x"$enable_cluster" = xyes])
 
-AC_ARG_ENABLE(sessionstate, [AC_HELP_STRING([--enable-sessionstate],[Enable extended use of the CoovaChilli-Session-State attribute])], 
+AC_ARG_ENABLE(sessionstate, [AS_HELP_STRING([--enable-sessionstate],[Enable extended use of the CoovaChilli-Session-State attribute])], 
   enable_sessionstate=$enableval, enable_sessionstate=no)
 
 if test x"$enable_sessionstate" = xyes; then
    AC_DEFINE(ENABLE_SESSIONSTATE,1,[Define to enable extended use of the CoovaChilli-Session-State attribute])
 fi
 
-AC_ARG_ENABLE(sessionid, [AC_HELP_STRING([--enable-sessionid],[Enable the use of the CoovaChilli-Session-Id attribute])], 
+AC_ARG_ENABLE(sessionid, [AS_HELP_STRING([--enable-sessionid],[Enable the use of the CoovaChilli-Session-Id attribute])], 
   enable_sessionid=$enableval, enable_sessionid=no)
 
 if test x"$enable_sessionid" = xyes; then
    AC_DEFINE(ENABLE_SESSIONID,1,[Define to enable the use of the CoovaChilli-Session-Id attribute])
 fi
 
-AC_ARG_ENABLE(apsessionid, [AC_HELP_STRING([--enable-apsessionid],[Enable the use of the CoovaChilli-AP-Session-Id attribute])], 
+AC_ARG_ENABLE(apsessionid, [AS_HELP_STRING([--enable-apsessionid],[Enable the use of the CoovaChilli-AP-Session-Id attribute])], 
   enable_apsessionid=$enableval, enable_apsessionid=no)
 
 if test x"$enable_apsessionid" = xyes; then
    AC_DEFINE(ENABLE_APSESSIONID,1,[Define to enable the use of the CoovaChilli-AP-Session-Id attribute])
 fi
 
-AC_ARG_ENABLE(coovachilliconfig, [AC_HELP_STRING([--disable-coovachilliconfig],[Disable the use of the CoovaChilli-Config attribute])], 
+AC_ARG_ENABLE(coovachilliconfig, [AS_HELP_STRING([--disable-coovachilliconfig],[Disable the use of the CoovaChilli-Config attribute])], 
   enable_coovachilliconfig=$enableval, enable_coovachilliconfig=yes)
 
 if test x"$enable_coovachilliconfig" = xyes; then
    AC_DEFINE(ENABLE_COOVACHILLICONFIG,1,[Define to enable the use of the CoovaChilli-Config attribute])
 fi
 
-AC_ARG_ENABLE(mdns, [AC_HELP_STRING([--enable-mdns],[Enable support for MDNS])], 
+AC_ARG_ENABLE(mdns, [AS_HELP_STRING([--enable-mdns],[Enable support for MDNS])], 
   enable_mdns=$enableval, enable_mdns=no)
 
 if test x"$enable_mdns" = xyes; then
@@ -620,7 +646,7 @@ fi
 
 AM_CONDITIONAL(WITH_MDNS, [test x"$enable_mdns" = xyes])
 
-AC_ARG_ENABLE(netbios, [AC_HELP_STRING([--enable-netbios],[Enable support for NetBIOS])], 
+AC_ARG_ENABLE(netbios, [AS_HELP_STRING([--enable-netbios],[Enable support for NetBIOS])], 
   enable_netbios=$enableval, enable_netbios=no)
 
 if test x"$enable_netbios" = xyes; then
@@ -629,7 +655,7 @@ fi
 
 AM_CONDITIONAL(WITH_NETBIOS, [test x"$enable_netbios" = xyes])
 
-AC_ARG_ENABLE(ieee8023, [AC_HELP_STRING([--enable-ieee8023],[Enable support for IEEE 802.3 Ethernet])], 
+AC_ARG_ENABLE(ieee8023, [AS_HELP_STRING([--enable-ieee8023],[Enable support for IEEE 802.3 Ethernet])], 
   enable_ieee8023=$enableval, enable_ieee8023=no)
 
 if test x"$enable_ieee8023" = xyes; then
@@ -638,7 +664,7 @@ fi
 
 AM_CONDITIONAL(WITH_IEEE8023, [test x"$enable_ieee8023" = xyes])
 
-AC_ARG_ENABLE(pppoe, [AC_HELP_STRING([--enable-pppoe],[Enable support for PPPoE])], 
+AC_ARG_ENABLE(pppoe, [AS_HELP_STRING([--enable-pppoe],[Enable support for PPPoE])], 
   enable_pppoe=$enableval, enable_pppoe=no)
 
 if test x"$enable_pppoe" = xyes; then
@@ -647,7 +673,7 @@ fi
 
 AM_CONDITIONAL(WITH_PPPOE, [test x"$enable_pppoe" = xyes])
 
-AC_ARG_ENABLE(l2tpppp, [AC_HELP_STRING([--enable-l2tpppp],[Enable support for L2TP/PPP Tunneling])], 
+AC_ARG_ENABLE(l2tpppp, [AS_HELP_STRING([--enable-l2tpppp],[Enable support for L2TP/PPP Tunneling])], 
   enable_l2tpppp=$enableval, enable_l2tpppp=no)
 
 if test x"$enable_l2tpppp" = xyes; then
@@ -656,7 +682,7 @@ fi
 
 AM_CONDITIONAL(WITH_L2TP_PPP, [test x"$enable_l2tpppp" = xyes])
 
-AC_ARG_ENABLE(eapol, [AC_HELP_STRING([--enable-eapol],[Enable support for EAPOL])], 
+AC_ARG_ENABLE(eapol, [AS_HELP_STRING([--enable-eapol],[Enable support for EAPOL])], 
   enable_eapol=$enableval, enable_eapol=no)
 
 if test x"$enable_eapol" = xyes; then
@@ -665,7 +691,7 @@ fi
 
 AM_CONDITIONAL(WITH_EAPOL, [test x"$enable_eapol" = xyes])
 
-AC_ARG_ENABLE(miniportal, [AC_HELP_STRING([--enable-miniportal],[Enable support Coova miniportal])], 
+AC_ARG_ENABLE(miniportal, [AS_HELP_STRING([--enable-miniportal],[Enable support Coova miniportal])], 
   enable_miniportal=$enableval, enable_miniportal=no)
 
 if test x"$enable_miniportal" = xyes ; then
@@ -674,7 +700,7 @@ fi
 
 AM_CONDITIONAL(WITH_MINIPORTAL, [test x"$enable_miniportal" = xyes])
 
-AC_ARG_ENABLE(miniconfig, [AC_HELP_STRING([--enable-miniconfig],[Enable support minimal cmdline config])], 
+AC_ARG_ENABLE(miniconfig, [AS_HELP_STRING([--enable-miniconfig],[Enable support minimal cmdline config])], 
   enable_miniconfig=$enableval, enable_miniconfig=no)
 
 if test x"$enable_miniconfig" = xyes ; then
@@ -683,34 +709,34 @@ fi
 
 AM_CONDITIONAL(WITH_MINICONFIG, [test x"$enable_miniconfig" = xyes])
 
-AC_ARG_ENABLE(ewtapi, [AC_HELP_STRING([--enable-ewtapi],[Enable support for CoovaEWT API])], 
+AC_ARG_ENABLE(ewtapi, [AS_HELP_STRING([--enable-ewtapi],[Enable support for CoovaEWT API])], 
   enable_ewtapi=$enableval, enable_ewtapi=no)
 
 if test x"$enable_ewtapi" = xyes; then
    AC_DEFINE(ENABLE_EWTAPI,1,[Define to enable CoovaEWT API])
 fi
 
-AC_ARG_ENABLE(libjson, [AC_HELP_STRING([--enable-libjson],[Enable support for libjson])], 
+AC_ARG_ENABLE(libjson, [AS_HELP_STRING([--enable-libjson],[Enable support for libjson])], 
   enable_libjson=$enableval, enable_libjson=no)
 
 AM_CONDITIONAL(WITH_EWTAPI, [test x"$enable_ewtapi" = xyes])
 AM_CONDITIONAL(WITH_JSONLIB, [test x"$enable_ewtapi" = xyes || test x"$enable_libjson" = xyes])
 
-AC_ARG_ENABLE(ssdp, [AC_HELP_STRING([--enable-ssdp],[Enable support for Simple Service Discovery Protocol])], 
+AC_ARG_ENABLE(ssdp, [AS_HELP_STRING([--enable-ssdp],[Enable support for Simple Service Discovery Protocol])], 
   enable_ssdp=$enableval, enable_ssdp=no)
 
 if test x"$enable_ssdp" = xyes ; then
    AC_DEFINE(ENABLE_SSDP,1,[Define to enable Simple Service Discovery Protocol])
 fi
 
-AC_ARG_ENABLE(layer3, [AC_HELP_STRING([--enable-layer3],[Enable support for Layer3 only operation])], 
+AC_ARG_ENABLE(layer3, [AS_HELP_STRING([--enable-layer3],[Enable support for Layer3 only operation])], 
   enable_layer3=$enableval, enable_layer3=no)
 
 if test x"$enable_layer3" = xyes ; then
    AC_DEFINE(ENABLE_LAYER3,1,[Define to enable Layer3 only support])
 fi
 
-AC_ARG_ENABLE(modules, [AC_HELP_STRING([--enable-modules],[Enable dynamically loadable modules (experimental)])], 
+AC_ARG_ENABLE(modules, [AS_HELP_STRING([--enable-modules],[Enable dynamically loadable modules (experimental)])], 
   enable_modules=$enableval, enable_modules=no)
 
 if test x"$enable_modules" = xyes ; then
@@ -719,14 +745,14 @@ fi
 
 AM_CONDITIONAL(WITH_MODULES, [test x"$enable_modules" = xyes])
 
-AC_ARG_ENABLE(extadmvsa, [AC_HELP_STRING([--enable-extadmvsa],[Enable admin-user VSA attribute support])], 
+AC_ARG_ENABLE(extadmvsa, [AS_HELP_STRING([--enable-extadmvsa],[Enable admin-user VSA attribute support])], 
   enable_extadmvsa=$enableval, enable_extadmvsa=no)
 
 if test x"$enable_extadmvsa" = xyes; then
    AC_DEFINE(ENABLE_EXTADMVSA,1,[Define to enable admin-user VSA support])
 fi
 
-AC_ARG_ENABLE(redirinject, [AC_HELP_STRING([--enable-redirinject],[Enable Redir content-injection support])], 
+AC_ARG_ENABLE(redirinject, [AS_HELP_STRING([--enable-redirinject],[Enable Redir content-injection support])], 
   enable_redirinject=$enableval, enable_redirinject=no)
 
 if test x"$enable_redirinject" = xyes; then
@@ -735,7 +761,7 @@ fi
 
 AM_CONDITIONAL(WITH_REDIRINJECT, [test x"$enable_redirinject" = xyes])
 
-AC_ARG_ENABLE(netnat, [AC_HELP_STRING([--enable-netnat],[Enable net interface nat (experimental)])], 
+AC_ARG_ENABLE(netnat, [AS_HELP_STRING([--enable-netnat],[Enable net interface nat (experimental)])], 
   enable_netnat=$enableval, enable_netnat=no)
 
 if test x"$enable_netnat" = xyes ; then
@@ -744,21 +770,21 @@ fi
 
 AM_CONDITIONAL(WITH_NETNAT, [test x"$enable_netnat" = xyes])
 
-AC_ARG_ENABLE(useragent, [AC_HELP_STRING([--enable-useragent],[Enable recording user-agent])], 
+AC_ARG_ENABLE(useragent, [AS_HELP_STRING([--enable-useragent],[Enable recording user-agent])], 
   enable_useragent=$enableval, enable_useragent=no)
 
 if test x"$enable_useragent" = xyes ; then
    AC_DEFINE(ENABLE_USERAGENT,1,[Define enable the recording of user-agent])
 fi
 
-AC_ARG_ENABLE(acceptlanguage, [AC_HELP_STRING([--enable-acceptlanguage],[Enable recording Accept-Language])], 
+AC_ARG_ENABLE(acceptlanguage, [AS_HELP_STRING([--enable-acceptlanguage],[Enable recording Accept-Language])], 
   enable_acceptlanguage=$enableval, enable_acceptlanguage=no)
 
 if test x"$enable_acceptlanguage" = xyes ; then
    AC_DEFINE(ENABLE_ACCEPTLANGUAGE,1,[Define enable the recording of accept-language])
 fi
 
-AC_ARG_ENABLE(location, [AC_HELP_STRING([--enable-location],[Enable Location Awareness])], 
+AC_ARG_ENABLE(location, [AS_HELP_STRING([--enable-location],[Enable Location Awareness])], 
   enable_location=$enableval, enable_location=no)
 
 if test x"$enable_location" = xyes ; then
@@ -768,7 +794,7 @@ fi
 AM_CONDITIONAL(WITH_LOCATION, [test x"$enable_location" = xyes])
 
 
-AC_ARG_ENABLE(forcedns, [AC_HELP_STRING([--enable-forcedns],[Enable the forcing (NAT) of DNS])], 
+AC_ARG_ENABLE(forcedns, [AS_HELP_STRING([--enable-forcedns],[Enable the forcing (NAT) of DNS])], 
   enable_forcedns=$enableval, enable_forcedns=no)
 
 if test x"$enable_forcedns" = xyes ; then
@@ -799,15 +825,15 @@ AM_CONDITIONAL(WITH_CONFIG, [test x"$enable_config" = xyes])
 AC_SUBST(sysconfdir)
 AC_CONFIG_FILES([Makefile 
 		 bstring/Makefile 
+		 conf/Makefile
+		 debian/Makefile
+		 distro/Makefile
+		 doc/Makefile
+		 json/Makefile
+		 miniportal/Makefile
 		 src/Makefile 
 		 src/mssl/Makefile 
 		 www/Makefile 
-		 doc/Makefile
-		 conf/Makefile 
-		 debian/Makefile
-		 miniportal/Makefile
-		 json/Makefile
-		 distro/Makefile
 		 distro/suse/coova-chilli.spec
 		 distro/redhat/coova-chilli.spec])
 
