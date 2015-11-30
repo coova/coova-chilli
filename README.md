@@ -6,3 +6,9 @@ Released under the GNU General Public License (GPL).
 http://coova.github.io/
 
 [![Build Status](https://travis-ci.org/coova/coova-chilli.svg?branch=master)](https://travis-ci.org/coova/coova-chilli)
+
+To get started after cloning git repository:
+
+  sh bootstrap  
+  ./configure  
+  make
