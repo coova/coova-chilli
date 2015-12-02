@@ -1146,7 +1146,6 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
     if (fd > 0) {
       dhcp->relayfd = fd;
     } else {
-      close(fd);
       close(dhcp->rawif[0].fd);
       free(dhcp);
       return -1;
