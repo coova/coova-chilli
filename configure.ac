@@ -130,10 +130,8 @@ AC_FUNC_FORK
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MEMCMP
 AC_FUNC_SELECT_ARGTYPES
-AC_FUNC_MALLOC
 AC_FUNC_MKTIME
 AC_FUNC_MMAP
-AC_FUNC_REALLOC
 AC_CHECK_FUNCS([bzero clock_gettime dup2 gethostbyname getprotoent gettimeofday inet_ntoa \
 memchr memmove memset mkdir munmap regcomp select setenv socket strcasecmp \
 strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol getline dirname \
