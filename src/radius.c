@@ -1397,7 +1397,7 @@ radius_free(struct radius_t *this) {
            this->fd);
   }
 #ifdef ENABLE_RADPROXY
-  if (close(this->proxyfd)) {
+  if (this->proxyfd > 0 && close(this->proxyfd)) {
      syslog(LOG_ERR, "radius: %s: close(proxyfd=%d) failed!", strerror(errno),
             this->proxyfd);
   }
