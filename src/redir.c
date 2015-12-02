@@ -1859,7 +1859,8 @@ int redir_free(struct redir_t *redir) {
   int n;
   for (n = 0; n < 2 && redir->fd[n]; n++) {
     if (safe_close(redir->fd[n])) {
-      syslog(LOG_ERR, "%s: close() failed", strerror(errno));
+      syslog(LOG_ERR, "redir: %s: close(fd=%d[%d]) failed", strerror(errno),
+	     redir->fd[n], n);
     }
   }
 
