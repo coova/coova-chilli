@@ -163,11 +163,6 @@ int ippool_hashdel(struct ippool_t *this, struct ippoolm_t *member) {
   struct ippoolm_t *p = NULL;
   struct ippoolm_t *p_prev = NULL;
 
-  if (member == NULL) {
-    syslog(LOG_ERR, "%s: Bad input param member(%p)", __FUNCTION__, member);
-	return -1;
-  }
-  
   /* Find in hash table */
   hash = ippool_hash4(&member->addr) & this->hashmask;
   for (p = this->hash[hash]; p; p = p->nexthash) {

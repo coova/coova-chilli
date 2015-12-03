@@ -1388,15 +1388,18 @@ radius_free(struct radius_t *this) {
   }
   if (this->urandom_fp) {
     if (fclose(this->urandom_fp)) {
-      syslog(LOG_ERR, "%s: fclose() failed!", strerror(errno));
+      syslog(LOG_ERR, "radius: %s: fclose(urandom_fp=%d) failed!",
+             strerror(errno), fileno(this->urandom_fp));
     }
   }
   if (close(this->fd)) {
-    syslog(LOG_ERR, "%s: close() failed!", strerror(errno));
+    syslog(LOG_ERR, "radius: %s: close(fd=%d) failed!", strerror(errno),
+           this->fd);
   }
 #ifdef ENABLE_RADPROXY
-  if (close(this->proxyfd)) {
-     syslog(LOG_ERR, "%s: close() failed!", strerror(errno));
+  if (this->proxyfd > 0 && close(this->proxyfd)) {
+     syslog(LOG_ERR, "radius: %s: close(proxyfd=%d) failed!", strerror(errno),
+            this->proxyfd);
   }
 #endif
   free(this);
