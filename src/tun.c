@@ -812,7 +812,7 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
 
 #if(_debug_ > 1)
   if (_options.debug)
-    syslog(LOG_DEBUG, "tun_decaps(idx=%d, len=%d)", tun(c->this, c->idx).ifindex, length);
+    syslog(LOG_DEBUG, "tun_decaps(idx=%d, len=%zd)", tun(c->this, c->idx).ifindex, length);
 #endif
 
   if (length < PKT_IP_HLEN)
@@ -1094,7 +1094,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 #if(_debug_ > 1)
     if (_options.debug)
       syslog(LOG_DEBUG, "writing to tap src=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x "
-             "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x len=%d",
+             "dst=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x len=%zd",
              ethh->src[0],ethh->src[1],ethh->src[2],
              ethh->src[3],ethh->src[4],ethh->src[5],
              ethh->dst[0],ethh->dst[1],ethh->dst[2],
@@ -1109,7 +1109,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
 
 #if(_debug_ > 1)
   if (_options.debug)
-    syslog(LOG_DEBUG, "tun_encaps(%s) len=%d", tun(tun,idx).devname, len);
+    syslog(LOG_DEBUG, "tun_encaps(%s) len=%zd", tun(tun,idx).devname, len);
 #endif
 
   result = tun_write(tun, pack, len, idx);
