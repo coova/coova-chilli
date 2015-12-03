@@ -36,7 +36,7 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
 
 #if(_debug_ > 1)
   if (_options.debug)
-    syslog(LOG_DEBUG, "%s dlen=%d reslen=%d olen=%d lvl=%d",
+    syslog(LOG_DEBUG, "%s dlen=%zd reslen=%zd olen=%zd lvl=%d",
            __FUNCTION__, dlen, reslen, olen, lvl);
 #endif
 
@@ -60,7 +60,7 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
 
 #if(_debug_ > 1)
         if (_options.debug)
-          syslog(LOG_DEBUG, "skip[%d] olen=%d", offset, olen);
+          syslog(LOG_DEBUG, "skip[%d] olen=%zd", offset, olen);
 #endif
 
 	if (dns_fullname(d, dlen,
@@ -80,7 +80,7 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
 
 #if(_debug_ > 1)
     if (_options.debug)
-      syslog(LOG_DEBUG, "part[%.*s] reslen=%d l=%d dlen=%d",
+      syslog(LOG_DEBUG, "part[%.*s] reslen=%zd l=%d dlen=%zd",
              l, res, reslen, l, dlen);
 #endif
 
@@ -162,7 +162,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 
 #if(_debug_ > 1)
   if (_options.debug)
-    syslog(LOG_DEBUG, "%s: left=%d olen=%d qsize=%d",
+    syslog(LOG_DEBUG, "%s: left=%zd olen=%zd qsize=%zd",
            __FUNCTION__, *left, olen, qsize);
 #endif
 
@@ -296,7 +296,7 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 
 #if(_debug_ > 1)
   if (_options.debug)
-    syslog(LOG_DEBUG, "-> w ttl: %d rdlength: %d/%d", ttl, rdlen, len);
+    syslog(LOG_DEBUG, "-> w ttl: %d rdlength: %d/%zd", ttl, rdlen, len);
 #endif
 
   if (*qmatch == 1 && ttl > _options.uamdomain_ttl) {

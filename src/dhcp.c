@@ -416,7 +416,7 @@ int dhcp_net_send(struct _net_interface *netif, unsigned char *hismac,
 
 #if(_debug_ > 1)
   if (_options.debug)
-    syslog(LOG_DEBUG, "dhcp_send() len=%d", length);
+    syslog(LOG_DEBUG, "dhcp_send() len=%zd", length);
 #endif
 
   return net_write_eth(netif, packet, length, &netif->dest);
@@ -1735,7 +1735,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 #if(_debug_ > 1)
     uint16_t id = ntohs(dnsp->id);
     if (_options.debug) {
-      syslog(LOG_DEBUG, "dhcp_dns plen=%d dlen=%d olen=%d", *plen, dlen, olen);
+      syslog(LOG_DEBUG, "dhcp_dns plen=%zd dlen=%zd olen=%zd", *plen, dlen, olen);
       syslog(LOG_DEBUG, "DNS ID:    %d", id);
       syslog(LOG_DEBUG, "DNS Flags: %d", flags);
     }
@@ -1823,7 +1823,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 
 #if(_debug_ > 1)
     if (_options.debug)
-      syslog(LOG_DEBUG, "left (should be zero): %d q=%s", dlen, q);
+      syslog(LOG_DEBUG, "left (should be zero): %zd q=%s", dlen, q);
 #endif
 
     if (dlen) {
@@ -5271,7 +5271,7 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
   if (_options.debug) {
     struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
     syslog(LOG_DEBUG, "dhcp_decaps: src="MAC_FMT" "
-           "dst="MAC_FMT" prot=%.4x %d len=%d",
+           "dst="MAC_FMT" prot=%.4x %d len=%zd",
            MAC_ARG(ethh->src),
            MAC_ARG(ethh->dst),
            prot, (int)prot, length);
@@ -5642,7 +5642,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
     packet = pkt_buffer_head(pb);
     length = pkt_buffer_length(pb);
 #if(_debug_ > 1)
-    syslog(LOG_DEBUG, "adding %d to IP frame length %d", hdrlen, length);
+    syslog(LOG_DEBUG, "adding %zd to IP frame length %zd", hdrlen, length);
 #endif
   }
 
@@ -5748,7 +5748,7 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
     pb->length = length;
 
 #if(_debug_ > 1)
-    syslog(LOG_DEBUG, "adding 20 to frame length %d", length);
+    syslog(LOG_DEBUG, "adding 20 to frame length %zd", length);
 #endif
 
     pkt_buffer_grow(pb, 20);
