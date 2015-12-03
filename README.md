@@ -9,6 +9,8 @@ http://coova.github.io/
 
 To get started after cloning git repository:
 
-  sh bootstrap  
-  ./configure  
-  make
+  `sh bootstrap`
+  
+  `./configure` 
+  
+  `make`
