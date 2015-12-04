@@ -3172,9 +3172,10 @@ int redir_accept(struct redir_t *redir, int idx) {
     execv(*binqqargs, binqqargs);
 
   } else {
+    int ret = 0;
+    ret = redir_main(redir, 0, 1, &address, &baddress, idx, 0);
     safe_close(new_socket);
-    return redir_main(redir, 0, 1, &address, &baddress, idx, 0);
-
+    return ret;
   }
 
   safe_close(new_socket);
