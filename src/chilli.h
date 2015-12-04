@@ -65,10 +65,10 @@ extern size_t strlcpy(char *dst, const char *src, size_t dsize);
 #endif
 
 /* Debug facility */
-#define DEBUG_DHCP        2
-#define DEBUG_RADIUS      4
-#define DEBUG_REDIR       8
-#define DEBUG_CONF       16
+#define DEBUG_DHCP        (1 << 1)
+#define DEBUG_RADIUS      (1 << 2)
+#define DEBUG_REDIR       (1 << 3)
+#define DEBUG_CONF        (1 << 4)
 
 /* Struct information for each connection */
 struct app_conn_t {

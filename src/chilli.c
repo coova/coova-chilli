@@ -339,19 +339,19 @@ static void _sigchld(int signum) {
 }
 
 static void _sigterm(int signum) {
-  syslog(LOG_DEBUG, "SIGTERM: shutdown");
+  if (_options.debug) syslog(LOG_DEBUG, "SIGTERM: shutdown");
   if (p_keep_going)
     *p_keep_going = 0;
 }
 
 static void _sigvoid(int signum) {
 #if(_debug_)
-  syslog(LOG_DEBUG, "received %d signal", signum);
+  if (_options.debug) syslog(LOG_DEBUG, "received %d signal", signum);
 #endif
 }
 
 static void _sigusr1(int signum) {
-  syslog(LOG_DEBUG, "SIGUSR1: reloading configuration");
+  if (_options.debug) syslog(LOG_DEBUG, "SIGUSR1: reloading configuration");
 
   if (p_reload_config)
     *p_reload_config = 1;
@@ -374,7 +374,7 @@ static void _sigusr1(int signum) {
 }
 
 static void _sighup(int signum) {
-  syslog(LOG_DEBUG, "SIGHUP: rereading configuration");
+  if (_options.debug) syslog(LOG_DEBUG, "SIGHUP: rereading configuration");
 
   do_interval = 1;
 }
@@ -663,8 +663,8 @@ leaky_bucket(struct app_conn_t *conn,
     if ((conn->s_state.bucketup + octetsup) >
 	conn->s_state.bucketupsize) {
       if (_options.debug)
-	syslog(LOG_DEBUG, "Leaky bucket dropping upload overflow from "MAC_FMT,
-               MAC_ARG(conn->hismac));
+        syslog(LOG_DEBUG, "Leaky bucket dropping upload overflow from "MAC_FMT,
+            MAC_ARG(conn->hismac));
       result = -1;
     }
     else {
@@ -689,8 +689,8 @@ leaky_bucket(struct app_conn_t *conn,
     if ((conn->s_state.bucketdown + octetsdown) >
 	conn->s_state.bucketdownsize) {
       if (_options.debug)
-	syslog(LOG_DEBUG, "Leaky bucket dropping download overflow to "MAC_FMT,
-               MAC_ARG(conn->hismac));
+        syslog(LOG_DEBUG, "Leaky bucket dropping download overflow to "MAC_FMT,
+            MAC_ARG(conn->hismac));
       result = -1;
     }
     else {
@@ -2391,9 +2391,10 @@ static int fwd_ssdp(struct in_addr *dst,
       struct in_addr src;
 
       src.s_addr = iph->saddr;
-
-      syslog(LOG_DEBUG, "ssdp multicast from %s\n%.*s", inet_ntoa(src),
-             ntohs(udph->len), bufr);
+      
+      if (_options.debug) 
+        syslog(LOG_DEBUG, "ssdp multicast from %s\n%.*s", inet_ntoa(src),
+            ntohs(udph->len), bufr);
     }
 
     /* This sends to a unicast MAC address but a multicast IP address.
@@ -2603,8 +2604,9 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
               char snatip[56];
               strlcpy(ip, inet_ntoa(appconn->hisip), sizeof(ip));
               strlcpy(snatip, inet_ntoa(appconn->natip), sizeof(snatip));
-              syslog(LOG_DEBUG, "SNAT anyip in ARP response from %s to %s",
-                     ip, snatip);
+              if (_options.debug)
+                syslog(LOG_DEBUG, "SNAT anyip in ARP response from %s to %s",
+                    ip, snatip);
             }
           } else
 #endif
@@ -2628,14 +2630,16 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
                    MAC_ARG(packet_ethh->dst));
 
             memcpy(&reqaddr.s_addr, packet_arp->spa, PKT_IP_ALEN);
-            syslog(LOG_DEBUG, "arp-reply: source sha="MAC_FMT" spa=%s",
-                   MAC_ARG(packet_arp->sha),
-                   inet_ntoa(reqaddr));
+            if (_options.debug)  
+              syslog(LOG_DEBUG, "arp-reply: source sha="MAC_FMT" spa=%s",
+                  MAC_ARG(packet_arp->sha),
+                  inet_ntoa(reqaddr));
 
             memcpy(&reqaddr.s_addr, packet_arp->tpa, PKT_IP_ALEN);
-            syslog(LOG_DEBUG, "arp-reply: target tha="MAC_FMT" tpa=%s",
-                   MAC_ARG(packet_arp->tha),
-                   inet_ntoa(reqaddr));
+            if (_options.debug)
+              syslog(LOG_DEBUG, "arp-reply: target tha="MAC_FMT" tpa=%s",
+                  MAC_ARG(packet_arp->tha),
+                  inet_ntoa(reqaddr));
           }
 
           return tun_write(tun, (uint8_t *)&packet, length, idx);
@@ -2762,8 +2766,9 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
       char snatip[56];
       strlcpy(ip, inet_ntoa(appconn->hisip), sizeof(ip));
       strlcpy(snatip, inet_ntoa(appconn->natip), sizeof(snatip));
-      syslog(LOG_DEBUG, "SNAT anyip replace %s back to %s; snat was: %s",
-             inet_ntoa(dst), ip, snatip);
+      if (_options.debug)
+        syslog(LOG_DEBUG, "SNAT anyip replace %s back to %s; snat was: %s",
+          inet_ntoa(dst), ip, snatip);
     }
 #endif
     ipph->daddr = appconn->hisip.s_addr;
@@ -4953,8 +4958,8 @@ int cb_dhcp_request(struct dhcp_conn_t *conn, struct in_addr *addr,
   char allocate = 1;
 
 #if(_debug_)
-  syslog(LOG_DEBUG, "DHCP request for IP address %s",
-         addr ? inet_ntoa(*addr) : "n/a");
+  if (_options.debug)  syslog(LOG_DEBUG, "DHCP request for IP address %s",
+      addr ? inet_ntoa(*addr) : "n/a");
 #endif
 
   if (!appconn) {

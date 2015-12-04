@@ -529,9 +529,10 @@ int main(int argc, char **argv) {
       _options.ipv6 = 0;
     }
   }
-  syslog(LOG_DEBUG, "IPv6 %sabled %s",
-         _options.ipv6 ? "en" : "dis",
-         args_info.ipv6mode_arg ? args_info.ipv6mode_arg : "");
+  if (_options.debug & DEBUG_CONF)
+    syslog(LOG_DEBUG, "IPv6 %sabled %s",
+        _options.ipv6 ? "en" : "dis",
+        args_info.ipv6mode_arg ? args_info.ipv6mode_arg : "");
 #endif
 
 #ifdef ENABLE_LEAKYBUCKET
@@ -566,9 +567,10 @@ int main(int argc, char **argv) {
           break;
       }
 
-      syslog(LOG_DEBUG, "Proxy location attr %d %d",
-             (int)_options.proxy_loc[numargs].attr_vsa,
-             (int)_options.proxy_loc[numargs].attr);
+      if (_options.debug & DEBUG_CONF)
+        syslog(LOG_DEBUG, "Proxy location attr %d %d",
+            (int)_options.proxy_loc[numargs].attr_vsa,
+            (int)_options.proxy_loc[numargs].attr);
     }
   }
 #endif
@@ -718,8 +720,10 @@ int main(int argc, char **argv) {
       goto end_processing;
   }
 
-  syslog(LOG_DEBUG, "DHCP Listen: %s", inet_ntoa(_options.dhcplisten));
-  syslog(LOG_DEBUG, "UAM Listen: %s", inet_ntoa(_options.uamlisten));
+  if (_options.debug & DEBUG_CONF) {
+    syslog(LOG_DEBUG, "DHCP Listen: %s", inet_ntoa(_options.dhcplisten));
+    syslog(LOG_DEBUG, "UAM Listen: %s", inet_ntoa(_options.uamlisten));
+  }
 
   if (!args_info.uamserver_arg) {
     syslog(LOG_ERR, "WARNING: No uamserver defiend!");
@@ -755,6 +759,7 @@ int main(int argc, char **argv) {
 	pt.mask.s_addr = ~0;
 
 	while (host->h_addr_list[j] != NULL) {
+
 	  if (_options.debug & DEBUG_CONF) {
 	    syslog(LOG_DEBUG, "Uamserver IP address #%d: %s\n", j,
                    inet_ntoa(*(struct in_addr*) host->h_addr_list[j]));
@@ -862,24 +867,28 @@ int main(int argc, char **argv) {
     int hex_length = strlen(args_info.dhcpopt_arg[numargs]);
     int bin_length = hex_length / 2;
     if (hex_length > 0 && (bin_length * 2) == hex_length &&
-	bin_length < sizeof(binopt)) {
-      syslog(LOG_DEBUG, "DHCP Options %s", args_info.dhcpopt_arg[numargs]);
+        bin_length < sizeof(binopt)) {
+      if (_options.debug & DEBUG_CONF) 
+        syslog(LOG_DEBUG, "DHCP Options %s", args_info.dhcpopt_arg[numargs]);
       if (redir_hextochar((unsigned char *)args_info.dhcpopt_arg[numargs],
-			  hex_length, binopt, bin_length) == 0) {
-	if (_options.dhcp_options_len + bin_length <
-	    sizeof(_options.dhcp_options)) {
-	  memcpy(_options.dhcp_options +
-		 _options.dhcp_options_len,
-		 binopt, bin_length);
-	  _options.dhcp_options_len += bin_length;
-	} else {
-	  syslog(LOG_DEBUG, "No room for DHCP option %d", (int)binopt[0]);
-	}
+            hex_length, binopt, bin_length) == 0) {
+        if (_options.dhcp_options_len + bin_length <
+            sizeof(_options.dhcp_options)) {
+          memcpy(_options.dhcp_options +
+              _options.dhcp_options_len,
+              binopt, bin_length);
+          _options.dhcp_options_len += bin_length;
+        } else {
+          if (_options.debug & DEBUG_CONF) 
+            syslog(LOG_DEBUG, "No room for DHCP option %d", (int)binopt[0]);
+        }
       } else {
-	syslog(LOG_DEBUG, "Bad DHCP option hex encoding");
+        if (_options.debug & DEBUG_CONF) 
+          syslog(LOG_DEBUG, "Bad DHCP option hex encoding");
       }
     } else {
-      syslog(LOG_DEBUG, "DHCP options are hex encoded binary");
+      if (_options.debug & DEBUG_CONF) 
+        syslog(LOG_DEBUG, "DHCP options are hex encoded binary");
     }
   }
 #endif
@@ -940,15 +949,16 @@ int main(int argc, char **argv) {
 
   if (args_info.uamdomain_given) {
     for (numargs = 0, i=0;
-	 numargs < args_info.uamdomain_given && i < MAX_UAM_DOMAINS;
-	 ++numargs) {
+        numargs < args_info.uamdomain_given && i < MAX_UAM_DOMAINS;
+        ++numargs) {
       char *tb = args_info.uamdomain_arg[numargs];
       char *tok, *str, *ptr = NULL;
       for (str = tb ; i < MAX_UAM_DOMAINS; str = NULL) {
-	tok = strtok_r(str, ",", &ptr);
-	if (!tok) break;
-	syslog(LOG_DEBUG, "uamdomain %s", tok);
-	_options.uamdomains[i++] = STRDUP(tok);
+        tok = strtok_r(str, ",", &ptr);
+        if (!tok) break;
+        if (_options.debug & DEBUG_CONF)
+          syslog(LOG_DEBUG, "uamdomain %s", tok);
+        _options.uamdomains[i++] = STRDUP(tok);
       }
     }
   }
@@ -1185,7 +1195,8 @@ int main(int argc, char **argv) {
 
     unsigned int mac[6];
 
-    syslog(LOG_DEBUG, "Macallowed #%d: %s", numargs, args_info.macallowed_arg[numargs]);
+    if (_options.debug & DEBUG_CONF)
+      syslog(LOG_DEBUG, "Macallowed #%d: %s", numargs, args_info.macallowed_arg[numargs]);
 
     strcpy(p3, args_info.macallowed_arg[numargs]);
     p1 = p3;
@@ -1207,10 +1218,10 @@ int main(int argc, char **argv) {
 	  syslog(LOG_ERR, "Failed to convert macallowed option to MAC Address");
 	}
 	else {
-
-	  syslog(LOG_DEBUG, "Macallowed address #%d: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-                 _options.macoklen,
-                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    if (_options.debug & DEBUG_CONF)
+      syslog(LOG_DEBUG, "Macallowed address #%d: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+          _options.macoklen,
+          mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
 	  for (i = 0; i < 6; i++)
 	    _options.macok[_options.macoklen][i] = (unsigned char) mac[i];
@@ -1331,12 +1342,12 @@ int main(int argc, char **argv) {
 	  syslog(LOG_ERR, "invalid input %s", args_info.extadmvsa_arg[numargs]);
 	}
       }
-
-      syslog(LOG_DEBUG, "Extended admin-user attr (%d/%d) data=%s script=%s",
-             (int)_options.extadmvsa[numargs].attr_vsa,
-             (int)_options.extadmvsa[numargs].attr,
-             _options.extadmvsa[numargs].data,
-             _options.extadmvsa[numargs].script);
+      if (_options.debug & DEBUG_CONF)
+        syslog(LOG_DEBUG, "Extended admin-user attr (%d/%d) data=%s script=%s",
+            (int)_options.extadmvsa[numargs].attr_vsa,
+            (int)_options.extadmvsa[numargs].attr,
+            _options.extadmvsa[numargs].data,
+            _options.extadmvsa[numargs].script);
     }
   }
 #endif
