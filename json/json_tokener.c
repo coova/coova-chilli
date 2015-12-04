@@ -48,10 +48,10 @@ static struct json_object* json_tokener_do_parse(struct json_tokener *this)
 {
   enum json_tokener_state state, saved_state;
   enum json_tokener_error err = json_tokener_success;
-  struct json_object *current = NULL, *obj;
+  struct json_object *current = NULL, *obj = NULL;
   char *obj_field_name = NULL;
-  char quote_char;
-  int deemed_double, start_offset;
+  char quote_char = '\0';
+  int deemed_double = 0, start_offset = 0;
 
   state = json_tokener_state_eatws;
   saved_state = json_tokener_state_start;
@@ -230,7 +230,7 @@ static struct json_object* json_tokener_do_parse(struct json_tokener *this)
       if(strchr(json_hex_chars, c)) {
 	this->pos++;
 	if(this->pos - start_offset == 4) {
-	  unsigned char utf_out[3];
+	  char utf_out[3];
 	  unsigned int ucs_char =
 	    (hexdigit(*(this->source + start_offset)) << 12) +
 	    (hexdigit(*(this->source + start_offset + 1)) << 8) +
