@@ -1187,7 +1187,7 @@ int main(int argc, char **argv) {
 
     syslog(LOG_DEBUG, "Macallowed #%d: %s", numargs, args_info.macallowed_arg[numargs]);
 
-    strcpy(p3, args_info.macallowed_arg[numargs]);
+    strlcpy(p3, args_info.macallowed_arg[numargs], sizeof(p3));
     p1 = p3;
     if ((p2 = strchr(p1, ','))) {
       *p2 = '\0';
