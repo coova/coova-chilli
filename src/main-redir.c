@@ -181,7 +181,7 @@ sock_redir_getstate(struct redir_t *redir,
   memset(&remote, 0, sizeof(remote));
 
   remote.sun_family = AF_UNIX;
-  strcpy(remote.sun_path, filedest);
+  strlcpy(remote.sun_path, filedest, sizeof(remote.sun_path));
 
 #if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
   remote.sun_len = strlen(remote.sun_path) + 1;

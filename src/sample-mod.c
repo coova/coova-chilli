@@ -34,7 +34,7 @@ static int module_initialize(char *conf, char isReload) {
 
     local.sun_family = AF_UNIX;
 
-    strcpy(local.sun_path, SOCK_PATH);
+    strlcpy(local.sun_path, SOCK_PATH, sizeof(local.sun_patch));
     unlink(local.sun_path);
 
     if (bind(fd, (struct sockaddr *)&local,

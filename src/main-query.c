@@ -656,7 +656,7 @@ int main(int argc, char **argv) {
     }
 
     remote.sun_family = AF_UNIX;
-    strcpy(remote.sun_path, cmdsock);
+    strlcpy(remote.sun_path, cmdsock, sizeof(remote.sun_path));
 
 #if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
     remote.sun_len = strlen(remote.sun_path) + 1;

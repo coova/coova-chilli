@@ -2601,8 +2601,8 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
             if (_options.debug) {
               char ip[56];
               char snatip[56];
-              strcpy(ip, inet_ntoa(appconn->hisip));
-              strcpy(snatip, inet_ntoa(appconn->natip));
+              strlcpy(ip, inet_ntoa(appconn->hisip), sizeof(ip));
+              strlcpy(snatip, inet_ntoa(appconn->natip), sizeof(snatip));
               syslog(LOG_DEBUG, "SNAT anyip in ARP response from %s to %s",
                      ip, snatip);
             }
@@ -2760,8 +2760,8 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
     if (_options.debug) {
       char ip[56];
       char snatip[56];
-      strcpy(ip, inet_ntoa(appconn->hisip));
-      strcpy(snatip, inet_ntoa(appconn->natip));
+      strlcpy(ip, inet_ntoa(appconn->hisip), sizeof(ip));
+      strlcpy(snatip, inet_ntoa(appconn->natip), sizeof(snatip));
       syslog(LOG_DEBUG, "SNAT anyip replace %s back to %s; snat was: %s",
              inet_ntoa(dst), ip, snatip);
     }
@@ -2925,7 +2925,7 @@ chilli_learn_location(uint8_t *loc, int loclen,
   memcpy(loc_buff, (char *)loc, loclen);
   loc_buff[loclen]=0;
 
-  strcpy(prev_loc_buff, appconn->s_state.location);
+  strlcpy(prev_loc_buff, appconn->s_state.location, sizeof(prev_loc_buff));
   prev_loc_len = strlen(prev_loc_buff);
 
   if (_options.debug)
@@ -2960,7 +2960,8 @@ chilli_learn_location(uint8_t *loc, int loclen,
 	restart_accounting = 1;
       }
     } else {
-      strcpy(appconn->s_state.pending_location, loc_buff);
+      strlcpy(appconn->s_state.pending_location, loc_buff,
+	sizeof(s_state.pending_location));
     }
   }
 
