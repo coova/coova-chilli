@@ -1180,14 +1180,14 @@ int main(int argc, char **argv) {
 
     char *p1 = NULL;
     char *p2 = NULL;
-    char *p3 = malloc(strlen(args_info.macallowed_arg[numargs])+1);
+    char *p3 = calloc(strlen(args_info.macallowed_arg[numargs])+1, 1);
     int i;
 
     unsigned int mac[6];
 
     syslog(LOG_DEBUG, "Macallowed #%d: %s", numargs, args_info.macallowed_arg[numargs]);
 
-    strlcpy(p3, args_info.macallowed_arg[numargs], sizeof(p3));
+    strcpy(p3, args_info.macallowed_arg[numargs]);
     p1 = p3;
     if ((p2 = strchr(p1, ','))) {
       *p2 = '\0';
@@ -1311,10 +1311,10 @@ int main(int argc, char **argv) {
 	  _options.extadmvsa[numargs].attr = i[1];
 	  if (idx) *idx = 0;
 	  strlcpy(_options.extadmvsa[numargs].script,
-                  s, sizeof(_options.extadmvsa[numargs].script)-1);
+                  s, sizeof(_options.extadmvsa[numargs].script));
 	  if (idx) {
 	    strlcpy(_options.extadmvsa[numargs].data,
-                    idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
+                    idx + 1, sizeof(_options.extadmvsa[numargs].data));
 	  }
 	} else if (sscanf(args_info.extadmvsa_arg[numargs],
 			  "%u:%s", &i[0], s) == 2) {
@@ -1322,10 +1322,10 @@ int main(int argc, char **argv) {
 	  _options.extadmvsa[numargs].attr = i[0];
 	  if (idx) *idx = 0;
 	  strlcpy(_options.extadmvsa[numargs].script,
-                  s, sizeof(_options.extadmvsa[numargs].script)-1);
+                  s, sizeof(_options.extadmvsa[numargs].script));
 	  if (idx) {
 	    strlcpy(_options.extadmvsa[numargs].data,
-                    idx + 1, sizeof(_options.extadmvsa[numargs].data)-1);
+                    idx + 1, sizeof(_options.extadmvsa[numargs].data));
 	  }
 	} else {
 	  syslog(LOG_ERR, "invalid input %s", args_info.extadmvsa_arg[numargs]);
