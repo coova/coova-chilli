@@ -32,7 +32,7 @@ cmdsock_init() {
 
     local.sun_family = AF_UNIX;
 
-    strcpy(local.sun_path, _options.cmdsocket);
+    strlcpy(local.sun_path, _options.cmdsocket, sizeof(local.sun_path));
     unlink(local.sun_path);
 
     if (bind(cmdsock, (struct sockaddr *)&local,
