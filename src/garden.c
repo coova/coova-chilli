@@ -478,7 +478,7 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
   if (p3 == NULL)
      return 0;
 
-  strlcpy(p3, s, sizeof(p3));
+  strcpy(p3, s);
   p1 = p3;
 
   if (_options.debug)
