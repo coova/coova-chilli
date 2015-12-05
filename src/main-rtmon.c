@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
   _options.foreground = debug;
   _options.debug = debug;
 
-  syslog(LOG_DEBUG, "running");
+  if (_options.debug) syslog(LOG_DEBUG, "running");
 
   chilli_signals(&keep_going, &reload_config);
 

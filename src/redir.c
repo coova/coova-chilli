@@ -3979,7 +3979,7 @@ int redir_main(struct redir_t *redir,
 
           termstate = REDIR_TERM_RADIUS;
 
-          if (optionsdebug)
+          if (_options.debug)
             syslog(LOG_DEBUG, "redir_accept: Sending RADIUS request");
 
           redir_radius(redir, &address->sin_addr, &conn, reauth);

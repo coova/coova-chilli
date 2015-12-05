@@ -91,27 +91,32 @@ try_again:
     return;
   }
 
-  syslog(LOG_DEBUG, "%s:%s", __FILE__, __FUNCTION__);
+  if (_options.debug & DEBUG_RADIUS) 
+    syslog(LOG_DEBUG, "%s:%s", __FILE__, __FUNCTION__);
 
   if (!server.conn.connected) {
-    syslog(LOG_DEBUG, "RADSEC: Connecting to %s:2083",
-           inet_ntoa(_options.radiusserver1));
+    if (_options.debug & DEBUG_RADIUS)
+      syslog(LOG_DEBUG, "RADSEC: Connecting to %s:2083",
+          inet_ntoa(_options.radiusserver1));
     if (connect_ssl(&_options.radiusserver1, 2083)) {
       syslog(LOG_ERR, "%d Could not connect to RadSec server %s!",
              errno, inet_ntoa(_options.radiusserver1));
-      syslog(LOG_DEBUG, "RADSEC: Connecting to %s:2083",
-             inet_ntoa(_options.radiusserver1));
+      if (_options.debug & DEBUG_RADIUS)
+        syslog(LOG_DEBUG, "RADSEC: Connecting to %s:2083",
+            inet_ntoa(_options.radiusserver1));
       if (connect_ssl(&_options.radiusserver2, 2083)) {
 	syslog(LOG_ERR, "%d Could not connect to RadSec server %s!",
                errno, inet_ntoa(_options.radiusserver2));
       } else {
-	syslog(LOG_DEBUG, "RADSEC: Connected to %s:2083",
-               inet_ntoa(_options.radiusserver2));
-	server.conn.connected = 1;
+        if (_options.debug & DEBUG_RADIUS)
+          syslog(LOG_DEBUG, "RADSEC: Connected to %s:2083",
+              inet_ntoa(_options.radiusserver2));
+        server.conn.connected = 1;
       }
     } else {
-      syslog(LOG_DEBUG, "RADSEC: Connected to %s:2083",
-             inet_ntoa(_options.radiusserver1));
+      if (_options.debug & DEBUG_RADIUS)
+        syslog(LOG_DEBUG, "RADSEC: Connected to %s:2083",
+            inet_ntoa(_options.radiusserver1));
       server.conn.connected = 1;
     }
   }
@@ -123,7 +128,8 @@ try_again:
 
   {
     int l = openssl_write(server.conn.sslcon, (char *)pack, len, 0);
-    syslog(LOG_DEBUG, "ssl_write %d",l);
+    if (_options.debug & DEBUG_RADIUS)
+      syslog(LOG_DEBUG, "ssl_write %d",l);
     if (l <= 0) {
       shutdown_ssl();
       /*
@@ -137,29 +143,35 @@ try_again:
 static void process_radius_reply() {
   uint8_t *d = (uint8_t *) &server.pack;
   int l = openssl_read(server.conn.sslcon, (char *)d, 4, 0);
-  syslog(LOG_DEBUG, "reply %d", l);
+  if (_options.debug & DEBUG_RADIUS)
+    syslog(LOG_DEBUG, "reply %d", l);
   if (l == 4) {
     int len = ntohs(server.pack.length) - 4;
     l = openssl_read(server.conn.sslcon, (char *)(d + 4), len, 0);
-    syslog(LOG_DEBUG, "reply %d", l);
+    if (_options.debug & DEBUG_RADIUS)
+      syslog(LOG_DEBUG, "reply %d", l);
     if (l == len) {
-      syslog(LOG_DEBUG, "reply +%d", len);
+      if (_options.debug & DEBUG_RADIUS)
+        syslog(LOG_DEBUG, "reply +%d", len);
       switch (server.pack.code) {
         case RADIUS_CODE_ACCESS_ACCEPT:
         case RADIUS_CODE_ACCESS_REJECT:
         case RADIUS_CODE_ACCESS_CHALLENGE:
-          syslog(LOG_DEBUG, "reply auth %d", len);
+          if (_options.debug & DEBUG_RADIUS)
+            syslog(LOG_DEBUG, "reply auth %d", len);
           radius_reply(server.radius_auth, &server.pack, &server.auth_peer);
           break;
         case RADIUS_CODE_ACCOUNTING_RESPONSE:
-          syslog(LOG_DEBUG, "reply acct %d", len);
+          if (_options.debug & DEBUG_RADIUS)
+            syslog(LOG_DEBUG, "reply acct %d", len);
           radius_reply(server.radius_acct, &server.pack, &server.acct_peer);
           break;
         case RADIUS_CODE_COA_REQUEST:
         case RADIUS_CODE_DISCONNECT_REQUEST:
         case RADIUS_CODE_STATUS_REQUEST:
           if (_options.coaport) {
-            syslog(LOG_DEBUG, "reply coa %d", len);
+            if (_options.debug & DEBUG_RADIUS)
+              syslog(LOG_DEBUG, "reply coa %d", len);
             radius_reply(server.radius_cli, &server.pack, &server.acct_peer);
           }
           break;
@@ -327,7 +339,8 @@ int main(int argc, char **argv) {
              *    ---> Accounting
              */
 
-            syslog(LOG_DEBUG, "received accounting");
+            if (_options.debug & DEBUG_RADIUS)
+              syslog(LOG_DEBUG, "received accounting");
 
             if ((status = recvfrom(server.radius_acct->fd, &radius_pack, sizeof(radius_pack), 0,
                                    (struct sockaddr *) &addr, &fromlen)) <= 0) {

@@ -167,8 +167,9 @@ int dhcp_sendCHILLI(uint8_t type, struct in_addr *addr, uint8_t *mac) {
     } else {
       datalen += tlen;
 
-      syslog(LOG_DEBUG, "CHILLI: peer %d sending %d bytes",
-             _options.peerid, datalen);
+      if (_options.debug & DEBUG_DHCP)
+        syslog(LOG_DEBUG, "CHILLI: peer %d sending %d bytes",
+            _options.peerid, datalen);
 
       ret = dhcp_send(dhcp, -1, bmac, packet,
 		      sizeofeth(packet) + datalen);
@@ -234,18 +235,18 @@ dhcp_get_appconn_ip(struct dhcp_conn_t *conn, struct in_addr *dst) {
   struct ippoolm_t *ipm = 0;
 
 #if(_debug_ > 1)
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "Looking up appconn for %s", inet_ntoa(*dst));
 #endif
 
   if (ippool_getip(ippool, &ipm, dst)) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "No ip assigned for %s", inet_ntoa(*dst));
     return 0;
   }
 
   if (!ipm) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "unknown ip");
     return 0;
   }
@@ -334,7 +335,7 @@ dhcp_sendGARP(struct dhcp_t *this, int idx) {
   memcpy(packet_arp->tha, bmac, PKT_ETH_ALEN);
   memcpy(packet_arp->tpa, &_options.dhcplisten.s_addr, PKT_IP_ALEN);
 
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "GARP: Replying to broadcast");
 
   /* Ethernet header */
@@ -376,14 +377,14 @@ void dhcp_reset_tcp_mac(struct dhcp_t *this, uint8_t *hwaddr) {
     int n;
     for (n=0; n<DHCP_DNAT_MAX; n++) {
       if (conn->dnat[n].dst_ip) {
-	uint8_t *ip = (uint8_t*)&conn->dnat[n].dst_ip;
-        if (_options.debug)
+        uint8_t *ip = (uint8_t*)&conn->dnat[n].dst_ip;
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "Resetting dst %d.%d.%d.%d:%d",
                  ip[0], ip[1], ip[2], ip[3], conn->dnat[n].dst_port);
       }
       if (conn->dnat[n].src_ip) {
-	uint8_t *ip = (uint8_t*)&conn->dnat[n].src_ip;
-        if (_options.debug)
+        uint8_t *ip = (uint8_t*)&conn->dnat[n].src_ip;
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "Resetting src %d.%d.%d.%d:%d",
                  ip[0], ip[1], ip[2], ip[3], conn->dnat[n].src_port);
       }
@@ -415,7 +416,7 @@ int dhcp_net_send(struct _net_interface *netif, unsigned char *hismac,
 #endif
 
 #if(_debug_ > 1)
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "dhcp_send() len=%zd", length);
 #endif
 
@@ -486,7 +487,7 @@ int dhcp_hashinit(struct dhcp_t *this, int listsize) {
     return -1;
   }
 
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "hash table size %d (%d)", this->hashsize, listsize);
   return 0;
 }
@@ -601,7 +602,7 @@ void dhcp_checktag(struct dhcp_conn_t *conn, uint8_t *pack) {
       uint16_t oldtag = conn->tag8021q;
       conn->tag8021q = tag;
 
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "IEEE 802.1Q: "MAC_FMT" on VLAN %d",
                MAC_ARG(conn->hismac),
                (int) ntohs(tag & PKT_8021Q_MASK_VID));
@@ -722,7 +723,7 @@ int dhcp_getconn(struct dhcp_t *this,
   if (_options.ieee8021q) {
     if (pkt) {
 #if(_debug_ > 1)
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "%s calling dhcp_checktag", __FUNCTION__);
 #endif
       dhcp_checktag(*conn, pkt);
@@ -741,7 +742,7 @@ int dhcp_newconn(struct dhcp_t *this,
 		 struct dhcp_conn_t **conn,
 		 uint8_t *hwaddr)
 {
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "DHCP newconn: "MAC_FMT,
            MAC_ARG(hwaddr));
 
@@ -802,7 +803,7 @@ int dhcp_freeconn(struct dhcp_conn_t *conn, int term_cause)
   if (conn->is_reserved)
     return 0;
 
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "DHCP freeconn: "MAC_FMT,
            MAC_ARG(conn->hismac));
 
@@ -868,7 +869,7 @@ int dhcp_checkconn(struct dhcp_t *this) {
     conn = conn->next;
     if (!check_conn->is_reserved &&
 	mainclock_diff(check_conn->lasttime) > (int)this->lease + _options.leaseplus) {
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "DHCP timeout: Removing connection");
       dhcp_freeconn(check_conn, RADIUS_TERMINATE_CAUSE_LOST_CARRIER);
     }
@@ -921,7 +922,7 @@ int nfqueue_cb_in(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
       }
     }
 
-    if (_options.debug) {
+    if (_options.debug & DEBUG_DHCP) {
       addr.s_addr = pack_iph->saddr;
       syslog(LOG_DEBUG, "NFQUEUE: From "MAC_FMT" %s %s",
              MAC_ARG(hw->hw_addr),
@@ -975,9 +976,9 @@ int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 
     if (ippool_getip(ippool, &ipm, &addr)) {
 
-      if (_options.debug)
-	syslog(LOG_DEBUG, "dropping packet with unknown destination: %s",
-               inet_ntoa(addr));
+      if (_options.debug & DEBUG_DHCP)
+        syslog(LOG_DEBUG, "dropping packet with unknown destination: %s",
+            inet_ntoa(addr));
     }
     else {
 
@@ -997,7 +998,7 @@ int nfqueue_cb_out(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
       }
     }
 
-    if (_options.debug) {
+    if (_options.debug & DEBUG_DHCP) {
       addr.s_addr = pack_iph->saddr;
       syslog(LOG_DEBUG, "NFQUEUE OUT: From %s %s",
              inet_ntoa(addr),
@@ -1056,14 +1057,14 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
 #else
 		   0,
 #endif
-		   promisc, 0) < 0) {
-	syslog(LOG_ERR, "could not setup interface %s",
-               _options.moreif[i].dhcpif);
-      } else {
-	syslog(LOG_DEBUG, "Configured interface %s/%s fd=%d",
-               _options.moreif[i].dhcpif,
-               _options.moreif[i].vlan,
-               dhcp->rawif[idx].fd);
+       promisc, 0) < 0) {
+        syslog(LOG_ERR, "could not setup interface %s",
+            _options.moreif[i].dhcpif);
+      } else if (_options.debug & DEBUG_DHCP){
+        syslog(LOG_DEBUG, "Configured interface %s/%s fd=%d",
+            _options.moreif[i].dhcpif,
+            _options.moreif[i].vlan,
+            dhcp->rawif[idx].fd);
       }
     }
   }
@@ -1090,7 +1091,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
     if (ioctl(dhcp->rawif[0].fd, BIOCGBLEN, &blen) < 0) {
       syslog(LOG_ERR, "%s: ioctl() failed!", strerror(errno));
     }
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "BIOCGBLEN=%d",blen);
     dhcp->pb.buflen = blen;
     if (!(dhcp->pb.buf = calloc(dhcp->pb.buflen, 1))) {
@@ -1187,7 +1188,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
     inet_ntop(AF_INET6, &dhcp->rawif[0].address_v6.s6_addr,
 	      fmt, sizeof(fmt));
 
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "dhcpif (%s) IPv6 address %s",
              dhcp->rawif[0].devname, fmt);
 
@@ -1471,17 +1472,17 @@ int dhcp_ipwhitelist(struct pkt_ipphdr_t *iph, unsigned char dst) {
   while (fread(&inp, sizeof(inp), 1, fp) != 0) {
     if (inp.s_addr == (dst ? iph->daddr : iph->saddr)) {
       if (iph->protocol == PKT_IP_PROTO_TCP ||
-	  iph->protocol == PKT_IP_PROTO_UDP) {
-        if (_options.debug)
+          iph->protocol == PKT_IP_PROTO_UDP) {
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "DYNAMIC WHITELIST: %s\n", inet_ntoa(inp));
-	fclose(fp);
-	return 1;
+        fclose(fp);
+        return 1;
       }
     }
   }
 
   fclose(fp);
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "NO WHITELIST: %s", inet_ntoa(inp));
   return 0;
 }
@@ -1666,7 +1667,7 @@ int dhcp_matchDNS(uint8_t *r, char *name) {
   int domain_len = _options.domain ? strlen(_options.domain) : 0;
 
 #if(_debug_ > 1)
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "---------  checking dns for %s in %s", name, r);
 #endif
 
@@ -1695,7 +1696,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 
   if (*plen < DHCP_DNS_HLEN + sizeofudp(pack)) {
 
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "bad DNS packet of length %zu", *plen);
     return 0;
 
@@ -1734,7 +1735,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 
 #if(_debug_ > 1)
     uint16_t id = ntohs(dnsp->id);
-    if (_options.debug) {
+    if (_options.debug & DEBUG_DHCP) {
       syslog(LOG_DEBUG, "dhcp_dns plen=%zd dlen=%zd olen=%zd", *plen, dlen, olen);
       syslog(LOG_DEBUG, "DNS ID:    %d", id);
       syslog(LOG_DEBUG, "DNS Flags: %d", flags);
@@ -1779,7 +1780,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
         /* it was a query? shouldn't be */
         if (((flags & 0x8000) >> 15) == 0) {
 #if(_debug_)
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "Dropping unexpected DNS query");
 #endif
           return 0;
@@ -1788,7 +1789,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
         /* it was a response? shouldn't be */
         if (((flags & 0x8000) >> 15) == 1) {
 #if(_debug_)
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "Dropping unexpected DNS response");
 #endif
           return 0;
@@ -1822,13 +1823,13 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
     copyres(0,ar);
 
 #if(_debug_ > 1)
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "left (should be zero): %zd q=%s", dlen, q);
 #endif
 
     if (dlen) {
 #if(_debug_)
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "Remaining length not zero dlen=%zu!", dlen);
 #endif
       return 0;
@@ -1841,13 +1842,13 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	  ancount == 0x0000 &&
 	  nscount == 0x0000 &&
 	  arcount == 0x0000) {
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "MDNS Query %s", q);
       }
       else if (flags == 0x8400 &&
 	       qdcount == 0x0000 &&
 	       ancount > 0) {
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "MDNS Response %s", q);
       }
     }
@@ -1902,7 +1903,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	    !strncasecmp((char *)q, "wpad.", 5) &&
 	    !strcasecmp((char *)q + 5, _options.domain)))) {
 	match = 1;
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "WPAD DNS (returning %s)\n", inet_ntoa(_options.uamalias));
 	memcpy(reply, &_options.uamalias.s_addr, 4);
       }
@@ -1951,7 +1952,8 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	p = dnsp->records;
 
 #if(_debug_)
-	syslog(LOG_DEBUG, "It was a matching query!\n");
+  if (_options.debug & DEBUG_DHCP)
+    syslog(LOG_DEBUG, "It was a matching query!\n");
 #endif
 
 	do {
@@ -2089,15 +2091,15 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	uint32_t ul;
 	uint16_t us;
 
-        if (_options.debug)
-          syslog(LOG_DEBUG, "namelen %zd", namelen);
+  if (_options.debug & DEBUG_DHCP)
+    syslog(LOG_DEBUG, "namelen %zd", namelen);
 
 	if (namelen <= 0 || namelen > 1500)
 	  break;
 
 	if (len < 10) {
-          if (_options.debug)
-            syslog(LOG_DEBUG, "len too short %d",len);
+    if (_options.debug & DEBUG_DHCP)
+      syslog(LOG_DEBUG, "len too short %d",len);
 	  break;
 	}
 
@@ -2126,9 +2128,9 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	p += 2;
 	len -= 2;
 
-        if (_options.debug)
-          syslog(LOG_DEBUG, "DNS t=%d c=%d ttl=%d dlen=%d",
-                 type, class, ttl, rdlen);
+  if (_options.debug & DEBUG_DHCP)
+    syslog(LOG_DEBUG, "DNS t=%d c=%d ttl=%d dlen=%d",
+        type, class, ttl, rdlen);
 
 	switch(type) {
           case 1:
@@ -2150,7 +2152,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
           default:
             {
               int l = rdlen + namelen + 10;
-              if (_options.debug)
+              if (_options.debug & DEBUG_DHCP)
                 syslog(LOG_DEBUG, "copy %d", l);
               memcpy(bp, pkt_head, l);
               bp += l;
@@ -2165,7 +2167,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
       }
 
       if (new_ancount != ancount) {
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "Could not pack all answers %d/%d",
                  ancount, new_ancount);
       }
@@ -2180,9 +2182,9 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	  uint16_t data_len = bdiff + (uint16_t) (an_mark - ((uint8_t *)dnsp));
 	  struct pkt_iphdr_t  *iph  = pkt_iphdr(pack);
 	  struct pkt_udphdr_t *udph = pkt_udphdr(pack);
-          if (_options.debug)
-            syslog(LOG_DEBUG, "Growing DNS packet from %zu to %d (%d %d) dt=%d",
-                   *plen, newlen, (int)(an_mark - pack), bdiff, data_len);
+    if (_options.debug & DEBUG_DHCP)
+      syslog(LOG_DEBUG, "Growing DNS packet from %zu to %d (%d %d) dt=%d",
+          *plen, newlen, (int)(an_mark - pack), bdiff, data_len);
 	  data_len += PKT_UDP_HLEN;
 	  udph->len = htons(data_len);
 	  data_len += PKT_IP_HLEN;
@@ -2214,7 +2216,7 @@ int dhcp_uam_nat(struct dhcp_conn_t *conn,
   int pos = -1;
 
 #if(_debug > 1)
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "uam_nat %s:%d", inet_ntoa(*addr), port);
 #endif
 
@@ -2223,7 +2225,7 @@ int dhcp_uam_nat(struct dhcp_conn_t *conn,
 	conn->dnat[n].src_port == tcph->src) {
       pos = n;
 #if(_debug > 1)
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "uam_nat pos %d", pos);
 #endif
       break;
@@ -2301,11 +2303,11 @@ int dhcp_dnsDNAT(struct dhcp_conn_t *conn,
   if (iph->protocol == PKT_IP_PROTO_UDP &&
       udph->src == htons(DHCP_MDNS) &&
       udph->dst == htons(DHCP_MDNS)) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "mDNS packet");
     if (!dhcp_dns(conn, pack, len, 1)) {
 #if(_debug_)
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "dhcp_dns()");
 #endif
     }
@@ -2365,7 +2367,7 @@ int dhcp_dnsDNAT(struct dhcp_conn_t *conn,
 
     if (!dhcp_dns(conn, pack, len, 1)) {
 #if(_debug_)
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "dhcp_dns()");
 #endif
       return -1; /* Drop DNS */
@@ -2424,7 +2426,7 @@ int dhcp_dnsunDNAT(struct dhcp_conn_t *conn,
 
       if (!dhcp_dns(conn, pack, len, 0)) {
 #if(_debug_)
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "dhcp_dns()");
 #endif
 	return -1; /* Is not allowed DNS */
@@ -2624,7 +2626,7 @@ int dhcp_garden_check(struct dhcp_t *this,
 #ifdef ENABLE_LAYER3
   if (!found && _options.ipsrc_num_pass_throughs) {
 #if(_debug_ > 1)
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "Checking ipsrcallowed pass throughs (%d)", _options.ipsrc_num_pass_throughs);
 #endif
     if (garden_check(_options.ipsrc_pass_throughs,
@@ -2636,7 +2638,7 @@ int dhcp_garden_check(struct dhcp_t *this,
                      )) {
       found = 1;
 #if(_debug_ > 1)
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "Packet matches ipsrcallowed");
 #endif
     }
@@ -2749,7 +2751,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
       /* otherwise, RESET and drop */
 
 #if(_debug_ > 1)
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "Resetting connection on port %d->%d",
                ntohs(tcph->src), ntohs(tcph->dst));
 #endif
@@ -2804,7 +2806,7 @@ int dhcp_postauthDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 	   )) {
 
 #if(_debug_ > 0)
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "rewriting packet for post-auth proxy %s:%d",
                  inet_ntoa(_options.postauth_proxyip),
                  _options.postauth_proxyport);
@@ -2867,7 +2869,7 @@ int dhcp_undoDNAT(struct dhcp_conn_t *conn,
 #ifdef ENABLE_TCPRESET
   if (do_reset && iph->protocol == PKT_IP_PROTO_TCP) {
 #if(_debug_ > 1)
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "Resetting connection on port %d->%d (undo)",
              ntohs(tcph->src), ntohs(tcph->dst));
 #endif
@@ -2951,7 +2953,7 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
     memcpy(&pack_dhcp->file, conn->dhcp_opts.file, DHCP_FILE_LEN);
 #endif
 
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "dhcp server: %s", pack_dhcp->sname);
   }
 
@@ -3075,7 +3077,7 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
         int param_count = param_list->l;
         int i;
 
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "DHCP Type: %d Length: %d", (int)opt->t, (int)opt->l);
 
         /* for each configured option, iterate the param_list */
@@ -3099,7 +3101,7 @@ dhcp_create_pkt(uint8_t type, uint8_t *pack, uint8_t *req,
       uint8_t *lhead = _options.dhcp_options;
       struct dhcp_tag_t *opt = (struct dhcp_tag_t *)lhead;
       while (opt && opt->t && opt->l) {
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "DHCP Type: %d Length: %d", (int)opt->t, (int)opt->l);
         /* for each configured option, check if it's option 43 */
         if (opt->t == DHCP_OPTION_VENDOR_SPECIFIC_INFORMATION) {
@@ -3229,7 +3231,7 @@ static int dhcp_accept_opt(struct dhcp_conn_t *conn, uint8_t *o, int pos) {
 
     slen = strlen(str);
 
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "WPAD DHCP (URL %s)\n", str);
 
     o[pos++] = DHCP_OPTION_WPAD_URL;
@@ -3274,7 +3276,7 @@ dhcp_handler(int type,
           if (appconn) {
             chilli_learn_location(opt82->v, opt82->l, appconn, 1);
           } else {
-            if (_options.debug)
+            if (_options.debug & DEBUG_DHCP)
               syslog(LOG_DEBUG, "no appconn for option 82");
           }
         }
@@ -3286,18 +3288,19 @@ dhcp_handler(int type,
 #ifdef ENABLE_MODULES
   {
     int i;
-    syslog(LOG_DEBUG, "checking modules...");
+    if (_options.debug & DEBUG_DHCP)
+      syslog(LOG_DEBUG, "checking modules...");
     for (i=0; i < MAX_MODULES; i++) {
       if (!_options.modules[i].name[0]) break;
       if (_options.modules[i].ctx) {
-	struct chilli_module *m =
-            (struct chilli_module *)_options.modules[i].ctx;
-	if (m->dhcp_handler) {
-	  pos = m->dhcp_handler(type,
+        struct chilli_module *m =
+          (struct chilli_module *)_options.modules[i].ctx;
+        if (m->dhcp_handler) {
+          pos = m->dhcp_handler(type,
 				appconn, dhcpconn,
 				pack, len,
 				packet, pos);
-	}
+        }
       }
     }
   }
@@ -3474,7 +3477,7 @@ static int dhcp_relay(struct dhcp_t *this,
   (void) dhcp_handler(CHILLI_DHCP_RELAY,
 		      0, pack, len, 0, 0);
 
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "Sending DHCP relay packet to %s",
            inet_ntoa(addr.sin_addr));
 
@@ -3506,7 +3509,8 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   struct dhcp_packet_t *pack_dhcp = pkt_dhcppkt(pack);
 
 #if(_debug_)
-  syslog(LOG_DEBUG, "function %s()", __FUNCTION__);
+  if (_options.debug & DEBUG_DHCP)
+    syslog(LOG_DEBUG, "function %s()", __FUNCTION__);
 #endif
 
   if (pack_udph->dst != htons(DHCP_BOOTPS))
@@ -3528,7 +3532,7 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   switch(message_type->v[0]) {
 
     case DHCPDECLINE:
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "DHCP-Decline");
       /* drop through */
 
@@ -3572,7 +3576,7 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   if (_options.strictdhcp && addr.s_addr &&
       (addr.s_addr & _options.mask.s_addr) != _options.net.s_addr) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "NAK: strictdhcp and address not in net");
     return dhcp_sendNAK(conn, pack, len);
   }
@@ -3582,7 +3586,7 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   {
     if (this->cb_request &&
 	this->cb_request(conn, &addr, pack, len)) {
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "NAK: auth-none");
       return dhcp_sendNAK(conn, pack, len);
     }
@@ -3605,7 +3609,7 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
         if (!conn->hisip.s_addr) {
 #if(_debug_)
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "hisip not set!");
 #endif
           return dhcp_sendNAK(conn, pack, len);
@@ -3623,7 +3627,7 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
         }
 
 #if(_debug_)
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "Sending NAK to client");
 #endif
         return dhcp_sendNAK(conn, pack, len);
@@ -3633,7 +3637,7 @@ int dhcp_getreq(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   /*
    *  Unsupported DHCP message: Ignore
    */
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "Unsupported DHCP message ignored");
   return 0;
 }
@@ -3682,7 +3686,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
 
       memcpy(req.arp_ha.sa_data, conn->hismac, PKT_ETH_ALEN);
 
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "ARP Entry: %s -> "MAC_FMT,
                inet_ntoa(conn->hisip),
                MAC_ARG(conn->hismac));
@@ -3714,7 +3718,7 @@ int dhcp_set_addrs(struct dhcp_conn_t *conn,
 	int res;
 	mask.s_addr = 0xffffffff;
 	res = net_add_route(hisip, ourip, &mask);
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "Adding route for %s %d", inet_ntoa(*hisip), res);
       }
     }
@@ -3754,13 +3758,13 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   uint16_t eth_tot_len;
 
 #if(_debug_ > 1)
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "function %s()", __FUNCTION__);
 #endif
 
   if (len < PKT_IP_HLEN + PKT_ETH_HLEN + 4) {
 #if(_debug_ > 1)
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "too short");
 #endif
     return 0;
@@ -3768,7 +3772,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   if ((pack_iph->version_ihl & 0xf0) != 0x40) {
 #if(_debug_)
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "dropping non-IPv4");
 #endif
     return 0;
@@ -3779,7 +3783,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
    */
   if (!dhcp_hashget(this, &conn, pack_ethh->src)) {
 
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "Address found");
 
     ourip.s_addr = conn->ourip.s_addr;
@@ -3790,7 +3794,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
     memcpy(&reqaddr.s_addr, &pack_iph->saddr, PKT_IP_ALEN);
 
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "Address not found (%s)", inet_ntoa(reqaddr));
 
     /* Do we allow dynamic allocation of IP addresses? */
@@ -3802,14 +3806,14 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	&& !_options.layer3
 #endif
 	) {
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "dropping packet; no dynamic ip and no anyip");
       return 0;
     }
 
     /* Allocate new connection */
     if (dhcp_newconn(this, &conn, pack_ethh->src)) {
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "dropping packet; out of connections");
       return 0; /* Out of connections */
     }
@@ -3817,7 +3821,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   /* Return if we do not know peer */
   if (!conn) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "dropping packet; no peer");
     return 0;
   }
@@ -3827,7 +3831,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #ifdef ENABLE_IEEE8021Q
   if (_options.ieee8021q) {
 #if(_debug_ > 1)
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "%s calling dhcp_checktag",__FUNCTION__);
 #endif
     dhcp_checktag(conn, pack);
@@ -3842,7 +3846,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   eth_tot_len = iph_tot_len + sizeofeth(pack);
 
   if (eth_tot_len > (uint16_t) len) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
              iph_tot_len,
              sizeofeth(pack), (int)len);
@@ -3850,7 +3854,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     if (pack_iph->opt_off_high & 64) { /* Don't Defrag Option */
       uint8_t icmp_pack[1500];
 
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "Sending fragmentation ICMP");
       dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack,
 		icmpfrag(conn, icmp_pack, sizeof(icmp_pack), pack));
@@ -3869,7 +3873,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   if (iph_tot_len > _options.mtu && (pack_iph->opt_off_high & 64)) {
     uint8_t icmp_pack[1500];
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "ICMP frag forbidden for IP packet with length %d > %d", iph_tot_len, _options.mtu);
     dhcp_send(this, ctx->idx, pack_ethh->src, icmp_pack,
 	      icmpfrag(conn, icmp_pack, sizeof(icmp_pack), pack));
@@ -3896,7 +3900,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
         (iph_tot_len != udph_len + PKT_IP_HLEN &&
          iphdr_more_frag(pack_iph) == 0 &&
          iphdr_offset(pack_iph) == 0)) {
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "dropping udp packet; ip-len=%d != udp-len=%d + ip-hdr=20",
                (int) iph_tot_len,
                (int) udph_len);
@@ -3916,13 +3920,13 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     if (pack_ethh->dst[0] == 0x01 &&
 	pack_ethh->dst[1] == 0x00 &&
 	pack_ethh->dst[2] == 0x5e) {
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "Multicast: "MAC_FMT,
                MAC_ARG(pack_ethh->dst));
     } else {
 #endif
 #if(_debug_)
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "Not for our MAC or broadcast: "MAC_FMT,
                MAC_ARG(pack_ethh->dst));
 #endif
@@ -3949,7 +3953,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
       && !_options.layer3
 #endif
       ) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "dhcp/bootps request being processed");
     (void) dhcp_getreq(ctx, pack, len);
     OTHER_RECEIVED(conn, pack_iph);
@@ -3959,7 +3963,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
 #ifdef ENABLE_LAYER3
   if (is_dhcp && _options.layer3) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "forwarding layer2 dhcp/bootps request");
 
     if (this->relayfd > 0) {
@@ -4036,7 +4040,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #ifdef ENABLE_IEEE8021Q
   if (_options.ieee8021q) {
 #if(_debug_ > 1)
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "%s calling dhcp_checktag",__FUNCTION__);
 #endif
     dhcp_checktag(conn, pack);
@@ -4056,7 +4060,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     addr.s_addr = pack_iph->saddr;
     if (this->cb_request)
       if (this->cb_request(conn, &addr, 0, 0)) {
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "dropping packet; ip not known: %s", inet_ntoa(addr));
 	OTHER_RECEIVED(conn, pack_iph);
 	return 0; /* Ignore request if IP address was not allocated */
@@ -4070,7 +4074,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
           !_options.layer3 &&
 #endif
           pack_iph->saddr != conn->hisip.s_addr) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "Received packet with spoofed source!");
     OTHER_RECEIVED(conn, pack_iph);
     /*dhcp_sendRENEW(conn, pack, len);*/
@@ -4085,18 +4089,18 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
           (0xffffffff & ~_options.mask.s_addr)) {
 #ifdef ENABLE_NETBIOS
         if (pack_udph->dst == htons(137)) {
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "NetBIOS NS to port %d", ntohs(pack_udph->dst));
           break;
         }
         else if (pack_udph->dst == htons(138)) {
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "NetBIOS DGM to port %d", ntohs(pack_udph->dst));
           break;
         }
 #endif
 #if(_debug_)
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "Broadcasted UDP to port %d", ntohs(pack_udph->dst));
 #endif
         OTHER_RECEIVED(conn, pack_iph);
@@ -4115,7 +4119,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
         if (appconn) {
           if (appconn->s_state.authenticated) {
             terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
-            if (_options.debug)
+            if (_options.debug & DEBUG_DHCP)
               syslog(LOG_DEBUG, "Dropping session due to request for auto-logout ip");
             appconn->uamexit = 1;
           }
@@ -4194,7 +4198,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
       /* Destination NAT if request to unknown web server */
       if (dhcp_doDNAT(conn, pack, len, 1, &do_checksum) && !allowed) {
 #if(_debug_ > 1)
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "dropping packet; not nat'ed");
 #endif
         OTHER_RECEIVED(conn, pack_iph);
@@ -4203,13 +4207,13 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
       break;
 
     case DHCP_AUTH_DROP:
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "dropping packet; auth-drop");
       OTHER_RECEIVED(conn, pack_iph);
       return 0;
 
     default:
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "dropping packet; unhandled auth state %d", authstate);
       OTHER_RECEIVED(conn, pack_iph);
       return 0;
@@ -4232,7 +4236,7 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   } else {
 
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "no hisip; packet-drop");
 
   }
@@ -4257,14 +4261,14 @@ void check_options(int datalen, uint8_t *data, uint8_t b[256]) {
           dlen = l * PKT_ETH_ALEN;
           break;
         default:
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "could not parse ICMP option");
           datalen = 0;
           break;
       }
       if (dlen > 0) {
         if (dlen <= datalen) {
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "ICMPv6 Option %d %d %d",(int)t,(int)l,dlen);
           memcpy(b, data + i, dlen);
           switch(t) {
@@ -4273,20 +4277,20 @@ void check_options(int datalen, uint8_t *data, uint8_t b[256]) {
               dlen = l * PKT_ETH_ALEN;
               break;
             default:
-              if (_options.debug)
+              if (_options.debug & DEBUG_DHCP)
                 syslog(LOG_DEBUG, "could not parse ICMP option");
               datalen = 0;
               break;
           }
           if (dlen > 0) {
             if (dlen <= datalen) {
-              if (_options.debug)
+              if (_options.debug & DEBUG_DHCP)
                 syslog(LOG_DEBUG, "ICMPv6 Option %d %d %d",(int)t,(int)l,dlen);
               memcpy(b, data + i, dlen);
               switch(t) {
                 case 1: /* source link-layer address */
                 case 2: /* target link-layer address */
-                  if (_options.debug)
+                  if (_options.debug & DEBUG_DHCP)
                     syslog(LOG_DEBUG, "ICMPv6 Source Link-Layer Address Option "MAC_FMT,
                            MAC_ARG(b));
                   break;
@@ -4311,7 +4315,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   
   int ip_datalen = (int) ntohs(iphdr->data_len);
   
-  if (_options.debug) {
+  if (_options.debug & DEBUG_DHCP) {
     syslog(LOG_DEBUG, "Processing IPv6 ver=%d class=%d len=%d datalen=%d",
            (int) ipv6_version(iphdr),
            (int) ipv6_class(iphdr),
@@ -4337,7 +4341,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
       
       datalen = ip_datalen - sizeof(struct pkt_icmphdr_t);
       
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "ICMPv6 type=%d", icmphdr->type);
       
       /* Check checksum */
@@ -4589,7 +4593,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	int optlen = ip_datalen - sizeof(struct pkt_udphdr_t)
             - sizeof(struct pkt_dhcp6hdr_t);
         
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "DHCPv6 message %d 0x%.2X%.2X%.2X",
                  dhcp6hdr->type,dhcp6hdr->id[0],
                  dhcp6hdr->id[1],dhcp6hdr->id[2]);
@@ -4612,8 +4616,8 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	      memcpy(&l, opts, 2); opts+=2; optlen-=2;
 	      t = ntohs(t);
 	      l = ntohs(l);
-              if (_options.debug)
-                syslog(LOG_DEBUG, "DHCPv6 Option %d %d", t, l);
+        if (_options.debug & DEBUG_DHCP)
+          syslog(LOG_DEBUG, "DHCPv6 Option %d %d", t, l);
 	      switch(t) {
                 case 1: /* Client-Identifier */
                   duid = opts;
@@ -4798,7 +4802,7 @@ int dhcp_receive_ipv6(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
           memcpy(&ip,&iphdr->dst_addr[12],4);
           memcpy(pack + 20, pack, sizeofeth(pack));
           
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "IPv6to4 src "IPv6_ADDR_FMT" dst "IPv6_ADDR_FMT" --> %s",
                    ipv6_exlode_addr(iphdr->src_addr),
                    ipv6_exlode_addr(iphdr->dst_addr),
@@ -4841,14 +4845,14 @@ int dhcp_pppoes(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
       uint16_t ppp;
       p += sizeof(struct pkt_pppoe_hdr_t);
       ppp = ntohs(*((uint16_t *)p));
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "PPPoE Session Code 0x%.2x Session 0x%.4x"
                " Length %d Proto 0x%.4x",
                hdr->code, ntohs(hdr->session_id), len, ppp);
       switch(ppp) {
         case PKT_PPP_PROTO_LCP: {
           struct pkt_ppp_lcp_t *lcp = (struct pkt_ppp_lcp_t *)(p + 2);
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "PPP LCP code %.2x", lcp->code);
           switch (lcp->code) {
             case PPP_LCP_ConfigRequest: {
@@ -4941,7 +4945,7 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
     uint8_t host_uniq[32];
     uint8_t host_uniq_len=0;
     
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "PPPoE Discovery Code 0x%.2x Session 0x%.4x Length %d",
              hdr->code, ntohs(hdr->session_id), len);
     
@@ -4957,17 +4961,17 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
 
       switch(t) {
         case PPPoE_TAG_ServiceName:
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "PPPoE Service-Name: %.*s",
                    l, p + sizeof(struct pkt_pppoe_taghdr_t));
           break;
         case PPPoE_TAG_ACName:
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "PPPoE AC-Name: %.*s",
                    l, p + sizeof(struct pkt_pppoe_taghdr_t));
           break;
         case PPPoE_TAG_HostUniq:
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "PPPoE Host-Uniq: %.*s",
                    l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
           if (l > sizeof(host_uniq)) break;
@@ -4975,7 +4979,7 @@ int dhcp_pppoed(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
           memcpy(host_uniq, p + sizeof(struct pkt_pppoe_taghdr_t), l);
           break;
         default:
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "PPPoE Tag Type 0x%.4x = (%d)[%.*s]",
                    t, l, l * 2, p + sizeof(struct pkt_pppoe_taghdr_t));
           break;
@@ -5112,7 +5116,7 @@ int dhcp_chillipkt(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
   if (_options.peerkey == 0)
     _options.peerkey = "hello!";
 
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "CHILLI: peer %d decrypting %d bytes",
            _options.peerid, n);
 
@@ -5124,14 +5128,14 @@ int dhcp_chillipkt(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
     syslog(LOG_ERR, "%d CHILLI: peer %d error in decrypt update",
            errno, _options.peerid);
   } else {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "CHILLI: peer %d decrypted %d bytes",
              _options.peerid, olen);
     if (EVP_DecryptFinal(&cctx, out + olen, &tlen) != 1) {
       syslog(LOG_ERR, "%d CHILLI: peer %d error in decrypt final",
              errno, _options.peerid);
     } else {
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "CHILLI: peer %d decrypted %d bytes",
                _options.peerid, tlen);
 
@@ -5177,14 +5181,14 @@ int dhcp_chillipkt(struct dhcp_ctx *ctx, uint8_t *packet, size_t length) {
               update_peer(chilli_hdr);
             }
             break;
-	}
+  }
 
-        if (_options.debug)
-          syslog(LOG_DEBUG, "CHILLI: peer %d received %s from "
-                 MAC_FMT" peerid %d len=%d",
-                 _options.peerid, cmd,
-                 MAC_ARG(ethh->src),
-                 chilli_hdr->from, olen);
+  if (_options.debug & DEBUG_DHCP)
+    syslog(LOG_DEBUG, "CHILLI: peer %d received %s from "
+        MAC_FMT" peerid %d len=%d",
+        _options.peerid, cmd,
+        MAC_ARG(ethh->src),
+        chilli_hdr->from, olen);
       }
     }
   }
@@ -5204,7 +5208,7 @@ char dhcp_ignore(uint16_t prot, uint8_t *packet, size_t length) {
 
   ignore = get_chilli_peer(-1)->state != PEER_STATE_ACTIVE;
 
-  if (ignore && _options.debug)
+  if (ignore && (_options.debug & DEBUG_DHCP))
     syslog(LOG_DEBUG, "ignore: src="MAC_FMT" "
            "dst="MAC_FMT" prot=%.4x %d len=%d",
            MAC_ARG(ethh->src),
@@ -5239,7 +5243,7 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
   int min_length = sizeof(struct pkt_ethhdr_t);
 
   if (length < min_length) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "bad packet length %zu", length);
     return 0;
   }
@@ -5250,7 +5254,7 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
       struct pkt_ethhdr8021q_t *ethh;
       min_length = sizeof(struct pkt_ethhdr8021q_t);
       if (length < min_length) {
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "bad packet length %zu", length);
 	return 0;
       }
@@ -5268,7 +5272,7 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
   }
 
 #if(_debug_ > 1)
-  if (_options.debug) {
+  if (_options.debug & DEBUG_DHCP) {
     struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
     syslog(LOG_DEBUG, "dhcp_decaps: src="MAC_FMT" "
            "dst="MAC_FMT" prot=%.4x %d len=%zd",
@@ -5295,12 +5299,12 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
 	struct pkt_llc_snap_t * snap =
             (struct pkt_llc_snap_t *)(p + sizeof(struct pkt_llc_t));
 
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "Layer2 PROT: IEEE 802.3 LLC SNAP "
                  " EtherType 0x%.4x",
                  ntohs(snap->type));
       } else {
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "Layer2 PROT: Likely IEEE 802.3: "
                  "length %d dsap=0x%.2x ssap=0x%.2x ctrl=0x%.2x",
                  (int) prot, llc->dsap, llc->ssap, llc->cntl);
@@ -5312,7 +5316,8 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
 #ifdef ENABLE_LAYER3
     if (!_options.layer3)
 #endif
-      syslog(LOG_DEBUG, "Layer2 PROT: 0x%.4x dropped", prot);
+      if (_options.debug & DEBUG_DHCP)
+        syslog(LOG_DEBUG, "Layer2 PROT: 0x%.4x dropped", prot);
 #endif
 
     return 0;
@@ -5371,7 +5376,7 @@ int dhcp_decaps_cb(void *pctx, struct pkt_buffer *pb) {
 #ifdef ENABLE_LAYER3
         if (!_options.layer3)
 #endif
-          if (_options.debug)
+          if (_options.debug & DEBUG_DHCP)
             syslog(LOG_DEBUG, "Layer2 PROT: 0x%.4x dropped", prot);
       break;
   }
@@ -5464,32 +5469,32 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
   }
 
   if (length < 44) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "DHCP packet too short");
     return -1;
   }
 
   if (packet.op != 2) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "Ignored non-relay reply DHCP packet");
     return -1;
   }
 
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "DHCP relay response from %s of length %d received",
            inet_ntoa(addr.sin_addr), (int)length);
 
   if (addr.sin_addr.s_addr != _options.dhcpgwip.s_addr &&
       addr.sin_addr.s_addr != _options.dhcprelayip.s_addr &&
       addr.sin_addr.s_addr != _options.uamlisten.s_addr) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "Received DHCP response from host (%s) other than our gateway",
              inet_ntoa(addr.sin_addr));
     return -1;
   }
 
   if (addr.sin_port != htons(_options.dhcpgwport)) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "Received DHCP response from port (%d) other than our gateway",
              ntohs(addr.sin_port));
     return -1;
@@ -5544,16 +5549,16 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
     fullpack_iph->daddr = ~0;
 
     if (packet.ciaddr) {
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "DHCP: CIAddr");
       fullpack_iph->daddr = packet.ciaddr;
     } else if (packet.flags[0] & 0x80 || message_type->v[0] == DHCPNAK) {
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "DHCP: Nak or Broadcast");
       packet.flags[0] = 0x80;
       dhcp_ethhdr(conn, fullpack, bmac, dhcp_nexthop(this), PKT_ETH_PROTO_IP);
     } else if (packet.yiaddr) {
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "DHCP: YIAddr");
       fullpack_iph->daddr = packet.yiaddr;
     }
@@ -5571,22 +5576,24 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx) {
       struct dhcp_tag_t *tag = 0;
       if (!dhcp_gettag(pkt_dhcppkt(fullpack), length,
 		       &tag, DHCP_OPTION_SERVER_ID)) {
-	memcpy(tag->v, &_options.dhcplisten.s_addr, 4);
+        memcpy(tag->v, &_options.dhcplisten.s_addr, 4);
       }
     }
 
     chksum(fullpack_iph);
 
     addr.sin_addr.s_addr = fullpack_iph->daddr;
-    syslog(LOG_DEBUG, "Sending DHCP relay response %s:%d %d",
-           inet_ntoa(addr.sin_addr),
-           ntohs(fullpack_udph->dst),
-           (int)(length + sizeofudp(fullpack)));
+    if (_options.debug & DEBUG_DHCP)
+      syslog(LOG_DEBUG, "Sending DHCP relay response %s:%d %d",
+          inet_ntoa(addr.sin_addr),
+          ntohs(fullpack_udph->dst),
+          (int)(length + sizeofudp(fullpack)));
 
     addr.sin_addr.s_addr = fullpack_iph->saddr;
-    syslog(LOG_DEBUG, "Sending DHCP from %s:%d",
-           inet_ntoa(addr.sin_addr),
-           ntohs(fullpack_udph->src));
+    if (_options.debug & DEBUG_DHCP)
+      syslog(LOG_DEBUG, "Sending DHCP from %s:%d",
+          inet_ntoa(addr.sin_addr),
+          ntohs(fullpack_udph->src));
 
     OTHER_SENDING(conn,fullpack_iph);
     return dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, fullpack,
@@ -5642,7 +5649,8 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
     packet = pkt_buffer_head(pb);
     length = pkt_buffer_length(pb);
 #if(_debug_ > 1)
-    syslog(LOG_DEBUG, "adding %zd to IP frame length %zd", hdrlen, length);
+    if (_options.debug & DEBUG_DHCP)
+      syslog(LOG_DEBUG, "adding %zd to IP frame length %zd", hdrlen, length);
 #endif
   }
 
@@ -5711,7 +5719,8 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
       /* undo destination NAT */
       if (dhcp_undoDNAT(conn, packet, &length, 1, &do_checksum) && !allowed) {
 #if(_debug_ > 1)
-        syslog(LOG_DEBUG, "dhcp_undoDNAT() returns true");
+        if (_options.debug & DEBUG_DHCP)
+          syslog(LOG_DEBUG, "dhcp_undoDNAT() returns true");
 #endif
         return 0;
       }
@@ -5719,12 +5728,14 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
 
     case DHCP_AUTH_DROP:
 #if(_debug_)
-      syslog(LOG_DEBUG, "drop");
+      if (_options.debug & DEBUG_DHCP)
+        syslog(LOG_DEBUG, "drop");
 #endif
       return 0;
     default:
 #if(_debug_)
-      syslog(LOG_DEBUG, "unhandled authstate %d", authstate);
+      if (_options.debug & DEBUG_DHCP)
+        syslog(LOG_DEBUG, "unhandled authstate %d", authstate);
 #endif
       return 0;
   }
@@ -5748,7 +5759,8 @@ int dhcp_data_req(struct dhcp_conn_t *conn,
     pb->length = length;
 
 #if(_debug_ > 1)
-    syslog(LOG_DEBUG, "adding 20 to frame length %zd", length);
+    if (_options.debug & DEBUG_DHCP)
+      syslog(LOG_DEBUG, "adding 20 to frame length %zd", length);
 #endif
 
     pkt_buffer_grow(pb, 20);
@@ -5824,7 +5836,7 @@ int dhcp_sendARP(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   memcpy(packet_arp->tha, &conn->hismac, PKT_ETH_ALEN);
   memcpy(packet_arp->tpa, &conn->hisip.s_addr, PKT_IP_ALEN);
 
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "ARP: Replying to %s / "MAC_FMT,
            inet_ntoa(conn->hisip),
            MAC_ARG(conn->hismac));
@@ -5864,7 +5876,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   /* Check that this is ARP request */
   if (pack_arp->op != htons(DHCP_ARP_REQUEST)) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "ARP: Received other ARP than request!");
     return 0;
   }
@@ -5872,7 +5884,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   /* Check that MAC address is our MAC or Broadcast */
   if ((memcmp(pack_ethh->dst, dhcp_nexthop(this), PKT_ETH_ALEN)) &&
       (memcmp(pack_ethh->dst, bmac, PKT_ETH_ALEN))) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "ARP: Received ARP request for other destination!");
     return 0;
   }
@@ -5887,7 +5899,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   if (_options.layer3) {
     if (taraddr.s_addr == _options.dhcplisten.s_addr) {
       if (dhcp_hashget(this, &conn, pack_arp->sha)) {
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "ARP: Address not found: %s", inet_ntoa(reqaddr));
 	if (dhcp_newconn(this, &conn, pack_arp->sha)) {
 	  syslog(LOG_WARNING, "ARP: out of connections");
@@ -5899,7 +5911,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #ifdef ENABLE_IEEE8021Q
       if (_options.ieee8021q) {
 #if(_debug_ > 1)
-        if (_options.debug)
+        if (_options.debug & DEBUG_DHCP)
           syslog(LOG_DEBUG, "%s calling dhcp_checktag", __FUNCTION__);
 #endif
 	dhcp_checktag(conn, pack);
@@ -5913,7 +5925,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   /* Check to see if we know MAC address. */
   if (dhcp_hashget(this, &conn, pack_arp->sha)) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "ARP: Address not found: %s",
              inet_ntoa(reqaddr));
 
@@ -5923,7 +5935,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 	&& !_options.uamanyip
 #endif
 	) {
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "ARP: Unknown client and no dynip: %s",
                inet_ntoa(taraddr));
       return 0;
@@ -5942,14 +5954,14 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 #ifdef ENABLE_IEEE8021Q
   if (_options.ieee8021q) {
 #if(_debug_ > 1)
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "%s calling dhcp_checktag", __FUNCTION__);
 #endif
     dhcp_checktag(conn, pack);
   }
 #endif
 
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "ARP: "MAC_FMT" asking about %s",
            MAC_ARG(conn->hismac),
            inet_ntoa(taraddr));
@@ -5962,7 +5974,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   if (!reqaddr.s_addr) {
     /* XXX: lookup in ippool to see if we really do know who has this */
     /* XXX: it should also ack if *we* are that ip */
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "ARP: Ignoring self-discovery: %s",
              inet_ntoa(taraddr));
 
@@ -5982,7 +5994,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     }
 #endif
 
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "ARP: Ignoring gratuitous arp %s",
              inet_ntoa(taraddr));
     return 0;
@@ -5990,7 +6002,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
 
   /* Is ARP request for clients own address: Ignore */
   if (!memcmp(&conn->hisip.s_addr, &taraddr.s_addr, 4)) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "ARP: hisip equals target ip: %s",
              inet_ntoa(conn->hisip));
     return 0;
@@ -6007,7 +6019,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
       ) {
     /* Only reply if he was allocated an address,
        unless it was a request for the gateway dhcplisten. */
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "ARP: request did not come from known client");
     return 0;
   }
@@ -6027,11 +6039,11 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
     if (memcmp(&conn->ourip.s_addr, &taraddr.s_addr, 4) &&
 	memcmp(&_options.dhcplisten.s_addr, &taraddr.s_addr, 4)) {
       /* if ourip differs from target ip */
-      if (_options.debug) {
-	syslog(LOG_DEBUG, "ARP: Did not ask for router address: %s",
-               inet_ntoa(conn->ourip));
-	syslog(LOG_DEBUG, "ARP: Asked for target: %s",
-               inet_ntoa(taraddr));
+      if (_options.debug & DEBUG_DHCP) {
+        syslog(LOG_DEBUG, "ARP: Did not ask for router address: %s",
+            inet_ntoa(conn->ourip));
+        syslog(LOG_DEBUG, "ARP: Asked for target: %s",
+            inet_ntoa(taraddr));
       }
       return 0; /* Only reply if he asked for his router address */
     }
@@ -6040,7 +6052,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
   else if (_options.uamanyipex_addr.s_addr &&
 	   (taraddr.s_addr & _options.uamanyipex_mask.s_addr) ==
 	   _options.uamanyipex_addr.s_addr) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "ARP: Request for %s in uamanyipex subnet, ignoring",
              inet_ntoa(taraddr));
     return 0;
@@ -6049,7 +6061,7 @@ int dhcp_receive_arp(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
            ((taraddr.s_addr & _options.mask.s_addr) == _options.net.s_addr)) {
     /* when uamanyip is on we should ignore arp requests that ARE within
        our subnet except of course the ones for ourselves */
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "ARP: Request for %s other than us within "
              "our subnet(uamanyip on), ignoring",
              inet_ntoa(taraddr));
@@ -6139,15 +6151,15 @@ int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack) {
 
   /* Check to see if we know MAC address. */
   if (!dhcp_hashget(this, &conn, pack_ethh->src)) {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "Address found");
   }
   else {
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "Address not found");
   }
 
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "IEEE 802.1x Packet: %.2x, %.2x %d",
            pack_dot1x->ver, pack_dot1x->type,
            ntohs(pack_dot1x->len));
@@ -6174,7 +6186,7 @@ int dhcp_receive_eapol(struct dhcp_ctx *ctx, uint8_t *pack) {
 #ifdef ENABLE_IEEE8021Q
     if (_options.ieee8021q) {
 #if(_debug_ > 1)
-      if (_options.debug)
+      if (_options.debug & DEBUG_DHCP)
         syslog(LOG_DEBUG, "%s calling dhcp_checktag", __FUNCTION__);
 #endif
       dhcp_checktag(conn, pack);
@@ -6242,7 +6254,7 @@ int dhcp_eapol_ind(struct dhcp_t *this) {
     return -1;
 
 #if(_debug_ > 1)
-  if (_options.debug) {
+  if (_options.debug & DEBUG_DHCP) {
     struct pkt_ethhdr_t *ethh = pkt_ethhdr(packet);
     syslog(LOG_DEBUG, "eapol_decaps: src="MAC_FMT" dst="MAC_FMT" prot=%.4x",
            MAC_ARG(ethh->src),
@@ -6331,14 +6343,14 @@ int dhcp_receive(struct dhcp_t *this, int idx) {
   this->pb.length = length;
 
 #if(_debug_)
-  if (_options.debug)
+  if (_options.debug & DEBUG_DHCP)
     syslog(LOG_DEBUG, "dhcp_received: %zd", length);
 #endif
 
   while (this->pb.offset < this->pb.length) {
 
 #if(_debug_)
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "dhcp_packet offset: %zu", this->pb.offset);
 #endif
 
@@ -6350,7 +6362,7 @@ int dhcp_receive(struct dhcp_t *this, int idx) {
     hdrp = (struct bpf_hdr *)pkt_buffer_head(&this->pb);
 
 #if(_debug_)
-    if (_options.debug)
+    if (_options.debug & DEBUG_DHCP)
       syslog(LOG_DEBUG, "bpf_hdr  hdrlen %d caplen %d datalen %d",
              hdrp->bh_hdrlen, hdrp->bh_caplen, hdrp->bh_datalen);
 #endif
