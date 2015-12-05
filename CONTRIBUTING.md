@@ -39,6 +39,9 @@ Guidelines for bug reports:
 3. **Isolate the problem** &mdash; create a [reduced test
    case](http://css-tricks.com/reduced-test-cases/) and a live example.
 
+4. **Write good bug report** &mdash; Please read [How to Report Bugs
+   Effectively](http://www.chiark.greenend.org.uk/~sgtatham/bugs.html).
+
 A good bug report shouldn't leave others needing to chase you up for more
 information. Please try to be as detailed as possible in your report. What is
 your environment? What steps will reproduce the issue? What browser(s) and OS
