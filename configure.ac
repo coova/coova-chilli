@@ -107,7 +107,6 @@ AC_CHECK_HEADERS([resolv.h net/route.h net/if.h net/if_arp.h net/if_tun.h net/et
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
-AC_CHECK_HEADER_STDBOOL
 AC_TYPE_UID_T
 AC_C_INLINE
 AC_TYPE_INT16_T
