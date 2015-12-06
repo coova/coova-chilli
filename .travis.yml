@@ -4,7 +4,12 @@ before_install:
  - sudo apt-get install -y gengetopt
  - ./bootstrap
 script:
- - ./configure
+ - ./configure --enable-largelimits --enable-proxyvsa --enable-miniportal
+   --enable-chilliredir --enable-chilliproxy --enable-binstatusfile
+   --enable-chilliscript --enable-chilliradsec --enable-dnslog --enable-layer3
+   --enable-eapol --enable-uamdomainfile --enable-redirdnsreq --enable-modules
+   --enable-multiroute --enable-extadmvsa --with-openssl --with-poll
+   --enable-json --enable-libjson
  - make
 compiler:
  - clang
