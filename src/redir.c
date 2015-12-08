@@ -1857,10 +1857,13 @@ int redir_ipc(struct redir_t *redir) {
 /* Free instance of redir */
 int redir_free(struct redir_t *redir) {
   int n;
+  int fd;
+
   for (n = 0; n < 2 && redir->fd[n]; n++) {
+    fd = redir->fd[n];
     if (safe_close(redir->fd[n])) {
       syslog(LOG_ERR, "redir: %s: close(fd=%d[%d]) failed", strerror(errno),
-	     redir->fd[n], n);
+	     fd, n);
     }
   }
 

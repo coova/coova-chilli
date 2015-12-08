@@ -1383,23 +1383,27 @@ int radius_init_q(struct radius_t *this, int size) {
  */
 int
 radius_free(struct radius_t *this) {
+  int fd;
+
   if (this->queue) {
     free(this->queue);
   }
   if (this->urandom_fp) {
+    fd = fileno(this->urandom_fp);
     if (fclose(this->urandom_fp)) {
       syslog(LOG_ERR, "radius: %s: fclose(urandom_fp=%d) failed!",
-             strerror(errno), fileno(this->urandom_fp));
+             strerror(errno), fd);
     }
   }
+  fd = this->fd;
   if (close(this->fd)) {
-    syslog(LOG_ERR, "radius: %s: close(fd=%d) failed!", strerror(errno),
-           this->fd);
+    syslog(LOG_ERR, "radius: %s: close(fd=%d) failed!", strerror(errno), fd);
   }
 #ifdef ENABLE_RADPROXY
+  fd = this->proxyfd;
   if (this->proxyfd > 0 && close(this->proxyfd)) {
      syslog(LOG_ERR, "radius: %s: close(proxyfd=%d) failed!", strerror(errno),
-            this->proxyfd);
+            fd);
   }
 #endif
   free(this);
