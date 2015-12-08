@@ -2961,7 +2961,7 @@ chilli_learn_location(uint8_t *loc, int loclen,
       }
     } else {
       strlcpy(appconn->s_state.pending_location, loc_buff,
-	sizeof(s_state.pending_location));
+	sizeof(appconn->s_state.pending_location));
     }
   }
 
