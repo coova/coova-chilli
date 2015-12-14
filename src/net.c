@@ -941,8 +941,6 @@ ssize_t net_write_eth(net_interface *netif, void *d, size_t dlen, struct sockadd
     switch (errno) {
       case EWOULDBLOCK:
         syslog(LOG_ERR, "%s: packet dropped due to congestion", strerror(errno));
-        if (!_options.uid)
-          net_reopen(netif);
         break;
 
 #ifdef ENETDOWN
