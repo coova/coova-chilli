@@ -441,7 +441,7 @@ AS_IF([test x"$with_nfcoova" != xno],
 AM_CONDITIONAL(WITH_NETFILTER_COOVA, [test x"$with_nfcoova" != xno])
 
 AC_ARG_WITH([sfhash],
- [AS_HELP_STRING([--without-sfhash], [enable SuperFashHash use])],[],[with_sfhash=yes])
+ [AS_HELP_STRING([--without-sfhash], [disable SuperFastHash use])],[],[with_sfhash=yes])
 
 AS_IF([test x"$with_sfhash" != xno],
   [AC_DEFINE([HAVE_SFHASH], [1], [Define to use SuperFastHash])])
