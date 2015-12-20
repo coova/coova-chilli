@@ -81,7 +81,7 @@ AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h dirent.h \
 		  sys/stat.h sys/types.h regex.h \
 		  syslog.h poll.h sys/epoll.h \
 		  unistd.h endian.h libgen.h \
-		  asm/types.h pwd.h grp.h wchar.h])
+		  asm/types.h pwd.h grp.h wchar.h stdarg.h])
 
 AC_CHECK_HEADERS([resolv.h net/route.h net/if.h net/if_arp.h net/if_tun.h net/ethernet.h], [], [],
 [
@@ -104,6 +104,15 @@ AC_CHECK_HEADERS([resolv.h net/route.h net/if.h net/if_arp.h net/if_tun.h net/et
 # include <netinet/in.h>
 #endif
 ])
+
+AC_CHECK_HEADER(inttypes.h,[AC_DEFINE([JSON_C_HAVE_INTTYPES_H],[1],[Public define for json_inttypes.h])])
+AC_CONFIG_HEADER(json/json_config.h)
+AC_CHECK_DECLS([INFINITY], [], [], [[#include <math.h>]])
+AC_CHECK_DECLS([nan], [], [], [[#include <math.h>]])
+AC_CHECK_DECLS([isnan], [], [], [[#include <math.h>]])
+AC_CHECK_DECLS([isinf], [], [], [[#include <math.h>]])
+AC_CHECK_DECLS([_isnan], [], [], [[#include <float.h>]])
+AC_CHECK_DECLS([_finite], [], [], [[#include <float.h>]])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -134,7 +143,7 @@ AC_FUNC_MMAP
 AC_CHECK_FUNCS([bzero clock_gettime dup2 gethostbyname getprotoent gettimeofday inet_ntoa \
 memchr memmove memset mkdir munmap regcomp select setenv socket strcasecmp \
 strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol getline dirname \
-glob getaddrinfo getnameinfo getifaddrs sysinfo strlcpy tzset])
+glob getaddrinfo getnameinfo getifaddrs sysinfo strlcpy tzset snprintf vsnprintf vasprintf])
 AC_CHECK_LIB(resolv, res_init)
 
 AC_ARG_ENABLE(chilliquery, [AS_HELP_STRING([--disable-chilliquery],[Disable chilli_query])], 
