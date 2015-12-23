@@ -42,7 +42,8 @@ chilli_query_SOURCES = main-query.c
 chilli_opt_SOURCES = main-opt.c 
 
 libchilli_la_LIBADD = $(top_builddir)/bstring/libbstring.la 
-LDADD = libchilli.la ${LIBRT} $(top_builddir)/bstring/libbstring.la 
+LDADD = libchilli.la ${LIBRT} $(top_builddir)/bstring/libbstring.la \
+	libchap_ms.la
 
 if WITH_MINICONFIG
 chilli_opt_SOURCES += cmdline.mini.c
