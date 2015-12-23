@@ -14,7 +14,7 @@ radius_wispr.h radius_coovachilli.h ssl.h dns.h net.h \
 pkt.h conn.h lookup.h chilli_limits.h cmdline.h debug.h \
 radius_pkt.h ../bstring/bstrlib.h ../config.h system.h 
 
-lib_LTLIBRARIES = libchilli.la
+lib_LTLIBRARIES = libchap_ms.la libchilli.la
 sbin_PROGRAMS = \
 chilli chilli_response chilli_radconfig chilli_opt 
 
@@ -26,11 +26,14 @@ iphash.c lookup.c system.h util.c options.c statusfile.c conn.c sig.c \
 garden.c dns.c session.c pkt.c chksum.c net.c safe.c
 
 AM_CFLAGS = -D_GNU_SOURCE -Wall -Werror -fno-builtin -fno-strict-aliasing \
-  -fomit-frame-pointer -funroll-loops -pipe -I$(top_builddir)/bstring \
+ -fomit-frame-pointer -funroll-loops -pipe -I$(top_builddir)/bstring \
  -DDEFCHILLICONF='"$(sysconfdir)/chilli.conf"'\
  -DDEFPIDFILE='"$(localstatedir)/run/chilli.pid"'\
  -DDEFSTATEDIR='"$(localstatedir)/run"'\
  -DSBINDIR='"$(sbindir)"' 
+
+libchap_ms_la_SOURCES = ../extern/chap_ms.c
+libchap_ms_la_CFLAGS = -Wno-pointer-sign
 
 chilli_SOURCES= main.c
 chilli_radconfig_SOURCES = main-radconfig.c 
@@ -39,7 +42,8 @@ chilli_query_SOURCES = main-query.c
 chilli_opt_SOURCES = main-opt.c 
 
 libchilli_la_LIBADD = $(top_builddir)/bstring/libbstring.la 
-LDADD = libchilli.la ${LIBRT} $(top_builddir)/bstring/libbstring.la 
+LDADD = libchilli.la ${LIBRT} $(top_builddir)/bstring/libbstring.la \
+	libchap_ms.la
 
 if WITH_MINICONFIG
 chilli_opt_SOURCES += cmdline.mini.c
@@ -99,7 +103,8 @@ avl/common_types.h avl/container_of.h
 endif
 
 if WITH_SSL
-libchilli_la_SOURCES += ssl.c ms_chap.c 
+libchilli_la_LIBADD += libchap_ms.la
+libchilli_la_SOURCES += ssl.c
 endif
 
 if WITH_NETFILTER_QUEUE
