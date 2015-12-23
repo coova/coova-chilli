@@ -39,11 +39,11 @@
 #ifdef __NetBSD__
 #include <openssl/des.h>
 #else
-#include <des.h>
+#include <openssl/des.h>
 #endif
 #include <openssl/sha.h>
 #endif
-#include <md4.h>
+#include <openssl/md4.h>
 #include <string.h>
 
 #include "chap_ms.h"
@@ -103,18 +103,18 @@ MakeKey(u_char *key, u_char *des_key)
     des_key[6] = Get7Bits(key, 42);
     des_key[7] = Get7Bits(key, 49);
 
-    des_set_odd_parity((des_cblock *)des_key);
+    DES_set_odd_parity((DES_cblock *)des_key);
 }
 
 static void /* IN 8 octets IN 7 octest OUT 8 octets */
 DesEncrypt(u_char *clear, u_char *key, u_char *cipher)
 {
-    des_cblock		des_key;
-    des_key_schedule	key_schedule;
+    DES_cblock		des_key;
+    DES_key_schedule	key_schedule;
 
     MakeKey(key, des_key);
-    des_set_key(&des_key, key_schedule);
-    des_ecb_encrypt((des_cblock *)clear, (des_cblock *)cipher, key_schedule, 1);
+    DES_set_key(&des_key, &key_schedule);
+    DES_ecb_encrypt((DES_cblock *)clear, (DES_cblock *)cipher, &key_schedule, 1);
 }
 
 static void      /* IN 8 octets      IN 16 octets     OUT 24 octets */
@@ -135,9 +135,9 @@ NtPasswordHash(char *key, int keylen, char *hash)
 {
   MD4_CTX MD4context;
 
-  MD4Init(&MD4context);
-  MD4Update(&MD4context, key, keylen);
-  MD4Final(hash, &MD4context);
+  MD4_Init(&MD4context);
+  MD4_Update(&MD4context, key, keylen);
+  MD4_Final(hash, &MD4context);
 }
 
 void
@@ -145,9 +145,9 @@ HashNtPasswordHash(char *hash, char *hashhash)
 {
   MD4_CTX MD4context;
 
-  MD4Init(&MD4context);
-  MD4Update(&MD4context, hash, 16);
-  MD4Final(hashhash, &MD4context);
+  MD4_Init(&MD4context);
+  MD4_Update(&MD4context, hash, 16);
+  MD4_Final(hashhash, &MD4context);
 }
 
 static void
