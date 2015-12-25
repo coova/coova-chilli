@@ -36,6 +36,9 @@ doc/Makefile
 doc/Makefile.in
 json/Makefile
 json/Makefile.in
+json/json_config.h
+json/json_config.h.in
+json/stamp-h2
 miniportal/Makefile
 miniportal/Makefile.in
 src/Makefile
