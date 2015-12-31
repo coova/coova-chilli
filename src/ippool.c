@@ -333,9 +333,11 @@ int ippool_new(struct ippool_t **this,
   for ((*this)->hashlog = 0;
        ((1 << (*this)->hashlog) < listsize);
        (*this)->hashlog++);
-
-  syslog(LOG_DEBUG, "Hashlog %d %d %d", (*this)->hashlog, listsize,
-         (1 << (*this)->hashlog));
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Hashlog %d %d %d", (*this)->hashlog, listsize,
+           (1 << (*this)->hashlog));
+#endif
 
   /* Determine hashsize */
   (*this)->hashsize = 1 << (*this)->hashlog; /* Fails if mask=0: All Internet*/
@@ -451,9 +453,11 @@ int ippool_newip(struct ippool_t *this,
   struct ippoolm_t *p = NULL;
   struct ippoolm_t *p2 = NULL;
   uint32_t hash;
-
-  syslog(LOG_DEBUG, "Requesting new %s ip: %s",
-         statip ? "static" : "dynamic", inet_ntoa(*addr));
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Requesting new %s ip: %s",
+           statip ? "static" : "dynamic", inet_ntoa(*addr));
+#endif
 
   /* If static:
    *   Look in dynaddr.
@@ -478,7 +482,10 @@ int ippool_newip(struct ippool_t *this,
     if (!_options.uamanyip) {
 #endif
       if (!this->allowstat) {
-	syslog(LOG_DEBUG, "Static IP address not allowed");
+#if(_debug_)
+        if (_options.debug)
+	  syslog(LOG_DEBUG, "Static IP address not allowed");
+#endif
 	return -1;
       }
       if ((addr->s_addr & this->statmask.s_addr) != this->stataddr.s_addr) {
@@ -511,8 +518,11 @@ int ippool_newip(struct ippool_t *this,
 #ifdef ENABLE_UAMANYIP
   /* if anyip is set and statip return the same ip */
   if (statip && _options.uamanyip && p2 && p2->is_static) {
-    syslog(LOG_DEBUG, "Found already allocated static ip %s",
-           inet_ntoa(p2->addr));
+#if(_debug_)
+    if (_options.debug)
+      syslog(LOG_DEBUG, "Found already allocated static ip %s",
+             inet_ntoa(p2->addr));
+#endif
     *member = p2;
     return 0;
   }
@@ -618,8 +628,10 @@ int ippool_newip(struct ippool_t *this,
     p2->addr.s_addr = addr->s_addr;
 
     *member = p2;
-
-    syslog(LOG_DEBUG, "Assigned a static ip to: %s", inet_ntoa(*addr));
+#if(_debug_)
+    if (_options.debug)
+      syslog(LOG_DEBUG, "Assigned a static ip to: %s", inet_ntoa(*addr));
+#endif
 
     ippool_hashadd(this, *member);
 

@@ -104,8 +104,10 @@ int tun_name2idx(struct tun_t *tun, char *name) {
     if (rti) {
       net_interface *newif = 0;
       net_interface netif;
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "Discoving TUN %s", name);
+#endif
       memset(&netif, 0, sizeof(netif));
       strlcpy(netif.devname, rti->devname, sizeof(netif.devname));
       memcpy(netif.hwaddr, rti->hwaddr, sizeof(netif.hwaddr));
@@ -180,33 +182,38 @@ int tun_discover(struct tun_t *this) {
     /* device name and address */
     strlcpy(netif.devname, ifr->ifr_name, sizeof(netif.devname));
     netif.address = inaddr(ifr_addr);
-
+#if(_debug_)
     if (_options.debug)
       syslog(LOG_DEBUG, "Interface: %s", ifr->ifr_name);
-
+#endif
     if (!strcmp(ifr->ifr_name, _options.dhcpif)) {
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "skipping dhcpif %s", _options.dhcpif);
+#endif
       continue;
     }
 
     if (!strncmp(ifr->ifr_name, "tun", 3) || !strncmp(ifr->ifr_name, "tap", 3)) {
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "skipping tun/tap %s", _options.dhcpif);
+#endif
       continue;
     }
-
+#if(_debug_)
     if (_options.debug)
       syslog(LOG_DEBUG, "\tIP Address:\t%s", inet_ntoa(inaddr(ifr_addr)));
-
+#endif
 
     /* netmask */
     if (-1 < ioctl(fd, SIOCGIFNETMASK, (caddr_t)ifr)) {
 
       netif.netmask = inaddr(ifr_addr);
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "\tNetmask:\t%s", inet_ntoa(inaddr(ifr_addr)));
-
+#endif
     } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFNETMASK)", strerror(errno));
 
     /* hardware address */
@@ -224,10 +231,11 @@ int tun_discover(struct tun_t *this) {
             unsigned char *u = (unsigned char *)&ifr->ifr_addr.sa_data;
 
             memcpy(netif.hwaddr, u, 6);
-
+#if(_debug_)
             if (_options.debug)
               syslog(LOG_DEBUG, "\tHW Address:\t%2.2X-%2.2X-%2.2X-%2.2X-%2.2X-%2.2x",
                      u[0], u[1], u[2], u[3], u[4], u[5]);
+#endif
           }
           break;
       }
@@ -238,10 +246,11 @@ int tun_discover(struct tun_t *this) {
       unsigned char *u = (unsigned char *)&ifr->ifr_enaddr;
 
       memcpy(netif.hwaddr, u, 6);
-
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "\tHW Address:\t%2.2X-%2.2X-%2.2X-%2.2X-%2.2X-%2.2x",
                u[0], u[1], u[2], u[3], u[4], u[5]);
+#endif
     } else syslog(LOG_ERR, "%s: ioctl(SIOCGENADDR)", strerror(errno));
 #else
 #warning Do not know how to find interface hardware address
@@ -261,9 +270,10 @@ int tun_discover(struct tun_t *this) {
 
 	netif.flags |= NET_PPPHDR;
 	netif.gateway = inaddr(ifr_addr);
+#if(_debug_)
         if (_options.debug)
           syslog(LOG_DEBUG, "\tPoint-to-Point:\t%s", inet_ntoa(inaddr(ifr_dstaddr)));
-
+#endif
       } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFDSTADDR)", strerror(errno));
     }
 
@@ -272,9 +282,10 @@ int tun_discover(struct tun_t *this) {
       if (-1 < ioctl(fd, SIOCGIFBRDADDR, (caddr_t)ifr)) {
 
 	netif.broadcast = inaddr(ifr_addr);
+#if(_debug_)
         if (_options.debug)
           syslog(LOG_DEBUG, "\tBroadcast:\t%s", inet_ntoa(inaddr(ifr_addr)));
-
+#endif
       } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFBRDADDR)", strerror(errno));
     }
 
@@ -282,9 +293,10 @@ int tun_discover(struct tun_t *this) {
     if (-1 < ioctl(fd, SIOCGIFMTU, (caddr_t)ifr)) {
 
       netif.mtu = ifr->ifr_mtu;
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "\tMTU:      \t%u",  ifr->ifr_mtu);
-
+#endif
     } else syslog(LOG_ERR, "%s: ioctl(SIOCGIFMTU)", strerror(errno));
 
     /* if (0 == ioctl(fd, SIOCGIFMETRIC, ifr)) */
@@ -307,8 +319,10 @@ int tun_discover(struct tun_t *this) {
 	  tun->routeidx = newif->idx;
 
       } else {
+#if(_debug_)
         if (_options.debug)
           syslog(LOG_DEBUG, "no room for interface %s", netif.devname);
+#endif
       }
     }
   }
@@ -638,10 +652,12 @@ int tuntap_interface(struct _net_interface *netif) {
 	syslog(LOG_ERR, "%s: ioctl(d=%d, request=%d) failed", strerror(errno), fd, SIOCGIFHWADDR);
       }
       memcpy(netif->hwaddr, ifr.ifr_hwaddr.sa_data, PKT_ETH_ALEN);
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "tap-mac: %s %.2X-%.2X-%.2X-%.2X-%.2X-%.2X", ifr.ifr_name,
                netif->hwaddr[0],netif->hwaddr[1],netif->hwaddr[2],
                netif->hwaddr[3],netif->hwaddr[4],netif->hwaddr[5]);
+#endif
       close(fd);
     }
   }
@@ -877,10 +893,12 @@ static int tun_decaps_cb(void *ctx, struct pkt_buffer *pb) {
     }
 
     if ((int)ntohs(iph->tot_len) + ethsize > length) {
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "dropping ip packet; ip-len=%d + eth-hdr=%d > read-len=%d",
                (int)ntohs(iph->tot_len),
                ethsize, (int)length);
+#endif
       return -1;
     }
   }
@@ -1031,8 +1049,10 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
     struct pkt_iphdr_t *iph = pkt_iphdr(pack);
     if ((iph->daddr & _options.mask.s_addr) == _options.net.s_addr ||
 	iph->daddr == dhcp->uamlisten.s_addr) {
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "Using route idx == 0 (tun/tap)");
+#endif
       idx = 0;
     }
   }
@@ -1125,9 +1145,10 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
   struct in_addr net;
   pid_t pid;
   char b[56];
-
-  syslog(LOG_DEBUG, "Running %s", script);
-
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Running %s", script);
+#endif
   net.s_addr = tuntap(tun).address.s_addr & tuntap(tun).netmask.s_addr;
 
   if ((pid = fork()) < 0) {

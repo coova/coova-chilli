@@ -46,9 +46,9 @@ int loadstatus() {
     return 1;
 
   statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
-
+#if(_debug_)
   syslog(LOG_DEBUG, "Loading file %s", filedest);
-
+#endif
   file = fopen(filedest, "r");
   if (!file) { syslog(LOG_ERR, "%s: could not open file %s", strerror(errno), filedest); return -1; }
 
@@ -79,13 +79,15 @@ int loadstatus() {
   }
 
   rtoffset = wall - rt;
+#if(_debug_)
   syslog(LOG_DEBUG, "now: wall = %d, rt = %d, wall at rt=0 %d",
          (int)wall, (int)rt, (int)rtoffset);
-
+#endif
   r_rtoffset = r_wall - r_rt;
+#if(_debug_)
   syslog(LOG_DEBUG, "file: wall = %d, rt = %d, wall at rt=0 %d",
          (int)r_wall, (int)r_rt, (int)r_rtoffset);
-
+#endif
   while (fread(&dhcpconn, sizeof(struct dhcp_conn_t), 1, file) == 1) {
     struct dhcp_conn_t *conn = 0;
     struct ippoolm_t *newipm = 0;
@@ -137,9 +139,9 @@ int loadstatus() {
       for (n=0; n < DHCP_DNAT_MAX; n++) {
 	memset(conn->dnat[n].mac, 0, PKT_ETH_ALEN);
       }
-
+#if(_debug_)
       syslog(LOG_DEBUG, "checking IP %s", inet_ntoa(dhcpconn.hisip));
-
+#endif
       /* add into ippool */
       if (ippool_getip(ippool, &newipm, &dhcpconn.hisip)) {
 	if (ippool_newip(ippool, &newipm, &dhcpconn.hisip, 1)) {
@@ -318,9 +320,9 @@ int printstatus() {
     return 0;
 
   statedir_file(filedest, sizeof(filedest), _options.usestatusfile, 0);
-
+#if(_debug_)
   syslog(LOG_DEBUG, "Writing status file: %s", filedest);
-
+#endif
   file = fopen(filedest, "w");
   if (!file) { syslog(LOG_ERR, "%s: could not open file %s", strerror(errno), filedest); return -1; }
   fprintf(file, "#CoovaChilli-Version: %s\n", VERSION);
@@ -347,12 +349,13 @@ int printstatus() {
 #ifdef ENABLE_LAYER3
       case DHCP_AUTH_ROUTER:
 #endif
+#if(_debug_)
         syslog(LOG_DEBUG, "Saving dhcp connection %.2X-%.2X-%.2X-%.2X-%.2X-%.2X %s",
                dhcpconn->hismac[0], dhcpconn->hismac[1],
                dhcpconn->hismac[2], dhcpconn->hismac[3],
                dhcpconn->hismac[4], dhcpconn->hismac[5],
                inet_ntoa(dhcpconn->hisip));
-
+#endif
         fwrite(dhcpconn, sizeof(struct dhcp_conn_t), 1, file);
         fputc(MARK_NEXT, file);
         appconn = (struct app_conn_t *)dhcpconn->peer;

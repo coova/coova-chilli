@@ -53,8 +53,10 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
 	ret++;
 
 	if (offset > olen) {
+#if(_debug_)
           if (_options.debug)
             syslog(LOG_DEBUG, "bad value");
+#endif
 	  return -1;
 	}
 
@@ -73,8 +75,10 @@ dns_fullname(char *data, size_t dlen,      /* buffer to store name */
     }
 
     if (l >= dlen || l >= olen) {
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "bad value %d/%zu/%zu", l, dlen, olen);
+#endif
       return -1;
     }
 
@@ -135,8 +139,12 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	     uint8_t *question, size_t qsize,
 	     int isReq, int *qmatch, int *modified, int mode) {
 
+#if(_debug_)
 #define return_error {                                                  \
     if (_options.debug) syslog(LOG_DEBUG, "failed parsing DNS packet"); return -1; }
+#else
+#define return_error return -1;
+#endif
 
   uint8_t *p_pkt = *pktp;
   size_t len = *left;
@@ -204,10 +212,10 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   if (q) {
     if (dns_fullname((char *)question, qsize, *pktp, *left, opkt, olen, 0) < 0)
       return_error;
-
+#if(_debug_)
     if (_options.debug)
       syslog(LOG_DEBUG, "DNS: %s", question);
-
+#endif
     *pktp = p_pkt;
     *left = len;
 
@@ -261,15 +269,19 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 #ifdef ENABLE_IPV6
     if (_options.ipv6) {
       if (isReq && type == 28) {
+#if(_debug_)
         if (_options.debug)
           syslog(LOG_DEBUG, "changing AAAA to A request");
+#endif
 	us = 1;
 	us = htons(us);
 	memcpy(pkt_type, &us, sizeof(us));
 	*modified = 1;
       } else if (!isReq && type == 1) {
+#if(_debug_)
         if (_options.debug)
           syslog(LOG_DEBUG, "changing A to AAAA response");
+#endif
 	us = 28;
 	us = htons(us);
 	memcpy(pkt_type, &us, sizeof(us));
@@ -320,8 +332,10 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
   switch (type) {
 
     default:
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "Record type %d", type);
+#endif
       return_error;
       break;
 
@@ -356,31 +370,42 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
       break;
 
     case 2: 
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "NS record");
+#endif
       required = 1;
       break;
     case 5: 
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "CNAME record %s", name);
+#endif
       required = 1;
       break;
     case 6: 
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "SOA record");
+#endif
       break;
 
     case 12:
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "PTR record");
+#endif
       break;
     case 15:
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "MX record");
+#endif
       required = 1;
       break;
 
     case 16:/* TXT */
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "TXT record %d", rdlen);
       if (_options.debug) {
@@ -395,28 +420,39 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
           txtlen -= l;
         }
       }
+#endif
       break;
 
     case 28:
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "AAAA record");
+#endif
       required = 1;
       break;
     case 29:
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "LOC record");
+#endif
       break;
     case 33:
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "SRV record");
+#endif
       break;
     case 41:
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "EDNS OPT pseudorecord");
+#endif
       break;
     case 47:
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "NSEC record");
+#endif
       break;
   }
 

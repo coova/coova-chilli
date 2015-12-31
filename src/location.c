@@ -27,11 +27,13 @@ struct avl_tree loc_search_tree;
 static int location_count=0;
 
 void location_close_conn(struct app_conn_t *conn, int close) {
-
-  syslog(LOG_DEBUG, "removing(%s) one of %d sessions from %s",
-         close ? "closing" : "roaming out",
-         (int)conn->loc_search_node->total_sess_count,
-         conn->loc_search_node->value);
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "removing(%s) one of %d sessions from %s",
+           close ? "closing" : "roaming out",
+           (int)conn->loc_search_node->total_sess_count,
+           conn->loc_search_node->value);
+#endif
 
   conn->loc_search_node->total_sess_count--;
 
@@ -90,13 +92,19 @@ static int
 avl_comp(const void *k1, const void *k2,
 	 void *ptr __attribute__ ((unused))) {
   int result = strncmp(k1, k2, MAX_LOCATION_LENGTH);
-  syslog(LOG_DEBUG, "%s result %d",__FUNCTION__,result);
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "%s result %d",__FUNCTION__,result);
+#endif
   /* log_dbg("k1: %s k2: %s",k1,k2); */
   return result;
 }
 
 struct loc_search_t *location_find(char *loc) {
-  syslog(LOG_DEBUG, "looking for location: %s", loc);
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "looking for location: %s", loc);
+#endif
   return (struct loc_search_t *)avl_find(&loc_search_tree, loc);
 }
 
@@ -110,12 +118,17 @@ void location_add_conn(struct app_conn_t *appconn, char *loc) {
   } else list_init_node(&appconn->loc_sess);
 
   loc_search = (struct loc_search_t *)avl_find(&loc_search_tree, loc);
-
-  syslog(LOG_DEBUG, "checking location: %s", loc);
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "checking location: %s", loc);
+#endif
   if (loc_search == NULL) {
     location_count++;
-    syslog(LOG_DEBUG, "creating tree entry %d for location: %s",
-           location_count, loc);
+#if(_debug_)
+    if (_options.debug)
+      syslog(LOG_DEBUG, "creating tree entry %d for location: %s",
+             location_count, loc);
+#endif
     loc_search=calloc(1, sizeof(*loc_search));
     memcpy(loc_search->value,loc,sizeof(loc_search->value));
     loc_search->node.key = loc_search->value;
@@ -136,8 +149,11 @@ void location_add_conn(struct app_conn_t *appconn, char *loc) {
   else loc_search->new_sess_count++;
 
   appconn->loc_search_node=loc_search;
-  syslog(LOG_DEBUG, "location '%s' now has %d sessions attached",
-         loc,(int)loc_search->total_sess_count);
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "location '%s' now has %d sessions attached",
+           loc,(int)loc_search->total_sess_count);
+#endif
 }
 
 void location_printlist(bstring s, char *loc, int json, int list) {
@@ -164,14 +180,16 @@ void location_printlist(bstring s, char *loc, int json, int list) {
     int timespan=(int)(act_mainclock-loc_search->last_queried);
 
     if (timespan >= 1) {
-
-      syslog(LOG_DEBUG, "roamed_in_session_count %d, out %d",
-             (int)loc_search->roamed_in_sess_count,
-             (int)loc_search->roamed_out_sess_count);
-      syslog(LOG_DEBUG, "new_session_count %d, closed %d",
-             (int)loc_search->new_sess_count,
-             (int)loc_search->closed_sess_count);
-
+#if(_debug_)
+      if (_options.debug) {
+        syslog(LOG_DEBUG, "roamed_in_session_count %d, out %d",
+               (int)loc_search->roamed_in_sess_count,
+               (int)loc_search->roamed_out_sess_count);
+        syslog(LOG_DEBUG, "new_session_count %d, closed %d",
+               (int)loc_search->new_sess_count,
+               (int)loc_search->closed_sess_count);
+      }
+#endif
       bassignformat(tmp,json ?
 		    ",\"sessions_roamed_in\":%d,"
 		    "\"sessions_roamed_out\":%d,"
@@ -197,8 +215,12 @@ void location_printlist(bstring s, char *loc, int json, int list) {
 #endif
 	int last_sent;
 
-	syslog(LOG_DEBUG, "location has %d sessions attached! ",(int)loc_search->total_sess_count);
-	syslog(LOG_DEBUG, "(last queried %d seconds ago)\n",(int)(act_mainclock-loc_search->last_queried));
+#if(_debug_)
+        if (_options.debug) {
+	  syslog(LOG_DEBUG, "location has %d sessions attached! ",(int)loc_search->total_sess_count);
+	  syslog(LOG_DEBUG, "(last queried %d seconds ago)\n",(int)(act_mainclock-loc_search->last_queried));
+        }
+#endif
 
 	bassignformat(tmp,json ?
 		      ",\"session_count\":%d,\"seconds_elapsed\":%d" :
@@ -263,11 +285,13 @@ void location_printlist(bstring s, char *loc, int json, int list) {
 	  } else last_sent=-1;
 
 	  if (list) {
-	    syslog(LOG_DEBUG, "mac: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X up: %d down: %d\n",
-                   appconn->hismac[0], appconn->hismac[1], appconn->hismac[2],
-                   appconn->hismac[3], appconn->hismac[4], appconn->hismac[5],
-                   bytes_up,bytes_down);
-
+#if(_debug_)
+            if (_options.debug)
+	      syslog(LOG_DEBUG, "mac: %.2X-%.2X-%.2X-%.2X-%.2X-%.2X up: %d down: %d\n",
+                     appconn->hismac[0], appconn->hismac[1], appconn->hismac[2],
+                     appconn->hismac[3], appconn->hismac[4], appconn->hismac[5],
+                     bytes_up,bytes_down);
+#endif
 	    bassignformat(tmp,json ?
 			  "{\"mac\":\"%.2X-%.2X-%.2X-%.2X-%.2X-%.2X\","
 			  "\"session_id\":\"%s\","
@@ -464,14 +488,20 @@ void location_printlist(bstring s, char *loc, int json, int list) {
           = loc_search->roamed_out_sess_count = 0;
 
     } else { /*query too short after the last*/
-      syslog(LOG_DEBUG, "last query less than 1 second ago!!\n");
+#if(_debug_)
+      if (_options.debug)
+        syslog(LOG_DEBUG, "last query less than 1 second ago!!\n");
+#endif
       bassignformat(tmp,json
 		    ? ",\"session_count\":-2"
 		    : "\n\tsession_count = -2");
       bconcat(s,tmp);
     }
   } else {
-    syslog(LOG_DEBUG, "location (%s) not found!", loc);
+#if(_debug_)
+    if (_options.debug)
+      syslog(LOG_DEBUG, "location (%s) not found!", loc);
+#endif
     bassignformat(tmp,json ?
 		  ",\"session_count\":-1"
 		  ",\"location_count\":%d" :
@@ -516,10 +546,13 @@ void location_init() {
   memset(&loc_search_tree, 0, sizeof(loc_search_tree));
   avl_init(&loc_search_tree, avl_comp, false, NULL);
   while (conn) {
-    syslog(LOG_DEBUG, "restoring location (%s) of conn %X-%X-%X-%X-%X-%X\n",
-           conn->s_state.location,
-           conn->hismac[0],conn->hismac[1],conn->hismac[2],
-           conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+#if(_debug_)
+    if (_options.debug)
+      syslog(LOG_DEBUG, "restoring location (%s) of conn %X-%X-%X-%X-%X-%X\n",
+             conn->s_state.location,
+             conn->hismac[0],conn->hismac[1],conn->hismac[2],
+             conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+#endif
     conn->loc_search_node = NULL;
     list_init_node(&conn->loc_sess);
     if (strlen(conn->s_state.location) > 0)

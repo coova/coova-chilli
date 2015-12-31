@@ -48,11 +48,17 @@ int http_parse_input(char *src, int len, int is_cookie) {
       /*bunescape(name);*/
 
       if ((eq_pos + 1) == end_pos || (end_pos - eq_pos) <= 1) {
-	syslog(LOG_DEBUG, "%s = nil", name->data);
+#if(_debug_)
+        if (_options.debug)
+	  syslog(LOG_DEBUG, "%s = nil", name->data);
+#endif
       } else {
         bassignblk(value, src+eq_pos+1, end_pos-eq_pos-1);
         /*bunescape(value);*/
-	syslog(LOG_DEBUG, "%s = %s", name->data, value->data);
+#if(_debug_)
+        if (_options.debug)
+	  syslog(LOG_DEBUG, "%s = %s", name->data, value->data);
+#endif
 	setenv((char *)name->data, (char *)value->data, 1);
       }
       start_pos = end_pos + 1;
@@ -147,12 +153,18 @@ static void json_walk(bstring prefix, struct json_object *obj) {
       case json_type_array:
         bassign(tmp, prefix);
         bcatcstr(tmp, key);
-        syslog(LOG_DEBUG, "a %s=%s", tmp->data, json_object_to_json_string(val));
+#if(_debug_)
+        if (_options.debug)
+          syslog(LOG_DEBUG, "a %s=%s", tmp->data, json_object_to_json_string(val));
+#endif
         break;
       default:
         bassign(tmp, prefix);
         bcatcstr(tmp, key);
-        syslog(LOG_DEBUG, "%s=%s", tmp->data, json_object_to_json_string(val));
+#if(_debug_)
+        if (_options.debug)
+          syslog(LOG_DEBUG, "%s=%s", tmp->data, json_object_to_json_string(val));
+#endif
         break;
     }
     bdestroy(tmp);
@@ -170,7 +182,10 @@ int ewtapi(struct redir_t *redir,
   bstring res = bfromcstr("");
   int i;
 
-  syslog(LOG_DEBUG, "EWT API Request");
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "EWT API Request");
+#endif
 
   redir_getparam(redir, httpreq->qs, "s", s);
   redir_getparam(redir, httpreq->qs, "res", res);
@@ -183,7 +198,10 @@ int ewtapi(struct redir_t *redir,
     struct json_object *obj = 0;
     bblk_fromfd(b, 0, httpreq->clen);
     if ((obj = json_tokener_parse((char *)b->data))) {
-      syslog(LOG_DEBUG, "obj.to_string()=%s", json_object_to_json_string(obj));
+#if(_debug_)
+      if (_options.debug)
+        syslog(LOG_DEBUG, "obj.to_string()=%s", json_object_to_json_string(obj));
+#endif
       json_object_object_foreach(obj, key, val) {
 	if (!strcmp(key, (char *)s->data)) {
 	  bstring tmp = bfromcstr("CAP_");
@@ -214,7 +232,10 @@ int ewtapi(struct redir_t *redir,
     bassigncstr(b, "");
     if (!strcmp(ewt_services[i].name, (char *)s->data)) {
       ewt_services[i].func(b);
-      syslog(LOG_DEBUG, "Internal EWT Service %s -> %s", ewt_services[i].name, b->data);
+#if(_debug_)
+      if (_options.debug)
+        syslog(LOG_DEBUG, "Internal EWT Service %s -> %s", ewt_services[i].name, b->data);
+#endif
       if (safe_write(1, b->data, b->slen) < 0) {
 	syslog(LOG_ERR, "%s: redir_write()", strerror(errno));
       }
@@ -226,7 +247,10 @@ int ewtapi(struct redir_t *redir,
   }
 
   setenv("EWTAPI", "1", 1);
-  syslog(LOG_DEBUG, "EWT API Running %s", *binqqargs);
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "EWT API Running %s", *binqqargs);
+#endif
 
   execv(*binqqargs, binqqargs);
   syslog(LOG_ERR, "%s: count not exec %s", strerror(errno), *binqqargs);

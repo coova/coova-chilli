@@ -42,7 +42,9 @@ openssl_env * initssl() {
       OpenSSL_add_all_algorithms();
 #else
       matrixSslOpen();
+#if(_debug_)
       syslog(LOG_DEBUG, "MatrixSslOpen()");
+#endif
 #endif
     }
     openssl_env_init(sslenv_svr = calloc(1, sizeof(openssl_env)), 0, 1);
@@ -62,7 +64,9 @@ openssl_env * initssl_cli() {
       OpenSSL_add_all_algorithms();
 #else
       matrixSslOpen();
+#if(_debug_)
       syslog(LOG_DEBUG, "MatrixSslOpen()");
+#endif
 #endif
     }
     openssl_env_init(sslenv_cli = calloc(1, sizeof(openssl_env)), 0, 0);
@@ -204,11 +208,13 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
     return err;
   }
 #else
+#if(_debug_)
   syslog(LOG_DEBUG, "MatrixSSL Setup:");
   syslog(LOG_DEBUG, "SSL cert: %s",_options.sslcertfile);
   syslog(LOG_DEBUG, "SSL key: %s",_options.sslkeyfile);
   syslog(LOG_DEBUG, "SSL pass: %s",_options.sslkeypass?_options.sslkeypass:"null");
   syslog(LOG_DEBUG, "SSL ca: %s",_options.sslcafile?_options.sslcafile:"null");
+#endif
   if ( matrixSslReadKeys( &env->keys,
 			  _options.sslcertfile,
 			  _options.sslkeyfile,
@@ -225,7 +231,9 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
 
 #ifdef HAVE_MATRIXSSL
 static int certValidator(sslCertInfo_t *t, void *arg) {
+#if(_debug_)
   syslog(LOG_DEBUG, "MatrixSSL: certValidator()");
+#endif
   return 1;
 }
 #endif
@@ -323,14 +331,17 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 	X509_NAME_oneline(X509_get_subject_name(peer_cert),subj,sizeof(subj));
 
 	if (SSL_get_verify_result(c->con) != X509_V_OK) {
+#if(_debug_)
 	  syslog(LOG_DEBUG, "auth_failed: %s", subj);
+#endif
 	  X509_free(peer_cert);
 	  return -1;
 	}
-
+#if(_debug_)
 	syslog(LOG_DEBUG, "auth_success: %s", subj);
+#endif
 	if (conn) conn->s_params.flags |= ADMIN_LOGIN;
-
+#if(_debug_)
 	if (_options.debug) {
 	  EVP_PKEY *pktmp = X509_get_pubkey(peer_cert);
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
@@ -349,10 +360,13 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 	  syslog(LOG_DEBUG, "  Issuer:   %s\n", b);
 	  EVP_PKEY_free(pktmp);
 	}
+#endif
 
 	X509_free(peer_cert);
       } else {
+#if(_debug_)
 	syslog(LOG_DEBUG, "no SSL certificate");
+#endif
       }
 #endif
     }
@@ -532,9 +546,9 @@ openssl_read(openssl_con *con, char *b, int l, int t) {
 repeat_read:
 
   rbytes = SSL_read(con->con, b, l);
-
+#if(_debug_)
   syslog(LOG_DEBUG, "--- SSL_read() = %d", rbytes);
-
+#endif
   if (rbytes <= 0) {
     err = openssl_error(con, rbytes, "openssl_read");
   }
