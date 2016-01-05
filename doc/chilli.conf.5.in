@@ -23,18 +23,18 @@ line or in a configuration file. When on the command line, options are
 prefixed with two dashes and may or may not have an equal sign, for
 instance, these are equivalent:
 
-.I chilli --uamallowed www.coova.org --uamanydns
+.I chilli --uamallowed www.example.com --uamanydns
 
-.I chilli --uamallowed="www.coova.org" --uamanydns
+.I chilli --uamallowed="www.example.com" --uamanydns
 
 Options that do not have arguments behave the same way, just without any
 equal sign or second argument. When in the configuration file, options must
 not have any dashes, but can still be used with or without the equal sign,
 as in:
 
-.I uamallowed "www.coova.org"
+.I uamallowed "www.example.com"
 
-.I uamallowed=www.coova.org
+.I uamallowed=www.example.com
 
 .I uamanydns
 
@@ -649,7 +649,7 @@ authenticating. Each entry in the list can be a domain names, IP addresses,
 or network segment. Example:
 
 .RS
-.BI uamallowed " www.spotcove.net,10.11.12.0/24"
+.BI uamallowed " www.example.com,10.11.12.0/24"
 
 Where each entry can be made more specific by specifying a protocol and port
 in the format 
@@ -666,7 +666,7 @@ is just as above (a domain, IP, or network), and
 .I port 
 is a port number. Example:
 
-.BI uamallowed " coova.org:80,icmp:coova.org"
+.BI uamallowed " www.example.com:80,icmp:www.example.com"
 
 Adding to your walled garden is useful for allowing access to a credit card payment gateways, 
 community website, or other publicly available resources.
