@@ -83,7 +83,7 @@ net		$HS_NETWORK/$HS_NETMASK
 uamlisten	$HS_UAMLISTEN
 uamport         $HS_UAMPORT
 dhcpif		$HS_LANIF
-uamallowed	"${$HS_UAMSERVER}$webadmin$uamallow"
+uamallowed	"$HS_UAMSERVER$webadmin$uamallow"
 uamanydns
 $(cat $configs1)
 $HS_RAW_CONFIG1
