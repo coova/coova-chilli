@@ -325,7 +325,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock);
 int chilli_handle_signal(void *ctx, int fd);
 void chilli_freeconn();
 
-int runscript(struct app_conn_t *appconn, char* script,
+int runscript(struct app_conn_t *appconn, char* script, char *event,
 	      char *loc, char *oloc);
 
 /* utils.c */
