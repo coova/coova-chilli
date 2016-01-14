@@ -772,7 +772,7 @@ void set_env(char *name, char type, void *value, int len) {
   }
 }
 
-int runscript(struct app_conn_t *appconn, char* script,
+int runscript(struct app_conn_t *appconn, char* script, char *event,
 	      char *loc, char *oloc) {
   int status;
   uint32_t sessiontime;
@@ -842,7 +842,7 @@ int runscript(struct app_conn_t *appconn, char* script,
 #else
           script,
 #endif
-          script, (char *) 0) != 0) {
+          script, event, (char *) 0) != 0) {
     syslog(LOG_ERR, "%s: exec %s failed", strerror(errno), script);
   }
 
@@ -2352,7 +2352,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
     if (_options.conup && !(appconn->s_params.flags & NO_SCRIPT)) {
  if (_options.debug)
      syslog(LOG_DEBUG, "Calling connection up script: %s\n", _options.conup);
-      runscript(appconn, _options.conup, 0, 0);
+      runscript(appconn, _options.conup, "conup", 0, 0);
     }
   }
 
@@ -2952,7 +2952,7 @@ chilli_learn_location(uint8_t *loc, int loclen,
 #endif
 
       if (_options.locationupdate) {
-	runscript(appconn, _options.locationupdate,
+	runscript(appconn, _options.locationupdate, "location",
 		  loc_buff, prev_loc_buff);
       }
 
@@ -3844,7 +3844,7 @@ session_disconnect(struct app_conn_t *appconn,
 
   if (_options.macdown) {
     syslog(LOG_DEBUG, "Calling MAC down script: %s",_options.macdown);
-    runscript(appconn, _options.macdown, 0, 0);
+    runscript(appconn, _options.macdown, "macdown", 0, 0);
   }
 
   if (!dhcpconn || !dhcpconn->is_reserved) {
@@ -5207,7 +5207,7 @@ int cb_dhcp_connect(struct dhcp_conn_t *conn) {
   if (_options.macup) {
     if (_options.debug)
       syslog(LOG_DEBUG, "Calling MAC up script: %s",_options.macup);
-    runscript(appconn, _options.macup, 0, 0);
+    runscript(appconn, _options.macup, "macup", 0, 0);
   }
 
   return 0;
@@ -5560,7 +5560,7 @@ int terminate_appconn(struct app_conn_t *appconn, int terminate_cause) {
     if (_options.condown && !(appconn->s_params.flags & NO_SCRIPT)) {
       if (_options.debug)
         syslog(LOG_DEBUG, "Calling connection down script: %s\n",_options.condown);
-      runscript(appconn, _options.condown, 0, 0);
+      runscript(appconn, _options.condown, "condown", 0, 0);
     }
 
     acct_req(ACCT_USER, appconn, RADIUS_STATUS_TYPE_STOP);
@@ -7412,7 +7412,7 @@ int chilli_main(int argc, char **argv) {
     tun_set_cb_ind(tun, cb_tun_ind);
 
     if (_options.ipup)
-      tun_runscript(tun, _options.ipup, 0);
+      tun_runscript(tun, _options.ipup, "ipup", 0);
 
     /* Allocate ippool for dynamic IP address allocation */
     if (ippool_new(&ippool,
@@ -7812,7 +7812,7 @@ int chilli_main(int argc, char **argv) {
     child_killall(SIGTERM);
 
     if (_options.ipdown)
-      tun_runscript(tun, _options.ipdown, 1);
+      tun_runscript(tun, _options.ipdown, "ipdown", 1);
 
     if (redir)
       redir_free(redir);

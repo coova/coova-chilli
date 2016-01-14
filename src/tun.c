@@ -1121,7 +1121,7 @@ int tun_encaps(struct tun_t *tun, uint8_t *pack, size_t len, int idx) {
   return result;
 }
 
-int tun_runscript(struct tun_t *tun, char* script, int wait) {
+int tun_runscript(struct tun_t *tun, char* script, char *event, int wait) {
   struct in_addr net;
   pid_t pid;
   char b[56];
@@ -1195,7 +1195,7 @@ int tun_runscript(struct tun_t *tun, char* script, int wait) {
 #else
           script,
 #endif
-          script, tuntap(tun).devname, (char *) 0) != 0) {
+          script, event, tuntap(tun).devname, (char *) 0) != 0) {
 
     syslog(LOG_ERR, "%s: execl(%s) did not return 0!", strerror(errno), script);
     exit(0);

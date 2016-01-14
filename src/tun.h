@@ -89,7 +89,7 @@ int tun_set_cb_ind(struct tun_t *this, int (*cb_ind) (struct tun_t *tun, struct 
 
 int tun_setaddr(struct tun_t *this, struct in_addr *addr, struct in_addr *dstaddr, struct in_addr *netmask);
 
-int tun_runscript(struct tun_t *tun, char* script, int wait);
+int tun_runscript(struct tun_t *tun, char* script, char* event, int wait);
 
 #ifdef ENABLE_MULTIROUTE
 net_interface *tun_nextif(struct tun_t *tun);
