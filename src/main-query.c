@@ -71,6 +71,9 @@ static cmd_info commands[] = {
   { CMDSOCK_LISTLOC,       "listloc",       NULL },
   { CMDSOCK_LISTLOCSUM,    "listlocsum",    NULL },
 #endif
+#ifdef ENABLE_SESSDNS
+  { CMDSOCK_SESSDNS_SET,   "sessiondns", NULL },
+#endif
   { 0, NULL, NULL }
 };
 
@@ -99,7 +102,7 @@ static struct cmd_arguments args[] = {
     CMDSOCK_FIELD_IPV4,
     sizeof(request.ip),
     &request.ip,
-    "IP address of session to perform action on", 0, 0 },
+    "IPv4 address of session to perform action on", 0, 0 },
   { "mac",
     CMDSOCK_FIELD_MAC,
     sizeof(request.mac),
@@ -198,6 +201,18 @@ static struct cmd_arguments args[] = {
     CMDSOCK_FIELD_NONE, 0, 0,
     "No accounting flag",
     &request.d.sess.params.flags, NO_ACCOUNTING },
+#ifdef ENABLE_SESSDNS
+  { "dns1",
+    CMDSOCK_FIELD_IPV4,
+    sizeof(request.d.sess.params.dns1),
+    &request.d.sess.params.dns1,
+    "IPv4 of the DNS server", 0, 0 },
+  { "dns2",
+    CMDSOCK_FIELD_IPV4,
+    sizeof(request.d.sess.params.dns2),
+    &request.d.sess.params.dns2,
+    "IPv4 of the backup DNS server", 0, 0 },
+#endif
   { "data",
     CMDSOCK_FIELD_STRING,
     sizeof(request.d.data),
@@ -494,6 +509,9 @@ int main(int argc, char **argv) {
         case CMDSOCK_AUTHORIZE:
         case CMDSOCK_ADD_GARDEN:
         case CMDSOCK_REM_GARDEN:
+#ifdef ENABLE_SESSDNS
+        case CMDSOCK_SESSDNS_SET:
+#endif
           argidx = process_args(argc, argv, argidx);
           if (request.type != CMDSOCK_LOGOUT || argidx >= argc)
             break;

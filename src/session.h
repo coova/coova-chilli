@@ -61,6 +61,7 @@ struct session_params {
 
 #ifdef ENABLE_SESSDNS
   struct in_addr dns1;
+  struct in_addr dns2;
 #endif
 
 #ifdef ENABLE_SESSGARDEN

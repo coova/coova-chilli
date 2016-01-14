@@ -55,6 +55,9 @@ typedef enum {
   CMDSOCK_LISTLOC,
   CMDSOCK_LISTLOCSUM,
 #endif
+#ifdef ENABLE_SESSDNS
+  CMDSOCK_SESSDNS_SET,
+#endif
 } chilli_cmdtype;
 #define  CMDSOCK_OPT_JSON      (1)
 

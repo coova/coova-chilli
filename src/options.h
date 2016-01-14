@@ -189,6 +189,9 @@ struct options_t {
 #endif
 
   /* booleans */
+#ifdef ENABLE_SESSDNS
+  uint8_t dns_per_session:1;        /* Enable Force DNS per session */
+#endif
   uint8_t layer3;                   /* Layer3 only support */
   uint8_t allowdyn:1;               /* Allow dynamic address allocation */
   uint8_t allowstat:1;              /* Allow static address allocation */

@@ -2320,6 +2320,34 @@ int dhcp_dnsDNAT(struct dhcp_conn_t *conn,
       iph->protocol == PKT_IP_PROTO_UDP &&
       udph->dst == htons(DHCP_DNS)) {
 
+#ifdef ENABLE_SESSDNS
+    if (_options.dns_per_session) {
+      struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+      if (appconn) {
+        /* If force DNS1 is set */
+        if (appconn->s_params.dns1.s_addr && (iph->daddr == conn->dns1.s_addr)) {
+          conn->dnatdns = iph->daddr;
+          iph->daddr = appconn->s_params.dns1.s_addr;
+          *do_checksum = 1;
+#if(_debug_)
+          if (_options.debug) syslog(LOG_DEBUG, "DNAT DNS1 -> dns[%s]", inet_ntoa(appconn->s_params.dns1));
+#endif
+        }
+
+         /* If force DNS2 is set */
+        if (appconn->s_params.dns2.s_addr && (iph->daddr == conn->dns2.s_addr)) {
+          conn->dnatdns2 = iph->daddr;
+          iph->daddr = appconn->s_params.dns2.s_addr;
+          *do_checksum = 1;
+#if(_debug_)
+          if (_options.debug) syslog(LOG_DEBUG, "DNAT DNS2 -> dns[%s]", inet_ntoa(appconn->s_params.dns2));
+#endif
+        }
+      }
+    }
+    else
+#endif
+
 #ifdef ENABLE_FORCEDNS
     if (_options.forcedns1_addr.s_addr) {
 
@@ -2387,6 +2415,32 @@ int dhcp_dnsunDNAT(struct dhcp_conn_t *conn,
   struct pkt_udphdr_t *udph = pkt_udphdr(pack);
 
   if (iph->protocol == PKT_IP_PROTO_UDP) {
+
+#ifdef ENABLE_SESSDNS
+    if (_options.dns_per_session) {
+      struct app_conn_t *appconn = (struct app_conn_t *)conn->peer;
+      if (appconn) {
+        /* If force DNS1 is set */
+        if ((appconn->s_params.dns1.s_addr == iph->saddr) && (udph->src == htons(DHCP_DNS))) {
+          iph->saddr = conn->dnatdns;
+          *do_checksum = 1;
+#if(_debug_)
+          if (_options.debug) syslog(LOG_DEBUG, "UNDO DNAT DNS1 <- dns[%s]", inet_ntoa(appconn->s_params.dns1));
+#endif
+        }
+
+         /* If force DNS2 is set */
+        if ((appconn->s_params.dns2.s_addr == iph->saddr) && (udph->src == htons(DHCP_DNS))) {
+          iph->saddr = conn->dnatdns2;
+          *do_checksum = 1;
+#if(_debug_)
+          if (_options.debug) syslog(LOG_DEBUG, "UNDO DNAT DNS2 <- dns[%s]", inet_ntoa(appconn->s_params.dns2));
+#endif
+        }
+      }
+    }
+    else
+#endif
 
 #ifdef ENABLE_FORCEDNS
     if (_options.forcedns1_addr.s_addr) {
