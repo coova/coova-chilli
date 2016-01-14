@@ -112,8 +112,10 @@ static int opt_run(int argc, char **argv, int reload) {
   int i;
 
   chilli_binconfig(file, sizeof(file), 0);
-
-  syslog(LOG_DEBUG, "(Re)processing options [%s]", file);
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "(Re)processing options [%s]", file);
+#endif
 
   if ((status = fork()) < 0) {
     syslog(LOG_ERR, "%s: fork() returned -1!", strerror(errno));
@@ -136,9 +138,10 @@ static int opt_run(int argc, char **argv, int reload) {
   newargs[i++] = "-b";
   newargs[i++] = file;
   newargs[i++] = reload ? "-r" : NULL;
-
-  syslog(LOG_DEBUG, "running chilli_opt on %s", file);
-
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "running chilli_opt on %s", file);
+#endif
   if (execv(SBINDIR "/chilli_opt", newargs) != 0) {
     syslog(LOG_ERR, "%s: execl() did not return 0!", strerror(errno));
     exit(0);
@@ -188,8 +191,10 @@ int options_load(int argc, char **argv, bstring bt) {
 
   if (fd < 0) return 0;
   done_before = 1;
-
-  syslog(LOG_DEBUG, "PID %d rereading binary file %s", getpid(), file);
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "PID %d rereading binary file %s", getpid(), file);
+#endif
   return options_fromfd(fd, bt);
 }
 
@@ -405,7 +410,10 @@ int options_fromfd(int fd, bstring bt) {
       if (m->destroy)
 	m->destroy(isReload[i]);
     }
-    syslog(LOG_DEBUG, "Unloading module %s",_options.modules[i].name);
+#if(_debug_)
+    if (_options.debug)
+      syslog(LOG_DEBUG, "Unloading module %s",_options.modules[i].name);
+#endif
     chilli_module_unload(_options.modules[i].ctx);
   }
 #endif
@@ -415,10 +423,16 @@ int options_fromfd(int fd, bstring bt) {
   _options._data = (char *)bt->data;
 
 #ifdef ENABLE_MODULES
-  syslog(LOG_DEBUG, "Loading modules");
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Loading modules");
+#endif
   for (i=0; i < MAX_MODULES; i++) {
     if (!_options.modules[i].name[0]) break;
-    syslog(LOG_DEBUG, "Loading module %s",_options.modules[i].name);
+#if(_debug_)
+    if (_options.debug)
+      syslog(LOG_DEBUG, "Loading module %s",_options.modules[i].name);
+#endif
     chilli_module_load(&_options.modules[i].ctx,
 		       _options.modules[i].name);
     if (_options.modules[i].ctx) {
@@ -446,9 +460,10 @@ int options_save(char *file, bstring bt) {
   struct options_t o;
   mode_t oldmask;
   int fd, i;
-
-  syslog(LOG_DEBUG, "PID %d saving options to %s", getpid(), file);
-
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "PID %d saving options to %s", getpid(), file);
+#endif
   memcpy(&o, &_options, sizeof(o));
 
 #ifdef ENABLE_CHILLIREDIR
@@ -622,7 +637,10 @@ int options_binload(char *file) {
   int ok = 0;
   if (fd >= 0) {
     bstring bt = bfromcstr("");
-    syslog(LOG_DEBUG, "PID %d loading binary options file %s", getpid(), file);
+#if(_debug_)
+    if (_options.debug)
+      syslog(LOG_DEBUG, "PID %d loading binary options file %s", getpid(), file);
+#endif
     ok = options_fromfd(fd, bt);
     bdestroy(bt);
     return ok;
@@ -661,7 +679,10 @@ void reprocess_options(int argc, char **argv) {
 int reload_options(int argc, char **argv) {
   bstring bt = bfromcstr("");
   int ok = options_load(argc, argv, bt);
-  syslog(LOG_DEBUG, "PID %d reloaded binary options file", getpid());
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "PID %d reloaded binary options file", getpid());
+#endif
   bdestroy(bt);
   return ok;
 }
@@ -685,14 +706,20 @@ void options_cleanup() {
       if (m->destroy)
 	m->destroy(0);
     }
-    syslog(LOG_DEBUG, "Unloading module %s",_options.modules[i].name);
+#if(_debug_)
+    if (_options.debug)
+      syslog(LOG_DEBUG, "Unloading module %s",_options.modules[i].name);
+#endif
     chilli_module_unload(_options.modules[i].ctx);
   }
 #endif
 
   chilli_binconfig(file, sizeof(file), getpid());
-  syslog(LOG_DEBUG, "Removing %s", file);
-  if (remove(file)) syslog(LOG_DEBUG, "remove(%s) failed", file);
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Removing %s", file);
+#endif
+  if (remove(file)) syslog(LOG_ERR, "remove(%s) failed", file);
   options_destroy();
 }
 

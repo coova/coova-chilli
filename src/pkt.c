@@ -26,7 +26,8 @@ int pkt_shape_tcpwin(struct pkt_iphdr_t *iph, uint16_t win) {
     /*log_dbg("TCP Window %d", ntohs(tcph->win));*/
     if (ntohs(tcph->win) > win) {
 #if(_debug_ > 1)
-      syslog(LOG_DEBUG, "Rewriting TCP Window %d", win);
+      if (_options.debug)
+        syslog(LOG_DEBUG, "Rewriting TCP Window %d", win);
 #endif
       tcph->win = htons(win);
       chksum(iph);
@@ -79,22 +80,27 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
               return -1;
             }
             if (type == 2 && len == 4) {
-#if(1)
-              syslog(LOG_DEBUG, "TCP OPTIONS: MSS %d",
-                     ntohs(*((uint16_t *)&opts[i])));
+#if(_debug_)
+              if (_options.debug)
+                syslog(LOG_DEBUG, "TCP OPTIONS: MSS %d",
+                       ntohs(*((uint16_t *)&opts[i])));
 #endif
               if (ntohs(*((uint16_t *)&opts[i])) > optval) {
-
-                syslog(LOG_DEBUG, "Rewriting TCP MSS to %d", optval);
-
+#if(_debug_)
+                if (_options.debug)
+                  syslog(LOG_DEBUG, "Rewriting TCP MSS to %d", optval);
+#endif
                 *((uint16_t *)&opts[i]) = htons(optval);
                 chksum(iph);
               }
               hasmss = 1;
 #ifdef ENABLE_LEAKYBUCKET
             } else if (_options.scalewin && type == 3 && len == 3) {
-              syslog(LOG_DEBUG, "TCP OPTIONS: window scale was %d",
-                     (int) opts[i]);
+#if(_debug_)
+              if (_options.debug)
+                syslog(LOG_DEBUG, "TCP OPTIONS: window scale was %d",
+                       (int) opts[i]);
+#endif
               if (opts[i] > 0) {
                 opts[i]=0;
                 chksum(iph);
@@ -114,9 +120,10 @@ int pkt_shape_tcpmss(uint8_t *packet, size_t *length) {
     if (!hasmss && *length < 1400 && tcphdr_syn(tcph)) {
       uint8_t p[PKT_BUFFER];
       memcpy(p, packet, *length);
-
-      syslog(LOG_DEBUG, "Adding TCP MSS to %d", optval);
-
+#if(_debug_)
+      if (_options.debug)
+        syslog(LOG_DEBUG, "Adding TCP MSS to %d", optval);
+#endif
       {
 	struct pkt_iphdr_t *p_iph = pkt_iphdr(p);
 	struct pkt_tcphdr_t *p_tcph = pkt_tcphdr(p);

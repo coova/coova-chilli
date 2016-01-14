@@ -226,9 +226,11 @@ int garden_patricia_add(pass_through *pt, patricia_tree_t *ptree) {
       int i;
       for (i=0; i < nd->ptcnt; i++) {
 	if (pt_equal(&nd->ptlist[i], pt)) {
+#if(_debug_)
           if (_options.debug)
             syslog(LOG_DEBUG, "(Patricia)Uamallowed already exists #%d:%d: proto=%d host=%s port=%d",
                    i, nd->ptcnt, pt->proto, inet_ntoa(pt->host), pt->port);
+#endif
 	  break;
 	}
       }
@@ -273,11 +275,13 @@ int garden_patricia_rem(pass_through *pt, patricia_tree_t *ptree) {
 
       for (i=0; i < nd->ptcnt; i++) {
 	if (pt_equal(&nd->ptlist[i], pt)) {
+#if(_debug_)
           if (_options.debug) {
             syslog(LOG_DEBUG, "(Patricia)Uamallowed removing #%d:%d: proto=%d host=%s port=%d",
                    i, nd->ptcnt, pt->proto, inet_ntoa(pt->host), pt->port);
             syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, nd->ptcnt);
           }
+#endif
 
 	  for (; i < nd->ptcnt-1; i++)
 	    memcpy(&nd->ptlist[i], &nd->ptlist[i+1], sizeof(pass_through));
@@ -379,11 +383,13 @@ int pass_through_rem(pass_through *ptlist, uint32_t *ptcnt,
 
   for (i=0; i < cnt; i++) {
     if (pt_equal(&ptlist[i], pt)) {
+#if(_debug_)
       if (_options.debug) {
         syslog(LOG_DEBUG, "Uamallowed removing #%d: proto=%d host=%s port=%d",
                i, pt->proto, inet_ntoa(pt->host), pt->port);
         syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, cnt);
       }
+#endif
       for (; i < cnt-1; i++)
 	memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
       *ptcnt = *ptcnt - 1;
@@ -411,12 +417,16 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
 
   for (i=0; i < cnt; i++) {
     if (pt_equal(&ptlist[i], pt)) {
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "Uamallowed already exists #%d:%d: proto=%d host=%s port=%d",
                i, ptlen, pt->proto, inet_ntoa(pt->host), pt->port);
+#endif
       if (is_dyn) {
+#if(_debug_)
         if (_options.debug)
           syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, cnt);
+#endif
 	for (; i<cnt-1; i++)
 	  memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
 	cnt = *ptcnt = *ptcnt - 1;
@@ -429,23 +439,26 @@ int pass_through_add(pass_through *ptlist, uint32_t ptlen,
 
   if (cnt == ptlen) {
     if (!is_dyn) {
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "No more room for walled garden entries");
+#endif
       return -1;
     }
-
+#if(_debug_)
     if (_options.debug)
       syslog(LOG_DEBUG, "Shifting uamallowed list %d to %d", i, ptlen);
+#endif
     for (i=0; i<ptlen-1; i++)
       memcpy(&ptlist[i], &ptlist[i+1], sizeof(pass_through));
 
     cnt = *ptcnt = *ptcnt - 1;
   }
-
+#if(_debug_)
   if (_options.debug)
     syslog(LOG_DEBUG, "Uamallowed IP address #%d:%d: proto=%d host=%s port=%d",
            cnt, ptlen, pt->proto, inet_ntoa(pt->host), pt->port);
-
+#endif
   memcpy(&ptlist[cnt], pt, sizeof(pass_through));
   *ptcnt = cnt + 1;
 
@@ -480,10 +493,10 @@ int pass_throughs_from_string(pass_through *ptlist, uint32_t ptlen,
 
   strcpy(p3, s);
   p1 = p3;
-
+#if(_debug_)
   if (_options.debug)
     syslog(LOG_DEBUG, "Uamallowed [%s]", s);
-
+#endif
   for ( ; p1; p1 = p2) {
 
     /* save the next entry position */
@@ -699,9 +712,10 @@ void garden_load_domainfile() {
 	  uam_re->neg = 1;
 	  pline++;
 	}
-
+#if(_debug_)
         if (_options.debug)
           syslog(LOG_DEBUG, "compiling %s", pline);
+#endif
 	if (regcomp(&uam_re->re, pline, REG_EXTENDED | REG_NOSUB)) {
 	  syslog(LOG_ERR, "could not compile regex %s", line);
 	  free(uam_re);

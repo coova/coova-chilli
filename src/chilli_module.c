@@ -55,8 +55,10 @@ int chilli_module_load(void **ctx, char *name) {
 
   m = (struct chilli_module *) sym;
   m->lib = lib_handle;
-
-  syslog(LOG_DEBUG, "Loaded module %s", name);
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "Loaded module %s", name);
+#endif
 
   *ctx = m;
 

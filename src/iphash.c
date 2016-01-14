@@ -148,7 +148,10 @@ int iphash_add(struct iphash_t *this, struct iphashm_t **member, struct in_addr 
   struct iphashm_t *p = NULL;
   /*uint32_t hash;*/
 
-  syslog(LOG_DEBUG, "IPHASH IP: %s %d", inet_ntoa(*addr), ntohs(port));
+#if(_debug_)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "IPHASH IP: %s %d", inet_ntoa(*addr), ntohs(port));
+#endif
 
   p = this->first;
 

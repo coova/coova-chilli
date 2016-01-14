@@ -110,7 +110,8 @@ void conn_finish(struct conn_t *conn) {
 
 int conn_update_write(struct conn_t *conn) {
 #if(_debug_)
-  syslog(LOG_DEBUG, "socket writeable!");
+  if (_options.debug)
+    syslog(LOG_DEBUG, "socket writeable!");
 #endif
 
   if (conn->write_pos == 0) {

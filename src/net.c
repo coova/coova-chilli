@@ -220,8 +220,10 @@ int net_open(net_interface *netif) {
     struct in_addr noaddr;
     net_sflags(netif, netif->devflags | IFF_NOARP);
     memset(&noaddr, 0, sizeof(noaddr));
+#if(_debug_)
     if (_options.debug)
       syslog(LOG_DEBUG, "removing ip address from %s", netif->devname);
+#endif
     dev_set_address(netif->devname, &noaddr, NULL, NULL);
   }
 
@@ -243,10 +245,10 @@ int net_reopen(net_interface *netif) {
   int previous_fd = netif->fd;
   int option;
   socklen_t len;
-
+#if(_debug_)
   if (_options.debug)
     syslog(LOG_DEBUG, "net_reopen(%s)", netif->devname);
-
+#endif
   net_open(netif);
 
   option = (int)(default_sndbuf * 1.1);
@@ -257,14 +259,16 @@ int net_reopen(net_interface *netif) {
 
   len = sizeof(default_sndbuf);
   getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
+#if(_debug_)
   if (_options.debug)
     syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
-
+#endif
   len = sizeof(default_sndbuf);
   getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
+#if(_debug_)
   if (_options.debug)
     syslog(LOG_DEBUG, "Net RCVBUF %d", default_rcvbuf);
-
+#endif
   if (netif->sctx)
     net_select_rereg(netif->sctx, previous_fd, netif->fd);
 
@@ -421,8 +425,10 @@ int net_select_reg(select_ctx *sctx, int fd, char evts,
   if (fd > sctx->maxfd) sctx->maxfd = fd;
 #endif
   sctx->count++;
+#if(_debug_)
   if (_options.debug)
     syslog(LOG_DEBUG, "net select count: %d", sctx->count);
+#endif
   return 0;
 }
 
@@ -458,8 +464,10 @@ int net_select_rmfd(select_ctx *sctx, int fd) {
   struct epoll_event event;
   memset(&event, 0, sizeof(event));
   event.data.fd = fd;
+#if(_debug_)
   if (_options.debug)
     syslog(LOG_DEBUG, "epoll rm %d", fd);
+#endif
   /*
    */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_DEL, fd, &event))
@@ -476,8 +484,10 @@ int net_select_addfd(select_ctx *sctx, int fd, int evts) {
   event.data.fd = fd;
   if (evts & SELECT_READ) event.events |= EPOLLIN;
   if (evts & SELECT_WRITE) event.events |= EPOLLOUT;
+#if(_debug_)
   if (_options.debug)
     syslog(LOG_DEBUG, "epoll add %d (%d)", fd, sctx->efd);
+#endif
   /*
    */
   if (epoll_ctl(sctx->efd, EPOLL_CTL_ADD, fd, &event))
@@ -827,8 +837,10 @@ net_read_eth(net_interface *netif, void *d, size_t dlen) {
       } else {
 
         if (len == 0) {
+#if(_debug_)
           if (_options.debug)
             syslog(LOG_DEBUG, "read zero, enable ieee8021q?");
+#endif
         }
 
         if (len > dlen) {
@@ -1094,10 +1106,10 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
 int net_open_nfqueue(net_interface *netif, u_int16_t q, int (*cb)()) {
 #ifdef HAVE_NETFILTER_QUEUE
   netif->h = nfq_open();
-
+#if(_debug_)
   if (_options.debug)
     syslog(LOG_DEBUG, "netif nfqueue %d", (int)q);
-
+#endif
   if (!netif->h) {
     syslog(LOG_ERR, "%s: nfq_open() failed", strerror(errno));
     return -1;
@@ -1289,12 +1301,16 @@ int net_open_eth(net_interface *netif) {
       socklen_t len;
       len = sizeof(default_sndbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_SNDBUF, &default_sndbuf, &len);
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "Net SNDBUF %d", default_sndbuf);
+#endif
       len = sizeof(default_sndbuf);
       getsockopt(netif->fd, SOL_SOCKET, SO_RCVBUF, &default_rcvbuf, &len);
+#if(_debug_)
       if (_options.debug)
         syslog(LOG_DEBUG, "Net RCVBUF %d", default_rcvbuf);
+#endif
     }
 #ifdef USING_MMAP
   }
@@ -1348,10 +1364,10 @@ int net_open_eth(net_interface *netif) {
     syslog(LOG_ERR, "%s: ioctl(SIOCFIGINDEX) failed", strerror(errno));
   }
   netif->ifindex = ifr.ifr_ifindex;
-
+#if(_debug_)
   if (_options.debug)
     syslog(LOG_DEBUG, "device %s ifindex %d", netif->devname, netif->ifindex);
-
+#endif
 #ifdef ENABLE_IPV6
   {
     struct ifaddrs *ifaddr, *ifa;
@@ -1361,14 +1377,14 @@ int net_open_eth(net_interface *netif) {
       for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
 	if (!ifa->ifa_addr) continue;
 	family = ifa->ifa_addr->sa_family;
-
+#if(_debug_)
         if (_options.debug)
           syslog(LOG_DEBUG, "%s  address family: %d%s",
                  ifa->ifa_name, family,
                  (family == AF_PACKET) ? " (AF_PACKET)" :
                  (family == AF_INET) ?   " (AF_INET)" :
                  (family == AF_INET6) ?  " (AF_INET6)" : "");
-
+#endif
 	if (/*family == AF_INET || */family == AF_INET6 &&
 	    !strcmp(netif->devname, ifa->ifa_name)) {
 	  struct sockaddr_in6 *in6 = (struct sockaddr_in6 *)ifa->ifa_addr;
@@ -1380,11 +1396,15 @@ int net_open_eth(net_interface *netif) {
 			  sizeof(struct sockaddr_in6),
 			  host, NI_MAXHOST, NULL, 0, NI_NUMERICHOST);
 	  if (s != 0) {
+#if(_debug_)
             if (_options.debug)
               syslog(LOG_DEBUG, "getnameinfo() failed: %s\n", strerror(s));
+#endif
 	  } else {
+#if(_debug_)
             if (_options.debug)
               syslog(LOG_DEBUG, "address: <%s>\n", host);
+#endif
 	  }
 	}
       }
@@ -1666,10 +1686,10 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
      * the request
      tv.tv_sec = h->tp_sec;
      tv.tv_nsec = h->tp_nsec;*/
-
+#if(_debug_)
     if (_options.debug > 100)
       syslog(LOG_DEBUG, "RX len=%d spanlen=%d (idx %d)", h->tp_len, h->tp_snaplen, iface->ifindex);
-
+#endif
     pkt_buffer_init(&pb, (uint8_t *)data, h->tp_snaplen, h->tp_mac);
     pb.length = h->tp_len;
 
@@ -1691,9 +1711,10 @@ static int rx_ring(net_interface *iface, net_handler func, void *ctx) {
     len = sizeof(stats);
     if (!getsockopt(iface->fd, SOL_PACKET, PACKET_STATISTICS, &stats, &len))
       iface->stats.dropped += stats.tp_drops;
-
+#if(_debug_)
     if (_options.logfacility > 100)
       syslog(LOG_DEBUG, "RX drops %d", iface->stats.dropped);
+#endif
   }
 
   ++iface->stats.rx_runs;
@@ -1752,10 +1773,10 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
   ++iface->stats.tx_cnt;
 
   h->tp_status = TP_STATUS_SEND_REQUEST;
-
+#if(_debug_)
   if (_options.debug > 100)
     syslog(LOG_DEBUG, "TX sent=%d (idx %d)", length, iface->ifindex);
-
+#endif
   if (!iface->is_active) {
     iface->is_active = 1;
   }
@@ -1775,11 +1796,11 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   ring = what == PACKET_RX_RING ? &iface->rx_ring : &iface->tx_ring;
 
   page_size = sysconf(_SC_PAGESIZE);
-
+#if(_debug_)
   if (_options.debug)
     syslog(LOG_DEBUG, "Creating %s ring: ring_size=%d; page_size=%d; mtu=%d",
            name, ring_size, page_size, mtu);
-
+#endif
   /* For RX, the frame looks like:
    * - struct tpacket2_hdr
    * - padding to 16-byte boundary (this is included in iface->tp_hdrlen)
