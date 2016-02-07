@@ -1232,10 +1232,13 @@ static int checkconn() {
 
 void chilli_freeconn() {
   struct app_conn_t *conn, *c;
+  struct dhcp_conn_t *d = NULL;
 
   for (conn = firstusedconn; conn; ) {
     c = conn;
     conn = conn->next;
+    d = (struct dhcp_conn_t *)c->dnlink;
+    if (d) d->peer = NULL;
     free(c);
   }
 
