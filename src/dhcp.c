@@ -1582,7 +1582,8 @@ size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
     /* tcp */
     tcp_pack_tcph->src = orig_pack_tcph->dst;
     tcp_pack_tcph->dst = orig_pack_tcph->src;
-    tcp_pack_tcph->seq = htonl(ntohl(orig_pack_tcph->seq)+1);
+    tcp_pack_tcph->seq = orig_pack_tcph->ack;
+    tcp_pack_tcph->ack = 0;
   }
 
   tcp_pack_iph->tot_len = htons(PKT_IP_HLEN + PKT_TCP_HLEN);
