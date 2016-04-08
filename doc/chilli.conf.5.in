@@ -934,6 +934,10 @@ Defines the location of the PEM formatted certificate file.
 Defines the location of the PEM formatted CA certificate file.
 
 .TP
+.BI sslciphers " ciphers"
+Defines the ciphers that will be used.
+
+.TP
 .B redirssl
 When set, HTTPS requests by unauthorized clients get hijacked instead of dropped.
 Requires at least
