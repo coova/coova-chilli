@@ -49,7 +49,7 @@ kmod(char cmd, struct in_addr *addr) {
 int
 kmod_coova_update(struct app_conn_t *appconn) {
   return kmod(appconn->s_state.authenticated ? '+' : '-',
-	      &appconn->hisip);
+     &appconn->hisip);
 }
 
 int
@@ -94,37 +94,65 @@ kmod_coova_sync() {
     }
 
     if (sscanf(line,
-	       "mac=%X-%X-%X-%X-%X-%X "
-	       "src=%s state=%u "
-	       "bin=%llu bout=%llu "
-	       "pin=%llu pout=%llu",
-	       &maci[0], &maci[1], &maci[2], &maci[3], &maci[4], &maci[5],
-	       ip, &state, &bin, &bout, &pin, &pout) == 12) {
+         "mac=%X-%X-%X-%X-%X-%X "
+         "src=%s state=%u "
+         "bin=%llu bout=%llu "
+         "pin=%llu pout=%llu",
+         &maci[0], &maci[1], &maci[2], &maci[3], &maci[4], &maci[5],
+         ip, &state, &bin, &bout, &pin, &pout) == 12) {
       uint8_t mac[6];
       int i;
 
       for (i=0;i<6;i++)
-	mac[i]=maci[i]&0xFF;
+        mac[i]=maci[i]&0xFF;
 
-      if (!dhcp_hashget(dhcp, &conn, mac)) {
-	struct app_conn_t *appconn = conn->peer;
-	if (appconn) {
-	  if (_options.swapoctets) {
-	    appconn->s_state.input_octets = bin;
-	    appconn->s_state.output_octets = bout;
-	    appconn->s_state.input_packets = pin;
-	    appconn->s_state.output_packets = pout;
-	  } else {
-	    appconn->s_state.output_octets = bin;
-	    appconn->s_state.input_octets = bout;
-	    appconn->s_state.output_packets = pin;
-	    appconn->s_state.input_packets = pout;
-	  }
-	} else {
-	  syslog(LOG_DEBUG, "Unknown entry");
-	}
+#ifdef ENABLE_LAYER3
+      if (_options.layer3) {
+        struct in_addr in_ip;
+        struct app_conn_t *appconn = NULL;
+        if (!inet_aton(ip, &in_ip)) {
+            syslog(LOG_ERR, "Invalid IP Address: %s\n", ip);
+            return -1;
+        }
+        appconn = dhcp_get_appconn_ip(0, &in_ip);
+        if (appconn) {
+            if (_options.swapoctets) {
+                appconn->s_state.input_octets = bin;
+                appconn->s_state.output_octets = bout;
+                appconn->s_state.input_packets = pin;
+                appconn->s_state.output_packets = pout;
+            } else {
+                appconn->s_state.output_octets = bin;
+                appconn->s_state.input_octets = bout;
+                appconn->s_state.output_packets = pin;
+                appconn->s_state.input_packets = pout;
+          }
+        } else {
+            syslog(LOG_DEBUG, "Unknown entry");
+        }
+      } else {
+#endif
+        if (!dhcp_hashget(dhcp, &conn, mac)) {
+          struct app_conn_t *appconn = conn->peer;
+          if (appconn) {
+            if (_options.swapoctets) {
+              appconn->s_state.input_octets = bin;
+              appconn->s_state.output_octets = bout;
+              appconn->s_state.input_packets = pin;
+              appconn->s_state.output_packets = pout;
+            } else {
+              appconn->s_state.output_octets = bin;
+              appconn->s_state.input_octets = bout;
+              appconn->s_state.output_packets = pin;
+              appconn->s_state.input_packets = pout;
+            }
+          } else {
+            syslog(LOG_DEBUG, "Unknown entry");
+          }
+        }
+#ifdef ENABLE_LAYER3
       }
-
+#endif
     } else {
       syslog(LOG_ERR, "%s: Error parsing %s", strerror(errno), line);
     }
@@ -137,5 +165,4 @@ kmod_coova_sync() {
 
   return 0;
 }
-
 
