@@ -1108,6 +1108,24 @@ void session_interval(struct app_conn_t *conn) {
       conn->s_state.session_state =
           RADIUS_VALUE_COOVACHILLI_SESSION_TIMEOUT_REACHED;
 #endif
+       //add by jack--for traffic control
+       char cmd_buf[256]={0};
+
+       syslog(LOG_DEBUG, "####IP:%s mac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       sprintf(cmd_buf,"/usr/local/sbin/upload_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600 ",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       system(cmd_buf);
+
+       sprintf(cmd_buf,"/usr/local/sbin/download_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600 %s",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5],_options.dhcpif);
+
+       system(cmd_buf);
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
     }
     else if ((conn->s_params.sessionterminatetime) &&
@@ -1116,6 +1134,24 @@ void session_interval(struct app_conn_t *conn) {
       conn->s_state.session_state =
           RADIUS_VALUE_COOVACHILLI_SESSION_LOGOUT_TIME_REACHED;
 #endif
+ //add by jack--for traffic control
+       char cmd_buf[256]={0};
+
+       syslog(LOG_DEBUG, "####IP:%s mac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       sprintf(cmd_buf,"/usr/local/sbin/upload_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       system(cmd_buf);
+
+       sprintf(cmd_buf,"/usr/local/sbin/download_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600 %s",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5],_options.dhcpif);
+
+       system(cmd_buf);
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
     }
     else if ((conn->s_params.idletimeout) &&
@@ -1124,6 +1160,24 @@ void session_interval(struct app_conn_t *conn) {
       conn->s_state.session_state =
           RADIUS_VALUE_COOVACHILLI_SESSION_IDLE_TIMEOUT_REACHED;
 #endif
+ //add by jack--for traffic control
+       char cmd_buf[256]={0};
+
+       syslog(LOG_DEBUG, "####IP:%s mac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       sprintf(cmd_buf,"/usr/local/sbin/upload_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       system(cmd_buf);
+
+       sprintf(cmd_buf,"/usr/local/sbin/download_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600 %s",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5],_options.dhcpif);
+
+       system(cmd_buf);
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_IDLE_TIMEOUT);
     }
     else if ((conn->s_params.maxinputoctets) &&
@@ -1132,6 +1186,23 @@ void session_interval(struct app_conn_t *conn) {
       conn->s_state.session_state =
           RADIUS_VALUE_COOVACHILLI_SESSION_IN_DATALIMIT_REACHED;
 #endif
+ //add by jack--for traffic control
+       char cmd_buf[256]={0};
+
+       syslog(LOG_DEBUG, "####IP:%s mac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       sprintf(cmd_buf,"/usr/local/sbin/upload_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       system(cmd_buf);
+
+       sprintf(cmd_buf,"/usr/local/sbin/download_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600 %s",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5],_options.dhcpif);
+       system(cmd_buf);
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
     }
     else if ((conn->s_params.maxoutputoctets) &&
@@ -1140,6 +1211,24 @@ void session_interval(struct app_conn_t *conn) {
       conn->s_state.session_state =
           RADIUS_VALUE_COOVACHILLI_SESSION_OUT_DATALIMIT_REACHED;
 #endif
+ //add by jack--for traffic control
+       char cmd_buf[256]={0};
+
+       syslog(LOG_DEBUG, "####IP:%s mac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       sprintf(cmd_buf,"/usr/local/sbin/upload_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       system(cmd_buf);
+
+       sprintf(cmd_buf,"/usr/local/sbin/download_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600 %s",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5],_options.dhcpif);
+
+       system(cmd_buf);
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
     }
     else if ((conn->s_params.maxtotaloctets) &&
@@ -1149,6 +1238,24 @@ void session_interval(struct app_conn_t *conn) {
       conn->s_state.session_state =
           RADIUS_VALUE_COOVACHILLI_SESSION_TOTAL_DATALIMIT_REACHED;
 #endif
+ //add by jack--for traffic control
+       char cmd_buf[256]={0};
+
+       syslog(LOG_DEBUG, "####IP:%s mac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       sprintf(cmd_buf,"/usr/local/sbin/upload_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5]);
+
+       system(cmd_buf);
+
+       sprintf(cmd_buf,"/usr/local/sbin/download_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600 %s",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],
+                conn->hismac[2],conn->hismac[3],conn->hismac[4],conn->hismac[5],_options.dhcpif);
+
+       system(cmd_buf);
       terminate_appconn(conn, RADIUS_TERMINATE_CAUSE_SESSION_TIMEOUT);
     }
     else if ((conn->s_params.interim_interval) &&
@@ -4677,6 +4784,19 @@ int cb_radius_auth_conf(struct radius_t *radius,
   }
 
   config_radius_session(&appconn->s_params, pack, appconn, 0);
+  
+     //gordon
+   // add tc  rules
+   char cmd_buf[256]={0};
+   sprintf(cmd_buf,"/usr/local/sbin/upload_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x   %llu",
+        inet_ntoa(appconn->hisip),appconn->hismac[0],appconn->hismac[1],appconn->hismac[2],
+        appconn->hismac[3],appconn->hismac[4],appconn->hismac[5],appconn->s_params.bandwidthmaxup);
+   system(cmd_buf);
+   sprintf(cmd_buf,"/usr/local/sbin/download_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x   %llu %s",
+        inet_ntoa(appconn->hisip),appconn->hismac[0],appconn->hismac[1],appconn->hismac[2],
+        appconn->hismac[3],appconn->hismac[4],appconn->hismac[5],appconn->s_params.bandwidthmaxdown,_options.dhcpif);
+   system(cmd_buf);
+
 
   if (appconn->is_adminsession) {
     /* for the admin session */
@@ -6131,6 +6251,24 @@ int static uam_msg(struct redir_msg_t *msg) {
       if (!_options.layer3)
 #endif
         dhcpconn->authstate = DHCP_AUTH_DNAT;
+ //add by jack--for traffic control
+     char cmd_buf[256]={0};
+
+     syslog(LOG_DEBUG, "####IP:%s mac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+                inet_ntoa(appconn->hisip),appconn->hismac[0],appconn->hismac[1],
+                appconn->hismac[2],appconn->hismac[3],appconn->hismac[4],appconn->hismac[5]);
+
+     sprintf(cmd_buf,"/usr/local/sbin/upload_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600",
+                inet_ntoa(appconn->hisip),appconn->hismac[0],appconn->hismac[1],
+                appconn->hismac[2],appconn->hismac[3],appconn->hismac[4],appconn->hismac[5]);
+
+     system(cmd_buf);
+
+     sprintf(cmd_buf,"/usr/local/sbin/download_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600 %s",
+                inet_ntoa(appconn->hisip),appconn->hismac[0],appconn->hismac[1],
+                appconn->hismac[2],appconn->hismac[3],appconn->hismac[4],appconn->hismac[5],_options.dhcpif);
+
+     system(cmd_buf);
 
       break;
 
@@ -6809,9 +6947,34 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
       break;
 
     case CMDSOCK_DHCP_RELEASE:
-      if (dhcp)
+      if (dhcp) {
+      	        struct app_conn_t *appconn = find_app_conn(req, 0);
+
+        if ( NULL != appconn ) {
+
+                //add by jack--for traffic control
+                char cmd_buf[256]={0};
+
+                syslog(LOG_DEBUG, "####IP:%s mac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+                        inet_ntoa(appconn->hisip),appconn->hismac[0],appconn->hismac[1],
+                        appconn->hismac[2],appconn->hismac[3],appconn->hismac[4],appconn->hismac[5]);
+
+                sprintf(cmd_buf,"/usr/local/sin/upload_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600",
+                        inet_ntoa(appconn->hisip),appconn->hismac[0],appconn->hismac[1],appconn->hismac[2],
+                        appconn->hismac[3],appconn->hismac[4],appconn->hismac[5]);
+
+                system(cmd_buf);
+
+                sprintf(cmd_buf,"/usr/local/sbin/download_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x  104857600 %s",
+                        inet_ntoa(appconn->hisip),appconn->hismac[0],appconn->hismac[1],appconn->hismac[2],
+                        appconn->hismac[3],appconn->hismac[4],appconn->hismac[5],_options.dhcpif);
+
+                system(cmd_buf);
+        }
+
         dhcp_release_mac(dhcp, req->mac,
                          RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
+      }
       break;
 
 #ifdef ENABLE_MULTIROUTE
