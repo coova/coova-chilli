@@ -690,22 +690,19 @@ int radius_timeout(struct radius_t *this) {
 
       if (RADIUS_QUEUE_HASPKT(this->queue[this->first].p)) {
 
-	/* Use the correct port for accounting and authentication */
-	if (RADIUS_QUEUE_PKT(this->queue[this->first].p,code)
-	    == RADIUS_CODE_ACCOUNTING_REQUEST)
-	  addr.sin_port = htons(this->acctport);
-	else
-	  addr.sin_port = htons(this->authport);
+        /* Use the correct port for accounting and authentication */
+        if (RADIUS_QUEUE_PKT(this->queue[this->first].p,code)
+            == RADIUS_CODE_ACCOUNTING_REQUEST) {
+          addr.sin_port = htons(this->acctport);
+        } else {
+          addr.sin_port = htons(this->authport);
+        }
 
-	if (sendto(this->fd,
-		   RADIUS_QUEUE_PKTPTR(this->queue[this->first].p),
-		   ntohs(RADIUS_QUEUE_PKT(this->queue[this->first].p, length)),
-		   0, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+        if (radius_pkt_send(this, RADIUS_QUEUE_PKTPTR(this->queue[this->first].p), &addr) < 0) {
+          radius_queue_reschedule(this, this->first);
+          return -1;    
+        }
 
-	  syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
-	  radius_queue_reschedule(this, this->first);
-	  return -1;
-	}
       }
 
       if (radius_queue_reschedule(this, this->first)) {
@@ -1510,6 +1507,26 @@ radius_set_cb_coa_ind(struct radius_t *this,
 
 
 /*
+ * radius_pkt_send()
+ * Directly send a packet 
+ */
+int radius_pkt_send(struct radius_t *this,
+      struct radius_packet_t *pack,
+      struct sockaddr_in *peer) {
+
+  size_t len = ntohs(pack->length);
+
+  if (sendto(this->fd, pack, len, 0,(struct sockaddr *) peer,
+       sizeof(struct sockaddr_in)) < 0) {
+    syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
+    return -1;
+  }
+
+  return 0;
+}
+
+
+/*
  * radius_req()
  * Send of a packet and place it in the retransmit queue
  */
@@ -1518,7 +1535,6 @@ int radius_req(struct radius_t *this,
 	       void *cbp)
 {
   struct sockaddr_in addr;
-  size_t len = ntohs(pack->length);
 
   /* Place packet in queue */
   if (radius_queue_in(this, pack, cbp)) {
@@ -1548,13 +1564,7 @@ int radius_req(struct radius_t *this,
          ntohs(addr.sin_port));
 #endif
 
-  if (sendto(this->fd, pack, len, 0,
-	     (struct sockaddr *) &addr, sizeof(addr)) < 0) {
-    syslog(LOG_ERR, "%s: sendto(%s) failed!", strerror(errno), inet_ntoa(addr.sin_addr));
-    return -1;
-  }
-
-  return 0;
+  return radius_pkt_send(this, pack, &addr);
 }
 
 #ifdef ENABLE_RADPROXY
@@ -1566,7 +1576,6 @@ int radius_resp(struct radius_t *this,
 		struct radius_packet_t *pack,
 		struct sockaddr_in *peer, uint8_t *req_auth) {
 
-  size_t len = ntohs(pack->length);
   struct radius_attr_t *ma = NULL; /* Message authenticator */
 
   /* Prepare for message authenticator TODO */
@@ -1582,13 +1591,7 @@ int radius_resp(struct radius_t *this,
 				this->proxysecret,
 				this->proxysecretlen);
 
-  if (sendto(this->proxyfd, pack, len, 0,
-	     (struct sockaddr *) peer, sizeof(struct sockaddr_in)) < 0) {
-    syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
-    return -1;
-  }
-
-  return 0;
+  return radius_pkt_send(this, pack, peer);
 }
 #endif
 
@@ -1601,7 +1604,6 @@ int radius_coaresp(struct radius_t *this,
 		   struct radius_packet_t *pack,
 		   struct sockaddr_in *peer, uint8_t *req_auth) {
 
-  size_t len = ntohs(pack->length);
   struct radius_attr_t *ma = NULL; /* Message authenticator */
 
   /* Prepare for message authenticator TODO */
@@ -1617,13 +1619,7 @@ int radius_coaresp(struct radius_t *this,
 				this->secret,
 				this->secretlen);
 
-  if (sendto(this->fd, pack, len, 0,
-	     (struct sockaddr *) peer, sizeof(struct sockaddr_in)) < 0) {
-    syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
-    return -1;
-  }
-
-  return 0;
+  return radius_pkt_send(this, pack, peer);
 }
 #endif
 
