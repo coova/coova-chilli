@@ -50,28 +50,29 @@ void radius_addnasip(struct radius_t *radius, struct radius_packet_t *pack)  {
 		 0, 0, ntohl(paddr->s_addr), NULL, 0);
 }
 
-void radius_addcalledstation(struct radius_t *radius,
-			     struct radius_packet_t *pack,
-			     struct session_state *state)  {
+void radius_addcalledstation(struct radius_t *this,
+                             struct radius_packet_t *pack,
+                             struct session_state *state)  {
   uint8_t b[32];
-  uint8_t *mac = 0;
+  uint8_t *mac = NULL;
 
 #ifdef ENABLE_PROXYVSA
   if (state->redir.calledlen) {
-    radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
-		   state->redir.called, state->redir.calledlen);
+    radius_addattr(this, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0,
+                   state->redir.called, state->redir.calledlen);
     return;
   }
 #endif
 
-  if (_options.nasmac)
+  if (_options.nasmac) {
     mac = (uint8_t *) _options.nasmac;
-  else
-    snprintf((char*)(mac = b), sizeof(b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
-		  radius->nas_hwaddr[0], radius->nas_hwaddr[1], radius->nas_hwaddr[2],
-		  radius->nas_hwaddr[3], radius->nas_hwaddr[4], radius->nas_hwaddr[5]);
+  } else {
+    snprintf((char *)(mac = b), sizeof(b), "%.2X-%.2X-%.2X-%.2X-%.2X-%.2X",
+             this->nas_hwaddr[0], this->nas_hwaddr[1], this->nas_hwaddr[2],
+             this->nas_hwaddr[3], this->nas_hwaddr[4], this->nas_hwaddr[5]);
+  }
 
-  radius_addattr(radius, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen((char*)mac));
+  radius_addattr(this, pack, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0, mac, strlen((char*)mac));
 }
 
 int radius_printqueue(int fd, struct radius_t *this) {
