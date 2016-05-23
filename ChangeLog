@@ -1,3 +1,42 @@
+== ChangeLog (CoovaChilli-v1.3.1.4) ==
+* Update refs to site to http://coova.github.io/ and fix software name.
+* xt_coova.c with kernel version >= 3.10.0 fixed
+* Compile with --enable-pppoe fixed
+* Compile with --enable-location fixed
+* enable_json should be =no by default or libchilli compile fails
+* syslog params with --with-ipc-msg fixed
+* When xt_coova is in use IP address is no longer removed from dhcpif
+* Compile with --netfilter-queue fixed
+* Support for vendor specific dhcp options (60/43) added
+* HS_LOCATIONOPT82 now maps to locationopt82 flag
+* HS_UDP_PORTS introduced in sample up.sh for permitting UDP ports in fw rules
+* DHCP relay functionality fixed
+* Introduce enable-json flag, support for JSON is no longer enabled by default
+* www.coova.org is no longer permitted by default
+* Most DEBUG level logging now only happens if enable.debug is true
+* IPtables rules re-ordered
+* Switch from mktemp() to mkstemp()
+* JSON replies can now include nasid
+* Added support for Travis CI https://travis-ci.org/coova/coova-chilli
+* Switch from safe_snprintf() to snprintf() 
+* Switch from safe_fork() to fork()
+* Update bstring library with fork from msteinert/bstring
+* An attempt to close an unopened proxy socket is no longer performed
+* Switch from strcpy(3) to strlcpy(3)
+* Use `new_socket` instead of `0` and `1` descriptors
+* Introduce CONTRIBUTING.md
+* Update AVL headers from http://www.olsr.org/git/?p=oonf.git;a=tree;f=src-api/common;hb=HEAD
+* Use AC_PROG_CC_C99 macro to specify C99 standard to compiler
+* An attempt to reopen a socket just because writing would block is no longer performed
+* Add license information for extern/strlcpy.c & libjson to LICENSE
+* Correct sequence number is now used in a TCP RESET.
+* SSLv2 & v3 support disabled
+* sslciphers option added
+* kmod_coova_sync gained layer3 support
+* radius_reply() replaced by radius_pkt_send()
+* Numerous churn to autoconf settings
+* Numerous bug fixes
+
 == ChangeLog (CoovaChilli-v1.3.1.3) ==
 * Fix json encoding for radius reply.
 
