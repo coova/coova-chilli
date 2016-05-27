@@ -1543,6 +1543,7 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
       break;
     case REDIR_ABOUT:
     case REDIR_ABORT:
+    case REDIR_APPLE:
       break;
     case REDIR_STATUS:
       resp = conn->s_state.authenticated == 1 ? "already" : "notyet";
@@ -1560,6 +1561,14 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
     syslog(LOG_ERR, "%s: bfromcstralloc() memory allocation error.", __FUNCTION__);
     return -1;
   }
+  
+    /*by jack*/
+  /*
+    let apple test url return Success
+  */
+  syslog(DEBUG, "get apple flag:%d", conn->apple);
+  syslog(DEBUG, "User-Agent:%s", conn->s_state.redir.useragent);
+  syslog(DEBUG, "Host:%s", conn->s_state.redir.host);
 
 #ifdef ENABLE_JSON
   if (conn->format == REDIR_FMT_JSON) {
@@ -2174,7 +2183,12 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	else if (!strcmp(path, "status"))
 	  conn->type = REDIR_STATUS;
 	else if (!strcmp(path, "apple"))
-	{ conn->type = REDIR_APPLE; conn->apple = 1; return 0;}
+	{ 
+	  conn->type = REDIR_APPLE; 
+	  conn->apple = 1; 
+	  syslog(LOG_DEBUG, "Apple Action Success-----1");
+	  return 0;
+	}
 	else if (!strncmp(path, "msdownload", 10))
         { conn->type = REDIR_MSDOWNLOAD; return 0; }
 	else if (!strcmp(path, "prelogin"))
@@ -2294,6 +2308,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
     }
   }
 
+  syslog(LOG_DEBUG, "conn type %d", conn->type);
   switch(conn->type) {
 
     case REDIR_STATUS:
