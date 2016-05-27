@@ -2239,6 +2239,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  p = buffer + 5;
 	  while (*p && isspace((int) *p)) p++;
 	  strlcpy(httpreq->host, p, sizeof(httpreq->host));
+	  strlcpy(conn->s_state.redir.host,
+                  p, sizeof(conn->s_state.redir.host));
 #if(_debug_ > 1)
           if (_options.debug)
             syslog(LOG_DEBUG, "Host: %s",httpreq->host);
