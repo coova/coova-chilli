@@ -2174,7 +2174,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	else if (!strcmp(path, "status"))
 	  conn->type = REDIR_STATUS;
 	else if (!strcmp(path, "apple"))
-	{ conn->type = REDIR_APPLE; conn->apple = 1; }
+	{ conn->type = REDIR_APPLE; conn->apple = 1; return 0;}
 	else if (!strncmp(path, "msdownload", 10))
         { conn->type = REDIR_MSDOWNLOAD; return 0; }
 	else if (!strcmp(path, "prelogin"))
@@ -2336,7 +2336,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
           bstrtocstr(bt2, conn->s_state.redir.userurl,
                      sizeof(conn->s_state.redir.userurl));
           if (_options.debug)
-            syslog(LOG_DEBUG, "-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
+            syslog(LOG_DEBUG, "-->> Logon Setting userurl=[%s]",conn->s_state.redir.userurl);
           bdestroy(bt2);
         }
 
@@ -2465,7 +2465,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
           bstrtocstr(bt2, conn->s_state.redir.userurl,
                      sizeof(conn->s_state.redir.userurl));
           if (_options.debug)
-            syslog(LOG_DEBUG, "-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
+            syslog(LOG_DEBUG, "-->> Logout Setting userurl=[%s]",conn->s_state.redir.userurl);
           bdestroy(bt2);
         }
         bdestroy(bt);
@@ -2502,7 +2502,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 		      httpreq->qs[0] ? httpreq->qs : "");
 
         if (_options.debug)
-          syslog(LOG_DEBUG, "-->> Setting userurl=[%s]",conn->s_state.redir.userurl);
+          syslog(LOG_DEBUG, "-->> default Setting userurl=[%s]",conn->s_state.redir.userurl);
       }
       break;
 
