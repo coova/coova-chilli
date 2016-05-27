@@ -1569,6 +1569,33 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   syslog(DEBUG, "get apple flag:%d", conn->apple);
   syslog(DEBUG, "User-Agent:%s", conn->s_state.redir.useragent);
   syslog(DEBUG, "Host:%s", conn->s_state.redir.host);
+  if ( conn->apple == 1 ) {
+      if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL 
+       && (
+       	strcmp(conn->s_state.redir.useragent, "captive.apple.com") == 0 ||
+        strcmp(conn->s_state.redir.useragent, "www.apple.com") == 0 ||
+        strcmp(conn->s_state.redir.useragent, "www.thinkdifferent.us") == 0 ||
+        strcmp(conn->s_state.redir.useragent, "www.itools.info") == 0 ||
+        strcmp(conn->s_state.redir.useragent, "www.airport.us") == 0 ||
+        strcmp(conn->s_state.redir.useragent, "www.appleiphonecell.com") == 0 ||
+        strcmp(conn->s_state.redir.useragent, "www.ibook.info") == 0 )
+      ) {
+        redir_http(buffer, "200 OK");
+        bcatcstr(buffer,
+                 "Content-type: text/html\r\n\r\n"
+                 "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>");
+        bcatcstr(buffer, "Success</BODY></HTML>");
+   
+        if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
+            syslog(LOG_ERR, "redir_write()");
+            bdestroy(buffer);
+            return -1;
+        }
+   
+        bdestroy(buffer);
+        return 0;
+      }
+  }
 
 #ifdef ENABLE_JSON
   if (conn->format == REDIR_FMT_JSON) {
