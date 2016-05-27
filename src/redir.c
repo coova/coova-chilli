@@ -2173,6 +2173,8 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  conn->type = REDIR_WWW;
 	else if (!strcmp(path, "status"))
 	  conn->type = REDIR_STATUS;
+	else if (!strcmp(path, "apple"))
+	{ conn->type = REDIR_APPLE; conn->apple = 1; }
 	else if (!strncmp(path, "msdownload", 10))
         { conn->type = REDIR_MSDOWNLOAD; return 0; }
 	else if (!strcmp(path, "prelogin"))
