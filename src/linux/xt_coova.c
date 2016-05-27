@@ -305,14 +305,14 @@ static int coova_mt_check(const struct xt_mtchk_param *par)
 	    strnlen(info->name, XT_COOVA_NAME_LEN) == XT_COOVA_NAME_LEN)
 		return -EINVAL;
 
-	printk(KERN_INFO "xt_coova: looking for %s\n", info->name);
+	//printk(KERN_INFO "xt_coova: looking for %s\n", info->name);
 
 	mutex_lock(&coova_mutex);
 	t = coova_table_lookup(info->name);
 	if (t != NULL) {
 		t->refcnt++;
-		printk(KERN_INFO "xt_coova: found %s refcnt=%d\n", 
-		       info->name, t->refcnt);
+	//	printk(KERN_INFO "xt_coova: found %s refcnt=%d\n", 
+	//	       info->name, t->refcnt);
 		goto out;
 	}
 
