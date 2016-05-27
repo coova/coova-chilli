@@ -2213,7 +2213,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	{ 
 	  conn->type = REDIR_APPLE; 
 	  conn->apple = 1; 
-	  syslog(LOG_DEBUG, "Apple Action Success-----1");
+	  syslog(LOG_DEBUG, "Apple Action Success %s-----1", inet_ntoa(conn->hisip));
 	  return 0;
 	}
 	else if (!strncmp(path, "msdownload", 10))
