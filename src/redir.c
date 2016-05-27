@@ -1566,19 +1566,19 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   /*
     let apple test url return Success
   */
-  syslog(DEBUG, "get apple flag:%d", conn->apple);
-  syslog(DEBUG, "User-Agent:%s", conn->s_state.redir.useragent);
-  syslog(DEBUG, "Host:%s", conn->s_state.redir.host);
+  syslog(LOG_DEBUG, "get apple flag:%d", conn->apple);
+  syslog(LOG_DEBUG, "User-Agent:%s", conn->s_state.redir.useragent);
+  syslog(LOG_DEBUG, "Host:%s", conn->s_state.redir.host);
   if ( conn->apple == 1 ) {
       if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL 
        && (
-       	strcmp(conn->s_state.redir.useragent, "captive.apple.com") == 0 ||
-        strcmp(conn->s_state.redir.useragent, "www.apple.com") == 0 ||
-        strcmp(conn->s_state.redir.useragent, "www.thinkdifferent.us") == 0 ||
-        strcmp(conn->s_state.redir.useragent, "www.itools.info") == 0 ||
-        strcmp(conn->s_state.redir.useragent, "www.airport.us") == 0 ||
-        strcmp(conn->s_state.redir.useragent, "www.appleiphonecell.com") == 0 ||
-        strcmp(conn->s_state.redir.useragent, "www.ibook.info") == 0 )
+       	strcmp(conn->s_state.redir.host, "captive.apple.com") == 0 ||
+        strcmp(conn->s_state.redir.host, "www.apple.com") == 0 ||
+        strcmp(conn->s_state.redir.host, "www.thinkdifferent.us") == 0 ||
+        strcmp(conn->s_state.redir.host, "www.itools.info") == 0 ||
+        strcmp(conn->s_state.redir.host, "www.airport.us") == 0 ||
+        strcmp(conn->s_state.redir.host, "www.appleiphonecell.com") == 0 ||
+        strcmp(conn->s_state.redir.host, "www.ibook.info") == 0 )
       ) {
         redir_http(buffer, "200 OK");
         bcatcstr(buffer,
