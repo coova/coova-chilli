@@ -1569,7 +1569,9 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   syslog(LOG_DEBUG, "get apple flag:%d", conn->apple);
   syslog(LOG_DEBUG, "User-Agent:%s", conn->s_state.redir.useragent);
   syslog(LOG_DEBUG, "Host:%s", conn->s_state.redir.host);
-  if ( conn->apple == 1 ) {
+  char appleFile[32];
+  sprintf(appleFile, "/tmp/apple_%s", inet_ntoa(conn->hisip));
+  if ( access(appleFile, F_OK) == 0 ) {
       if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL 
        && (
        	strcmp(conn->s_state.redir.host, "captive.apple.com") == 0 ||
@@ -1591,6 +1593,10 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
             bdestroy(buffer);
             return -1;
         }
+        
+        char cmd[64];
+        sprintf(cmd, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
+        system(cmd);
    
         bdestroy(buffer);
         return 0;
@@ -2214,6 +2220,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  conn->type = REDIR_APPLE; 
 	  conn->apple = 1; 
 	  syslog(LOG_DEBUG, "Apple Action Success %s-----1", inet_ntoa(conn->hisip));
+	  char cmd[64];
+	  sprintf(cmd, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
+	  system(cmd);
 	  return 0;
 	}
 	else if (!strncmp(path, "msdownload", 10))
