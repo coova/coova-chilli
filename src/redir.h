@@ -45,6 +45,8 @@
 #define REDIR_SPLASH          8
 #define REDIR_MACREAUTH       9
 #define REDIR_REQERROR       10  /* Used internally when the HTTP request parsing created an error */
+#define REDIR_CHANGE         11
+#define REDIR_NOPOP          12
 
 #define REDIR_WWW            20
 #ifdef ENABLE_EWTAPI
