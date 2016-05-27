@@ -2223,7 +2223,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  char cmd[64];
 	  sprintf(cmd, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
 	  system(cmd);
-	  return 0;
+	  //return 0;
 	}
 	else if (!strncmp(path, "msdownload", 10))
         { conn->type = REDIR_MSDOWNLOAD; return 0; }
