@@ -94,6 +94,8 @@ struct redir_state {
 
   /* UAM protocol used */
   uint8_t uamprotocol;
+  
+  char host[256];
 
 #ifdef ENABLE_USERAGENT
   char useragent[REDIR_USERAGENTSIZE];
