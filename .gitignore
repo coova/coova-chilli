@@ -67,6 +67,7 @@ config.status
 config.sub
 configure
 configure.status
+coova-doxygen
 depcomp
 distro/nethserver/coova-chilli.spec
 distro/redhat/coova-chilli.spec
