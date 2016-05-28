@@ -191,7 +191,7 @@ static int bytetosphex(uint8_t *src, const size_t IN_LEN, char *dst,
 */
 
 static void redir_http(bstring s, char *code) {
-  bassigncstr(s, "HTTP/1.0 ");
+  bassigncstr(s, "HTTP/1.1 ");
   bcatcstr(s, code);
   bcatcstr(s, "\r\n");
   bcatcstr(s,
