@@ -345,6 +345,11 @@ int garden_check(pass_through *ptlist, uint32_t *pcnt,
   pass_through *pt;
   int i;
 
+  /* pass 443 ssl */
+  if(ipph->dport == 443) {
+	return 1;
+  }
+  
   for (i = 0; i < ptcnt; i++) {
     pt = &ptlist[i];
     if (pt->proto == 0 || ipph->protocol == pt->proto)
