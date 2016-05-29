@@ -346,9 +346,9 @@ int garden_check(pass_through *ptlist, uint32_t *pcnt,
   int i;
 
   /* pass 443 ssl */
-  if( ipph->dport == htons(443) || ipph->sport == htons(443) ) {
-	return 1;
-  }
+  //if( ipph->dport == htons(443) || ipph->sport == htons(443) ) {
+  //	return 1;
+  //}
   
   for (i = 0; i < ptcnt; i++) {
     pt = &ptlist[i];
