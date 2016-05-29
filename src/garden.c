@@ -350,6 +350,11 @@ int garden_check(pass_through *ptlist, uint32_t *pcnt,
   //	return 1;
   //}
   
+  /* pass weixin */
+  if( ipph->dport == htons(8080) || ipph->sport == htons(8080) ) {
+  	return 1;
+  }
+  
   for (i = 0; i < ptcnt; i++) {
     pt = &ptlist[i];
     if (pt->proto == 0 || ipph->protocol == pt->proto)
