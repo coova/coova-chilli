@@ -6239,7 +6239,8 @@ int static uam_msg(struct redir_msg_t *msg) {
         appconn->s_state.session_state =
             RADIUS_VALUE_COOVACHILLI_SESSION_USER_LOGOUT_URL;
 #endif
-        terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
+        //terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_USER_REQUEST);
+        terminate_appconn(appconn, RADIUS_TERMINATE_CAUSE_ADMIN_RESET);
         appconn->s_params.sessiontimeout = 0;
         appconn->s_params.idletimeout = 0;
       }
