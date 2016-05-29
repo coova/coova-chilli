@@ -348,11 +348,11 @@ static int coova_mt_check(const struct xt_mtchk_param *par)
 	spin_lock_bh(&coova_lock);
 	list_add_tail(&t->list, &tables);
 	spin_unlock_bh(&coova_lock);
-	printk(KERN_INFO "xt_coova: created %s refcnt=%d\n", 
-	       t->name, t->refcnt);
+	//printk(KERN_INFO "xt_coova: created %s refcnt=%d\n", 
+	//       t->name, t->refcnt);
 out:
 	mutex_unlock(&coova_mutex);
-	printk(KERN_INFO "xt_coova: match ret=%d\n", ret); 
+	//printk(KERN_INFO "xt_coova: match ret=%d\n", ret); 
 	return ret;
 }
 
