@@ -346,7 +346,7 @@ int garden_check(pass_through *ptlist, uint32_t *pcnt,
   int i;
 
   /* pass 443 ssl */
-  if(ipph->dport == 443) {
+  if( ntohs(ipph->dport) == 443) {
 	return 1;
   }
   
