@@ -46,6 +46,7 @@
 #define REDIR_MACREAUTH       9
 #define REDIR_REQERROR       10  /* Used internally when the HTTP request parsing created an error */
 #define REDIR_APPLE          11
+#define REDIR_AUTHORIZE	     12
 
 #define REDIR_WWW            20
 #ifdef ENABLE_EWTAPI
