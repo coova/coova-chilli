@@ -2220,9 +2220,9 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  conn->type = REDIR_APPLE; 
 	  conn->apple = 1; 
 	  syslog(LOG_DEBUG, "Apple Action Success %s-----1", inet_ntoa(conn->hisip));
-	  char cmd[80];
-	  sprintf(cmd, "chilli_query authorize ip %s sessiontimeout 180", inet_ntoa(conn->hisip));
-	  system(cmd);
+	  //char cmd[80];
+	  //sprintf(cmd, "chilli_query authorize ip %s sessiontimeout 180", inet_ntoa(conn->hisip));
+	  //system(cmd);
 	  char cmd1[64];
 	  sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
 	  system(cmd1);
