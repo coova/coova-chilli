@@ -1544,6 +1544,7 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
     case REDIR_ABOUT:
     case REDIR_ABORT:
     case REDIR_APPLE:
+    case REDIR_AUTHORIZE:
       break;
     case REDIR_STATUS:
       resp = conn->s_state.authenticated == 1 ? "already" : "notyet";
@@ -2226,7 +2227,15 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  char cmd1[64];
 	  sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
 	  system(cmd1);
-	  //return 0;
+	  return 0;
+	}else if (!strcmp(path, "authorize"))
+	{ 
+	  conn->type = REDIR_AUTHORIZE; 
+	  syslog(LOG_DEBUG, "authorize Success %s-----1", inet_ntoa(conn->hisip));
+	  char cmd[80];
+	  sprintf(cmd, "chilli_query authorize ip %s sessiontimeout 180", inet_ntoa(conn->hisip));
+	  system(cmd);
+	  return 0;
 	}
 	else if (!strncmp(path, "msdownload", 10))
         { conn->type = REDIR_MSDOWNLOAD; return 0; }
