@@ -346,14 +346,14 @@ int garden_check(pass_through *ptlist, uint32_t *pcnt,
   int i;
 
   /* pass 443 ssl */
-  if( ipph->dport == htons(443) || ipph->sport == htons(443) ) {
-  	return 1;
-  }
-  
-  /* pass weixin */
-  //if( ipph->dport == htons(8080) || ipph->sport == htons(8080) ) {
+  //if( ipph->dport == htons(443) || ipph->sport == htons(443) ) {
   //	return 1;
   //}
+  
+  /* pass weixin */
+  if( ipph->dport == htons(8080) || ipph->sport == htons(8080) ) {
+  	return 1;
+  }
   
   for (i = 0; i < ptcnt; i++) {
     pt = &ptlist[i];
