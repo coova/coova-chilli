@@ -7100,7 +7100,7 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
           }
           
           syslog(LOG_DEBUG, "CMD app conn action socket sessiontimeout [%llu]", appconn->s_params.sessiontimeout);
-          system("chilli_query list > /tmp/qlist");
+          //system("chilli_query list > /tmp/qlist");
         }
       }
       break;
