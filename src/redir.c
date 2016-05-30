@@ -2234,6 +2234,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  syslog(LOG_DEBUG, "authorize Success %s-----1", inet_ntoa(conn->hisip));
 	  char cmd[80];
 	  sprintf(cmd, "chilli_query authorize ip %s sessiontimeout 180", inet_ntoa(conn->hisip));
+	  syslog(LOG_DEBUG, "%s", cmd);
 	  system(cmd);
 	  return 0;
 	}
