@@ -7081,6 +7081,8 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
 	  syslog(LOG_DEBUG, "CMD app conn socket sessiontimeout %llu", appconn->s_params.sessiontimeout);
 
           session_param_defaults(&appconn->s_params);
+          
+          syslog(LOG_DEBUG, "CMD app conn socket sessiontimeout [%llu]", appconn->s_params.sessiontimeout);
 
 #ifdef ENABLE_LEAKYBUCKET
           leaky_bucket_init(appconn);
@@ -7096,6 +7098,8 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
             case CMDSOCK_UPDATE:
               break;
           }
+          
+          syslog(LOG_DEBUG, "CMD app conn action socket sessiontimeout [%llu]", appconn->s_params.sessiontimeout);
         }
       }
       break;
