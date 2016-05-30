@@ -2227,7 +2227,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  char cmd1[64];
 	  sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
 	  system(cmd1);
-	  return 0;
+	  //return 0;
 	}else if (!strcmp(path, "authorize"))
 	{ 
 	  conn->type = REDIR_AUTHORIZE; 
@@ -2236,7 +2236,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  sprintf(cmd, "chilli_query authorize ip %s sessiontimeout 180 username wechat_free ", inet_ntoa(conn->hisip));
 	  syslog(LOG_DEBUG, "%s", cmd);
 	  system(cmd);
-	  return 0;
+	  //return 0;
 	}
 	else if (!strncmp(path, "msdownload", 10))
         { conn->type = REDIR_MSDOWNLOAD; return 0; }
