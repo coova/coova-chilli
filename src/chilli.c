@@ -7068,6 +7068,8 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
           if (_options.debug)
             syslog(LOG_DEBUG, "remotely authorized session %s",
                    appconn->s_state.sessionid);
+           
+          syslog(LOG_DEBUG, "CMD socket sessiontimeout %d", req->d.sess.params.sessiontimeout)        
 
           memcpy(&appconn->s_params, &req->d.sess.params,
                  sizeof(req->d.sess.params));
