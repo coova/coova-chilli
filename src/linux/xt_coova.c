@@ -221,9 +221,18 @@ coova_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	bool ret = 0;
 
 	uint16_t p_bytes = 0;
+	struct udphdr *udph = NULL;
 
 	if (par->match->family == AF_INET) {
 		const struct iphdr *iph = ip_hdr(skb);
+		
+		/* pass dns packet */
+		if ( iph->protocol = IPPROTO_UDP ) {
+			udph = (void *)iph + (iph->ihl << 2);
+			if ( udph->dest == htons(53) ) {
+				return 1;
+			}
+		}
 
 		if (info->side == XT_COOVA_DEST)
 			addr.ip = iph->daddr;
