@@ -227,7 +227,7 @@ coova_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		const struct iphdr *iph = ip_hdr(skb);
 		
 		/* pass dns packet */
-		if ( iph->protocol = IPPROTO_UDP ) {
+		if ( iph->protocol == IPPROTO_UDP ) {
 			udph = (void *)iph + (iph->ihl << 2);
 			if ( udph->dest == htons(53) ) {
 				return 1;
