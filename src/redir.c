@@ -2244,7 +2244,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  //system(cmd);
 	  char cmd1[64];
 	  sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
-	  system(cmd1);
+	  //system(cmd1);
 	  //return 0;
 	}else if (!strcmp(path, "authorize"))
 	{ 
