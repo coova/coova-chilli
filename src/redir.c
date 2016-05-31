@@ -3273,7 +3273,7 @@ int redir_accept(struct redir_t *redir, int idx) {
 static int _redir_close(int infd, int outfd) {
   
     char b[128];
-    int max = 1000;
+    int max = 500;
     if (shutdown(outfd, SHUT_WR) != 0)
     syslog(LOG_DEBUG, "shutdown socket for writing");
     if (!ndelay_on(infd))
