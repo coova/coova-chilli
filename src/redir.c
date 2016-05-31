@@ -3271,7 +3271,7 @@ int redir_accept(struct redir_t *redir, int idx) {
 }
 
 static int _redir_close(int infd, int outfd) {
-  /*
+  
     char b[128];
     int max = 1000;
     if (shutdown(outfd, SHUT_WR) != 0)
@@ -3280,7 +3280,7 @@ static int _redir_close(int infd, int outfd) {
     while(safe_read(infd, b, sizeof(b)) > 0 && max--);
     if (shutdown(infd, SHUT_RD) != 0)
     syslog(LOG_DEBUG, "shutdown socket for reading");
-  */
+  
   safe_close(outfd);
   safe_close(infd);
   return 0;
