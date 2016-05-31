@@ -4202,6 +4202,11 @@ int redir_main(struct redir_t *redir,
                   0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, httpreq.qs);
       return redir_main_exit(&socket, forked, rreq);
 
+    case REDIR_AUTHORIZE:
+      redir_reply(redir, &socket, &conn, REDIR_AUTHORIZE, NULL,
+                  0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, httpreq.qs);
+      return redir_main_exit(&socket, forked, rreq);
+
     case REDIR_STATUS:
       {
         uint32_t sessiontime;
