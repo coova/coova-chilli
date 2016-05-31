@@ -4203,6 +4203,7 @@ int redir_main(struct redir_t *redir,
       return redir_main_exit(&socket, forked, rreq);
 
     case REDIR_AUTHORIZE:
+      syslog(LOG_DEBUG, "REDIR_AUTHORIZE, exit...");
       redir_reply(redir, &socket, &conn, REDIR_AUTHORIZE,
                     NULL, 0, NULL, NULL, NULL, NULL,
                     NULL, conn.hismac, &conn.hisip, httpreq.qs);
