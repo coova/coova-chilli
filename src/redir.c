@@ -1567,10 +1567,9 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   if ( res == REDIR_AUTHORIZE ) {
         redir_http(buffer, "200 OK");
         bcatcstr(buffer,
-        	 "Content-Length: 79\r\n"
-                 "Content-type: text/html\r\n\r\n"
-                 "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>");
-        bcatcstr(buffer, "Authorize Success</BODY></HTML>");
+                 "Content-type: text/html\r\n\r\n");
+        //         "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>");
+        // bcatcstr(buffer, "Authorize Success</BODY></HTML>");
    
         if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
             syslog(LOG_ERR, "redir_write()");
