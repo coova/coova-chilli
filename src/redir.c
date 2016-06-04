@@ -2251,7 +2251,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  conn->type = REDIR_AUTHORIZE; 
 	  syslog(LOG_DEBUG, "authorize Success %s-----1", inet_ntoa(conn->hisip));
 	  char cmd[128];
-	  sprintf(cmd, "chilli_query authorize sessiontimeout 180 username wechat_free ip %s ", inet_ntoa(conn->hisip));
+	  sprintf(cmd, "chilli_authorize %s & ", inet_ntoa(conn->hisip));
 	  syslog(LOG_DEBUG, "%s", cmd);
 	  system(cmd);
 	  return 0;
