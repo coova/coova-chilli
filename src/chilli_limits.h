@@ -45,8 +45,10 @@
 #define OPT_IDLETIME                      10 /* Options idletime between each select */
 
 /* redir */
-#define REDIR_MAXLISTEN                   32
-#define REDIR_MAXTIME                    120 /* Seconds */
+//#define REDIR_MAXLISTEN                   32
+//#define REDIR_MAXTIME                    120 /* Seconds */
+#define REDIR_MAXLISTEN                  128
+#define REDIR_MAXTIME                     70 /* Seconds */
 #define REDIR_HTTP_MAX_TIME               20 /* Seconds */
 #define REDIR_HTTP_SELECT_TIME             3 /* Seconds */
 #define REDIR_RADIUS_MAX_TIME             60 /* Seconds */
