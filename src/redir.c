@@ -17,7 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
+#include <sys/stat.h>
 #include "system.h"
 #include "chilli.h"
 #ifdef ENABLE_MODULES
@@ -1590,35 +1590,42 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   syslog(LOG_DEBUG, "Host:%s", conn->s_state.redir.host);
   char appleFile[32];
   sprintf(appleFile, "/tmp/apple_%s", inet_ntoa(conn->hisip));
-  if ( access(appleFile, F_OK) == 0 ) {
-      if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL 
-       && (
-       	strcmp(conn->s_state.redir.host, "captive.apple.com") == 0 ||
-        strcmp(conn->s_state.redir.host, "www.apple.com") == 0 ||
-        strcmp(conn->s_state.redir.host, "www.thinkdifferent.us") == 0 ||
-        strcmp(conn->s_state.redir.host, "www.itools.info") == 0 ||
-        strcmp(conn->s_state.redir.host, "www.airport.us") == 0 ||
-        strcmp(conn->s_state.redir.host, "www.appleiphonecell.com") == 0 ||
-        strcmp(conn->s_state.redir.host, "www.ibook.info") == 0 )
-      ) {
-        redir_http(buffer, "200 OK");
-        bcatcstr(buffer,
-                 "Content-type: text/html\r\n\r\n"
-                 "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>");
-        bcatcstr(buffer, "Success</BODY></HTML>");
-   
-        if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
-            syslog(LOG_ERR, "redir_write()");
-            bdestroy(buffer);
-            return -1;
-        }
-        
-        char cmd[64];
-        sprintf(cmd, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
-        system(cmd);
-   
-        bdestroy(buffer);
-        return 0;
+  struct stat appleFileStat;
+  if ( fstat(appleFile, &appleFileStat) == 0 ) {
+      if ( time(NULL) - appleFileStat.st_ctime < 120 ) {
+	      if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL 
+	       && (
+	       	strcmp(conn->s_state.redir.host, "captive.apple.com") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.apple.com") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.thinkdifferent.us") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.itools.info") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.airport.us") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.appleiphonecell.com") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.ibook.info") == 0 )
+	      ) {
+	        redir_http(buffer, "200 OK");
+	        bcatcstr(buffer,
+	                 "Content-type: text/html\r\n\r\n"
+	                 "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>");
+	        bcatcstr(buffer, "Success</BODY></HTML>");
+	   
+	        if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
+	            syslog(LOG_ERR, "redir_write()");
+	            bdestroy(buffer);
+	            return -1;
+	        }
+	        
+	        char cmd[64];
+	        sprintf(cmd, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
+	        system(cmd);
+	   
+	        bdestroy(buffer);
+	        return 0;
+	      }
+      }else {
+      		char cmd[64];
+	        sprintf(cmd, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
+	        system(cmd);
       }
   }
 
