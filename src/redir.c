@@ -1591,7 +1591,7 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   char appleFile[32];
   sprintf(appleFile, "/tmp/apple_%s", inet_ntoa(conn->hisip));
   struct stat appleFileStat;
-  if ( fstat(appleFile, &appleFileStat) == 0 ) {
+  if ( stat(appleFile, &appleFileStat) == 0 ) {
       if ( time(NULL) - appleFileStat.st_ctime < 120 ) {
 	      if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL 
 	       && (
