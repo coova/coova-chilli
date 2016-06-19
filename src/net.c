@@ -1754,7 +1754,7 @@ static int tx_ring(net_interface *iface, void *packet, size_t length) {
   h->tp_status = TP_STATUS_SEND_REQUEST;
 
   if (_options.debug > 100)
-    syslog(LOG_DEBUG, "TX sent=%d (idx %d)", length, iface->ifindex);
+    syslog(LOG_DEBUG, "TX sent=%zu (idx %d)", length, iface->ifindex);
 
   if (!iface->is_active) {
     iface->is_active = 1;

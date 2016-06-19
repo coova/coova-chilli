@@ -299,6 +299,10 @@ int radius_set_cb_coa_ind(struct radius_t *this,
 					     struct radius_packet_t *pack,
 					     struct sockaddr_in *peer));
 
+int radius_pkt_send(struct radius_t *this,
+      struct radius_packet_t *pack,
+      struct sockaddr_in *peer);
+
 /* Send of a request */
 int radius_req(struct radius_t *this,
 	       struct radius_packet_t *pack,

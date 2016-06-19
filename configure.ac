@@ -1,13 +1,13 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.57])
-AC_INIT([coova-chilli],[1.3.1.3],[support@coova.com])
+AC_PREREQ([2.59])
+AC_INIT([coova-chilli],[1.3.1.4],[support@coova.com])
 AC_CONFIG_SRCDIR([src/chilli.c])
 
 AM_INIT_AUTOMAKE
 
-AM_CONFIG_HEADER([config.h])
+AC_CONFIG_HEADERS([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -16,6 +16,7 @@ AC_PROG_CXX
 AC_PROG_AWK
 AC_PROG_CC
 AC_PROG_CC_C_O
+AC_PROG_CC_C99
 AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_LN_S
@@ -81,7 +82,7 @@ AC_CHECK_HEADERS([arpa/inet.h errno.h fcntl.h dirent.h \
 		  sys/stat.h sys/types.h regex.h \
 		  syslog.h poll.h sys/epoll.h \
 		  unistd.h endian.h libgen.h \
-		  asm/types.h pwd.h grp.h wchar.h])
+		  asm/types.h pwd.h grp.h wchar.h stdarg.h])
 
 AC_CHECK_HEADERS([resolv.h net/route.h net/if.h net/if_arp.h net/if_tun.h net/ethernet.h], [], [],
 [
@@ -104,6 +105,15 @@ AC_CHECK_HEADERS([resolv.h net/route.h net/if.h net/if_arp.h net/if_tun.h net/et
 # include <netinet/in.h>
 #endif
 ])
+
+AC_CHECK_HEADER(inttypes.h,[AC_DEFINE([JSON_C_HAVE_INTTYPES_H],[1],[Public define for json_inttypes.h])])
+AC_CONFIG_HEADER(json/json_config.h)
+AC_CHECK_DECLS([INFINITY], [], [], [[#include <math.h>]])
+AC_CHECK_DECLS([nan], [], [], [[#include <math.h>]])
+AC_CHECK_DECLS([isnan], [], [], [[#include <math.h>]])
+AC_CHECK_DECLS([isinf], [], [], [[#include <math.h>]])
+AC_CHECK_DECLS([_isnan], [], [], [[#include <float.h>]])
+AC_CHECK_DECLS([_finite], [], [], [[#include <float.h>]])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -134,7 +144,7 @@ AC_FUNC_MMAP
 AC_CHECK_FUNCS([bzero clock_gettime dup2 gethostbyname getprotoent gettimeofday inet_ntoa \
 memchr memmove memset mkdir munmap regcomp select setenv socket strcasecmp \
 strchr strcspn strdup strerror strncasecmp strndup strrchr strspn strstr strtol getline dirname \
-glob getaddrinfo getnameinfo getifaddrs sysinfo strlcpy tzset])
+glob getaddrinfo getnameinfo getifaddrs sysinfo strlcpy tzset snprintf vsnprintf vasprintf])
 AC_CHECK_LIB(resolv, res_init)
 
 AC_ARG_ENABLE(chilliquery, [AS_HELP_STRING([--disable-chilliquery],[Disable chilli_query])], 

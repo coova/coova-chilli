@@ -1238,6 +1238,7 @@ int main(int argc, char **argv) {
   _options.sslkeypass = STRDUP(args_info.sslkeypass_arg);
   _options.sslcertfile = STRDUP(args_info.sslcertfile_arg);
   _options.sslcafile = STRDUP(args_info.sslcafile_arg);
+  _options.sslciphers = STRDUP(args_info.sslciphers_arg);
 #endif
 
 #ifdef USING_IPC_UNIX

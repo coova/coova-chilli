@@ -354,6 +354,7 @@ struct options_t {
   char *sslkeypass;
   char *sslcertfile;
   char *sslcafile;
+  char *sslciphers;
 #endif
 
   /* local content */

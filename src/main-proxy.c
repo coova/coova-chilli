@@ -150,21 +150,6 @@ static proxy_request * get_request() {
   return req;
 }
 
-static int radius_reply(struct radius_t *this,
-			struct radius_packet_t *pack,
-			struct sockaddr_in *peer) {
-
-  size_t len = ntohs(pack->length);
-
-  if (sendto(this->fd, pack, len, 0,(struct sockaddr *) peer,
-	     sizeof(struct sockaddr_in)) < 0) {
-    syslog(LOG_ERR, "%s: sendto() failed!", strerror(errno));
-    return -1;
-  }
-
-  return 0;
-}
-
 static void bhex(bstring src, bstring dst) {
   int i;
   char b[4];
@@ -437,7 +422,7 @@ static int http_aaa_finish(proxy_request *req) {
       break;
   }
 
-  radius_reply(req->radius, &req->radius_res, &req->conn.peer);
+  radius_pkt_send(req->radius, &req->radius_res, &req->conn.peer);
 
   close_request(req);
 
