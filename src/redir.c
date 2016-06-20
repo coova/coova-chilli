@@ -1615,9 +1615,9 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 	            return -1;
 	        }
 	        
-	        char cmd[64];
-	        sprintf(cmd, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
-	        system(cmd);
+	        //char cmd[64];
+	        //sprintf(cmd, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
+	        //system(cmd);
 	   
 	        bdestroy(buffer);
 	        return 0;
