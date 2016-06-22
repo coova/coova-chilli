@@ -1581,6 +1581,24 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
         return 0;
   }
   
+  /* pass android generate_204 pass */
+  if ( strstr(conn->s_state.redir.userurl, "/generate_204") != NULL ) {
+        redir_http(buffer, "204 No Content");
+        bcatcstr(buffer,
+                 "Content-type: text/html\r\n\r\n");
+        //         "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>");
+        // bcatcstr(buffer, "Authorize Success</BODY></HTML>");
+   
+        if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
+            syslog(LOG_ERR, "redir_write()");
+            bdestroy(buffer);
+            return -1;
+        }
+        
+        bdestroy(buffer);
+        return 0;
+  }
+  
     /*by jack*/
   /*
     let apple test url return Success
