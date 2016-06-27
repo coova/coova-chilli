@@ -42,8 +42,10 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_coova");
 MODULE_ALIAS("ip6t_coova");
 
-static unsigned int ip_list_tot = 100;
-static unsigned int ip_pkt_list_tot = 20;
+static unsigned int ip_list_tot = 4096;
+static unsigned int ip_pkt_list_tot = 64;
+//static unsigned int ip_list_tot = 100;
+//static unsigned int ip_pkt_list_tot = 20;
 static unsigned int ip_list_hash_size = 0;
 static unsigned int ip_list_perms = 0644;
 static unsigned int ip_list_uid = 0;
