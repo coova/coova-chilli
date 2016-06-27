@@ -1610,7 +1610,8 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   sprintf(appleFile, "/tmp/apple_%s", inet_ntoa(conn->hisip));
   struct stat appleFileStat;
   if ( stat(appleFile, &appleFileStat) == 0 ) {
-      syslog(LOG_DEBUG, "Time Diff :%ld", time(NULL) - appleFileStat.st_ctime);
+      syslog(LOG_DEBUG, "Time Diff :%ld, [%s], [%s]", time(NULL) - appleFileStat.st_ctime, 
+      	conn->s_state.redir.useragent, conn->s_state.redir.host);
       if ( time(NULL) - appleFileStat.st_ctime < 120 ) {
 	      if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL 
 	       && (
