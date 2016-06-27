@@ -2254,7 +2254,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	if ((!strcmp(path, "logon")) || (!strcmp(path, "login")))
 	  conn->type = REDIR_LOGIN;
 	else if ((!strcmp(path, "logoff")) || (!strcmp(path, "logout")))
-	  conn->type = REDIR_LOGOUT;
+	{  
+		conn->type = REDIR_LOGOUT;
+		/* remove apple control */
+		char cmd1[64];
+	        sprintf(cmd1, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
+	        system(cmd1);
+	}
 	else if (!strncmp(path, "www/", 4) && strlen(path) > 4)
 	  conn->type = REDIR_WWW;
 	else if (!strcmp(path, "status"))
@@ -2267,9 +2273,20 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  //char cmd[80];
 	  //sprintf(cmd, "chilli_query authorize ip %s sessiontimeout 180", inet_ntoa(conn->hisip));
 	  //system(cmd);
-	  char cmd1[64];
-	  sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
-	  system(cmd1);
+	    char appleFile[32];
+	    sprintf(appleFile, "/tmp/apple_%s", inet_ntoa(conn->hisip));
+            struct stat appleFileStat;
+            if ( stat(appleFile, &appleFileStat) == 0 ) {
+      		if ( time(NULL) - appleFileStat.st_ctime > 120 ) {
+      			char cmd1[64];
+			sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
+			system(cmd1);
+		}
+            }else {
+			char cmd1[64];
+			sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
+			system(cmd1);
+	    }
 	  //return 0;
 	}else if (!strcmp(path, "authorize"))
 	{ 
