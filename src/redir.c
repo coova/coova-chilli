@@ -1612,7 +1612,7 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   if ( stat(appleFile, &appleFileStat) == 0 ) {
       syslog(LOG_DEBUG, "Time Diff :%ld, [%s], [%s]", time(NULL) - appleFileStat.st_ctime, 
       	conn->s_state.redir.useragent, conn->s_state.redir.host);
-      if ( time(NULL) - appleFileStat.st_ctime < 90 ) {
+      if ( time(NULL) - appleFileStat.st_ctime < 180 ) {
 	      if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL 
 	       && (
 	       	strcmp(conn->s_state.redir.host, "captive.apple.com") == 0 ||
@@ -2279,7 +2279,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	    sprintf(appleFile, "/tmp/apple_%s", inet_ntoa(conn->hisip));
             struct stat appleFileStat;
             if ( stat(appleFile, &appleFileStat) == 0 ) {
-      		if ( time(NULL) - appleFileStat.st_ctime > 90 ) {
+      		if ( time(NULL) - appleFileStat.st_ctime > 180 ) {
       			char cmd1[64];
 			sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
 			system(cmd1);
