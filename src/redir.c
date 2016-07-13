@@ -1606,47 +1606,30 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   syslog(LOG_DEBUG, "get apple flag:%d", conn->apple);
   syslog(LOG_DEBUG, "User-Agent:%s", conn->s_state.redir.useragent);
   syslog(LOG_DEBUG, "Host:%s", conn->s_state.redir.host);
-  char appleFile[32];
-  sprintf(appleFile, "/tmp/apple_%s", inet_ntoa(conn->hisip));
-  struct stat appleFileStat;
-  if ( stat(appleFile, &appleFileStat) == 0 ) {
-      syslog(LOG_DEBUG, "Time Diff :%ld, [%s], [%s]", time(NULL) - appleFileStat.st_ctime, 
-      	conn->s_state.redir.useragent, conn->s_state.redir.host);
-      if ( time(NULL) - appleFileStat.st_ctime < 180 ) {
-	      if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL 
-	       && (
-	       	strcmp(conn->s_state.redir.host, "captive.apple.com") == 0 ||
-	        strcmp(conn->s_state.redir.host, "www.apple.com") == 0 ||
-	        strcmp(conn->s_state.redir.host, "www.thinkdifferent.us") == 0 ||
-	        strcmp(conn->s_state.redir.host, "www.itools.info") == 0 ||
-	        strcmp(conn->s_state.redir.host, "www.airport.us") == 0 ||
-	        strcmp(conn->s_state.redir.host, "www.appleiphonecell.com") == 0 ||
-	        strcmp(conn->s_state.redir.host, "www.ibook.info") == 0 )
-	      ) {
-	        redir_http(buffer, "200 OK");
+  syslog(LOG_DEBUG, "is HTTP/1.0:%d", conn->is_http_10);
+
+  if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL ) {
+        redir_http(buffer, "200 OK");
+  	if ( conn->is_http_10 == 1 ) {
+	        bcatcstr(buffer,
+	                 "Content-type: text/html\r\n\r\n"
+	                 "<HTML><HEAD><TITLE>Popup</TITLE></HEAD><BODY>");
+	        bcatcstr(buffer, "Popup</BODY></HTML>");
+  	}else {
 	        bcatcstr(buffer,
 	                 "Content-type: text/html\r\n\r\n"
 	                 "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>");
 	        bcatcstr(buffer, "Success</BODY></HTML>");
-	   
-	        if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
-	            syslog(LOG_ERR, "redir_write()");
-	            bdestroy(buffer);
-	            return -1;
-	        }
-	        
-	        //char cmd[64];
-	        //sprintf(cmd, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
-	        //system(cmd);
-	   
-	        bdestroy(buffer);
-	        return 0;
-	      }
-      }else {
-      		char cmd[64];
-	        sprintf(cmd, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
-	        system(cmd);
-      }
+  	}
+   
+        if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
+            syslog(LOG_ERR, "redir_write()");
+            bdestroy(buffer);
+            return -1;
+        }
+        
+        bdestroy(buffer);
+        return 0;
   }
 
 #ifdef ENABLE_JSON
@@ -2224,6 +2207,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	if (*p1 == '/') p1++;
 	else { syslog(LOG_ERR, "parse error"); return -1; }
 
+	/* check HTTP/1.0 */
+	if ( NULL != strstr(p1, "HTTP/1.0") ) {
+	  	conn->is_http_10 = 1;
+	}else {
+	  	conn->is_http_10 = 0;
+	}
+	  
 	/* The path ends with a ? or a space */
 	p2 = strchr(p1, qs_delim);
 	if (!p2) { qs_delim = ' '; p2 = strchr(p1, qs_delim); }
@@ -2256,13 +2246,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	if ((!strcmp(path, "logon")) || (!strcmp(path, "login")))
 	  conn->type = REDIR_LOGIN;
 	else if ((!strcmp(path, "logoff")) || (!strcmp(path, "logout")))
-	{  
-		conn->type = REDIR_LOGOUT;
-		/* remove apple control */
-		char cmd1[64];
-	        sprintf(cmd1, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
-	        system(cmd1);
-	}
+  	  conn->type = REDIR_LOGOUT;
 	else if (!strncmp(path, "www/", 4) && strlen(path) > 4)
 	  conn->type = REDIR_WWW;
 	else if (!strcmp(path, "status"))
@@ -2272,24 +2256,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  conn->type = REDIR_APPLE; 
 	  conn->apple = 1; 
 	  syslog(LOG_DEBUG, "Apple Action Success %s-----1", inet_ntoa(conn->hisip));
-	  //char cmd[80];
-	  //sprintf(cmd, "chilli_query authorize ip %s sessiontimeout 180", inet_ntoa(conn->hisip));
-	  //system(cmd);
-	    char appleFile[32];
-	    sprintf(appleFile, "/tmp/apple_%s", inet_ntoa(conn->hisip));
-            struct stat appleFileStat;
-            if ( stat(appleFile, &appleFileStat) == 0 ) {
-      		if ( time(NULL) - appleFileStat.st_ctime > 180 ) {
-      			char cmd1[64];
-			sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
-			system(cmd1);
-		}
-            }else {
-			char cmd1[64];
-			sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
-			system(cmd1);
-	    }
-	  //return 0;
+	  return 0;
 	}else if (!strcmp(path, "authorize"))
 	{ 
 	  conn->type = REDIR_AUTHORIZE; 
@@ -2320,6 +2287,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	if (qs_delim == '?') {
 	  p1 = p2 + 1;
 	  p2 = strchr(p1, ' ');
+	  
+	  /* check HTTP/1.0 */
+	  if ( NULL != strstr(p1, "HTTP/1.0") ) {
+	  	conn->is_http_10 = 1;
+	  }else {
+	  	conn->is_http_10 = 0;
+	  }
 
 	  if (p2) {
 	    *p2 = 0;
