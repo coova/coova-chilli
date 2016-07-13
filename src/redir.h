@@ -169,6 +169,7 @@ struct redir_conn_t {
 struct redir_httpreq_t {
   uint8_t allow_post:1;
   uint8_t is_post:1;
+  uint8_t is_http_10:1; // == 1 means HTTP/1.0, else means HTTP/1.1
 
   char host[256];
   char path[256];
