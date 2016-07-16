@@ -1664,7 +1664,7 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
       bcatcstr(buffer, "\r\nContent-Type: text/html; charset=UTF-8\r\n");
 
       bbody = bfromcstralloc(512,
-                             "<HTML><BODY><H2>Browser error!</H2>"
+                             "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY><H2>Browser error!</H2>"
                              "Browser does not support redirects!</BODY>\r\n");
 
       if (res == REDIR_NOTYET) {
