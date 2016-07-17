@@ -1609,6 +1609,110 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   char appleFile[32];
   sprintf(appleFile, "/tmp/apple_%s", inet_ntoa(conn->hisip));
   struct stat appleFileStat;
+
+  /* is HTTP/1.0 and CaptiveNetworkSupport */
+  if ( conn->is_http_10 == 1 && strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL ) {
+	/* not exists apple control file */
+  	if ( stat(appleFile, &appleFileStat) != 0 ) {
+	        redir_http(buffer, "200 OK");
+	        bcatcstr(buffer,
+	                 "Content-type: text/html\r\n\r\n"
+	                 "<HTML><HEAD><TITLE>Popup</TITLE></HEAD><BODY>");
+	        bcatcstr(buffer, "Popup</BODY></HTML>");
+	   
+	        if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
+	            syslog(LOG_ERR, "redir_write()");
+	            bdestroy(buffer);
+	            return -1;
+	        }
+
+	        bdestroy(buffer);
+	        
+	        return 0;
+	}else {
+		if ( time(NULL) - appleFileStat.st_ctime < 180 ) {
+	        	redir_http(buffer, "200 OK");
+	        	bcatcstr(buffer,
+	                 	"Content-type: text/html\r\n\r\n"
+	                 	"<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>");
+	        	bcatcstr(buffer, "Success</BODY></HTML>");
+	   
+	        	if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
+	            		syslog(LOG_ERR, "redir_write()");
+	            		bdestroy(buffer);
+	            		return -1;
+	        	}
+
+	        	bdestroy(buffer);
+	        	return 0;
+		}else {
+	        	redir_http(buffer, "200 OK");
+	        	bcatcstr(buffer,
+	                 	"Content-type: text/html\r\n\r\n"
+	                 	"<HTML><HEAD><TITLE>Popup</TITLE></HEAD><BODY>");
+	        	bcatcstr(buffer, "Popup</BODY></HTML>");
+	   
+	        	if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
+	            		syslog(LOG_ERR, "redir_write()");
+	            		bdestroy(buffer);
+	            		return -1;
+	        	}
+
+	        	bdestroy(buffer);
+	        
+	        	return 0;
+		}
+	}
+  //}else if ( conn->is_http_10 == 0 && strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL ) {
+  }else if ( conn->is_http_10 == 0 && strstr(conn->s_state.redir.userurl, "hotspot-detect.html" ) != NULL ) {
+  	if ( stat(appleFile, &appleFileStat) != 0 ) {
+      		char cmd[64];
+		sprintf(cmd, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
+		system(cmd);
+	}else {
+		if ( time(NULL) - appleFileStat.st_ctime > 180 ) {
+      			char cmd[64];
+			sprintf(cmd, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
+			system(cmd);
+		}
+	}
+
+	redir_http(buffer, "200 OK");
+	bcatcstr(buffer,
+	      	"Content-type: text/html\r\n\r\n"
+	       	"<HTML><HEAD><TITLE>Success</TITLE>");
+	bcatcstr(buffer, "<script type='text/javascript'>");
+	bcatcstr(buffer, "window.location.href='");
+
+        if (url) {
+        	bconcat(buffer, url);
+      	} else if (!_options.redirurl && redirurl && *redirurl) {
+        	bcatcstr(buffer, redirurl);
+      	} else {
+        	bstring bt;
+        	bt = bfromcstralloc(1024,"");
+        	redir_buildurl(conn, bt, redir, resp, timeleft, hexchal,
+                       uid, userurl, reply, redirurl, hismac, hisip);
+        	bconcat(buffer, bt);
+        	bdestroy(bt);
+      	}
+	  
+	bcatcstr(buffer, "'</script>");
+	bcatcstr(buffer, "</HEAD><BODY>Success</BODY></HTML>");
+
+	if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
+		syslog(LOG_ERR, "redir_write()");
+	       	bdestroy(buffer);
+	       	return -1;
+	}
+
+        bdestroy(buffer);
+
+        return 0;
+  }
+
+
+#if 0
   if ( stat(appleFile, &appleFileStat) == 0 ) {
       syslog(LOG_DEBUG, "Time Diff :%ld, [%s], [%s]", time(NULL) - appleFileStat.st_ctime, 
       	conn->s_state.redir.useragent, conn->s_state.redir.host);
@@ -1648,6 +1752,7 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 	        system(cmd);
       }
   }
+#endif
 
 #ifdef ENABLE_JSON
   if (conn->format == REDIR_FMT_JSON) {
