@@ -166,7 +166,6 @@ static int bytetosphex(uint8_t *src, const size_t IN_LEN, char *dst,
   char *x;
   int n;
   int i = 0;
-
   for (n=0; n<srclen; n++) {
   x=0;
   switch(src[n]) {
@@ -1607,29 +1606,47 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   syslog(LOG_DEBUG, "User-Agent:%s", conn->s_state.redir.useragent);
   syslog(LOG_DEBUG, "Host:%s", conn->s_state.redir.host);
   syslog(LOG_DEBUG, "is HTTP/1.0:%d", conn->is_http_10);
-
-  if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL ) {
-        redir_http(buffer, "200 OK");
-  	if ( conn->is_http_10 == 1 ) {
-	        bcatcstr(buffer,
-	                 "Content-type: text/html\r\n\r\n"
-	                 "<HTML><HEAD><TITLE>Popup</TITLE></HEAD><BODY>");
-	        bcatcstr(buffer, "Popup</BODY></HTML>");
-  	}else {
+  char appleFile[32];
+  sprintf(appleFile, "/tmp/apple_%s", inet_ntoa(conn->hisip));
+  struct stat appleFileStat;
+  if ( stat(appleFile, &appleFileStat) == 0 ) {
+      syslog(LOG_DEBUG, "Time Diff :%ld, [%s], [%s]", time(NULL) - appleFileStat.st_ctime, 
+      	conn->s_state.redir.useragent, conn->s_state.redir.host);
+      if ( time(NULL) - appleFileStat.st_ctime < 180 ) {
+	      if ( strstr(conn->s_state.redir.useragent, "CaptiveNetworkSupport" ) != NULL 
+	       && (
+	       	strcmp(conn->s_state.redir.host, "captive.apple.com") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.apple.com") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.thinkdifferent.us") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.itools.info") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.airport.us") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.appleiphonecell.com") == 0 ||
+	        strcmp(conn->s_state.redir.host, "www.ibook.info") == 0 )
+	      ) {
+	        redir_http(buffer, "200 OK");
 	        bcatcstr(buffer,
 	                 "Content-type: text/html\r\n\r\n"
 	                 "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>");
 	        bcatcstr(buffer, "Success</BODY></HTML>");
-  	}
-   
-        if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
-            syslog(LOG_ERR, "redir_write()");
-            bdestroy(buffer);
-            return -1;
-        }
-        
-        bdestroy(buffer);
-        return 0;
+	   
+	        if (redir_write(sock, (char*)buffer->data, buffer->slen) < 0) {
+	            syslog(LOG_ERR, "redir_write()");
+	            bdestroy(buffer);
+	            return -1;
+	        }
+	        
+	        //char cmd[64];
+	        //sprintf(cmd, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
+	        //system(cmd);
+	   
+	        bdestroy(buffer);
+	        return 0;
+	      }
+      }else {
+      		char cmd[64];
+	        sprintf(cmd, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
+	        system(cmd);
+      }
   }
 
 #ifdef ENABLE_JSON
@@ -1664,7 +1681,7 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
       bcatcstr(buffer, "\r\nContent-Type: text/html; charset=UTF-8\r\n");
 
       bbody = bfromcstralloc(512,
-                             "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY><H2>Browser error!</H2>"
+                             "<HTML><BODY><H2>Browser error!</H2>"
                              "Browser does not support redirects!</BODY>\r\n");
 
       if (res == REDIR_NOTYET) {
@@ -2246,7 +2263,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	if ((!strcmp(path, "logon")) || (!strcmp(path, "login")))
 	  conn->type = REDIR_LOGIN;
 	else if ((!strcmp(path, "logoff")) || (!strcmp(path, "logout")))
-  	  conn->type = REDIR_LOGOUT;
+	{  
+		conn->type = REDIR_LOGOUT;
+		/* remove apple control */
+		char cmd1[64];
+	        sprintf(cmd1, "/bin/rm -f /tmp/apple_%s", inet_ntoa(conn->hisip));
+	        system(cmd1);
+	}
 	else if (!strncmp(path, "www/", 4) && strlen(path) > 4)
 	  conn->type = REDIR_WWW;
 	else if (!strcmp(path, "status"))
@@ -2256,7 +2279,24 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	  conn->type = REDIR_APPLE; 
 	  conn->apple = 1; 
 	  syslog(LOG_DEBUG, "Apple Action Success %s-----1", inet_ntoa(conn->hisip));
-	  return 0;
+	  //char cmd[80];
+	  //sprintf(cmd, "chilli_query authorize ip %s sessiontimeout 180", inet_ntoa(conn->hisip));
+	  //system(cmd);
+	    char appleFile[32];
+	    sprintf(appleFile, "/tmp/apple_%s", inet_ntoa(conn->hisip));
+            struct stat appleFileStat;
+            if ( stat(appleFile, &appleFileStat) == 0 ) {
+      		if ( time(NULL) - appleFileStat.st_ctime > 180 ) {
+      			char cmd1[64];
+			sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
+			system(cmd1);
+		}
+            }else {
+			char cmd1[64];
+			sprintf(cmd1, "/bin/touch /tmp/apple_%s", inet_ntoa(conn->hisip));
+			system(cmd1);
+	    }
+	  //return 0;
 	}else if (!strcmp(path, "authorize"))
 	{ 
 	  conn->type = REDIR_AUTHORIZE; 
@@ -3216,7 +3256,6 @@ int is_local_user(struct redir_t *redir, struct redir_conn_t *conn) {
    - Redirect to login page?
    c) Request for another server
    - Redirect to login server.
-
    Incoming requests are identified only by their IP address. No MAC
    address information is obtained. The main security problem is denial
    of service attacks by malicious hosts sending logoff requests for
@@ -4493,4 +4532,3 @@ int redir_set_cb_getstate(struct redir_t *redir,
   redir->cb_getstate = cb_getstate;
   return 0;
 }
-
