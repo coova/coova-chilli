@@ -264,6 +264,52 @@ struct pkt_icmphdr_t {
   uint16_t check;
 } __attribute__((packed));
 
+/* RFC 4884 ICMP Multi-part extension header:
+ * 0                   1                   2                   3
+ * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |Version|      (Reserved)       |           Checksum            |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct pkt_icmpexthdr_t {
+  uint16_t version_reserved; /* 4 bits version, remainder is reserved */
+  uint16_t check;
+} __attribute__((packed));
+
+#define PKT_ICMP_EXTENSION_VERSION 0x2000
+
+/* RFC 4884 ICMP Multi-part object header:
+ * 0                   1                   2                   3
+ * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |             Length            |   Class-Num   |   C-Type      |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                                                               |
+ * |                   // (Object payload) //                      |
+ * |                                                               |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct pkt_icmpobjhdr_t {
+  uint16_t length;
+  uint8_t class_num;
+  uint8_t c_type;
+} __attribute__((packed));
+
+/* Experimental CAPPORT ICMP Multi-part extension object:
+ * 0                   1                   2                   3
+ * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |W|  Reserved   |         Validity (seconds)                    |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+struct pkt_capporticmp_t {
+  uint32_t flags_validity;  /* first 8 bits are flags */
+} __attribute__((packed));
+
+#define PKT_ICMP_EXTENSION_CLASS_NUM_CAPPORT      111  /* To be set by IANA */
+#define PKT_ICMP_EXTENSION_CAPPORT_WARNING        0x80000000
+#define PKT_ICMP_EXTENSION_CAPPORT_FLAGS_MASK     0xFF000000
+#define PKT_ICMP_EXTENSION_CAPPORT_VALIDITY_MASK  0x00FFFFFF
 
 /*
   0      7 8     15 16    23 24    31

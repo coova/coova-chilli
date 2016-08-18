@@ -1486,66 +1486,165 @@ int dhcp_ipwhitelist(struct pkt_ipphdr_t *iph, unsigned char dst) {
 size_t icmpfrag(struct dhcp_conn_t *conn,
 		uint8_t *pack, size_t plen, uint8_t *orig_pack) {
   /*
-    0                   1                   2                   3
-    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |     Type      |     Code      |          Checksum             |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |           unused = 0          |         Next-Hop MTU          |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    |      Internet Header + 64 bits of Original Data Datagram      |
-    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-    Used when we recived a truncated (from recvfrom() where our buffer
-    is smaller than IP packet length) IP packet.
-  */
-
+   * 0                   1                   2                   3
+   * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   * |     Type      |     Code      |          Checksum             |
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   * |           unused = 0          |         Next-Hop MTU          |
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   * |      Internet Header + 64 bits of Original Data Datagram      |
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   *
+   * Used when we recived a truncated (from recvfrom() where our buffer
+   * is smaller than IP packet length) IP packet.
+   */
   size_t icmp_req_len = PKT_IP_HLEN + 8;
 
   size_t icmp_ip_len = PKT_IP_HLEN + sizeof(struct pkt_icmphdr_t) +
-      4 + icmp_req_len;
+    sizeof(struct pkt_icmphdr_t) + icmp_req_len;
 
   size_t icmp_full_len = icmp_ip_len + sizeofeth(orig_pack);
 
   struct pkt_iphdr_t  *orig_pack_iph  = pkt_iphdr(orig_pack);
   struct pkt_ethhdr_t *orig_pack_ethh = pkt_ethhdr(orig_pack);
+  struct pkt_ethhdr_t *pack_ethh;
+  struct pkt_iphdr_t *pack_iph;
+  struct pkt_icmphdr_t *pack_icmph;
 
   if (icmp_full_len > plen) return 0;
 
   memset(pack, 0, icmp_full_len);
   copy_ethproto(orig_pack, pack);
 
-  {
-    struct pkt_ethhdr_t *pack_ethh  = pkt_ethhdr(pack);
-    struct pkt_iphdr_t *pack_iph = pkt_iphdr(pack);
-    struct pkt_icmphdr_t *pack_icmph;
+  /* eth */
+  pack_ethh  = pkt_ethhdr(pack);
+  memcpy(pack_ethh->dst, orig_pack_ethh->src, PKT_ETH_ALEN);
+  memcpy(pack_ethh->src, orig_pack_ethh->dst, PKT_ETH_ALEN);
 
-    /* eth */
-    memcpy(pack_ethh->dst, orig_pack_ethh->src, PKT_ETH_ALEN);
-    memcpy(pack_ethh->src, orig_pack_ethh->dst, PKT_ETH_ALEN);
+  /* ip */
+  pack_iph = pkt_iphdr(pack);
+  pack_iph->version_ihl = PKT_IP_VER_HLEN;
+  pack_iph->saddr = conn->ourip.s_addr;
+  pack_iph->daddr = orig_pack_iph->saddr;
+  pack_iph->protocol = PKT_IP_PROTO_ICMP;
+  pack_iph->ttl = 0x10;
+  pack_iph->tot_len = htons(icmp_ip_len);
 
-    /* ip */
-    pack_iph->version_ihl = PKT_IP_VER_HLEN;
-    pack_iph->saddr = conn->ourip.s_addr;
-    pack_iph->daddr = orig_pack_iph->saddr;
-    pack_iph->protocol = PKT_IP_PROTO_ICMP;
-    pack_iph->ttl = 0x10;
-    pack_iph->tot_len = htons(icmp_ip_len);
+  pack_icmph = pkt_icmphdr(pack);
+  pack_icmph->type = 3;
+  pack_icmph->code = 4;
+  /* go beyond icmp header and fill in next hop MTU */
+  pack_icmph++;
+  pack_icmph->check = htons(conn->mtu);
 
-    pack_icmph = pkt_icmphdr(pack);
-    pack_icmph->type = 3;
-    pack_icmph->code = 4;
+  memcpy(pack + (icmp_full_len - icmp_req_len),
+	 orig_pack + sizeofeth(orig_pack), icmp_req_len);
 
-    /* go beyond icmp header and fill in next hop MTU */
-    pack_icmph++;
-    pack_icmph->check = htons(conn->mtu);
+  chksum(pack_iph);
+  return icmp_full_len;
+}
 
-    memcpy(pack + (icmp_full_len - icmp_req_len),
-	   orig_pack + sizeofeth(orig_pack), icmp_req_len);
+size_t icmpcapport(struct dhcp_conn_t *conn,
+		   uint8_t *pack, size_t plen, uint8_t *orig_pack) {
+  /* CAPPORT ICMP:
+   * https://datatracker.ietf.org/doc/draft-wkumari-capport-icmp-unreach/
+   *
+   * RFC 4884 Multi-Part ICMP message original headers length:
+   *  0                   1                   2                   3
+   *  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   * |     Type      |     Code      |          Checksum             |
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   * |     unused    |    Length     |         Next-Hop MTU*         |
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   * |      Internet Header + leading octets of original datagram    |
+   * |                                                               |
+   * |                           //                                  |
+   * |                                                               |
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   *
+   * Extension header:
+   * 0                   1                   2                   3
+   * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   * |Version|      (Reserved)       |           Checksum            |
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   *
+   * Object header:
+   * 0                   1                   2                   3
+   * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   * |             Length            |   Class-Num   |   C-Type      |
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   * |                                                               |
+   * |                   // (Object payload) //                      |
+   * |                                                               |
+   * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   */
+  size_t icmp_req_len = PKT_IP_HLEN + 8;
 
-    chksum(pack_iph);
-  }
+  size_t icmp_ip_len = PKT_IP_HLEN + sizeof(struct pkt_icmphdr_t) +
+    sizeof(struct pkt_icmphdr_t) + icmp_req_len +
+    sizeof(struct pkt_icmpexthdr_t) + sizeof(struct pkt_icmpobjhdr_t) +
+    sizeof(struct pkt_capporticmp_t);
 
+  size_t icmp_full_len = icmp_ip_len + sizeofeth(orig_pack);
+
+  struct pkt_iphdr_t  *orig_pack_iph  = pkt_iphdr(orig_pack);
+  struct pkt_ethhdr_t *orig_pack_ethh = pkt_ethhdr(orig_pack);
+  struct pkt_ethhdr_t *pack_ethh;
+  struct pkt_iphdr_t *pack_iph;
+  struct pkt_icmphdr_t *pack_icmph;
+  struct pkt_icmpexthdr_t *pack_icmpexth;
+  struct pkt_icmpobjhdr_t *pack_icmpobjh;
+  struct pkt_capporticmp_t* pack_capporticmp;
+  uint8_t* end;
+
+  if (icmp_full_len > plen) return 0;
+
+  memset(pack, 0, icmp_full_len);
+  copy_ethproto(orig_pack, pack);
+
+  /* eth */
+  pack_ethh  = pkt_ethhdr(pack);
+  memcpy(pack_ethh->dst, orig_pack_ethh->src, PKT_ETH_ALEN);
+  memcpy(pack_ethh->src, orig_pack_ethh->dst, PKT_ETH_ALEN);
+
+  /* ip */
+  pack_iph = pkt_iphdr(pack);
+  pack_iph->version_ihl = PKT_IP_VER_HLEN;
+  pack_iph->saddr = conn->ourip.s_addr;
+  pack_iph->daddr = orig_pack_iph->saddr;
+  pack_iph->protocol = PKT_IP_PROTO_ICMP;
+  pack_iph->ttl = 0x11;
+  pack_iph->tot_len = htons(icmp_ip_len);
+
+  pack_icmph = pkt_icmphdr(pack);
+  pack_icmph->type = 3;
+  pack_icmph->code = 13;
+  pack_icmph++; /* advance to next 4 bytes */
+  pack_icmph->code = icmp_req_len;
+  pack_icmph->check = htons(conn->mtu);
+  end = (uint8_t *) &pack_icmph[1];
+  memcpy(end, orig_pack + sizeofeth(orig_pack), icmp_req_len);
+  end += icmp_req_len;
+
+  pack_icmpexth = (struct pkt_icmpexthdr_t*) end;
+  end += sizeof(struct pkt_icmpexthdr_t);
+  pack_icmpexth->version_reserved = htons(PKT_ICMP_EXTENSION_VERSION);
+
+  pack_icmpobjh = (struct pkt_icmpobjhdr_t*) end;
+  end += sizeof(struct pkt_icmpobjhdr_t);
+  pack_icmpobjh->length = sizeof(struct pkt_icmpobjhdr_t) +
+    sizeof(struct pkt_capporticmp_t);
+  pack_icmpobjh->class_num = PKT_ICMP_EXTENSION_CLASS_NUM_CAPPORT;
+  pack_icmpobjh->c_type = 0;
+
+  pack_capporticmp = (struct pkt_capporticmp_t*) end;
+  pack_capporticmp->flags_validity = 0;
+
+  chksum(pack_iph);
   return icmp_full_len;
 }
 
@@ -2723,8 +2822,15 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
 #endif
 
       dhcp_sendRESET(conn, pack, 1);
+      return -1;
     }
 #endif
+  }
+
+  if (do_reset) {
+    uint8_t icmp_pack[1500];
+    dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, icmp_pack,
+	      icmpcapport(conn, icmp_pack, sizeof(icmp_pack), pack));
   }
 
   return -1; /* Something else */
