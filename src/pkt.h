@@ -306,7 +306,9 @@ struct pkt_capporticmp_t {
   uint32_t flags_validity;  /* first 8 bits are flags */
 } __attribute__((packed));
 
-#define PKT_ICMP_EXTENSION_CLASS_NUM_CAPPORT      111  /* To be set by IANA */
+#define PKT_ICMP_EXTENSION_CAPPORT_CLASS_NUM      111  /* To be set by IANA */
+#define PKT_ICMP_EXTENSION_CAPPORT_FILTERED_TYPE  1
+#define PKT_ICMP_EXTENSION_CAPPORT_WARNING_TYPE   2
 #define PKT_ICMP_EXTENSION_CAPPORT_WARNING        0x80000000
 #define PKT_ICMP_EXTENSION_CAPPORT_FLAGS_MASK     0xFF000000
 #define PKT_ICMP_EXTENSION_CAPPORT_VALIDITY_MASK  0x00FFFFFF
@@ -568,6 +570,9 @@ struct eapol_tag_t {
   uint8_t l;
   uint8_t v[EAPOL_TAG_VLEN];
 } __attribute__((packed));
+
+uint32_t in_cksum(uint16_t *addr, int len);
+#define cksum_wrap(c) (c=(c>>16)+(c&0xffff),(~(c+(c>>16))&0xffff))
 
 int chksum(struct pkt_iphdr_t *iph);
 int pkt_shape_tcpwin(struct pkt_iphdr_t *iph, uint16_t win);

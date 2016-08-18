@@ -183,6 +183,8 @@ struct dhcp_conn_t {
     size_t option_length;
   } dhcp_opts;
 #endif
+
+  uint8_t capport_icmp_counter;
 };
 
 
