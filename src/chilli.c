@@ -2510,6 +2510,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
   size_t len = pkt_buffer_length(pb);
 
   int ethhdr = (tun(tun, idx).flags & NET_ETHHDR) != 0;
+  size_t ip_len = len;
 
 #ifdef ENABLE_TAP
   if (idx) ethhdr = 0;
@@ -2525,6 +2526,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
     prot = ntohs(ethh->prot);
 
     ipph = (struct pkt_ipphdr_t *)((char *)pack + PKT_ETH_HLEN);
+    ip_len -= PKT_ETH_HLEN;
 
     switch (prot) {
       case PKT_ETH_PROTO_IPv6:
@@ -2655,6 +2657,15 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
     ipph = (struct pkt_ipphdr_t *)pack;
   }
 
+  size_t hlen = (ipph->version_ihl & 0x0f) << 2;
+  if (ntohs(ipph->tot_len) > ip_len || hlen > ip_len) {
+    if (_options.debug)
+      syslog(LOG_DEBUG, "invalid IP packet %d / %zu",
+             ntohs(ipph->tot_len),
+             len);
+    return 0;
+  }
+
   /*
    *  Filter out unsupported / unhandled protocols,
    *  and check some basic length sanity.
@@ -2665,31 +2676,20 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
     case PKT_IP_PROTO_ICMP:
     case PKT_IP_PROTO_ESP:
     case PKT_IP_PROTO_AH:
-      {
-        if (ntohs(ipph->tot_len) > len) {
-          if (_options.debug)
-            syslog(LOG_DEBUG, "invalid IP packet %d / %zu",
-                   ntohs(ipph->tot_len),
-                   len);
-          return 0;
-        }
-      }
       break;
     case PKT_IP_PROTO_UDP:
       {
-        size_t hlen = (ipph->version_ihl & 0x0f) << 2;
         /*
          * Only the first IP fragment has the UDP header.
          */
         if (iphdr_offset((struct pkt_iphdr_t*)ipph) == 0) {
           udph = (struct pkt_udphdr_t *)(((void *)ipph) + hlen);
         }
-        if (ntohs(ipph->tot_len) > len ||
-            (udph && (ntohs(udph->len) > len))) {
+        if (udph && (ntohs(udph->len) > ip_len)) {
           if (_options.debug)
             syslog(LOG_DEBUG, "invalid UDP packet %d / %d / %zu",
                    ntohs(ipph->tot_len),
-                   udph?ntohs(udph->len):-1, len);
+                   udph ? ntohs(udph->len) : -1, ip_len);
           return 0;
         }
       }
