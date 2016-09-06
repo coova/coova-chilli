@@ -4347,7 +4347,10 @@ static int chilliauth_cb(struct radius_t *radius,
 	    while (!differ && r1 > 0 && r2 > 0);
 	  }
 
-	  if (oldfd) safe_close(oldfd); oldfd=0;
+	  if (oldfd) {
+		  safe_close(oldfd);
+		  oldfd=0;
+	  }
 
 	  if (differ) {
             if (_options.debug)
