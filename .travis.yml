@@ -1,7 +1,7 @@
 language: c
 before_install: 
  - sudo apt-get update -qq
- - sudo apt-get install -y gengetopt
+ - sudo apt-get install -y gengetopt libjson0-dev
  - ./bootstrap
 script:
  - ./configure --enable-largelimits --enable-proxyvsa --enable-miniportal
