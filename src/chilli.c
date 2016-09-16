@@ -4425,6 +4425,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
 
   struct radius_attr_t *stateattr = NULL;
   struct radius_attr_t *classattr = NULL;
+  struct radius_attr_t *uidattr = NULL;
 
 #ifdef ENABLE_RADPROXY
   int instance = 0;
@@ -4670,6 +4671,18 @@ int cb_radius_auth_conf(struct radius_t *radius,
   if (_options.debug)
     syslog(LOG_DEBUG, "Received RADIUS Access-Accept");
 #endif
+
+  if (!radius_getattr(pack, &uidattr, RADIUS_ATTR_USER_NAME, 0, 0, 0)) {
+    if (uidattr->l-2 < USERNAMESIZE) {
+      memcpy(appconn->s_state.redir.username,
+        (char *)uidattr->v.t, uidattr->l-2);
+        appconn->s_state.redir.username[uidattr->l-2]=0;
+    }
+#if(_debug_)
+    if (_options.debug)
+      syslog(LOG_DEBUG, "Received User-Name override from RADIUS Access-Accept: %s", appconn->s_state.redir.username);
+#endif
+  }
 
   /* Class */
   if (!radius_getattr(pack, &classattr, RADIUS_ATTR_CLASS, 0, 0, 0)) {
