@@ -279,7 +279,7 @@ int options_fromfd(int fd, bstring bt) {
 #ifdef ENABLE_IEEE8021Q
   if (!option_s_l(bt, &o.vlanupdate)) return 0;
 #endif
-#ifdef ENABLE_PROXYVSA
+#if defined(ENABLE_PROXYVSA) || defined(ENABLE_LOCATION)
   if (!option_s_l(bt, &o.locationupdate)) return 0;
 #endif
 
@@ -479,7 +479,7 @@ int options_save(char *file, bstring bt) {
 #ifdef ENABLE_IEEE8021Q
   if (!option_s_s(bt, &o.vlanupdate)) return 0;
 #endif
-#ifdef ENABLE_PROXYVSA
+#if defined(ENABLE_PROXYVSA) || defined(ENABLE_LOCATION)
   if (!option_s_s(bt, &o.locationupdate)) return 0;
 #endif
 

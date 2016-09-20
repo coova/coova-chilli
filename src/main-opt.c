@@ -541,7 +541,7 @@ int main(int argc, char **argv) {
   _options.bwbucketminsize = args_info.bwbucketminsize_arg;
 #endif
 
-#ifdef ENABLE_PROXYVSA
+#if defined(ENABLE_PROXYVSA) || defined(ENABLE_LOCATION)
   _options.vlanlocation = args_info.vlanlocation_flag;
   _options.location_stop_start = args_info.locationstopstart_flag;
   _options.location_copy_called = args_info.locationcopycalled_flag;
@@ -1394,7 +1394,7 @@ int main(int argc, char **argv) {
   _options.ieee8021q_only = args_info.only8021q_flag;
   _options.vlanupdate = STRDUP(args_info.vlanupdate_arg);
 #endif
-#ifdef ENABLE_PROXYVSA
+#if defined(ENABLE_PROXYVSA) || defined(ENABLE_LOCATION)
   _options.locationupdate = STRDUP(args_info.locationupdate_arg);
 #endif
   _options.nochallenge = args_info.nochallenge_flag;
