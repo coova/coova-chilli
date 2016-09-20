@@ -548,7 +548,7 @@ double mainclock_diffd(struct timespec * past) {
 }
 
 uint8_t* chilli_called_station(struct session_state *state) {
-#ifdef ENABLE_PROXYVSA
+#ifdef ENABLE_LOCATION
   if (_options.location_copy_called && state->redir.calledlen) {
     return state->redir.called;
   }
@@ -3085,8 +3085,10 @@ static int
 chilli_proxy_radlocation(struct radius_packet_t *pack,
 			 struct app_conn_t *appconn, char force) {
   struct radius_attr_t *attr = 0;
+#ifdef ENABLE_PROXYVSA
   uint8_t * vsa = appconn->s_state.redir.vsa;
   int instance=0;
+#endif
 
   if (_options.location_copy_called) {
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_CALLED_STATION_ID, 0, 0, 0)) {
@@ -3099,6 +3101,7 @@ chilli_proxy_radlocation(struct radius_packet_t *pack,
     }
   }
 
+#ifdef ENABLE_PROXYVSA
   do {
     attr=NULL;
     if (!radius_getattr(pack, &attr, RADIUS_ATTR_VENDOR_SPECIFIC, 0, 0,
@@ -3120,6 +3123,7 @@ chilli_proxy_radlocation(struct radius_packet_t *pack,
 #endif
     }
   } while (attr);
+#endif
 
 #ifdef ENABLE_LOCATION
   if (_options.proxy_loc[0].attr) {
