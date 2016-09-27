@@ -322,6 +322,8 @@ struct options_t {
   uint32_t ipsrc_num_pass_throughs;
 #endif
 
+  char* rfc7710uri; /* RFC 7710 URI, nullptr if not used. */
+
   char* uamdomains[MAX_UAM_DOMAINS];
   int uamdomain_ttl;
 

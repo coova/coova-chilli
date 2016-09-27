@@ -3241,6 +3241,15 @@ static int dhcp_accept_opt(struct dhcp_conn_t *conn, uint8_t *o, int pos) {
   }
 #endif
 
+  if (_options.rfc7710uri) {
+    o[pos++] = DHCP_OPTION_CAPTIVE_PORTAL_URI;
+    o[pos++] = strlen(_options.rfc7710uri);
+    memcpy(&o[pos], _options.rfc7710uri, strlen(_options.rfc7710uri));
+    pos += strlen(_options.rfc7710uri);
+    if (_options.debug)
+      syslog(LOG_DEBUG, "DHCP Captive Portal URI %s\n", _options.rfc7710uri);
+  }
+
   o[pos++] = DHCP_OPTION_END;
 
   return pos;

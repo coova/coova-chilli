@@ -306,6 +306,8 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.routeif)) return 0;
   if (!option_s_l(bt, &o.peerkey)) return 0;
 
+  if (!option_s_l(bt, &o.rfc7710uri)) return 0;
+
   if (!option_s_l(bt, &o.macsuffix)) return 0;
   if (!option_s_l(bt, &o.macpasswd)) return 0;
 
@@ -506,6 +508,8 @@ int options_save(char *file, bstring bt) {
 #endif
   if (!option_s_s(bt, &o.routeif)) return 0;
   if (!option_s_s(bt, &o.peerkey)) return 0;
+
+  if (!option_s_s(bt, &o.rfc7710uri)) return 0;
 
   if (!option_s_s(bt, &o.macsuffix)) return 0;
   if (!option_s_s(bt, &o.macpasswd)) return 0;
