@@ -820,6 +820,8 @@ int runscript(struct app_conn_t *appconn, char* script,
   set_env("COOVACHILLI_MAX_TOTAL_OCTETS", VAL_ULONG64, &appconn->s_params.maxtotaloctets, 0);
   set_env("INPUT_OCTETS", VAL_ULONG64, &appconn->s_state.input_octets, 0);
   set_env("OUTPUT_OCTETS", VAL_ULONG64, &appconn->s_state.output_octets, 0);
+  set_env("INPUT_PACKETS", VAL_ULONG64, &appconn->s_state.input_packets, 0);
+  set_env("OUTPUT_PACKETS", VAL_ULONG64, &appconn->s_state.output_packets, 0);
   sessiontime = mainclock_diffu(appconn->s_state.start_time);
   set_env("SESSION_TIME", VAL_ULONG, &sessiontime, 0);
   sessiontime = mainclock_diffu(appconn->s_state.last_up_time);
