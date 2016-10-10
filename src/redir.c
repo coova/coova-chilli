@@ -3231,7 +3231,7 @@ int redir_send_msg(struct redir_t *this, struct redir_msg_t *msg) {
   strlcpy(remote.sun_path, filedest,
           sizeof(remote.sun_path));
 
-#if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
+#if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   remote.sun_len = strlen(remote.sun_path) + 1;
 #endif
 

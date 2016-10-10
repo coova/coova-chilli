@@ -7288,7 +7288,7 @@ int chilli_main(int argc, char **argv) {
       fclose(fp);
       fp = NULL;
     }
-#if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
+#if defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
     if (fork() > 0) {
       exit(0);
 #else
@@ -7683,7 +7683,7 @@ int chilli_main(int argc, char **argv) {
     }
 #endif
 
-#elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__)
+#elif defined (__FreeBSD__)  || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
     for (i=0; i < MAX_RAWIF && dhcp->rawif[i].fd > 0; i++) {
       net_select_reg(&sctx, dhcp->rawif[i].fd, SELECT_READ,
                      (select_callback)dhcp_receive, dhcp, i);
