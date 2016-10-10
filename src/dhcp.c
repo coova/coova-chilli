@@ -1084,7 +1084,7 @@ int dhcp_new(struct dhcp_t **pdhcp, int numconn, int hashsize,
   }
 #endif
 
-#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   {
     int blen=0;
     if (ioctl(dhcp->rawif[0].fd, BIOCGBLEN, &blen) < 0) {
@@ -1399,7 +1399,7 @@ void dhcp_free(struct dhcp_t *dhcp) {
   struct dhcp_conn_t *conn, *c;
 
   if (!dhcp) return;
-#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   if (dhcp->pb.buf)
     free (dhcp->pb.buf);
 #endif
@@ -6343,7 +6343,7 @@ int dhcp_set_cb_disconnect(struct dhcp_t *this,
   return 0;
 }
 
-#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 
 int dhcp_receive(struct dhcp_t *this, int idx) {
   struct bpf_hdr *hdrp;
