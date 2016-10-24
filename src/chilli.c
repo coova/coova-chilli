@@ -5555,7 +5555,6 @@ clear_appconn(struct app_conn_t *appconn) {
       appconn->s_params.maxtotaloctets =
       appconn->s_params.sessiontimeout = 0;
   appconn->s_params.idletimeout = 0;
-  appconn->s_params.idletimeout = 0;
   appconn->s_params.interim_interval = 0;
   appconn->s_params.sessionterminatetime = 0;
 }
