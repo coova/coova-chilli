@@ -2125,11 +2125,13 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 
 	while (*p1 == ' ') p1++; /* Advance through additional white space */
 
+	/* A proxy request, skip over the initial URL */
 	if (!strncmp(p1, "http://", 7) && strlen(p1) > 8) {
-	  /*
-	   *   A proxy request, skip over the initial URL
-	   */
 	  p1 += 7;
+	  while (*p1 && *p1 != '/') p1++;
+	}
+	else if (!strncmp(p1, "https://", 8) && strlen(p1) > 9) {
+	  p1 += 8;
 	  while (*p1 && *p1 != '/') p1++;
 	}
 
