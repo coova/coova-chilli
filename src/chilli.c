@@ -7251,13 +7251,16 @@ int chilli_main(int argc, char **argv) {
 
   int syslog_options = LOG_PID;
   int syslog_debug_options = 0;
+  char *syslog_ident = NULL;
 
 #ifdef LOG_PERROR
   syslog_debug_options = LOG_PERROR;
 #endif
 
+  syslog_ident = basename(argv[0]);
+
   /* Start out also logging to stderr until we load options. */
-  openlog(PACKAGE, syslog_options|syslog_debug_options, LOG_DAEMON);
+  openlog(syslog_ident, syslog_options|syslog_debug_options, LOG_DAEMON);
 
   options_init();
 
@@ -7358,7 +7361,7 @@ int chilli_main(int argc, char **argv) {
 
     if (_options.debug)
       syslog_options |= syslog_debug_options;
-    openlog(PACKAGE, syslog_options, (_options.logfacility<<3));
+    openlog(syslog_ident, syslog_options, (_options.logfacility<<3));
     if (!_options.debug)
       setlogmask(LOG_UPTO(_options.loglevel));
 
