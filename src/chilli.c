@@ -2687,7 +2687,7 @@ int cb_tun_ind(struct tun_t *tun, struct pkt_buffer *pb, int idx) {
         if (iphdr_offset((struct pkt_iphdr_t*)ipph) == 0) {
           udph = (struct pkt_udphdr_t *)(((void *)ipph) + hlen);
         }
-        if (udph && (ntohs(udph->len) > ip_len)) {
+        if (udph && !iphdr_more_frag((struct pkt_iphdr_t*)ipph) && (ntohs(udph->len) > ip_len)) {
           if (_options.debug)
             syslog(LOG_DEBUG, "%s(%d): invalid UDP packet %d / %d / %zu", __FUNCTION__, __LINE__,
                    ntohs(ipph->tot_len),
