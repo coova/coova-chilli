@@ -1623,7 +1623,7 @@ int dhcp_nakDNS(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
   struct pkt_iphdr_t *iph = pkt_iphdr(pack);
   struct pkt_udphdr_t *udph = pkt_udphdr(pack);
 
-  uint8_t answer[1500];
+  uint8_t answer[len];
 
   struct pkt_ethhdr_t *answer_ethh;
   struct pkt_iphdr_t *answer_iph;
