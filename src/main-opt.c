@@ -743,7 +743,7 @@ int main(int argc, char **argv) {
   }
 
   if (!args_info.uamserver_arg) {
-    syslog(LOG_ERR, "WARNING: No uamserver defiend!");
+    syslog(LOG_ERR, "WARNING: No uamserver defined!");
   }
 
   if (args_info.uamserver_arg) {
