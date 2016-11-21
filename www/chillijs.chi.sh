@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # copyright (c) 2012 David Bird (Coova Technologies)
 # this is the pure shell version...
 cat <<EOF
