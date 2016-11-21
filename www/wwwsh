@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # (c) 2007 David Bird; Released under GPL.
 # This simple script dispatches the <file>.chi embedded CGI scripts.
 # If <file>.chi exists, and we have haserl, then we run "haserl file.chi"
