@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 if [ -f config-local.sh ]; then
     . ./config-local.sh 
 else
