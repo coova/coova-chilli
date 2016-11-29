@@ -1938,7 +1938,7 @@ int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
     bassigncstr(dst, "");
 
   if (_options.debug)
-    syslog(LOG_DEBUG, "%s(%d): The parameter %s is: [%.*s]", __FUNCTION__, __LINE__, param, dst->slen, dst->data);/**/
+    syslog(LOG_DEBUG, "%s(%d): The parameter %s is: [%.*s]", __FUNCTION__, __LINE__, param, dst->slen, dst->data);
 
   return 0;
 }
