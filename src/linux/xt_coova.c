@@ -241,7 +241,7 @@ coova_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		else
 			addr.ip = iph->saddr;
 
-		p_bytes = iph->tot_len;
+		p_bytes = ntohs(iph->tot_len);
 	} else {
 		const struct ipv6hdr *iph = ipv6_hdr(skb);
 
@@ -250,7 +250,7 @@ coova_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		else
 			memcpy(&addr.in6, &iph->saddr, sizeof(addr.in6));
 
-		p_bytes = iph->payload_len;
+		p_bytes = ntohs(iph->payload_len);
 	}
 
 	if (info->side != XT_COOVA_DEST) {
