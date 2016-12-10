@@ -93,9 +93,6 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_DHCPOPT
     "ENABLE_DHCPOPT "
 #endif
-#ifdef ENABLE_DNSLOG
-    "ENABLE_DNSLOG "
-#endif
 #ifdef ENABLE_UAMDOMAINFILE
     "ENABLE_UAMDOMAINFILE "
 #endif
@@ -1272,13 +1269,6 @@ int main(int argc, char **argv) {
 
 #ifdef HAVE_NETFILTER_COOVA
   _options.kname = STRDUP(args_info.kname_arg);
-#endif
-
-#ifdef ENABLE_DNSLOG
-  _options.dnslog = STRDUP(args_info.dnslog_arg);
-#else
-  if (args_info.dnslog_arg)
-    syslog(LOG_ERR, "option dnslog given when no support built-in");
 #endif
 
 #ifdef ENABLE_IPWHITELIST

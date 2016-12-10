@@ -1703,7 +1703,7 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 
   } else {
 
-#if defined(ENABLE_DNSLOG) || defined(ENABLE_MODULES)
+#if defined(ENABLE_MODULES)
     struct app_conn_t *appconn = dhcp_get_appconn_pkt(conn, pkt_iphdr(pack), !isReq);
 #endif
     struct dns_packet_t *dnsp = pkt_dnspkt(pack);
@@ -2034,36 +2034,6 @@ int dhcp_dns(struct dhcp_conn_t *conn, uint8_t *pack,
 	return 0;
       }
     }
-
-#ifdef ENABLE_DNSLOG
-    if (isReq && _options.dnslog) {
-      int fd = open(_options.dnslog, O_WRONLY|O_APPEND|O_CREAT, 0666);
-      if (fd > 0) {
-	char line[512];
-	char *username = 0;
-	int authenticated = 0;
-
-	if (appconn) {
-	  username = appconn->s_state.redir.username;
-	  authenticated = appconn->s_state.authenticated;
-	}
-
-	snprintf(line, sizeof(line),
-		      "%d,"MAC_FMT",%s,%s,%d,%s\n",
-		      (int)time(0),
-		      MAC_ARG(conn->hismac),
-		      inet_ntoa(conn->hisip),
-		      q, authenticated,
-		      username ? username : "");
-
-	safe_write(fd, line, strlen(line));
-	close(fd);
-      } else {
-	syslog(LOG_ERR, "%s: could not open log file %s",
-               strerror(errno), _options.dnslog);
-      }
-    }
-#endif
 
 #ifdef ENABLE_IPV6
     if (_options.ipv6 && mod > 0 && !isReq && an_mark && ancount > 0) {
