@@ -6,7 +6,6 @@
 # description: CoovaChilli
 
 # Source function library.
-. /etc/rc.d/init.d/functions
 . @ETCCHILLI@/functions
 
 exec="@SBINDIR@/chilli"
