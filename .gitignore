@@ -120,6 +120,7 @@ miniportal/uam.sh
 miniportal/wispr.sh
 
 src/cmdline.[ch]
+src/cmdline.c.orig
 autom4te.cache
 
 debian/coova-chilli.debhelper.log
