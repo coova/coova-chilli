@@ -54,7 +54,11 @@ HS_WISPRLOGIN=${HS_WISPRLOGIN:-$HS_UAMSERVICE}
 HS_PAP_OK=${HS_PAP_OK:-on}
 HS_DNS1=${HS_DNS1:-$HS_DNS}
 HS_DNS1=${HS_DNS1:-$(grep '^nameserver' /etc/resolv.conf | head -n1 | awk '{print $2}')}
+if [ $(uname) = "Linux" ]; then
 HS_WANIF=${HS_WANIF:-$(route -n|grep '^0.0.0.0'|head -n1|awk '{print $8}')}
+else
+HS_WANIF=${HS_WANIF:-$(route get default | grep interface | awk '{print $2}')}
+fi
 
 bailout() { echo $1; exit; }
 
@@ -125,7 +129,13 @@ writeconfig() {
     addconfig1 ${HS_GID:+"gid \"$HS_GID\""}
 
     [ -n "$HS_DHCPGATEWAY" ] && {
-	HS_DHCPRELAYAGENT=${HS_DHCPRELAYAGENT:-$(ifconfig $(route -n|grep '^0.0.0.0'|awk '{ print $8 }')|grep 'inet addr:'|cut -d: -f 2|cut -d' ' -f1)}
+	if [ $(uname) = "Linux" ]; then
+	HS_DHCPRELAYAGENT=${HS_DHCPRELAYAGENT:-$(ifconfig $(route -n|grep '^0.0.0.0'| \
+	awk '{ print $8 }')|grep 'inet addr:'|cut -d: -f 2|cut -d' ' -f1)}
+	else
+	HS_DHCPRELAYAGENT=${HS_DHCPRELAYAGENT:-$(ifconfig $(netstat -rn | grep 'default' | \
+	head -n1 | awk '{print$7}') | grep 'inet ' | cut -d/ -f 1 | cut -d' ' -f2)}
+	fi
 	addconfig1 "dhcpgateway \"$HS_DHCPGATEWAY\""
 	addconfig1 "dhcprelayagent \"$HS_DHCPRELAYAGENT\""
     }
