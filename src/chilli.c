@@ -561,7 +561,7 @@ static void set_sessionid(struct app_conn_t *appconn, char full) {
 
   snprintf(appconn->s_state.sessionid,
 		sizeof(appconn->s_state.sessionid),
-		"%.8lx%.8x", appconn->rt, appconn->unit);
+		"%.8lld%.8x", (long long int)appconn->rt, appconn->unit);
 
   appconn->s_state.redir.classlen = 0;
   appconn->s_state.redir.statelen = 0;
@@ -7413,13 +7413,15 @@ int chilli_main(int argc, char **argv) {
       syslog(LOG_ERR, "%s: getting startup (realtime) time", strerror(errno));
     }
     if (_options.debug)
-      syslog(LOG_DEBUG, "%s(%d): clock realtime sec %ld nsec %ld", __FUNCTION__, __LINE__, startup_real.tv_sec, startup_real.tv_nsec);
+      syslog(LOG_DEBUG, "%s(%d): clock realtime sec %lld nsec %ld", __FUNCTION__, __LINE__,
+	(long long int)startup_real.tv_sec, startup_real.tv_nsec);
 #ifdef CLOCK_MONOTONIC
     if (clock_gettime(CLOCK_MONOTONIC, &startup_mono) < 0) {
       syslog(LOG_ERR, "%s: getting startup (monotonic) time", strerror(errno));
     }
     if (_options.debug)
-      syslog(LOG_DEBUG, "%s(%d): clock monotonic sec %ld nsec %ld", __FUNCTION__, __LINE__, startup_mono.tv_sec, startup_mono.tv_nsec);
+      syslog(LOG_DEBUG, "%s(%d): clock monotonic sec %lld nsec %ld", __FUNCTION__, __LINE__,
+	(long long int)startup_mono.tv_sec, startup_mono.tv_nsec);
 #endif
 #endif
 
