@@ -182,19 +182,19 @@ static pid_t launch_daemon(char *name, char *path) {
 #endif
 
 #ifdef ENABLE_CHILLIPROXY
-static void launch_chilliproxy() {
+static void launch_chilliproxy(void) {
   proxy_pid = launch_daemon("[chilli_proxy]", SBINDIR "/chilli_proxy");
 }
 #endif
 
 #ifdef ENABLE_CHILLIREDIR
-static void launch_chilliredir() {
+static void launch_chilliredir(void) {
   redir_pid = launch_daemon("[chilli_redir]", SBINDIR "/chilli_redir");
 }
 #endif
 
 #ifdef ENABLE_CHILLIRADSEC
-static void launch_chilliradsec() {
+static void launch_chilliradsec(void) {
   radsec_pid = launch_daemon("[chilli_radsec]", SBINDIR "/chilli_radsec");
 }
 #endif
@@ -455,11 +455,11 @@ time_t mainclock_towall(time_t t) {
   return mainclock.tv_sec;
 }
 
-time_t mainclock_wall() {
+time_t mainclock_wall(void) {
   return mainclock_towall(mainclock.tv_sec);
 }
 
-time_t mainclock_tick() {
+time_t mainclock_tick(void) {
 #ifdef HAVE_LIBRT
   struct timespec ts;
 #if defined(CLOCK_MONOTONIC)
@@ -487,11 +487,11 @@ time_t mainclock_tick() {
   return mainclock.tv_sec;
 }
 
-time_t mainclock_now() {
+time_t mainclock_now(void) {
   return mainclock.tv_sec;
 }
 
-time_t mainclock_rt() {
+time_t mainclock_rt(void) {
   time_t rt = 0;
 #ifdef HAVE_LIBRT
   struct timespec ts;
@@ -890,7 +890,7 @@ static int newip(struct ippoolm_t **ipm, struct in_addr *hisip, uint8_t *hismac)
  * A few functions to manage connections
  */
 
-static int initconn() {
+static int initconn(void) {
   checktime = rereadtime = mainclock.tv_sec;
   return 0;
 }
@@ -1183,7 +1183,7 @@ void session_interval(struct app_conn_t *conn) {
 #endif
 }
 
-static int checkconn() {
+static int checkconn(void) {
   struct app_conn_t *conn;
   struct dhcp_conn_t* dhcpconn;
   uint32_t checkdiff;
@@ -1232,7 +1232,7 @@ static int checkconn() {
   return 0;
 }
 
-void chilli_freeconn() {
+void chilli_freeconn(void) {
   struct app_conn_t *conn, *c;
   struct dhcp_conn_t *d = NULL;
 
@@ -1252,7 +1252,7 @@ void chilli_freeconn() {
 }
 
 /* Kill all connections and send Radius Acct Stop */
-int static killconn() {
+int static killconn(void) {
   struct app_conn_t *conn;
 
   for (conn = firstusedconn; conn; conn = conn->next) {
@@ -7182,7 +7182,7 @@ static int rtmon_accept(struct rtmon_t *rtmon, int idx) {
 }
 #endif
 
-static inline void macauth_reserved() {
+static inline void macauth_reserved(void) {
   struct dhcp_conn_t *conn = dhcp->firstusedconn;
   struct app_conn_t *appconn;
 
@@ -7198,7 +7198,7 @@ static inline void macauth_reserved() {
 }
 
 #ifdef ENABLE_LAYER3
-static int session_timeout() {
+static int session_timeout(void) {
   struct app_conn_t *conn = firstusedconn;
 
   while (conn) {
