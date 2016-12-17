@@ -320,7 +320,7 @@ void garden_patricia_load_list(patricia_tree_t **pptree,
     garden_patricia_add(&ptlist[i], ptree);
 }
 
-void garden_patricia_reload() {
+void garden_patricia_reload(void) {
   if (_options.patricia) {
     garden_patricia_load_list(&dhcp->ptree,
 			      _options.pass_throughs,
@@ -649,7 +649,7 @@ typedef struct uamdomain_regex_t {
 
 static uamdomain_regex * _list_head = 0;
 
-void garden_free_domainfile() {
+void garden_free_domainfile(void) {
   while (_list_head) {
     uamdomain_regex * n = _list_head;
     _list_head = _list_head->next;
@@ -658,7 +658,7 @@ void garden_free_domainfile() {
   }
 }
 
-void garden_load_domainfile() {
+void garden_load_domainfile(void) {
   garden_free_domainfile();
   if (!_options.uamdomainfile) return;
   else {
