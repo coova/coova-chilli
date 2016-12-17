@@ -23,7 +23,7 @@
 #include "chilli_module.h"
 #endif
 
-void options_init() {
+void options_init(void) {
   memset(&_options, 0, sizeof(_options));
 }
 
@@ -666,12 +666,12 @@ int reload_options(int argc, char **argv) {
   return ok;
 }
 
-void options_destroy() {
+void options_destroy(void) {
   if (_options._data)
     free(_options._data);
 }
 
-void options_cleanup() {
+void options_cleanup(void) {
   char file[128];
 
 #ifdef ENABLE_MODULES
