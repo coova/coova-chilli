@@ -4724,7 +4724,7 @@ int cb_radius_auth_conf(struct radius_t *radius,
   if (pack->code == RADIUS_CODE_ACCESS_REJECT) {
     if (_options.debug)
       syslog(LOG_DEBUG, "Received RADIUS Access-Reject");
-    config_radius_session(&appconn->s_params, pack, appconn, 0); /*XXX*/
+    //config_radius_session(&appconn->s_params, pack, appconn, 0); /*XXX*/
     return dnprot_reject(appconn);
   }
 
