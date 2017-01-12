@@ -2806,6 +2806,20 @@ static int redir_cb_radius_auth_conf(struct radius_t *radius,
   }
 
   config_radius_session(&conn->s_params, pack, 0, 0);
+	
+  if (pack->code == RADIUS_CODE_ACCESS_ACCEPT) {
+     //gordon
+        // add tc  rules
+        char cmd_buf[256]={0};
+        sprintf(cmd_buf,"/usr/local/sbin/upload_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x   %llu",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],conn->hismac[2],
+                conn->hismac[3],conn->hismac[4],conn->hismac[5],conn->s_params.bandwidthmaxup);
+        system(cmd_buf);
+        sprintf(cmd_buf,"/usr/local/sbin/download_tc.sh  %s %.2x:%.2x:%.2x:%.2x:%.2x:%.2x   %llu %s",
+                inet_ntoa(conn->hisip),conn->hismac[0],conn->hismac[1],conn->hismac[2],
+                conn->hismac[3],conn->hismac[4],conn->hismac[5],conn->s_params.bandwidthmaxdown,_options.dhcpif);
+        system(cmd_buf);
+   }
 
   /* Class */
   if (!radius_getattr(pack, &attr, RADIUS_ATTR_CLASS, 0, 0, 0)) {
