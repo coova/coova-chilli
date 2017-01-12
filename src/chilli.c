@@ -6593,6 +6593,20 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
                         appconn->s_params.url);
           bconcat(s, tmp);
 
+#ifdef ENABLE_SESSDNS
+          bassignformat(tmp,
+                        "%20s: %s\n",
+                        "Force Session DNS1",
+                        appconn->s_params.dns1.s_addr ? inet_ntoa(appconn->s_params.force_dns1) : "");
+          bconcat(s, tmp);
+
+          bassignformat(tmp,
+                        "%20s: %s\n",
+                        "Force Session DNS2",
+                        appconn->s_params.dns2.s_addr ? inet_ntoa(appconn->s_params.force_dns2) : "");
+          bconcat(s, tmp);
+#endif
+
           bassignformat(tmp,
                         "%20s:",
                         "flags");
@@ -6990,6 +7004,43 @@ int chilli_cmd(struct cmdsock_request *req, bstring s, int sock) {
     case CMDSOCK_PROCS:
       child_print(s);
       break;
+
+#ifdef ENABLE_SESSDNS
+    case CMDSOCK_SESSDNS_SET:
+#if(_debug_)
+      if (_options.debug)
+        syslog(LOG_DEBUG, "looking to force dns ip=%s/mac="MAC_FMT"...", inet_ntoa(req->ip), MAC_ARG(req->mac));
+#endif
+
+      if (_options.dns_per_session) {
+        struct app_conn_t *appconn = find_app_conn(req, 0);
+
+        if (appconn != NULL) {
+          if (req->d.sess.params.dns1.s_addr) {
+            memcpy(&appconn->s_params.dns1, &req->d.sess.params.dns1, sizeof(struct in_addr));
+#if(_debug_)
+            if (_options.debug)
+              syslog(LOG_DEBUG, "Set DNS-1[%s] for session done.", inet_ntoa(appconn->s_params.dns1));
+#endif
+          }
+
+          if (req->d.sess.params.dns2.s_addr) {
+            memcpy(&appconn->s_params.dns2, &req->d.sess.params.dns2, sizeof(struct in_addr));
+#if(_debug_)
+            if (_options.debug)
+              syslog(LOG_DEBUG, "Set DNS-2[%s] for session done.", inet_ntoa(appconn->s_params.dns2));
+#endif
+          }
+        }
+        else {
+          syslog(LOG_ERR, "No application session found");
+        }
+      }
+      else {
+        syslog(LOG_ERR, "activate --dnspersession option");
+      }
+      break;
+#endif
 
     default:
       {

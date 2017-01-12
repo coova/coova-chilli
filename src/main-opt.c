@@ -794,6 +794,10 @@ int main(int argc, char **argv) {
     }
   }
 
+#ifdef ENABLE_SESSDNS
+  _options.dns_per_session = args_info.dnspersession_flag;
+#endif
+
 #ifdef ENABLE_FORCEDNS
   _options.forcedns1_port = args_info.forcedns1port_arg;
   if (args_info.forcedns1port_arg && !args_info.forcedns1_arg) {

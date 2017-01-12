@@ -287,7 +287,9 @@ option "forcedns1"   - "Force all DNS to a specific address" string no
 option "forcedns1port"   - "Force all DNS to a specific port" int default="0" no 
 
 option "forcedns2"   - "Force all secondary DNS to a specific address" string no 
-option "forcedns2port"   - "Force all secondary DNS to a specific port" int default="0" no 
+option "forcedns2port"   - "Force all secondary DNS to a specific port" int default="0" no
+
+option "dnspersession"   - "Enable DNS servers per session" flag off
 
 option "rfc7710uri" - "DHCP Captive Portal URI. Defaults to http://uamlisten:uamport/prelogin." string no
 

@@ -144,7 +144,7 @@ struct dhcp_conn_t {
   uint8_t auth_cp;             /* Authenticated codepoint */
   int nextdnat;                /* Next location to use for DNAT */
   uint32_t dnatdns;            /* Destination NAT for dns mapping */
-#ifdef ENABLE_FORCEDNS
+#if defined(ENABLE_FORCEDNS) || defined(ENABLE_SESSDNS)
   uint32_t dnatdns2;
 #endif
   struct dhcp_nat_t dnat[DHCP_DNAT_MAX]; /* Destination NAT */
