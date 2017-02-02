@@ -15,6 +15,7 @@ Depends:
  iptables,
  haserl,
  adduser,
+Suggests:
  python,
  python-gtk2,
 Description: Wireless LAN Access Point Controller (captive portal).
