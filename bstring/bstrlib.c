@@ -1475,7 +1475,6 @@ binsert(bstring b1, int pos, const bstring b2, unsigned char fill)
 	/* Compute the two possible end pointers */
 	d = b1->slen + aux->slen;
 	l = pos + aux->slen;
-	if ((d|l) < 0) {
 		if (aux != b2) {
 			bdestroy(aux);
 		}
