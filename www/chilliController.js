@@ -104,7 +104,7 @@ function connect() {
     var password =  document.getElementById('password').value ;
 
     if (username == null || username == '')
-	return setElementValue('logonMessage', 'Username is required');
+	return setElementValue('logonMessage', 'Zomato username/email is required');
     
     showWaitPage(1000);
     chilliController.logon( username , password ) ;
