@@ -185,6 +185,7 @@ struct dhcp_conn_t {
 #endif
 
   uint16_t capport_icmp_session_id;
+  uint8_t capport_icmp_counter;
 };
 
 
