@@ -1071,8 +1071,13 @@ static int dnprot_terminate(struct app_conn_t *appconn) {
       case DNPROT_UAM:
       case DNPROT_DHCP_NONE:
       case DNPROT_NULL:
-        if (appconn->dnlink)
-          ((struct dhcp_conn_t*) appconn->dnlink)->authstate = DHCP_AUTH_DNAT;
+        if (appconn->dnlink) {
+          struct dhcp_conn_t* dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
+	  uint8_t icmp_pack[1500];
+	  dhcp_send(dhcp, dhcp_conn_idx(dhcpconn), dhcpconn->hismac, icmp_pack,
+		    icmpcapport_coa(dhcpconn, icmp_pack, sizeof(icmp_pack)));
+          dhcpconn->authstate = DHCP_AUTH_DNAT;
+	}
         break;
 #ifdef ENABLE_LAYER3
       case DNPROT_LAYER3:
@@ -2327,7 +2332,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
 
 #ifdef ENABLE_SESSIONSTATE
     appconn->s_state.session_state =
-        RADIUS_VALUE_COOVACHILLI_SESSION_AUTH;
+      RADIUS_VALUE_COOVACHILLI_SESSION_AUTH;
 #endif
 
 #ifdef HAVE_NETFILTER_COOVA
@@ -2349,6 +2354,12 @@ int dnprot_accept(struct app_conn_t *appconn) {
       }
     }
 #endif
+
+    {
+      uint8_t icmp_pack[1500];
+      dhcp_send(dhcp, dhcp_conn_idx(dhcpconn), dhcpconn->hismac, icmp_pack,
+		icmpcapport_coa(dhcpconn, icmp_pack, sizeof(icmp_pack)));
+    }
 
     /* if (!(appconn->s_params.flags & IS_UAM_REAUTH))*/
     acct_req(ACCT_USER, appconn, RADIUS_STATUS_TYPE_START);
@@ -5723,14 +5734,15 @@ int cb_dhcp_data_ind(struct dhcp_conn_t *conn, uint8_t *pack, size_t len) {
     return tun_encaps(tun, pack, len, 0);
   }
 
-  if (chilli_acct_fromsub(appconn, ipph))
+  if (chilli_acct_fromsub(appconn, ipph, pack))
     return 0;
 
   return tun_encaps(tun, pack, len, appconn->s_params.routeidx);
 }
 
 int chilli_acct_fromsub(struct app_conn_t *appconn,
-			struct pkt_ipphdr_t *ipph) {
+			struct pkt_ipphdr_t *ipph,
+			uint8_t* orig_pack) {
   int len = ntohs(ipph->tot_len);
 #ifdef ENABLE_GARDENACCOUNTING
   char checked_garden = 0;
@@ -5801,7 +5813,15 @@ int chilli_acct_fromsub(struct app_conn_t *appconn,
 #ifdef ENABLE_LEAKYBUCKET
 #ifndef COUNT_UPLINK_DROP
     if (do_bw) {
-      if (leaky_bucket(appconn, len, 0)) return 1;
+      if (leaky_bucket(appconn, len, 0)) {
+	if (appconn->dnlink) {
+	  uint8_t icmp_pack[1500];
+	  struct dhcp_conn_t* conn = (struct dhcp_conn_t*) appconn->dnlink;
+	  dhcp_send(dhcp, dhcp_conn_idx(conn), conn->hismac, icmp_pack,
+		    icmpcapport_qos_drop(conn, icmp_pack, sizeof(icmp_pack), orig_pack));
+	}
+	return 1;
+      }
     }
 #endif
 #endif
@@ -5844,7 +5864,15 @@ int chilli_acct_fromsub(struct app_conn_t *appconn,
 #ifdef ENABLE_LEAKYBUCKET
 #ifdef COUNT_UPLINK_DROP
     if (do_bw) {
-      if (leaky_bucket(appconn, len, 0)) return 1;
+      if (leaky_bucket(appconn, len, 0)) {
+	if (appconn->dnlink) {
+	  uint8_t icmp_pack[1500];
+	  struct dhcp_conn_t* conn = (struct dhcp_conn_t*) appconn->dnlink;
+	  dhcp_send(dhcp, dhcp_conn_idx(conn), conn->hismac, icmp_pack,
+		    icmpcapport_qos_drop(conn, icmp_pack, sizeof(icmp_pack), orig_pack));
+	}
+	return 1;
+      }
     }
 #endif
 #endif

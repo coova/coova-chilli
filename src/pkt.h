@@ -299,19 +299,37 @@ struct pkt_icmpobjhdr_t {
  * 0                   1                   2                   3
  * 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- * |W|  Reserved   |         Validity (seconds)                    |
+ * |V|D|P|         Reserved        |          Session-ID           | 
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                 Validity (seconds, optional)                  |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                  Delay (seconds, optional)                    |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |                   Policy-Class (optional)                     |
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
-struct pkt_capporticmp_t {
-  uint32_t flags_validity;  /* first 8 bits are flags */
+struct pkt_capporticmphdr_t {
+  uint8_t flags;
+  uint8_t reserved;
+  uint16_t session_id;
 } __attribute__((packed));
 
-#define PKT_ICMP_EXTENSION_CAPPORT_CLASS_NUM      111  /* To be set by IANA */
-#define PKT_ICMP_EXTENSION_CAPPORT_FILTERED_TYPE  1
-#define PKT_ICMP_EXTENSION_CAPPORT_WARNING_TYPE   2
-#define PKT_ICMP_EXTENSION_CAPPORT_WARNING        0x80000000
-#define PKT_ICMP_EXTENSION_CAPPORT_FLAGS_MASK     0xFF000000
-#define PKT_ICMP_EXTENSION_CAPPORT_VALIDITY_MASK  0x00FFFFFF
+#define PKT_ICMP_DEST_UNREACH_TYPE 3
+#define PKT_ICMP_DEST_UNREACH_NET_UNREACH_CODE 0
+#define PKT_ICMP_DEST_UNREACH_HOST_UNREACH_CODE 1
+#define PKT_ICMP_DEST_UNREACH_PROTOCOL_UNREACH_CODE 2
+#define PKT_ICMP_DEST_UNREACH_PORT_UNREACH_CODE 3
+#define PKT_ICMP_DEST_UNREACH_FRAG_NEEDED_CODE 4
+#define PKT_ICMP_DEST_UNREACH_ADMIN_PROHIBITED_CODE 13
+
+#define PKT_ICMP_CAPPORT_TYPE 253  /* To be assigned by IANA */
+
+#define PKT_ICMP_EXTENSION_CAPPORT_CLASS_NUM 111  /* To be assigned by IANA */
+
+#define PKT_ICMP_CAPPORT_COA_C_TYPE 0           /* General Change of Authorization */
+#define PKT_ICMP_CAPPORT_WG_FILTERED_C_TYPE 1   /* Packet/flow drop: Walled garden */
+#define PKT_ICMP_CAPPORT_QOS_FILTERED_C_TYPE 2  /* Packet/flow drop: QoS */
+#define PKT_ICMP_CAPPORT_WARNING_C_TYPE 3       /* Packet/flow warning (no drop) */
 
 /*
   0      7 8     15 16    23 24    31

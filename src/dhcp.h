@@ -184,7 +184,7 @@ struct dhcp_conn_t {
   } dhcp_opts;
 #endif
 
-  uint8_t capport_icmp_counter;
+  uint16_t capport_icmp_session_id;
 };
 
 
@@ -391,5 +391,13 @@ int dhcp_garden_check_auth(struct dhcp_t *this,
 #define CHILLI_DHCP_NAK      3
 #define CHILLI_DHCP_RELAY    4
 #define CHILLI_DHCP_PROXY    5
+
+size_t icmpcapport_drop(struct dhcp_conn_t *conn,
+			uint8_t *pack, size_t plen, uint8_t *orig_pack);
+size_t icmpcapport_qos_drop(struct dhcp_conn_t *conn,
+			    uint8_t *pack, size_t plen, uint8_t *orig_pack);
+size_t icmpcapport_warn(struct dhcp_conn_t *conn,
+			uint8_t *pack, size_t plen, uint8_t *orig_pack);
+size_t icmpcapport_coa(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen);
 
 #endif	/* !_DHCP_H */
