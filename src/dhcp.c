@@ -1588,17 +1588,33 @@ size_t icmpcapport(struct dhcp_conn_t *conn,
    * |                                                               |
    * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    */
-  size_t icmp_req_len = PKT_IP_HLEN + 8;
+  struct pkt_ethhdr_t *orig_pack_ethh = pkt_ethhdr(orig_pack);
+  struct pkt_iphdr_t  *orig_pack_iph  = pkt_iphdr(orig_pack);
 
-  size_t icmp_ip_len = PKT_IP_HLEN + sizeof(struct pkt_icmphdr_t) +
-    sizeof(struct pkt_icmphdr_t) + icmp_req_len +
-    sizeof(struct pkt_icmpexthdr_t) + sizeof(struct pkt_icmpobjhdr_t) +
+  static const size_t multipart_size = sizeof(struct pkt_icmpexthdr_t) +
+    sizeof(struct pkt_icmpobjhdr_t) + sizeof(struct pkt_capporticmphdr_t);
+
+  const size_t min_orig_ip_length = 128;
+  const size_t max_orig_ip_length = 576 - sizeof(struct pkt_iphdr_t) -
+    sizeof(struct pkt_icmphdr_t) * 2 - ((multipart_size + 3) & ~3);
+
+  size_t orig_ip_length = ntohs(orig_pack_iph->tot_len);
+  if (orig_ip_length > max_orig_ip_length)
+    orig_ip_length = max_orig_ip_length;
+
+  size_t orig_ip_with_padding_length = (orig_ip_length + 3) & ~3;
+  if (orig_ip_with_padding_length < min_orig_ip_length)
+    orig_ip_with_padding_length = min_orig_ip_length;
+
+  size_t padding = orig_ip_with_padding_length - orig_ip_length;
+
+  size_t icmp_ip_len = PKT_IP_HLEN + sizeof(struct pkt_icmphdr_t) * 2 +
+    orig_ip_with_padding_length + sizeof(struct pkt_icmpexthdr_t) +
+    sizeof(struct pkt_icmpobjhdr_t) +
     sizeof(struct pkt_capporticmphdr_t);
 
   size_t icmp_full_len = icmp_ip_len + sizeofeth(orig_pack);
 
-  struct pkt_iphdr_t  *orig_pack_iph  = pkt_iphdr(orig_pack);
-  struct pkt_ethhdr_t *orig_pack_ethh = pkt_ethhdr(orig_pack);
   struct pkt_ethhdr_t *pack_ethh;
   struct pkt_iphdr_t *pack_iph;
   struct pkt_icmphdr_t *pack_icmph;
@@ -1630,13 +1646,17 @@ size_t icmpcapport(struct dhcp_conn_t *conn,
   pack_icmph->type = icmp_type;
   pack_icmph->code = icmp_code;
   pack_icmph++; /* advance to next 4 bytes */
-  pack_icmph->code = icmp_req_len / 4;  /* original datagram length (32bit words) */
+  /* original datagram length (32bit words) */
+  pack_icmph->code = orig_ip_with_padding_length / 4;
   if (icmp_type == PKT_ICMP_DEST_UNREACH_TYPE) {
     pack_icmph->check = htons(conn->mtu);
   }
   end = (uint8_t *) &pack_icmph[1];
-  memcpy(end, orig_pack + sizeofeth(orig_pack), icmp_req_len);
-  end += icmp_req_len;
+  memcpy(end, orig_pack + sizeofeth(orig_pack), orig_ip_length);
+  end += orig_ip_length;
+
+  memset(end, 0, padding);
+  end += padding;
 
   pack_icmpexth = (struct pkt_icmpexthdr_t*) end;
   end += sizeof(struct pkt_icmpexthdr_t);
@@ -3933,9 +3953,6 @@ int dhcp_receive_ip(struct dhcp_ctx *ctx, uint8_t *pack, size_t len) {
    *  Check to see if we know MAC address
    */
   if (!dhcp_hashget(this, &conn, pack_ethh->src)) {
-
-    if (_options.debug)
-      syslog(LOG_DEBUG, "%s(%d): Address found", __FUNCTION__, __LINE__);
 
     ourip.s_addr = conn->ourip.s_addr;
 
