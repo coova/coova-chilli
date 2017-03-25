@@ -694,7 +694,7 @@ int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn) {
   }
 
   /* For now, just set a random session id */
-  (*conn)->capport_icmp_session_id = rand();
+  (*conn)->capport_icmp_session_id = 100;
   
   /* Insert into link of used */
   if (this->firstusedconn) {
@@ -1622,8 +1622,8 @@ size_t icmp_capport(struct dhcp_conn_t *conn,
 
   size_t capport_payload = 0;
   if (validity) capport_payload += sizeof(uint32_t);
-  if (delay) capport_payload += sizeof(uint32_t);
-  if (policy) capport_payload += sizeof(uint32_t);
+  if (delay)    capport_payload += sizeof(uint32_t);
+  if (policy)   capport_payload += sizeof(uint32_t);
   
   const size_t multipart_size = (is_multipart ?
 				 sizeof(struct pkt_icmpexthdr_t) +
@@ -1647,9 +1647,7 @@ size_t icmp_capport(struct dhcp_conn_t *conn,
   size_t padding = orig_ip_with_padding_length - orig_ip_length;
 
   size_t icmp_ip_len = PKT_IP_HLEN + sizeof(struct pkt_icmphdr_t) * 2 +
-    orig_ip_with_padding_length + sizeof(struct pkt_icmpexthdr_t) +
-    sizeof(struct pkt_icmpobjhdr_t) +
-    sizeof(struct pkt_capporticmphdr_t);
+    orig_ip_with_padding_length + multipart_size;
 
   size_t icmp_full_len = icmp_ip_len + sizeofeth(orig_pack);
 
@@ -1710,7 +1708,8 @@ size_t icmp_capport(struct dhcp_conn_t *conn,
     pack_icmpobjh = (struct pkt_icmpobjhdr_t*) end;
     end += sizeof(struct pkt_icmpobjhdr_t);
     pack_icmpobjh->length = htons(sizeof(struct pkt_icmpobjhdr_t) +
-				  sizeof(struct pkt_capporticmphdr_t));
+				  sizeof(struct pkt_capporticmphdr_t) +
+				  capport_payload);
     pack_icmpobjh->class_num = PKT_ICMP_EXTENSION_CAPPORT_CLASS_NUM;
     pack_icmpobjh->c_type = capport_c_type;
 
