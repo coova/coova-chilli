@@ -693,6 +693,9 @@ int dhcp_lnkconn(struct dhcp_t *this, struct dhcp_conn_t **conn) {
     memset(*conn, 0, sizeof(struct dhcp_conn_t));
   }
 
+  /* For now, just set a random session id */
+  (*conn)->capport_icmp_session_id = rand();
+  
   /* Insert into link of used */
   if (this->firstusedconn) {
     this->firstusedconn->prev = *conn;
@@ -1549,10 +1552,35 @@ size_t icmpfrag(struct dhcp_conn_t *conn,
   return icmp_full_len;
 }
 
-size_t icmpcapport(struct dhcp_conn_t *conn,
-		   uint8_t *pack, size_t plen, uint8_t *orig_pack,
-		   uint8_t icmp_type, uint8_t icmp_code,
-		   uint8_t capport_c_type) {
+inline void capport_flags(uint8_t *flags, uint32_t validity,
+			  uint32_t delay, uint32_t policy) {
+  if (validity) *flags |= 0x80;
+  if (delay) *flags |= 0x40;
+  if (policy) *flags |= 0x20;
+}
+
+inline void capport_options(uint8_t *end, uint32_t validity,
+			    uint32_t delay, uint32_t policy) {
+  if (validity) {
+    *((uint32_t*)end) = ntohl(validity);
+    end += sizeof(uint32_t);
+  }
+  if (delay) {
+    *((uint32_t*)end) = ntohl(delay);
+    end += sizeof(uint32_t);
+  }
+  if (policy) {
+    *((uint32_t*)end) = ntohl(policy);
+    end += sizeof(uint32_t);
+  }
+}
+
+size_t icmp_capport(struct dhcp_conn_t *conn,
+		    uint8_t *pack, size_t plen,
+		    uint8_t *orig_pack,
+		    uint8_t icmp_type, uint8_t icmp_code,
+		    uint8_t capport_c_type, uint32_t validity,
+		    uint32_t delay, uint32_t policy) {
   /* CAPPORT ICMP:
    * https://datatracker.ietf.org/doc/draft-wkumari-capport-icmp-unreach/
    *
@@ -1588,13 +1616,23 @@ size_t icmpcapport(struct dhcp_conn_t *conn,
    * |                                                               |
    * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    */
+  const int is_multipart = icmp_type == PKT_ICMP_DEST_UNREACH_TYPE;
   struct pkt_ethhdr_t *orig_pack_ethh = pkt_ethhdr(orig_pack);
   struct pkt_iphdr_t  *orig_pack_iph  = pkt_iphdr(orig_pack);
 
-  static const size_t multipart_size = sizeof(struct pkt_icmpexthdr_t) +
-    sizeof(struct pkt_icmpobjhdr_t) + sizeof(struct pkt_capporticmphdr_t);
+  size_t capport_payload = 0;
+  if (validity) capport_payload += sizeof(uint32_t);
+  if (delay) capport_payload += sizeof(uint32_t);
+  if (policy) capport_payload += sizeof(uint32_t);
+  
+  const size_t multipart_size = (is_multipart ?
+				 sizeof(struct pkt_icmpexthdr_t) +
+				 sizeof(struct pkt_icmpobjhdr_t) +
+				 sizeof(struct pkt_capporticmphdr_t) :
+				 sizeof(struct pkt_capporticmphdr_t)) +
+    capport_payload;
 
-  const size_t min_orig_ip_length = 128;
+  const size_t min_orig_ip_length = is_multipart ? 128 : 64;
   const size_t max_orig_ip_length = 576 - sizeof(struct pkt_iphdr_t) -
     sizeof(struct pkt_icmphdr_t) * 2 - ((multipart_size + 3) & ~3);
 
@@ -1648,8 +1686,14 @@ size_t icmpcapport(struct dhcp_conn_t *conn,
   pack_icmph++; /* advance to next 4 bytes */
   /* original datagram length (32bit words) */
   pack_icmph->code = orig_ip_with_padding_length / 4;
-  if (icmp_type == PKT_ICMP_DEST_UNREACH_TYPE) {
+  if (is_multipart) {
+    /* For dest unreach, set the MTU */
     pack_icmph->check = htons(conn->mtu);
+  } else {
+    /* For capport ICMP, this field is used for flags */
+    capport_flags(&pack_icmph->type, validity, delay, policy);
+    /* For capport ICMP, this field is the session id */
+    pack_icmph->check = htons(conn->capport_icmp_session_id);
   }
   end = (uint8_t *) &pack_icmph[1];
   memcpy(end, orig_pack + sizeofeth(orig_pack), orig_ip_length);
@@ -1658,86 +1702,71 @@ size_t icmpcapport(struct dhcp_conn_t *conn,
   memset(end, 0, padding);
   end += padding;
 
-  pack_icmpexth = (struct pkt_icmpexthdr_t*) end;
-  end += sizeof(struct pkt_icmpexthdr_t);
-  pack_icmpexth->version_reserved = htons(PKT_ICMP_EXTENSION_VERSION);
+  if (is_multipart) {
+    pack_icmpexth = (struct pkt_icmpexthdr_t*) end;
+    end += sizeof(struct pkt_icmpexthdr_t);
+    pack_icmpexth->version_reserved = htons(PKT_ICMP_EXTENSION_VERSION);
 
-  pack_icmpobjh = (struct pkt_icmpobjhdr_t*) end;
-  end += sizeof(struct pkt_icmpobjhdr_t);
-  pack_icmpobjh->length = htons(sizeof(struct pkt_icmpobjhdr_t) +
-				sizeof(struct pkt_capporticmphdr_t));
-  pack_icmpobjh->class_num = PKT_ICMP_EXTENSION_CAPPORT_CLASS_NUM;
-  pack_icmpobjh->c_type = capport_c_type;
+    pack_icmpobjh = (struct pkt_icmpobjhdr_t*) end;
+    end += sizeof(struct pkt_icmpobjhdr_t);
+    pack_icmpobjh->length = htons(sizeof(struct pkt_icmpobjhdr_t) +
+				  sizeof(struct pkt_capporticmphdr_t));
+    pack_icmpobjh->class_num = PKT_ICMP_EXTENSION_CAPPORT_CLASS_NUM;
+    pack_icmpobjh->c_type = capport_c_type;
 
-  pack_capporticmph = (struct pkt_capporticmphdr_t*) end;
-  pack_capporticmph->flags = 0;
-  pack_capporticmph->session_id = htons(conn->capport_icmp_session_id);
+    pack_capporticmph = (struct pkt_capporticmphdr_t*) end;
+    end += sizeof(struct pkt_capporticmphdr_t);
+    capport_flags(&pack_capporticmph->flags, validity, delay, policy);
+    pack_capporticmph->session_id = htons(conn->capport_icmp_session_id);
 
-  {
-    uint32_t sum = in_cksum((uint16_t*) pack_icmpexth,
-			    sizeof(*pack_icmpexth) +
-			    sizeof(*pack_icmpobjh) +
-			    sizeof(*pack_capporticmph));
-    pack_icmpexth->check = cksum_wrap(sum);
+    capport_options(end, validity, delay, policy);
+    
+    {
+      uint32_t sum = in_cksum((uint16_t*) pack_icmpexth,
+			      multipart_size);
+      pack_icmpexth->check = cksum_wrap(sum);
+    }
+  } else {
+    capport_options(end, validity, delay, policy);
   }
+
   chksum(pack_iph);
   return icmp_full_len;
 }
 
-size_t icmpcapport_drop(struct dhcp_conn_t *conn,
-			uint8_t *pack, size_t plen, uint8_t *orig_pack) {
-  return icmpcapport(conn, pack, plen, orig_pack,
-		     PKT_ICMP_DEST_UNREACH_TYPE,
-		     PKT_ICMP_DEST_UNREACH_ADMIN_PROHIBITED_CODE,
-		     PKT_ICMP_CAPPORT_WG_FILTERED_C_TYPE);
+size_t icmp_capport_drop(struct dhcp_conn_t *conn,
+			 uint8_t *pack, size_t plen,
+			 uint8_t *orig_pack) {
+  return icmp_capport(conn, pack, plen, orig_pack,
+		      PKT_ICMP_DEST_UNREACH_TYPE,
+		      PKT_ICMP_DEST_UNREACH_ADMIN_PROHIBITED_CODE,
+		      PKT_ICMP_CAPPORT_WG_FILTERED_C_TYPE,
+		      1, 2, 3);
 }
 
-size_t icmpcapport_qos_drop(struct dhcp_conn_t *conn,
-			    uint8_t *pack, size_t plen, uint8_t *orig_pack) {
-  return icmpcapport(conn, pack, plen, orig_pack,
+size_t icmp_capport_qos_drop(struct dhcp_conn_t *conn,
+			     uint8_t *pack, size_t plen,
+			     uint8_t *orig_pack) {
+  return icmp_capport(conn, pack, plen, orig_pack,
 		     PKT_ICMP_CAPPORT_TYPE,
 		     PKT_ICMP_CAPPORT_QOS_FILTERED_C_TYPE,
-		     PKT_ICMP_CAPPORT_QOS_FILTERED_C_TYPE);
+		      PKT_ICMP_CAPPORT_QOS_FILTERED_C_TYPE,
+		      1, 2, 3);
 }
 
-size_t icmpcapport_warn(struct dhcp_conn_t *conn,
-			uint8_t *pack, size_t plen, uint8_t *orig_pack) {
-  return icmpcapport(conn, pack, plen, orig_pack,
+size_t icmp_capport_warn(struct dhcp_conn_t *conn,
+			 uint8_t *pack, size_t plen,
+			 uint8_t *orig_pack) {
+  return icmp_capport(conn, pack, plen, orig_pack,
 		     PKT_ICMP_CAPPORT_TYPE,
 		     PKT_ICMP_CAPPORT_WARNING_C_TYPE,
-		     PKT_ICMP_CAPPORT_WARNING_C_TYPE);
+		      PKT_ICMP_CAPPORT_WARNING_C_TYPE,
+		      1, 2, 3);
 }
 
-size_t icmpcapport_coa(struct dhcp_conn_t *conn,
+size_t icmp_capport_coa(struct dhcp_conn_t *conn,
 		       uint8_t *pack, size_t plen) {
-  size_t icmp_ip_len = PKT_IP_HLEN + sizeof(struct pkt_icmphdr_t) +
-    sizeof(struct pkt_capporticmphdr_t);
-
-  struct pkt_iphdr_t *pack_iph;
-  struct pkt_icmphdr_t *pack_icmph;
-  struct pkt_capporticmphdr_t* pack_capporticmph;
-
-  dhcp_ethhdr(conn, pack, conn->hismac, dhcp_nexthop(dhcp), PKT_ETH_PROTO_IP);
-
-  /* ip */
-  pack_iph = pkt_iphdr(pack);
-  pack_iph->version_ihl = PKT_IP_VER_HLEN;
-  pack_iph->saddr = conn->ourip.s_addr;
-  pack_iph->daddr = conn->hisip.s_addr;
-  pack_iph->protocol = PKT_IP_PROTO_ICMP;
-  pack_iph->ttl = 0x11;
-  pack_iph->tot_len = htons(icmp_ip_len);
-
-  pack_icmph = pkt_icmphdr(pack);
-  pack_icmph->type = PKT_ICMP_CAPPORT_TYPE;
-  pack_icmph->code = PKT_ICMP_CAPPORT_COA_C_TYPE;
-
-  pack_capporticmph = (struct pkt_capporticmphdr_t*) &pack_icmph[1];
-  pack_capporticmph->flags = 0;
-  pack_capporticmph->session_id = htons(conn->capport_icmp_session_id);
-
-  chksum(pack_iph);
-  return icmp_ip_len + sizeofeth(pack);
+  return 0;
 }
 
 size_t tcprst(uint8_t *tcp_pack, uint8_t *orig_pack, char reverse) {
@@ -2922,7 +2951,7 @@ int dhcp_doDNAT(struct dhcp_conn_t *conn, uint8_t *pack,
   if (do_reset) {
     uint8_t icmp_pack[1500];
     dhcp_send(this, dhcp_conn_idx(conn), conn->hismac, icmp_pack,
-	      icmpcapport_drop(conn, icmp_pack, sizeof(icmp_pack), pack));
+	      icmp_capport_drop(conn, icmp_pack, sizeof(icmp_pack), pack));
   }
 
   return -1; /* Something else */

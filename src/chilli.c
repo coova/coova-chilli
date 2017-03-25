@@ -1075,7 +1075,7 @@ static int dnprot_terminate(struct app_conn_t *appconn) {
           struct dhcp_conn_t* dhcpconn = (struct dhcp_conn_t*) appconn->dnlink;
 	  uint8_t icmp_pack[1500];
 	  dhcp_send(dhcp, dhcp_conn_idx(dhcpconn), dhcpconn->hismac, icmp_pack,
-		    icmpcapport_coa(dhcpconn, icmp_pack, sizeof(icmp_pack)));
+		    icmp_capport_coa(dhcpconn, icmp_pack, sizeof(icmp_pack)));
           dhcpconn->authstate = DHCP_AUTH_DNAT;
 	}
         break;
@@ -2358,7 +2358,7 @@ int dnprot_accept(struct app_conn_t *appconn) {
     {
       uint8_t icmp_pack[1500];
       dhcp_send(dhcp, dhcp_conn_idx(dhcpconn), dhcpconn->hismac, icmp_pack,
-		icmpcapport_coa(dhcpconn, icmp_pack, sizeof(icmp_pack)));
+		icmp_capport_coa(dhcpconn, icmp_pack, sizeof(icmp_pack)));
     }
 
     /* if (!(appconn->s_params.flags & IS_UAM_REAUTH))*/
@@ -5818,7 +5818,7 @@ int chilli_acct_fromsub(struct app_conn_t *appconn,
 	  uint8_t icmp_pack[1500];
 	  struct dhcp_conn_t* conn = (struct dhcp_conn_t*) appconn->dnlink;
 	  dhcp_send(dhcp, dhcp_conn_idx(conn), conn->hismac, icmp_pack,
-		    icmpcapport_qos_drop(conn, icmp_pack, sizeof(icmp_pack), orig_pack));
+		    icmp_capport_qos_drop(conn, icmp_pack, sizeof(icmp_pack), orig_pack));
 	}
 	return 1;
       }
@@ -5869,7 +5869,7 @@ int chilli_acct_fromsub(struct app_conn_t *appconn,
 	  uint8_t icmp_pack[1500];
 	  struct dhcp_conn_t* conn = (struct dhcp_conn_t*) appconn->dnlink;
 	  dhcp_send(dhcp, dhcp_conn_idx(conn), conn->hismac, icmp_pack,
-		    icmpcapport_qos_drop(conn, icmp_pack, sizeof(icmp_pack), orig_pack));
+		    icmp_capport_qos_drop(conn, icmp_pack, sizeof(icmp_pack), orig_pack));
 	}
 	return 1;
       }

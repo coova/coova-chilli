@@ -393,12 +393,12 @@ int dhcp_garden_check_auth(struct dhcp_t *this,
 #define CHILLI_DHCP_RELAY    4
 #define CHILLI_DHCP_PROXY    5
 
-size_t icmpcapport_drop(struct dhcp_conn_t *conn,
-			uint8_t *pack, size_t plen, uint8_t *orig_pack);
-size_t icmpcapport_qos_drop(struct dhcp_conn_t *conn,
-			    uint8_t *pack, size_t plen, uint8_t *orig_pack);
-size_t icmpcapport_warn(struct dhcp_conn_t *conn,
-			uint8_t *pack, size_t plen, uint8_t *orig_pack);
-size_t icmpcapport_coa(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen);
+size_t icmp_capport_drop(struct dhcp_conn_t *conn,
+			 uint8_t *pack, size_t plen, uint8_t *orig_pack);
+size_t icmp_capport_qos_drop(struct dhcp_conn_t *conn,
+			     uint8_t *pack, size_t plen, uint8_t *orig_pack);
+size_t icmp_capport_warn(struct dhcp_conn_t *conn,
+			 uint8_t *pack, size_t plen, uint8_t *orig_pack);
+size_t icmp_capport_coa(struct dhcp_conn_t *conn, uint8_t *pack, size_t plen);
 
 #endif	/* !_DHCP_H */

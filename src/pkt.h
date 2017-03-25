@@ -324,7 +324,7 @@ struct pkt_capporticmphdr_t {
 
 #define PKT_ICMP_CAPPORT_TYPE 253  /* To be assigned by IANA */
 
-#define PKT_ICMP_EXTENSION_CAPPORT_CLASS_NUM 111  /* To be assigned by IANA */
+#define PKT_ICMP_EXTENSION_CAPPORT_CLASS_NUM 3  /* To be assigned by IANA */
 
 #define PKT_ICMP_CAPPORT_COA_C_TYPE 0           /* General Change of Authorization */
 #define PKT_ICMP_CAPPORT_WG_FILTERED_C_TYPE 1   /* Packet/flow drop: Walled garden */
