@@ -1083,9 +1083,6 @@ int net_route(struct in_addr *dst, struct in_addr *gateway,
   close(fd);
   return 0;
 
-#elif defined(__sun__)
-  syslog(LOG_ERR, "%s: Could not set up routing on Solaris. Please add route manually.", strerror(errno));
-  return 0;
 #else
 #error  "Unknown platform!"
 #endif
@@ -1769,7 +1766,7 @@ static void setup_one_ring(net_interface *iface, unsigned ring_size, int mtu, in
   struct ring *ring = NULL;
   const char *name = NULL;
   int ret = -1;
-  memset(req, 0, sizeof(struct tpacket_req));
+  memset(&req, 0, sizeof(struct tpacket_req));
 
   name = what == PACKET_RX_RING ? "RX" : "TX";
   ring = what == PACKET_RX_RING ? &iface->rx_ring : &iface->tx_ring;

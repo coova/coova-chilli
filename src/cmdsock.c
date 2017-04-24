@@ -20,7 +20,7 @@
 #include "chilli.h"
 
 int
-cmdsock_init() {
+cmdsock_init(void) {
   struct sockaddr_un local;
   int cmdsock;
 
@@ -61,7 +61,7 @@ cmdsock_init() {
 
 
 int
-cmdsock_port_init() {
+cmdsock_port_init(void) {
   struct sockaddr_in local;
   int cmdsock;
   int rc;
@@ -106,7 +106,7 @@ void cmdsock_shutdown(int s) {
   if (s < 0) {
     return;
   }
-  syslog(LOG_DEBUG, "Shutting down cmdsocket");
+  syslog(LOG_DEBUG, "%s(%d): Shutting down cmdsocket", __FUNCTION__, __LINE__);
   shutdown(s, 2);
   close(s);
 }

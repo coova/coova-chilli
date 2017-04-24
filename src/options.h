@@ -274,7 +274,7 @@ struct options_t {
   uint8_t proxymacaccept:1;         /* Auto-accept non-EAP requests on proxy port */
   uint8_t proxyonacct:1;
 #endif
-#ifdef ENABLE_PROXYVSA
+#if defined(ENABLE_LOCATION) || defined(ENABLE_PROXYVSA)
   uint8_t vlanlocation:1;
   uint8_t location_stop_start:1;
   uint8_t location_copy_called:1;
@@ -322,6 +322,8 @@ struct options_t {
   uint32_t ipsrc_num_pass_throughs;
 #endif
 
+  char* rfc7710uri; /* RFC 7710 URI, nullptr if not used. */
+
   char* uamdomains[MAX_UAM_DOMAINS];
   int uamdomain_ttl;
 
@@ -340,7 +342,7 @@ struct options_t {
   uint32_t challengetimeout;
   uint32_t challengetimeout2;
 
-#ifdef ENABLE_PROXYVSA
+#if defined(ENABLE_LOCATION) || defined(ENABLE_PROXYVSA)
 #define PROXYVSA_ATTR_CNT 4
   struct {
     uint32_t attr_vsa;
@@ -378,10 +380,6 @@ struct options_t {
 #ifdef ENABLE_DHCPOPT
   uint8_t dhcp_options[512];
   int dhcp_options_len;
-#endif
-
-#ifdef ENABLE_DNSLOG
-  char *dnslog;
 #endif
 
 #ifdef ENABLE_IPWHITELIST
@@ -439,9 +437,9 @@ int process_options(int argc, char **argv, int minimal);
 void reprocess_options(int argc, char **argv);
 int reload_options(int argc, char **argv);
 int options_save(char *file, bstring bt);
-void options_init();
-void options_destroy();
-void options_cleanup();
+void options_init(void);
+void options_destroy(void);
+void options_cleanup(void);
 
 #ifndef MAIN_FILE /* all main() files must implement _options */
 extern struct options_t _options;

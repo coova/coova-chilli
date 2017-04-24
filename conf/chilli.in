@@ -30,7 +30,7 @@ MULTI=$(ls @ETCCHILLI@/*/chilli.conf 2>/dev/null)
 }
 
 pidfile=@VARRUN@/chilli.pid
-CONFIG=/etc/chilli.conf
+CONFIG=@ETCDIR@/chilli.conf
 
 if [ -n "$DHCPIF" ]; then
     CONFIG=@ETCCHILLI@/$DHCPIF/chilli.conf

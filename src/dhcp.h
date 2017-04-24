@@ -47,6 +47,7 @@
 #define DHCP_OPTION_CLIENT_IDENTIFIER 61
 #define DHCP_OPTION_CLIENT_FQDN    81
 #define DHCP_OPTION_82    82
+#define DHCP_OPTION_CAPTIVE_PORTAL_URI 160
 
 /* !!highly experimental!! */
 #define DHCP_OPTION_CALLED_STATION_ID  197
@@ -205,7 +206,7 @@ struct dhcp_t {
 
   int numconn;          /* Maximum number of connections */
 
-#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
   struct pkt_buffer pb;
 #endif
 
@@ -301,7 +302,7 @@ int dhcp_relay_decaps(struct dhcp_t *this, int idx);
 int dhcp_data_req(struct dhcp_conn_t *conn, struct pkt_buffer *pb, int ethhdr);
 uint8_t * dhcp_nexthop(struct dhcp_t *);
 
-#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__)
+#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
 int dhcp_receive(struct dhcp_t *this, int idx);
 #endif
 

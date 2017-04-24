@@ -265,7 +265,6 @@ option "natport"   - "Port to use when oding nat on the WAN (routeidx)" int defa
 option "redirssl"  - "Enable redirection of SSL/HTTP port (requires SSL support)" flag off
 option "uamuissl"  - "Enable SSL/HTTPS support on the uamuiport" flag off
 
-option "dnslog"    - "Log DNS requests to a file." string no
 option "ipwhitelist" - "Binary IP White List file" string no
 option "uamdomainfile" - "Load uamdomains (regex) from file" string no
 
@@ -289,6 +288,8 @@ option "forcedns1port"   - "Force all DNS to a specific port" int default="0" no
 
 option "forcedns2"   - "Force all secondary DNS to a specific address" string no 
 option "forcedns2port"   - "Force all secondary DNS to a specific port" int default="0" no 
+
+option "rfc7710uri" - "DHCP Captive Portal URI. Defaults to http://uamlisten:uamport/prelogin." string no
 
 option "ipv6" - "Enable IPv6 support" flag off
 option "ipv6mode" - "IPv6 mode is either 6and4 (default), 4to6, or 6to4" string no
