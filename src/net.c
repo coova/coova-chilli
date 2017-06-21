@@ -1260,10 +1260,18 @@ int net_open_eth(net_interface *netif) {
     ndelay_on(netif->fd);
     coe(netif->fd);
 
-    option = 1;
-    if (net_setsockopt(netif->fd, IPPROTO_TCP, TCP_NODELAY,
-		       &option, sizeof(option)) < 0)
-      return -1;
+    /* Try to set TCP_NODELAY for stream socket type */
+    {
+      int type;
+      int typelen = sizeof(type);
+
+      if ((getsockopt(netif->fd, SOL_SOCKET, SO_TYPE, &type, &typelen) == 0) &&
+          (type == SOCK_STREAM)) {
+        option = 1;
+        if (net_setsockopt(netif->fd, IPPROTO_TCP, TCP_NODELAY, &option, sizeof(option)) < 0)
+          return -1;
+      }
+    }
 
     /* Enable reception and transmission of broadcast frames */
     option = 1;
