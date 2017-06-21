@@ -316,19 +316,19 @@ static void _sigchld(int signum) {
       syslog(LOG_DEBUG, "%s(%d): child %d terminated", __FUNCTION__, __LINE__, pid);
 #endif
 #ifdef ENABLE_CHILLIRADSEC
-    if (!_options.debug && radsec_pid > 0 && radsec_pid == pid) {
+    if (radsec_pid > 0 && radsec_pid == pid) {
       syslog(LOG_ERR, "Having to re-launch chilli_radsec... PID %d exited", pid);
       launch_chilliradsec();
     }
 #endif
 #ifdef ENABLE_CHILLIPROXY
-    if (!_options.debug && proxy_pid > 0 && proxy_pid == pid) {
+    if (proxy_pid > 0 && proxy_pid == pid) {
       syslog(LOG_ERR, "Having to re-launch chilli_proxy... PID %d exited", pid);
       launch_chilliproxy();
     }
 #endif
 #ifdef ENABLE_CHILLIREDIR
-    if (!_options.debug && redir_pid > 0 && redir_pid == pid) {
+    if (redir_pid > 0 && redir_pid == pid) {
       syslog(LOG_ERR, "Having to re-launch chilli_redir... PID %d exited", pid);
       launch_chilliredir();
     }
