@@ -80,7 +80,7 @@ int garden_print_appconn(struct app_conn_t *appconn, void *d) {
       patricia_process(appconn->ptree, cb);
     } else
 #endif
-      garden_print_list(fd,
+    garden_print_list(fd,
 			appconn->s_params.pass_throughs,
 			appconn->s_params.pass_through_count);
   }
