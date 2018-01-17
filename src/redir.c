@@ -1403,6 +1403,16 @@ static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t 
   bassignformat(tmp , "%d", blength(json));
   bconcat(s, tmp);
 
+  if (_options.alloworigin) {
+    if (!strncmp(_options.alloworigin, "*", 1)) {
+      bcatcstr(s, "\r\nAccess-Control-Allow-Origin: *");
+    } else {
+      bassignformat(tmp , "\r\nAccess-Control-Allow-Origin: %s", _options.alloworigin);
+      bconcat(s, tmp);
+      bcatcstr(s, "\r\nVary: Origin");
+    }
+  }
+
   bcatcstr(s, "\r\nContent-Type: ");
   if (tmp->slen) bcatcstr(s, "text/javascript");
   else bcatcstr(s, "application/json");

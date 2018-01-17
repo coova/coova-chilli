@@ -181,6 +181,10 @@ struct options_t {
   char *uamaliasname;            /* Simple hostname (no dots) DNS name for uamalias */
   char *uamhostname;             /* Simple hostname (no dots) DNS name for uamlisten */
 
+#ifdef ENABLE_JSON
+  char *alloworigin;
+#endif
+
 #ifdef ENABLE_FORCEDNS
   struct in_addr forcedns1_addr;  /* IP address to force DNS to */
   struct in_addr forcedns2_addr;  /* IP address to force DNS to */
