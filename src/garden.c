@@ -74,7 +74,8 @@ int garden_print_appconn(struct app_conn_t *appconn, void *d) {
 		  inet_ntoa(appconn->hisip),
 		  appconn->s_params.pass_through_count,
 		  SESSION_PASS_THROUGH_MAX);
-    if (!safe_write(fd, line, strlen(line))) /* error */;
+    if (!safe_write(fd, line, strlen(line))) /* error */
+      ;
 #ifdef HAVE_PATRICIA
     if (appconn->ptree) {
       patricia_process(appconn->ptree, cb);
@@ -136,7 +137,8 @@ void garden_print(int fd) {
 		"authed garden (%d/%d):\n",
 		_options.num_authed_pass_throughs,
 		MAX_PASS_THROUGHS);
-  if (!safe_write(fd, line, strlen(line))) /* error */;
+  if (!safe_write(fd, line, strlen(line))) /* error */
+    ;
 
 #ifdef HAVE_PATRICIA
   if (dhcp->ptree_authed) {
