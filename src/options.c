@@ -377,7 +377,7 @@ int options_fromfd(int fd, bstring bt) {
 
 #ifdef ENABLE_CHILLIREDIR
   for (i = 0; i < MAX_REGEX_PASS_THROUGHS; i++) {
-#if defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
+#if defined (__linux__) || defined (__FreeBSD__) || defined (__APPLE__) || defined (__OpenBSD__) || defined (__NetBSD__)
     regfree(&_options.regex_pass_throughs[i].re_host);
     regfree(&_options.regex_pass_throughs[i].re_path);
     regfree(&_options.regex_pass_throughs[i].re_qs);
