@@ -1938,7 +1938,7 @@ int redir_getparam(struct redir_t *redir, char *src, char *param, bstring dst) {
     bassigncstr(dst, "");
 
   if (_options.debug)
-    syslog(LOG_DEBUG, "%s(%d): The parameter %s is: [%.*s]", __FUNCTION__, __LINE__, param, dst->slen, dst->data);/**/
+    syslog(LOG_DEBUG, "%s(%d): The parameter %s is: [%.*s]", __FUNCTION__, __LINE__, param, dst->slen, dst->data);
 
   return 0;
 }
@@ -3362,7 +3362,8 @@ int redir_main(struct redir_t *redir,
   redir_chartohex(challenge, hexchal, REDIR_MD5LEN);                    \
   msg.mtype = msgtype;                                                  \
   memcpy(conn.s_state.redir.uamchal, challenge, REDIR_MD5LEN);          \
-  if (_options.debug) syslog(LOG_DEBUG, "%s(%d): ---->>> resetting challenge: %s", __FUNCTION__, __LINE__, hexchal)
+  if (_options.debug)							\
+    syslog(LOG_DEBUG, "%s(%d): ---->>> resetting challenge: %s", __FUNCTION__, __LINE__, hexchal)
 
 #ifdef USING_IPC_UNIX
 #define redir_msg_send(msgopt)                                          \
@@ -4033,8 +4034,9 @@ int redir_main(struct redir_t *redir,
           syslog(LOG_DEBUG, "%s(%d): handling Access-Reject", __FUNCTION__, __LINE__);
 
         if (!hasnexturl) {
-          if (_options.challengetimeout)
+          if (_options.challengetimeout) {
             redir_memcopy(REDIR_CHALLENGE);
+	  }
         } else {
           msg.mtype = REDIR_NOTYET;
         }
