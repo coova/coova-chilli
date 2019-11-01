@@ -397,7 +397,7 @@ AC_ARG_WITH([cyassl],
  [AS_HELP_STRING([--with-cyassl], [enable support for cyassl])],[],[with_cyassl=no])
 
 AS_IF([test x"$with_cyassl" != xno],
-  [AC_CHECK_LIB([cyassl], [CyaSSL_Init],
+  [AC_CHECK_LIB([cyassl], [wolfSSL_Init],
               [AC_SUBST([LIBSSL], ["-lcyassl"])
                AC_DEFINE([HAVE_CYASSL], [1],
                          [Define if you have cyassl])
