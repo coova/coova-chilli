@@ -511,13 +511,13 @@ AC_ARG_WITH([curl],
 
 AS_IF([test x"$with_curl" != xno],
   [AC_CHECK_LIB([curl], [curl_global_init],
-              [AC_SUBST([LIBCURL], ["-lcurl -lz -lssl -lcrypto -lcares"])
+              [AC_SUBST([LIBCURL], ["-lcurl"])
                AC_DEFINE([USING_CURL], [1],
                          [Define if you have curl enabled])
               ],
               [AC_MSG_FAILURE(
                  [--with-curl was given, but test for curl failed])],
-              [-lz -lssl -lcrypto -lcares])])
+              )])
 
 AM_CONDITIONAL(WITH_CURL, [test x"$with_curl" != xno])
 
