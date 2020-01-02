@@ -1613,7 +1613,7 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
 
         if (conn->s_state.redir.uamprotocol & REDIR_UAMPROT_WISPR2)
           redir_wispr2_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
-        else
+        else if (conn->s_state.redir.uamprotocol & REDIR_UAMPROT_WISPR1)
           redir_wispr1_reply(redir, conn, res, timeleft, hexchal, reply, redirurl, bbody);
 
 #ifdef ENABLE_CHILLIXML
@@ -2358,7 +2358,7 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
             if (_options.debug)
               syslog(LOG_DEBUG, "%s(%d): using uamprotocol: WISPr 1.0 (%d)", __FUNCTION__, __LINE__, conn->s_state.redir.uamprotocol);
           }
-        } else {
+        } else if (!_options.no_wispr1) {
           conn->s_state.redir.uamprotocol = REDIR_UAMPROT_WISPR1;
           if (_options.debug)
             syslog(LOG_DEBUG, "%s(%d): using uamprotocol: WISPr 1.0 (%d)", __FUNCTION__, __LINE__, conn->s_state.redir.uamprotocol);
