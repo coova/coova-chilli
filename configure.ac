@@ -830,18 +830,14 @@ fi
 AM_CONDITIONAL(WITH_CONFIG, [test x"$enable_config" = xyes])
 
 AC_SUBST(sysconfdir)
-AC_CONFIG_FILES([Makefile 
-		 bstring/Makefile 
+AC_CONFIG_FILES([Makefile
+		 bstring/Makefile
 		 conf/Makefile
-		 debian/Makefile
-		 distro/Makefile
 		 doc/Makefile
 		 json/Makefile
 		 miniportal/Makefile
-		 src/Makefile 
-		 src/mssl/Makefile 
-		 www/Makefile 
-		 distro/suse/coova-chilli.spec
-		 distro/redhat/coova-chilli.spec])
+		 src/Makefile
+		 src/mssl/Makefile
+		 www/Makefile])
 
 AC_OUTPUT
