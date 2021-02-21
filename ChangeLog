@@ -1,7 +1,10 @@
 == ChangeLog (CoovaChilli-v1.6) ==
+* system.h: Fix compilation with kernel 4.19 + musl (#502)
+* docs: fix simple typo, tighest -> tightest (#523)
 * Fix build with musl libc. (#524)
 * Updated build to avoid making warnings fatal. (#524)
 * Updated debian and rpm packaging sources. (#524)
+* chilli: fix build with --enable-authedallowed (#525)
 * Fix compilation with newer wolfSSL. (#499)
 
 == ChangeLog (CoovaChilli-v1.5) ==
