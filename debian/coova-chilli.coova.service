@@ -1,0 +1,15 @@
+[Unit]
+Description=CoovaChilli captive portal daemon
+After=network.target
+
+[Service]
+EnvironmentFile=/etc/default/chilli
+# EnvironmentFile=/etc/chilli/config
+ExecStartPre=/etc/init.d/chilli radconfig
+ExecStart=/usr/sbin/chilli -c $CONFFILE --pidfile /run/chilli.pid
+Type=forking
+RemainAfterExit=true
+PIDFile=/run/chilli.pid
+
+[Install]
+WantedBy=multi-user.target
