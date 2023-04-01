@@ -136,7 +136,11 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
 	     int isReq, int *qmatch, int *modified, int mode) {
 
 #define return_error {                                                  \
-    if (_options.debug) syslog(LOG_DEBUG, "%s(%d): failed parsing DNS packet", __FUNCTION__, __LINE__); return -1; }
+		if (_options.debug)					\
+			syslog(LOG_DEBUG, "%s(%d): failed parsing DNS packet", __FUNCTION__, __LINE__); \
+									\
+		return -1; \
+}
 
   uint8_t *p_pkt = *pktp;
   size_t len = *left;
