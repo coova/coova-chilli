@@ -18,3 +18,5 @@ To get started after cloning git repository:
   `make`
 
 More details about the build process and dependencies are covered in the [INSTALL file](/INSTALL)
+
+[![Github Actions Build Status](https://github.com/coova/coova-chilli/actions/workflows/actions.yml/badge.svg)](https://github.com/coova/coova-chilli/actions/workflows/actions.yml)
