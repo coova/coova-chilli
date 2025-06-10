@@ -422,6 +422,10 @@ dns_copy_res(struct dhcp_conn_t *conn, int q,
       if (_options.debug)
         syslog(LOG_DEBUG, "%s(%d): NSEC record", __FUNCTION__, __LINE__);
       break;
+    case 65:
+      if (_options.debug)
+        syslog(LOG_DEBUG, "%s(%d): HTTPS (SVCB) record", __FUNCTION__, __LINE__);
+      break;    
   }
 
   if (antidnstunnel && !required) {
