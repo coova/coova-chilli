@@ -7867,7 +7867,7 @@ int chilli_main(int argc, char **argv) {
      */
 
 #ifdef ENABLE_CHILLIQUERY
-    cmdsock_shutdown();
+    cmdsock_shutdown(cmdsock);
 #endif
 
 #ifdef ENABLE_CHILLIREDIR
