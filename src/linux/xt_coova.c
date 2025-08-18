@@ -474,7 +474,6 @@ static int coova_seq_open(struct inode *inode, struct file *file)
 #else
 	st->table = pde->data;
 #endif
-
 	return 0;
 }
 
@@ -491,7 +490,6 @@ coova_mt_proc_write(struct file *file, const char __user *input,
 	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	struct coova_table *t = pde->data;
 #endif
-
 	struct coova_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];
 	const char *c = buf;
