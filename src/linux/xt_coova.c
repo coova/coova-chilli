@@ -467,11 +467,14 @@ static int coova_seq_open(struct inode *inode, struct file *file)
 	if (st == NULL)
 		return -ENOMEM;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,17,0)
+	st->table = pde_data(inode);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0) && LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0)
 	st->table = PDE_DATA(inode);
 #else
 	st->table = pde->data;
 #endif
+
 	return 0;
 }
 
@@ -479,12 +482,16 @@ static ssize_t
 coova_mt_proc_write(struct file *file, const char __user *input,
 		    size_t size, loff_t *loff)
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,17,0)
+	struct coova_table *t = pde_data(file_inode(file));
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0) && LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0)
 	struct coova_table *t = PDE_DATA(file_inode(file));
 #else
 	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
 	struct coova_table *t = pde->data;
 #endif
+
 	struct coova_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];
 	const char *c = buf;
