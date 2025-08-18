@@ -481,7 +481,6 @@ static ssize_t
 coova_mt_proc_write(struct file *file, const char __user *input,
 		    size_t size, loff_t *loff)
 {
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,17,0)
 	struct coova_table *t = pde_data(file_inode(file));
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0) && LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0)
