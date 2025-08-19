@@ -469,7 +469,7 @@ static int coova_seq_open(struct inode *inode, struct file *file)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,17,0)
 	st->table = pde_data(inode);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0) && LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0)
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0) && LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0))
 	st->table = PDE_DATA(inode);
 #else
 	st->table = pde->data;
@@ -483,7 +483,7 @@ coova_mt_proc_write(struct file *file, const char __user *input,
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,17,0)
 	struct coova_table *t = pde_data(file_inode(file));
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0) && LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0)
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0) && LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0))
 	struct coova_table *t = PDE_DATA(file_inode(file));
 #else
 	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
