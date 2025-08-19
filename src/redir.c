@@ -1269,6 +1269,55 @@ void redir_wispr2_reply (struct redir_t *redir, struct redir_conn_t *conn,
 }
 
 #ifdef ENABLE_JSON
+static int redir_captive_portal_identification(struct redir_t *redir, int res, struct redir_conn_t *conn, bstring s) {
+  // Implementation of RFC8908 - https://www.rfc-editor.org/rfc/rfc8908.html
+
+  bstring json = bfromcstr("");
+  bcatcstr(json, "{");
+
+  int state = conn->s_state.authenticated;
+  bcatcstr(json, "\"captive\":");
+  bcatcstr(json, state ? "false" : "true");
+
+#ifdef ENABLE_UAMUIPORT
+  bcatcstr(json, ", \"user-portal-url\":\"");
+  bassignformat(tmp , "https://%s:%d/prelogin",
+		  inet_ntoa(redir->addr), redir->uiport);
+  bconcat(json, tmp);
+  bcatcstr(json, "\"");
+#endif
+
+  if (state) {
+    bcatcstr(json, ", \"venue-info-url\": \"https://perdu.com/\""); // TODO: Use a valid redirect URL if exists
+    bcatcstr(json, ", \"can-extend-session\": true");
+    bcatcstr(json, ", \"seconds-remaining\": 999"); // TODO: Calculation of remaining time
+  }
+
+  bcatcstr(json, "}");
+
+  redir_http(s, "200 OK");
+
+  bcatcstr(s, "\r\nCache-Control: no-store");
+
+  bcatcstr(s, "Content-Length: ");
+  bassignformat(s , "%d", blength(json));
+
+  bcatcstr(s, "\r\nContent-Type: application/captive+json");
+
+  bcatcstr(s, "\r\n\r\n");
+  bconcat(s, json);
+
+#if(_debug_ > 1)
+  if (_options.debug)
+    syslog(LOG_DEBUG, "%s(%d): sending json for captive portal identification: %s\n", __FUNCTION__, __LINE__, json->data);
+#endif
+
+  bdestroy(json);
+  bdestroy(tmp);
+
+  return 0;
+}
+
 static int redir_json_reply(struct redir_t *redir, int res, struct redir_conn_t *conn,
 			    char *hexchal, char *userurl, char *redirurl,
 			    uint8_t *hismac, struct in_addr *hisip,
@@ -1562,7 +1611,10 @@ int redir_reply(struct redir_t *redir, struct redir_socket_t *sock,
   }
 
 #ifdef ENABLE_JSON
-  if (conn->format == REDIR_FMT_JSON) {
+  if (conn->format == REDIR_CAPTIVE_PORTAL_IDENTIFICATION) {
+    redir_captive_portal_identification(redir, res, conn, buffer);
+  }
+  else if (conn->format == REDIR_FMT_JSON) {
 
     redir_json_reply(redir, res, conn, hexchal, userurl, redirurl,
 		     hismac, hisip, reply, qs, buffer);
@@ -2152,7 +2204,10 @@ static int redir_getreq(struct redir_t *redir, struct redir_socket_t *sock,
 	/* TODO: Should also check the Host: to make sure we are talking directly to uamlisten */
 
 #ifdef ENABLE_JSON
-	if (!strncmp(path, "json/", 5) && strlen(path) > 6) {
+  if (!strncmp(path, "json/captive-portal-identification")) {
+    conn->type = REDIR_CAPTIVE_PORTAL_IDENTIFICATION;
+  }
+	else if (!strncmp(path, "json/", 5) && strlen(path) > 6) {
 	  int i, last=strlen(path)-5;
 
 	  conn->format = REDIR_FMT_JSON;
