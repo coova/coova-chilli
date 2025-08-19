@@ -736,7 +736,7 @@ int main(int argc, char **argv) {
     char uri[128];
     snprintf(uri, sizeof(uri), "http://%s:%d/captiveportal/api",
       inet_ntoa(_options.uamlisten), _options.uamport);
-  _options.captiveportalapi_uri = STRDUP(uri); // RFC 8910: URI doit pointer vers une API machine
+  _options.captiveportalapi_uri = STRDUP(uri);
   }
 
   if (!args_info.uamserver_arg) {

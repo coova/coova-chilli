@@ -322,7 +322,7 @@ struct options_t {
   uint32_t ipsrc_num_pass_throughs;
 #endif
 
-  char* captiveportalapi_uri; /* RFC 8910 Captive Portal API URI, nullptr si non utilisé. */
+  char* captiveportalapi_uri; /* RFC 8910 Captive Portal API URI, nullptr if not used. */
 
   char* uamdomains[MAX_UAM_DOMAINS];
   int uamdomain_ttl;
