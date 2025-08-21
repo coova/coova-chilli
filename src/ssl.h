@@ -31,7 +31,7 @@ typedef struct {
 } openssl_env;
 #endif
 
-#if defined(HAVE_OPENSSL) || defined(HAVE_CYASSL)
+#if defined(HAVE_OPENSSL) || defined(HAVE_WOLFSSL)
 
 #ifdef HAVE_OPENSSL
 #include <openssl/buffer.h>
@@ -42,20 +42,20 @@ typedef struct {
 #include <openssl/pem.h>
 #include <openssl/engine.h>
 #include <openssl/err.h>
-#elif HAVE_CYASSL
+#elif HAVE_WOLFSSL
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
 
 #define OPENSSL_NO_ENGINE
-#include <cyassl/options.h>
-#include <cyassl/ssl.h>
-#include <cyassl/openssl/bio.h>
-#include <cyassl/openssl/crypto.h>
-#include <cyassl/openssl/x509.h>
-#include <cyassl/openssl/ssl.h>
-#include <cyassl/openssl/pem.h>
+#include <wolfssl/options.h>
+#include <wolfssl/ssl.h>
+#include <wolfssl/openssl/bio.h>
+#include <wolfssl/openssl/crypto.h>
+#include <wolfssl/openssl/x509.h>
+#include <wolfssl/openssl/ssl.h>
+#include <wolfssl/openssl/pem.h>
 #endif
 
 #define OPENSSL_TMPKEY_MAX      4
