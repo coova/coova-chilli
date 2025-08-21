@@ -92,9 +92,9 @@ static DEFINE_MUTEX(coova_mutex);
 #ifdef CONFIG_PROC_FS
 static struct proc_dir_entry *coova_proc_dir;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
-static const struct proc_ops coova_old_fops, coova_mt_fops;
+static const struct proc_ops coova_mt_fops;
 #else
-static const struct file_operations coova_old_fops, coova_mt_fops;
+static const struct file_operations coova_mt_fops;
 #endif
 #endif
 
