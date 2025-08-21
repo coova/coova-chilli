@@ -427,7 +427,7 @@ struct dns_packet_t { /* From RFC 1035 */
   uint16_t ancount; /* 16 bit: Number of answer records */
   uint16_t nscount; /* 16 bit: Number of name servers */
   uint16_t arcount; /* 16 bit: Number of additional records */
-  uint8_t  records[PKT_IP_PLEN];
+  uint8_t  records[];
 } __attribute__((packed));
 
 struct pkt_dot1xhdr_t {
