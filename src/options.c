@@ -307,6 +307,7 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.peerkey)) return 0;
 
   if (!option_s_l(bt, &o.captiveportalapi_uri)) return 0;
+  if (!option_s_l(bt, &o.captiveportalvenue_info_url)) return 0;
 
   if (!option_s_l(bt, &o.macsuffix)) return 0;
   if (!option_s_l(bt, &o.macpasswd)) return 0;
@@ -507,6 +508,7 @@ int options_save(char *file, bstring bt) {
   if (!option_s_s(bt, &o.peerkey)) return 0;
 
   if (!option_s_s(bt, &o.captiveportalapi_uri)) return 0;
+  if (!option_s_s(bt, &o.captiveportalvenue_info_url)) return 0;
 
   if (!option_s_s(bt, &o.macsuffix)) return 0;
   if (!option_s_s(bt, &o.macpasswd)) return 0;

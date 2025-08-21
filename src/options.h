@@ -324,6 +324,8 @@ struct options_t {
 
   char* captiveportalapi_uri; /* RFC 8910 Captive Portal API URI, nullptr if not used. */
 
+  char* captiveportalvenue_info_url; /* RFC 8908 Captive Portal Venue Information URL, nullptr if not used. */
+
   char* uamdomains[MAX_UAM_DOMAINS];
   int uamdomain_ttl;
 
