@@ -57,8 +57,12 @@ int chksum6(struct pkt_ip6hdr_t *iph) {
         hdr.zero[0]=hdr.zero[1]=hdr.zero[2]=0;
         hdr.next_header = iph->next_header;
         icmp->check = 0;
-        sum  = in_cksum((uint16_t *)&hdr, sizeof(hdr));
-        sum += in_cksum((uint16_t *)icmp, ntohs(iph->data_len));
+        uint16_t hdr_buf[sizeof(hdr) / 2];
+        memcpy(hdr_buf, &hdr, sizeof(hdr));
+        sum  = in_cksum(hdr_buf, sizeof(hdr));
+        uint16_t icmp_buf[ntohs(iph->data_len) / 2];
+        memcpy(icmp_buf, icmp, ntohs(iph->data_len));
+        sum += in_cksum(icmp_buf, ntohs(iph->data_len));
         icmp->check = cksum_wrap(sum);
         break;
       }
@@ -74,8 +78,12 @@ int chksum6(struct pkt_ip6hdr_t *iph) {
         hdr.zero[0]=hdr.zero[1]=hdr.zero[2]=0;
         hdr.next_header = iph->next_header;
         udphdr->check = 0;
-        sum  = in_cksum((uint16_t *)&hdr, sizeof(hdr));
-        sum += in_cksum((uint16_t *)udphdr, udplen);
+        uint16_t hdr_buf[sizeof(hdr) / 2];
+        memcpy(hdr_buf, &hdr, sizeof(hdr));
+        sum  = in_cksum(hdr_buf, sizeof(hdr));
+        uint16_t udphdr_buf[udplen / 2];
+        memcpy(udphdr_buf, udphdr, udplen);
+        sum += in_cksum(udphdr_buf, udplen);
         udphdr->check = cksum_wrap(sum);
       }
       break;
@@ -91,8 +99,12 @@ int chksum6(struct pkt_ip6hdr_t *iph) {
         hdr.zero[0]=hdr.zero[1]=hdr.zero[2]=0;
         hdr.next_header = iph->next_header;
         tcphdr->check = 0;
-        sum  = in_cksum((uint16_t *)&hdr, sizeof(hdr));
-        sum += in_cksum((uint16_t *)tcphdr, tcplen);
+        uint16_t hdr_buf[sizeof(hdr) / 2];
+        memcpy(hdr_buf, &hdr, sizeof(hdr));
+        sum  = in_cksum(hdr_buf, sizeof(hdr));
+        uint16_t tcphdr_buf[tcplen / 2];
+        memcpy(tcphdr_buf, tcphdr, tcplen);
+        sum += in_cksum(tcphdr_buf, tcplen);
         tcphdr->check = cksum_wrap(sum);
       }
       break;
@@ -138,7 +150,9 @@ int chksum(struct pkt_iphdr_t *iph) {
         tcph->check = 0;
         sum  = in_cksum(((uint16_t *)iph)+6/*saddr*/, 8);
         sum += ntohs(IPPROTO_TCP + len);
-        sum += in_cksum((uint16_t *)tcph, len);
+        uint16_t tcph_buf[len / 2];
+        memcpy(tcph_buf, tcph, len);
+        sum += in_cksum(tcph_buf, len);
         tcph->check = cksum_wrap(sum);
       }
       break;
@@ -155,7 +169,9 @@ int chksum(struct pkt_iphdr_t *iph) {
         udph->check = 0;
         sum  = in_cksum(((uint16_t *)iph)+6/*saddr*/, 8);
         sum += ntohs(IPPROTO_UDP + udplen);
-        sum += in_cksum((uint16_t *)udph, udplen);
+        uint16_t udph_buf[udplen / 2];
+        memcpy(udph_buf, udph, udplen);
+        sum += in_cksum(udph_buf, udplen);
         udph->check = cksum_wrap(sum);
       }
       break;
@@ -166,14 +182,18 @@ int chksum(struct pkt_iphdr_t *iph) {
             (struct pkt_icmphdr_t *)(((void *)iph) + hlen);
         len -= hlen;
         icmph->check = 0;
-        sum = in_cksum((uint16_t *)icmph, len);
+        uint16_t icmph_buf[len / 2];
+        memcpy(icmph_buf, icmph, len);
+        sum = in_cksum(icmph_buf, len);
         icmph->check = cksum_wrap(sum);
       }
       break;
   }
 
   iph->check = 0;
-  sum = in_cksum((uint16_t *)iph, hlen);
+  uint16_t iph_buf[hlen / 2];
+  memcpy(iph_buf, iph, hlen);
+  sum = in_cksum(iph_buf, hlen);
   iph->check = cksum_wrap(sum);
 
   return 0;
