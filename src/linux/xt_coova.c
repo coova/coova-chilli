@@ -293,10 +293,8 @@ static int coova_mt_check(const struct xt_mtchk_param *par)
 	struct coova_table *t;
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *pde;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 	kuid_t uid;
 	kgid_t gid;
-#endif
 #endif
 	unsigned i;
 	int ret = 0;
@@ -336,14 +334,9 @@ static int coova_mt_check(const struct xt_mtchk_param *par)
 		goto out;
 	}
 	
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 	uid = make_kuid(&init_user_ns, ip_list_uid);
 	gid = make_kgid(&init_user_ns, ip_list_gid);
-    proc_set_user(pde, uid, gid);
-#else
-	pde->uid = ip_list_uid;
-	pde->gid = ip_list_gid;
-#endif
+	proc_set_user(pde, uid, gid);
 #endif
 	spin_lock_bh(&coova_lock);
 	list_add_tail(&t->list, &tables);
@@ -458,9 +451,6 @@ static const struct seq_operations coova_seq_ops = {
 
 static int coova_seq_open(struct inode *inode, struct file *file)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
-	struct proc_dir_entry *pde = PDE(inode);
-#endif
 	struct coova_iter_state *st;
 
 	st = __seq_open_private(file, &coova_seq_ops, sizeof(*st));
@@ -469,10 +459,8 @@ static int coova_seq_open(struct inode *inode, struct file *file)
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,17,0)
 	st->table = pde_data(inode);
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0) && LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0))
-	st->table = PDE_DATA(inode);
 #else
-	st->table = pde->data;
+	st->table = PDE_DATA(inode);
 #endif
 	return 0;
 }
@@ -483,11 +471,8 @@ coova_mt_proc_write(struct file *file, const char __user *input,
 {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,17,0)
 	struct coova_table *t = pde_data(file_inode(file));
-#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0) && LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0))
-	struct coova_table *t = PDE_DATA(file_inode(file));
 #else
-	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
-	struct coova_table *t = pde->data;
+	struct coova_table *t = PDE_DATA(file_inode(file));
 #endif
 	struct coova_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];
