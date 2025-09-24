@@ -643,6 +643,11 @@ IP address.
 TCP port to bind to for only serving embedded content.
 
 .TP
+.BI alloworigin " origin"
+Add header Access-Control-Allow-Origin on json interface for enable
+cross-origin HTTP requests (default *)
+
+.TP
 .BI uamallowed " domain"
 Comma separated list of resources the client can access without first
 authenticating. Each entry in the list can be a domain names, IP addresses,
