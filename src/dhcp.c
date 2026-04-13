@@ -3202,6 +3202,15 @@ static int dhcp_expand_captiveportal_uri(struct dhcp_conn_t *conn,
 	    d += l;
 	  }
 	  break;
+	case 't':
+	  {
+	    time_t time_now = time(NULL);
+	    char time_now_string[32];
+	    snprintf(time_now_string, sizeof(time_now_string), "%ld", (long)time_now);
+	    memcpy(d, time_now_string, strlen(time_now_string));
+	    d += strlen(time_now_string);
+	  }
+	  break;
 	default:
 	  /* unknown %{x}: copy verbatim */
 	  goto copy_verbatim;
