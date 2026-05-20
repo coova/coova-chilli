@@ -362,6 +362,10 @@ int options_fromfd(int fd, bstring bt) {
   if (!option_s_l(bt, &o.uamaliasname)) return 0;
   if (!option_s_l(bt, &o.uamhostname)) return 0;
 
+#ifdef ENABLE_JSON
+  if (!option_s_l(bt, &o.alloworigin)) return 0;
+#endif
+
 #ifdef ENABLE_REDIRINJECT
   if (!option_s_l(bt, &o.inject)) return 0;
   if (!option_s_l(bt, &o.inject_ext)) return 0;
@@ -562,6 +566,10 @@ int options_save(char *file, bstring bt) {
 
   if (!option_s_s(bt, &o.uamaliasname)) return 0;
   if (!option_s_s(bt, &o.uamhostname)) return 0;
+
+#ifdef ENABLE_JSON
+  if (!option_s_s(bt, &o.alloworigin)) return 0;
+#endif
 
 #ifdef ENABLE_REDIRINJECT
   if (!option_s_s(bt, &o.inject)) return 0;
