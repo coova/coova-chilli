@@ -74,7 +74,7 @@ static void coova_print(const void *ip, const struct xt_entry_match *match,
 	if (info->invert)
 		fputc('!', stdout);
 	printf("coova: ");
-	if(info->name) 
+	if (strlen(info->name) != 0)
 		printf("name: %s ",info->name);
 	if (info->side == XT_COOVA_SOURCE)
 		printf("side: source ");
@@ -87,7 +87,7 @@ static void coova_save(const void *ip, const struct xt_entry_match *match)
 	const struct xt_coova_mtinfo *info = (const void *)match->data;
 	if (info->invert) 
 		printf("! ");
-	if(info->name) 
+	if (strlen(info->name) != 0)
 		printf("--name %s ",info->name);
 	if (info->side == XT_COOVA_SOURCE)
 		printf("--source ");
