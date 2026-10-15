@@ -3327,8 +3327,10 @@ int redir_send_msg(struct redir_t *this, struct redir_msg_t *msg) {
 
 /*
  * Ask the main chilli daemon to create or reuse the UAM challenge for this
- * subscriber (serialized in the daemon).  Replies with a full redir_conn_t
- * snapshot like REDIR_MSG_STATUS_TYPE.
+ * subscriber (serialized in the daemon).  The daemon replies with a full
+ * redir_conn_t snapshot like REDIR_MSG_STATUS_TYPE, but only the challenge
+ * (uamchal, uamtime) is copied into conn: the rest of conn (response,
+ * authdata, format, s_params...) belongs to the request being processed.
  */
 static int redir_ensure_challenge_rpc(struct redir_t *this,
 				      struct sockaddr_in *address,
@@ -3336,6 +3338,7 @@ static int redir_ensure_challenge_rpc(struct redir_t *this,
 				      struct redir_conn_t *conn,
 				      long mtype_req) {
   struct redir_msg_t msg;
+  struct redir_conn_t snap;
   struct sockaddr_un remote;
   size_t len = sizeof(remote);
   int s;
@@ -3379,12 +3382,15 @@ static int redir_ensure_challenge_rpc(struct redir_t *this,
     return -1;
   }
 
-  if (safe_read(s, conn, sizeof(*conn)) != sizeof(*conn)) {
+  if (safe_read(s, &snap, sizeof(snap)) != sizeof(snap)) {
     syslog(LOG_ERR, "%s: short read from %s", strerror(errno),
 	   remote.sun_path);
     safe_close(s);
     return -1;
   }
+
+  memcpy(conn->s_state.redir.uamchal, snap.s_state.redir.uamchal, REDIR_MD5LEN);
+  conn->s_state.uamtime = snap.s_state.uamtime;
 
   shutdown(s, 2);
   safe_close(s);
