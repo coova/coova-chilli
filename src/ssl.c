@@ -533,8 +533,6 @@ openssl_read(openssl_con *con, char *b, int l, int t) {
     if (!FD_ISSET(fd, &rfds) && !FD_ISSET(fd, &wfds)) return 0;
   }
 
-repeat_read:
-
   rbytes = SSL_read(con->con, b, l);
 
   syslog(LOG_DEBUG, "%s(%d): --- SSL_read() = %d", __FUNCTION__, __LINE__, rbytes);
@@ -544,7 +542,13 @@ repeat_read:
   }
 
   if (rbytes > 0) return rbytes;
-  if (err > 0) goto repeat_read;
+  if (err > 0) {
+    /* WANT_READ/WANT_WRITE: never spin on a non-blocking fd, let the
+       caller go back to select/epoll */
+    errno = EAGAIN;
+    return -1;
+  }
+  if (err == -1) errno = ECONNRESET; /* don't leave a stale EAGAIN */
   return (err == -1) ? -1: 0;
 }
 
