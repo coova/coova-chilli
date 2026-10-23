@@ -3799,6 +3799,8 @@ int redir_main(struct redir_t *redir,
             if (forkpid) { /* parent or error */
               return redir_main_exit(&socket, forked, rreq);
             }
+            /* child: exit when done, never return to the chilli_redir loop */
+            forked = 1;
           }
 
           if (parse) {
@@ -4126,6 +4128,8 @@ int redir_main(struct redir_t *redir,
           if (forkpid) { /* parent or error */
             return redir_main_exit(&socket, forked, rreq);
           }
+          /* child: exit when done, never return to the chilli_redir loop */
+          forked = 1;
         }
 
 #ifdef ENABLE_MODULES

@@ -575,7 +575,9 @@ int net_select_read_fd(select_ctx *sctx, int fd) {
 #ifdef USING_POLL
   int idx;
 #ifdef HAVE_SYS_EPOLL_H
-  for (idx=0; idx < sctx->count; idx++)
+  /* scan every returned event, not only the first `count` (fds re-declared
+     this turn); unused slots are zeroed by net_select_zero() */
+  for (idx=0; idx < MAX_SELECT; idx++)
     if (sctx->events[idx].data.fd == fd) {
       if (sctx->events[idx].events & EPOLLIN)
 	return 1;
@@ -599,7 +601,9 @@ int net_select_write_fd(select_ctx *sctx, int fd) {
 #ifdef USING_POLL
   int idx;
 #ifdef HAVE_SYS_EPOLL_H
-  for (idx=0; idx < sctx->count; idx++)
+  /* scan every returned event, not only the first `count` (fds re-declared
+     this turn); unused slots are zeroed by net_select_zero() */
+  for (idx=0; idx < MAX_SELECT; idx++)
     if (sctx->events[idx].data.fd == fd) {
 #if(_debug_ > 1)
       if (_options.debug)
