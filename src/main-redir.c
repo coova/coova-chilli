@@ -215,6 +215,14 @@ sock_redir_getstate(struct redir_t *redir,
 static int redir_conn_finish(struct conn_t *conn, void *ctx) {
   redir_request *req = (redir_request *)ctx;
 
+#ifdef HAVE_SSL
+  /* free the TLS state here too (timeout / ssl error paths skip redir_main_exit) */
+  if (req->sslcon) {
+    openssl_free(req->sslcon);
+    req->sslcon = 0;
+  }
+#endif
+
   if (req->conn.sock) {
     if (req->state & REDIR_CONN_FD) {
       net_select_rmfd(&sctx, req->conn.sock);
