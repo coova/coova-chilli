@@ -18,8 +18,7 @@
  */
 
 #include "chilli.h"
-
-#define cksum_wrap(c) (c=(c>>16)+(c&0xffff),(~(c+(c>>16))&0xffff))
+#include "pkt.h"
 
 uint32_t
 in_cksum(uint16_t *addr, int len) {

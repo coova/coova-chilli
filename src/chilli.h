@@ -243,7 +243,8 @@ void chilli_print(bstring s, int listfmt,
 		  struct dhcp_conn_t *conn);
 
 int chilli_acct_fromsub(struct app_conn_t *appconn,
-			struct pkt_ipphdr_t *ipph);
+			struct pkt_ipphdr_t *ipph,
+			uint8_t* orig_pack);
 int chilli_acct_tosub(struct app_conn_t *appconn,
 		      struct pkt_ipphdr_t *ipph);
 
