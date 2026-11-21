@@ -1,4 +1,4 @@
-/* Copyright 2002-2010 Paul Hsieh
+/* Copyright 2002-2015 Paul Hsieh
  * This file is part of Bstrlib.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+#include <config.h>
 #endif
 
 #ifdef _MSC_VER
@@ -311,12 +311,21 @@ bNetStr2Bstr(const char * buff)
 		return NULL;
 	}
 	x = 0;
-	for (i = 0; buff[i] != ':'; ++i) {
+	for (i = 0; i < 11 && buff[i] != ':'; ++i) {
 		unsigned int v = buff[i] - '0';
 		if (v > 9 || x > ((INT_MAX - (signed int)v) / 10)) {
 			return NULL;
 		}
 		x = (x * 10) + v;
+	}
+	if (buff[i] != ':') {
+		return NULL;
+	}
+	/* Ensure the buffer spans at least i+1+x+1 bytes (digits, ':', data, ',')
+	 * without scanning past that bound. A null byte before the expected comma
+	 * position means the netstring is truncated. */
+	if (memchr(buff, '\0', (size_t)i + 2 + (size_t)x) != NULL) {
+		return NULL;
 	}
 	/* This thing has to be properly terminated */
 	if (buff[i + 1 + x] != ',') {
@@ -572,14 +581,20 @@ bUuDecLine(void *parm, int ofs, int len)
 	llen += t->slen;
 	for (i = 1; i < s->slen && t->slen < llen; i += 4) {
 		unsigned char outoctet[3];
+		int invalid_c0c1 = 0;
+		int invalid_c2 = 0;
+		int invalid_c3 = 0;
 		c0 = UU_DECODE_BYTE(d0 = (int)bchare(s, i+ofs+0, ' ' - 1));
 		c1 = UU_DECODE_BYTE(d1 = (int)bchare(s, i+ofs+1, ' ' - 1));
 		c2 = UU_DECODE_BYTE(d2 = (int)bchare(s, i+ofs+2, ' ' - 1));
 		c3 = UU_DECODE_BYTE(d3 = (int)bchare(s, i+ofs+3, ' ' - 1));
 		if (((unsigned)(c0|c1) >= 0x40)) {
-			if (!ret)ret = -__LINE__;
-			if (d0 > 0x60 || (d0 < (' ' - 1)&& !isspace(d0)) ||
-			    d1 > 0x60 || (d1 < (' ' - 1)&& !isspace(d1))) {
+			invalid_c0c1 = (d0 > 0x60 || (d0 < (' ' - 1) && !isspace(d0))) ||
+						   (d1 > 0x60 || (d1 < (' ' - 1) && !isspace(d1)));
+			if (!ret) {
+				ret = -__LINE__;
+			}
+			if (invalid_c0c1) {
 				t->slen = otlen;
 				goto exit;
 			}
@@ -587,16 +602,19 @@ bUuDecLine(void *parm, int ofs, int len)
 		}
 		outoctet[0] = (unsigned char)((c0 << 2) | ((unsigned)c1 >> 4));
 		if (t->slen+1 >= llen) {
-			if (0 > bconchar(t, (char)outoctet[0])) {
+			int result = bconchar(t, (char)outoctet[0]);
+			if (result < 0) {
 				return -__LINE__;
 			}
-			break;
+			i = s->slen;
+			continue;
 		}
 		if ((unsigned)c2 >= 0x40) {
+			invalid_c2 = (d2 > 0x60 || (d2 < (' ' - 1) && !isspace(d2)));
 			if (!ret) {
 				ret = -__LINE__;
 			}
-			if (d2 > 0x60 || (d2 < (' ' - 1) && !isspace(d2))) {
+			if (invalid_c2) {
 				t->slen = otlen;
 				goto exit;
 			}
@@ -609,18 +627,26 @@ bUuDecLine(void *parm, int ofs, int len)
 			}
 			break;
 		}
-		if ((unsigned) c3 >= 0x40) { if (!ret) ret = -__LINE__;
-			if (d3 > 0x60 || (d3 < (' ' - 1) && !isspace (d3))) {
+		if ((unsigned)c3 >= 0x40) {
+			invalid_c3 = (d3 > 0x60 || (d3 < (' ' - 1) && !isspace(d3)));
+			if (!ret) {
+				ret = -__LINE__;
+			}
+			if (invalid_c3) {
 				t->slen = otlen;
 				goto exit;
 			}
 			c3 = 0;
 		}
 		outoctet[2] = (unsigned char)((c2 << 6) | ((unsigned)c3));
-		if (0 > bcatblk(t, outoctet, 3)) return -__LINE__;
+		if (0 > bcatblk(t, outoctet, 3)) {
+			return -__LINE__;
+		}
 	}
 	if (t->slen < llen) {
-		if (0 == ret) ret = -__LINE__;
+		if (0 == ret) {
+			ret = -__LINE__;
+		}
 		t->slen = otlen;
 	}
 exit:
@@ -631,10 +657,16 @@ exit:
    return ret;
 }
 
+struct bsUuCtx {
+	struct bUuInOut io;
+	struct bStream * sInp;
+};
+
 bstring
 bUuDecodeEx(const bstring src, int *badlines)
 {
 	struct bStream *s, *d;
+	struct bsUuCtx *ctx;
 	struct tagbstring t;
 	bstring b;
 
@@ -651,11 +683,22 @@ bUuDecodeEx(const bstring src, int *badlines)
 	if (NULL == b) {
 		goto error;
 	}
-	if (0 > bsread(b, d, INT_MAX)) {
+	if (src->slen > 0 && 0 > bsread(b, d, src->slen)) {
 		goto error;
 	}
 exit:
-	bsclose(d);
+	/*
+	 * bsUuDecodePart frees ctx->io.dst and ctx->io.src when it signals
+	 * EOF (nulling both pointers), but leaves ctx itself for us to free.
+	 * If the stream was never read (e.g. empty input), all three are still
+	 * live.  Either way, bsclose returns the ctx pointer and we own it.
+	 */
+	ctx = (struct bsUuCtx *)bsclose(d);
+	if (ctx) {
+		bdestroy(ctx->io.dst);
+		bdestroy(ctx->io.src);
+		free(ctx);
+	}
 	bsclose(s);
 	return b;
 error:
@@ -663,11 +706,6 @@ error:
 	b = NULL;
 	goto exit;
 }
-
-struct bsUuCtx {
-	struct bUuInOut io;
-	struct bStream * sInp;
-};
 
 static size_t
 bsUuDecodePart(void *buff, size_t elsize, size_t nelem, void *parm)
@@ -729,10 +767,11 @@ done:
 		     return tsz;
 	     }
      }
-     /* Deallocate once EOF becomes triggered */
+     /* Release stream buffers on EOF; ctx itself is owned by bUuDecodeEx. */
      bdestroy(ctx->io.dst);
+     ctx->io.dst = NULL;
      bdestroy(ctx->io.src);
-     free(ctx);
+     ctx->io.src = NULL;
      return 0;
 }
 
@@ -892,6 +931,25 @@ bYDecode(const bstring src)
 	return out;
 }
 
+/*  int bSGMLEncode (bstring b)
+ *
+ *  Change the string into a version that is quotable in SGML (HTML, XML).
+ */
+int
+bSGMLEncode(bstring b)
+{
+static struct tagbstring fr[4][2] = {
+	{ bsStatic("&"),  bsStatic("&amp;")  },
+	{ bsStatic("\""), bsStatic("&quot;") },
+	{ bsStatic("<"),  bsStatic("&lt;")   },
+	{ bsStatic(">"),  bsStatic("&gt;")   } };
+	for (int i = 0; i < 4; i++) {
+		int ret = bfindreplace(b, &fr[i][0], &fr[i][1], 0);
+		if (0 > ret) return ret;
+	}
+	return 0;
+}
+
 bstring
 bStrfTime(const char * fmt, const struct tm * timeptr)
 {
@@ -972,8 +1030,12 @@ bSetChar(bstring b, int pos, char c)
 bstring
 bSecureInput(int maxlen, int termchar, bNgetc vgetchar, void *vgcCtx)
 {
-	size_t i, m, c;
-	bstring b, t;
+	size_t i;
+	size_t m;
+	int c;
+	int done;
+	bstring b;
+	bstring t;
 	if (!vgetchar) {
 		return NULL;
 	}
@@ -981,31 +1043,29 @@ bSecureInput(int maxlen, int termchar, bNgetc vgetchar, void *vgcCtx)
 	if (!b) {
 		return NULL;
 	}
-	if ((c = UCHAR_MAX + 1) == (size_t)termchar) {
-		c++;
-	}
-	for (i = 0; ; i++) {
-		if ((size_t)termchar == c ||
-		    (maxlen > 0 && i >= (size_t)maxlen)) {
-			c = EOF;
-		} else {
-			c = vgetchar (vgcCtx);
-		}
-		if ((size_t)EOF == c) {
-			break;
+	i = 0;
+	done = 0;
+	while (!done && (maxlen <= 0 || i < (size_t)maxlen)) {
+		c = vgetchar(vgcCtx);
+		if (EOF == c) {
+			done = 1;
+			continue;
 		}
 		if (i + 1 >= (size_t)b->mlen) {
-			/* Double size, but deal with unusual case of numeric
-			 * overflows
-			 */
-			if ((m = b->mlen << 1) <= (size_t)b->mlen &&
-			    (m = b->mlen + 1024) <= (size_t)b->mlen &&
-			    (m = b->mlen + 16) <= (size_t)b->mlen &&
-			    (m = b->mlen + 1) <= (size_t)b->mlen) {
-				t = NULL;
+			/* Double size, and deal with numeric overflows */
+			if (b->mlen <= INT_MAX / 2) {
+				m = (size_t)b->mlen << 1;
+			} else if (b->mlen <= INT_MAX - 1024) {
+				m = (size_t)b->mlen + 1024;
+			} else if (b->mlen <= INT_MAX - 16) {
+				m = (size_t)b->mlen + 16;
+			} else if (b->mlen <= INT_MAX - 1) {
+				m = (size_t)b->mlen + 1;
 			} else {
-				t = bfromcstralloc (m, "");
+				bSecureDestroy(b); /* Cleanse partial buffer */
+				return NULL;
 			}
+			t = bfromcstrrangealloc(b->mlen + 1, (int)m, "");
 			if (t) {
 				memcpy(t->data, b->data, i);
 			}
@@ -1015,9 +1075,10 @@ bSecureInput(int maxlen, int termchar, bNgetc vgetchar, void *vgcCtx)
 				return b;
 			}
 		}
-		b->data[i] = (unsigned char)c;
+		b->data[i++] = (unsigned char)c;
+		done = (termchar == c);
 	}
-	b->slen = i;
+	b->slen = (int)i;
 	b->data[i] = (unsigned char)'\0';
 	return b;
 }
