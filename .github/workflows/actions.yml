@@ -24,7 +24,7 @@ jobs:
         --enable-chilliscript --enable-chilliradsec --with-avl --enable-layer3 \
         --enable-eapol --enable-uamdomainfile --enable-redirdnsreq --enable-modules \
         --enable-multiroute --enable-extadmvsa --with-openssl --with-poll \
-        --enable-json --enable-libjson --prefix=/var/tmp/coova
+        --enable-json --prefix=/var/tmp/coova
     - name: Build
       run: make
     - name: Install
