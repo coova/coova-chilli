@@ -25,7 +25,7 @@ config.status: configure
 	--enable-chilliradsec --enable-layer3 --enable-eapol \
 	--enable-uamdomainfile --enable-redirdnsreq --enable-modules \
 	--enable-multiroute --enable-extadmvsa --with-openssl --with-poll \
-	--enable-json --enable-libjson
+	--enable-json
 
 configure:
 	@test -f configure || ./bootstrap
