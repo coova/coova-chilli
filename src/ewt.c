@@ -18,7 +18,7 @@
  */
 
 #include "chilli.h"
-#include "json.h"
+#include <json-c/json.h>
 
 int http_parse_input(char *src, int len, int is_cookie) {
   bstring name = bfromcstr("");
