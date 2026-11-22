@@ -717,6 +717,10 @@ AM_CONDITIONAL(WITH_MINICONFIG, [test x"$enable_miniconfig" = xyes])
 AC_ARG_ENABLE(ewtapi, [AS_HELP_STRING([--enable-ewtapi],[Enable support for CoovaEWT API])], 
   enable_ewtapi=$enableval, enable_ewtapi=no)
 
+if test x"$enable_ewtapi" = xyes && test x"$enable_json" = xno; then
+   AC_MSG_ERROR([CoovaEWT API support requires JSON support with --enable-json])
+fi
+
 if test x"$enable_ewtapi" = xyes; then
    AC_DEFINE(ENABLE_EWTAPI,1,[Define to enable CoovaEWT API])
 fi
