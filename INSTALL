@@ -5,7 +5,7 @@ utilities and another tool (gengetopt) which is invoked during the build process
 
 These tools generate or link various files into place which results in the
 ability to invoke the configure script with the necessary options for desired
-featurs.
+features.
 The result of running the configure script is a Makefile which will actually
 compile the necessary parts of the codebase with the options specified at the
 configure stage. During this process, gengetopt will be invoked.
@@ -35,7 +35,7 @@ Mini portal is a simple site which presents a login page to the user.
 You should now have a copy of coova-chilli installed in a temporary location.
 Depending on the system configuration, this location (/tmp) may be cleared on
 reboot, but for the sake of testing this is sufficient. A more suitable location
-should be used when looking to perform an actual install. Consult documentaion
+should be used when looking to perform an actual install. Consult documentation
 of operating systems regarding paths or pick a prefix of choice (somewhere not
 temporary scratch space).
 

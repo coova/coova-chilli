@@ -475,7 +475,7 @@ AM_CONDITIONAL(WITH_PATRICIA, [test x"$with_patricia" != xno])
 
 
 AC_ARG_ENABLE([authedallowed],
- [AS_HELP_STRING([--enable-authedallowed], [enable Authurized Garden])],[],[with_authedallowed=no])
+ [AS_HELP_STRING([--enable-authedallowed], [enable Authorized Garden])],[],[with_authedallowed=no])
 
 AS_IF([test x"$with_authedallowed" != xno],
   [AC_DEFINE([ENABLE_AUTHEDALLOWED], [1], [Define to include Authenticated Garden])])

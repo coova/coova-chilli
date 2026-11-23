@@ -27,7 +27,7 @@ configuration file, and then write out the configuration into a binary
 form ready for a running chilli server to pick up and use (without
 delay).
 
-This utilitiy is executed by 
+This utility is executed by 
 .B chilli
 from a forked process to off-line the processing of the configuration, including
 waiting for any DNS resolution, etc. When 
