@@ -1,4 +1,4 @@
-/* Copyright 2002-2010 Paul Hsieh
+/* Copyright 2002-2015 Paul Hsieh
  * This file is part of Bstrlib.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -57,6 +57,10 @@
 	__attribute__ ((__format__ (__printf__, format, argument)))
 #define BSTR_UNUSED \
 	__attribute__ ((__unused__))
+#elif defined(_MSC_VER)
+#define BSTR_PRINTF(format, argument)
+#define BSTR_UNUSED \
+	__pragma(warning(suppress:4100))
 #else
 #define BSTR_PRINTF(format, argument)
 #define BSTR_UNUSED
@@ -64,6 +68,10 @@
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifdef HAVE_CONFIG_H
+#include <config.h>
 #endif
 
 #include <stdarg.h>
@@ -90,7 +98,7 @@ struct tagbstring {
  * Take a standard C library style '\0' terminated char buffer and generate
  * a bstring with the same contents as the char buffer.
  *
- * If an error occurs #NULL is returned.
+ * If an error occurs NULL is returned.
  *
  * \code
  * bstring b = bfromcstr("Hello");
@@ -127,8 +135,20 @@ BSTR_PUBLIC bstring
 bfromcstralloc(int mlen, const char *str);
 
 /**
+ * Create a bstring which contains the contents of the '\\0' terminated
+ * char* buffer str. The memory buffer backing the string is at least
+ * minl characters in length, but an attempt is made to allocate up to
+ * maxl characters.
+ */
+BSTR_PUBLIC bstring
+bfromcstrrangealloc(int minl, int maxl, const char *str);
+
+/**
  * Create a bstring whose contents are described by the contiguous buffer
  * pointing to by blk with a length of len bytes.
+ *
+ * If len is zero, blk may be NULL. Otherwise, blk must point to at least len
+ * bytes.
  *
  * Note that this function creates a copy of the data in blk, rather than
  * simply referencing it. Compare with the blk2tbstr macro. If an error
@@ -351,6 +371,18 @@ BSTR_PUBLIC int
 binsert(bstring s1, int pos, const bstring s2, unsigned char fill);
 
 /**
+ * Inserts the block of characters at blk with length len into b at position
+ * pos.
+ *
+ * If the position pos is past the end of b, then the character "fill" is
+ * appended as necessary to make up the gap between the end of b and pos.
+ * Unlike bsetstr, binsertblk does not allow blk to be NULL.
+ */
+BSTR_PUBLIC int
+binsertblk(bstring b, int pos, const void *blk, int len,
+            unsigned char fill);
+
+/**
  * Inserts the character fill repeatedly into s1 at position pos for a
  * length len.
  *
@@ -443,6 +475,18 @@ BSTR_PUBLIC int
 biseqcaseless(const bstring b0, const bstring b1);
 
 /**
+ * Compare content of b and the array of bytes in blk for length len for
+ * equality without differentiating between character case.
+ *
+ * If the content differs other than in case, 0 is returned, if, ignoring
+ * case, the content is the same, 1 is returned, if there is an error, -1 is
+ * returned. If the length of the strings are different, this function is
+ * O(1). '\0' characters are not treated in any special way.
+ */
+BSTR_PUBLIC int
+biseqcaselessblk(const bstring b, const void *blk, int len);
+
+/**
  * Compare beginning of bstring b0 with a block of memory of length len
  * without differentiating between case for equality.
  *
@@ -466,6 +510,17 @@ bisstemeqcaselessblk(const bstring b0, const void *blk, int len);
  */
 BSTR_PUBLIC int
 biseq(const bstring b0, const bstring b1);
+
+/**
+ * Compare the bstring b with the character block blk of length len.
+ *
+ * If the content differs, 0 is returned, if the content is the same, 1 is
+ * returned, if there is an error, -1 is returned. If the length of the
+ * strings are different, this function is O(1). '\0' characters are not
+ * treated in any special way.
+ */
+BSTR_PUBLIC int
+biseqblk(const bstring b, const void *blk, int len);
 
 /**
  * Compare beginning of bstring b0 with a block of memory of length len for
@@ -827,6 +882,16 @@ BSTR_PUBLIC bstring
 bjoin(const struct bstrList *bl, const bstring sep);
 
 /**
+ * Join the entries of a bstrList into one bstring by sequentially
+ * concatenating them with the content from blk for length len in between.
+ *
+ * If there is an error NULL is returned, otherwise a bstring with the
+ * correct result is returned.
+ */
+BSTR_PUBLIC bstring
+bjoinblk(const struct bstrList *bl, const void *blk, int len);
+
+/**
  * Iterate the set of disjoint sequential substrings over str starting at
  * position pos divided by the character splitChar.
  *
@@ -1150,7 +1215,11 @@ typedef size_t (*bNread)(void *buff, size_t elsize, size_t nelem, void *parm);
  * character. This is consistent with the semantics of fgets.)
  */
 BSTR_PUBLIC bstring
+#if defined(HAVE_BGETS)
+bgetstream(bNgetc getcPtr, void *parm, char terminator);
+#else
 bgets(bNgetc getcPtr, void *parm, char terminator);
+#endif
 
 /**
  * Read an entire stream into a bstring, verbatum.
@@ -1526,6 +1595,18 @@ bseof(const struct bStream *s);
 #define bsStaticBlkParms(q) \
 	((void *)("" q "")), ((int)sizeof(q) -1)
 
+/* Static convenience macros for blk functions with string literals */
+
+#define bcatStatic(b, s) ((bcatblk)((b), bsStaticBlkParms(s)))
+#define bfromStatic(s) ((blk2bstr)(bsStaticBlkParms(s)))
+#define bassignStatic(b, s) ((bassignblk)((b), bsStaticBlkParms(s)))
+#define binsertStatic(b, p, s, f) ((binsertblk)((b), (p), bsStaticBlkParms(s), (f)))
+#define bjoinStatic(b, s) ((bjoinblk)((b), bsStaticBlkParms(s)))
+#define biseqStatic(b, s) ((biseqblk)((b), bsStaticBlkParms(s)))
+#define bisstemeqStatic(b, s) ((bisstemeqblk)((b), bsStaticBlkParms(s)))
+#define biseqcaselessStatic(b, s) ((biseqcaselessblk)((b), bsStaticBlkParms(s)))
+#define bisstemeqcaselessStatic(b, s) ((bisstemeqcaselessblk)((b), bsStaticBlkParms(s)))
+
 /* Reference building macros */
 
 /**
@@ -1619,7 +1700,7 @@ do { \
 		(t).slen = 0; \
 	} \
 	(t).mlen = -__LINE__; \
-} while (0);
+} while (0)
 
 /**
  * Fill in the tagbstring t with the data buffer s with length len after it
@@ -1649,7 +1730,7 @@ do { \
 	(t).data = bstrtmp_s + bstrtmp_idx; \
 	(t).slen = bstrtmp_len - bstrtmp_idx; \
 	(t).mlen = -__LINE__; \
-} while (0);
+} while (0)
 
 /**
  * Fill in the tagbstring t with the data buffer s with length len after it
@@ -1679,7 +1760,7 @@ do { \
 	(t).data = bstrtmp_s; \
 	(t).slen = bstrtmp_len + 1; \
 	(t).mlen = -__LINE__; \
-} while (0);
+} while (0)
 
 /**
  * Fill in the tagbstring t with the data buffer s with length len after it
@@ -1714,7 +1795,7 @@ do { \
 	(t).data = bstrtmp_s + bstrtmp_idx; \
 	(t).slen = bstrtmp_len + 1 - bstrtmp_idx; \
 	(t).mlen = -__LINE__; \
-} while (0);
+} while (0)
 
 /* Write protection macros */
 
@@ -1731,7 +1812,7 @@ do { \
 	if ((t).mlen >=  0) { \
 		(t).mlen = -1; \
 	} \
-} while (0);
+} while (0)
 
 /**
  * Allow bstring to be written to via the bstrlib API.
@@ -1750,7 +1831,7 @@ do { \
 	if ((t).mlen == -1) { \
 		(t).mlen = (t).slen + ((t).slen == 0); \
 	} \
-} while (0);
+} while (0)
 
 /**
  * Returns 1 if the bstring is write protected, otherwise 0 is returned.

@@ -1,4 +1,4 @@
-/* Copyright 2002-2010 Paul Hsieh
+/* Copyright 2002-2015 Paul Hsieh
  * This file is part of Bstrlib.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,6 +42,10 @@
 #ifndef BSTRAUX_H
 #define BSTRAUX_H
 
+#ifdef HAVE_CONFIG_H
+#include <config.h>
+#endif
+
 #include <time.h>
 #include <bstrlib.h>
 
@@ -62,6 +66,7 @@ do { \
 } while (0)
 
 /* Backward compatibilty with previous versions of Bstrlib */
+#if !defined(BSTRLIB_REDUCE_NAMESPACE_POLLUTION)
 #define bAssign(a, b) \
 	((bassign)((a), (b)))
 
@@ -81,7 +86,7 @@ do { \
 	((bcatblk)((b), (s), (len)))
 
 #define bCatStatic(b, s) \
-	bCatBlk((b), ("" s ""), sizeof (s) - 1)
+	bcatStatic(b, s)
 
 #define bTrunc(b, n) \
 	((btrunc)((b), (n)))
@@ -106,6 +111,7 @@ do { \
 
 #define bUuDecode(b) \
 	(bUuDecodeEx((b), NULL))
+#endif
 
 /* Unusual functions */
 
@@ -303,7 +309,7 @@ bUuEncode(const bstring src);
  *
  * No header or tail info is appended.
  *
- * See: http://www.yenc.org/whatis.htm, http://www.yenc.org/yenc-draft.1.3.txt
+ * See: https://yence.sourceforge.net/docs/protocol/version1_3_draft.html
  */
 BSTR_PUBLIC bstring
 bYEncode(const bstring src);
@@ -311,10 +317,20 @@ bYEncode(const bstring src);
 /**
  * Performs a YDecode of a block of data.
  *
- * See: http://www.yenc.org/whatis.htm, http://www.yenc.org/yenc-draft.1.3.txt
+ * See: https://yence.sourceforge.net/docs/protocol/version1_3_draft.html
  */
 BSTR_PUBLIC bstring
 bYDecode(const bstring src);
+
+/**
+ * Change the string into a version that is quotable in SGML (HTML, XML).
+ * Replaces &, ", <, > with their SGML entity equivalents.
+ *
+ * @param b the bstring to encode in-place
+ * @return BSTR_OK on success, BSTR_ERR on error
+ */
+BSTR_PUBLIC int
+bSGMLEncode(bstring b);
 
 /* Writable stream */
 typedef int
