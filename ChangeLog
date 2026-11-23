@@ -1,3 +1,8 @@
+== ChangeLog (CoovaChilli-v1.10) ==
+* redir: only take the UAM challenge from the daemon RPC reply (#617)
+* redir: stop chilli_redir processes spinning at 100% CPU for 120s (#618)
+* Some spelling fixes (#621)
+
 == ChangeLog (CoovaChilli-v1.9) ==
 * xt_coova: kzalloc: use struct_size (#608)
 * Fix UAM challenge race by issuing challenges in the main daemon (#609)
