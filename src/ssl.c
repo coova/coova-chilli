@@ -42,9 +42,6 @@ openssl_env * initssl() {
       SSL_library_init();
       OpenSSL_add_all_algorithms();
 #endif
-#else
-      matrixSslOpen();
-      syslog(LOG_DEBUG, "%s(%d): MatrixSslOpen()", __FUNCTION__, __LINE__);
 #endif
     }
     openssl_env_init(sslenv_svr = calloc(1, sizeof(openssl_env)), 0, 1);
@@ -64,9 +61,6 @@ openssl_env * initssl_cli() {
       SSL_library_init();
       OpenSSL_add_all_algorithms();
 #endif
-#else
-      matrixSslOpen();
-      syslog(LOG_DEBUG, "%s(%d): MatrixSslOpen()", __FUNCTION__, __LINE__);
 #endif
     }
     openssl_env_init(sslenv_cli = calloc(1, sizeof(openssl_env)), 0, 0);
@@ -207,32 +201,8 @@ openssl_env_init(openssl_env *env, char *engine, int server) {
     env->ready = 1;
     return err;
   }
-#else
-  syslog(LOG_DEBUG, "%s(%d): MatrixSSL Setup:", __FUNCTION__, __LINE__);
-  syslog(LOG_DEBUG, "%s(%d): SSL cert: %s", __FUNCTION__, __LINE__, _options.sslcertfile);
-  syslog(LOG_DEBUG, "%s(%d): SSL key: %s", __FUNCTION__, __LINE__, _options.sslkeyfile);
-  syslog(LOG_DEBUG, "%s(%d): SSL pass: %s", __FUNCTION__, __LINE__, _options.sslkeypass?_options.sslkeypass:"null");
-  syslog(LOG_DEBUG, "%s(%d): SSL ca: %s", __FUNCTION__, __LINE__, _options.sslcafile?_options.sslcafile:"null");
-  if ( matrixSslReadKeys( &env->keys,
-			  _options.sslcertfile,
-			  _options.sslkeyfile,
-			  _options.sslkeypass,
-			  _options.sslcafile ) < 0 ) {
-    syslog(LOG_ERR, "%s: could not load ssl certificate or and/or key file", strerror(errno));
-    return 0;
-  }
-
-  env->ready = 1;
-  return 1;
 #endif
 }
-
-#ifdef HAVE_MATRIXSSL
-static int certValidator(sslCertInfo_t *t, void *arg) {
-  syslog(LOG_DEBUG, "%s(%d): MatrixSSL: certValidator()", __FUNCTION__, __LINE__);
-  return 1;
-}
-#endif
 
 openssl_con *
 openssl_connect_fd(openssl_env *env, int fd, int timeout) {
@@ -242,8 +212,6 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
   c->env = env;
 #ifdef HAVE_OPENSSL
   c->con = (SSL *)SSL_new(env->ctx);
-#elif  HAVE_MATRIXSSL
-  c->con = (SSL *)SSL_new(env->keys, 0);
 #endif
   c->sock = fd;
   c->timeout = timeout;
@@ -269,12 +237,6 @@ openssl_connect_fd(openssl_env *env, int fd, int timeout) {
       openssl_free(c);
       return 0;
     }
-  }
-#elif  HAVE_MATRIXSSL
-  if (!SSL_connect(c->con, certValidator, c)) {
-    syslog(LOG_ERR, "%s: openssl_connect_fd", strerror(errno));
-    openssl_free(c);
-    return 0;
   }
 #endif
 
@@ -361,20 +323,6 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 #endif
     }
   }
-#elif  HAVE_MATRIXSSL
-
-  if (!c || !c->con) return -1;
-
-  if (!SSL_is_init_finished(c->con)) {
-
-    if (SSL_accept2(c->con) < 0) {
-      return -1;
-    }
-
-    if (!SSL_is_init_finished(c->con))
-      return 1;
-  }
-
 #endif
 
   return 0;
@@ -396,8 +344,6 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
   c->env = env;
 #ifdef HAVE_OPENSSL
   c->con = (SSL *)SSL_new(env->ctx);
-#elif  HAVE_MATRIXSSL
-  c->con = (SSL *)SSL_new(env->keys, SSL_FLAGS_SERVER);
 #endif
   c->sock = fd;
   c->timeout = timeout;
@@ -423,22 +369,6 @@ openssl_accept_fd(openssl_env *env, int fd, int timeout, struct redir_conn_t *co
     openssl_free(c);
     return 0;
   }
-
-#elif  HAVE_MATRIXSSL
-
-  /* ndelay_off(c->sock); */
-
-  matrixSslSetCertValidator(c->con->ssl, certValidator, c->con->keys);
-
-  if ((rc = SSL_accept2(c->con)) < 0) {
-    syslog(LOG_ERR, "%s: SSL accept failure %s", strerror(errno), c->con->status);
-    openssl_free(c);
-    return 0;
-  }
-
-  SSL_is_init_finished(c->con);
-
-  /* ndelay_on(c->sock);*/
 
 #else
 #error NO SSL SUPPORT

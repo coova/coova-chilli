@@ -228,9 +228,6 @@ static const char *compile_options = "Compiled with "
 #ifdef ENABLE_WPAD
     "ENABLE_WPAD "
 #endif
-#ifdef HAVE_MATRIXSSL
-    "HAVE_MATRIXSSL "
-#endif
 #ifdef HAVE_NETFILTER_COOVA
     "HAVE_NETFILTER_COOVA "
 #endif

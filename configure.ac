@@ -375,24 +375,6 @@ AS_IF([test x"$with_openssl" != xno],
 
 AM_CONDITIONAL(WITH_OPENSSL, [test x"$with_openssl" != xno])
 
-AC_ARG_WITH([matrixssl],
- [AS_HELP_STRING([--with-matrixssl], [enable support for matrixssl])],[],[with_matrixssl=no])
-
-AS_IF([test x"$with_matrixssl" != xno],
-  [AC_CHECK_LIB([matrixssl], [matrixSslOpen],
-              [AC_SUBST([LIBSSL], ["-lmatrixssl"])
-               AC_DEFINE([HAVE_MATRIXSSL], [1],
-                         [Define if you have matrixssl])
-              ],
-              [AC_MSG_FAILURE(
-                 [--with-matrixssl was given, but test for matrixssl failed])],
-              [-lmatrixssl])])
-
-AS_IF([test x"$with_matrixssl" != xno],
-  [AC_CHECK_HEADERS([matrixSsl.h matrixSsl/matrixSsl.h])])
-
-AM_CONDITIONAL(WITH_MATRIXSSL, [test x"$with_matrixssl" != xno])
-
 AC_ARG_WITH([wolfssl],
  [AS_HELP_STRING([--with-wolfssl], [enable support for wolfssl])],[],[with_wolfssl=no])
 
@@ -411,12 +393,7 @@ AS_IF([test x"$with_wolfssl" != xno],
 
 AM_CONDITIONAL(WITH_WOLFSSL, [test x"$with_wolfssl" != xno])
 
-AM_CONDITIONAL(WITH_SSL, [test x"$with_openssl" != xno || test x"$with_matrixssl" != xno || test x"$with_wolfssl" != xno])
-
-AC_ARG_WITH([matrixssl-cli],
- [AS_HELP_STRING([--with-matrixssl-cli], [enable matrixssl client use])],[],[with_matrixssl_cli=no])
-
-AM_CONDITIONAL(WITH_MATRIXSSL_CLI, [test x"$with_matrixssl_cli" != xno])
+AM_CONDITIONAL(WITH_SSL, [test x"$with_openssl" != xno || test x"$with_wolfssl" != xno])
 
 AC_ARG_WITH([nfqueue],
  [AS_HELP_STRING([--with-nfqueue], [enable support for netfilter_queue])],[],[with_nfqueue=no])
@@ -837,7 +814,6 @@ AC_CONFIG_FILES([Makefile
 		 json/Makefile
 		 miniportal/Makefile
 		 src/Makefile
-		 src/mssl/Makefile
 		 www/Makefile])
 
 AC_OUTPUT

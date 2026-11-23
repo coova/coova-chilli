@@ -23,14 +23,6 @@
 
 #ifdef HAVE_SSL
 
-#ifdef HAVE_MATRIXSSL
-#include "mssl.h"
-typedef struct {
-  sslKeys_t * keys;
-  char ready;
-} openssl_env;
-#endif
-
 #if defined(HAVE_OPENSSL) || defined(HAVE_WOLFSSL)
 
 #ifdef HAVE_OPENSSL
