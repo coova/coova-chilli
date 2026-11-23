@@ -84,15 +84,6 @@ libchilli_la_LIBADD += ${LIBSSL}
 LDADD += ${LIBSSL}
 endif
 
-if WITH_MATRIXSSL
-libchilli_la_SOURCES += mssl.c mssl.h
-libchilli_la_LIBADD += -lmatrixssl
-LDADD += -lmatrixssl
-if WITH_MATRIXSSL_CLI
-SUBDIRS += mssl
-endif
-endif
-
 if WITH_AVL
 libchilli_la_SOURCES += avl/avl.c avl/avl.h avl/list.h \
 avl/common_types.h avl/container_of.h
