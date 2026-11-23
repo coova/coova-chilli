@@ -453,7 +453,7 @@ included into the chilli configuration file).
 .TP
 .B swapoctets
 Swap the meaning of "input octets" and "output octets" as it related to
-RADIUS attribtues.
+RADIUS attributes.
 
 .TP
 .B openidauth
@@ -1017,7 +1017,7 @@ provides functions for writing
 .B main.conf, hs.conf, 
 and
 .B local.conf 
-based on local and possibily centralized settings. 
+based on local and possibly centralized settings. 
 .RE
 
 .RE

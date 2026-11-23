@@ -51,7 +51,7 @@ but for one MAC address.
 
 .TP
 .BI authorize " <parameters>"
-To explicity authorize a client, or change the session parameters of an already
+To explicitly authorize a client, or change the session parameters of an already
 authorized client, by setting a series of session parameters. 
 
 .TP

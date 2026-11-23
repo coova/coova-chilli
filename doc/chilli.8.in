@@ -123,7 +123,7 @@ Run in debug mode (default = off)
 .BI --conf " file"
 Configuration file to use instead of the default below. See 
 .BR chilli.conf(5)
-for more inforamtion.
+for more information.
 
 .TP
 .BI --pidfile " file"
@@ -177,7 +177,7 @@ provides functions for writing
 .B main.conf, hs.conf, 
 and
 .B local.conf 
-based on local and possibily centralized. See
+based on local and possibly centralized settings. See
 .BR chilli.conf(5)
 .RE
 
@@ -291,7 +291,7 @@ for proper operation of the
 server. Linux kernels later than 2.4.7 already include the driver,
 but typically needs to be loaded manually with
 .B modprobe tun
-or automaticly by adding
+or automatically by adding
 .B alias char-major-10-200 tun
 to the
 .B /etc/modules.conf
