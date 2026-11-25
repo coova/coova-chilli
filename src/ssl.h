@@ -59,10 +59,7 @@
                               SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
 
 typedef struct {
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
-  const
-#endif
-  SSL_METHOD *meth;
+  const SSL_METHOD *meth;
   SSL_CTX *ctx;
 #ifdef HAVE_OPENSSL
   ENGINE *engine;

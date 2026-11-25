@@ -34,15 +34,6 @@ openssl_env * initssl() {
   if (sslenv_svr == 0) {
     if (openssl_init == 0) {
       openssl_init = 1;
-#ifdef HAVE_OPENSSL
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-      if (_options.debug) {
-	SSL_load_error_strings();
-      }
-      SSL_library_init();
-      OpenSSL_add_all_algorithms();
-#endif
-#endif
     }
     openssl_env_init(sslenv_svr = calloc(1, sizeof(openssl_env)), 0, 1);
   }
@@ -53,15 +44,6 @@ openssl_env * initssl_cli() {
   if (sslenv_cli == 0) {
     if (openssl_init == 0) {
       openssl_init = 1;
-#ifdef HAVE_OPENSSL
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-      if (_options.debug) {
-	SSL_load_error_strings();
-      }
-      SSL_library_init();
-      OpenSSL_add_all_algorithms();
-#endif
-#endif
     }
     openssl_env_init(sslenv_cli = calloc(1, sizeof(openssl_env)), 0, 0);
   }
@@ -299,10 +281,7 @@ openssl_check_accept(openssl_con *c, struct redir_conn_t *conn) {
 
 	if (_options.debug) {
 	  EVP_PKEY *pktmp = X509_get_pubkey(peer_cert);
-#if OPENSSL_VERSION_NUMBER >= 0x10000000L
- 	  const
-#endif
-              SSL_CIPHER *cipher;
+          const SSL_CIPHER *cipher;
 	  char b[512];
 	  syslog(LOG_DEBUG, "%s(%d): Debugging: SSL Information:\n", __FUNCTION__, __LINE__);
 	  cipher = SSL_get_current_cipher(c->con);
