@@ -1394,6 +1394,15 @@ int main(int argc, char **argv) {
   _options.usestatusfile = STRDUP(args_info.usestatusfile_arg);
   _options.uamaliasname = STRDUP(args_info.uamaliasname_arg);
   _options.uamhostname = STRDUP(args_info.uamhostname_arg);
+
+  if (args_info.alloworigin_given)
+#ifdef ENABLE_JSON
+    _options.alloworigin = STRDUP(args_info.alloworigin_arg);
+#endif
+#if(_debug_ && !defined(ENABLE_JSON))
+    syslog(LOG_WARNING, "JSON not implemented. build with --enable-json");
+#endif
+
   _options.binconfig = STRDUP(args_info.bin_arg);
   _options.ethers = STRDUP(args_info.ethers_arg);
 #ifdef ENABLE_IEEE8021Q
