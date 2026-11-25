@@ -51,12 +51,6 @@ if WITH_PATRICIA
 libchilli_la_SOURCES += patricia.c patricia.h
 endif
 
-if WITH_JSONLIB
-AM_CFLAGS += -I$(top_builddir)/json
-libchilli_la_LIBADD += $(top_builddir)/json/libjson.la 
-LDADD += $(top_builddir)/json/libjson.la 
-endif
-
 if WITH_EWTAPI
 libchilli_la_SOURCES += ewt.c ewt.h
 AM_CFLAGS += -std=gnu99 

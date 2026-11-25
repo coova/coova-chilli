@@ -106,8 +106,6 @@ AC_CHECK_HEADERS([resolv.h net/route.h net/if.h net/if_arp.h net/if_tun.h net/et
 #endif
 ])
 
-AC_CHECK_HEADER(inttypes.h,[AC_DEFINE([JSON_C_HAVE_INTTYPES_H],[1],[Public define for json_inttypes.h])])
-AC_CONFIG_HEADER(json/json_config.h)
 AC_CHECK_DECLS([INFINITY], [], [], [[#include <math.h>]])
 AC_CHECK_DECLS([nan], [], [], [[#include <math.h>]])
 AC_CHECK_DECLS([isnan], [], [], [[#include <math.h>]])
@@ -696,15 +694,15 @@ AM_CONDITIONAL(WITH_MINICONFIG, [test x"$enable_miniconfig" = xyes])
 AC_ARG_ENABLE(ewtapi, [AS_HELP_STRING([--enable-ewtapi],[Enable support for CoovaEWT API])], 
   enable_ewtapi=$enableval, enable_ewtapi=no)
 
+if test x"$enable_ewtapi" = xyes && test x"$enable_json" = xno; then
+   AC_MSG_ERROR([CoovaEWT API support requires JSON support with --enable-json])
+fi
+
 if test x"$enable_ewtapi" = xyes; then
    AC_DEFINE(ENABLE_EWTAPI,1,[Define to enable CoovaEWT API])
 fi
 
-AC_ARG_ENABLE(libjson, [AS_HELP_STRING([--enable-libjson],[Enable support for libjson])], 
-  enable_libjson=$enableval, enable_libjson=no)
-
 AM_CONDITIONAL(WITH_EWTAPI, [test x"$enable_ewtapi" = xyes])
-AM_CONDITIONAL(WITH_JSONLIB, [test x"$enable_ewtapi" = xyes || test x"$enable_libjson" = xyes])
 
 AC_ARG_ENABLE(ssdp, [AS_HELP_STRING([--enable-ssdp],[Enable support for Simple Service Discovery Protocol])], 
   enable_ssdp=$enableval, enable_ssdp=no)
@@ -811,7 +809,6 @@ AC_CONFIG_FILES([Makefile
 		 bstring/Makefile
 		 conf/Makefile
 		 doc/Makefile
-		 json/Makefile
 		 miniportal/Makefile
 		 src/Makefile
 		 www/Makefile])

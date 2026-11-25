@@ -34,7 +34,7 @@ sh bootstrap
 	--enable-chilliproxy \
         --enable-chilliscript \
 	--with-poll \
-    --enable-libjson \
+	--with-json \
 %if %{!?_without_ssl:1}0
 	--with-openssl \
 	--enable-chilliradsec \

@@ -26,7 +26,9 @@
 #ifdef ENABLE_EWTAPI
 #include "ewt.h"
 #endif
-#include "json/json.h"
+#ifdef ENABLE_JSON
+#include <json-c/json.h>
+#endif
 
 static int optionsdebug = 0; /* TODO: Should be changed to instance */
 
